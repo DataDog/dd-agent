@@ -191,9 +191,9 @@ class AgentStatus(object):
         return {
             'pid': self.created_by_pid,
             'status_date': "%s (%ss ago)" % (
-                                self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                self.created_seconds_ago()
-                            ),
+                self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                self.created_seconds_ago()
+            ),
         }
 
     @classmethod
@@ -376,7 +376,7 @@ class CollectorStatus(AgentStatus):
                 if s.has_error():
                     c = 'red'
                 line = "    - instance #%s [%s]" % (
-                         s.instance_id, style(s.status, c))
+                    s.instance_id, style(s.status, c))
                 if s.has_error():
                     line += u": %s" % s.error
                 if s.metric_count is not None:
@@ -521,7 +521,7 @@ class CollectorStatus(AgentStatus):
                         if s.has_error():
                             c = 'red'
                         line = "    - instance #%s [%s]" % (
-                                 s.instance_id, style(s.status, c))
+                            s.instance_id, style(s.status, c))
                         if s.has_error():
                             line += u": %s" % s.error
                         if s.metric_count is not None:

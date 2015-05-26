@@ -44,13 +44,13 @@ class Win32EventLog(AgentCheck):
         # straight WQL query against the event log
         last_ts = self.last_ts[instance_key]
         q = EventLogQuery(
-                ltype=instance.get('type'),
-                user=instance.get('user'),
-                source_name=instance.get('source_name'),
-                log_file=instance.get('log_file'),
-                event_id=instance.get('event_id'),
-                message_filters=instance.get('message_filters', []),
-                start_ts=last_ts
+            ltype=instance.get('type'),
+            user=instance.get('user'),
+            source_name=instance.get('source_name'),
+            log_file=instance.get('log_file'),
+            event_id=instance.get('event_id'),
+            message_filters=instance.get('message_filters', []),
+            start_ts=last_ts
         )
         wql = q.to_wql()
         self.log.debug("Querying for Event Log events: %s" % wql)

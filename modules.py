@@ -31,9 +31,9 @@ def load_qualified_module(full_module_name, path=None):
             done_pieces.append(remaining_pieces.pop(0))
             curr_module_name = '.'.join(done_pieces)
             (file_obj, filename, description) = imp.find_module(
-                    done_pieces[-1], path)
+                done_pieces[-1], path)
             package_module = imp.load_module(
-                    curr_module_name, file_obj, filename, description)
+                curr_module_name, file_obj, filename, description)
             path = getattr(package_module, '__path__', None) or [filename]
         finally:
             if file_obj:

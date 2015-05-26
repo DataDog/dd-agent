@@ -358,9 +358,9 @@ class Docker(AgentCheck):
         result = self._get_json(
             "%s/events" % instance["url"],
             params={
-                    "until": now,
-                    "since": self._last_event_collection_ts[instance["url"]] or now - 60,
-                   }, multi=True)
+                "until": now,
+                "since": self._last_event_collection_ts[instance["url"]] or now - 60,
+            }, multi=True)
         self._last_event_collection_ts[instance["url"]] = now
         if type(result) == dict:
             result = [result]
@@ -415,10 +415,10 @@ class Docker(AgentCheck):
             self._cgroup_filename_pattern = self._find_cgroup_filename_pattern()
 
         return self._cgroup_filename_pattern % (dict(
-                    mountpoint=self._mountpoints[cgroup],
-                    id=container_id,
-                    file=filename,
-                ))
+            mountpoint=self._mountpoints[cgroup],
+            id=container_id,
+            file=filename,
+        ))
 
     def _find_cgroup(self, hierarchy, docker_root):
         """Finds the mount point for a specified cgroup hierarchy. Works with

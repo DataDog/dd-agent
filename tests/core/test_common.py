@@ -99,7 +99,7 @@ class TestCore(unittest.TestCase):
         self.c.save_sample("test-metric", 1.0, 0.0)  # value, ts
         self.c.save_sample("test-counter", 1.0, 1.0) # value, ts
         self.c.save_sample("test-counter", 4.0, 2.0) # value, ts
-        assert "test-metric"  in self.c.get_samples_with_timestamps(expire=False), self.c.get_samples_with_timestamps(expire=False)
+        assert "test-metric" in self.c.get_samples_with_timestamps(expire=False), self.c.get_samples_with_timestamps(expire=False)
         self.assertEquals(self.c.get_samples_with_timestamps(expire=False)["test-metric"], (0.0, 1.0, None, None))
         assert "test-counter" in self.c.get_samples_with_timestamps(expire=False), self.c.get_samples_with_timestamps(expire=False)
         self.assertEquals(self.c.get_samples_with_timestamps(expire=False)["test-counter"], (2.0, 3.0, None, None))
@@ -144,14 +144,14 @@ class TestCore(unittest.TestCase):
         check_run_id = val[0].get('id', None)
         self.assertNotEquals(check_run_id, None)
         self.assertEquals([{
-                    'id': check_run_id,
-                    'check': check_name,
-                    'status': status,
-                    'host_name': host_name,
-                    'tags': tags,
-                    'timestamp': timestamp,
-                    'message': None,
-                }], val)
+            'id': check_run_id,
+            'check': check_name,
+            'status': status,
+            'host_name': host_name,
+            'tags': tags,
+            'timestamp': timestamp,
+            'message': None,
+        }], val)
         self.assertEquals(len(check.service_checks), 0, check.service_checks)
 
     def test_collector(self):

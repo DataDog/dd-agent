@@ -68,7 +68,7 @@ class SnmpCheck(AgentCheck):
         cls.cmd_generator.ignoreNonIncreasingOid = ignore_nonincreasing_oid
         if mibs_path is not None:
             mib_builder = cls.cmd_generator.snmpEngine.msgAndPduDsp.\
-                          mibInstrumController.mibBuilder
+                mibInstrumController.mibBuilder
             mib_sources = mib_builder.getMibSources()\
                             + (builder.DirMibSource(mibs_path), )
             mib_builder.setMibSources(*mib_sources)

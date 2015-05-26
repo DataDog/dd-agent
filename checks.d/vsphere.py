@@ -699,7 +699,7 @@ class VSphereCheck(AgentCheck):
             d = dict(
                 name = "%s.%s" % (counter.groupInfo.key, counter.nameInfo.key),
                 unit = counter.unitInfo.key,
-                instance_tag = 'instance' #FIXME: replace by what we want to tag!
+                instance_tag = 'instance'  # FIXME: replace by what we want to tag!
             )
             new_metadata[counter.key] = d
         self.cache_times[i_key][METRICS_METADATA][LAST] = time.time()
@@ -737,10 +737,10 @@ class VSphereCheck(AgentCheck):
         server_instance = self._get_server_instance(instance)
         perfManager = server_instance.content.perfManager
         query = vim.PerformanceManager.QuerySpec(maxSample=1,
-                                     entity=mor['mor'],
-                                     metricId=mor['metrics'],
-                                     intervalId=20,
-                                     format='normal')
+                                                 entity=mor['mor'],
+                                                 metricId=mor['metrics'],
+                                                 intervalId=20,
+                                                 format='normal')
         results = perfManager.QueryPerf(querySpec=[query])
         if results:
             for result in results[0].value:

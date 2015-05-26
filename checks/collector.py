@@ -256,9 +256,9 @@ class Collector(object):
 
             if has_resource:
                 payload['resources']['meta'] = {
-                            'api_key': self.agentConfig['api_key'],
-                            'host': payload['internalHostname'],
-                        }
+                    'api_key': self.agentConfig['api_key'],
+                    'host': payload['internalHostname'],
+                }
 
         # newer-style checks (not checks.d style)
         for metrics_check in self._metrics_checks:

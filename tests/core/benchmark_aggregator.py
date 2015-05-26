@@ -53,10 +53,10 @@ class TestAggregatorPerf(object):
 
     def create_event_packet(self, title, text):
         p = "_e{{{title_len},{text_len}}}:{title}|{text}".format(
-                title_len=len(title),
-                text_len=len(text),
-                title=title,
-                text=text
+            title_len=len(title),
+            text_len=len(text),
+            title=title,
+            text=text
         )
         return p
 

@@ -265,14 +265,14 @@ class Histogram(Metric):
         ]
 
         metrics = [self.formatter(
-                hostname=self.hostname,
-                device_name=self.device_name,
-                tags=self.tags,
-                metric='%s.%s' % (self.name, suffix),
-                value=value,
-                timestamp=ts,
-                metric_type=metric_type,
-                interval=interval) for suffix, value, metric_type in metric_aggrs
+            hostname=self.hostname,
+            device_name=self.device_name,
+            tags=self.tags,
+            metric='%s.%s' % (self.name, suffix),
+            value=value,
+            timestamp=ts,
+            metric_type=metric_type,
+            interval=interval) for suffix, value, metric_type in metric_aggrs
         ]
 
         for p in self.percentiles:

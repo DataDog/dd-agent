@@ -449,7 +449,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         # optionally send dogstatsd data directly to the agent.
         if config.has_option('Main', 'dogstatsd_use_ddurl'):
-            if  _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl')):
+            if _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl')):
                 agentConfig['dogstatsd_target'] = agentConfig['dd_url']
 
         # Optional config
@@ -559,7 +559,7 @@ def get_system_stats():
 
     platf = sys.platform
 
-    if  Platform.is_linux(platf):
+    if Platform.is_linux(platf):
         grep = subprocess.Popen(['grep', 'model name', '/proc/cpuinfo'], stdout=subprocess.PIPE, close_fds=True)
         wc = subprocess.Popen(['wc', '-l'], stdin=grep.stdout, stdout=subprocess.PIPE, close_fds=True)
         systemStats['cpuCores'] = int(wc.communicate()[0])

@@ -72,8 +72,8 @@ class TransactionManager(object):
 
         self._flush_without_ioloop = False # useful for tests
 
-        self._transactions = [] #List of all non commited transactions
-        self._total_count = 0 # Maintain size/count not to recompute it everytime
+        self._transactions = []  # List of all non commited transactions
+        self._total_count = 0  # Maintain size/count not to recompute it everytime
         self._total_size = 0
         self._flush_count = 0
         self._transactions_received = 0
@@ -195,7 +195,7 @@ class TransactionManager(object):
             else:
                 # Wait a little bit more
                 tornado_ioloop = get_tornado_ioloop()
-                if  tornado_ioloop._running:
+                if tornado_ioloop._running:
                     tornado_ioloop.add_timeout(time.time() + delay,
                         lambda: self.flush_next())
                 elif self._flush_without_ioloop:

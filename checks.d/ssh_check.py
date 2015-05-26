@@ -20,15 +20,15 @@ class CheckSSH(AgentCheck):
     ]
 
     Config = namedtuple('Config', [
-                'host',
-                'port',
-                'username',
-                'password',
-                'private_key_file',
-                'sftp_check',
-                'add_missing_keys',
-            ]
-            )
+        'host',
+        'port',
+        'username',
+        'password',
+        'private_key_file',
+        'sftp_check',
+        'add_missing_keys',
+    ])
+
     def _load_conf(self, instance):
         params = []
         for option, required, default, expected_type in self.OPTIONS:

@@ -7,7 +7,7 @@ try:
     from setuptools import setup, find_packages
 
     # required to build the cython extensions
-    from distutils.extension import Extension #pylint: disable=no-name-in-module
+    from distutils.extension import Extension  # pylint: disable=no-name-in-module
 
 except ImportError:
     from ez_setup import use_setuptools

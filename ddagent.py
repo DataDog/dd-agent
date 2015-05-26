@@ -11,10 +11,12 @@
 '''
 
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging('forwarder')
+from config import initialize_logging
+initialize_logging('forwarder')
 from config import get_logging_config
 
-import os; os.umask(022)
+import os
+os.umask(022)
 
 # Standard imports
 from datetime import timedelta

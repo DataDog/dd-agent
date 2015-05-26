@@ -123,7 +123,7 @@ class Check(object):
 
     def is_gauge(self, metric):
         return self.is_metric(metric) and \
-               not self.is_counter(metric)
+            not self.is_counter(metric)
 
     def get_metric_names(self):
         "Get all metric names"

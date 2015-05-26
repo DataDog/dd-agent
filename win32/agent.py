@@ -177,7 +177,8 @@ class DDAgent(multiprocessing.Process):
         self.is_enabled = True
 
     def run(self):
-        from config import initialize_logging; initialize_logging('windows_collector')
+        from config import initialize_logging
+        initialize_logging('windows_collector')
         log.debug("Windows Service - Starting collector")
         emitters = self.get_emitters()
         systemStats = get_system_stats()
@@ -220,7 +221,8 @@ class DDForwarder(multiprocessing.Process):
         self.hostname = hostname
 
     def run(self):
-        from config import initialize_logging; initialize_logging('windows_forwarder')
+        from config import initialize_logging
+        initialize_logging('windows_forwarder')
         log.debug("Windows Service - Starting forwarder")
         set_win32_cert_path()
         port = self.config.get('listen_port', 17123)
@@ -248,7 +250,8 @@ class DogstatsdProcess(multiprocessing.Process):
         self.hostname = hostname
 
     def run(self):
-        from config import initialize_logging; initialize_logging('windows_dogstatsd')
+        from config import initialize_logging
+        initialize_logging('windows_dogstatsd')
         if self.is_enabled:
             log.debug("Windows Service - Starting Dogstatsd server")
             self.reporter, self.server, _ = dogstatsd.init(use_forwarder=True)

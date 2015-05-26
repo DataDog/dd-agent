@@ -735,7 +735,7 @@ class Cpu(Check):
                         d_lines = [l for l in lines if "SET" not in l]
                         user = [get_value(headers, l.split(), "usr") for l in d_lines]
                         kern = [get_value(headers, l.split(), "sys") for l in d_lines]
-                        wait = [get_value(headers, l.split(), "wt")  for l in d_lines]
+                        wait = [get_value(headers, l.split(), "wt") for l in d_lines]
                         idle = [get_value(headers, l.split(), "idl") for l in d_lines]
                         size = [get_value(headers, l.split(), "sze") for l in d_lines]
                         count = sum(size)

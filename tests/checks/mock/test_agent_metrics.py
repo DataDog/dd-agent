@@ -3,37 +3,37 @@ from tests.checks.common import AgentCheckTest, load_check
 from checks import AGENT_METRICS_CHECK_NAME
 
 MOCK_CONFIG = {
-        'instances': [
-            {'process_metrics': [
-                {
-                    'name': 'get_memory_info',
-                    'type': 'gauge',
-                    'active': 'yes'
-                },
-                {
-                    'name': 'get_cpu_times',
-                    'type': 'rate',
-                    'active': 'yes'
-                },
-            ]}],
-        'init_config': {}
+    'instances': [
+        {'process_metrics': [
+            {
+                'name': 'get_memory_info',
+                'type': 'gauge',
+                'active': 'yes'
+            },
+            {
+                'name': 'get_cpu_times',
+                'type': 'rate',
+                'active': 'yes'
+            },
+        ]}],
+    'init_config': {}
 }
 
 MOCK_CONFIG_2 = {
-        'instances': [
-            {'process_metrics': [
-                {
-                    'name': 'get_memory_info',
-                    'type': 'gauge',
-                    'active': 'yes'
-                },
-                {
-                    'name': 'get_non_existent_stat',
-                    'type': 'gauge',
-                    'active': 'yes'
-                },
-            ]}],
-        'init_config': {}
+    'instances': [
+        {'process_metrics': [
+            {
+                'name': 'get_memory_info',
+                'type': 'gauge',
+                'active': 'yes'
+            },
+            {
+                'name': 'get_non_existent_stat',
+                'type': 'gauge',
+                'active': 'yes'
+            },
+        ]}],
+    'init_config': {}
 }
 
 AGENT_CONFIG_DEV_MODE = {
@@ -115,12 +115,8 @@ class AgentMetricsTestCase(AgentCheckTest):
     def test_no_process_metrics_collected(self):
         ''' Test that additional process metrics are not collected when in default mode '''
         mocks = {
-                '_register_psutil_metrics': mock.MagicMock(side_effect=AssertionError),
-                '_psutil_config_to_stats': mock.MagicMock(side_effect=AssertionError),
+            '_register_psutil_metrics': mock.MagicMock(side_effect=AssertionError),
+            '_psutil_config_to_stats': mock.MagicMock(side_effect=AssertionError),
         }
 
         self.run_check(MOCK_CONFIG, mocks=mocks)
-
-
-if __name__ == '__main__':
-    import unittest; unittest.main()

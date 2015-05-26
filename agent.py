@@ -11,9 +11,11 @@
 '''
 
 # set up logging before importing any other components
-from config import get_version, initialize_logging; initialize_logging('collector')
+from config import get_version, initialize_logging
+initialize_logging('collector')
 
-import os; os.umask(022)
+import os
+os.umask(022)
 
 # Core modules
 import logging
@@ -279,8 +281,13 @@ def main():
         if autorestart:
             # Set-up the supervisor callbacks and fork it.
             logging.info('Running Agent with auto-restart ON')
-            def child_func(): agent.start(foreground=True)
-            def parent_func(): agent.start_event = False
+
+            def child_func():
+                agent.start(foreground=True)
+
+            def parent_func():
+                agent.start_event = False
+
             AgentSupervisor.start(parent_func, child_func)
         else:
             # Run in the standard foreground.
