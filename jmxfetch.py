@@ -9,6 +9,7 @@ import time
 
 # datadog
 from util import get_os, yLoader, yDumper
+from utils.platform import Platform
 from config import get_config, get_confd_path, get_jmx_status_path, get_logging_config, \
     PathNotFound, DEFAULT_CHECK_FREQUENCY
 
@@ -49,6 +50,7 @@ JMX_LIST_COMMANDS = {
     JMX_COLLECT_COMMAND: "Start the collection of metrics based on your current configuration and display them in the console"}
 
 PYTHON_JMX_STATUS_FILE = 'jmx_status_python.yaml'
+PYTHON_JMX_EXIT_FILE = 'jmxfetch_exit'
 
 LINK_TO_DOC = "See http://docs.datadoghq.com/integrations/java/ for more information"
 
@@ -232,6 +234,13 @@ class JMXFetch(object):
                 command,  # Name of the command
             ]
 
+            if Platform.is_windows():
+                # Signal handlers are not supported on Windows:
+                # use a file to trigger JMXFetch exit instead
+                path_to_exit_file = os.path.join(get_jmx_status_path(), PYTHON_JMX_EXIT_FILE)
+                subprocess_args.insert(len(subprocess_args) - 1, '--exit_file_location')
+                subprocess_args.insert(len(subprocess_args) - 1, path_to_exit_file)
+
             subprocess_args.insert(4, '--check')
             for check in jmx_checks:
                 subprocess_args.insert(5, check)
@@ -379,11 +388,30 @@ class JMXFetch(object):
         return is_jmx, java_bin_path, java_options, tools_jar_path
 
     def _get_path_to_jmxfetch(self):
-        if get_os() != 'windows':
+        if not Platform.is_windows():
             return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks",
                                     "libs", JMX_FETCH_JAR_NAME))
         return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "..",
                                 "jmxfetch", JMX_FETCH_JAR_NAME))
+
+    @staticmethod
+    def write_exit_file():
+        """
+        Create a 'special' file, which acts as a trigger to exit JMXFetch.
+        Note: Windows only
+        """
+        open(os.path.join(get_jmx_status_path(), PYTHON_JMX_EXIT_FILE), 'a').close()
+
+    @staticmethod
+    def clean_exit_file():
+        """
+        Remove exit file trigger -may not exist-.
+        Note: Windows only
+        """
+        try:
+            os.remove(os.path.join(get_jmx_status_path(), PYTHON_JMX_EXIT_FILE))
+        except OSError:
+            pass
 
 
 def _clean_status_file():
