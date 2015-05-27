@@ -35,13 +35,13 @@ class Varnish(AgentCheck):
     def _start_element(self, name, attrs):
         self._current_element = name
 
-    def _end_element(self, name):
+    def _end_element(self, name, tags):
         if name == "stat":
             m_name = self.normalize(self._current_metric)
             if self._current_type in ("a", "c"):
-                self.rate(m_name, long(self._current_value))
+                self.rate(m_name, long(self._current_value), tags=tags)
             elif self._current_type in ("i", "g"):
-                self.gauge(m_name, long(self._current_value))
+                self.gauge(m_name, long(self._current_value), tags=tags)
             else:
                 # Unsupported data type, ignore
                 self._reset()
@@ -182,7 +182,8 @@ class Varnish(AgentCheck):
         if use_xml:
             p = xml.parsers.expat.ParserCreate()
             p.StartElementHandler = self._start_element
-            p.EndElementHandler = self._end_element
+            end_handler = lambda name: self._end_element(name, tags)
+            p.EndElementHandler = end_handler
             p.CharacterDataHandler = self._char_data
             self._reset()
             p.Parse(output, True)
