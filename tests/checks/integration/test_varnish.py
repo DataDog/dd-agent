@@ -103,7 +103,7 @@ class VarnishCheckTest(AgentCheckTest):
         config = {
             'instances': [{
                 'varnishstat': varnishstat_path,
-                'tags': 'cluster:webs'
+                'tags': ['cluster:webs']
             }]
         }
 
@@ -117,6 +117,6 @@ class VarnishCheckTest(AgentCheckTest):
             to_check.extend(METRICS_4_X)
 
         for mname in to_check:
-            self.assertMetric(mname, count=1)
+            self.assertMetric(mname, count=1, tags=['cluster:webs', 'varnish_name:default'])
 
         self.coverage_report()
