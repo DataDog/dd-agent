@@ -444,3 +444,24 @@ WARNINGS
 
     def assertNotIn(self, first, second):
         self.assertTrue(first not in second, "{0} in {1}".format(first, second))
+
+    def assertWarning(self, warning, count=None, at_least=1, exact_match=True):
+        log.debug("Looking for warning {0}".format(warning))
+        if count is not None:
+            log.debug(" * should have exactly {0} statuses".format(count))
+        elif at_least is not None:
+            log.debug(" * should have at least {0} statuses".format(count))
+
+        if exact_match:
+            candidates = [w for w in self.warnings if w == warning]
+        else:
+            candidates = [w for w in self.warnings if warning in w]
+
+        try:
+            self._candidates_size_assert(candidates, count=count, at_least=at_least)
+        except AssertionError:
+            log.error("Candidates size assertion for {0}, count: {1}, "
+                "at_least: {2}) failed".format(warning, count, at_least))
+            raise
+
+        log.debug("{0} FOUND !".format(warning))
