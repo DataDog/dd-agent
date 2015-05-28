@@ -15,9 +15,9 @@ from checks import AgentCheck, CheckException
 
 class MesosSlave(AgentCheck):
     GAUGE = AgentCheck.gauge
-    RATE = AgentCheck.rate
+    MONOTONIC_COUNT = AgentCheck.monotonic_count
     SERVICE_CHECK_NAME = "mesos_slave.can_connect"
-    SERVICE_CHECK_NEEDED = True
+    service_check_needed = True
 
     TASK_STATUS = {
         'TASK_STARTING'     : AgentCheck.OK,
@@ -37,10 +37,10 @@ class MesosSlave(AgentCheck):
     }
 
     SLAVE_TASKS_METRICS = {
-        'slave/tasks_failed'                : ('mesos.slave.tasks_failed', GAUGE),
-        'slave/tasks_finished'              : ('mesos.slave.tasks_finished', GAUGE),
-        'slave/tasks_killed'                : ('mesos.slave.tasks_killed', GAUGE),
-        'slave/tasks_lost'                  : ('mesos.slave.tasks_lost', GAUGE),
+        'slave/tasks_failed'                : ('mesos.slave.tasks_failed', MONOTONIC_COUNT),
+        'slave/tasks_finished'              : ('mesos.slave.tasks_finished', MONOTONIC_COUNT),
+        'slave/tasks_killed'                : ('mesos.slave.tasks_killed', MONOTONIC_COUNT),
+        'slave/tasks_lost'                  : ('mesos.slave.tasks_lost', MONOTONIC_COUNT),
         'slave/tasks_running'               : ('mesos.slave.tasks_running', GAUGE),
         'slave/tasks_staging'               : ('mesos.slave.tasks_staging', GAUGE),
         'slave/tasks_starting'              : ('mesos.slave.tasks_starting', GAUGE),
@@ -48,9 +48,9 @@ class MesosSlave(AgentCheck):
 
     SYSTEM_METRICS = {
         'system/cpus_total'                 : ('mesos.stats.system.cpus_total', GAUGE),
-        'system/load_15min'                 : ('mesos.stats.system.load_15min', RATE),
-        'system/load_1min'                  : ('mesos.stats.system.load_1min', RATE),
-        'system/load_5min'                  : ('mesos.stats.system.load_5min', RATE),
+        'system/load_15min'                 : ('mesos.stats.system.load_15min', GAUGE),
+        'system/load_1min'                  : ('mesos.stats.system.load_1min', GAUGE),
+        'system/load_5min'                  : ('mesos.stats.system.load_5min', GAUGE),
         'system/mem_free_bytes'             : ('mesos.stats.system.mem_free_bytes', GAUGE),
         'system/mem_total_bytes'            : ('mesos.stats.system.mem_total_bytes', GAUGE),
         'slave/registered'                  : ('mesos.stats.registered', GAUGE),
@@ -111,9 +111,9 @@ class MesosSlave(AgentCheck):
             msg = str(e)
             status = AgentCheck.CRITICAL
         finally:
-            if self.SERVICE_CHECK_NEEDED:
+            if self.service_check_needed:
                 self.service_check(self.SERVICE_CHECK_NAME, status, tags=tags, message=msg)
-                self.SERVICE_CHECK_NEEDED = False
+                self.service_check_needed = False
             if status is AgentCheck.CRITICAL:
                 raise CheckException("Cannot connect to mesos, please check your configuration.")
 
@@ -183,4 +183,4 @@ class MesosSlave(AgentCheck):
                 for key_name, (metric_name, metric_func) in m.iteritems():
                     metric_func(self, metric_name, stats_metrics[key_name], tags=tags)
 
-        self.SERVICE_CHECK_NEEDED = True
+        self.service_check_needed = True

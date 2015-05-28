@@ -15,9 +15,9 @@ from checks import AgentCheck, CheckException
 
 class MesosMaster(AgentCheck):
     GAUGE = AgentCheck.gauge
-    RATE = AgentCheck.rate
+    MONOTONIC_COUNT = AgentCheck.monotonic_count
     SERVICE_CHECK_NAME = "mesos_master.can_connect"
-    SERVICE_CHECK_NEEDED = True
+    service_check_needed = True
 
 
     FRAMEWORK_METRICS = {
@@ -35,10 +35,10 @@ class MesosMaster(AgentCheck):
     # These metrics are aggregated only on the elected master
     CLUSTER_TASKS_METRICS = {
         'master/tasks_error'                                : ('mesos.cluster.tasks_error', GAUGE),
-        'master/tasks_failed'                               : ('mesos.cluster.tasks_failed', GAUGE),
-        'master/tasks_finished'                             : ('mesos.cluster.tasks_finished', GAUGE),
-        'master/tasks_killed'                               : ('mesos.cluster.tasks_killed', GAUGE),
-        'master/tasks_lost'                                 : ('mesos.cluster.tasks_lost', GAUGE),
+        'master/tasks_failed'                               : ('mesos.cluster.tasks_failed', MONOTONIC_COUNT),
+        'master/tasks_finished'                             : ('mesos.cluster.tasks_finished', MONOTONIC_COUNT),
+        'master/tasks_killed'                               : ('mesos.cluster.tasks_killed', MONOTONIC_COUNT),
+        'master/tasks_lost'                                 : ('mesos.cluster.tasks_lost', MONOTONIC_COUNT),
         'master/tasks_running'                              : ('mesos.cluster.tasks_running', GAUGE),
         'master/tasks_staging'                              : ('mesos.cluster.tasks_staging', GAUGE),
         'master/tasks_starting'                             : ('mesos.cluster.tasks_starting', GAUGE),
@@ -99,9 +99,9 @@ class MesosMaster(AgentCheck):
     # These metrics are aggregated on all nodes in the cluster
     SYSTEM_METRICS = {
         'system/cpus_total'                                 : ('mesos.stats.system.cpus_total', GAUGE),
-        'system/load_15min'                                 : ('mesos.stats.system.load_15min', RATE),
-        'system/load_1min'                                  : ('mesos.stats.system.load_1min', RATE),
-        'system/load_5min'                                  : ('mesos.stats.system.load_5min', RATE),
+        'system/load_15min'                                 : ('mesos.stats.system.load_15min', GAUGE),
+        'system/load_1min'                                  : ('mesos.stats.system.load_1min', GAUGE),
+        'system/load_5min'                                  : ('mesos.stats.system.load_5min', GAUGE),
         'system/mem_free_bytes'                             : ('mesos.stats.system.mem_free_bytes', GAUGE),
         'system/mem_total_bytes'                            : ('mesos.stats.system.mem_total_bytes', GAUGE),
         'master/elected'                                    : ('mesos.stats.elected', GAUGE),
@@ -145,10 +145,10 @@ class MesosMaster(AgentCheck):
             msg = str(e)
             status = AgentCheck.CRITICAL
         finally:
-            if self.SERVICE_CHECK_NEEDED:
+            if self.service_check_needed:
                 self.service_check(self.SERVICE_CHECK_NAME, status, tags=tags,
                                    message=msg)
-                self.SERVICE_CHECK_NEEDED = False
+                self.service_check_needed = False
             if status is AgentCheck.CRITICAL:
                 self.service_check(self.SERVICE_CHECK_NAME, status, tags=tags,
                                    message=msg)
@@ -229,4 +229,4 @@ class MesosMaster(AgentCheck):
                         metric_func(self, metric_name, stats_metrics[key_name], tags=tags)
 
 
-        self.SERVICE_CHECK_NEEDED = True
+        self.service_check_needed = True
