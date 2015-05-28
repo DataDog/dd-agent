@@ -74,9 +74,10 @@ class RiakCs(AgentCheck):
             s3 = S3Connection(**s3_settings)
         except Exception, e:
             self.log.error("Error connecting to {0}: {1}".format(aggregation_key, e))
-            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-              tags=["aggregation_key:{0}".format(aggregation_key)],
-              message=str(e))
+            self.service_check(
+                self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                tags=["aggregation_key:{0}".format(aggregation_key)],
+                message=str(e))
             raise
 
         tags = instance.get("tags", [])
@@ -93,9 +94,10 @@ class RiakCs(AgentCheck):
 
         except Exception, e:
             self.log.error("Error retrieving stats from {0}: {1}".format(aggregation_key, e))
-            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-              tags=["aggregation_key:{0}".format(aggregation_key)],
-              message=str(e))
+            self.service_check(
+                self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                tags=["aggregation_key:{0}".format(aggregation_key)],
+                message=str(e))
             raise
 
         return stats

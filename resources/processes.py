@@ -14,14 +14,14 @@ class Processes(ResourcePlugin):
 
     def describe_snapshot(self):
         return SnapshotDescriptor(1,
-                SnapshotField("user",'str',aggregator=agg.append,temporal_aggregator=agg.append),
-                SnapshotField("pct_cpu",'float'),
-                SnapshotField("pct_mem",'float'),
-                SnapshotField("vsz",'int'),
-                SnapshotField("rss",'int'),
-                SnapshotField("family",'str',aggregator=None,temporal_aggregator=None,
-                    group_on = True, temporal_group_on = True),
-                SnapshotField("ps_count",'int'))
+            SnapshotField("user",'str',aggregator=agg.append,temporal_aggregator=agg.append),
+            SnapshotField("pct_cpu",'float'),
+            SnapshotField("pct_mem",'float'),
+            SnapshotField("vsz",'int'),
+            SnapshotField("rss",'int'),
+            SnapshotField("family",'str',aggregator=None,temporal_aggregator=None,
+                group_on = True, temporal_group_on = True),
+            SnapshotField("ps_count",'int'))
 
     def _get_proc_list(self):
         # Get output from ps

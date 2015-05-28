@@ -113,6 +113,7 @@ class Memory(Check):
 
         return self.get_metrics()
 
+
 class Cpu(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
@@ -182,61 +183,10 @@ class Network(Check):
             name = self.normalize_device_name(iface.name)
             if iface.BytesReceivedPerSec is not None:
                 self.save_sample('system.net.bytes_rcvd', iface.BytesReceivedPerSec,
-                    device_name=name)
+                                 device_name=name)
             if iface.BytesSentPerSec is not None:
                 self.save_sample('system.net.bytes_sent', iface.BytesSentPerSec,
-                    device_name=name)
-        return self.get_metrics()
-
-class Disk(Check):
-    def __init__(self, logger):
-        Check.__init__(self, logger)
-        self.logger = logger
-        self.gauge('system.disk.free')
-        self.gauge('system.disk.total')
-        self.gauge('system.disk.in_use')
-        self.gauge('system.disk.used')
-        self.counter("system.disk.read_time_pct")
-        self.counter("system.disk.write_time_pct")
-
-    def check_disk_usage(self, agentConfig):
-        try:
-            disk = w.Win32_LogicalDisk()
-        except AttributeError:
-            self.logger.info('Missing Win32_LogicalDisk WMI class.'
-                             ' No disk metrics will be returned.')
-            return
-
-        blacklist_re = agentConfig.get('device_blacklist_re', None)
-        for device in disk:
-            name = self.normalize_device_name(device.name)
-            if device.DriveType in (DriveType.CD, DriveType.UNKNOWN) or should_ignore_disk(name, blacklist_re):
-                continue
-            if device.FreeSpace is not None and device.Size is not None:
-                free = float(device.FreeSpace) / B2KB
-                total = float(device.Size) / B2KB
-                used = total - free
-                self.save_sample('system.disk.free', free, device_name=name)
-                self.save_sample('system.disk.total', total, device_name=name)
-                self.save_sample('system.disk.used', used, device_name=name)
-                self.save_sample('system.disk.in_use', (used / total),
-                    device_name=name)
-
-    def check_disk_latency(self, agentConfig):
-        try:
-            disk_io_counters = psutil.disk_io_counters(True)
-            for disk_name, disk in disk_io_counters.iteritems():
-                read_time_pct = disk.read_time * 100.0 / 1000.0 # x100 to have it as a percentage, /1000 as psutil returns the value in ms
-                write_time_pct = disk.write_time * 100.0 / 1000.0 # x100 to have it as a percentage, /1000 as psutil returns the value in ms
-                self.save_sample("system.disk.read_time_pct", read_time_pct, device_name=disk_name)
-                self.save_sample("system.disk.write_time_pct", write_time_pct, device_name=disk_name)
-        except RuntimeError:
-            self.logger.warning("Unable to fetch disk latency metrics")
-
-
-    def check(self, agentConfig):
-        self.check_disk_usage(agentConfig)
-        self.check_disk_latency(agentConfig)
+                                 device_name=name)
         return self.get_metrics()
 
 

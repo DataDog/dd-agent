@@ -1,4 +1,8 @@
 init_config:
+  # the check will refresh the matching pid list every X seconds
+  # except if it detects a change before. You might want to set it
+  # low if you want to alert on process service checks.
+  # pid_cache_duration: 120
 
 instances:
 #  - name: (required) STRING. It will be used to uniquely identify your metrics as they will be tagged with this name

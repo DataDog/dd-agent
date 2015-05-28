@@ -75,7 +75,6 @@ class Collector(object):
 
         # Unix System Checks
         self._unix_system_checks = {
-            'disk': u.Disk(log),
             'io': u.IO(log),
             'load': u.Load(log),
             'memory': u.Memory(log),
@@ -86,7 +85,6 @@ class Collector(object):
 
         # Win32 System `Checks
         self._win32_system_checks = {
-            'disk': w32.Disk(log),
             'io': w32.IO(log),
             'proc': w32.Processes(log),
             'memory': w32.Memory(log),
@@ -181,11 +179,6 @@ class Collector(object):
             # Unix system checks
             sys_checks = self._unix_system_checks
 
-            diskUsage = sys_checks['disk'].check(self.agentConfig)
-            if diskUsage and len(diskUsage) == 2:
-                payload["diskUsage"] = diskUsage[0]
-                payload["inodes"] = diskUsage[1]
-
             load = sys_checks['load'].check(self.agentConfig)
             payload.update(load)
 
@@ -255,7 +248,7 @@ class Collector(object):
                 if snaps:
                     has_resource = True
                     res_value = {'snaps': snaps,
-                                 'format_version': resources_check.get_format_version() }
+                                 'format_version': resources_check.get_format_version()}
                     res_format = resources_check.describe_format_if_needed()
                     if res_format is not None:
                         res_value['format_description'] = res_format
@@ -263,9 +256,9 @@ class Collector(object):
 
             if has_resource:
                 payload['resources']['meta'] = {
-                            'api_key': self.agentConfig['api_key'],
-                            'host': payload['internalHostname'],
-                        }
+                    'api_key': self.agentConfig['api_key'],
+                    'host': payload['internalHostname'],
+                }
 
         # newer-style checks (not checks.d style)
         for metrics_check in self._metrics_checks:
@@ -392,7 +385,8 @@ class Collector(object):
 
         if self.os != 'windows':
             if self._agent_metrics is not None:
-                self._agent_metrics.set_metric_context(payload, {
+                self._agent_metrics.set_metric_context(payload,
+                    {
                         'collection_time': collect_duration,
                         'emit_time': self.emit_duration,
                         'cpu_time': time.clock() - cpu_clock
@@ -405,7 +399,8 @@ class Collector(object):
                     log.info("\n AGENT STATS: \n {0}".format(Collector._stats_for_display(agent_stats)))
         else:
             if self._agent_metrics is not None:
-                self._agent_metrics.set_metric_context(payload, {
+                self._agent_metrics.set_metric_context(payload,
+                    {
                         'collection_time': collect_duration,
                         'emit_time': self.emit_duration,
                     })

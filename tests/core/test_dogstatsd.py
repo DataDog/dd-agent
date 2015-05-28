@@ -421,9 +421,9 @@ class TestUnitDogStatsd(unittest.TestCase):
             histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
         )
         packets = [
-                'test_hist:0.3|ms',
-                'test_hist:2.5|ms|@0.5',
-                'test_hist:3|ms'
+            'test_hist:0.3|ms',
+            'test_hist:2.5|ms|@0.5',
+            'test_hist:3|ms'
         ]
         stats_ref.submit_packets("\n".join(packets))
 

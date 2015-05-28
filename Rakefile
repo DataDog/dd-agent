@@ -2,6 +2,7 @@
 # encoding: utf-8
 
 require 'rake/clean'
+require 'rubocop/rake_task'
 
 # Flavored Travis CI jobs
 require './ci/apache'
@@ -53,17 +54,17 @@ end
 
 desc 'Setup a development environment for the Agent'
 task 'setup_env' do
-   `mkdir -p venv`
-   `wget -O venv/virtualenv.py https://raw.github.com/pypa/virtualenv/1.11.6/virtualenv.py`
-   `python venv/virtualenv.py  --no-site-packages --no-pip --no-setuptools venv/`
-   `wget -O venv/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py`
-   `venv/bin/python venv/ez_setup.py`
-   `wget -O venv/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py`
-   `venv/bin/python venv/get-pip.py`
-   `venv/bin/pip install -r requirements.txt`
-   # These deps are not really needed, so we ignore failures
-   ENV['PIP_COMMAND'] = 'venv/bin/pip'
-   `./utils/pip-allow-failures.sh requirements-opt.txt`
+  `mkdir -p venv`
+  `wget -O venv/virtualenv.py https://raw.github.com/pypa/virtualenv/1.11.6/virtualenv.py`
+  `python venv/virtualenv.py  --no-site-packages --no-pip --no-setuptools venv/`
+  `wget -O venv/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py`
+  `venv/bin/python venv/ez_setup.py`
+  `wget -O venv/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py`
+  `venv/bin/python venv/get-pip.py`
+  `venv/bin/pip install -r requirements.txt`
+  # These deps are not really needed, so we ignore failures
+  ENV['PIP_COMMAND'] = 'venv/bin/pip'
+  `./utils/pip-allow-failures.sh requirements-opt.txt`
 end
 
 namespace :test do
@@ -91,8 +92,13 @@ namespace :test do
   task 'coverage' => 'ci:default:coverage'
 end
 
+RuboCop::RakeTask.new(:rubocop) do |t|
+  t.patterns = ['ci/**/*.rb', 'Gemfile', 'Rakefile']
+end
+
 desc 'Lint the code through pylint'
-task 'lint' => 'ci:default:lint'
+task 'lint' => ['ci:default:lint'] do
+end
 
 desc 'Run the Agent locally'
 task 'run' do
@@ -101,12 +107,12 @@ end
 
 namespace :ci do
   desc 'Run integration tests'
-  task :run, :flavor  do |t, args|
-    puts "Assuming you are running these tests locally" unless ENV['TRAVIS']
+  task :run, :flavor  do |_, args|
+    puts 'Assuming you are running these tests locally' unless ENV['TRAVIS']
     flavor = args[:flavor] || ENV['TRAVIS_FLAVOR'] || 'default'
     flavors = flavor.split(',')
-    flavors.each { |f| Rake::Task["ci:#{f}:execute"].invoke}
+    flavors.each { |f| Rake::Task["ci:#{f}:execute"].invoke }
   end
 end
 
-task :default => [:test]
+task default: ['lint', 'ci:run']

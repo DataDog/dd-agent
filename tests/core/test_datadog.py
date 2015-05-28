@@ -36,6 +36,7 @@ class ParseClassPlugin(object):
         self.args = '.'.join(user_args)
         self.acc = 0
         self.logger.info('Completed initialization')
+
     def parse_line(self, line):
         self.logger.info('Parsing line %r; counter is %r', line, self.acc)
         self.acc += 1

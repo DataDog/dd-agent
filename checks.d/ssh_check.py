@@ -20,15 +20,15 @@ class CheckSSH(AgentCheck):
     ]
 
     Config = namedtuple('Config', [
-                'host',
-                'port',
-                'username',
-                'password',
-                'private_key_file',
-                'sftp_check',
-                'add_missing_keys',
-            ]
-            )
+        'host',
+        'port',
+        'username',
+        'password',
+        'private_key_file',
+        'sftp_check',
+        'add_missing_keys',
+    ])
+
     def _load_conf(self, instance):
         params = []
         for option, required, default, expected_type in self.OPTIONS:
@@ -45,10 +45,10 @@ class CheckSSH(AgentCheck):
 
     def check(self, instance):
         conf = self._load_conf(instance)
-        tags = ["instance:{0}-{1}".format(conf.host, conf.port)] 
+        tags = ["instance:{0}-{1}".format(conf.host, conf.port)]
 
         try:
-            private_key = paramiko.RSAKey.from_private_key_file (conf.private_key_file)
+            private_key = paramiko.RSAKey.from_private_key_file(conf.private_key_file)
         except Exception:
             self.warning("Private key could not be found")
             private_key = None
@@ -74,7 +74,7 @@ class CheckSSH(AgentCheck):
             if conf.sftp_check:
                 self.service_check('sftp.can_connect', status, tags=tags,
                     message=exception_message)
-            raise Exception (e)
+            raise
 
         #Service Availability to check status of SFTP
         if conf.sftp_check:

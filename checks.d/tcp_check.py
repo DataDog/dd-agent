@@ -142,14 +142,14 @@ class TCPCheck(NetworkCheck):
             event_type = EventType.UP
 
         return {
-             'timestamp': int(time.time()),
-             'event_type': event_type,
-             'host': self.hostname,
-             'msg_text': msg,
-             'msg_title': title,
-             'alert_type': alert_type,
-             "source_type_name": source_type,
-             "event_object": name,
+            'timestamp': int(time.time()),
+            'event_type': event_type,
+            'host': self.hostname,
+            'msg_text': msg,
+            'msg_title': title,
+            'alert_type': alert_type,
+            "source_type_name": source_type,
+            "event_object": name,
         }
 
     def report_as_service_check(self, sc_name, status, instance, msg=None):

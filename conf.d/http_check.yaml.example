@@ -27,7 +27,8 @@ instances:
     # password: pass
 
     # The (optional) http_response_status_code parameter will instruct the check
-    # to look for a particular HTTP response status code.
+    # to look for a particular HTTP response status code or a Regex identifying
+    # a set of possible status codes.
     # The check will report as DOWN if status code returned differs.
     # This defaults to 1xx, 2xx and 3xx HTTP status code: (1|2|3)\d\d.
     # http_response_status_code: 401

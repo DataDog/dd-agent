@@ -21,19 +21,19 @@ instances:
     # Read http://docs.datadoghq.com/integrations/java/ to learn how to customize it
     # conf:
     #   - include:
-    #     domain: my_domain
-    #     bean:
-    #       - my_bean
-    #       - my_second_bean
-    #     attribute:
-    #       attribute1:
-    #         metric_type: counter
-    #         alias: jmx.my_metric_name
-    #       attribute2:
-    #         metric_type: gauge
-    #         alias: jmx.my2ndattribute
+    #       domain: my_domain
+    #       bean:
+    #         - my_bean
+    #         - my_second_bean
+    #       attribute:
+    #         attribute1:
+    #           metric_type: counter
+    #           alias: jmx.my_metric_name
+    #         attribute2:
+    #           metric_type: gauge
+    #           alias: jmx.my2ndattribute
     #   - include:
-    #     domain: 2nd_domain
+    #       domain: 2nd_domain
     #   - exclude:
-    #     bean:
-    #       - excluded_bean
+    #       bean:
+    #         - excluded_bean

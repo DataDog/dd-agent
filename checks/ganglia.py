@@ -53,4 +53,3 @@ class Ganglia(Check):
         except Exception:
             self.logger.exception("Unable to get ganglia data")
             return False
-

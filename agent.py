@@ -11,9 +11,11 @@
 '''
 
 # set up logging before importing any other components
-from config import get_version, initialize_logging; initialize_logging('collector')
+from config import get_version, initialize_logging
+initialize_logging('collector')
 
-import os; os.umask(022)
+import os
+os.umask(022)
 
 # Core modules
 import logging
@@ -34,7 +36,7 @@ from config import (
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from jmxfetch import JMXFetch
+from jmxfetch import JMXFetch, JMX_LIST_COMMANDS
 from util import (
     EC2,
     get_hostname,
@@ -279,8 +281,13 @@ def main():
         if autorestart:
             # Set-up the supervisor callbacks and fork it.
             logging.info('Running Agent with auto-restart ON')
-            def child_func(): agent.start(foreground=True)
-            def parent_func(): agent.start_event = False
+
+            def child_func():
+                agent.start(foreground=True)
+
+            def parent_func():
+                agent.start_event = False
+
             AgentSupervisor.start(parent_func, child_func)
         else:
             # Run in the standard foreground.
@@ -323,8 +330,6 @@ def main():
         configcheck()
 
     elif 'jmx' == command:
-        from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
-
         if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS.keys():
             print "#" * 80
             print "JMX tool to be used to help configuring your JMX checks."

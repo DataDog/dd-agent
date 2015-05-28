@@ -96,7 +96,7 @@ class WMICheck(AgentCheck):
             # Grab the tag from the result if there's a `tag_by` value (e.g.: "name:jenkins")
             # Strip any #instance off the value when `tag_queries` is set (gives us unique tags)
             if tag_by:
-                tag_value = getattr(res, tag_by).lower()
+                tag_value = str(getattr(res, tag_by)).lower()
                 if tag_queries and tag_value.find("#") > 0:
                     tag_value = tag_value[:tag_value.find("#")]
                 tags.append('%s:%s' % (tag_by.lower(), tag_value))

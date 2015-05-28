@@ -31,10 +31,10 @@ class NetworkCheck(AgentCheck):
     SERVICE_CHECK_PREFIX = 'network_check'
 
     STATUS_TO_SERVICE_CHECK = {
-            Status.UP  : AgentCheck.OK,
-            Status.WARNING : AgentCheck.WARNING,
-            Status.DOWN : AgentCheck.CRITICAL
-        }
+        Status.UP  : AgentCheck.OK,
+        Status.WARNING : AgentCheck.WARNING,
+        Status.DOWN : AgentCheck.CRITICAL
+    }
 
     """
     Services checks inherits from this class.

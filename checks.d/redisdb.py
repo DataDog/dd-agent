@@ -205,8 +205,10 @@ class Redis(AgentCheck):
                     self.gauge(metric, val, tags=db_tags)
 
         # Save a subset of db-wide statistics
-        [self.gauge(self.GAUGE_KEYS[k], info[k], tags=tags) for k in self.GAUGE_KEYS if k in info]
-        [self.rate (self.RATE_KEYS[k],  info[k], tags=tags) for k in self.RATE_KEYS  if k in info]
+        for k in set(info).intersection(self.GAUGE_KEYS):
+            self.gauge(self.GAUGE_KEYS[k], info[k], tags=tags)
+        for k in set(info).intersection(self.RATE_KEYS):
+            self.rate(self.RATE_KEYS[k], info[k], tags=tags)
 
         # Save the number of commands.
         self.rate('redis.net.commands', info['total_commands_processed'],

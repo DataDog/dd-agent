@@ -47,7 +47,7 @@ class HTTPCheck(NetworkCheck):
         tags = instance.get('tags', [])
         username = instance.get('username')
         password = instance.get('password')
-        http_response_status_code = instance.get('http_response_status_code', "(1|2|3)\d\d")
+        http_response_status_code = str(instance.get('http_response_status_code', "(1|2|3)\d\d"))
         timeout = int(instance.get('timeout', 10))
         config_headers = instance.get('headers', {})
         headers = agent_headers(self.agentConfig)

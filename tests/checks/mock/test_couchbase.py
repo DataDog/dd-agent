@@ -1,6 +1,5 @@
 from types import ListType
 import unittest
-from types import ListType
 
 from nose.plugins.attrib import attr
 from nose.plugins.skip import SkipTest

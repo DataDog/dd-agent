@@ -191,9 +191,9 @@ class AgentStatus(object):
         return {
             'pid': self.created_by_pid,
             'status_date': "%s (%ss ago)" % (
-                                self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                self.created_seconds_ago()
-                            ),
+                self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                self.created_seconds_ago()
+            ),
         }
 
     @classmethod
@@ -375,8 +375,8 @@ class CollectorStatus(AgentStatus):
                     c = 'yellow'
                 if s.has_error():
                     c = 'red'
-                line =  "    - instance #%s [%s]" % (
-                         s.instance_id, style(s.status, c))
+                line = "    - instance #%s [%s]" % (
+                    s.instance_id, style(s.status, c))
                 if s.has_error():
                     line += u": %s" % s.error
                 if s.metric_count is not None:
@@ -444,7 +444,7 @@ class CollectorStatus(AgentStatus):
         ]
         try:
             ntp_offset, ntp_styles = get_ntp_info()
-            lines.append('  ' + style('NTP offset', *ntp_styles) + ': ' +  style('%s s' % round(ntp_offset, 4), *ntp_styles))
+            lines.append('  ' + style('NTP offset', *ntp_styles) + ': ' + style('%s s' % round(ntp_offset, 4), *ntp_styles))
         except Exception, e:
             lines.append('  NTP offset: Unknown (%s)' % str(e))
         lines.append('  System UTC time: ' + datetime.datetime.utcnow().__str__())
@@ -520,8 +520,8 @@ class CollectorStatus(AgentStatus):
                             c = 'yellow'
                         if s.has_error():
                             c = 'red'
-                        line =  "    - instance #%s [%s]" % (
-                                 s.instance_id, style(s.status, c))
+                        line = "    - instance #%s [%s]" % (
+                            s.instance_id, style(s.status, c))
                         if s.has_error():
                             line += u": %s" % s.error
                         if s.metric_count is not None:
@@ -675,7 +675,7 @@ class DogstatsdStatus(AgentStatus):
     NAME = 'Dogstatsd'
 
     def __init__(self, flush_count=0, packet_count=0, packets_per_second=0,
-        metric_count=0, event_count=0):
+            metric_count=0, event_count=0):
         AgentStatus.__init__(self)
         self.flush_count = flush_count
         self.packet_count = packet_count
@@ -864,8 +864,8 @@ def get_jmx_status():
                         check_data[check_name]['service_check_count'].append(service_check_count)
 
                 for check_name, data in check_data.iteritems():
-                    check_status = CheckStatus(check_name, data['statuses'], 
-                                               metric_count=sum(data['metric_count']), 
+                    check_status = CheckStatus(check_name, data['statuses'],
+                                               metric_count=sum(data['metric_count']),
                                                service_check_count=sum(data['service_check_count']))
                     check_statuses.append(check_status)
 

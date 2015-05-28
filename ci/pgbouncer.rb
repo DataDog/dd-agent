@@ -79,6 +79,5 @@ namespace :ci do
       end
       fail exception if exception
     end
-
   end
 end

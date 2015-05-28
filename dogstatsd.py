@@ -363,8 +363,8 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     """
     c = get_config(parse_args=False, cfg_path=config_path)
 
-    if not c['use_dogstatsd'] and \
-        (args and args[0] in ['start', 'restart'] or not args):
+    if (not c['use_dogstatsd'] and
+            (args and args[0] in ['start', 'restart'] or not args)):
         log.info("Dogstatsd is disabled. Exiting")
         # We're exiting purposefully, so exit with zero (supervisor's expected
         # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly

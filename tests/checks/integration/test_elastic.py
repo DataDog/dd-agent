@@ -221,8 +221,7 @@ class TestElastic(AgentCheckTest):
                                 count=1)
 
 
-        status = AgentCheck.OK if os.environ.get("TRAVIS")\
-            else AgentCheck.CRITICAL
+        status = AgentCheck.OK
         # Travis doesn't have any shards in the cluster and consider this as green
         self.assertServiceCheck('elasticsearch.cluster_health',
                                 status=status, tags=good_sc_tags,

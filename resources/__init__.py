@@ -60,11 +60,11 @@ class ResourcePlugin(object):
         self.log = logger
         self.config = agentConfig
         self._descriptor = None
-        self._snapshots = [] #stack with non (temporarly) aggregated snapshots
-        self._last_snapshots = None #last aggregated snapshots
-        self._current_snapshot = None #snapshot being built
+        self._snapshots = []  # stack with non (temporarly) aggregated snapshots
+        self._last_snapshots = None  # last aggregated snapshots
+        self._current_snapshot = None  # snapshot being built
         self._current_ts = None
-        self._format_described = False #Do we need to send format description to the intake ?
+        self._format_described = False  # Do we need to send format description to the intake ?
         self._descriptor = self.describe_snapshot()
 
     @classmethod
@@ -190,7 +190,7 @@ class ResourcePlugin(object):
             g1 = self.get_group_ts(self._current_ts)
             g2 = self.get_group_ts(now)
             self.log.debug("Resources: (%s) group now: %s, group ts: %s" % (self.RESOURCE_KEY,g2,g1))
-            if g1 != g2: #It's time to flush
+            if g1 != g2:  # It's time to flush
                 self.log.debug("Resources: Flushing %s snapshots" % self.RESOURCE_KEY)
                 self.flush_snapshots(g2)
                 self._current_ts = None

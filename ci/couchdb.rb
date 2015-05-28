@@ -1,7 +1,7 @@
 require './ci/common'
 
 def couchdb_version
-  ENV['FLAVOR_VERSION']  || '1.6.1'
+  ENV['FLAVOR_VERSION'] || '1.6.1'
 end
 
 def couchdb_rootdir

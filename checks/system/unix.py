@@ -6,172 +6,19 @@ Unix system checks.
 import operator
 import platform
 import re
-import socket
-import string
 import subprocess as sp
 import sys
 import tempfile
 import time
 
 # project
-from checks import Check, UnknownValue
+from checks import Check
 from util import get_hostname
 from utils.platform import Platform
+from utils.subprocess_output import get_subprocess_output
 
 # locale-resilient float converter
 to_float = lambda s: float(s.replace(",", "."))
-
-
-class Disk(Check):
-    """ Collects metrics about the machine's disks. """
-
-    def check(self, agentConfig):
-        """Get disk space/inode stats"""
-        # First get the configuration.
-        use_mount = agentConfig.get("use_mount", False)
-        blacklist_re = agentConfig.get('device_blacklist_re', None)
-        platform_name = sys.platform
-
-        try:
-            dfk_out = _get_subprocess_output(['df', '-k'], self.logger)
-            disks = self.parse_df_output(
-                dfk_out,
-                platform_name,
-                use_mount=use_mount,
-                blacklist_re=blacklist_re
-            )
-
-            # Collect inode metrics.
-            dfi_out = _get_subprocess_output(['df', '-i'], self.logger)
-            inodes = self.parse_df_output(
-                dfi_out,
-                platform_name,
-                inodes=True,
-                use_mount=use_mount,
-                blacklist_re=blacklist_re
-            )
-            return (disks, inodes)
-
-        except Exception:
-            self.logger.exception('Error collecting disk stats')
-            return False
-
-    def parse_df_output(self, df_output, platform_name, inodes=False, use_mount=False, blacklist_re=None):
-        """
-        Parse the output of the df command. If use_volume is true the volume
-        is used to anchor the metric, otherwise false the mount
-        point is used. Returns a tuple of (disk, inode).
-        """
-        usage_data = []
-
-        # Transform the raw output into tuples of the df data.
-        devices = self._transform_df_output(df_output, blacklist_re)
-
-        # If we want to use the mount point, replace the volume name on each
-        # line.
-        for parts in devices:
-            try:
-                if use_mount:
-                    parts[0] = parts[-1]
-                if inodes:
-                    if Platform.is_darwin(platform_name):
-                        # Filesystem 512-blocks Used Available Capacity iused ifree %iused  Mounted
-                        # Inodes are in position 5, 6 and we need to compute the total
-                        # Total
-                        parts[1] = int(parts[5]) + int(parts[6]) # Total
-                        parts[2] = int(parts[5]) # Used
-                        parts[3] = int(parts[6]) # Available
-                    elif Platform.is_freebsd(platform_name):
-                        # Filesystem 1K-blocks Used Avail Capacity iused ifree %iused Mounted
-                        # Inodes are in position 5, 6 and we need to compute the total
-                        parts[1] = int(parts[5]) + int(parts[6]) # Total
-                        parts[2] = int(parts[5]) # Used
-                        parts[3] = int(parts[6]) # Available
-                    else:
-                        parts[1] = int(parts[1]) # Total
-                        parts[2] = int(parts[2]) # Used
-                        parts[3] = int(parts[3]) # Available
-                else:
-                    parts[1] = int(parts[1]) # Total
-                    parts[2] = int(parts[2]) # Used
-                    parts[3] = int(parts[3]) # Available
-            except IndexError:
-                self.logger.exception("Cannot parse %s" % (parts,))
-
-            usage_data.append(parts)
-
-        return usage_data
-
-
-    @staticmethod
-    def _is_number(a_string):
-        try:
-            float(a_string)
-        except ValueError:
-            return False
-        return True
-
-    def _is_real_device(self, device):
-        """
-        Return true if we should track the given device name and false otherwise.
-        """
-        # First, skip empty lines.
-        if not device or len(device) <= 1:
-            return False
-
-        # Filter out fake devices.
-        device_name = device[0]
-        if device_name == 'none':
-            return False
-
-        # Now filter our fake hosts like 'map -hosts'. For example:
-        #       Filesystem    1024-blocks     Used Available Capacity  Mounted on
-        #       /dev/disk0s2    244277768 88767396 155254372    37%    /
-        #       map -hosts              0        0         0   100%    /net
-        blocks = device[1]
-        if not self._is_number(blocks):
-            return False
-        return True
-
-    def _flatten_devices(self, devices):
-        # Some volumes are stored on their own line. Rejoin them here.
-        previous = None
-        for parts in devices:
-            if len(parts) == 1:
-                previous = parts[0]
-            elif previous and self._is_number(parts[0]):
-                # collate with previous line
-                parts.insert(0, previous)
-                previous = None
-            else:
-                previous = None
-        return devices
-
-    def _transform_df_output(self, df_output, blacklist_re):
-        """
-        Given raw output for the df command, transform it into a normalized
-        list devices. A 'device' is a list with fields corresponding to the
-        output of df output on each platform.
-        """
-        all_devices = [l.strip().split() for l in df_output.split("\n")]
-
-        # Skip the header row and empty lines.
-        raw_devices = [l for l in all_devices[1:] if l]
-
-        # Flatten the disks that appear in the mulitple lines.
-        flattened_devices = self._flatten_devices(raw_devices)
-
-        # Filter fake disks.
-        def keep_device(device):
-            if not self._is_real_device(device):
-                return False
-            if blacklist_re and blacklist_re.match(device[0]):
-                return False
-            return True
-
-        devices = filter(keep_device, flattened_devices)
-
-        return devices
 
 
 class IO(Check):
@@ -536,7 +383,7 @@ class Memory(Check):
                 memData['swapTotal'] = int(meminfo.get('SwapTotal', 0)) / 1024
                 memData['swapFree']  = int(meminfo.get('SwapFree', 0)) / 1024
 
-                memData['swapUsed'] =  memData['swapTotal'] - memData['swapFree']
+                memData['swapUsed'] = memData['swapTotal'] - memData['swapFree']
 
                 if memData['swapTotal'] > 0:
                     memData['swapPctFree'] = float(memData['swapFree']) / float(memData['swapTotal'])
@@ -786,10 +633,10 @@ class Cpu(Check):
                 #
                 lines = mpstat.split("\n")
                 legend = [l for l in lines if "%usr" in l or "%user" in l]
-                avg =    [l for l in lines if "Average" in l]
+                avg = [l for l in lines if "Average" in l]
                 if len(legend) == 1 and len(avg) == 1:
                     headers = [h for h in legend[0].split() if h not in ("AM", "PM")]
-                    data    = avg[0].split()
+                    data = avg[0].split()
 
                     # Userland
                     # Debian lenny says %user so we look for both
@@ -888,7 +735,7 @@ class Cpu(Check):
                         d_lines = [l for l in lines if "SET" not in l]
                         user = [get_value(headers, l.split(), "usr") for l in d_lines]
                         kern = [get_value(headers, l.split(), "sys") for l in d_lines]
-                        wait = [get_value(headers, l.split(), "wt")  for l in d_lines]
+                        wait = [get_value(headers, l.split(), "wt") for l in d_lines]
                         idle = [get_value(headers, l.split(), "idl") for l in d_lines]
                         size = [get_value(headers, l.split(), "sze") for l in d_lines]
                         count = sum(size)
@@ -907,46 +754,23 @@ class Cpu(Check):
             return False
 
 
-def _get_subprocess_output(command, log):
-    """
-    Run the given subprocess command and return it's output. Raise an Exception
-    if an error occurs.
-    """
-    with tempfile.TemporaryFile('rw') as stdout_f:
-        proc = sp.Popen(command, close_fds=True, stdout=stdout_f, stderr=sp.PIPE)
-        proc.wait()
-        err = proc.stderr.read()
-        if err:
-            log.debug("Error while running %s : %s" % (" ".join(command), err))
-
-        stdout_f.seek(0)
-        output = stdout_f.read()
-    return output
-
-
 if __name__ == '__main__':
     # 1s loop with results
     import logging
-    import time
-    import pprint
-    import re
 
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)-15s %(message)s')
     log = logging.getLogger()
     cpu = Cpu(log)
-    disk = Disk(log)
     io = IO(log)
     load = Load(log)
     mem = Memory(log)
     proc = Processes(log)
 
-    config = {"api_key": "666", "device_blacklist_re":re.compile('.*disk0.*')}
+    config = {"api_key": "666", "device_blacklist_re": re.compile('.*disk0.*')}
     while True:
         print("=" * 10)
         print("--- IO ---")
         print(io.check(config))
-        print("--- Disk ---")
-        print(disk.check(config))
         print("--- CPU ---")
         print(cpu.check(config))
         print("--- Load ---")
@@ -954,8 +778,6 @@ if __name__ == '__main__':
         print("--- Memory ---")
         print(mem.check(config))
         print("\n\n\n")
-        #print("--- Processes ---")
-        #print(proc.check(config))
+        # print("--- Processes ---")
+        # print(proc.check(config))
         time.sleep(1)
-
-

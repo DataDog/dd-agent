@@ -117,7 +117,7 @@ class GUnicornCheck(AgentCheck):
         # root     22976  0.1  0.1  60364 13424 ?        Ss   19:30   0:00 gunicorn: master [web1]
         # web      22984 20.7  2.3 521924 176136 ?       Sl   19:30   1:58 gunicorn: worker [web1]
         # web      22985 26.4  6.1 795288 449596 ?       Sl   19:30   2:32 gunicorn: worker [web1]
-        return  "gunicorn: master [%s]" % name
+        return "gunicorn: master [%s]" % name
 
 
 class GUnicornCheckError(Exception):
