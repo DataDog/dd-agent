@@ -550,7 +550,9 @@ class Menu(QMenu):
     START = "Start"
     STOP = "Stop"
     RESTART = "Restart"
+    MAC_LOGIN = '{0} at login'
     EXIT = "Exit"
+    SYSTEM_EVENTS_CMD = 'tell application "System Events" to {0}'
 
     def __init__(self, parent=None):
         QMenu.__init__(self, parent)
@@ -559,18 +561,53 @@ class Menu(QMenu):
             (self.START, lambda: agent_manager("start")),
             (self.STOP, lambda: agent_manager("stop")),
             (self.RESTART, lambda: agent_manager("restart")),
-            (self.EXIT, lambda: sys.exit(0)),
         ]
         # First the version
         self.addAction(self.ABOUT.format(get_version())).setEnabled(False)
         self.addSeparator()
 
         for name, action in system_tray_menu:
-            menu_action = self.addAction(name)
-            self.connect(menu_action, SIGNAL('triggered()'), action)
-            self.options[name] = menu_action
+            self.add_option(name, action)
+
+        # enable or disable mac login
+        if Platform.is_mac():
+            self.add_option(self.MAC_LOGIN.format(self.enable_or_disable_mac()),
+                            lambda: self.enable_or_disable_login())
+
+        # And finally the exit
+        self.add_option(self.EXIT, lambda: sys.exit(0))
 
         self.connect(self, SIGNAL("aboutToShow()"), lambda: self.update_options())
+
+    def add_option(self, name, action):
+        menu_action = self.addAction(name)
+        self.connect(menu_action, SIGNAL('triggered()'), action)
+        self.options[name] = menu_action
+
+    def enable_or_disable_mac(self):
+        try:
+            output = check_output(['osascript', '-e',
+                                   self.SYSTEM_EVENTS_CMD.format('get the path of every login item whose name is "Datadog Agent"')])
+            return 'Disable' if 'Datadog' in output else 'Enable'
+        except CalledProcessError, e:
+            log.warning('Get login item failed with output:{0}'.format(e.output))
+            return 'Disable'
+
+    def enable_or_disable_login(self):
+        previous = self.enable_or_disable_mac()
+        if previous == 'Disable':
+            command = 'delete every login item whose name is "Datadog Agent"'
+        else:
+            command = 'make login item at end with properties {path:"/Applications/Datadog Agent.app", name:"Datadog Agent", hidden:false}'
+        try:
+            check_call(['osascript', '-e', self.SYSTEM_EVENTS_CMD.format(command)])
+            self.removeAction(self.options[self.MAC_LOGIN.format(previous)])
+            self.removeAction(self.options[self.EXIT])
+            self.add_option(self.MAC_LOGIN.format(self.enable_or_disable_mac()),
+                            lambda: self.enable_or_disable_login())
+            self.add_option(self.EXIT, lambda: sys.exit(0))
+        except Exception, e:
+            log.warning('Exception during Mac item login {0}: {1}'.format(previous, e))
 
     def update_options(self):
         status = agent_status()
@@ -733,5 +770,8 @@ if __name__ == '__main__':
         win = SystemTray() if len(sys.argv) < 2 else MainWindow()
     else:
         win = MainWindow()
+    # Let's start the agent if he's not already started
+    if agent_status() not in [AGENT_RUNNING, AGENT_START_PENDING]:
+        agent_manager('start')
     win.show()
     app.exec_()
