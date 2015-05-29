@@ -10,11 +10,8 @@ initialize_logging('dogstatsd')
 import os
 os.umask(022)
 
-# Starting with Agent 5.0.0, there should always be a local forwarder
-# running and all payloads should go through it. So we should make sure
-# that we pass the no_proxy environment variable that will be used by requests
-# See: https://github.com/kennethreitz/requests/pull/945
-os.environ['no_proxy'] = '127.0.0.1,localhost'
+from utils.proxy import set_no_proxy_settings
+set_no_proxy_settings()
 
 # stdlib
 import logging

@@ -1,7 +1,6 @@
 # stdlib
 from hashlib import md5
 import logging
-import os
 import re
 import zlib
 
@@ -12,11 +11,8 @@ import simplejson as json
 # project
 from config import get_version
 
-# Starting with Agent 5.0.0, there should always be a local forwarder
-# running and all payloads should go through it. So we should make sure
-# that we pass the no_proxy environment variable that will be used by requests
-# See: https://github.com/kennethreitz/requests/pull/945
-os.environ['no_proxy'] = '127.0.0.1,localhost'
+from utils.proxy import set_no_proxy_settings
+set_no_proxy_settings()
 
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")

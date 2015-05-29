@@ -848,14 +848,14 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         self.assertTrue("no_proxy" in env)
 
-        self.assertEquals(env["no_proxy"], "127.0.0.1,localhost")
+        self.assertEquals(env["no_proxy"], "127.0.0.1,localhost,169.254.169.254")
         self.assertEquals({}, get_environ_proxies(
             "http://localhost:17123/api/v1/series"))
 
         expected_proxies = {
             'http': 'http://localhost:3128',
             'https': 'http://localhost:3128',
-            'no': '127.0.0.1,localhost'
+            'no': '127.0.0.1,localhost,169.254.169.254'
         }
         environ_proxies = get_environ_proxies("https://www.google.com")
         self.assertEquals(expected_proxies, environ_proxies,

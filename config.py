@@ -23,6 +23,7 @@ from urlparse import urlparse
 # project
 from util import get_os, yLoader
 from utils.platform import Platform
+from utils.proxy import get_proxy
 
 # 3rd party
 import yaml
@@ -606,59 +607,6 @@ def set_win32_cert_path():
     import tornado.simple_httpclient
     log.info("Windows certificate path: %s" % crt_path)
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
-
-def get_proxy(agentConfig, use_system_settings=False):
-    proxy_settings = {}
-
-    # First we read the proxy configuration from datadog.conf
-    proxy_host = agentConfig.get('proxy_host', None)
-    if proxy_host is not None and not use_system_settings:
-        proxy_settings['host'] = proxy_host
-        try:
-            proxy_settings['port'] = int(agentConfig.get('proxy_port', 3128))
-        except ValueError:
-            log.error('Proxy port must be an Integer. Defaulting it to 3128')
-            proxy_settings['port'] = 3128
-
-        proxy_settings['user'] = agentConfig.get('proxy_user', None)
-        proxy_settings['password'] = agentConfig.get('proxy_password', None)
-        proxy_settings['system_settings'] = False
-        log.debug("Proxy Settings: %s:%s@%s:%s" % (proxy_settings['user'], "*****", proxy_settings['host'], proxy_settings['port']))
-        return proxy_settings
-
-    # If no proxy configuration was specified in datadog.conf
-    # We try to read it from the system settings
-    try:
-        import urllib
-        proxies = urllib.getproxies()
-        proxy = proxies.get('https', None)
-        if proxy is not None:
-            try:
-                proxy = proxy.split('://')[1]
-            except Exception:
-                pass
-            px = proxy.split(':')
-            proxy_settings['host'] = px[0]
-            proxy_settings['port'] = int(px[1])
-            proxy_settings['user'] = None
-            proxy_settings['password'] = None
-            proxy_settings['system_settings'] = True
-            if '@' in proxy_settings['host']:
-                creds = proxy_settings['host'].split('@')[0].split(':')
-                proxy_settings['user'] = creds[0]
-                if len(creds) == 2:
-                    proxy_settings['password'] = creds[1]
-
-            log.debug("Proxy Settings: %s:%s@%s:%s" % (proxy_settings['user'], "*****", proxy_settings['host'], proxy_settings['port']))
-            return proxy_settings
-
-    except Exception, e:
-        log.debug("Error while trying to fetch proxy settings using urllib %s. Proxy is probably not set" % str(e))
-
-    log.debug("No proxy configured")
-
-    return None
-
 
 def get_confd_path(osname=None):
     if not osname:
