@@ -1,6 +1,6 @@
 ###########################################################
 # These modules are the deps needed by the
-# agent core, meaning every module that is 
+# agent core, meaning every module that is
 # not a check
 # They're installed in the CI and when doing
 # a source install
