@@ -586,8 +586,8 @@ class Cpu(Check):
         """Return an aggregate of CPU stats across all CPUs
         When figures are not available, False is sent back.
         """
-        def format_results(us, sy, wa, idle, st):
-            data = {'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st}
+        def format_results(us, sy, wa, idle, st, guest=None):
+            data = {'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st, 'cpuGuest'; guest}
             for key in data.keys():
                 if data[key] is None:
                     del data[key]
@@ -642,6 +642,7 @@ class Cpu(Check):
                         "%usr":None, "%user":None, "%nice":None,
                         "%iowait":None, "%idle":None, "%sys":None,
                         "%irq":None, "%soft":None, "%steal":None,
+                        "%guest":None
                     }
 
                     for cpu_m in cpu_metrics:
@@ -655,12 +656,14 @@ class Cpu(Check):
                     cpu_wait = cpu_metrics["%iowait"]
                     cpu_idle = cpu_metrics["%idle"]
                     cpu_stolen = cpu_metrics["%steal"]
+                    cpu_guest = cpu_metrics["%guest"]
 
                     return format_results(cpu_user,
                                           cpu_system,
                                           cpu_wait,
                                           cpu_idle,
-                                          cpu_stolen)
+                                          cpu_stolen,
+                                          cpu_guest)
                 else:
                     return False
 
