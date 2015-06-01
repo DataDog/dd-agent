@@ -82,8 +82,8 @@ DDBASE=false
 # Python Detection
 has_python=$(which python || echo "no")
 if [ "$has_python" != "no" ]; then
-    PY_VERSION=$(python -c 'import sys; print "%d.%d" % (sys.version_info[0], sys.version_info[1])')
-    if [ $PY_VERSION = "2.4" -o $PY_VERSION = "2.5" ]; then
+    PY_VERSION=$(python -c 'import sys; print("{0}.{1}".format(sys.version_info[0], sys.version_info[1]))' 2>/dev/null || echo "TOO OLD")
+    if [ "$PY_VERSION" = "TOO OLD" ]; then
         DDBASE=true
     fi
 fi
@@ -149,16 +149,16 @@ else
     $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
 fi
 
-restart_cmd="$sudo_cmd /etc/init.d/datadog-agent restart" 
+restart_cmd="$sudo_cmd /etc/init.d/datadog-agent restart"
 if command -v invoke-rc.d >/dev/null 2>&1; then
     restart_cmd="$sudo_cmd invoke-rc.d datadog-agent restart"
 fi
 
 if $no_start; then
-    printf "\033[34m 
+    printf "\033[34m
 * DD_INSTALL_ONLY environment variable set: the newly installed version of the agent
-will not start by itself. You will have to do it manually using the following 
-command: 
+will not start by itself. You will have to do it manually using the following
+command:
 
     $restart_cmd
 
