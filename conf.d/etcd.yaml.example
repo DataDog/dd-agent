@@ -5,3 +5,10 @@ instances:
 #    - url: "https://server:port"
 # timeout: time to wait on a etcd API request
 #      timeout: 5
+# ssl_keyfile: path to the key file used to communicate with etcd when client certificate authentication is enabled on etcd
+#      ssl_keyfile: /path/to/key/file
+# ssl_certfile: path to the certificate file used to communicate with etcd when client certificate authentication is enabled on etcd
+#      ssl_certfile: /path/to/certificate/file
+# ssl_cert_reqs: require verification SSL certificates for HTTPS requests (default: true), will take in the CA file if needed (choose one)
+#      ssl_cert_reqs: true
+#      ssl_cert_reqs: /path/to/CA/certificate/file

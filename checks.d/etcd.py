@@ -68,6 +68,17 @@ class Etcd(AgentCheck):
         # Load values from the instance config
         url = instance['url']
         instance_tags = instance.get('tags', [])
+
+        # Load the ssl configuration
+        ssl_params = {
+            'ssl_keyfile': instance.get('ssl_keyfile', None),
+            'ssl_certfile': instance.get('ssl_certfile', None),
+            'ssl_cert_reqs':  instance.get('ssl_cert_reqs', True)
+        }
+
+        for key, param in ssl_params.items():
+            if param is None:
+                del ssl_params[key]
         # Append the instance's URL in case there are more than one, that
         # way they can tell the difference!
         instance_tags.append("url:{0}".format(url))
@@ -75,7 +86,7 @@ class Etcd(AgentCheck):
         is_leader = False
 
         # Gather self metrics
-        self_response = self._get_self_metrics(url, timeout)
+        self_response = self._get_self_metrics(url, ssl_params, timeout)
         if self_response is not None:
             if self_response['state'] == 'StateLeader':
                 is_leader = True
@@ -96,7 +107,7 @@ class Etcd(AgentCheck):
                     self.log.warn("Missing key {0} in stats.".format(key))
 
         # Gather store metrics
-        store_response = self._get_store_metrics(url, timeout)
+        store_response = self._get_store_metrics(url, ssl_params, timeout)
         if store_response is not None:
             for key in self.STORE_RATES:
                 if key in store_response:
@@ -112,7 +123,7 @@ class Etcd(AgentCheck):
 
         # Gather leader metrics
         if is_leader:
-            leader_response = self._get_leader_metrics(url, timeout)
+            leader_response = self._get_leader_metrics(url, ssl_params, timeout)
             if leader_response is not None and len(leader_response.get("followers", {})) > 0:
                 # Get the followers
                 followers = leader_response.get("followers")
@@ -133,18 +144,19 @@ class Etcd(AgentCheck):
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                                tags=["url:{0}".format(url)])
 
-    def _get_self_metrics(self, url, timeout):
-        return self._get_json(url + "/v2/stats/self", timeout)
+    def _get_self_metrics(self, url, ssl_params, timeout):
+        return self._get_json(url + "/v2/stats/self",  ssl_params, timeout)
 
-    def _get_store_metrics(self, url, timeout):
-        return self._get_json(url + "/v2/stats/store", timeout)
+    def _get_store_metrics(self, url, ssl_params, timeout):
+        return self._get_json(url + "/v2/stats/store",  ssl_params, timeout)
 
-    def _get_leader_metrics(self, url, timeout):
-        return self._get_json(url + "/v2/stats/leader", timeout)
+    def _get_leader_metrics(self, url, ssl_params, timeout):
+        return self._get_json(url + "/v2/stats/leader", ssl_params, timeout)
 
-    def _get_json(self, url, timeout):
+    def _get_json(self, url, ssl_params, timeout):
         try:
-            r = requests.get(url, timeout=timeout, headers=headers(self.agentConfig))
+            certificate = (ssl_params['ssl_certfile'], ssl_params['ssl_keyfile']) if 'ssl_certfile' in ssl_params and 'ssl_keyfile' in ssl_params else None
+            r = requests.get(url, verify=ssl_params['ssl_cert_reqs'], cert=certificate, timeout=timeout, headers=headers(self.agentConfig))
         except requests.exceptions.Timeout:
             # If there's a timeout
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
