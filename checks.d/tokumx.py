@@ -1,16 +1,21 @@
 # stdlib
-import re
-import types
 import time
+import types
 
 # project
 from checks import AgentCheck
 from util import get_hostname
 
-# 3rd party
-from pymongo import uri_parser, MongoClient, ReadPreference, version as py_version
+# 3p
+from pymongo import (
+    MongoClient,
+    ReadPreference,
+    uri_parser,
+    version as py_version,
+)
 
 DEFAULT_TIMEOUT = 10
+
 
 class LocalRate:
     """ To be used for metrics that should be sent as rates but that we want to send as histograms"""

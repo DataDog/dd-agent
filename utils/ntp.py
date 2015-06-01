@@ -1,4 +1,6 @@
+# stdlib
 import random
+
 
 def get_ntp_datadog_host(subpool=None):
     """

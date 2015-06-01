@@ -1,10 +1,11 @@
-import os
-import logging
+# stdlib
 import cProfile
-import pstats
 from cStringIO import StringIO
+import logging
+import pstats
 
 log = logging.getLogger('collector')
+
 
 class AgentProfiler(object):
     PSTATS_LIMIT = 20

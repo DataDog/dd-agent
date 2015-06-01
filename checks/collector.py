@@ -1,26 +1,35 @@
-# Core modules
-import os
-import re
+# stdlib
+import logging
+import pprint
+import socket
+import subprocess
 import sys
 import time
-import socket
-import logging
-import datetime
-import subprocess
-import pprint
 
-import modules
-
-from config import get_version, get_system_stats, get_config
-from util import get_os, get_uuid, md5, Timer, get_hostname, EC2, GCE
-
-import jmxfetch
+# project
+from checks import AgentCheck, AGENT_METRICS_CHECK_NAME, create_service_check
+from checks.check_status import (
+    CheckStatus,
+    CollectorStatus,
+    EmitterStatus,
+    STATUS_OK,
+    STATUS_ERROR,
+)
+from checks.datadog import Dogstreams, DdForwarder
+from checks.ganglia import Ganglia
 import checks.system.unix as u
 import checks.system.win32 as w32
-from checks import create_service_check, AgentCheck, AGENT_METRICS_CHECK_NAME
-from checks.ganglia import Ganglia
-from checks.datadog import Dogstreams, DdForwarder
-from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus, STATUS_OK, STATUS_ERROR
+from config import get_system_stats, get_version
+from util import (
+    EC2,
+    GCE,
+    get_hostname,
+    get_os,
+    get_uuid,
+    Timer,
+)
+import jmxfetch
+import modules
 from resources.processes import Processes as ResProcesses
 
 
@@ -30,6 +39,7 @@ log = logging.getLogger(__name__)
 FLUSH_LOGGING_PERIOD = 10
 FLUSH_LOGGING_INITIAL = 5
 DD_CHECK_TAG = 'dd_check:{0}'
+
 
 class Collector(object):
     """

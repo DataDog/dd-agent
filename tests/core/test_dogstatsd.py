@@ -839,7 +839,6 @@ class TestUnitDogStatsd(unittest.TestCase):
         (See: https://github.com/kennethreitz/requests/pull/945 )
         """
         from requests.utils import get_environ_proxies
-        import dogstatsd
         from os import environ as env
 
         env["http_proxy"] = "http://localhost:3128"

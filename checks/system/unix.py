@@ -1,21 +1,18 @@
 """
 Unix system checks.
 """
-
 # stdlib
 import operator
 import platform
 import re
 import subprocess as sp
 import sys
-import tempfile
 import time
 
 # project
 from checks import Check
 from util import get_hostname
 from utils.platform import Platform
-from utils.subprocess_output import get_subprocess_output
 
 # locale-resilient float converter
 to_float = lambda s: float(s.replace(",", "."))

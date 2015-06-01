@@ -1,16 +1,16 @@
 # stdlib
-import re
-import types
 import time
+import types
+
+# 3p
+import pymongo
 
 # project
 from checks import AgentCheck
 from util import get_hostname
 
-# 3rd party
-import pymongo
-
 DEFAULT_TIMEOUT = 10
+
 
 class MongoDb(AgentCheck):
     SERVICE_CHECK_NAME = 'mongodb.can_connect'

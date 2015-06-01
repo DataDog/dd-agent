@@ -1,16 +1,15 @@
 # stdlib
-import logging
 from Queue import Empty
 import time
-import unittest
 
-# 3rd party
+# 3p
 from nose.plugins.attrib import attr
 
 # project
 from config import AGENT_VERSION
-from tests.checks.common import AgentCheckTest, load_check
+from tests.checks.common import AgentCheckTest
 from util import headers as agent_headers
+
 
 @attr(requires='core_integration')
 class ServiceCheckTestCase(AgentCheckTest):

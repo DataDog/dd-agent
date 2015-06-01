@@ -1,9 +1,5 @@
-# stdlib
-import unittest
-
 # 3p
 from nose.plugins.attrib import attr
-from requests.exceptions import Timeout
 
 # project
 from tests.checks.common import AgentCheckTest

@@ -1,11 +1,13 @@
 # stdlib
+from collections import namedtuple
 import time
-import socket
+
 # 3p
 import paramiko
-from collections import namedtuple
+
 # project
 from checks import AgentCheck
+
 
 class CheckSSH(AgentCheck):
 

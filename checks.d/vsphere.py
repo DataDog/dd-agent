@@ -2,25 +2,23 @@
 from copy import deepcopy
 from datetime import datetime, timedelta
 from hashlib import md5
+from Queue import Queue, Empty
 import re
 import time
 import traceback
-from Queue import Queue, Empty
+
+# 3p
+from pyVim import connect
+from pyVmomi import vim
 
 # project
 from checks import AgentCheck
-from util import Timer
 from checks.libs.thread_pool import Pool
 from checks.libs.vmware.basic_metrics import BASIC_METRICS
-from checks.libs.vmware.all_metrics import ALL_METRICS
-
-# 3rd party
-from pyVim import connect
-# This drives travis-ci pylint crazy!
-from pyVmomi import vim # pylint: disable=E0611
+from util import Timer
 
 SOURCE_TYPE = 'vsphere'
-REAL_TIME_INTERVAL = 20 # Default vCenter sampling interval
+REAL_TIME_INTERVAL = 20  # Default vCenter sampling interval
 
 # The size of the ThreadPool used to process the request queue
 DEFAULT_SIZE_POOL = 4
@@ -60,6 +58,7 @@ MORLIST = 'morlist'
 METRICS_METADATA = 'metrics_metadata'
 LAST = 'last'
 INTERVAL = 'interval'
+
 
 class VSphereEvent(object):
     UNKNOWN = 'unknown'

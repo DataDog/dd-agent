@@ -1,8 +1,9 @@
+# stdlib
 import logging
 from time import time
 
+# project
 from checks.metric_types import MetricTypes
-from config import get_histogram_aggregates, get_histogram_percentiles
 
 log = logging.getLogger(__name__)
 

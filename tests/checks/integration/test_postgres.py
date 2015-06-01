@@ -1,6 +1,3 @@
-# stdlib
-import time
-
 # 3p
 from nose.plugins.attrib import attr
 

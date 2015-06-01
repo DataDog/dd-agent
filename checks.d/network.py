@@ -2,10 +2,8 @@
 Collects network metrics.
 """
 # stdlib
-import platform
-import subprocess
-import sys
 import re
+import subprocess
 
 # project
 from checks import AgentCheck
@@ -22,6 +20,7 @@ SOLARIS_TCP_METRICS = [
     (re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.in_segs'),
     (re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.out_segs')
 ]
+
 
 class Network(AgentCheck):
 

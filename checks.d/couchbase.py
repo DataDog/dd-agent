@@ -1,18 +1,18 @@
 # stdlib
 import re
-import sys
 
 # project
 from util import headers
 from checks import AgentCheck
 
 # 3rd party
-import simplejson as json
 import requests
 
-#Constants
+# Constants
 COUCHBASE_STATS_PATH = '/pools/default'
 DEFAULT_TIMEOUT = 10
+
+
 class Couchbase(AgentCheck):
     """Extracts stats from Couchbase via its REST API
     http://docs.couchbase.com/couchbase-manual-2.0/#using-the-rest-api

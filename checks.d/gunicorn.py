@@ -3,16 +3,15 @@ Collects metrics from the gunicorn web server.
 
 http://gunicorn.org/
 """
-# project
-from checks import AgentCheck
-
 # stdlib
-import os
-import sys
 import time
 
 # 3rd party
 import psutil
+
+# project
+from checks import AgentCheck
+
 
 class GUnicornCheck(AgentCheck):
 

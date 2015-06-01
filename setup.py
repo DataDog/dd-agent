@@ -1,18 +1,10 @@
-import platform
+# stdlib
+from setuptools import setup, find_packages
 import sys
+
+# project
 from config import get_version
 from jmxfetch import JMX_FETCH_JAR_NAME
-
-try:
-    from setuptools import setup, find_packages
-
-    # required to build the cython extensions
-    from distutils.extension import Extension  # pylint: disable=no-name-in-module
-
-except ImportError:
-    from ez_setup import use_setuptools
-    use_setuptools()
-    from setuptools import setup, find_packages
 
 # Extra arguments to pass to the setup function
 extra_args = {}
@@ -25,10 +17,11 @@ install_requires = []
 
 if sys.platform == 'win32':
     from glob import glob
-    import py2exe
-    import pysnmp_mibs
-    import pyVim
-    import pyVmomi
+    # noqa for flake8, these imports are probably here to force packaging of these modules
+    import py2exe  # noqa
+    import pysnmp_mibs  # noqa
+    import pyVim  # noqa
+    import pyVmomi  # noqa
 
     # That's just a copy/paste of requirements.txt
     for reqfile in ('requirements.txt', 'requirements-opt.txt'):

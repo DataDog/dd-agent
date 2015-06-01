@@ -2,31 +2,28 @@
 This module contains classes which are used to occasionally persist the status
 of checks.
 """
-
 # stdlib
+from collections import defaultdict
+import cPickle as pickle
 import datetime
 import logging
 import os
-import cPickle as pickle
 import platform
 import sys
 import tempfile
 import time
-from collections import defaultdict
-import os.path
 
-# 3rd party
+# 3p
 import ntplib
 import yaml
 
 # project
 import config
 from config import get_config, get_jmx_status_path, _windows_commondata_path
-
-from util import get_os, plural
+from util import plural
 from utils.ntp import get_ntp_datadog_host
-from utils.platform import Platform
 from utils.pidfile import PidFile
+from utils.platform import Platform
 from utils.profile import pretty_statistics
 
 

@@ -9,48 +9,53 @@
     (C) Boxed Ice 2010 all rights reserved
     (C) Datadog, Inc. 2010-2013 all rights reserved
 '''
-
 # set up logging before importing any other components
 from config import initialize_logging
 initialize_logging('forwarder')
-from config import get_logging_config
 
-import os
-os.umask(022)
-
-# Standard imports
+# stdlib
 from datetime import timedelta
 import logging
+import os
 from Queue import Full, Queue
 from socket import gaierror, error as socket_error
 import sys
 import threading
 import zlib
 
-# Tornado
-from tornado.escape import json_decode
-import tornado.httpserver
-import tornado.ioloop
-from tornado.options import define, parse_command_line, options
-import tornado.web
+# For pickle & PID files, see issue 293
+os.umask(022)
 
-# agent import
-from checks.check_status import ForwarderStatus
-from config import (
-    get_config,
-    get_url_endpoint,
-    get_version
-)
-from util import Watchdog, get_uuid, get_hostname, json, get_tornado_ioloop
-from transaction import Transaction, TransactionManager
-import modules
-
-# 3rd party
+# 3p
 try:
     import pycurl
 except ImportError:
     # For the source install, pycurl might not be installed
     pycurl = None
+from tornado.escape import json_decode
+import tornado.httpclient
+import tornado.httpserver
+import tornado.ioloop
+from tornado.options import define, parse_command_line, options
+import tornado.web
+
+# project
+from checks.check_status import ForwarderStatus
+from config import (
+    get_config,
+    get_logging_config,
+    get_url_endpoint,
+    get_version
+)
+import modules
+from util import (
+    get_uuid,
+    get_hostname,
+    get_tornado_ioloop,
+    json,
+    Watchdog,
+)
+from transaction import Transaction, TransactionManager
 
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)
@@ -551,7 +556,6 @@ def main():
 
     # If we don't have any arguments, run the server.
     if not args:
-        import tornado.httpclient
         app = init(skip_ssl_validation, use_simple_http_client=use_simple_http_client)
         try:
             app.run()

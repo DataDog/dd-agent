@@ -3,10 +3,9 @@ from hashlib import md5
 import logging
 import os
 import re
-import sys
 import zlib
 
-# 3rd party
+# 3p
 import requests
 import simplejson as json
 
@@ -28,8 +27,10 @@ requests_log.propagate = True
 control_chars = ''.join(map(unichr, range(0,32) + range(127,160)))
 control_char_re = re.compile('[%s]' % re.escape(control_chars))
 
+
 def remove_control_chars(s):
     return control_char_re.sub('', s)
+
 
 def http_emitter(message, log, agentConfig):
     "Send payload"

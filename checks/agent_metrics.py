@@ -1,4 +1,7 @@
+# stdlib
 import threading
+
+# project
 from checks import Check
 
 

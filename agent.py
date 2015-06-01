@@ -9,24 +9,23 @@
     (C) Boxed Ice 2010 all rights reserved
     (C) Datadog, Inc. 2010-2014 all rights reserved
 '''
-
 # set up logging before importing any other components
 from config import get_version, initialize_logging
 initialize_logging('collector')
 
-import os
-os.umask(022)
-
-# Core modules
+# stdlib
 import logging
+import os
 import signal
 import sys
 import time
 
-# Custom modules
-from checks.collector import Collector
+# For pickle & PID files, see issue 293
+os.umask(022)
+
+# project
 from checks.check_status import CollectorStatus
-from utils.profile import pretty_statistics
+from checks.collector import Collector
 from config import (
     get_confd_path,
     get_config,
@@ -43,8 +42,8 @@ from util import (
     get_os,
     Watchdog,
 )
-from utils.pidfile import PidFile
 from utils.flare import configcheck, Flare
+from utils.pidfile import PidFile
 from utils.profile import AgentProfiler
 
 # Constants

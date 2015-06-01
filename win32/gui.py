@@ -8,10 +8,8 @@
 import sys
 import os
 import os.path as osp
-import webbrowser
-import thread # To manage the windows process asynchronously
+import thread  # To manage the windows process asynchronously
 import logging
-import pickle
 import platform
 import win32serviceutil
 import win32service
@@ -20,7 +18,7 @@ import win32service
 from guidata.qt.QtGui import (QWidget, QVBoxLayout, QSplitter, QFont,
                               QListWidget, QPushButton, QLabel, QGroupBox,
                               QHBoxLayout, QMessageBox, QInputDialog,
-                              QSystemTrayIcon, QIcon, QMenu, QTextEdit, QTextDocument)
+                              QSystemTrayIcon, QMenu, QTextEdit)
 from guidata.qt.QtCore import SIGNAL, Qt, QSize, QPoint, QTimer
 
 from guidata.configtools import get_icon, get_family, MONOSPACE

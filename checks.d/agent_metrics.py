@@ -1,4 +1,4 @@
-import os
+# stdlib
 import threading
 
 # 3p

@@ -5,22 +5,18 @@ import multiprocessing
 from optparse import Values
 import servicemanager
 import sys
-import threading
 import time
-import tornado.httpclient
 from win32.common import handle_exe_click
 import win32event
-import win32evtlogutil
 import win32service
 import win32serviceutil
 
-# DD
+# project
 from checks.collector import Collector
 from config import (
     get_config,
     get_confd_path,
     get_system_stats,
-    get_win32service_file,
     load_check_directory,
     set_win32_cert_path,
     PathNotFound,

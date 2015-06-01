@@ -1,11 +1,15 @@
-
-
+# stdlib
 import subprocess
-import sys
-import traceback
 
-from resources import ResourcePlugin, SnapshotDescriptor, SnapshotField, agg
+# project
 from collections import namedtuple
+from resources import (
+    agg,
+    ResourcePlugin,
+    SnapshotDescriptor,
+    SnapshotField,
+)
+
 
 class Processes(ResourcePlugin):
 

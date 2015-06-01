@@ -1,17 +1,15 @@
-# stdlib
-import time
+# 3p
+import ntplib
 
 # project
 from checks import AgentCheck
 from utils.ntp import get_ntp_datadog_host
 
-# 3rd party
-import ntplib
-
 DEFAULT_OFFSET_THRESHOLD = 60 # in seconds
 DEFAULT_NTP_VERSION = 3
 DEFAULT_TIMEOUT = 1 # in seconds
 DEFAULT_PORT = "ntp"
+
 
 class NtpCheck(AgentCheck):
 

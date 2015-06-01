@@ -1,11 +1,9 @@
-import unittest
+# stdlib
 import logging
-import re
 import sys
+import unittest
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__file__)
-
+# project
 from checks.system.unix import (
     IO,
     Load,
@@ -15,6 +13,9 @@ from checks.system.unix import (
 from config import get_system_stats
 from tests.checks.common import get_check
 from utils.platform import Platform
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__file__)
 
 
 class TestSystem(unittest.TestCase):

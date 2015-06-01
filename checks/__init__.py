@@ -3,33 +3,29 @@
 If you are writing your own checks you should subclass the AgentCheck class.
 The Check class is being deprecated so don't write new checks with it.
 """
-
+# stdlib
+from collections import defaultdict
+import copy
 import logging
 import numbers
-import re
-import socket
-import time
-from types import ListType, TupleType
 import os
-import sys
-import traceback
-import copy
+import re
+import time
 import timeit
-from pprint import pprint
-from collections import defaultdict
+import traceback
+from types import ListType, TupleType
 
-from util import LaconicFilter, get_os, get_hostname, get_next_id, yLoader
-from config import get_confd_path
-from checks import check_status
-from utils.profile import pretty_statistics
-
-# 3rd party
-import yaml
-
+# 3p
 try:
     import psutil
 except ImportError:
     psutil = None
+import yaml
+
+# project
+from checks import check_status
+from util import LaconicFilter, get_hostname, get_next_id, yLoader
+from utils.profile import pretty_statistics
 
 log = logging.getLogger(__name__)
 

@@ -5,7 +5,6 @@ import time
 import unittest
 
 # 3p
-from nose.plugins.attrib import attr
 from nose.plugins.skip import SkipTest
 
 # project
@@ -225,7 +224,6 @@ class TestCore(unittest.TestCase):
         (See: https://github.com/kennethreitz/requests/pull/945 )
         """
         from requests.utils import get_environ_proxies
-        import dogstatsd
         from os import environ as env
 
         env["http_proxy"] = "http://localhost:3128"

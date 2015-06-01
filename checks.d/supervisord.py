@@ -1,12 +1,14 @@
+# stdlib
 from collections import defaultdict
-import errno
 import socket
 import time
 import xmlrpclib
 
-from checks import AgentCheck
-
+# 3p
 import supervisor.xmlrpc
+
+# project
+from checks import AgentCheck
 
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = '9001'
@@ -37,6 +39,7 @@ FORMAT_TIME = lambda x: time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(x))
 
 SERVER_SERVICE_CHECK = 'supervisord.can_connect'
 PROCESS_SERVICE_CHECK = 'supervisord.process.status'
+
 
 class SupervisordCheck(AgentCheck):
 
