@@ -2,9 +2,7 @@ from tests.checks.common import AgentCheckTest, get_check_class, Fixtures
 
 from nose.plugins.attrib import attr
 from mock import patch
-from checks import AgentCheck
 import json
-import time
 
 
 def _mocked_get_master_state(*args, **kwargs):

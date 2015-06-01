@@ -4,7 +4,6 @@ Collects metrics from mesos master node, only the leader is sending metrics.
 """
 # stdlib
 from hashlib import md5
-import time
 
 # 3rd party
 import requests

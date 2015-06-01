@@ -4,7 +4,6 @@ from nose.plugins.attrib import attr
 from mock import patch
 from checks import AgentCheck
 import json
-import time
 
 
 def _mocked_get_state(*args, **kwargs):
