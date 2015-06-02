@@ -1,5 +1,6 @@
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 from util import headers
 
 # 3rd party
@@ -70,7 +71,7 @@ class Etcd(AgentCheck):
         instance_tags = instance.get('tags', [])
 
         ssl_params = {
-            'ssl': instance.get('ssl', False),
+            'ssl': _is_affirmative(instance.get('ssl', False)),
             'ssl_keyfile': instance.get('ssl_keyfile', None),
             'ssl_certfile': instance.get('ssl_certfile', None),
             'ssl_cert_reqs':  instance.get('ssl_cert_reqs', True)
