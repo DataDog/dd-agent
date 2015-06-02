@@ -20,6 +20,7 @@ from checks.collector import Collector
 from tests.checks.common import load_check
 from util import get_hostname
 from utils.ntp import get_ntp_datadog_host
+from utils.proxy import get_proxy
 
 logger = logging.getLogger()
 
@@ -233,14 +234,14 @@ class TestCore(unittest.TestCase):
 
         self.assertTrue("no_proxy" in env)
 
-        self.assertEquals(env["no_proxy"], "127.0.0.1,localhost")
+        self.assertEquals(env["no_proxy"], "127.0.0.1,localhost,169.254.169.254")
         self.assertEquals({}, get_environ_proxies(
             "http://localhost:17123/intake"))
 
         expected_proxies = {
             'http': 'http://localhost:3128',
             'https': 'http://localhost:3128',
-            'no': '127.0.0.1,localhost'
+            'no': '127.0.0.1,localhost,169.254.169.254'
         }
         environ_proxies = get_environ_proxies("https://www.google.com")
         self.assertEquals(expected_proxies, environ_proxies,
@@ -251,6 +252,36 @@ class TestCore(unittest.TestCase):
         del env["https_proxy"]
         del env["HTTP_PROXY"]
         del env["HTTPS_PROXY"]
+
+    def test_get_proxy(self):
+
+        agentConfig = {
+            "proxy_host": "localhost",
+            "proxy_port": 4242,
+            "proxy_user": "foo",
+            "proxy_password": "bar"
+        }
+        proxy_from_config = get_proxy(agentConfig)
+
+        self.assertEqual(proxy_from_config,
+            {
+                "host": "localhost",
+                "port": 4242,
+                "user": "foo",
+                "password": "bar",
+            })
+
+        os.environ["HTTPS_PROXY"] = "https://fooenv:barenv@google.com:4444"
+        proxy_from_env = get_proxy({})
+        self.assertEqual(proxy_from_env,
+            {
+                "host": "google.com",
+                "port": 4444,
+                "user": "fooenv",
+                "password": "barenv"
+            })
+
+
 
     def test_min_collection_interval(self):
         if os.environ.get('TRAVIS', False):
