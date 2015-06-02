@@ -159,7 +159,7 @@ class Etcd(AgentCheck):
             if ssl_params['ssl']:
                 r = requests.get(url, verify=ssl_params['ssl_cert_reqs'], cert=(ssl_params['ssl_certfile'], ssl_params['ssl_keyfile']), timeout=timeout, headers=headers(self.agentConfig))
             else:
-                r = requests.get(url, timeout=timeout, headers=headers(self.agentConfig))                
+                r = requests.get(url, timeout=timeout, headers=headers(self.agentConfig))
         except requests.exceptions.Timeout:
             # If there's a timeout
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
