@@ -70,6 +70,7 @@ class Etcd(AgentCheck):
         url = instance['url']
         instance_tags = instance.get('tags', [])
 
+        # Load the ssl configuration
         ssl_params = {
             'ssl': _is_affirmative(instance.get('ssl', False)),
             'ssl_keyfile': instance.get('ssl_keyfile', None),
@@ -157,7 +158,8 @@ class Etcd(AgentCheck):
     def _get_json(self, url, ssl_params, timeout):
         try:
             if ssl_params['ssl']:
-                r = requests.get(url, verify=ssl_params['ssl_cert_reqs'], cert=(ssl_params['ssl_certfile'], ssl_params['ssl_keyfile']), timeout=timeout, headers=headers(self.agentConfig))
+                certificate = (ssl_params['ssl_certfile'], ssl_params['ssl_keyfile']) if 'ssl_certfile' in ssl_params and 'ssl_keyfile' in ssl_params else None
+                r = requests.get(url, verify=ssl_params['ssl_cert_reqs'], cert=certificate, timeout=timeout, headers=headers(self.agentConfig))
             else:
                 r = requests.get(url, timeout=timeout, headers=headers(self.agentConfig))
         except requests.exceptions.Timeout:
