@@ -587,7 +587,7 @@ class Cpu(Check):
         When figures are not available, False is sent back.
         """
         def format_results(us, sy, wa, idle, st, guest=None):
-            data = {'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st, 'cpuGuest'; guest}
+		data = {'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st, 'cpuGuest': guest}
             for key in data.keys():
                 if data[key] is None:
                     del data[key]
