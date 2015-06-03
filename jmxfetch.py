@@ -94,8 +94,10 @@ class JMXFetch(object):
 
     def configure(self, check_list=None):
         """
-        Instantiate JMXFetch parameters.
+        Instantiate JMXFetch parameters, clean potential previous run leftovers.
         """
+        _clean_status_file()
+
         self.jmx_checks, self.invalid_checks, self.java_bin_path, self.java_options, self.tools_jar_path = \
             self.get_configuration(check_list)
 
@@ -382,6 +384,16 @@ class JMXFetch(object):
                                     "libs", JMX_FETCH_JAR_NAME))
         return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "..",
                                 "jmxfetch", JMX_FETCH_JAR_NAME))
+
+
+def _clean_status_file():
+    """
+    Removes Python JMX status file
+    """
+    try:
+        os.remove(os.path.join(get_jmx_status_path(), PYTHON_JMX_STATUS_FILE))
+    except OSError:
+        pass
 
 
 def _get_jmx_appnames():
