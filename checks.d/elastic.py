@@ -1,7 +1,5 @@
 # stdlib
 from collections import namedtuple, defaultdict
-import socket
-import subprocess
 import time
 import urlparse
 
@@ -11,7 +9,6 @@ import requests
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-from utils.platform import Platform
 from util import headers
 
 
@@ -360,88 +357,14 @@ class ESCheck(AgentCheck):
             # On newer version of ES it's "host" not "hostname"
             node_hostname = node_data.get(
                 'hostname', node_data.get('host', None))
-            should_process = (
-                is_external or self.should_process_node(
-                    nodes_url, node_name, node_hostname, config))
 
             # Override the metric hostname if we're hitting an external cluster
             metric_hostname = node_hostname if is_external else None
 
-            if should_process:
-                for metric in stats_metrics:
-                    desc = stats_metrics[metric]
-                    self._process_metric(
-                        node_data, metric, *desc, tags=config.tags,
-                        hostname=metric_hostname)
-
-    def should_process_node(self, nodes_url, node_name, node_hostname, config):
-        """ The node stats API will return stats for every node so we
-            want to filter out nodes that we don't care about.
-        """
-        if node_hostname is not None:
-            # For ES >= 0.19
-            hostnames = (
-                self.hostname.decode('utf-8'),
-                socket.gethostname().decode('utf-8'),
-                socket.getfqdn().decode('utf-8')
-            )
-            if node_hostname.decode('utf-8') in hostnames:
-                return True
-        else:
-            # FIXME 6.x : deprecate this code, it's EOL'd
-            # ES < 0.19
-            # Fetch interface address from ifconfig or ip addr and check
-            # against the primary IP from ES
-            try:
-                nodes_url = urlparse.urljoin(config.url, nodes_url)
-                primary_addr = self._get_primary_addr(
-                    nodes_url, node_name, config)
-            except NodeNotFound:
-                # Skip any nodes that aren't found
-                return False
-            if self._host_matches_node(primary_addr):
-                return True
-
-    def _get_primary_addr(self, url, node_name, config):
-        """ Returns a list of primary interface addresses as seen by ES.
-            Used in ES < 0.19
-        """
-        data = self._get_data(url, config)
-
-        if node_name in data['nodes']:
-            node = data['nodes'][node_name]
-            if ('network' in node
-                    and 'primary_interface' in node['network']
-                    and 'address' in node['network']['primary_interface']):
-                return node['network']['primary_interface']['address']
-
-        raise NodeNotFound()
-
-    def _host_matches_node(self, primary_addrs):
-        """ For < 0.19, check if the current host matches the IP given in the
-            cluster nodes check `/_cluster/nodes`. Uses `ip addr` on Linux and
-            `ifconfig` on Mac
-        """
-        if Platform.is_darwin():
-            ifaces = subprocess.Popen(['ifconfig'], stdout=subprocess.PIPE)
-        else:
-            ifaces = subprocess.Popen(['ip', 'addr'], stdout=subprocess.PIPE)
-        grepper = subprocess.Popen(
-            ['grep', 'inet'], stdin=ifaces.stdout, stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE)
-
-        ifaces.stdout.close()
-        out, err = grepper.communicate()
-
-        # Capture the list of interface IPs
-        ips = []
-        for iface in out.split("\n"):
-            iface = iface.strip()
-            if iface:
-                ips.append(iface.split(' ')[1].split('/')[0])
-
-        # Check the interface addresses against the primary address
-        return primary_addrs in ips
+            for metric, desc in stats_metrics.iteritems():
+                self._process_metric(
+                    node_data, metric, *desc, tags=config.tags,
+                    hostname=metric_hostname)
 
     def _process_metric(self, data, metric, xtype, path, xform=None,
                         tags=None, hostname=None):
