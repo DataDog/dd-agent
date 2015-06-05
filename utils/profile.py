@@ -51,7 +51,6 @@ class AgentProfiler(object):
         """
         def wrapped_func(*args, **kwargs):
             try:
-                import cProfile
                 profiler = cProfile.Profile()
                 profiler.enable()
                 log.debug("Agent profiling is enabled")
@@ -64,8 +63,6 @@ class AgentProfiler(object):
             # disable profiler and printout stats to stdout
             try:
                 profiler.disable()
-                import pstats
-                from cStringIO import StringIO
                 s = StringIO()
                 ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
                 ps.print_stats(AgentProfiler.PSTATS_LIMIT)
