@@ -193,8 +193,6 @@ class DDAgent(multiprocessing.Process):
     def stop(self):
         log.debug("Windows Service - Stopping collector")
         self.collector.stop()
-        if JMXFetch.is_running():
-            JMXFetch.stop()
         self.running = False
 
     def get_emitters(self):
@@ -282,10 +280,14 @@ class JMXFetchProcess(multiprocessing.Process):
 
     def run(self):
         if self.is_enabled:
+            JMXFetch.clean_exit_file()
             self.jmx_daemon.run()
 
-    def stop(self):
-        pass
+    def terminate(self):
+        """
+        Override `terminate` method to properly exit JMXFetch.
+        """
+        JMXFetch.write_exit_file()
 
 
 if __name__ == '__main__':
