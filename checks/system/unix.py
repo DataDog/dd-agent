@@ -5,7 +5,6 @@ Unix system checks.
 import operator
 import platform
 import re
-import subprocess as sp
 import sys
 import time
 
@@ -13,6 +12,7 @@ import time
 from checks import Check
 from util import get_hostname
 from utils.platform import Platform
+from utils.subprocess_output import subprocess as sp
 
 # locale-resilient float converter
 to_float = lambda s: float(s.replace(",", "."))
@@ -265,6 +265,7 @@ class Load(Check):
             return {'system.load.1': float(load[0]),
                     'system.load.5': float(load[1]),
                     'system.load.15': float(load[2])}
+
 
 class Memory(Check):
     def __init__(self, logger):
@@ -580,6 +581,7 @@ class Processes(Check):
                 'apiKey':      agentConfig['api_key'],
                 'host':        get_hostname(agentConfig)}
 
+
 class Cpu(Check):
 
     def check(self, agentConfig):
@@ -592,7 +594,6 @@ class Cpu(Check):
                 if data[key] is None:
                     del data[key]
             return data
-
 
         def get_value(legend, data, name, filter_value=None):
             "Using the legend and a metric name, get the value or None from the data line"

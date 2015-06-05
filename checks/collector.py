@@ -2,7 +2,6 @@
 import logging
 import pprint
 import socket
-import subprocess
 import sys
 import time
 
@@ -20,6 +19,9 @@ from checks.ganglia import Ganglia
 import checks.system.unix as u
 import checks.system.win32 as w32
 from config import get_system_stats, get_version
+import jmxfetch
+import modules
+from resources.processes import Processes as ResProcesses
 from util import (
     EC2,
     GCE,
@@ -28,9 +30,7 @@ from util import (
     get_uuid,
     Timer,
 )
-import jmxfetch
-import modules
-from resources.processes import Processes as ResProcesses
+from utils.subprocess_output import subprocess
 
 
 log = logging.getLogger(__name__)
