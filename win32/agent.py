@@ -1,4 +1,5 @@
 # stdlib
+from collections import deque
 import logging
 import modules
 import multiprocessing
@@ -127,11 +128,17 @@ class ProcessWatchDog(object):
     Monitor the attached process.
     Restarts when it exits until the limit set is reached.
     """
-    def __init__(self, name, process, max_restarts=5):
+    DEFAULT_MAX_RESTARTS = 5
+    _RESTART_TIMEFRAME = 3600
+
+    def __init__(self, name, process, max_restarts=None):
+        """
+        :param max_restarts: maximum number of restarts per _RESTART_TIMEFRAME timeframe.
+        """
         self._name = name
         self._process = process
-        self._count_restarts = 0
-        self._MAX_RESTARTS = max_restarts
+        self._restarts = deque([])
+        self._max_restarts = max_restarts or self.DEFAULT_MAX_RESTARTS
 
     def start(self):
         return self._process.start()
@@ -145,14 +152,25 @@ class ProcessWatchDog(object):
     def is_enabled(self):
         return self._process.is_enabled
 
+    def _can_restart(self):
+        now = time.time()
+        while(self._restarts and self._restarts[0] < now - self._RESTART_TIMEFRAME):
+            self._restarts.popleft()
+
+        return len(self._restarts) < self._max_restarts
+
     def restart(self):
-        self._count_restarts += 1
-        if self._count_restarts >= self._MAX_RESTARTS:
+        if not self._can_restart():
             servicemanager.LogInfoMsg(
-                "%s reached the limit of restarts. Not restarting..." % self._name)
+                "{0} reached the limit of restarts ({1} tries during the last {2}s"
+                " (max authorized: {3})). Not restarting..."
+                .format(self._name, len(self._restarts),
+                        self._RESTART_TIMEFRAME, self._max_restarts)
+            )
             self._process.is_enabled = False
             return
 
+        self._restarts.append(time.time())
         # Make a new proc instances because multiprocessing
         # won't let you call .start() twice on the same instance.
         if self._process.is_alive():
