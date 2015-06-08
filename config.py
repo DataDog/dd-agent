@@ -6,7 +6,6 @@ import logging.config
 import logging.handlers
 import platform
 import string
-import subprocess
 import sys
 import glob
 import inspect
@@ -24,6 +23,7 @@ from urlparse import urlparse
 from util import get_os, yLoader
 from utils.platform import Platform
 from utils.proxy import get_proxy
+from utils.subprocess_output import subprocess
 
 # 3rd party
 import yaml

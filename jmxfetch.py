@@ -2,7 +2,6 @@
 import glob
 import logging
 import os
-import subprocess
 import sys
 import signal
 import time
@@ -10,6 +9,7 @@ import time
 # datadog
 from util import get_os, yLoader, yDumper
 from utils.platform import Platform
+from utils.subprocess_output import subprocess
 from config import get_config, get_confd_path, get_jmx_status_path, get_logging_config, \
     PathNotFound, DEFAULT_CHECK_FREQUENCY
 
