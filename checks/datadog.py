@@ -66,22 +66,25 @@ class Dogstreams(object):
             try:
                 config_item = config_item.strip()
                 parts = windows_friendly_colon_split(config_item)
-                if len(parts) == 1:
-                    # If the dogstream includes a wildcard, we'll add every
-                    # matching path.
-                    for path in cls._get_dogstream_log_paths(parts[0]):
-                        dogstreams.append(Dogstream.init(logger, log_path=path))
-                elif len(parts) == 2:
+
+                if len(parts) == 2:
                     logger.warn("Invalid dogstream: %s" % ':'.join(parts))
-                elif len(parts) >= 3:
+                    continue
+
+                log_path = cls._get_dogstream_log_paths(parts[0]) if len(parts) else []
+                parser_spec = ':'.join(parts[1:3]) if len(parts) >= 3 else None
+                parser_args = parts[3:] if len(parts) >= 3 else None
+
+                for path in log_path:
                     dogstreams.append(Dogstream.init(
                         logger,
-                        log_path=parts[0],
-                        parser_spec=':'.join(parts[1:3]),
-                        parser_args=parts[3:],
+                        log_path=path,
+                        parser_spec=parser_spec,
+                        parser_args=parser_args,
                         config=config))
             except Exception:
                 logger.exception("Cannot build dogstream")
+
         return dogstreams
 
     @classmethod
