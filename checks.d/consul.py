@@ -59,7 +59,7 @@ class ConsulCheck(AgentCheck):
     def _is_instance_leader(self, instance):
         try:
             agent_url = self._get_agent_url(instance)
-            leader = self._get_cluster_leader(instance)
+            leader = self._last_known_leader or self._get_cluster_leader(instance)
             self.log.debug("Consul agent lives at %s . Consul Leader lives at %s" % (agent_url,leader))
             return agent_url == leader
 
@@ -69,7 +69,21 @@ class ConsulCheck(AgentCheck):
     def _check_for_leader_change(self, instance):
         agent_dc = self._get_agent_datacenter(instance)
         leader = self._get_cluster_leader(instance)
-        if leader != self._last_known_leader and self._last_known_leader is not None:
+
+        if not leader:
+            # A few things could be happening here.
+            #   1. Consul Agent is Down
+            #   2. The cluster is in the midst of a leader election
+            #   3. The Datadog agent is not able to reach the Consul instance (network partition et al.)
+            self.log.warn('Consul Leader information is not available!')
+            return
+
+        if not self._last_known_leader:
+            # We have no state preserved, store some and return
+            self._last_known_leader = leader
+            return
+
+        if leader != self._last_known_leader:
             self.log.info(('Leader change from {0} to {1}. Sending new leader event').format(
                 self._last_known_leader, leader))
 
