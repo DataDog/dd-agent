@@ -390,8 +390,8 @@ class HAProxy(AgentCheck):
 
         if status in Services.STATUSES_TO_SERVICE_CHECK:
             service_check_tags = ["service:%s" % service_name]
+            hostname = data['svname']
             if data['back_or_front'] == Services.BACKEND:
-                hostname = data['svname']
                 service_check_tags.append('backend:%s' % hostname)
 
             status = Services.STATUSES_TO_SERVICE_CHECK[status]
