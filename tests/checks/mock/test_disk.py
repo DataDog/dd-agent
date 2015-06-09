@@ -167,3 +167,12 @@ class TestCheckDisk(AgentCheckTest):
         self.assertFalse(self.check._tag_by_filesystem)
         self.assertTrue(self.check._all_partitions)
         self.assertEqual(self.check._excluded_disk_re, re.compile('^$'))
+
+    def test_ignore_empty_regex(self):
+        """
+        Ignore empty regex as they match all strings
+        (and so exclude all disks from the check)
+        """
+        self.load_check({'instances': [{}]}, agent_config={'device_blacklist_re': ''})
+        self.check._load_conf({})
+        self.assertEqual(self.check._excluded_disk_re, re.compile('^$'))
