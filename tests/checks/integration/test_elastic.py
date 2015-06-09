@@ -8,7 +8,6 @@ from nose.plugins.attrib import attr
 
 # project
 from tests.checks.common import AgentCheckTest, load_check
-from checks import AgentCheck
 from config import get_version
 
 STATS_METRICS = {  # Metrics that are common to all Elasticsearch versions
@@ -142,7 +141,7 @@ CLUSTER_HEALTH_METRICS = {
 def get_es_version():
     version = os.environ.get("FLAVOR_VERSION")
     if version is None:
-        return [1, 4, 4]
+        return [1, 6, 0]
     return [int(k) for k in version.split(".")]
 
 
@@ -166,7 +165,7 @@ class TestElastic(AgentCheckTest):
         config = {
             'instances': [
                 {'url': url, 'tags': tags},  # One with tags not external
-                {'url': url, 'is_external': True},  # One without tags, external
+                {'url': url, 'cluster_stats': True},  # One without tags, external
                 {'url': bad_url},  # One bad url
             ]
         }
@@ -213,18 +212,13 @@ class TestElastic(AgentCheckTest):
         good_sc_tags = ['host:localhost', 'port:{0}'.format(port)]
         bad_sc_tags = ['host:localhost', 'port:{0}'.format(bad_port)]
 
-        self.assertServiceCheck('elasticsearch.can_connect',
-                                status=AgentCheck.OK, tags=good_sc_tags,
-                                count=2)
-        self.assertServiceCheck('elasticsearch.can_connect',
-                                status=AgentCheck.CRITICAL, tags=bad_sc_tags,
-                                count=1)
+        self.assertServiceCheckOK('elasticsearch.can_connect',
+                                  tags=good_sc_tags,
+                                  count=2)
+        self.assertServiceCheckCritical('elasticsearch.can_connect',
+                                        tags=bad_sc_tags,
+                                        count=1)
 
-        status = AgentCheck.OK
-        # Travis doesn't have any shards in the cluster and consider this as green
-        self.assertServiceCheck('elasticsearch.cluster_health',
-                                status=status, tags=good_sc_tags,
-                                count=2)
 
         # Assert service metadata
         self.assertServiceMetadata(['version'], count=3)
@@ -264,3 +258,42 @@ class TestElastic(AgentCheckTest):
         self.assertEquals(c.timeout, 15)
         self.assertEquals(c.service_check_tags,
                           ["host:192.168.42.42", "port:12999"])
+
+    def test_health_event(self):
+        dummy_tags = ['foo:bar', 'elastique:recherche']
+        config = {'instances': [
+            {'url': 'http://localhost:9200', 'tags': dummy_tags}
+        ]}
+
+        # Should be yellow at first
+        requests.put('http://localhost:9200/_settings', data='{"index": {"number_of_replicas": 1}}')
+        self.run_check(config)
+
+        self.assertEquals(len(self.events), 1)
+        self.assertIn('yellow', self.events[0]['msg_title'])
+        self.assertEquals(
+            ['url:http://localhost:9200'] + dummy_tags,
+            self.events[0]['tags']
+        )
+        self.assertServiceCheckWarning(
+            'elasticsearch.cluster_health',
+            tags=['host:localhost', 'port:9200'],
+            count=1
+        )
+
+        # Set number of replicas to 0 for all indices
+        requests.put('http://localhost:9200/_settings', data='{"index": {"number_of_replicas": 0}}')
+        # Now shards should be green
+        self.run_check(config)
+
+        self.assertEquals(len(self.events), 1)
+        self.assertIn('green', self.events[0]['msg_title'])
+        self.assertEquals(
+            ['url:http://localhost:9200'] + dummy_tags,
+            self.events[0]['tags']
+        )
+        self.assertServiceCheckOK(
+            'elasticsearch.cluster_health',
+            tags=['host:localhost', 'port:9200'],
+            count=1
+        )
