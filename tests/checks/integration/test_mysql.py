@@ -18,7 +18,20 @@ class TestMySql(AgentCheckTest):
         'user': 'dog',
         'pass': 'dog',
         'options': {'replication': True},
-        'tags': METRIC_TAGS
+        'tags': METRIC_TAGS,
+        'queries': [{
+            'query': "SELECT * from testdb.users where name='Alice' limit 1;",
+            'metric': 'alice.age',
+            'type': 'gauge',
+            'field': 'age'
+            },
+            {
+            'query': "SELECT * from testdb.users where name='Bob' limit 1;",
+            'metric': 'bob.age',
+            'type': 'gauge',
+            'field': 'age'
+            }
+        ]
     }]
 
     CONNECTION_FAILURE = [{
@@ -116,6 +129,10 @@ class TestMySql(AgentCheckTest):
 
         # Assert service metadata
         self.assertServiceMetadata(['version'], count=1)
+
+        #test custom query metrics
+        self.assertMetric('alice.age', value=25)
+        self.assertMetric('bob.age', value=20)
 
         # Raises when COVERAGE=true and coverage < 100%
         self.coverage_report()
