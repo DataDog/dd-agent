@@ -1,0 +1,16 @@
+machine:
+  python:
+    version: 2.7.9
+  services:
+    - docker
+  environment:
+    SKIP_CLEANUP: true
+
+dependencies:
+  pre:
+    - pip install --use-wheel pyro4==4.35
+    - bundle install --system
+
+test:
+  override:
+    - rake ci:run[docker]

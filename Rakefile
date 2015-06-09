@@ -3,6 +3,7 @@
 
 require 'rake/clean'
 require 'rubocop/rake_task'
+require './ci/resources/circleci'
 
 # Flavored Travis CI jobs
 require './ci/apache'
@@ -37,6 +38,9 @@ require './ci/tokumx'
 require './ci/tomcat'
 require './ci/varnish'
 require './ci/zookeeper'
+
+# Flavored CircleCI jobs
+require './ci/docker'
 
 CLOBBER.include '**/*.pyc'
 
