@@ -19,18 +19,17 @@ class TestMySql(AgentCheckTest):
         'pass': 'dog',
         'options': {'replication': True},
         'tags': METRIC_TAGS,
-        'queries': [
-            {
-                'query': "SELECT * from testdb.users where name='Alice' limit 1;",
-                'metric': 'alice.age',
-                'type': 'gauge',
-                'field': 'age'
+        'queries': [{
+            'query': "SELECT * from testdb.users where name='Alice' limit 1;",
+            'metric': 'alice.age',
+            'type': 'gauge',
+            'field': 'age'
             },
             {
-                'query': "SELECT * from testdb.users where name='Bob' limit 1;",
-                'metric': 'bob.age',
-                'type': 'gauge',
-                'field': 'age'
+            'query': "SELECT * from testdb.users where name='Bob' limit 1;",
+            'metric': 'bob.age',
+            'type': 'gauge',
+            'field': 'age'
             }
         ]
     }]
@@ -128,12 +127,14 @@ class TestMySql(AgentCheckTest):
                       self.KEY_CACHE + self.COMMON_GAUGES + self.COMMON_RATES):
             self.assertMetric(mname, tags=self.METRIC_TAGS, count=1)
 
+<<<<<<< HEAD
         # Assert service metadata
         self.assertServiceMetadata(['version'], count=1)
-
+=======
         #test custom query metrics
         self.assertMetric('alice.age', value=25)
         self.assertMetric('bob.age', value=20)
+>>>>>>> [mysql] custom query metrics
 
         # Raises when COVERAGE=true and coverage < 100%
         self.coverage_report()

@@ -203,7 +203,11 @@ class MySql(AgentCheck):
                 self._collect_dict(check['type'], {check['field']: check['metric']}, check['query'], db, tags=tags)
 
     def _collect_metadata(self, db, host):
+<<<<<<< HEAD
+          self._get_version(db, host)
+=======
         self._get_version(db, host)
+>>>>>>> [mysql] custom query metrics
 
     def _rate_or_gauge_statuses(self, statuses, dbResults, tags):
         for status, metric in statuses.iteritems():
