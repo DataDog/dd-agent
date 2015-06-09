@@ -41,7 +41,7 @@ namespace :ci do
     end
 
     task before_cache: ['ci:common:before_cache'] do
-      Rake::Task['ci:elasticsearch:cleanup'].invoke
+      sh %(rm -rf #{es_rootdir}/data || true)
     end
 
     task cache: ['ci:common:cache']
@@ -51,7 +51,6 @@ namespace :ci do
       # (the only version spawning a process in background)
       sh %(kill `cat $VOLATILE_DIR/elasticsearch.pid` || true)
       sleep_for 1
-      sh %(rm -rf #{es_rootdir}/data || true)
     end
 
     task :execute do
