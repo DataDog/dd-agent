@@ -9,12 +9,12 @@ import requests
 import simplejson as json
 
 # project
-from transaction import Transaction, TransactionManager
+from config import get_version
 from ddagent import (
     MAX_QUEUE_SIZE, THROTTLING_DELAY,
     APIMetricTransaction, APIServiceCheckTransaction, MetricTransaction
 )
-from config import get_version
+from transaction import Transaction, TransactionManager
 
 
 class memTransaction(Transaction):
@@ -46,7 +46,7 @@ class TestTransaction(unittest.TestCase):
         """Test memory limit as well as simple flush"""
 
         # No throttling, no delay for replay
-        trManager = TransactionManager(timedelta(seconds = 0), MAX_QUEUE_SIZE, timedelta(seconds=0))
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE, timedelta(seconds=0))
 
         step = 10
         oneTrSize = (MAX_QUEUE_SIZE / step) - 1
@@ -60,7 +60,7 @@ class TestTransaction(unittest.TestCase):
         # a flush count of 1
         self.assertEqual(len(trManager._transactions), step)
         for tr in trManager._transactions:
-            self.assertEqual(tr._flush_count,1)
+            self.assertEqual(tr._flush_count, 1)
 
         # Try to add one more
         tr = memTransaction(oneTrSize + 10, trManager)
@@ -69,7 +69,7 @@ class TestTransaction(unittest.TestCase):
         # At this point, transaction one (the oldest) should have been removed from the list
         self.assertEqual(len(trManager._transactions), step)
         for tr in trManager._transactions:
-            self.assertNotEqual(tr._id,1)
+            self.assertNotEqual(tr._id, 1)
 
         trManager.flush()
         self.assertEqual(len(trManager._transactions), step)
@@ -78,9 +78,9 @@ class TestTransaction(unittest.TestCase):
             tr.is_flushable = True
             # Last transaction has been flushed only once
             if tr._id == step + 1:
-                self.assertEqual(tr._flush_count,1)
+                self.assertEqual(tr._flush_count, 1)
             else:
-                self.assertEqual(tr._flush_count,2)
+                self.assertEqual(tr._flush_count, 2)
 
         trManager.flush()
         self.assertEqual(len(trManager._transactions), 0)
@@ -89,8 +89,8 @@ class TestTransaction(unittest.TestCase):
         """Test throttling while flushing"""
 
         # No throttling, no delay for replay
-        trManager = TransactionManager(timedelta(seconds = 0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
-        trManager._flush_without_ioloop = True # Use blocking API to emulate tornado ioloop
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
+        trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
 
         # Add 3 transactions, make sure no memory limit is in the way
         oneTrSize = MAX_QUEUE_SIZE / 10
@@ -102,8 +102,8 @@ class TestTransaction(unittest.TestCase):
         before = datetime.now()
         trManager.flush()
         after = datetime.now()
-        self.assertTrue((after-before) > 3 * THROTTLING_DELAY - timedelta(microseconds=100000),
-            "before = %s after = %s" % (before, after))
+        self.assertTrue((after - before) > 3 * THROTTLING_DELAY - timedelta(microseconds=100000),
+                        "before = %s after = %s" % (before, after))
 
     def testCustomEndpoint(self):
         MetricTransaction._endpoints = []
@@ -119,15 +119,15 @@ class TestTransaction(unittest.TestCase):
         app._agentConfig = config
         app.use_simple_http_client = True
 
-        trManager = TransactionManager(timedelta(seconds = 0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
-        trManager._flush_without_ioloop = True # Use blocking API to emulate tornado ioloop
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
+        trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
         MetricTransaction._trManager = trManager
         MetricTransaction.set_application(app)
         MetricTransaction.set_endpoints()
 
-        transaction = MetricTransaction(None, {})
+        transaction = MetricTransaction(None, {}, "msgtype")
         endpoints = [transaction.get_url(e) for e in transaction._endpoints]
-        expected = ['https://foo.bar.com/intake?api_key=foo']
+        expected = ['https://foo.bar.com/intake/msgtype?api_key=foo']
         self.assertEqual(endpoints, expected, (endpoints, expected))
 
     def testEndpoints(self):
@@ -154,9 +154,9 @@ class TestTransaction(unittest.TestCase):
         MetricTransaction.set_application(app)
         MetricTransaction.set_endpoints()
 
-        transaction = MetricTransaction(None, {})
+        transaction = MetricTransaction(None, {}, "msgtype")
         endpoints = [transaction.get_url(e) for e in transaction._endpoints]
-        expected = ['https://{0}-app.agent.datadoghq.com/intake?api_key={1}'.format(
+        expected = ['https://{0}-app.agent.datadoghq.com/intake/msgtype?api_key={1}'.format(
             get_version().replace(".", "-"), api_key)]
         self.assertEqual(endpoints, expected, (endpoints, expected))
 

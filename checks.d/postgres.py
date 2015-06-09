@@ -13,7 +13,10 @@ import socket
 
 MAX_CUSTOM_RESULTS = 100
 
-class ShouldRestartException(Exception): pass
+
+class ShouldRestartException(Exception):
+    pass
+
 
 class PostgreSql(AgentCheck):
     """Collects per-database, and optionally per-relation metrics, custom metrics
@@ -263,6 +266,7 @@ SELECT relname,
                 version = result[0]
             self.versions[key] = version
 
+        self.service_metadata('version', self.versions[key])
         return self.versions[key]
 
     def _is_above(self, key, db, version_to_compare):

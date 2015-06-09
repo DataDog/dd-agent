@@ -261,6 +261,7 @@ class ESCheck(AgentCheck):
             )
             version = [1, 0, 0]
 
+        self.service_metadata('version', version)
         self.log.debug("Elasticsearch version is %s" % version)
         return version
 
