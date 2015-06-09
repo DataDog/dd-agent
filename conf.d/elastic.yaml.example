@@ -9,9 +9,11 @@ instances:
   # and password for every instance that requires authentication.
   #
   # If your cluster is hosted externally (i.e., you're not pointing to localhost)
-  # you will need to set `is_external` to true otherwise the check will compare
-  # the local hostname against hostnames of the Elasticsearch nodes and only
-  # submit metrics if they match.
+  # you will need to set `cluster_stats` to true otherwise the check will only
+  # submit metrics of the local node.
+  # DEPRECATION:
+  # This parameter was also called `is_external` and you can still use it but it
+  # will be removed in version 6.
   #
   - url: http://localhost:9200
     # username: username
