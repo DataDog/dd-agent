@@ -70,7 +70,7 @@ class Disk(AgentCheck):
                 "Using `{0}` in datadog.conf has been deprecated"
                 " in favor of `{1}` in disk.yaml".format(legacy_name, option)
             )
-            value = self.agentConfig.get(legacy_name)
+            value = self.agentConfig.get(legacy_name) or default
         setattr(self, '_{0}'.format(option), operation(value))
 
     def collect_metrics_psutil(self):
