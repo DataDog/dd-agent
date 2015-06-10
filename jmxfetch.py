@@ -49,6 +49,7 @@ JMX_LIST_COMMANDS = {
     'list_limited_attributes': "List attributes that do match one of your instances configuration but that are not being collected because it would exceed the number of metrics that can be collected",
     JMX_COLLECT_COMMAND: "Start the collection of metrics based on your current configuration and display them in the console"}
 
+JMX_STATUS_FILE = 'jmx_status.yaml'
 PYTHON_JMX_STATUS_FILE = 'jmx_status_python.yaml'
 PYTHON_JMX_EXIT_FILE = 'jmxfetch_exit'
 
@@ -213,7 +214,7 @@ class JMXFetch(object):
             path_to_java = path_to_java or "java"
             java_run_opts = java_run_opts or ""
             path_to_jmxfetch = self._get_path_to_jmxfetch()
-            path_to_status_file = os.path.join(get_jmx_status_path(), "jmx_status.yaml")
+            path_to_status_file = os.path.join(get_jmx_status_path(), JMX_STATUS_FILE)
 
             if tools_jar_path is None:
                 classpath = path_to_jmxfetch
@@ -416,9 +417,10 @@ class JMXFetch(object):
 
 def _clean_status_file():
     """
-    Removes Python JMX status file
+    Removes JMX status files
     """
     try:
+        os.remove(os.path.join(get_jmx_status_path(), JMX_STATUS_FILE))
         os.remove(os.path.join(get_jmx_status_path(), PYTHON_JMX_STATUS_FILE))
     except OSError:
         pass
@@ -431,7 +433,7 @@ def _get_jmx_appnames():
     and the collector since JMXFetch).
     """
     check_names = []
-    jmx_status_path = os.path.join(get_jmx_status_path(), "jmx_status.yaml")
+    jmx_status_path = os.path.join(get_jmx_status_path(), JMX_STATUS_FILE)
     if os.path.exists(jmx_status_path):
         jmx_checks = yaml.load(file(jmx_status_path)).get('checks', {})
         check_names = [name for name in jmx_checks.get('initialized_checks', {}).iterkeys()]
