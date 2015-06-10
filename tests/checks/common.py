@@ -14,6 +14,7 @@ from pprint import pformat
 from checks import AgentCheck
 from config import get_checksd_path
 from util import get_os, get_hostname
+from utils.debug import get_check  # noqa -  FIXME 5.5.0 AgentCheck tests should not use this
 
 log = logging.getLogger('tests')
 
@@ -84,29 +85,6 @@ def kill_subprocess(process_obj):
             ctypes.windll.kernel32.CloseHandle(handle)
         else:
             os.kill(process_obj.pid, signal.SIGKILL)
-
-
-def get_check(name, config_str):
-    checksd_path = get_checksd_path(get_os())
-    if checksd_path not in sys.path:
-        sys.path.append(checksd_path)
-    check_module = __import__(name)
-    check_class = None
-    classes = inspect.getmembers(check_module, inspect.isclass)
-    for name, clsmember in classes:
-        if AgentCheck in clsmember.__bases__:
-            check_class = clsmember
-            break
-    if check_class is None:
-        raise Exception("Unable to import check %s. Missing a class that inherits AgentCheck" % name)
-
-    agentConfig = {
-        'version': '0.1',
-        'api_key': 'tota'
-    }
-
-    return check_class.from_yaml(yaml_text=config_str, check_name=name,
-                                 agentConfig=agentConfig)
 
 
 class Fixtures(object):

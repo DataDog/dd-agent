@@ -25,7 +25,10 @@ import yaml
 # project
 from checks import check_status
 from util import LaconicFilter, get_hostname, get_next_id, yLoader
+from utils.platform import Platform
 from utils.profile import pretty_statistics
+if Platform.is_windows():
+    from utils.debug import run_check  # noqa - windows debug purpose
 
 log = logging.getLogger(__name__)
 
