@@ -52,13 +52,13 @@ class HAProxy(AgentCheck):
         "eresp": ("rate", "errors.resp_rate"),
         "wretr": ("rate", "warnings.retr_rate"),
         "wredis": ("rate", "warnings.redis_rate"),
-        "req_rate": ("gauge", "requests.rate"), # HA Proxy 1.4 and higher
-        "hrsp_1xx": ("rate", "response.1xx"),  # HA Proxy 1.4 and higher
-        "hrsp_2xx": ("rate", "response.2xx"), # HA Proxy 1.4 and higher
-        "hrsp_3xx": ("rate", "response.3xx"), # HA Proxy 1.4 and higher
-        "hrsp_4xx": ("rate", "response.4xx"), # HA Proxy 1.4 and higher
-        "hrsp_5xx": ("rate", "response.5xx"), # HA Proxy 1.4 and higher
-        "hrsp_other": ("rate", "response.other"), # HA Proxy 1.4 and higher
+        "req_rate": ("gauge", "requests.rate"),  # HA Proxy 1.4 and higher
+        "hrsp_1xx": ("rate", "response.1xx"),   # HA Proxy 1.4 and higher
+        "hrsp_2xx": ("rate", "response.2xx"),  # HA Proxy 1.4 and higher
+        "hrsp_3xx": ("rate", "response.3xx"),  # HA Proxy 1.4 and higher
+        "hrsp_4xx": ("rate", "response.4xx"),  # HA Proxy 1.4 and higher
+        "hrsp_5xx": ("rate", "response.5xx"),  # HA Proxy 1.4 and higher
+        "hrsp_other": ("rate", "response.other"),  # HA Proxy 1.4 and higher
         "qtime": ("gauge", "queue.time"),  # HA Proxy 1.5 and higher
         "ctime": ("gauge", "connect.time"),  # HA Proxy 1.5 and higher
         "rtime": ("gauge", "response.time"),  # HA Proxy 1.5 and higher
@@ -123,13 +123,10 @@ class HAProxy(AgentCheck):
         either save a metric, save an event or both. '''
 
         # Split the first line into an index of fields
-        # The line looks like:
-        # "# pxname,svname,qcur,qmax,scur,smax,slim,stot,bin,bout,dreq,dresp,ereq,econ,eresp,wretr,wredis,status,weight,act,bck,chkfail,chkdown,lastchg,downtime,qlimit,pid,iid,sid,throttle,lbtot,tracked,type,rate,rate_lim,rate_max,"
+        # See fixtures/haproxy/haproxy_status for a sample
         fields = [f.strip() for f in data[0][2:].split(',') if f]
 
         self.hosts_statuses = defaultdict(int)
-
-        back_or_front = None
 
         # Skip the first line, go backwards to set back_or_front
         for line in data[:0:-1]:
@@ -139,10 +136,7 @@ class HAProxy(AgentCheck):
             # Store each line's values in a dictionary
             data_dict = self._line_to_dict(fields, line)
 
-            if self._is_aggregate(data_dict):
-                back_or_front = data_dict['svname']
-
-            self._update_data_dict(data_dict, back_or_front)
+            self._update_data_dict(data_dict, data_dict['svname'])
 
             self._update_hosts_statuses_if_needed(
                 collect_status_metrics, collect_status_metrics_by_host,
@@ -390,6 +384,7 @@ class HAProxy(AgentCheck):
 
         if status in Services.STATUSES_TO_SERVICE_CHECK:
             service_check_tags = ["service:%s" % service_name]
+
             hostname = data['svname']
             if data['back_or_front'] == Services.BACKEND:
                 service_check_tags.append('backend:%s' % hostname)
