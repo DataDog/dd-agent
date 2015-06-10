@@ -6,15 +6,17 @@ import sys
 import signal
 import time
 
-# datadog
-from util import get_os, yLoader, yDumper
-from utils.platform import Platform
-from utils.subprocess_output import subprocess
-from config import get_config, get_confd_path, get_jmx_status_path, get_logging_config, \
-    PathNotFound, DEFAULT_CHECK_FREQUENCY
-
 # 3rd party
 import yaml
+
+# datadog
+from config import get_config, get_confd_path, get_logging_config, \
+    PathNotFound, DEFAULT_CHECK_FREQUENCY
+from util import get_os, yLoader
+from utils.jmxfiles import JMXFiles
+from utils.platform import Platform
+from utils.subprocess_output import subprocess
+
 
 log = logging.getLogger(__name__)
 
@@ -48,10 +50,6 @@ JMX_LIST_COMMANDS = {
     'list_not_matching_attributes': "List attributes that don't match any of your instances configuration",
     'list_limited_attributes': "List attributes that do match one of your instances configuration but that are not being collected because it would exceed the number of metrics that can be collected",
     JMX_COLLECT_COMMAND: "Start the collection of metrics based on your current configuration and display them in the console"}
-
-JMX_STATUS_FILE = 'jmx_status.yaml'
-PYTHON_JMX_STATUS_FILE = 'jmx_status_python.yaml'
-PYTHON_JMX_EXIT_FILE = 'jmxfetch_exit'
 
 LINK_TO_DOC = "See http://docs.datadoghq.com/integrations/java/ for more information"
 
@@ -99,7 +97,7 @@ class JMXFetch(object):
         """
         Instantiate JMXFetch parameters, clean potential previous run leftovers.
         """
-        _clean_status_file()
+        JMXFiles.clean_status_file()
 
         self.jmx_checks, self.invalid_checks, self.java_bin_path, self.java_options, self.tools_jar_path = \
             self.get_configuration(check_list)
@@ -122,7 +120,7 @@ class JMXFetch(object):
 
             if len(self.invalid_checks) > 0:
                 try:
-                    self._write_status_file(self.invalid_checks)
+                    JMXFiles.write_status_file(self.invalid_checks)
                 except Exception:
                     log.exception("Error while writing JMX status file")
 
@@ -214,7 +212,7 @@ class JMXFetch(object):
             path_to_java = path_to_java or "java"
             java_run_opts = java_run_opts or ""
             path_to_jmxfetch = self._get_path_to_jmxfetch()
-            path_to_status_file = os.path.join(get_jmx_status_path(), JMX_STATUS_FILE)
+            path_to_status_file = JMXFiles.get_status_file_path()
 
             if tools_jar_path is None:
                 classpath = path_to_jmxfetch
@@ -238,7 +236,7 @@ class JMXFetch(object):
             if Platform.is_windows():
                 # Signal handlers are not supported on Windows:
                 # use a file to trigger JMXFetch exit instead
-                path_to_exit_file = os.path.join(get_jmx_status_path(), PYTHON_JMX_EXIT_FILE)
+                path_to_exit_file = JMXFiles.get_python_exit_file_path()
                 subprocess_args.insert(len(subprocess_args) - 1, '--exit_file_location')
                 subprocess_args.insert(len(subprocess_args) - 1, path_to_exit_file)
 
@@ -276,20 +274,11 @@ class JMXFetch(object):
                 check_name = check.split('.')[0]
                 check_name = check_name.encode('ascii', 'ignore')
                 invalid_checks[check_name] = java_path_msg
-            self._write_status_file(invalid_checks)
+            JMXFiles.write_status_file(invalid_checks)
             raise
         except Exception:
             log.exception("Couldn't launch JMXFetch")
             raise
-
-    def _write_status_file(self, invalid_checks):
-        data = {
-            'timestamp': time.time(),
-            'invalid_checks': invalid_checks
-        }
-        stream = file(os.path.join(get_jmx_status_path(), PYTHON_JMX_STATUS_FILE), 'w')
-        yaml.dump(data, stream, Dumper=yDumper)
-        stream.close()
 
     def _is_jmx_check(self, check_config, check_name, checks_list):
         init_config = check_config.get('init_config', {}) or {}
@@ -394,50 +383,6 @@ class JMXFetch(object):
                                     "libs", JMX_FETCH_JAR_NAME))
         return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "..",
                                 "jmxfetch", JMX_FETCH_JAR_NAME))
-
-    @staticmethod
-    def write_exit_file():
-        """
-        Create a 'special' file, which acts as a trigger to exit JMXFetch.
-        Note: Windows only
-        """
-        open(os.path.join(get_jmx_status_path(), PYTHON_JMX_EXIT_FILE), 'a').close()
-
-    @staticmethod
-    def clean_exit_file():
-        """
-        Remove exit file trigger -may not exist-.
-        Note: Windows only
-        """
-        try:
-            os.remove(os.path.join(get_jmx_status_path(), PYTHON_JMX_EXIT_FILE))
-        except OSError:
-            pass
-
-
-def _clean_status_file():
-    """
-    Removes JMX status files
-    """
-    try:
-        os.remove(os.path.join(get_jmx_status_path(), JMX_STATUS_FILE))
-        os.remove(os.path.join(get_jmx_status_path(), PYTHON_JMX_STATUS_FILE))
-    except OSError:
-        pass
-
-
-def _get_jmx_appnames():
-    """
-    Retrieves the running JMX checks based on the {tmp}/jmx_status.yaml file
-    updated by JMXFetch (and the only communication channel between JMXFetch
-    and the collector since JMXFetch).
-    """
-    check_names = []
-    jmx_status_path = os.path.join(get_jmx_status_path(), JMX_STATUS_FILE)
-    if os.path.exists(jmx_status_path):
-        jmx_checks = yaml.load(file(jmx_status_path)).get('checks', {})
-        check_names = [name for name in jmx_checks.get('initialized_checks', {}).iterkeys()]
-    return check_names
 
 
 def init(config_path=None):

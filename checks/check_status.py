@@ -19,8 +19,9 @@ import yaml
 
 # project
 import config
-from config import get_config, get_jmx_status_path, _is_affirmative, _windows_commondata_path
+from config import get_config, _is_affirmative, _windows_commondata_path
 from util import plural
+from utils.jmxfiles import JMXFiles
 from utils.ntp import get_ntp_args
 from utils.pidfile import PidFile
 from utils.platform import Platform
@@ -849,8 +850,8 @@ def get_jmx_status():
         ###
     """
     check_statuses = []
-    java_status_path = os.path.join(get_jmx_status_path(), "jmx_status.yaml")
-    python_status_path = os.path.join(get_jmx_status_path(), "jmx_status_python.yaml")
+    java_status_path = JMXFiles.get_status_file_path()
+    python_status_path = JMXFiles.get_python_status_file_path()
     if not os.path.exists(java_status_path) and not os.path.exists(python_status_path):
         log.debug("There is no jmx_status file at: %s or at: %s" % (java_status_path, python_status_path))
         return []

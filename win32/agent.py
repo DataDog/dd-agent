@@ -22,11 +22,12 @@ from config import (
     set_win32_cert_path,
     PathNotFound,
 )
-import dogstatsd
 from ddagent import Application
+import dogstatsd
 from emitter import http_emitter
 from jmxfetch import JMXFetch
 from util import get_hostname, get_os
+from utils.jmxfiles import JMXFiles
 
 log = logging.getLogger(__name__)
 
@@ -298,14 +299,14 @@ class JMXFetchProcess(multiprocessing.Process):
 
     def run(self):
         if self.is_enabled:
-            JMXFetch.clean_exit_file()
+            JMXFiles.clean_exit_file()
             self.jmx_daemon.run()
 
     def terminate(self):
         """
         Override `terminate` method to properly exit JMXFetch.
         """
-        JMXFetch.write_exit_file()
+        JMXFiles.write_exit_file()
         self.join()
 
 

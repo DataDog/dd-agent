@@ -20,7 +20,6 @@ from checks.ganglia import Ganglia
 import checks.system.unix as u
 import checks.system.win32 as w32
 from config import get_system_stats, get_version
-import jmxfetch
 import modules
 from resources.processes import Processes as ResProcesses
 from util import (
@@ -31,6 +30,7 @@ from util import (
     get_uuid,
     Timer,
 )
+from utils.jmxfiles import JMXFiles
 from utils.subprocess_output import subprocess
 
 log = logging.getLogger(__name__)
@@ -730,7 +730,8 @@ class Collector(object):
         if self.agentConfig['create_dd_check_tags'] and \
                 self._should_send_additional_data('dd_check_tags'):
             app_tags_list = [DD_CHECK_TAG.format(c.name) for c in self.initialized_checks_d]
-            app_tags_list.extend([DD_CHECK_TAG.format(cname) for cname in jmxfetch._get_jmx_appnames()])
+            app_tags_list.extend([DD_CHECK_TAG.format(cname) for cname
+                                  in JMXFiles.get_jmx_appnames()])
 
             if 'system' not in payload['host-tags']:
                 payload['host-tags']['system'] = []
