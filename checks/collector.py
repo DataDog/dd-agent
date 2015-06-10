@@ -282,7 +282,6 @@ class Collector(object):
         if self.os == 'windows':
             # Win32 system checks
             try:
-                metrics.extend(self._win32_system_checks['disk'].check(self.agentConfig))
                 metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
                 metrics.extend(self._win32_system_checks['cpu'].check(self.agentConfig))
                 metrics.extend(self._win32_system_checks['network'].check(self.agentConfig))
