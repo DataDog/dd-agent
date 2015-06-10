@@ -306,6 +306,7 @@ class JMXFetchProcess(multiprocessing.Process):
         Override `terminate` method to properly exit JMXFetch.
         """
         JMXFetch.write_exit_file()
+        self.join()
 
 
 if __name__ == '__main__':
