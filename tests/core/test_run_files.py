@@ -1,24 +1,21 @@
 # stdlib
 import os
 import shlex
-import signal
 import subprocess
-import time
 import unittest
 
 # 3p
 import mock
-from nose.plugins.attrib import attr
 
 # Mock gettempdir for testing
-import tempfile; tempfile.gettempdir = mock.Mock(return_value='/a/test/tmp/dir')
+import tempfile
+tempfile.gettempdir = mock.Mock(return_value='/a/test/tmp/dir')
 
 # project
 # Mock _windows_commondata_path for testing
-import config; config._windows_commondata_path = mock.Mock(return_value='./windows_commondata')
+import config
+config._windows_commondata_path = mock.Mock(return_value='./windows_commondata')
 
-
-from utils.pidfile import PidFile
 from checks.check_status import AgentStatus
 
 class TestRunFiles(unittest.TestCase):
@@ -27,14 +24,6 @@ class TestRunFiles(unittest.TestCase):
     # Mac run directory expected location
     _my_dir = os.path.dirname(os.path.abspath(__file__))
     _mac_run_dir = '/'.join(_my_dir.split('/')[:-4])
-
-    def setUp(self):
-        self.agent_daemon = None
-
-    def tearDown(self):
-        if self.agent_daemon:
-            args = shlex.split('python agent.py stop')
-            subprocess.Popen(args).communicate()
 
     @mock.patch('utils.platform.Platform.is_win32', return_value=True)
     def test_agent_status_pickle_file_win32(self, *mocks):
