@@ -57,6 +57,8 @@ instances:
   #
   # Note: setting this will cause any instance number to be removed from tag_by values
   # i.e. name:process#1 => name:process
+  #
+  # This feature is available starting with version 5.3 of the agent
 
   # Fetch the number of processes and users.
   - class: Win32_OperatingSystem
