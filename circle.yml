@@ -1,10 +1,10 @@
 machine:
   python:
     version: 2.7.9
-  services:
-    - docker
   environment:
     SKIP_CLEANUP: true
+    # comma separated list
+    CIRCLECI_FLAVORS: docker
 
 dependencies:
   pre:
@@ -13,4 +13,5 @@ dependencies:
 
 test:
   override:
-    - rake ci:run[docker]
+    - ./tests/circleci.sh:
+        parallel: true
