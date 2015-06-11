@@ -5,15 +5,7 @@ import unittest
 # 3p
 import mock
 
-# Mock gettempdir for testing
-import tempfile
-tempfile.gettempdir = mock.Mock(return_value='/a/test/tmp/dir')
-
 # project
-# Mock _windows_commondata_path for testing
-import config
-config._windows_commondata_path = mock.Mock(return_value="C:\Windows\App Data")
-
 from checks.check_status import AgentStatus
 
 class TestRunFiles(unittest.TestCase):
@@ -24,6 +16,7 @@ class TestRunFiles(unittest.TestCase):
     _mac_run_dir = '/'.join(_my_dir.split('/')[:-4])
     _linux_run_dir = '/opt/datadog-agent/run'
 
+    @mock.patch('checks.check_status._windows_commondata_path', return_value="C:\Windows\App Data")
     @mock.patch('utils.platform.Platform.is_win32', return_value=True)
     def test_agent_status_pickle_file_win32(self, *mocks):
         ''' Test pickle file location on win32 '''
@@ -39,6 +32,7 @@ class TestRunFiles(unittest.TestCase):
         expected_path = os.path.join(self._mac_run_dir, 'AgentStatus.pickle')
         self.assertEqual(AgentStatus._get_pickle_path(), expected_path)
 
+    @mock.patch('utils.pidfile.tempfile.gettempdir', return_value='/a/test/tmp/dir')
     @mock.patch('utils.platform.Platform.is_win32', return_value=False)
     @mock.patch('utils.platform.Platform.is_mac', return_value=True)
     def test_agent_status_pickle_file_mac_source(self, *mocks):
