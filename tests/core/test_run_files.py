@@ -14,7 +14,7 @@ tempfile.gettempdir = mock.Mock(return_value='/a/test/tmp/dir')
 # project
 # Mock _windows_commondata_path for testing
 import config
-config._windows_commondata_path = mock.Mock(return_value='./windows_commondata')
+config._windows_commondata_path = mock.Mock(return_value="C:\Windows\App Data")
 
 from checks.check_status import AgentStatus
 
@@ -28,7 +28,7 @@ class TestRunFiles(unittest.TestCase):
     @mock.patch('utils.platform.Platform.is_win32', return_value=True)
     def test_agent_status_pickle_file_win32(self, *mocks):
         ''' Test pickle file location on win32 '''
-        expected_path = os.path.join('.', 'windows_commondata', 'Datadog', 'AgentStatus.pickle')
+        expected_path = os.path.join('C:\Windows\App Data', 'Datadog', 'AgentStatus.pickle')
         # check AgentStatus pickle created
         self.assertEqual(AgentStatus._get_pickle_path(), expected_path)
 
