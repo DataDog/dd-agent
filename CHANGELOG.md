@@ -66,7 +66,7 @@ See [#1621][]
 
 * [IMPROVEMENT] Limit process restart attempts on Windows on a specific time frame. See [#1664][]
 * [IMPROVEMENT] Only start the Collector and Dogstatsd when needed. See [#1569][]
-* [IMPROVEMENT] Use internal `/run` for temporary pid and pickle files. See [#1569][]
+* [IMPROVEMENT] Use internal `/run` for temporary pid, pickle and JMXFetch files. See [#1569][], [#1679][]
 * [IMPROVEMENT] Disk: New check based on `psutil` replaces the old system check. See [#1596][]
 * [IMPROVEMENT] JMXFetch: Run JMXFetch as `dd-agent` user. See [#1619][]
 * [IMPROVEMENT] NTP: Use Datadog NTP pool. See [#1618][]
@@ -1727,6 +1727,7 @@ If you use ganglia, you want this version.
 [#1657]: https://github.com/DataDog/dd-agent/issues/1657
 [#1664]: https://github.com/DataDog/dd-agent/issues/1664
 [#1666]: https://github.com/DataDog/dd-agent/issues/1666
+[#1679]: https://github.com/DataDog/dd-agent/issues/1679
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
