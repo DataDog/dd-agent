@@ -27,19 +27,18 @@ AGENTCONF="/etc/dd-agent/datadog.conf"
 DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
+PROG="datadog-agent"
+LOCKFILE=/var/lock/subsys/$PROG
 FORWARDERPATH="/opt/datadog-agent/agent/ddagent.py"
 SUPERVISORD_PATH="PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH /opt/datadog-agent/bin/supervisord"
 SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"
 SUPERVISOR_SOCK="/opt/datadog-agent/run/datadog-supervisor.sock"
+SUPERVISOR_PIDFILE="/opt/datadog-agent/run/datadog-supervisord.pid"
 
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-PROG="datadog-agent"
-PIDFILE=$PIDPATH/$PROG.pid
-SUPERVISOR_PIDFILE=/var/run/datadog-supervisord.pid
-LOCKFILE=/var/lock/subsys/$PROG
 
 check_status() {
     # run checks to determine if the service is running or use generic status
