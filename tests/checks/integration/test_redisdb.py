@@ -10,7 +10,7 @@ import redis
 
 # project
 from checks import AgentCheck
-from tests.checks.common import load_check, AgentCheckTest
+from tests.checks.common import AgentCheckTest, load_check
 
 logger = logging.getLogger()
 

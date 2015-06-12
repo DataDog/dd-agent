@@ -1,6 +1,8 @@
 # stdlib
-import mock
 import re
+
+# 3p
+import mock
 
 # project
 from tests.checks.common import AgentCheckTest, Fixtures

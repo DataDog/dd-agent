@@ -5,42 +5,47 @@
 # Licensed under the terms of the CECILL License
 # Modified for Datadog
 
-import sys
+# stdlib
+import logging
 import os
 import os.path as osp
-import thread  # To manage the windows process asynchronously
-import logging
 import platform
-import win32serviceutil
-import win32service
+import sys
+import thread  # To manage the windows process asynchronously
 
+# 3p
 # GUI Imports
-from guidata.qt.QtGui import (QWidget, QVBoxLayout, QSplitter, QFont,
-                              QListWidget, QPushButton, QLabel, QGroupBox,
-                              QHBoxLayout, QMessageBox, QInputDialog,
-                              QSystemTrayIcon, QMenu, QTextEdit)
-from guidata.qt.QtCore import SIGNAL, Qt, QSize, QPoint, QTimer
-
-from guidata.configtools import get_icon, get_family, MONOSPACE
+from guidata.configtools import get_family, get_icon, MONOSPACE
+from guidata.qt.QtCore import QPoint, QSize, Qt, QTimer, SIGNAL
+from guidata.qt.QtGui import (QFont, QGroupBox, QHBoxLayout, QInputDialog,
+                              QLabel, QListWidget, QMenu, QMessageBox,
+                              QPushButton, QSplitter, QSystemTrayIcon,
+                              QTextEdit, QVBoxLayout, QWidget)
 from guidata.qthelpers import get_std_icon
-from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 
 # small hack to avoid having to patch the spyderlib library
 # Needed because of py2exe bundling not being able to access
 # the spyderlib image sources
 import spyderlib.baseconfig
 spyderlib.baseconfig.IMG_PATH = [""]
+from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
+
+# Windows management & others
+import tornado.template as template
+import win32service
+import win32serviceutil
+import yaml
 
 # Datadog
+from checks.check_status import CollectorStatus, DogstatsdStatus, ForwarderStatus, logger_info
+from config import (
+    _windows_commondata_path,
+    get_confd_path,
+    get_config,
+    get_config_path,
+    get_version,
+)
 from util import get_os, yLoader
-from config import (get_confd_path, get_config_path, get_config,
-    _windows_commondata_path, get_version)
-from checks.check_status import DogstatsdStatus, ForwarderStatus, CollectorStatus, logger_info
-
-# 3rd Party
-import yaml
-import tornado.template as template
-
 
 log = logging.getLogger(__name__)
 

@@ -1,6 +1,8 @@
+# stdlib
 import unittest
 
-from aggregator import MetricsAggregator, Histogram
+# project
+from aggregator import Histogram, MetricsAggregator
 from config import get_histogram_aggregates, get_histogram_percentiles
 
 class TestHistogram(unittest.TestCase):

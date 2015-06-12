@@ -2,15 +2,15 @@
 Redis checks
 '''
 # stdlib
+from collections import defaultdict
 import re
 import time
-from collections import defaultdict
-
-# project
-from checks import AgentCheck
 
 # 3rd party
 import redis
+
+# project
+from checks import AgentCheck
 
 DEFAULT_MAX_SLOW_ENTRIES = 128
 MAX_SLOW_ENTRIES_KEY = "slowlog-max-len"

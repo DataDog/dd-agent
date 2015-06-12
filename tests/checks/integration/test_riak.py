@@ -1,5 +1,10 @@
-from nose.plugins.attrib import attr
+# stdlib
 import socket
+
+# 3p
+from nose.plugins.attrib import attr
+
+# project
 from tests.checks.common import AgentCheckTest
 
 

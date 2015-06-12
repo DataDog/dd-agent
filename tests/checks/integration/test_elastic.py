@@ -1,14 +1,14 @@
 # stdlib
-import socket
 import os
+import socket
 
 # 3p
-import requests
 from nose.plugins.attrib import attr
+import requests
 
 # project
-from tests.checks.common import AgentCheckTest, load_check
 from config import get_version
+from tests.checks.common import AgentCheckTest, load_check
 
 STATS_METRICS = {  # Metrics that are common to all Elasticsearch versions
     "elasticsearch.docs.count": ("gauge", "indices.docs.count"),

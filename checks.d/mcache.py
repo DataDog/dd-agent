@@ -1,8 +1,8 @@
-# project
-from checks import AgentCheck
-
 # 3rd party
 import memcache
+
+# project
+from checks import AgentCheck
 
 # Ref: http://code.sixapart.com/svn/memcached/trunk/server/doc/protocol.txt
 # Name              Type     Meaning

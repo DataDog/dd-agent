@@ -1,12 +1,13 @@
 # stdlib
 from collections import deque
 import logging
-import modules
 import multiprocessing
 from optparse import Values
-import servicemanager
 import sys
 import time
+
+# 3p
+import servicemanager
 from win32.common import handle_exe_click
 import win32event
 import win32service
@@ -15,17 +16,18 @@ import win32serviceutil
 # project
 from checks.collector import Collector
 from config import (
-    get_config,
     get_confd_path,
+    get_config,
     get_system_stats,
     load_check_directory,
-    set_win32_cert_path,
     PathNotFound,
+    set_win32_cert_path,
 )
 from ddagent import Application
 import dogstatsd
 from emitter import http_emitter
 from jmxfetch import JMXFetch
+import modules
 from util import get_hostname, get_os
 from utils.jmxfiles import JMXFiles
 

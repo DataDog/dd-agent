@@ -1,5 +1,4 @@
 # stdlib
-
 from hashlib import md5
 import logging
 import math
@@ -7,7 +6,6 @@ import os
 import platform
 import re
 import signal
-import simplejson as json
 import socket
 import sys
 import time
@@ -16,6 +14,7 @@ import urllib2
 import uuid
 
 # 3p
+import simplejson as json
 import yaml  # noqa, let's guess, probably imported somewhere
 from tornado import ioloop
 try:

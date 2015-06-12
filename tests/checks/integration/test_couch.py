@@ -1,6 +1,9 @@
-from tests.checks.common import AgentCheckTest
+# 3p
 from nose.plugins.attrib import attr
+
+# project
 from checks import AgentCheck
+from tests.checks.common import AgentCheckTest
 
 
 @attr(requires='couchdb')

@@ -1,8 +1,8 @@
 # stdlib
-import urlparse
-import time
 import re
+import time
 import urllib
+import urlparse
 
 # 3p
 import requests

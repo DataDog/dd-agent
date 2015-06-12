@@ -1,8 +1,8 @@
 # stdlib
+from collections import namedtuple
 import subprocess
 
 # project
-from collections import namedtuple
 from resources import (
     agg,
     ResourcePlugin,

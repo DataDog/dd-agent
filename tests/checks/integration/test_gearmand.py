@@ -1,9 +1,9 @@
+# 3rd party
+from nose.plugins.attrib import attr
+
 # Agent
 from checks import AgentCheck
 from tests.checks.common import AgentCheckTest
-
-# 3rd party
-from nose.plugins.attrib import attr
 
 
 @attr(requires='gearman')

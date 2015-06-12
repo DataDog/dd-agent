@@ -1,12 +1,12 @@
 # stdlib
 import re
 
-# project
-from util import headers
-from checks import AgentCheck
-
 # 3rd party
 import requests
+
+# project
+from checks import AgentCheck
+from util import headers
 
 # Constants
 COUCHBASE_STATS_PATH = '/pools/default'

@@ -2,11 +2,11 @@
 from hashlib import md5
 import time
 
-# project
-from checks import AgentCheck
-
 # 3rd party
 import requests
+
+# project
+from checks import AgentCheck
 
 
 class Mesos(AgentCheck):

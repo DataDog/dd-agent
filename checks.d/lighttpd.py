@@ -1,13 +1,13 @@
 # stdlib
-import urlparse
 import re
-
-# project
-from util import headers
-from checks import AgentCheck
+import urlparse
 
 # 3rd party
 import requests
+
+# project
+from checks import AgentCheck
+from util import headers
 
 VERSION_REGEX = re.compile(r".*/(\d)")
 

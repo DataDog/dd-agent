@@ -1,19 +1,28 @@
-from tests.checks.common import AgentCheckTest, get_check_class, Fixtures
-
-from nose.plugins.attrib import attr
-from mock import patch
+# stdlib
 import json
+
+# 3p
+from mock import patch
+from nose.plugins.attrib import attr
+
+# project
+from tests.checks.common import AgentCheckTest, Fixtures, get_check_class
 
 
 def _mocked_get_master_state(*args, **kwargs):
     state = json.loads(Fixtures.read_file('state.json'))
     return state
+
+
 def _mocked_get_master_stats(*args, **kwargs):
     stats = json.loads(Fixtures.read_file('stats.json'))
     return stats
+
+
 def _mocked_get_master_roles(*args, **kwargs):
     roles = json.loads(Fixtures.read_file('roles.json'))
     return roles
+
 
 @attr(requires='mesos_master')
 class TestMesosMaster(AgentCheckTest):

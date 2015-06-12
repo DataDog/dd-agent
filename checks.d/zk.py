@@ -26,8 +26,8 @@ Tested with Zookeeper versions 3.0.0 to 3.4.5
 # stdlib
 import re
 import socket
-import struct
 from StringIO import StringIO
+import struct
 
 # project
 from checks import AgentCheck

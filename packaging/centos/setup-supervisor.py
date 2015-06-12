@@ -1,7 +1,7 @@
 #! /usr/bin/python
-
-import sys
 import ConfigParser
+import sys
+
 
 def main():
 

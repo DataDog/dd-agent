@@ -19,7 +19,7 @@ import yaml
 
 # project
 import config
-from config import get_config, _is_affirmative, _windows_commondata_path
+from config import _is_affirmative, _windows_commondata_path, get_config
 from util import plural
 from utils.jmxfiles import JMXFiles
 from utils.ntp import get_ntp_args

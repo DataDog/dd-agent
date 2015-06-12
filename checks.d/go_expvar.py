@@ -1,12 +1,12 @@
 # stdlib
-import re
 from collections import defaultdict
-
-# project
-from checks import AgentCheck
+import re
 
 # 3rd party
 import requests
+
+# project
+from checks import AgentCheck
 
 DEFAULT_MAX_METRICS = 350
 PATH = "path"

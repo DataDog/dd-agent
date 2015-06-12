@@ -2,17 +2,18 @@
 Monitor the Windows Event Log
 '''
 # stdlib
-from datetime import datetime, timedelta
 import calendar
-
-# project
-from checks import AgentCheck
+from datetime import datetime, timedelta
 
 # 3rd party
 import wmi
 
+# project
+from checks import AgentCheck
+
 SOURCE_TYPE_NAME = 'event viewer'
 EVENT_TYPE = 'win32_log_event'
+
 
 class Win32EventLog(AgentCheck):
     def __init__(self, name, init_config, agentConfig):

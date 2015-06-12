@@ -3,17 +3,17 @@ import copy
 import inspect
 import logging
 import os
+from pprint import pformat
 import signal
 import sys
 import time
 import traceback
 import unittest
-from pprint import pformat
 
 # project
 from checks import AgentCheck
 from config import get_checksd_path
-from util import get_os, get_hostname
+from util import get_hostname, get_os
 from utils.debug import get_check  # noqa -  FIXME 5.5.0 AgentCheck tests should not use this
 
 log = logging.getLogger('tests')

@@ -2,7 +2,7 @@
 from copy import deepcopy
 from datetime import datetime, timedelta
 from hashlib import md5
-from Queue import Queue, Empty
+from Queue import Empty, Queue
 import re
 import time
 import traceback

@@ -1,9 +1,9 @@
+# 3rd party
+import requests
+
 # project
 from checks import AgentCheck
 from util import headers
-
-# 3rd party
-import requests
 
 
 class Etcd(AgentCheck):

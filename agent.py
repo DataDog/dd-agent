@@ -10,7 +10,7 @@
     (C) Datadog, Inc. 2010-2014 all rights reserved
 '''
 # set up logging before importing any other components
-from config import get_version, initialize_logging
+from config import get_version, initialize_logging # noqa
 initialize_logging('collector')
 
 # stdlib
@@ -35,7 +35,7 @@ from config import (
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from jmxfetch import JMXFetch, JMX_LIST_COMMANDS
+from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
 from util import (
     EC2,
     get_hostname,

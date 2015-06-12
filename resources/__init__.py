@@ -1,9 +1,9 @@
-
+# stdlib
+from collections import namedtuple
 from datetime import datetime, timedelta
 import time
 from types import DictType, ListType, StringTypes
 
-from collections import namedtuple
 
 
 class agg(object):

@@ -3,7 +3,7 @@ import socket
 import time
 
 # project
-from checks.network_checks import NetworkCheck, Status, EventType
+from checks.network_checks import EventType, NetworkCheck, Status
 
 
 class BadConfException(Exception):
