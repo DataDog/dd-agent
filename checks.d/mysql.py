@@ -193,7 +193,7 @@ STATUS_VARS = {
     'Innodb_read_views': ('mysql.innodb.read_views', GAUGE),
     'Innodb_row_lock_current_waits': ('mysql.innodb.row_lock_current_waits', GAUGE),
     'Innodb_row_lock_time': ('mysql.innodb.row_lock_time', RATE),
-    'Innodb_row_lock_waits': ('mysql.innodb.row_lock_waits', GAUGE),
+    'Innodb_row_lock_waits': ('mysql.innodb.row_lock_waits', RATE),
     'Innodb_rows_deleted': ('mysql.innodb.rows_deleted', RATE),
     'Innodb_rows_inserted': ('mysql.innodb.rows_inserted', RATE),
     'Innodb_rows_read': ('mysql.innodb.rows_read', RATE),
@@ -563,7 +563,7 @@ class MySql(AgentCheck):
 
     def _get_stats_from_innodb_status(self, db):
         # There are a number of important InnoDB metrics that are reported in
-        # InnoDB status but are not otherwise present as part of the STATUS 
+        # InnoDB status but are not otherwise present as part of the STATUS
         # variables in MySQL. Majority of these metrics are reported though
         # as a part of STATUS variables in Percona Server and MariaDB.
         cursor = db.cursor()
@@ -872,10 +872,9 @@ class MySql(AgentCheck):
         # We need to calculate this metric separately
         results['Innodb_checkpoint_age'] = results['Innodb_lsn_current'] - results['Innodb_lsn_last_checkpoint']
 
-        # Finally we change back the metrics values to string to make the values 
+        # Finally we change back the metrics values to string to make the values
         # consistent with how they are reported by SHOW GLOBAL STATUS
         for k,v in results.iteritems():
             results[k] = str(v)
 
         return results
-
