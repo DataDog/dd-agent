@@ -37,11 +37,22 @@ DEFAULT_PSUTIL_METHODS = ['get_memory_info', 'get_io_counters']
 
 AGENT_METRICS_CHECK_NAME = 'agent_metrics'
 
+
 # Konstants
-class CheckException(Exception): pass
-class Infinity(CheckException): pass
-class NaN(CheckException): pass
-class UnknownValue(CheckException): pass
+class CheckException(Exception):
+    pass
+
+
+class Infinity(CheckException):
+    pass
+
+
+class NaN(CheckException):
+    pass
+
+
+class UnknownValue(CheckException):
+    pass
 
 
 

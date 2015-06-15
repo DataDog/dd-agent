@@ -6,7 +6,7 @@ import traceback
 import re
 import time
 from datetime import datetime
-from itertools import groupby # >= python 2.4
+from itertools import groupby  # >= python 2.4
 
 # project
 import modules
@@ -334,8 +334,10 @@ class Dogstream(object):
         else:
             return {}
 
+
 # Allow a smooth uninstall of previous version
-class RollupLP: pass
+class RollupLP:
+    pass
 
 
 class DdForwarder(object):

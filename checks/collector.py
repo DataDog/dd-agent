@@ -215,7 +215,8 @@ class Collector(object):
 
         # Custom metric checks
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
-            if len(module_spec) == 0: continue
+            if len(module_spec) == 0:
+                continue
             try:
                 self._metrics_checks.append(modules.load(module_spec, 'Check')(log))
                 log.info("Registered custom check %s" % module_spec)
