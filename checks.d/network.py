@@ -330,9 +330,9 @@ class Network(AgentCheck):
         for interface, metrics in metrics_by_interface.iteritems():
             self._submit_devicemetrics(interface, metrics)
 
-        netstat = subprocess.Popen(["netstat", "-s","-P" "tcp"],
-                                    stdout=subprocess.PIPE,
-                                    close_fds=True).communicate()[0]
+        netstat = subprocess.Popen(["netstat", "-s", "-P" "tcp"],
+                                   stdout=subprocess.PIPE,
+                                   close_fds=True).communicate()[0]
         # TCP: tcpRtoAlgorithm=     4 tcpRtoMin           =   200
         # tcpRtoMax           = 60000 tcpMaxConn          =    -1
         # tcpActiveOpens      =    57 tcpPassiveOpens     =    50

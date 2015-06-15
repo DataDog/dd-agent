@@ -168,9 +168,10 @@ class AgentStatus(object):
         fields = [
             (
                 style("Status date", *styles),
-                style("%s (%ss ago)" %
-                    (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                        self.created_seconds_ago()), *styles)
+                style("%s (%ss ago)" % (
+                    self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    self.created_seconds_ago()), *styles
+                )
             )
         ]
 

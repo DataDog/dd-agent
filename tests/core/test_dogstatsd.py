@@ -741,7 +741,7 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         nt.assert_equal(first['check'], 'check.1')
         assert first.get('tags') is None, "service_check['tags'] shouldn't be" + \
-                                        "defined when no tags aren't explicited in the packet"
+            "defined when no tags aren't explicited in the packet"
 
         nt.assert_equal(second['check'], 'check.2')
         nt.assert_equal(second['tags'], sorted(['t1']))

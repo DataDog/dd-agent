@@ -32,9 +32,10 @@ MetricDescriptor = namedtuple('MetricDescriptor',['version','name','type','aggre
         'group_on','temporal_group_on'])
 SnapshotDesc = namedtuple('SnapshotDesc',['version','fields'])
 
+
 def SnapshotField(name,_type,aggregator=sum,temporal_aggregator=agg.avg,
-                    server_aggregator=None,server_temporal_aggregator=None,
-                    group_on = False, temporal_group_on = False):
+                  server_aggregator=None,server_temporal_aggregator=None,
+                  group_on = False, temporal_group_on = False):
     if server_aggregator is None:
         if _type == 'str':
             server_aggregator = agg.append
@@ -51,8 +52,10 @@ def SnapshotField(name,_type,aggregator=sum,temporal_aggregator=agg.avg,
                 server_aggregator,server_temporal_aggregator,
                 group_on = group_on, temporal_group_on = temporal_group_on)
 
-def SnapshotDescriptor(version,*fields):
+
+def SnapshotDescriptor(version, *fields):
     return SnapshotDesc(version, fields)
+
 
 class ResourcePlugin(object):
 
@@ -68,11 +71,11 @@ class ResourcePlugin(object):
         self._descriptor = self.describe_snapshot()
 
     @classmethod
-    def get_group_ts(cls,ts):
+    def get_group_ts(cls, ts):
         """find the aggregation group this timestamp belongs to
             taking into account the flush interval"""
         m = ((ts.minute/cls.FLUSH_INTERVAL) + 1) * cls.FLUSH_INTERVAL
-        return ts.replace(microsecond=0,second=0,minute=0) + timedelta(minutes=m)
+        return ts.replace(microsecond=0, second=0, minute=0) + timedelta(minutes=m)
 
     @staticmethod
     def _group_by(keys, lines):
@@ -93,7 +96,6 @@ class ResourcePlugin(object):
                 group[k] = [line]
 
         return group
-
 
     def _aggregate_lines(self, lines, temporal = False):
 
@@ -125,15 +127,15 @@ class ResourcePlugin(object):
 
         return result
 
-    def _aggregate(self,lines,group_by = None, filter_by = None, temporal = False):
+    def _aggregate(self, lines, group_by = None, filter_by = None, temporal = False):
 
-        #group the current snapshot if needed
+        # group the current snapshot if needed
         if group_by is not None:
-            groups = self._group_by(group_by,lines)
+            groups = self._group_by(group_by, lines)
         else:
             groups = {'foo': lines}
 
-        #Aggregate each terminal group
+        # Aggregate each terminal group
         dlist = []
 
         def _aggregate_groups(groups):
@@ -154,15 +156,15 @@ class ResourcePlugin(object):
 
         return dlist2
 
-    def _flush_snapshots(self,snapshot_group = None, group_by = None, filter_by = None,
-                              temporal = True):
-        #Aggregate (temporally) all snaphots into last_snapshots
+    def _flush_snapshots(self, snapshot_group = None, group_by = None, filter_by = None,
+                         temporal = True):
+        # Aggregate (temporally) all snaphots into last_snapshots
 
         new_snap = (int(time.mktime(snapshot_group.timetuple())),
-                               self._aggregate(self._snapshots,
-                                              group_by = group_by,
-                                              filter_by = filter_by,
-                                              temporal = temporal))
+                    self._aggregate(self._snapshots,
+                                    group_by = group_by,
+                                    filter_by = filter_by,
+                                    temporal = temporal))
         if self._last_snapshots is None:
             self._last_snapshots = [new_snap]
         else:

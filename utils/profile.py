@@ -37,8 +37,7 @@ class AgentProfiler(object):
         log.debug(s.getvalue())
         log.debug("Agent profiling is disabled")
         if self.DUMP_TO_FILE:
-            log.debug("Pstats dumps are enabled. Dumping pstats output to {0}"
-                        .format(self.STATS_DUMP_FILE))
+            log.debug("Pstats dumps are enabled. Dumping pstats output to {0}".format(self.STATS_DUMP_FILE))
             ps.dump_stats(self.STATS_DUMP_FILE)
 
     @staticmethod

@@ -21,9 +21,9 @@ class TestCountType(unittest.TestCase):
         counts = [0, 1, 1, 2, 3, 5, 8]
         for count in counts:
             agent_check.count(metric, count,
-                                     tags=tags,
-                                     hostname=hostname,
-                                     device_name=device_name)
+                              tags=tags,
+                              hostname=hostname,
+                              device_name=device_name)
         flush_ts = time.time()
         results = agent_check.get_metrics()
         nt.assert_true(results is not None)
@@ -43,8 +43,8 @@ class TestCountType(unittest.TestCase):
         counters = [0, 1, 2, 4, 7, 12, 20]
         for counter in counters:
             agent_check.monotonic_count(metric, counter, tags=tags,
-                                           hostname=hostname,
-                                           device_name=device_name)
+                                        hostname=hostname,
+                                        device_name=device_name)
         flush_ts = time.time()
         results = agent_check.get_metrics()
         nt.assert_true(results is not None)
@@ -59,8 +59,8 @@ class TestCountType(unittest.TestCase):
         counters = [30]
         for counter in counters:
             agent_check.monotonic_count(metric, counter, tags=tags,
-                                           hostname=hostname,
-                                           device_name=device_name)
+                                        hostname=hostname,
+                                        device_name=device_name)
         flush_ts = time.time()
         results = agent_check.get_metrics()
         nt.assert_true(results is not None)
@@ -75,8 +75,8 @@ class TestCountType(unittest.TestCase):
         counters = [40, 35, 40, 45, 30, 32]
         for counter in counters:
             agent_check.monotonic_count(metric, counter, tags=tags,
-                                           hostname=hostname,
-                                           device_name=device_name)
+                                        hostname=hostname,
+                                        device_name=device_name)
         flush_ts = time.time()
         results = agent_check.get_metrics()
         nt.assert_true(results is not None)

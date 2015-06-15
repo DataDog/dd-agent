@@ -70,18 +70,18 @@ class PathNotFound(Exception):
 def get_parsed_args():
     parser = OptionParser()
     parser.add_option('-A', '--autorestart', action='store_true', default=False,
-                        dest='autorestart')
+                      dest='autorestart')
     parser.add_option('-d', '--dd_url', action='store', default=None,
-                        dest='dd_url')
+                      dest='dd_url')
     parser.add_option('-u', '--use-local-forwarder', action='store_true',
-                        default=False, dest='use_forwarder')
+                      default=False, dest='use_forwarder')
     parser.add_option('-n', '--disable-dd', action='store_true', default=False,
-                        dest="disable_dd")
+                      dest="disable_dd")
     parser.add_option('-v', '--verbose', action='store_true', default=False,
-                        dest='verbose',
+                      dest='verbose',
                       help='Print out stacktraces for errors in checks')
     parser.add_option('-p', '--profile', action='store_true', default=False,
-                        dest='profile', help='Enable Developer Mode')
+                      dest='profile', help='Enable Developer Mode')
 
     try:
         options, args = parser.parse_args()
@@ -438,8 +438,8 @@ def get_config(parse_args=True, cfg_path=None, options=None):
                 agentConfig[key] = value
 
         # Create app:xxx tags based on monitored apps
-        agentConfig['create_dd_check_tags'] = config.has_option('Main', 'create_dd_check_tags')\
-                and _is_affirmative(config.get('Main', 'create_dd_check_tags'))
+        agentConfig['create_dd_check_tags'] = config.has_option('Main', 'create_dd_check_tags') and \
+            _is_affirmative(config.get('Main', 'create_dd_check_tags'))
 
         # Forwarding to external statsd server
         if config.has_option('Main', 'statsd_forward_host'):

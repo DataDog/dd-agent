@@ -108,8 +108,8 @@ class IO(Check):
         try:
             if Platform.is_linux():
                 stdout = sp.Popen(['iostat', '-d', '1', '2', '-x', '-k'],
-                                          stdout=sp.PIPE,
-                                          close_fds=True).communicate()[0]
+                                  stdout=sp.PIPE,
+                                  close_fds=True).communicate()[0]
 
                 #                 Linux 2.6.32-343-ec2 (ip-10-35-95-10)   12/11/2012      _x86_64_        (2 CPU)
                 #
@@ -130,8 +130,8 @@ class IO(Check):
 
             elif sys.platform == "sunos5":
                 iostat = sp.Popen(["iostat", "-x", "-d", "1", "2"],
-                                          stdout=sp.PIPE,
-                                          close_fds=True).communicate()[0]
+                                  stdout=sp.PIPE,
+                                  close_fds=True).communicate()[0]
 
                 #                   extended device statistics <-- since boot
                 # device      r/s    w/s   kr/s   kw/s wait actv  svc_t  %w  %b
@@ -161,8 +161,8 @@ class IO(Check):
 
             elif sys.platform.startswith("freebsd"):
                 iostat = sp.Popen(["iostat", "-x", "-d", "1", "2"],
-                                          stdout=sp.PIPE,
-                                          close_fds=True).communicate()[0]
+                                  stdout=sp.PIPE,
+                                  close_fds=True).communicate()[0]
 
                 # Be careful!
                 # It looks like SunOS, but some columms (wait, svc_t) have different meaning
@@ -189,8 +189,8 @@ class IO(Check):
                         io[cols[0]][self.xlate(headers[i], "freebsd")] = cols[i]
             elif sys.platform == 'darwin':
                 iostat = sp.Popen(['iostat', '-d', '-c', '2', '-w', '1'],
-                                          stdout=sp.PIPE,
-                                          close_fds=True).communicate()[0]
+                                  stdout=sp.PIPE,
+                                  close_fds=True).communicate()[0]
                 #          disk0           disk1          <-- number of disks
                 #    KB/t tps  MB/s     KB/t tps  MB/s
                 #   21.11  23  0.47    20.01   0  0.00
@@ -240,8 +240,8 @@ class Load(Check):
             # Get output from uptime
             try:
                 uptime = sp.Popen(['uptime'],
-                                          stdout=sp.PIPE,
-                                          close_fds=True).communicate()[0]
+                                  stdout=sp.PIPE,
+                                  close_fds=True).communicate()[0]
             except Exception:
                 self.logger.exception('Cannot extract load')
                 return False
@@ -285,8 +285,8 @@ class Memory(Check):
         if sys.platform == 'sunos5':
             try:
                 pgsz = sp.Popen(['pagesize'],
-                                        stdout=sp.PIPE,
-                                        close_fds=True).communicate()[0]
+                                stdout=sp.PIPE,
+                                close_fds=True).communicate()[0]
                 self.pagesize = int(pgsz.strip())
             except Exception:
                 # No page size available
@@ -379,7 +379,7 @@ class Memory(Check):
             # FIXME units are in MB, we should use bytes instead
             try:
                 memData['swapTotal'] = int(meminfo.get('SwapTotal', 0)) / 1024
-                memData['swapFree']  = int(meminfo.get('SwapFree', 0)) / 1024
+                memData['swapFree'] = int(meminfo.get('SwapFree', 0)) / 1024
 
                 memData['swapUsed'] = memData['swapTotal'] - memData['swapFree']
 
@@ -492,12 +492,12 @@ class Memory(Check):
 
             try:
                 memData['swapTotal'] = 0
-                memData['swapFree']  = 0
+                memData['swapFree'] = 0
                 memData['swapUsed'] = 0
                 for line in lines[1:-1]:
                     line = line.split()
                     memData['swapTotal'] += int(line[1])
-                    memData['swapFree']  += int(line[3])
+                    memData['swapFree'] += int(line[3])
                     memData['swapUsed'] += int(line[2])
             except Exception:
                 self.logger.exception('Cannot compute stats from swapinfo')
@@ -507,8 +507,8 @@ class Memory(Check):
             try:
                 memData = {}
                 kmem = sp.Popen(["kstat", "-c", "zone_memory_cap", "-p"],
-                                        stdout=sp.PIPE,
-                                        close_fds=True).communicate()[0]
+                                stdout=sp.PIPE,
+                                close_fds=True).communicate()[0]
 
                 # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:anon_alloc_fail   0
                 # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:anonpgin  0

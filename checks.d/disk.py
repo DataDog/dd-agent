@@ -146,9 +146,9 @@ class Disk(AgentCheck):
             read_time_pct = disk.read_time * 100.0 / 1000.0
             write_time_pct = disk.write_time * 100.0 / 1000.0
             self.rate(self.METRIC_DISK.format('read_time_pct'),
-                       read_time_pct, device_name=disk_name)
+                      read_time_pct, device_name=disk_name)
             self.rate(self.METRIC_DISK.format('write_time_pct'),
-                       write_time_pct, device_name=disk_name)
+                      write_time_pct, device_name=disk_name)
 
     # no psutil, let's use df
     def collect_metrics_manually(self):
