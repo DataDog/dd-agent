@@ -14,8 +14,6 @@ class TestCheckDisk(AgentCheckTest):
         'system.disk.used',
         'system.disk.free',
         'system.disk.in_use',
-        'system.disk.read_time_pct',
-        'system.disk.write_time_pct'
     ]
 
     INODE_GAUGES = [

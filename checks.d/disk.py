@@ -85,11 +85,15 @@ class Disk(AgentCheck):
 
             tags = [part.fstype] if self._tag_by_filesystem else []
             device_name = part.mountpoint if self._use_mount else part.device
+            # legacy check names c: vs psutil name C:\\
+            if Platform.is_win32():
+                device_name = device_name.strip('\\').lower()
             for metric_name, metric_value in self._collect_part_metrics(part).iteritems():
                 self.gauge(metric_name, metric_value,
                            tags=tags, device_name=device_name)
         # And finally, latency metrics, a legacy gift from the old Windows Check
-        self.collect_latency_metrics()
+        if Platform.is_win32():
+            self.collect_latency_metrics()
 
     def _exclude_disk_psutil(self, part):
         # skip cd-rom drives with no disk in it; they may raise
@@ -136,28 +140,15 @@ class Disk(AgentCheck):
 
     def collect_latency_metrics(self):
         for disk_name, disk in psutil.disk_io_counters(True).iteritems():
-            # disk_name is sda1, _valid_disks contains /dev/sda1
-            match_disks = [d for d in self._valid_disks
-                           if re.match('^(/dev/)?{0}$'.format(disk_name), d)]
-            if not match_disks:
-                continue
-
-            device = match_disks[0]
-            fstype, mountpoint = self._valid_disks[device]
-            self.log.debug('Passed: {0} -> {1}'.format(disk_name, device))
-            tags = []
-            if self._tag_by_filesystem:
-                tags = [fstype]
-            device_name = mountpoint if self._use_mount else device
-
+            self.log.debug('IO Counters: {0} -> {1}'.format(disk_name, disk))
             # x100 to have it as a percentage,
             # /1000 as psutil returns the value in ms
             read_time_pct = disk.read_time * 100.0 / 1000.0
             write_time_pct = disk.write_time * 100.0 / 1000.0
-            self.gauge(self.METRIC_DISK.format('read_time_pct'),
-                       read_time_pct, device_name=device_name, tags=tags)
-            self.gauge(self.METRIC_DISK.format('write_time_pct'),
-                       write_time_pct, device_name=device_name, tags=tags)
+            self.rate(self.METRIC_DISK.format('read_time_pct'),
+                       read_time_pct, device_name=disk_name)
+            self.rate(self.METRIC_DISK.format('write_time_pct'),
+                       write_time_pct, device_name=disk_name)
 
     # no psutil, let's use df
     def collect_metrics_manually(self):

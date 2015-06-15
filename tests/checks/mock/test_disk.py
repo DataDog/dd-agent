@@ -83,36 +83,51 @@ class TestCheckDisk(AgentCheckTest):
 
     @mock.patch('psutil.disk_partitions', return_value=[MockPart()])
     @mock.patch('psutil.disk_usage', return_value=MockDiskMetrics())
-    @mock.patch('psutil.disk_io_counters',
-                return_value={'sda1': MockIoCountersMetrics()})
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
-    def test_psutil(self, mock_partitions, mock_usage,
-                    mock_io_counters, mock_inodes):
+    def test_psutil(self, mock_partitions, mock_usage, mock_inodes):
         for tag_by in ['yes', 'no']:
             self.run_check({'instances': [{'tag_by_filesystem': tag_by}]},
                            force_reload=True)
 
             # Assert metrics
             tags = ['ext4'] if tag_by == 'yes' else []
-            self.GAUGES_VALUES_PSUTIL.update(self.GAUGES_VALUES)
-            for metric, value in self.GAUGES_VALUES_PSUTIL.iteritems():
+            for metric, value in self.GAUGES_VALUES.iteritems():
                 self.assertMetric(metric, value=value, tags=tags,
                                   device_name=DEFAULT_DEVICE_NAME)
 
             self.coverage_report()
 
+    # FIXME: patch the import of Platform to be able to test mocked Windows
+    # @mock.patch('psutil.disk_partitions',
+    #             return_value=[MockPart(device='C:\\', fstype='ntfs',
+    #                                    mountpoint='C:\\')])
+    # @mock.patch('psutil.disk_usage', return_value=MockDiskMetrics())
+    # @mock.patch('psutil.disk_io_counters',
+    #             return_value={'PhysicalDisk0': MockIoCountersMetrics()})
+    # @mock.patch('util.Platform', return_value=WindowsPlatform)
+    # def test_psutil_windows(self, mock_partitions, mock_usage,
+    #                         mock_io_counters, mock_platform):
+    #     self.run_check({'instances': [{'use_mount': 'no'}]},
+    #                    mocks={'_psutil': lambda: True})
+    #
+    #     # Assert metrics
+    #     for metric, value in self.GAUGES_VALUES.iteritems():
+    #         self.assertMetric(metric, value=value, tags=[],
+    #                           device_name='c:')
+    #     for metric, value in self.GAUGES_VALUES_PSUTIL.iteritems():
+    #         self.assertMetric(metric, value=value, tags=[],
+    #                           device_name='PhysicalDisk0')
+    #
+    #     self.coverage_report()
+
     @mock.patch('psutil.disk_partitions', return_value=[MockPart()])
     @mock.patch('psutil.disk_usage', return_value=MockDiskMetrics())
-    @mock.patch('psutil.disk_io_counters',
-                return_value={'sda1': MockIoCountersMetrics()})
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
-    def test_use_mount(self, mock_partitions, mock_usage,
-                       mock_io_counters, mock_inodes):
+    def test_use_mount(self, mock_partitions, mock_usage, mock_inodes):
         self.run_check({'instances': [{'use_mount': 'yes'}]})
 
         # Assert metrics
-        self.GAUGES_VALUES_PSUTIL.update(self.GAUGES_VALUES)
-        for metric, value in self.GAUGES_VALUES_PSUTIL.iteritems():
+        for metric, value in self.GAUGES_VALUES.iteritems():
             self.assertMetric(metric, value=value, tags=[],
                               device_name='/')
 
