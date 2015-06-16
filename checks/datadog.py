@@ -25,13 +25,16 @@ else:
         else:
             return s[0:pos], sep, s[pos + len(sep):]
 
+
 def point_sorter(p):
     # Sort and group by timestamp, metric name, host_name, device_name
     return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None))
 
+
 class EventDefaults(object):
-    EVENT_TYPE   = 'dogstream_event'
+    EVENT_TYPE = 'dogstream_event'
     EVENT_OBJECT = 'dogstream_event:default'
+
 
 class Dogstreams(object):
     @classmethod
@@ -342,7 +345,7 @@ class RollupLP:
 
 class DdForwarder(object):
 
-    QUEUE_SIZE  = "queue_size"
+    QUEUE_SIZE = "queue_size"
     QUEUE_COUNT = "queue_count"
 
     RE_QUEUE_STAT = re.compile(r"\[.*\] Queue size: at (.*), (\d+) transaction\(s\), (\d+) KB")

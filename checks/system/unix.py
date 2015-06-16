@@ -23,8 +23,8 @@ class IO(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
         self.header_re = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
-        self.item_re   = re.compile(r'^([a-zA-Z0-9\/]+)')
-        self.value_re  = re.compile(r'\d+\.\d+')
+        self.item_re = re.compile(r'^([a-zA-Z0-9\/]+)')
+        self.value_re = re.compile(r'\d+\.\d+')
 
     def _parse_linux2(self, output):
         recentStats = output.split('Device:')[2].split('\n')
@@ -70,7 +70,7 @@ class IO(Check):
         lastline = lines[-1]
         io = {}
         for idx, disk in enumerate(disks):
-            kb_t, tps, mb_s = map(float, lastline[(3 * idx):(3 * idx) + 3]) # 3 cols at a time
+            kb_t, tps, mb_s = map(float, lastline[(3 * idx):(3 * idx) + 3])  # 3 cols at a time
             io[disk] = {
                 'system.io.bytes_per_s': mb_s * 10**6,
             }
@@ -198,7 +198,6 @@ class IO(Check):
                 io = self._parse_darwin(iostat)
             else:
                 return False
-
 
             # If we filter devices, do it know.
             device_blacklist_re = agentConfig.get('device_blacklist_re', None)
@@ -344,7 +343,7 @@ class Memory(Check):
             # DirectMap4k:       10112 kB
             # DirectMap2M:     8243200 kB
 
-            regexp = re.compile(r'^(\w+):\s+([0-9]+)') # We run this several times so one-time compile now
+            regexp = re.compile(r'^(\w+):\s+([0-9]+)')  # We run this several times so one-time compile now
             meminfo = {}
 
             for line in lines:
@@ -415,7 +414,7 @@ class Memory(Check):
                 physUsedPartIndex = 0
                 physFreePartIndex = 2
 
-            return {'physUsed' : physParts[physUsedPartIndex], 'physFree' : physParts[physFreePartIndex], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}
+            return {'physUsed': physParts[physUsedPartIndex], 'physFree': physParts[physFreePartIndex], 'swapUsed': swapParts[1], 'swapFree': swapParts[2]}
 
         elif sys.platform.startswith("freebsd"):
             try:
@@ -472,7 +471,6 @@ class Memory(Check):
                     memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
             except Exception:
                 self.logger.exception('Cannot compute stats from /proc/meminfo')
-
 
             # Swap
             try:
@@ -535,11 +533,11 @@ class Memory(Check):
                 # extract rss, physcap, swap, swapcap, turn into MB
                 convert = lambda v: int(long(v))/2**20
                 memData["physTotal"] = convert(entries["physcap"])
-                memData["physUsed"]  = convert(entries["rss"])
-                memData["physFree"]  = memData["physTotal"] - memData["physUsed"]
+                memData["physUsed"] = convert(entries["rss"])
+                memData["physFree"] = memData["physTotal"] - memData["physUsed"]
                 memData["swapTotal"] = convert(entries["swapcap"])
-                memData["swapUsed"]  = convert(entries["swap"])
-                memData["swapFree"]  = memData["swapTotal"] - memData["swapUsed"]
+                memData["swapUsed"] = convert(entries["swap"])
+                memData["swapFree"] = memData["swapTotal"] - memData["swapUsed"]
 
                 if memData['swapTotal'] > 0:
                     memData['swapPctFree'] = float(memData['swapFree']) / float(memData['swapTotal'])
@@ -549,6 +547,7 @@ class Memory(Check):
                 return False
         else:
             return False
+
 
 class Processes(Check):
 
@@ -568,8 +567,8 @@ class Processes(Check):
         # Split out each process
         processLines = ps.split('\n')
 
-        del processLines[0] # Removes the headers
-        processLines.pop() # Removes a trailing empty line
+        del processLines[0]  # Removes the headers
+        processLines.pop()  # Removes a trailing empty line
 
         processes = []
 
@@ -640,9 +639,9 @@ class Cpu(Check):
                     # Debian lenny says %user so we look for both
                     # One of them will be 0
                     cpu_metrics = {
-                        "%usr":None, "%user":None, "%nice":None,
-                        "%iowait":None, "%idle":None, "%sys":None,
-                        "%irq":None, "%soft":None, "%steal":None,
+                        "%usr": None, "%user": None, "%nice": None,
+                        "%iowait": None, "%idle": None, "%sys": None,
+                        "%irq": None, "%soft": None, "%steal": None,
                     }
 
                     for cpu_m in cpu_metrics:
@@ -675,10 +674,10 @@ class Cpu(Check):
                     headers = legend[0].split()
                     data = lines[-1].split()
                     cpu_user = get_value(headers, data, "us")
-                    cpu_sys  = get_value(headers, data, "sy")
+                    cpu_sys = get_value(headers, data, "sy")
                     cpu_wait = 0
                     cpu_idle = get_value(headers, data, "id")
-                    cpu_st   = 0
+                    cpu_st = 0
                     return format_results(cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
                 else:
                     self.logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
@@ -698,7 +697,7 @@ class Cpu(Check):
                     data = lines[-1].split()
                     cpu_user = get_value(headers, data, "us")
                     cpu_nice = get_value(headers, data, "ni")
-                    cpu_sys  = get_value(headers, data, "sy")
+                    cpu_sys = get_value(headers, data, "sy")
                     cpu_intr = get_value(headers, data, "in")
                     cpu_wait = 0
                     cpu_idle = get_value(headers, data, "id")

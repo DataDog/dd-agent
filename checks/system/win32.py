@@ -13,15 +13,17 @@ try:
 except Exception:
     wmi, w = None, None
 
+
 # Device WMI drive types
 class DriveType(object):
     UNKNOWN, NOROOT, REMOVEABLE, LOCAL, NETWORK, CD, RAM = (0, 1, 2, 3, 4, 5, 6)
-B2MB  = float(1048576)
+B2MB = float(1048576)
 KB2MB = B2KB = float(1024)
 
 def should_ignore_disk(name, blacklist_re):
     # blacklist_re is a compiled regex, compilation done at config loading time
     return name == '_total' or blacklist_re is not None and blacklist_re.match(name)
+
 
 class Processes(Check):
     def __init__(self, logger):
@@ -49,6 +51,7 @@ class Processes(Check):
             self.save_sample('system.proc.count', os.Processes)
 
         return self.get_metrics()
+
 
 class Memory(Check):
     def __init__(self, logger):
@@ -92,7 +95,6 @@ class Memory(Check):
             self.save_sample('system.mem.total', total)
             self.save_sample('system.mem.free', free)
             self.save_sample('system.mem.used', total - free)
-
 
         mem = w.Win32_PerfFormattedData_PerfOS_Memory()[0]
         if mem.CacheBytes is not None:
