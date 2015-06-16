@@ -24,6 +24,7 @@ instances:
     # tag_by_filesystem: no
     #
     # The (optional) all_partitions parameter will instruct the check to
-    # only get metrics for physical disks if set to no
-    # all_partitions: yes
-
+    # get metrics for all partitions (and not only physical disks)
+    # On Windows, this parameter default is 'yes' in order to get remote disks
+    # metrics; if they are not needed, set it to 'no'
+    # all_partitions: no
