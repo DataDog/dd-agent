@@ -49,11 +49,13 @@ FLAGS_MAPPER = defaultdict(lambda:  (SINGLE, UNKNOWN),{
 
 BTRFS_IOC_SPACE_INFO = 0xc0109414
 
-TWO_LONGS_STRUCT = struct.Struct("=2Q") # 2 Longs
-THREE_LONGS_STRUCT = struct.Struct("=3Q") # 3 Longs
+TWO_LONGS_STRUCT = struct.Struct("=2Q")  # 2 Longs
+THREE_LONGS_STRUCT = struct.Struct("=3Q")  # 3 Longs
+
 
 def sized_array(count):
     return array.array("B", itertools.repeat(0, count))
+
 
 class FileDescriptor(object):
 
@@ -71,6 +73,7 @@ class FileDescriptor(object):
 
     def open(self, dir):
         return self.fd
+
 
 class BTRFS(AgentCheck):
 
@@ -98,7 +101,6 @@ class BTRFS(AgentCheck):
             TWO_LONGS_STRUCT.pack_into(data, 0, total_spaces, 0)
             fcntl.ioctl(fd, BTRFS_IOC_SPACE_INFO, data)
 
-
         _, total_spaces = TWO_LONGS_STRUCT.unpack_from(ret, 0)
         for offset in xrange(TWO_LONGS_STRUCT.size,
                              buffer_size,
@@ -123,7 +125,7 @@ class BTRFS(AgentCheck):
 
         for device, mountpoint in btrfs_devices.iteritems():
             for flags, total_bytes, used_bytes in self.get_usage(mountpoint):
-                replication_type, usage_type  = FLAGS_MAPPER[flags]
+                replication_type, usage_type = FLAGS_MAPPER[flags]
                 tags = [
                     'usage_type:{0}'.format(usage_type),
                     'replication_type:{0}'.format(replication_type),

@@ -5,13 +5,12 @@ import ntplib
 from checks import AgentCheck
 from utils.ntp import get_ntp_args, set_user_ntp_settings
 
-DEFAULT_OFFSET_THRESHOLD = 60 # in seconds
-
+DEFAULT_OFFSET_THRESHOLD = 60  # in seconds
 
 
 class NtpCheck(AgentCheck):
 
-    DEFAULT_MIN_COLLECTION_INTERVAL = 900 # in seconds
+    DEFAULT_MIN_COLLECTION_INTERVAL = 900  # in seconds
 
     def check(self, instance):
         service_check_msg = None
@@ -20,7 +19,6 @@ class NtpCheck(AgentCheck):
             offset_threshold = int(offset_threshold)
         except (TypeError, ValueError):
             raise Exception('Must specify an integer value for offset_threshold. Configured value is %s' % repr(offset_threshold))
-
 
         set_user_ntp_settings(dict(instance))
 
@@ -33,7 +31,7 @@ class NtpCheck(AgentCheck):
         except ntplib.NTPException:
             self.log.debug("Could not connect to NTP Server {0}".format(
                 req_args['host']))
-            status  = AgentCheck.UNKNOWN
+            status = AgentCheck.UNKNOWN
             ntp_ts = None
         else:
             ntp_offset = ntp_stats.offset
