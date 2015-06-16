@@ -5,6 +5,10 @@ Collects database-wide metrics and optionally per-relation metrics, custom metri
 # stdlib
 import socket
 
+# project
+from checks import AgentCheck, CheckException
+from config import _is_affirmative
+
 # 3rd party
 import pg8000 as pg
 from pg8000 import InterfaceError, ProgrammingError
@@ -556,7 +560,7 @@ SELECT relname,
         tags = instance.get('tags', [])
         dbname = instance.get('dbname', None)
         relations = instance.get('relations', [])
-        ssl = instance.get('ssl', False)
+        ssl = _is_affirmative(instance.get('ssl', False))
 
         if relations and not dbname:
             self.warning('"dbname" parameter must be set when using the "relations" parameter.')
