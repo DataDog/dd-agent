@@ -233,17 +233,8 @@ print_done
 
 # install dependencies
 printf "Installing requirements using pip....." | tee -a $logfile
-$dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/source-requirements.txt  >> $logfile 2>&1
+$dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/requirements.txt  >> $logfile 2>&1
 $dd_base/venv/bin/pip install -r $dd_base/requirements.txt >> $logfile 2>&1
-rm $dd_base/requirements.txt
-print_done
-
-printf "Trying to install optional dependencies using pip....." | tee -a $logfile
-$dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/source-optional-requirements.txt  >> $logfile 2>&1
-while read DEPENDENCY
-do
-    ($dd_base/venv/bin/pip install $DEPENDENCY || printf "Cannot install $DEPENDENCY. There is probably no Compiler on the system.") >> $logfile 2>&1
-done < $dd_base/requirements.txt
 rm $dd_base/requirements.txt
 print_done
 
@@ -255,6 +246,11 @@ $dl_cmd $dd_base/agent.tar.gz https://github.com/DataDog/dd-agent/tarball/$tag >
 print_done
 printf "Uncompressing the archive....." | tee -a $logfile
 tar -xz -C $dd_base/agent --strip-components 1 -f $dd_base/agent.tar.gz >> $logfile 2>&1
+print_done
+
+printf "Trying to install optional dependencies using pip....." | tee -a $logfile
+$dl_cmd $dd_base/requirements-opt.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/requirements-opt.txt  >> $logfile 2>&1
+PIP_COMMAND=$dd_base/venv/bin/pip $dd_base/agent/utils/pip-allow-failures.sh $dd_base/requirements-opt.txt
 print_done
 
 printf "Configuring datadog.conf file......" | tee -a $logfile
