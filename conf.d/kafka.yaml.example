@@ -35,7 +35,7 @@ init_config:
         attribute:
           MeanRate:
             metric_type: gauge
-          alias: kafka.net.bytes_out
+            alias: kafka.net.bytes_out
     - include:
         domain: 'kafka.server'
         bean: 'kafka.server:type=BrokerTopicMetrics,name=BytesInPerSec'
