@@ -74,7 +74,7 @@ class Stylizer(object):
         for style in styles or []:
             text = fmt % (cls.STYLES[style], text)
 
-        return text + fmt % (0, '') # reset
+        return text + fmt % (0, '')  # reset
 
 
 # a small convienence method
@@ -389,7 +389,8 @@ class CollectorStatus(AgentStatus):
                 if s.has_warnings():
                     for warning in s.warnings:
                         warn = warning.split('\n')
-                        if not len(warn): continue
+                        if not len(warn):
+                            continue
                         check_lines.append(u"        %s: %s" %
                             (style("Warning", 'yellow'), warn[0]))
                         check_lines.extend(u"        %s" % l for l in
@@ -533,7 +534,8 @@ class CollectorStatus(AgentStatus):
                         if s.has_warnings():
                             for warning in s.warnings:
                                 warn = warning.split('\n')
-                                if not len(warn): continue
+                                if not len(warn):
+                                    continue
                                 check_lines.append(u"        %s: %s" %
                                     (style("Warning", 'yellow'), warn[0]))
                                 check_lines.extend(u"        %s" % l for l in
