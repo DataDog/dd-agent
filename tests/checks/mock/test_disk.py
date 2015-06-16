@@ -172,6 +172,7 @@ class TestCheckDisk(AgentCheckTest):
                         agent_config={'use_mount': 'yes'})
         self.assertFalse(self.check._use_mount)
 
+    # FIXME: test default options on Windows (not the same all_partitions)
     def test_default_options(self):
         self.load_check({'instances': [{}]})
         self.check._load_conf({})
@@ -180,7 +181,7 @@ class TestCheckDisk(AgentCheckTest):
         self.assertEqual(self.check._excluded_filesystems, [])
         self.assertEqual(self.check._excluded_disks, [])
         self.assertFalse(self.check._tag_by_filesystem)
-        self.assertTrue(self.check._all_partitions)
+        self.assertFalse(self.check._all_partitions)
         self.assertEqual(self.check._excluded_disk_re, re.compile('^$'))
 
     def test_ignore_empty_regex(self):

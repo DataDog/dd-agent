@@ -49,8 +49,12 @@ class Disk(AgentCheck):
         self._excluded_disks = instance.get('excluded_disks', [])
         self._tag_by_filesystem = _is_affirmative(
             instance.get('tag_by_filesystem', False))
+        # On Windows, we need all_partitions to True by default to collect
+        # metrics about remote disks
+        # On Linux, we need all_partitions to False to avoid collecting metrics
+        # about nodev filesystems
         self._all_partitions = _is_affirmative(
-            instance.get('all_partitions', True))
+            instance.get('all_partitions', Platform.is_win32()))
 
         # FIXME: 6.x, drop use_mount option in datadog.conf
         self._load_legacy_option(instance, 'use_mount', False,

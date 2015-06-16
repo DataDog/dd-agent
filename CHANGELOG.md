@@ -1,7 +1,18 @@
 Changes
 =======
 
-# 5.4.0 / Unreleased
+# 5.4.1 / 06-16-2015
+**Linux or Source Install only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.4.0...5.4.1
+
+### Changes
+* [BUGFIX] Disk: Get metrics only from physical disk by default. See [#1700][]
+* [BUGFIX] Kafka: Fix indentation issue in the configuration YAML example file. See [#1701][]
+
+
+# 5.4.0 / 06-16-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.3.2...5.4.0
 
@@ -1728,6 +1739,8 @@ If you use ganglia, you want this version.
 [#1664]: https://github.com/DataDog/dd-agent/issues/1664
 [#1666]: https://github.com/DataDog/dd-agent/issues/1666
 [#1679]: https://github.com/DataDog/dd-agent/issues/1679
+[#1700]: https://github.com/DataDog/dd-agent/issues/1700
+[#1701]: https://github.com/DataDog/dd-agent/issues/1701
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
