@@ -13,10 +13,6 @@ from config import _is_affirmative
 import pg8000 as pg
 from pg8000 import InterfaceError, ProgrammingError
 
-# project
-from checks import AgentCheck, CheckException
-
-
 MAX_CUSTOM_RESULTS = 100
 
 
