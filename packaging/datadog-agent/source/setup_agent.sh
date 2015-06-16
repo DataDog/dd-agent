@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="5.4.0"
+tag="5.4.1"
 
 PIP_VERSION="6.0.6"
 
