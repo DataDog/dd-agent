@@ -1,6 +1,15 @@
 Changes
 =======
 
+# 5.4.1 / 06-16-2015
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.4.0...5.4.1
+
+### Changes
+* [BUGFIX] Disk: get metrics only from physical disk by default. See [#1700][]
+
+
 # 5.4.0 / 06-16-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.3.2...5.4.0
@@ -1728,6 +1737,7 @@ If you use ganglia, you want this version.
 [#1664]: https://github.com/DataDog/dd-agent/issues/1664
 [#1666]: https://github.com/DataDog/dd-agent/issues/1666
 [#1679]: https://github.com/DataDog/dd-agent/issues/1679
+[#1700]: https://github.com/DataDog/dd-agent/issues/1700
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
