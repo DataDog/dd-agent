@@ -764,7 +764,7 @@ if __name__ == '__main__':
         add_image_path(osp.join(os.getcwd(), 'images'))
         # add datadog-agent in PATH
         os.environ['PATH'] = "{0}:{1}".format(
-            osp.join(os.getcwd(), '../MacOS'),
+            '/opt/datadog-agent/bin/',
             os.environ['PATH']
         )
         win = SystemTray() if len(sys.argv) < 2 else MainWindow()

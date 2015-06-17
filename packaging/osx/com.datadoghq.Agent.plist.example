@@ -8,7 +8,7 @@
     <string>com.datadoghq.agent</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Applications/Datadog Agent.app/Contents/MacOS/datadog-agent</string>
+        <string>/opt/datadog-agent/bin/datadog-agent</string>
         <string>restart</string>
     </array>
     <key>UserName</key>

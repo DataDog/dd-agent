@@ -30,6 +30,7 @@ from utils.subprocess_output import subprocess
 AGENT_VERSION = "5.5.0"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
+MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
 
@@ -160,15 +161,15 @@ def _windows_checksd_path():
 
 
 def _mac_config_path():
-    return _config_path(os.path.join(os.getcwd()))
+    return _config_path(MAC_CONFIG_PATH)
 
 
 def _mac_confd_path():
-    return _confd_path(os.path.join(os.getcwd()))
+    return _confd_path(MAC_CONFIG_PATH)
 
 
 def _mac_checksd_path():
-    return _checksd_path(os.path.join(os.getcwd()))
+    return _unix_checksd_path()
 
 
 def _unix_config_path():
@@ -184,6 +185,7 @@ def _unix_checksd_path():
     # because checks.d will hang with the other python modules
     cur_path = os.path.dirname(os.path.realpath(__file__))
     return _checksd_path(cur_path)
+
 
 def _config_path(directory):
     path = os.path.join(directory, DATADOG_CONF)
@@ -246,6 +248,7 @@ def get_config_path(cfg_path=None, os_name=None):
     # If all searches fail, exit the agent with an error
     sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
     sys.exit(3)
+
 
 def get_default_bind_host():
     try:
@@ -325,6 +328,9 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'statsd_metric_namespace': None,
         'utf8_decoding': False
     }
+
+    if Platform.is_mac():
+        agentConfig['additional_checksd'] = '/opt/datadog-agent/etc/checks.d'
 
     # Config handling
     try:
@@ -689,8 +695,6 @@ def get_ssl_certificate(osname, filename):
         if os.path.exists(path):
             log.debug("Certificate file found at %s" % str(path))
             return path
-    elif osname == 'mac':
-        return os.path.join(os.getcwd(), filename)
     else:
         cur_path = os.path.dirname(os.path.realpath(__file__))
         path = os.path.join(cur_path, filename)

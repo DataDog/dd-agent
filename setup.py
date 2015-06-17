@@ -133,10 +133,6 @@ elif sys.platform == 'darwin':
     extra_args = {
         'app': ['gui.py'],
         'data_files': [
-            'checks',
-            'checks.d',
-            'datadog-cert.pem',
-            'dogstream',
             'images',
             'status.html',
         ],
@@ -144,15 +140,6 @@ elif sys.platform == 'darwin':
             'py2app': {
                 'optimize': 0,
                 'iconfile': 'packaging/Agent.icns',
-                'packages': ['requests', 'supervisor', 'tornado'],
-                'extra_scripts': [
-                    'agent.py',
-                    'ddagent.py',
-                    'dogstatsd.py',
-                    'jmxfetch.py',
-                    'supervisorctl.py',
-                    'supervisord.py',
-                ],
                 'plist': plist
             }
         }
