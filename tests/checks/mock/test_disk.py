@@ -67,7 +67,9 @@ class TestCheckDisk(AgentCheckTest):
         self.assertFalse(exclude_disk(MockPart()))
 
         # standard fake devices
-        self.assertTrue(exclude_disk(MockPart(device='udev')))
+        self.assertTrue(exclude_disk(MockPart(device='')))
+        self.assertTrue(exclude_disk(MockPart(device='none')))
+        self.assertFalse(exclude_disk(MockPart(device='udev')))
 
         # excluded filesystems list
         self.assertTrue(exclude_disk(MockPart(fstype='aaaaaa')))
@@ -80,6 +82,12 @@ class TestCheckDisk(AgentCheckTest):
         # excluded devices regex
         self.assertTrue(exclude_disk(MockPart(device='tevvv')))
         self.assertFalse(exclude_disk(MockPart(device='tevvs')))
+
+        # and now with all_partitions
+        self.check._all_partitions = True
+        self.assertFalse(exclude_disk(MockPart(device='')))
+        self.assertFalse(exclude_disk(MockPart(device='none')))
+        self.assertFalse(exclude_disk(MockPart(device='udev')))
 
     @mock.patch('psutil.disk_partitions', return_value=[MockPart()])
     @mock.patch('psutil.disk_usage', return_value=MockDiskMetrics())
@@ -96,29 +104,6 @@ class TestCheckDisk(AgentCheckTest):
                                   device_name=DEFAULT_DEVICE_NAME)
 
             self.coverage_report()
-
-    # FIXME: patch the import of Platform to be able to test mocked Windows
-    # @mock.patch('psutil.disk_partitions',
-    #             return_value=[MockPart(device='C:\\', fstype='ntfs',
-    #                                    mountpoint='C:\\')])
-    # @mock.patch('psutil.disk_usage', return_value=MockDiskMetrics())
-    # @mock.patch('psutil.disk_io_counters',
-    #             return_value={'PhysicalDisk0': MockIoCountersMetrics()})
-    # @mock.patch('util.Platform', return_value=WindowsPlatform)
-    # def test_psutil_windows(self, mock_partitions, mock_usage,
-    #                         mock_io_counters, mock_platform):
-    #     self.run_check({'instances': [{'use_mount': 'no'}]},
-    #                    mocks={'_psutil': lambda: True})
-    #
-    #     # Assert metrics
-    #     for metric, value in self.GAUGES_VALUES.iteritems():
-    #         self.assertMetric(metric, value=value, tags=[],
-    #                           device_name='c:')
-    #     for metric, value in self.GAUGES_VALUES_PSUTIL.iteritems():
-    #         self.assertMetric(metric, value=value, tags=[],
-    #                           device_name='PhysicalDisk0')
-    #
-    #     self.coverage_report()
 
     @mock.patch('psutil.disk_partitions', return_value=[MockPart()])
     @mock.patch('psutil.disk_usage', return_value=MockDiskMetrics())
