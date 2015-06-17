@@ -111,22 +111,22 @@ class Etcd(AgentCheck):
                     self.log.warn("Missing key {0} in stats.".format(key))
 
         # Gather leader metrics
-        leader_response = self._get_leader_metrics(url, timeout)
-        if leader_response is not None and is_leader \
-                and len(leader_response.get("followers", {})) > 0:
-            # Get the followers
-            followers = leader_response.get("followers")
-            for fol in followers:
-                # counts
-                for key in self.LEADER_COUNTS:
-                    self.rate(self.LEADER_COUNTS[key],
-                              followers[fol].get("counts").get(key),
-                              tags=instance_tags + ['follower:{0}'.format(fol)])
-                # latency
-                for key in self.LEADER_LATENCY:
-                    self.gauge(self.LEADER_LATENCY[key],
-                               followers[fol].get("latency").get(key),
-                               tags=instance_tags + ['follower:{0}'.format(fol)])
+        if is_leader:
+            leader_response = self._get_leader_metrics(url, timeout)
+            if leader_response is not None and len(leader_response.get("followers", {})) > 0:
+                # Get the followers
+                followers = leader_response.get("followers")
+                for fol in followers:
+                    # counts
+                    for key in self.LEADER_COUNTS:
+                        self.rate(self.LEADER_COUNTS[key],
+                                  followers[fol].get("counts").get(key),
+                                  tags=instance_tags + ['follower:{0}'.format(fol)])
+                    # latency
+                    for key in self.LEADER_LATENCY:
+                        self.gauge(self.LEADER_LATENCY[key],
+                                   followers[fol].get("latency").get(key),
+                                   tags=instance_tags + ['follower:{0}'.format(fol)])
 
         # Service check
         if self_response is not None and store_response is not None:
