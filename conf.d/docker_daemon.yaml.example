@@ -1,0 +1,93 @@
+init_config:
+
+instances:
+  - ## Daemon and system configuration
+    ##
+
+    # URL of the Docker daemon socket to reach the Docker API. HTTP/HTTPS also works.
+    # Warning: if that's a non-local daemon, we won't be able to collect performance metrics.
+    #
+    url: "unix://var/run/docker.sock"
+
+    # Use TLS encryption while communicating with the Docker API
+    #
+    # tls: false
+
+    # Cgroup root (HIDDEN OPTION?)
+    # Directory where cgroup files are located, used to generate performance metrics.
+    # Default: None (auto-detected)
+    #
+    # cgroup_path:
+
+    # Cgroup layout (HIDDEN OPTION?)
+    # How cgroup files are organized inside the cgroup root.
+    # Default: None (auto-detected)
+    # Example: "/%(cgroup_root)s/docker/%(container_id)s/%(file)s"
+    #
+    # cgroup_layout: None
+
+
+    ## Data collection
+    ##
+
+    # Create events whenever a container status change.
+    #
+    # collect_events: true
+
+    # Collect disk usage per container with docker.disk.size metric.
+    # Warning: This might take time for Docker daemon to generate,
+    # ensure that `docker ps -a -q` run fast before enabling it.
+    #
+    # collect_container_size: false
+
+    # Collect images stats
+    # Number of available active images and intermediate images as gauges.
+    #
+    # collect_images_stats: false
+
+    # Exclude containers based on their tags
+    # An excluded container will be completely ignored. The rule is a regex on the tags.
+    #
+    # How it works: exclude first.
+    # If a tag matches an exclude rule, it won't be included unless it also matches an include rule.
+    # Examples:
+    # exclude all, except ubuntu and debian.
+    # exclude: [".*"]
+    # include: ["docker_image:ubuntu", "docker_image:debian"]
+    #
+    # include all, except ubuntu and debian.
+    # exclude: ["docker_image:ubuntu", "docker_image:debian"]
+    # include: []
+    #
+    # Default: include all
+    # exclude: []
+    # include: []
+
+
+    ## Tagging
+    ##
+
+    # You can add extra tags to your Docker metrics with the tags list option.
+    # Example: ["extra_tag", "env:testing"]
+    #
+    # tags: []
+
+    # Custom metrics tagging
+    # Define which Docker tags to apply on metrics.
+    # Since it impacts the aggregation, modify it carefully (only if you really need it).
+    #
+    # Tags for performance metrics.
+    # Available:
+    #   - image_name: Name of the image (example: "nginx")
+    #   - image_tag: Tag of the image (example: "latest")
+    #   - docker_image: LEGACY. The full image name:tag string (example: "nginx:latest")
+    #   - container_id: Short id of the container (example: "ae3bc9c8ae5e")
+    #   - container_name: Name of the container (example: "boring_euclid")
+    #   - container_command: Command ran by the container (example: "echo 1")
+    #
+    # performance_tags: ["image_name", "container_name"]
+
+    # Tags for containers count metrics.
+    # Available: ["image_name", "image_tag", "docker_image", "container_command"]
+    #
+    # container_tags: ["image_name"]
