@@ -42,6 +42,7 @@ instances:
 
     # Collect images stats
     # Number of available active images and intermediate images as gauges.
+    # Defaults to true.
     #
     # collect_images_stats: false
 

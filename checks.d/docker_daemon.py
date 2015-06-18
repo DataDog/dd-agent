@@ -31,6 +31,14 @@ CGROUP_METRICS = [
             "system": ("docker.cpu.system", "rate"),
         },
     },
+    {
+        "cgroup": "blkio",
+        "file": 'blkio.throttle.io_service_bytes',
+        "metrics": {
+            "io_read": ("docker.io.read_bytes", "monotonic_count"),
+            "io_write": ("docker.io.write_bytes", "monotonic_count"),
+        },
+    },
 ]
 
 TAG_EXTRACTORS = {
@@ -83,6 +91,8 @@ class DockerDaemon(AgentCheck):
         self._report_performance_metrics(instance, containers_by_id)
 
         # TODO: report container sizes (and image sizes?)
+        # if _is_affirmative(instance.get('collect_container_size', True)):
+        #     self._report_container_size(instance, containers_by_id)
 
         # TODO: bring events back
         # Send events from Docker API
@@ -218,6 +228,10 @@ class DockerDaemon(AgentCheck):
         """
         return container.get('_is_filtered', False)
 
+    # def _report_container_size(self, instance, containers_by_id):
+    #     #TODO: report container size
+
+
     # Performance metrics
 
     def _report_performance_metrics(self, instance, containers_by_id):
@@ -230,7 +244,6 @@ class DockerDaemon(AgentCheck):
             container_tags = self._get_tags(container, tag_names)
 
             self._report_cgroup_metrics(container, container_tags)
-            self._report_io_metrics(container, container_tags)
             self._report_net_metrics(container, container_tags)
 
     def _report_cgroup_metrics(self, container, tags):
@@ -241,24 +254,6 @@ class DockerDaemon(AgentCheck):
                 for key, (dd_key, metric_type) in cgroup['metrics'].iteritems():
                     if key in stats:
                         getattr(self, metric_type)(dd_key, int(stats[key]), tags=tags)
-
-    def _report_io_metrics(self, container, tags):
-        """Find container IO metrics by looking at /proc/$PID/io - TODO: require root! find another way..."""
-        proc_root = self._get_proc_root(container)
-        proc_io_file = os.path.join(proc_root, 'io')
-
-        fp = None
-        try:
-            fp = open(proc_io_file)
-            values = dict(map(lambda x: x.split(': '), fp.read().splitlines()))
-            self.rate("docker.io.read_bytes", int(values.get("read_bytes")), tags)
-            self.rate("docker.io.write_bytes", int(values.get("write_bytes")), tags)
-        except Exception, e:
-            # It is possible that the container got stopped between the API call and now
-            self.warning("Failed to report IO metrics from file {0}. Exception: {1}".format(proc_io_file, e))
-        finally:
-            if fp is not None:
-                fp.close()
 
     def _report_net_metrics(self, container, tags):
         """Find container network metrics by looking at /proc/$PID/net/dev of the container process"""
@@ -432,13 +427,29 @@ class DockerDaemon(AgentCheck):
         self.log.debug("Opening cgroup file: %s" % stat_file)
         try:
             fp = open(stat_file)
-            return dict(map(lambda x: x.split(), fp.read().splitlines()))
+            if 'blkio' in stat_file:
+                return self._parse_blkio_metrics(fp.read().splitlines())
+            else:
+                return dict(map(lambda x: x.split(' ', 1), fp.read().splitlines()))
         except IOError:
             # It is possible that the container got stopped between the API call and now
             self.log.info("Can't open %s. Metrics for this container are skipped." % stat_file)
         finally:
             if fp is not None:
                 fp.close()
+
+    def _parse_blkio_metrics(self, stats):
+        """Parse the blkio metrics."""
+        metrics = {
+            'io_read': 0,
+            'io_write': 0,
+        }
+        for line in stats:
+            if 'Read' in line:
+                metrics['io_read'] += int(line[2])
+            if 'Write' in line:
+                metrics['io_write'] += int(line[2])
+        return metrics
 
     # proc files
 
