@@ -1,4 +1,8 @@
 init_config:
+  # Change the root directory to look at to get cgroup statistics. Useful when running inside a
+  # container with host directories mounted on a different folder. Default: /.
+  # Example for the docker-dd-agent container:
+  # docker_root: /host
 
 instances:
   - ## Daemon and system configuration

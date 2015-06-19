@@ -63,6 +63,10 @@ TODO:
 """
 
 
+class MountException(Exception):
+    pass
+
+
 class DockerDaemon(AgentCheck):
     """Collect metrics and events from Docker API and cgroups"""
 
@@ -73,6 +77,8 @@ class DockerDaemon(AgentCheck):
 
         self._cgroup_filename_pattern = None
         self._mountpoints = {}
+        self.docker_root = init_config.get('docker_root', '/')
+        self.cgroup_listing_retries = 0
 
     def check(self, instance):
         """Run the Docker check for one instance."""
@@ -247,13 +253,21 @@ class DockerDaemon(AgentCheck):
             self._report_net_metrics(container, container_tags)
 
     def _report_cgroup_metrics(self, container, tags):
-        for cgroup in CGROUP_METRICS:
-            stat_file = self._get_cgroup_file(cgroup["cgroup"], container['Id'], cgroup['file'])
-            stats = self._parse_cgroup_file(stat_file)
-            if stats:
-                for key, (dd_key, metric_type) in cgroup['metrics'].iteritems():
-                    if key in stats:
-                        getattr(self, metric_type)(dd_key, int(stats[key]), tags=tags)
+        try:
+            for cgroup in CGROUP_METRICS:
+                stat_file = self._get_cgroup_file(cgroup["cgroup"], container['Id'], cgroup['file'])
+                stats = self._parse_cgroup_file(stat_file)
+                if stats:
+                    for key, (dd_key, metric_type) in cgroup['metrics'].iteritems():
+                        if key in stats:
+                            getattr(self, metric_type)(dd_key, int(stats[key]), tags=tags)
+        except MountException as ex:
+            if self.cgroup_listing_retries > 3:
+                raise ex
+            else:
+                self.warning("Couldn't find the cgroup files. Skipping the CGROUP_METRICS for now."
+                             "Will retry a few times before failing.")
+                self.cgroup_listing_retries += 1
 
     def _report_net_metrics(self, container, tags):
         """Find container network metrics by looking at /proc/$PID/net/dev of the container process"""
@@ -380,9 +394,8 @@ class DockerDaemon(AgentCheck):
 
     def _find_cgroup_filename_pattern(self):
         if not self._mountpoints:
-            docker_root = '/'
             for metric in CGROUP_METRICS:
-                self._mountpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"], docker_root)
+                self._mountpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"])
         if self._mountpoints:
             # We try with different cgroups so that it works even if only one is properly working
             for mountpoint in self._mountpoints.values():
@@ -397,14 +410,14 @@ class DockerDaemon(AgentCheck):
                 elif os.path.exists(stat_file_path_coreos):
                     return os.path.join('%(mountpoint)s/system.slice/docker-%(id)s.scope/%(file)s')
 
-        raise Exception("Cannot find Docker cgroup directory. Be sure your system is supported.")
+        raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
-    def _find_cgroup(self, hierarchy, docker_root):
+    def _find_cgroup(self, hierarchy):
         """Finds the mount point for a specified cgroup hierarchy. Works with
         old style and new style mounts."""
         fp = None
         try:
-            fp = open(os.path.join(docker_root, "/proc/mounts"))
+            fp = open(os.path.join(self.docker_root, "/proc/mounts"))
             mounts = map(lambda x: x.split(), fp.read().splitlines())
         finally:
             if fp is not None:
@@ -416,10 +429,10 @@ class DockerDaemon(AgentCheck):
                 " please refer to the documentation.")
         # Old cgroup style
         if len(cgroup_mounts) == 1:
-            return os.path.join(docker_root, cgroup_mounts[0][1])
+            return os.path.join(self.docker_root, cgroup_mounts[0][1])
         for _, mountpoint, _, opts, _, _ in cgroup_mounts:
             if hierarchy in opts:
-                return os.path.join(docker_root, mountpoint)
+                return os.path.join(self.docker_root, mountpoint)
 
     def _parse_cgroup_file(self, stat_file):
         """Parses a cgroup pseudo file for key/values."""
