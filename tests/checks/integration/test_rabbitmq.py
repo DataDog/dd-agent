@@ -48,7 +48,7 @@ class RabbitMQCheckTest(AgentCheckTest):
         for mname in COMMON_METRICS:
             self.assertMetricTagPrefix(mname, 'rabbitmq_node', count=1)
 
-        self.assertMetric('rabbitmq.node.partitions', value=0)
+        self.assertMetric('rabbitmq.node.partitions', value=0, count=1)
 
         # Queue attributes, should be only one queue fetched
         # TODO: create a 'fake consumer' and get missing metrics
@@ -68,8 +68,6 @@ class RabbitMQCheckTest(AgentCheckTest):
         for mname in Q_METRICS:
             self.assertMetricTag('rabbitmq.queue.%s' %
                                  mname, 'rabbitmq_queue:test1', count=1)
-
-        self.assertMetric('rabbitmq.queue.messages', value=1, count=1)
 
         self.assertServiceCheckOK('rabbitmq.aliveness', tags=['vhost:/'])
 
