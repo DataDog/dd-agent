@@ -72,11 +72,10 @@ class MountException(Exception):
 class DockerDaemon(AgentCheck):
     """Collect metrics and events from Docker API and cgroups"""
 
-    DEFAULT_SOCKET_TIMEOUT = 5
-
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
+        self.DEFAULT_SOCKET_TIMEOUT = init_config.get('timeout', '5')
         self._cgroup_filename_pattern = None
         self._mountpoints = {}
         self.docker_root = init_config.get('docker_root', '/')
@@ -91,14 +90,14 @@ class DockerDaemon(AgentCheck):
 
         # Report image metrics
         if _is_affirmative(instance.get('collect_images_stats', True)):
-            self._count_images(instance)
+            self._count_and_weight_images(instance)
 
         # Get the list of containers and the index of their names
         containers_by_id = self._get_and_count_containers(instance)
 
         # Report performance container metrics (cpu, mem, net, io)
         self._report_performance_metrics(instance, containers_by_id)
-        # TODO: report container sizes (and image sizes?)
+        # TODO: report container sizes (and image sizes?) --> OK - need to test
         if _is_affirmative(instance.get('collect_container_size', True)):
             self._report_container_size(instance, containers_by_id)
 
@@ -113,18 +112,22 @@ class DockerDaemon(AgentCheck):
             raise Exception('Invalid configuration, missing "url" parameter')
         tls = _is_affirmative(instance.get('tls', False))
         # TODO: figure out an API version to stick to
-        # TODO: configurable timeout
+        # TODO: configurable timeout ---> OK - need to test
         self.client = Client(base_url=base_url, tls=tls, timeout=self.DEFAULT_SOCKET_TIMEOUT)
 
     # Containers
 
-    def _count_images(self, instance):
+    def _count_and_weight_images(self, instance):
         try:
-            active_images = len(self.client.images(quiet=True, all=False))
-            all_images = len(self.client.images(quiet=True, all=True))
+            active_images = self.client.images(quiet=True, all=False)
+            active_images_len = len(active_images)
+            all_images_len = len(self.client.images(quiet=True, all=True))
+            self.gauge("docker.images.available", active_images_len)
+            self.gauge("docker.images.intermediate", (all_images_len - active_images_len))
 
-            self.gauge("docker.images.available", active_images)
-            self.gauge("docker.images.intermediate", (all_images - active_images))
+            if _is_affirmative(instance.get('collect_image_size', True)):
+                self._report_image_size(instance, active_images)
+
         except Exception, e:
             self.warning("Failed to count Docker images. Exception: {0}".format(e))
 
@@ -248,9 +251,17 @@ class DockerDaemon(AgentCheck):
                 continue
             tag_names = instance.get("performance_tags", ["image_name", "container_name"])
             container_tags = self._get_tags(container, tag_names)
-            self.gauge('docker.container.sizeRw', container['SizeRw'], tags=container_tags)
-            self.gauge('docker.container.sizeRootFs', container['SizeRootFs'], tags=container_tags)
+            self.gauge('docker.container.size_rw', container['SizeRw'], tags=container_tags)
+            self.gauge('docker.container.size_rootfs', container['SizeRootFs'], tags=container_tags)
 
+    def _report_image_size(self, instance, images):
+        for image in images:
+            tag_names = instance.get('image_tags', ['image_name', 'image_tag'])
+            image_tags = self.get_tags(image, tag_names)
+            if 'VirtualSize' in image:
+                self.gauge('docker.image.virtual_size', image_tags)
+            if 'Size' in image:
+                self.gauge('docker.image.size', image_tags)
 
     # Performance metrics
 

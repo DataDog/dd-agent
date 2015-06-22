@@ -4,6 +4,11 @@ init_config:
   # Example for the docker-dd-agent container:
   # docker_root: /host
 
+  # Timeout in seconds for the connection to the docker daemon
+  # Default: 5 seconds
+  #
+  # timeout: 10
+
 instances:
   - ## Daemon and system configuration
     ##
@@ -38,11 +43,17 @@ instances:
     #
     # collect_events: true
 
-    # Collect disk usage per container with docker.disk.size metric.
+    # Collect disk usage per container with docker.container.size_rw and
+    # docker.container.size_rootfs metrics.
     # Warning: This might take time for Docker daemon to generate,
     # ensure that `docker ps -a -q` run fast before enabling it.
     #
     # collect_container_size: false
+
+    # Collect disk usage per image with docker.image.size and docker.image.virtual_size metrics.
+    # The check gets this size with the `docker images` command.
+    #
+    # collect_image_size: true
 
     # Collect images stats
     # Number of available active images and intermediate images as gauges.
