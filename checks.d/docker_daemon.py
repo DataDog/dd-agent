@@ -13,6 +13,8 @@ from docker import Client
 
 EVENT_TYPE = 'docker'
 
+SIZE_REFRESH_RATE = 5
+
 CGROUP_METRICS = [
     {
         "cgroup": "memory",
@@ -79,6 +81,7 @@ class DockerDaemon(AgentCheck):
         self._mountpoints = {}
         self.docker_root = init_config.get('docker_root', '/')
         self.cgroup_listing_retries = 0
+        self._latest_size_query = 0
 
     def check(self, instance):
         """Run the Docker check for one instance."""
@@ -95,10 +98,9 @@ class DockerDaemon(AgentCheck):
 
         # Report performance container metrics (cpu, mem, net, io)
         self._report_performance_metrics(instance, containers_by_id)
-
         # TODO: report container sizes (and image sizes?)
-        # if _is_affirmative(instance.get('collect_container_size', True)):
-        #     self._report_container_size(instance, containers_by_id)
+        if _is_affirmative(instance.get('collect_container_size', True)):
+            self._report_container_size(instance, containers_by_id)
 
         # TODO: bring events back
         # Send events from Docker API
@@ -130,8 +132,11 @@ class DockerDaemon(AgentCheck):
         """List all the containers from the API, filter and count them"""
 
         service_check_name = 'docker.service_up'
+        # Querying the size of containers is slow, we don't do it at each run
+        must_query_size = _is_affirmative(instance.get('collect_container_size', True)) and self._latest_size_query == 0
+        self._latest_size_query = (self._latest_size_query + 1) % SIZE_REFRESH_RATE
         try:
-            containers = self.client.containers(all=True)
+            containers = self.client.containers(all=True, size=must_query_size)
         except Exception, e:
             self.service_check(service_check_name, AgentCheck.CRITICAL,
                                message="Unable to list Docker containers: {0}".format(e))
@@ -234,8 +239,17 @@ class DockerDaemon(AgentCheck):
         """
         return container.get('_is_filtered', False)
 
-    # def _report_container_size(self, instance, containers_by_id):
-    #     #TODO: report container size
+    def _report_container_size(self, instance, containers_by_id):
+        container_list_with_size = None
+        for container in containers_by_id.itervalues():
+            if self._is_container_excluded(container):
+                continue
+            elif 'SizeRw' not in container or 'SizeRootFs' not in container:
+                continue
+            tag_names = instance.get("performance_tags", ["image_name", "container_name"])
+            container_tags = self._get_tags(container, tag_names)
+            self.gauge('docker.container.sizeRw', container['SizeRw'], tags=container_tags)
+            self.gauge('docker.container.sizeRootFs', container['SizeRootFs'], tags=container_tags)
 
 
     # Performance metrics
