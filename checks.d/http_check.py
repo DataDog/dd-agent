@@ -167,7 +167,7 @@ class HTTPCheck(NetworkCheck):
                 ))
 
         if ssl_expire and urlparse(addr)[0] == "https":
-            status, msg = self.check_cert_expiration(instance)
+            status, msg = self.check_cert_expiration(instance, timeout)
             service_checks.append((
                 self.SC_SSL_CERT, status, msg
             ))
@@ -273,7 +273,7 @@ class HTTPCheck(NetworkCheck):
                            message=msg
                            )
 
-    def check_cert_expiration(self, instance):
+    def check_cert_expiration(self, instance, timeout):
         warning_days = int(instance.get('days_warning', 14))
         url = instance.get('url')
 
@@ -284,6 +284,7 @@ class HTTPCheck(NetworkCheck):
 
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(float(timeout))
             sock.connect((host, port))
             ssl_sock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED,
                                        ca_certs=self.ca_certs)
