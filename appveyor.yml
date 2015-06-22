@@ -1,0 +1,26 @@
+version: '{branch}.{build}'
+shallow_clone: true
+environment:
+  TRAVIS_BUILD_DIR: c:\projects\dd-agent
+  INTEGRATIONS_DIR: c:\projects\dd-agent\embedded
+  PIP_CACHE: c:\projects\dd-agent\.cache\pip
+  VOLATILE_DIR: c:\
+  NOSE_FILTER: windows
+  matrix:
+  - PYTHON: C:\\Python27
+    PYTHON_VERSION: 2.7.9
+    PYTHON_ARCH: 32
+    PYWIN32_URL: https://downloads.sourceforge.net/project/pywin32/pywin32/Build%20219/pywin32-219.win32-py2.7.exe
+  - PYTHON: C:\\Python27-x64
+    PYTHON_VERSION: 2.7.9
+    PYTHON_ARCH: 64
+    PYWIN32_URL: http://sourceforge.net/projects/pywin32/files/pywin32/Build%20219/pywin32-219.win-amd64-py2.7.exe/download
+install:
+- gem install bundler --quiet --no-ri --no-rdoc
+- bundle install
+- ps: (new-object net.webclient).DownloadFile("$env:PYWIN32_URL", 'C:/pywin32-py2.7.exe')
+- "%PYTHON%/Scripts/easy_install.exe C:/pywin32-py2.7.exe"
+build: off
+test_script:
+- set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+- bundle exec rake ci:run[windows]

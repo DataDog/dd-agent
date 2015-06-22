@@ -4,6 +4,9 @@ require 'socket'
 require 'time'
 require 'timeout'
 
+# Colors don't work on Appveyor
+String.disable_colorization = true if Gem.win_platform?
+
 require './ci/resources/cache'
 
 def sleep_for(secs)
@@ -16,6 +19,21 @@ def section(name)
   puts ''
   puts "[#{timestamp}] >>>>>>>>>>>>>> #{name} STAGE".black.on_white
   puts ''
+end
+
+def install_requirements(req_file, pip_options = nil, output = nil, use_venv = nil)
+  pip_command = use_venv ? 'venv/bin/pip' : 'pip'
+  redirect_output = output ? "2>&1 >> #{output}" : ''
+  pip_options = '' if pip_options.nil?
+  File.open(req_file, 'r') do |f|
+    f.each_line do |line|
+      line.strip!
+      unless line.empty? || line.start_with?('#')
+        sh %(#{pip_command} install #{line} #{pip_options} #{redirect_output}\
+             || echo 'Unable to install #{line}' #{redirect_output})
+      end
+    end
+  end
 end
 
 # helper class to wait for TCP/HTTP services to boot
@@ -99,7 +117,8 @@ namespace :ci do
   namespace :common do
     task :before_install do |t|
       section('BEFORE_INSTALL')
-      sh %(mkdir -p $VOLATILE_DIR)
+      # We use tempdir on Windows, no need to create it
+      sh %(mkdir -p #{ENV['VOLATILE_DIR']}) unless Gem.win_platform?
       if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
         cache.directories = ["#{ENV['HOME']}/embedded"]
         cache.setup
@@ -109,24 +128,25 @@ namespace :ci do
 
     task :install do |t|
       section('INSTALL')
-      sh %(pip install --upgrade pip setuptools)
+      sh %(#{'python -m ' if Gem.win_platform?}pip install --upgrade pip setuptools)
       sh %(pip install\
            -r requirements.txt\
-           --cache-dir $PIP_CACHE\
-           2>&1 >> $VOLATILE_DIR/ci.log)
-      sh %(PIP_OPTIONS="--cache-dir $PIP_CACHE" ./utils/pip-allow-failures.sh requirements-opt.txt\
-           2>&1 >> $VOLATILE_DIR/ci.log)
+           --cache-dir #{ENV['PIP_CACHE']}\
+           2>&1 >> #{ENV['VOLATILE_DIR']}/ci.log)
+      install_requirements('requirements-opt.txt',
+                           "--cache-dir #{ENV['PIP_CACHE']}",
+                           "#{ENV['VOLATILE_DIR']}/ci.log")
       sh %(pip install\
            -r requirements-test.txt\
-           --cache-dir $PIP_CACHE\
-            2>&1 >> $VOLATILE_DIR/ci.log)
+           --cache-dir #{ENV['PIP_CACHE']}\
+            2>&1 >> #{ENV['VOLATILE_DIR']}/ci.log)
       t.reenable
     end
 
     task :before_script do |t|
       section('BEFORE_SCRIPT')
-      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/datadog.conf.example\
-           $TRAVIS_BUILD_DIR/datadog.conf)
+      sh %(cp #{ENV['TRAVIS_BUILD_DIR']}/ci/resources/datadog.conf.example\
+           #{ENV['TRAVIS_BUILD_DIR']}/datadog.conf)
       t.reenable
     end
 
@@ -138,7 +158,7 @@ namespace :ci do
     task :before_cache do |t|
       if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
         section('BEFORE_CACHE')
-        sh %(find $INTEGRATIONS_DIR/ -type f -name '*.log*' -delete)
+        sh %(find #{ENV['INTEGRATIONS_DIR']}/ -type f -name '*.log*' -delete)
       end
       t.reenable
     end
@@ -162,18 +182,24 @@ namespace :ci do
       if flavors.include?('default') || flavors.include?('checks_mock')
         nose = "(not requires) and #{filter}"
       else
-        nose = "(requires in #{flavors}) and #{filter}"
+        nose = "(requires in ['#{flavors.join("','")}']) and #{filter}"
       end
       if flavors.include?('default') || flavors.include?('core_integration')
         tests_directory = 'tests/core'
       else
         tests_directory = 'tests/checks'
       end
-      # FIXME: make the other filters than param configurable
-      # For integrations that cannot be easily installed in a
-      # separate dir we symlink stuff in the rootdir
-      sh %(PATH=$INTEGRATIONS_DIR/bin:$PATH nosetests -v -A '#{nose}'\
-           #{tests_directory})
+
+      # Rake on Windows doesn't support setting the var at the beginning of the
+      # command
+      path = ''
+      unless Gem.win_platform?
+        # FIXME: make the other filters than param configurable
+        # For integrations that cannot be easily installed in a
+        # separate dir we symlink stuff in the rootdir
+        path = %(PATH="#{ENV['INTEGRATIONS_DIR']}/bin:#{ENV['PATH']}" )
+      end
+      sh %(#{path}nosetests -v -A "#{nose}" #{tests_directory})
       t.reenable
     end
     task execute: [:before_install, :install, :before_script, :script]
