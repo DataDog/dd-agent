@@ -55,11 +55,8 @@ TAG_EXTRACTORS = {
 """WIP for a new docker check
 
 TODO:
- - All the "TODO" in the code
- - Support a global "extra_tags" configuration, adding tags to all the metrics/events
+ - Support a global "extra_tags" configuration, adding tags to all the metrics/events --> OK, need to test
  - Figure out the need to have "per-container" custom tags (often requested)
- - Figure out what to do with extra cgroups/proc available metrics
- - Support alternative root / - /rootfs to make it work with docker-dd-agent
  - Write tests
  - Test on all the platforms
 """
@@ -84,7 +81,6 @@ class DockerDaemon(AgentCheck):
 
     def check(self, instance):
         """Run the Docker check for one instance."""
-
         # Connect to the Docker daemon
         self._connect_api(instance)
 
@@ -111,19 +107,19 @@ class DockerDaemon(AgentCheck):
         if not base_url:
             raise Exception('Invalid configuration, missing "url" parameter')
         tls = _is_affirmative(instance.get('tls', False))
-        # TODO: figure out an API version to stick to
         # TODO: configurable timeout ---> OK - need to test
-        self.client = Client(base_url=base_url, tls=tls, timeout=self.DEFAULT_SOCKET_TIMEOUT)
+        self.client = Client(base_url=base_url, tls=tls, version='1.18', timeout=self.DEFAULT_SOCKET_TIMEOUT)
 
     # Containers
 
     def _count_and_weight_images(self, instance):
         try:
+            extra_tags = instance.get('tags', [])
             active_images = self.client.images(all=False)
             active_images_len = len(active_images)
             all_images_len = len(self.client.images(quiet=True, all=True))
-            self.gauge("docker.images.available", active_images_len)
-            self.gauge("docker.images.intermediate", (all_images_len - active_images_len))
+            self.gauge("docker.images.available", active_images_len, tags=extra_tags)
+            self.gauge("docker.images.intermediate", (all_images_len - active_images_len), tags=extra_tags)
 
             if _is_affirmative(instance.get('collect_image_size', True)):
                 self._report_image_size(instance, active_images)
@@ -132,8 +128,7 @@ class DockerDaemon(AgentCheck):
             self.warning("Failed to count Docker images. Exception: {0}".format(e))
 
     def _get_and_count_containers(self, instance):
-        """List all the containers from the API, filter and count them"""
-
+        """List all the containers from the API, filter and count them."""
         service_check_name = 'docker.service_up'
         # Querying the size of containers is slow, we don't do it at each run
         must_query_size = _is_affirmative(instance.get('collect_container_size', True)) and self._latest_size_query == 0
@@ -153,7 +148,7 @@ class DockerDaemon(AgentCheck):
         containers_by_id = {}
         for container in containers:
             tag_names = instance.get("container_tags", ["image_name"])
-            container_tags = self._get_tags(container, tag_names)
+            container_tags = self._get_tags(container, tag_names) + instance.get('tags', [])
 
             # Check if the container is included/excluded via its tags
             if self._is_container_excluded(container):
@@ -169,7 +164,7 @@ class DockerDaemon(AgentCheck):
         return containers_by_id
 
     def _is_container_running(self, container):
-        """Tells if a container is running, according to its status
+        """Tell if a container is running, according to its status.
 
         There is no "nice" API field to figure it out. We just look at the "Status" field, knowing how it is generated.
         See: https://github.com/docker/docker/blob/v1.6.2/daemon/state.go#L35
@@ -177,7 +172,7 @@ class DockerDaemon(AgentCheck):
         return container["Status"].startswith("Up") or container["Status"].startswith("Restarting")
 
     def _get_tags(self, entity, tag_names):
-        """Generate the tags for a given entity (container or image) according to a list of tag names"""
+        """Generate the tags for a given entity (container or image) according to a list of tag names."""
         tags = []
         for tag_name in tag_names:
             tags.append('%s:%s' % (tag_name, self._extract_tag_value(entity, tag_name)))
@@ -250,14 +245,14 @@ class DockerDaemon(AgentCheck):
             elif 'SizeRw' not in container or 'SizeRootFs' not in container:
                 continue
             tag_names = instance.get("performance_tags", ["image_name", "container_name"])
-            container_tags = self._get_tags(container, tag_names)
+            container_tags = self._get_tags(container, tag_names) + instance.get('tags', [])
             self.gauge('docker.container.size_rw', container['SizeRw'], tags=container_tags)
             self.gauge('docker.container.size_rootfs', container['SizeRootFs'], tags=container_tags)
 
     def _report_image_size(self, instance, images):
         for image in images:
             tag_names = instance.get('image_tags', ['image_name', 'image_tag'])
-            image_tags = self._get_tags(image, tag_names)
+            image_tags = self._get_tags(image, tag_names) + instance.get('tags', [])
             if 'VirtualSize' in image:
                 self.gauge('docker.image.virtual_size', image['VirtualSize'], tags=image_tags)
             if 'Size' in image:
@@ -266,13 +261,12 @@ class DockerDaemon(AgentCheck):
     # Performance metrics
 
     def _report_performance_metrics(self, instance, containers_by_id):
-
         for container in containers_by_id.itervalues():
             if self._is_container_excluded(container) or not self._is_container_running(container):
                 continue
 
             tag_names = instance.get("performance_tags", ["image_name", "container_name"])
-            container_tags = self._get_tags(container, tag_names)
+            container_tags = self._get_tags(container, tag_names) + instance.get('tags', [])
 
             self._report_cgroup_metrics(container, container_tags)
             self._report_net_metrics(container, container_tags)
@@ -295,7 +289,7 @@ class DockerDaemon(AgentCheck):
                 self.cgroup_listing_retries += 1
 
     def _report_net_metrics(self, container, tags):
-        """Find container network metrics by looking at /proc/$PID/net/dev of the container process"""
+        """Find container network metrics by looking at /proc/$PID/net/dev of the container process."""
         proc_root = self._get_proc_root(container)
         proc_net_file = os.path.join(proc_root, 'net/dev')
 
@@ -407,7 +401,7 @@ class DockerDaemon(AgentCheck):
     # Cgroups
 
     def _get_cgroup_file(self, cgroup, container_id, filename):
-        """Find a specific cgroup file, containing metrics to extract"""
+        """Find a specific cgroup file, containing metrics to extract."""
         if not self._cgroup_filename_pattern:
             self._cgroup_filename_pattern = self._find_cgroup_filename_pattern()
 
@@ -438,8 +432,10 @@ class DockerDaemon(AgentCheck):
         raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
     def _find_cgroup(self, hierarchy):
-        """Finds the mount point for a specified cgroup hierarchy. Works with
-        old style and new style mounts."""
+        """Find the mount point for a specified cgroup hierarchy.
+
+        Works with old style and new style mounts.
+        """
         fp = None
         try:
             fp = open(os.path.join(self.docker_root, "/proc/mounts"))
@@ -460,7 +456,7 @@ class DockerDaemon(AgentCheck):
                 return os.path.join(self.docker_root, mountpoint)
 
     def _parse_cgroup_file(self, stat_file):
-        """Parses a cgroup pseudo file for key/values."""
+        """Parse a cgroup pseudo file for key/values."""
         fp = None
         self.log.debug("Opening cgroup file: %s" % stat_file)
         try:
@@ -492,7 +488,7 @@ class DockerDaemon(AgentCheck):
     # proc files
 
     def _get_proc_root(self, container):
-        """Find PID then proc directory of a container
+        """Find PID then proc directory of a container.
 
         Does it with docker inspect. That's for the POC, should use something smarter (such as walking /proc and
         looking at /proc/$PID/cgroup to make it matches to a container.
