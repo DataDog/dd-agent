@@ -18,7 +18,7 @@ from config import (
     PathNotFound,
 )
 from util import get_os, yLoader
-from utils.jmxfiles import JMXFiles
+from utils.jmx import JMXFiles
 from utils.platform import Platform
 from utils.subprocess_output import subprocess
 
@@ -113,7 +113,15 @@ class JMXFetch(object):
         """
         return self.jmx_checks is not None and self.jmx_checks != []
 
-    def run(self, command=None, check_list=None, reporter=None):
+    def run(self, command=None, check_list=None, reporter=None, redirect_std_streams=False):
+        """
+        Run JMXFetch
+
+        redirect_std_streams: if left to False, the stdout and stderr of JMXFetch are streamed
+        directly to the environment's stdout and stderr and cannot be retrieved via python's
+        sys.stdout and sys.stderr. Set to True to redirect these streams to python's sys.stdout
+        and sys.stderr.
+        """
 
         if check_list or self.jmx_checks is None:
             # (Re)set/(re)configure JMXFetch parameters when `check_list` is specified or
@@ -131,7 +139,7 @@ class JMXFetch(object):
 
             if len(self.jmx_checks) > 0:
                 return self._start(self.java_bin_path, self.java_options, self.jmx_checks,
-                                   command, reporter, self.tools_jar_path)
+                                   command, reporter, self.tools_jar_path, redirect_std_streams)
             else:
                 # We're exiting purposefully, so exit with zero (supervisor's expected
                 # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly
@@ -207,7 +215,7 @@ class JMXFetch(object):
 
         return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path)
 
-    def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path):
+    def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path, redirect_std_streams):
         statsd_port = self.agentConfig.get('dogstatsd_port', "8125")
         if reporter is None:
             reporter = "statsd:%s" % str(statsd_port)
@@ -260,14 +268,27 @@ class JMXFetch(object):
                 subprocess_args.insert(1, opt)
 
             log.info("Running %s" % " ".join(subprocess_args))
-            jmx_process = subprocess.Popen(subprocess_args, close_fds=True)
+
+            # Launch JMXfetch subprocess
+            jmx_process = subprocess.Popen(
+                subprocess_args,
+                close_fds=not redirect_std_streams,  # set to True instead of False when the streams are redirected for WIN compatibility
+                stdout=subprocess.PIPE if redirect_std_streams else None,
+                stderr=subprocess.PIPE if redirect_std_streams else None
+            )
             self.jmx_process = jmx_process
 
             # Register SIGINT and SIGTERM signal handlers
             self.register_signal_handlers()
 
-            # Wait for JMXFetch to return
-            jmx_process.wait()
+            if redirect_std_streams:
+                # Wait for JMXFetch to return, and write out the stdout and stderr of JMXFetch to sys.stdout and sys.stderr
+                out, err = jmx_process.communicate()
+                sys.stdout.write(out)
+                sys.stderr.write(err)
+            else:
+                # Wait for JMXFetch to return
+                jmx_process.wait()
 
             return jmx_process.returncode
 

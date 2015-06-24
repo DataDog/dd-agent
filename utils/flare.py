@@ -1,6 +1,7 @@
 # stdlib
 import atexit
 import cStringIO as StringIO
+from functools import partial
 import glob
 import logging
 import os.path
@@ -25,6 +26,7 @@ from config import (
     get_url_endpoint,
 )
 from util import get_hostname
+from utils.jmx import jmx_command, JMXFiles
 from utils.platform import Platform
 
 # Globals
@@ -73,13 +75,13 @@ class Flare(object):
         self._cmdline = cmdline
         self._init_tarfile()
         self._save_logs_path()
-        config = get_config()
-        self._api_key = config.get('api_key')
+        self._config = get_config()
+        self._api_key = self._config.get('api_key')
         self._url = "{0}{1}".format(
-            get_url_endpoint(config.get('dd_url'), endpoint_type='flare'),
+            get_url_endpoint(self._config.get('dd_url'), endpoint_type='flare'),
             self.DATADOG_SUPPORT_URL
         )
-        self._hostname = get_hostname(config)
+        self._hostname = get_hostname(self._config)
         self._prefix = "datadog-{0}".format(self._hostname)
 
     # On Unix system, check that the user is root (to call supervisorctl & status)
@@ -110,6 +112,7 @@ class Flare(object):
         self._add_command_output_tar('status.log', self._supervisor_status)
         log.info("  * datadog-agent info output")
         self._add_command_output_tar('info.log', self._info_all)
+        self._add_jmxinfo_tar()
         log.info("  * pip freeze")
         self._add_command_output_tar('freeze.log', self._pip_freeze)
 
@@ -206,15 +209,38 @@ class Flare(object):
             if self._can_read(file_path, output=False):
                 self._add_clean_confd(file_path)
 
+    # Collect JMXFetch-specific info and save to jmxinfo directory
+    def _add_jmxinfo_tar(self):
+        # status files (before listing beans because executing jmxfetch overwrites status files)
+        for file_name, file_path in [
+            (JMXFiles._STATUS_FILE, JMXFiles.get_status_file_path()),
+            (JMXFiles._PYTHON_STATUS_FILE, JMXFiles.get_python_status_file_path())
+        ]:
+            if self._can_read(file_path, warn=False):
+                self._tar.add(
+                    file_path,
+                    os.path.join(self._prefix, 'jmxinfo', file_name)
+                )
+
+        # beans lists
+        for command in ['list_matching_attributes', 'list_everything']:
+            log.info("  * datadog-agent jmx {0} output".format(command))
+            self._add_command_output_tar(
+                os.path.join('jmxinfo', '{0}.log'.format(command)),
+                partial(self._jmx_command_call, command),
+                'jmxfetch'
+            )
+
     # Check if the file is readable (and log it)
     @classmethod
-    def _can_read(cls, f, output=True):
+    def _can_read(cls, f, output=True, warn=True):
         if os.access(f, os.R_OK):
             if output:
                 log.info("  * {0}".format(f))
             return True
         else:
-            log.warn("  * not readable - {0}".format(f))
+            if warn:
+                log.warn("  * not readable - {0}".format(f))
             return False
 
     # Return path to a temp file without comment
@@ -345,6 +371,13 @@ class Flare(object):
         CollectorStatus.print_latest_status(verbose=True)
         DogstatsdStatus.print_latest_status(verbose=True)
         ForwarderStatus.print_latest_status(verbose=True)
+
+    # Call jmx_command with std streams redirection
+    def _jmx_command_call(self, command):
+        try:
+            jmx_command([command], self._config, redirect_std_streams=True)
+        except Exception, e:
+            print "Unable to call jmx command {0}: {1}".format(command, e)
 
     # Run a pip freeze
     def _pip_freeze(self):

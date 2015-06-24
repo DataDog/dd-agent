@@ -29,7 +29,7 @@ from emitter import http_emitter
 from jmxfetch import JMXFetch
 import modules
 from util import get_hostname, get_os
-from utils.jmxfiles import JMXFiles
+from utils.jmx import JMXFiles
 from utils.profile import AgentProfiler
 
 log = logging.getLogger(__name__)

@@ -21,7 +21,7 @@ import yaml
 import config
 from config import _is_affirmative, _windows_commondata_path, get_config
 from util import plural
-from utils.jmxfiles import JMXFiles
+from utils.jmx import JMXFiles
 from utils.ntp import get_ntp_args
 from utils.pidfile import PidFile
 from utils.platform import Platform
