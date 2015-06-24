@@ -33,3 +33,9 @@ paramiko==1.15.2
 # checks.d/pgbouncer.py
 # Require libpq
 psycopg2==2.6
+
+# checks.d/win32_event_log.py
+# checks.d/wmi.py
+# It's a pure python module, it doesn't require anything to install,
+# but needs the pywin32 extension to work
+wmi==1.4.9

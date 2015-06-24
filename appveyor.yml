@@ -4,8 +4,10 @@ environment:
   TRAVIS_BUILD_DIR: c:\projects\dd-agent
   INTEGRATIONS_DIR: c:\projects\dd-agent\embedded
   PIP_CACHE: c:\projects\dd-agent\.cache\pip
-  VOLATILE_DIR: c:\
+  VOLATILE_DIR: c:\projects
   NOSE_FILTER: windows
+  FLAVORS: windows
+  COVERAGE: true
   matrix:
   - PYTHON: C:\\Python27
     PYTHON_VERSION: 2.7.9
@@ -23,4 +25,4 @@ install:
 build: off
 test_script:
 - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
-- bundle exec rake ci:run[windows]
+- bundle exec rake ci:run[%FLAVORS%]
