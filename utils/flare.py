@@ -25,6 +25,7 @@ from config import (
     get_logging_config,
     get_url_endpoint,
 )
+from jmxfetch import JMXFetch
 from util import get_hostname
 from utils.jmx import jmx_command, JMXFiles
 from utils.platform import Platform
@@ -231,6 +232,16 @@ class Flare(object):
                 'jmxfetch'
             )
 
+        # java version
+        log.info("  * java -version output")
+        self._add_command_output_tar(
+            os.path.join('jmxinfo', 'java_version.log'),
+            # We use lambda so that JMXFetch.get_configuration is evaluated in _add_command_output_tar,
+            # which captures the logging output from JMXFetch
+            lambda: self._java_version(JMXFetch.get_configuration(get_confd_path())[2]),
+            'jmxfetch'
+        )
+
     # Check if the file is readable (and log it)
     @classmethod
     def _can_read(cls, f, output=True, warn=True):
@@ -378,6 +389,14 @@ class Flare(object):
             jmx_command([command], self._config, redirect_std_streams=True)
         except Exception, e:
             print "Unable to call jmx command {0}: {1}".format(command, e)
+
+    # Print java version
+    def _java_version(self, java_bin_path):
+        java_bin_path = java_bin_path or 'java'
+        try:
+            self._print_output_command([java_bin_path, '-version'])
+        except OSError:
+            print 'Unable to execute java bin with command: {0}'.format(java_bin_path)
 
     # Run a pip freeze
     def _pip_freeze(self):

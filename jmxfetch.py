@@ -98,14 +98,14 @@ class JMXFetch(object):
         except ValueError:
             log.exception("Unable to register signal handlers.")
 
-    def configure(self, check_list=None):
+    def configure(self, checks_list=None):
         """
         Instantiate JMXFetch parameters, clean potential previous run leftovers.
         """
         JMXFiles.clean_status_file()
 
         self.jmx_checks, self.invalid_checks, self.java_bin_path, self.java_options, self.tools_jar_path = \
-            self.get_configuration(check_list)
+            self.get_configuration(self.confd_path, checks_list=checks_list)
 
     def should_run(self):
         """
@@ -113,7 +113,7 @@ class JMXFetch(object):
         """
         return self.jmx_checks is not None and self.jmx_checks != []
 
-    def run(self, command=None, check_list=None, reporter=None, redirect_std_streams=False):
+    def run(self, command=None, checks_list=None, reporter=None, redirect_std_streams=False):
         """
         Run JMXFetch
 
@@ -123,10 +123,10 @@ class JMXFetch(object):
         and sys.stderr.
         """
 
-        if check_list or self.jmx_checks is None:
-            # (Re)set/(re)configure JMXFetch parameters when `check_list` is specified or
+        if checks_list or self.jmx_checks is None:
+            # (Re)set/(re)configure JMXFetch parameters when `checks_list` is specified or
             # no configuration was found
-            self.configure(check_list)
+            self.configure(checks_list)
 
         try:
             command = command or JMX_COLLECT_COMMAND
@@ -150,9 +150,10 @@ class JMXFetch(object):
             log.exception("Error while initiating JMXFetch")
             raise
 
-    def get_configuration(self, checks_list=None):
+    @classmethod
+    def get_configuration(cls, confd_path, checks_list=None):
         """
-        Return a tuple (jmx_checks, invalid_checks, java_bin_path, java_options)
+        Return a tuple (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path)
 
         jmx_checks: list of yaml files that are jmx checks
         (they have the is_jmx flag enabled or they are in JMX_CHECKS)
@@ -181,7 +182,7 @@ class JMXFetch(object):
         tools_jar_path = None
         invalid_checks = {}
 
-        for conf in glob.glob(os.path.join(self.confd_path, '*.yaml')):
+        for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
             filename = os.path.basename(conf)
             check_name = filename.split('.')[0]
 
@@ -198,7 +199,7 @@ class JMXFetch(object):
 
                 try:
                     is_jmx, check_java_bin_path, check_java_options, check_tools_jar_path = \
-                        self._is_jmx_check(check_config, check_name, checks_list)
+                        cls._is_jmx_check(check_config, check_name, checks_list)
                     if is_jmx:
                         jmx_checks.append(filename)
                         if java_bin_path is None and check_java_bin_path is not None:
@@ -306,7 +307,8 @@ class JMXFetch(object):
             log.exception("Couldn't launch JMXFetch")
             raise
 
-    def _is_jmx_check(self, check_config, check_name, checks_list):
+    @staticmethod
+    def _is_jmx_check(check_config, check_name, checks_list):
         init_config = check_config.get('init_config', {}) or {}
         java_bin_path = None
         java_options = None
