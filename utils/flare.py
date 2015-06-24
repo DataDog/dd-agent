@@ -259,9 +259,6 @@ class Flare(object):
 
     # Add output of the command to the tarfile
     def _add_command_output_tar(self, name, command):
-        temp_path = os.path.join(tempfile.gettempdir(), name)
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
         backup_out, backup_err = sys.stdout, sys.stderr
         backup_handlers = logging.root.handlers[:]
         out, err = StringIO.StringIO(), StringIO.StringIO()
@@ -269,6 +266,7 @@ class Flare(object):
         command()
         sys.stdout, sys.stderr = backup_out, backup_err
         logging.root.handlers = backup_handlers
+        _, temp_path = tempfile.mkstemp(prefix='dd')
         with open(temp_path, 'w') as temp_file:
             temp_file.write(">>>> STDOUT <<<<\n")
             temp_file.write(out.getvalue())
