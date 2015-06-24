@@ -234,6 +234,8 @@ class Docker(AgentCheck):
             for name in container["Names"]:
                 container_tags.append(self._make_tag("name", name.lstrip("/"), instance))
             for key in DOCKER_TAGS:
+                if key == 'Image' and ':' in container[key]:
+                    tag = self._make_tag('image_repository', container[key].split(':')[0], instance)
                 tag = self._make_tag(key, container[key], instance)
                 if tag:
                     container_tags.append(tag)
