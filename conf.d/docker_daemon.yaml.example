@@ -53,7 +53,7 @@ instances:
     # Collect disk usage per image with docker.image.size and docker.image.virtual_size metrics.
     # The check gets this size with the `docker images` command.
     #
-    # collect_image_size: true
+    # collect_image_size: false
 
     # Collect images stats
     # Number of available active images and intermediate images as gauges.

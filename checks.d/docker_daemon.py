@@ -45,8 +45,8 @@ CGROUP_METRICS = [
 
 TAG_EXTRACTORS = {
     "docker_image": lambda c: c["Image"],
-    "image_name": lambda c: c["Image"].split(':', 1)[0],
-    "image_tag": lambda c: c["Image"].split(':', 1)[1],
+    "image_name": lambda c: c["Image"].split(':', 1)[0] if 'Image' in c else c["RepoTags"][0].split(':', 1)[0],
+    "image_tag": lambda c: c["Image"].split(':', 1)[1] if 'Image' in c else c["RepoTags"][0].split(':', 1)[1],
     "container_command": lambda c: c["Command"],
     "container_name": lambda c: c['Names'][0].lstrip("/") if c["Names"] else c['Id'][:11],
 }
@@ -119,7 +119,7 @@ class DockerDaemon(AgentCheck):
 
     def _count_and_weight_images(self, instance):
         try:
-            active_images = self.client.images(quiet=True, all=False)
+            active_images = self.client.images(all=False)
             active_images_len = len(active_images)
             all_images_len = len(self.client.images(quiet=True, all=True))
             self.gauge("docker.images.available", active_images_len)
@@ -257,11 +257,11 @@ class DockerDaemon(AgentCheck):
     def _report_image_size(self, instance, images):
         for image in images:
             tag_names = instance.get('image_tags', ['image_name', 'image_tag'])
-            image_tags = self.get_tags(image, tag_names)
+            image_tags = self._get_tags(image, tag_names)
             if 'VirtualSize' in image:
-                self.gauge('docker.image.virtual_size', image_tags)
+                self.gauge('docker.image.virtual_size', image['VirtualSize'], tags=image_tags)
             if 'Size' in image:
-                self.gauge('docker.image.size', image_tags)
+                self.gauge('docker.image.size', image['Size'], tags=image_tags)
 
     # Performance metrics
 
