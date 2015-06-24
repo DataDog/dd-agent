@@ -258,13 +258,23 @@ class Flare(object):
         return temp_path, password_found
 
     # Add output of the command to the tarfile
-    def _add_command_output_tar(self, name, command):
+    def _add_command_output_tar(self, name, command, logger_name=None):
         backup_out, backup_err = sys.stdout, sys.stderr
         backup_handlers = logging.root.handlers[:]
         out, err = StringIO.StringIO(), StringIO.StringIO()
+        if logger_name:
+            # If specified, redirect logger output to `out`
+            logger = logging.getLogger(logger_name)
+            backup_logger_handlers = logger.handlers[:]
+            logger.handlers = [logging.StreamHandler(out)]
+            backup_logger_propagate = logger.propagate
+            logger.propagate = False
         sys.stdout, sys.stderr = out, err
         command()
         sys.stdout, sys.stderr = backup_out, backup_err
+        if logger_name:
+            logger.handlers = backup_logger_handlers
+            logger.propagate = backup_logger_propagate
         logging.root.handlers = backup_handlers
         _, temp_path = tempfile.mkstemp(prefix='dd')
         with open(temp_path, 'w') as temp_file:
