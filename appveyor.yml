@@ -8,6 +8,7 @@ environment:
   NOSE_FILTER: windows
   FLAVORS: windows
   COVERAGE: true
+  PYWIN_PATH: C:\projects\dd-agent\.cache\pywin32-py2.7.exe
   matrix:
   - PYTHON: C:\\Python27
     PYTHON_VERSION: 2.7.9
@@ -17,12 +18,18 @@ environment:
     PYTHON_VERSION: 2.7.9
     PYTHON_ARCH: 64
     PYWIN32_URL: http://sourceforge.net/projects/pywin32/files/pywin32/Build%20219/pywin32-219.win-amd64-py2.7.exe/download
+cache:
+  - C:\projects\dd-agent\.cache
+  - C:\projects\dd-agent\vendor\cache
+  - C:\projects\dd-agent\embedded
 install:
-- gem install bundler --quiet --no-ri --no-rdoc
-- bundle install
-- ps: (new-object net.webclient).DownloadFile("$env:PYWIN32_URL", 'C:/pywin32-py2.7.exe')
-- "%PYTHON%/Scripts/easy_install.exe C:/pywin32-py2.7.exe"
+  - gem install bundler --quiet --no-ri --no-rdoc
+  - bundle install
+  - bundle package
+  - if not exist %PIP_CACHE% mkdir %PIP_CACHE%
+  - ps: If (-Not (Test-Path $env:PYWIN_PATH)) {(new-object net.webclient).DownloadFile("$env:PYWIN32_URL", "$env:PYWIN_PATH")}
+  - "%PYTHON%/Scripts/easy_install.exe %PYWIN_PATH%"
 build: off
 test_script:
-- set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
-- bundle exec rake ci:run[%FLAVORS%]
+  - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+  - bundle exec rake ci:run[%FLAVORS%]
