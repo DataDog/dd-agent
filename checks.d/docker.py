@@ -383,6 +383,8 @@ class Docker(AgentCheck):
             raise
 
         response = request.read()
+        response = response.replace('\n','') # Some Docker API versions occassionally send newlines in responses
+
         if multi and "}{" in response: # docker api sometimes returns juxtaposed json dictionaries
             response = "[{0}]".format(response.replace("}{", "},{"))
 
