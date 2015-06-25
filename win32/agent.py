@@ -28,12 +28,13 @@ from emitter import http_emitter
 from jmxfetch import JMXFetch
 from util import get_hostname, get_os
 from utils.jmxfiles import JMXFiles
+from utils.profile import AgentProfiler
 
 log = logging.getLogger(__name__)
 
 SERVICE_SLEEP_INTERVAL = 1
 MAX_FAILED_HEARTBEATS = 8  # runs of collector
-
+DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
 class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "DatadogAgent"
@@ -199,6 +200,14 @@ class DDAgent(multiprocessing.Process):
         systemStats = get_system_stats()
         self.collector = Collector(self.config, emitters, systemStats, self.hostname)
 
+        in_developer_mode = self.config.get('developer_mode')
+
+        # In developer mode, the number of runs to be included in a single collector profile
+        collector_profile_interval = self.config.get('collector_profile_interval',
+                                                     DEFAULT_COLLECTOR_PROFILE_INTERVAL)
+        profiled = False
+        collector_profiled_runs = 0
+
         # Load the checks.d checks
         checksd = load_check_directory(self.config, self.hostname)
 
@@ -206,7 +215,28 @@ class DDAgent(multiprocessing.Process):
         while self.running:
             if self._heartbeat:
                 self._heartbeat.send(0)
+
+            if in_developer_mode and not profiled:
+                try:
+                    profiler = AgentProfiler()
+                    profiler.enable_profiling()
+                    profiled = True
+                except Exception as e:
+                    log.warn("Cannot enable profiler: %s" % str(e))
+
             self.collector.run(checksd=checksd)
+
+            if profiled:
+                if collector_profiled_runs >= collector_profile_interval:
+                    try:
+                        profiler.disable_profiling()
+                        profiled = False
+                        collector_profiled_runs = 0
+                    except Exception as e:
+                        log.warn("Cannot disable profiler: %s" % str(e))
+                else:
+                    collector_profiled_runs += 1
+
             time.sleep(self.config['check_freq'])
 
     def stop(self):
