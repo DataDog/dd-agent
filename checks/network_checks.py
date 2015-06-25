@@ -31,10 +31,10 @@ class NetworkCheck(AgentCheck):
     SERVICE_CHECK_PREFIX = 'network_check'
 
     STATUS_TO_SERVICE_CHECK = {
-            Status.UP  : AgentCheck.OK,
-            Status.WARNING : AgentCheck.WARNING,
-            Status.DOWN : AgentCheck.CRITICAL
-        }
+        Status.UP  : AgentCheck.OK,
+        Status.WARNING : AgentCheck.WARNING,
+        Status.DOWN : AgentCheck.CRITICAL
+    }
 
     """
     Services checks inherits from this class.
@@ -156,7 +156,6 @@ class NetworkCheck(AgentCheck):
                     self.nb_failures = 0
                     self.restart_pool()
                 continue
-
             self.report_as_service_check(sc_name, status, instance, msg)
 
             # FIXME: 5.3, this has been deprecated before, get rid of events

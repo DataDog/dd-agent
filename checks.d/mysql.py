@@ -722,6 +722,10 @@ class MySql(AgentCheck):
                 if line.find('LOCK WAIT') == 0:
                     results['Innodb_lock_structs'] += long(row[2])
                     results['Innodb_locked_transactions'] += 1
+                elif line.find('ROLLING BACK') == 0:
+                    # ROLLING BACK 127539 lock struct(s), heap size 15201832,
+                    # 4411492 row lock(s), undo log entries 1042488
+                    results['Innodb_lock_structs'] += long(row[2])
                 else:
                     results['Innodb_lock_structs'] += long(row[0])
 

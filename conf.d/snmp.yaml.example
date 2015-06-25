@@ -10,6 +10,9 @@ instances:
   # - ip_address: localhost
   #   port: 161
   #   community_string: public
+  #   snmp_version: 2 # Only required for snmp v1, will default to 2
+  #   timeout: 1 # second, by default
+  #   retries: 5
   #   tags:
   #     - optional_tag_1
   #     - optional_tag_2
@@ -54,6 +57,8 @@ instances:
   #   privKey: private_key
   #   authProtocol: authProtocol
   #   privProtocol: privProtocol
+  #   timeout: 1 # second, by default
+  #   retries: 5
   #   tags:
   #     - optional_tag_1
   #     - optional_tag_2

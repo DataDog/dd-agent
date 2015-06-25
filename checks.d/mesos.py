@@ -1,15 +1,13 @@
 # stdlib
-import time
 from hashlib import md5
-import urllib2
+import time
 
 # project
 from checks import AgentCheck
-from util import headers
 
 # 3rd party
-import simplejson as json
 import requests
+
 
 class Mesos(AgentCheck):
     SERVICE_CHECK_NAME = "mesos.can_connect"
@@ -91,7 +89,7 @@ class Mesos(AgentCheck):
             msg = "%s seconds timeout when hitting %s" % (timeout, url)
             status = AgentCheck.CRITICAL
         except Exception as e:
-            msg = e.message
+            msg = str(e)
             status = AgentCheck.CRITICAL
         finally:
             self.service_check(self.SERVICE_CHECK_NAME, status, tags=tags, message=msg)

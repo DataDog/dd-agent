@@ -1,22 +1,18 @@
 # stdlib
-import urllib2
 import re
-import sys
-
-# exceptions
-from urllib2 import HTTPError
 
 # project
 from util import headers
 from checks import AgentCheck
-from checks.utils import add_basic_auth
 
 # 3rd party
-import simplejson as json
+import requests
 
-#Constants
+# Constants
 COUCHBASE_STATS_PATH = '/pools/default'
 DEFAULT_TIMEOUT = 10
+
+
 class Couchbase(AgentCheck):
     """Extracts stats from Couchbase via its REST API
     http://docs.couchbase.com/couchbase-manual-2.0/#using-the-rest-api
@@ -51,14 +47,17 @@ class Couchbase(AgentCheck):
     def _get_stats(self, url, instance):
         """ Hit a given URL and return the parsed json. """
         self.log.debug('Fetching Couchbase stats at url: %s' % url)
-        req = urllib2.Request(url, None, headers(self.agentConfig))
-        if 'user' in instance and 'password' in instance:
-            add_basic_auth(req, instance['user'], instance['password'])
 
         timeout = float(instance.get('timeout', DEFAULT_TIMEOUT))
-        request = urllib2.urlopen(req, timeout=timeout)
-        response = request.read()
-        return json.loads(response)
+
+        auth = None
+        if 'user' in instance and 'password' in instance:
+            auth = (instance['user'], instance['password'])
+
+        r = requests.get(url, auth=auth, headers=headers(self.agentConfig),
+            timeout=timeout)
+        r.raise_for_status()
+        return r.json()
 
     def check(self, instance):
         server = instance.get('server', None)
@@ -77,10 +76,11 @@ class Couchbase(AgentCheck):
 
     def get_data(self, server, instance):
         # The dictionary to be returned.
-        couchbase = {'stats': None,
-                'buckets': {},
-                'nodes': {}
-                }
+        couchbase = {
+            'stats': None,
+            'buckets': {},
+            'nodes': {}
+        }
 
         # build couchbase stats entry point
         url = '%s%s' % (server, COUCHBASE_STATS_PATH)
@@ -92,9 +92,9 @@ class Couchbase(AgentCheck):
             # No overall stats? bail out now
             if overall_stats is None:
                 raise Exception("No data returned from couchbase endpoint: %s" % url)
-        except urllib2.URLError as e:
+        except requests.exceptions.HTTPError as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                tags=service_check_tags, message=str(e.reason))
+                tags=service_check_tags, message=str(e.message))
             raise
         except Exception as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
@@ -128,7 +128,7 @@ class Couchbase(AgentCheck):
 
                 try:
                     bucket_stats = self._get_stats(url, instance)
-                except HTTPError:
+                except requests.exceptions.HTTPError:
                     url_backup = '%s/pools/nodes/buckets/%s/stats' % (server, bucket_name)
                     bucket_stats = self._get_stats(url_backup, instance)
 
@@ -154,4 +154,3 @@ class Couchbase(AgentCheck):
         converted_variable = re.sub('^_|_$', '', converted_variable)
 
         return converted_variable
-

@@ -2,26 +2,25 @@
 Collects network metrics.
 """
 # stdlib
-import platform
-import subprocess
-import sys
 import re
+import subprocess
 
 # project
 from checks import AgentCheck
-from util import Platform
+from utils.platform import Platform
 
 BSD_TCP_METRICS = [
-        (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
-        (re.compile("^\s*(\d+) packets sent\s*$"), 'system.net.tcp.sent_packs'),
-        (re.compile("^\s*(\d+) packets received\s*$"), 'system.net.tcp.rcv_packs')
-        ]
+    (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
+    (re.compile("^\s*(\d+) packets sent\s*$"), 'system.net.tcp.sent_packs'),
+    (re.compile("^\s*(\d+) packets received\s*$"), 'system.net.tcp.rcv_packs')
+]
 
 SOLARIS_TCP_METRICS = [
-        (re.compile("\s*tcpRetransSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.retrans_segs'),
-        (re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.in_segs'),
-        (re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.out_segs')
-        ]
+    (re.compile("\s*tcpRetransSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.retrans_segs'),
+    (re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.in_segs'),
+    (re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.out_segs')
+]
+
 
 class Network(AgentCheck):
 
@@ -114,7 +113,7 @@ class Network(AgentCheck):
                 return 0
 
     def _submit_regexed_values(self, output, regex_list):
-        lines=output.split("\n")
+        lines = output.split("\n")
         for line in lines:
             for regex, metric in regex_list:
                 value = re.match(regex, line)
@@ -210,13 +209,13 @@ class Network(AgentCheck):
             tcp_metrics = dict(zip(column_names,values))
 
             # line start indicating what kind of metrics we're looking at
-            assert(tcp_metrics['Tcp:']=='Tcp:')
+            assert(tcp_metrics['Tcp:'] == 'Tcp:')
 
             tcp_metrics_name = {
                 'RetransSegs': 'system.net.tcp.retrans_segs',
                 'InSegs'     : 'system.net.tcp.in_segs',
                 'OutSegs'    : 'system.net.tcp.out_segs'
-                }
+            }
 
             for key, metric in tcp_metrics_name.iteritems():
                 self.rate(metric, self._parse_value(tcp_metrics[key]))
@@ -331,9 +330,9 @@ class Network(AgentCheck):
         for interface, metrics in metrics_by_interface.iteritems():
             self._submit_devicemetrics(interface, metrics)
 
-        netstat = subprocess.Popen(["netstat", "-s","-P" "tcp"],
-                                    stdout=subprocess.PIPE,
-                                    close_fds=True).communicate()[0]
+        netstat = subprocess.Popen(["netstat", "-s", "-P" "tcp"],
+                                   stdout=subprocess.PIPE,
+                                   close_fds=True).communicate()[0]
         # TCP: tcpRtoAlgorithm=     4 tcpRtoMin           =   200
         # tcpRtoMax           = 60000 tcpMaxConn          =    -1
         # tcpActiveOpens      =    57 tcpPassiveOpens     =    50

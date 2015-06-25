@@ -1,6 +1,6 @@
 """PostgreSQL check
 
-Collects database-wide metrics and optionally per-relation metrics.
+Collects database-wide metrics and optionally per-relation metrics, custom metrics.
 """
 # project
 from checks import AgentCheck, CheckException
@@ -10,10 +10,16 @@ import pg8000 as pg
 from pg8000 import InterfaceError, ProgrammingError
 import socket
 
-class ShouldRestartException(Exception): pass
+
+MAX_CUSTOM_RESULTS = 100
+
+
+class ShouldRestartException(Exception):
+    pass
+
 
 class PostgreSql(AgentCheck):
-    """Collects per-database, and optionally per-relation metrics
+    """Collects per-database, and optionally per-relation metrics, custom metrics
     """
     SOURCE_TYPE_NAME = 'postgresql'
     RATE = AgentCheck.rate
@@ -33,6 +39,7 @@ SELECT datname,
   FROM pg_stat_database
  WHERE datname not ilike 'template%%'
    AND datname not ilike 'postgres'
+   AND datname not ilike 'rdsadmin'
 """,
         'relation': False,
     }
@@ -48,10 +55,11 @@ SELECT datname,
         'tup_inserted'      : ('postgresql.rows_inserted', RATE),
         'tup_updated'       : ('postgresql.rows_updated', RATE),
         'tup_deleted'       : ('postgresql.rows_deleted', RATE),
+        'pg_database_size(datname) as pg_database_size' : ('postgresql.database_size', GAUGE),
     }
 
     NEWER_92_METRICS = {
-        'deadlocks'         : ('postgresql.deadlocks', GAUGE),
+        'deadlocks'         : ('postgresql.deadlocks', RATE),
         'temp_bytes'        : ('postgresql.temp_bytes', RATE),
         'temp_files'        : ('postgresql.temp_files', RATE),
     }
@@ -151,9 +159,9 @@ SELECT relname,
             ('relname', 'table'),
         ],
         'metrics': {
-            'pg_table_size(C.oid)'  : ('postgresql.table_size', GAUGE),
-            'pg_indexes_size(C.oid)'  : ('postgresql.index_size', GAUGE),
-            'pg_total_relation_size(C.oid)': ('postgresql.total_size', GAUGE),
+            'pg_table_size(C.oid) as table_size'  : ('postgresql.table_size', GAUGE),
+            'pg_indexes_size(C.oid) as index_size' : ('postgresql.index_size', GAUGE),
+            'pg_total_relation_size(C.oid) as total_size' : ('postgresql.total_size', GAUGE),
         },
         'relation': True,
         'query': """
@@ -168,11 +176,32 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
   relname = ANY(%s)"""
     }
 
+    COUNT_METRICS = {
+        'descriptors': [
+            ('schemaname', 'schema')
+        ],
+        'metrics': {
+            'pg_stat_user_tables': ('postgresql.table.count', GAUGE),
+        },
+        'relation': False,
+        'query': """
+SELECT schemaname, count(*)
+FROM %s
+GROUP BY schemaname
+        """
+    }
+
+    REPLICATION_METRICS_9_1 = {
+        'CASE WHEN pg_last_xlog_receive_location() = pg_last_xlog_replay_location() THEN 0 ELSE GREATEST (0, EXTRACT (EPOCH FROM now() - pg_last_xact_replay_timestamp())) END': ('postgresql.replication_delay', GAUGE),
+    }
+
+    REPLICATION_METRICS_9_2 = {
+        'abs(pg_xlog_location_diff(pg_last_xlog_receive_location(), pg_last_xlog_replay_location())) AS replication_delay_bytes': ('postgres.replication_delay_bytes', GAUGE)
+    }
+
     REPLICATION_METRICS = {
         'descriptors': [],
-        'metrics': {
-            'GREATEST(0, EXTRACT(EPOCH FROM now() - pg_last_xact_replay_timestamp())) AS replication_delay': ('postgresql.replication_delay', GAUGE),
-        },
+        'metrics': {},
         'relation': False,
         'query': """
 SELECT %s
@@ -193,12 +222,38 @@ SELECT %s
 """
     }
 
+    STATIO_METRICS = {
+        'descriptors': [
+            ('relname', 'table'),
+        ],
+        'metrics': {
+            'heap_blks_read'  : ('postgresql.heap_blocks_read', RATE),
+            'heap_blks_hit'   : ('postgresql.heap_blocks_hit', RATE),
+            'idx_blks_read'   : ('postgresql.index_blocks_read', RATE),
+            'idx_blks_hit'    : ('postgresql.index_blocks_hit', RATE),
+            'toast_blks_read' : ('postgresql.toast_blocks_read', RATE),
+            'toast_blks_hit'  : ('postgresql.toast_blocks_hit', RATE),
+            'tidx_blks_read'  : ('postgresql.toast_index_blocks_read', RATE),
+            'tidx_blks_hit'   : ('postgresql.toast_index_blocks_hit', RATE),
+        },
+        'query': """
+SELECT relname,
+       %s
+  FROM pg_statio_user_tables
+ WHERE relname = ANY(%s)""",
+        'relation': True,
+    }
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.dbs = {}
         self.versions = {}
         self.instance_metrics = {}
         self.bgw_metrics = {}
+        self.db_instance_metrics = []
+        self.db_bgw_metrics = []
+        self.replication_metrics = {}
+        self.custom_metrics = {}
 
     def _get_version(self, key, db):
         if key not in self.versions:
@@ -211,6 +266,7 @@ SELECT %s
                 version = result[0]
             self.versions[key] = version
 
+        self.service_metadata('version', self.versions[key])
         return self.versions[key]
 
     def _is_above(self, key, db, version_to_compare):
@@ -233,7 +289,20 @@ SELECT %s
         """
         # Extended 9.2+ metrics if needed
         metrics = self.instance_metrics.get(key)
+
         if metrics is None:
+            # Hack to make sure that if we have multiple instances that connect to
+            # the same host, port, we don't collect metrics twice
+            # as it will result in https://github.com/DataDog/dd-agent/issues/1211
+            sub_key = key[:2]
+            if sub_key in self.db_instance_metrics:
+                self.instance_metrics[key] = None
+                self.log.debug("Not collecting instance metrics for key: {0} as"
+                    " they are already collected by another instance".format(key))
+                return None
+
+            self.db_instance_metrics.append(sub_key)
+
             if self._is_9_2_or_above(key, db):
                 self.instance_metrics[key] = dict(self.COMMON_METRICS, **self.NEWER_92_METRICS)
             else:
@@ -248,7 +317,20 @@ SELECT %s
         """
         # Extended 9.2+ metrics if needed
         metrics = self.bgw_metrics.get(key)
+
         if metrics is None:
+            # Hack to make sure that if we have multiple instances that connect to
+            # the same host, port, we don't collect metrics twice
+            # as it will result in https://github.com/DataDog/dd-agent/issues/1211
+            sub_key = key[:2]
+            if sub_key in self.db_bgw_metrics:
+                self.bgw_metrics[key] = None
+                self.log.debug("Not collecting bgw metrics for key: {0} as"
+                    " they are already collected by another instance".format(key))
+                return None
+
+            self.db_bgw_metrics.append(sub_key)
+
             self.bgw_metrics[key] = dict(self.COMMON_BGW_METRICS)
             if self._is_9_1_or_above(key, db):
                 self.bgw_metrics[key].update(self.NEWER_91_BGW_METRICS)
@@ -257,44 +339,70 @@ SELECT %s
             metrics = self.bgw_metrics.get(key)
         return metrics
 
-    def _collect_stats(self, key, db, instance_tags, relations):
+    def _get_replication_metrics(self, key, db):
+        """ Use either REPLICATION_METRICS_9_1 or REPLICATION_METRICS_9_1 + REPLICATION_METRICS_9_2
+        depending on the postgres version.
+        Uses a dictionnary to save the result for each instance
+        """
+        metrics = self.replication_metrics.get(key)
+        if self._is_9_1_or_above(key, db) and metrics is None:
+            self.replication_metrics[key] = dict(self.REPLICATION_METRICS_9_1)
+            if self._is_9_2_or_above(key, db):
+                self.replication_metrics[key].update(self.REPLICATION_METRICS_9_2)
+            metrics = self.replication_metrics.get(key)
+        return metrics
+
+    def _collect_stats(self, key, db, instance_tags, relations, custom_metrics):
         """Query pg_stat_* for various metrics
         If relations is not an empty list, gather per-relation metrics
         on top of that.
+        If custom_metrics is not an empty list, gather custom metrics defined in postgres.yaml
         """
 
-        self.DB_METRICS['metrics'] = self._get_instance_metrics(key, db)
-        self.BGW_METRICS['metrics'] = self._get_bgw_metrics(key, db)
         metric_scope = [
-            self.DB_METRICS,
             self.CONNECTION_METRICS,
-            self.BGW_METRICS,
-            self.LOCK_METRICS
+            self.LOCK_METRICS,
+            self.COUNT_METRICS,
         ]
+
+        # These are added only once per PG server, thus the test
+        db_instance_metrics = self._get_instance_metrics(key, db)
+        bgw_instance_metrics = self._get_bgw_metrics(key, db)
+
+        if db_instance_metrics is not None:
+            # FIXME: constants shouldn't be modified
+            self.DB_METRICS['metrics'] = db_instance_metrics
+            metric_scope.append(self.DB_METRICS)
+
+        if bgw_instance_metrics is not None:
+            # FIXME: constants shouldn't be modified
+            self.BGW_METRICS['metrics'] = bgw_instance_metrics
+            metric_scope.append(self.BGW_METRICS)
 
         # Do we need relation-specific metrics?
         if relations:
             metric_scope += [
                 self.REL_METRICS,
                 self.IDX_METRICS,
-                self.SIZE_METRICS
+                self.SIZE_METRICS,
+                self.STATIO_METRICS
             ]
 
-        # Only available for >= 9.1 due to
-        # pg_last_xact_replay_timestamp
-        if self._is_9_1_or_above(key,db):
+        replication_metrics = self._get_replication_metrics(key, db)
+        if replication_metrics is not None:
+            # FIXME: constants shouldn't be modified
+            self.REPLICATION_METRICS['metrics'] = replication_metrics
             metric_scope.append(self.REPLICATION_METRICS)
 
+        full_metric_scope = list(metric_scope) + custom_metrics
         try:
             cursor = db.cursor()
 
-            for scope in metric_scope:
+            for scope in full_metric_scope:
                 if scope == self.REPLICATION_METRICS or not self._is_above(key, db, [9,0,0]):
                     log_func = self.log.debug
-                    warning_func = self.log.debug
                 else:
                     log_func = self.log.warning
-                    warning_func = self.warning
 
                 # build query
                 cols = scope['metrics'].keys()  # list of metrics to query, in some order
@@ -319,8 +427,17 @@ SELECT %s
                 if not results:
                     continue
 
+                if scope in custom_metrics and len(results) > MAX_CUSTOM_RESULTS:
+                    self.warning(
+                        "Query: {0} returned more than {1} results ({2}). Truncating"
+                        .format(query, MAX_CUSTOM_RESULTS, len(results))
+                    )
+                    results = results[:MAX_CUSTOM_RESULTS]
+
+                # FIXME this cramps my style
                 if scope == self.DB_METRICS:
-                    self.gauge("postgresql.db.count", len(results), tags=[t for t in instance_tags if not t.startswith("db:")])
+                    self.gauge("postgresql.db.count", len(results),
+                        tags=[t for t in instance_tags if not t.startswith("db:")])
 
                 # parse & submit results
                 # A row should look like this
@@ -402,6 +519,32 @@ SELECT %s
         self.dbs[key] = connection
         return connection
 
+    def _get_custom_metrics(self, custom_metrics, key):
+        # Pre-processed cached custom_metrics
+        if key in self.custom_metrics:
+            return self.custom_metrics[key]
+
+        # Otherwise pre-process custom metrics and verify definition
+        required_parameters = ("descriptors", "metrics", "query", "relation")
+
+        for m in custom_metrics:
+            for param in required_parameters:
+                if param not in m:
+                    raise CheckException("Missing {0} parameter in custom metric".format(param))
+
+            self.log.debug("Metric: {0}".format(m))
+
+            for ref, (_, mtype) in m['metrics'].iteritems():
+                cap_mtype = mtype.upper()
+                if cap_mtype not in ('RATE', 'GAUGE', 'MONOTONIC'):
+                    raise CheckException("Collector method {0} is not known."
+                        " Known methods are RATE, GAUGE, MONOTONIC".format(cap_mtype))
+
+                m['metrics'][ref][1] = getattr(PostgreSql, cap_mtype)
+                self.log.debug("Method: %s" % (str(mtype)))
+
+        self.custom_metrics[key] = custom_metrics
+        return custom_metrics
 
     def check(self, instance):
         host = instance.get('host', '')
@@ -418,7 +561,9 @@ SELECT %s
         if dbname is None:
             dbname = 'postgres'
 
-        key = '%s:%s:%s' % (host, port, dbname)
+        key = (host, port, dbname)
+
+        custom_metrics = self._get_custom_metrics(instance.get('custom_metrics', []), key)
 
         # Clean up tags in case there was a None entry in the instance
         # e.g. if the yaml contains tags: but no actual tags
@@ -430,6 +575,9 @@ SELECT %s
         # preset tags to the database name
         tags.extend(["db:%s" % dbname])
 
+        self.log.debug("Custom metrics: %s" % custom_metrics)
+
+        # preset tags to the database name
         db = None
 
         # Collect metrics
@@ -438,11 +586,11 @@ SELECT %s
             db = self.get_connection(key, host, port, user, password, dbname)
             version = self._get_version(key, db)
             self.log.debug("Running check against version %s" % version)
-            self._collect_stats(key, db, tags, relations)
+            self._collect_stats(key, db, tags, relations, custom_metrics)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
-            self._collect_stats(key, db, tags, relations)
+            self._collect_stats(key, db, tags, relations, custom_metrics)
 
         if db is not None:
             service_check_tags = self._get_service_check_tags(host, port, dbname)

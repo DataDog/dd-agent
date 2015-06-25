@@ -8,10 +8,8 @@
 import sys
 import os
 import os.path as osp
-import webbrowser
-import thread # To manage the windows process asynchronously
+import thread  # To manage the windows process asynchronously
 import logging
-import pickle
 import platform
 import win32serviceutil
 import win32service
@@ -20,7 +18,7 @@ import win32service
 from guidata.qt.QtGui import (QWidget, QVBoxLayout, QSplitter, QFont,
                               QListWidget, QPushButton, QLabel, QGroupBox,
                               QHBoxLayout, QMessageBox, QInputDialog,
-                              QSystemTrayIcon, QIcon, QMenu, QTextEdit, QTextDocument)
+                              QSystemTrayIcon, QMenu, QTextEdit)
 from guidata.qt.QtCore import SIGNAL, Qt, QSize, QPoint, QTimer
 
 from guidata.configtools import get_icon, get_family, MONOSPACE
@@ -47,11 +45,23 @@ import tornado.template as template
 log = logging.getLogger(__name__)
 
 EXCLUDED_WINDOWS_CHECKS = [
-    'btrfs', 'cacti', 'directory', 'docker', 'gearmand',
-    'hdfs', 'kafka_consumer', 'marathon', 'mcache',
-    'mesos', 'network', 'postfix', 'process',
-    'gunicorn', 'zk', 'ssh_check'
-    ]
+    'btrfs',
+    'cacti',
+    'directory',
+    'docker',
+    'gearmand',
+    'gunicorn',
+    'hdfs',
+    'kafka_consumer',
+    'marathon',
+    'mcache',
+    'mesos',
+    'network',
+    'postfix',
+    'process',
+    'ssh_check',
+    'zk',
+]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"
 
@@ -98,7 +108,7 @@ def get_checks():
 
         agent_check = AgentCheck(filename, ext, conf_d_directory)
         if (agent_check.enabled or agent_check.module_name not in checks or
-            (not agent_check.is_example and not checks[agent_check.module_name].enabled)):
+           (not agent_check.is_example and not checks[agent_check.module_name].enabled)):
             checks[agent_check.module_name] = agent_check
 
     checks_list = checks.values()
@@ -331,7 +341,7 @@ class HTMLWindow(QTextEdit):
                 dogstatsd=dogstatsd_status.to_dict(),
                 forwarder=forwarder_status.to_dict(),
                 collector=collector_status.to_dict(),
-                )
+            )
             return generated_template
         except Exception:
             return ("Unable to fetch latest status")
@@ -569,17 +579,17 @@ def get_service_status():
         return "Unknown"
 
 def is_service_running(status = None):
-    if status == None:
+    if status is None:
         status = get_service_status()
     return status == win32service.SERVICE_RUNNING
 
 def is_service_pending(status = None):
-    if status == None:
+    if status is None:
         status = get_service_status()
     return status in [win32service.SERVICE_STOP_PENDING, win32service.SERVICE_START_PENDING]
 
 def is_service_stopped(status = None):
-    if status == None:
+    if status is None:
         status = get_service_status()
     return status == win32service.SERVICE_STOPPED
 

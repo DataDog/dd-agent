@@ -2,25 +2,23 @@
 from copy import deepcopy
 from datetime import datetime, timedelta
 from hashlib import md5
+from Queue import Queue, Empty
 import re
 import time
 import traceback
-from Queue import Queue, Empty
+
+# 3p
+from pyVim import connect
+from pyVmomi import vim
 
 # project
 from checks import AgentCheck
-from util import Timer
 from checks.libs.thread_pool import Pool
 from checks.libs.vmware.basic_metrics import BASIC_METRICS
-from checks.libs.vmware.all_metrics import ALL_METRICS
-
-# 3rd party
-from pyVim import connect
-# This drives travis-ci pylint crazy!
-from pyVmomi import vim # pylint: disable=E0611
+from util import Timer
 
 SOURCE_TYPE = 'vsphere'
-REAL_TIME_INTERVAL = 20 # Default vCenter sampling interval
+REAL_TIME_INTERVAL = 20  # Default vCenter sampling interval
 
 # The size of the ThreadPool used to process the request queue
 DEFAULT_SIZE_POOL = 4
@@ -60,6 +58,7 @@ MORLIST = 'morlist'
 METRICS_METADATA = 'metrics_metadata'
 LAST = 'last'
 INTERVAL = 'interval'
+
 
 class VSphereEvent(object):
     UNKNOWN = 'unknown'
@@ -275,7 +274,7 @@ class VSphereEvent(object):
         self.payload["msg_title"] = u"VM {0} configuration has been changed".format(self.raw_event.vm.name)
         self.payload["msg_text"] = u"{user} saved the new configuration:\n@@@\n".format(user=self.raw_event.userName)
         # Add lines for configuration change don't show unset, that's hacky...
-        config_change_lines = [ line for line in self.raw_event.configSpec.__repr__().splitlines() if 'unset' not in line ]
+        config_change_lines = [line for line in self.raw_event.configSpec.__repr__().splitlines() if 'unset' not in line]
         self.payload["msg_text"] += u"\n".join(config_change_lines)
         self.payload["msg_text"] += u"\n@@@"
         self.payload['host'] = self.raw_event.vm.name
@@ -447,7 +446,7 @@ class VSphereCheck(AgentCheck):
 
         # Test if the connection is working
         try:
-            server_instance.RetrieveContent()
+            self.server_instances[i_key].RetrieveContent()
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                     tags=service_check_tags)
         except Exception as e:
@@ -470,8 +469,8 @@ class VSphereCheck(AgentCheck):
         # Get only the basic metrics
         for metric in available_metrics:
             # No cache yet, skip it for now
-            if i_key not in self.metrics_metadata\
-                or metric.counterId not in self.metrics_metadata[i_key]:
+            if (i_key not in self.metrics_metadata
+                    or metric.counterId not in self.metrics_metadata[i_key]):
                 continue
             if self.metrics_metadata[i_key][metric.counterId]['name'] in BASIC_METRICS:
                 wanted_metrics.append(metric)
@@ -593,8 +592,11 @@ class VSphereCheck(AgentCheck):
         i_key = self._instance_key(instance)
         self.log.debug("Caching the morlist for vcenter instance %s" % i_key)
         if i_key in self.morlist_raw and len(self.morlist_raw[i_key]) > 0:
-            self.log.debug("Skipping morlist collection now, RAW results processing not over (latest refresh was {0}s ago)"\
-                .format(time.time() - self.cache_times[i_key][MORLIST][LAST]))
+            self.log.debug(
+                "Skipping morlist collection now, RAW results "
+                "processing not over (latest refresh was {0}s ago)".format(
+                    time.time() - self.cache_times[i_key][MORLIST][LAST])
+            )
             return
         self.morlist_raw[i_key] = []
 
@@ -624,8 +626,10 @@ class VSphereCheck(AgentCheck):
         server_instance = self._get_server_instance(instance)
         perfManager = server_instance.content.perfManager
 
-        self.log.debug("job_atomic: Querying available metrics for MOR {0} (type={1})"\
-            .format(mor['mor'], mor['mor_type']))
+        self.log.debug(
+            "job_atomic: Querying available metrics"
+            " for MOR {0} (type={1})".format(mor['mor'], mor['mor_type'])
+        )
 
         available_metrics = perfManager.QueryAvailablePerfMetric(
             mor['mor'], intervalId=REAL_TIME_INTERVAL)
@@ -694,7 +698,7 @@ class VSphereCheck(AgentCheck):
             d = dict(
                 name = "%s.%s" % (counter.groupInfo.key, counter.nameInfo.key),
                 unit = counter.unitInfo.key,
-                instance_tag = 'instance' #FIXME: replace by what we want to tag!
+                instance_tag = 'instance'  # FIXME: replace by what we want to tag!
             )
             new_metadata[counter.key] = d
         self.cache_times[i_key][METRICS_METADATA][LAST] = time.time()
@@ -732,10 +736,10 @@ class VSphereCheck(AgentCheck):
         server_instance = self._get_server_instance(instance)
         perfManager = server_instance.content.perfManager
         query = vim.PerformanceManager.QuerySpec(maxSample=1,
-                                     entity=mor['mor'],
-                                     metricId=mor['metrics'],
-                                     intervalId=20,
-                                     format='normal')
+                                                 entity=mor['mor'],
+                                                 metricId=mor['metrics'],
+                                                 intervalId=20,
+                                                 format='normal')
         results = perfManager.QueryPerf(querySpec=[query])
         if results:
             for result in results[0].value:
@@ -744,10 +748,11 @@ class VSphereCheck(AgentCheck):
                     continue
                 instance_name = result.id.instance or "none"
                 value = self._transform_value(instance, result.id.counterId, result.value[0])
-                self.gauge("vsphere.%s" % self.metrics_metadata[i_key][result.id.counterId]['name'],
-                            value,
-                            hostname=mor['hostname'],
-                            tags=['instance:%s' % instance_name]
+                self.gauge(
+                    "vsphere.%s" % self.metrics_metadata[i_key][result.id.counterId]['name'],
+                    value,
+                    hostname=mor['hostname'],
+                    tags=['instance:%s' % instance_name]
                 )
 
         ### <TEST-INSTRUMENTATION>

@@ -1,19 +1,24 @@
 # stdlib
-import re
-import types
 import time
+import types
 
 # project
 from checks import AgentCheck
 from util import get_hostname
 
-# 3rd party
-from pymongo import uri_parser, MongoClient, ReadPreference, version as py_version
+# 3p
+from pymongo import (
+    MongoClient,
+    ReadPreference,
+    uri_parser,
+    version as py_version,
+)
 
 DEFAULT_TIMEOUT = 10
 
+
 class LocalRate:
-    """ To be used for metrics that should be sent as rates but that we want to send as histograms"""
+    """To be used for metrics that should be sent as rates but that we want to send as histograms"""
 
     def __init__(self, agent_check, metric_name, tags):
         self.agent_check = agent_check
@@ -42,6 +47,7 @@ class LocalRate:
             self.cur_val = val
             self.cur_ts = time.time()
             self.submit_histogram()
+
 
 class TokuMX(AgentCheck):
     SERVICE_CHECK_NAME = 'tokumx.can_connect'
@@ -210,16 +216,26 @@ class TokuMX(AgentCheck):
             state of a mongo node"""
 
         def get_state_description(state):
-            if state == 0: return 'Starting Up'
-            elif state == 1: return 'Primary'
-            elif state == 2: return 'Secondary'
-            elif state == 3: return 'Recovering'
-            elif state == 4: return 'Fatal'
-            elif state == 5: return 'Starting up (initial sync)'
-            elif state == 6: return 'Unknown'
-            elif state == 7: return 'Arbiter'
-            elif state == 8: return 'Down'
-            elif state == 9: return 'Rollback'
+            if state == 0:
+                return 'Starting Up'
+            elif state == 1:
+                return 'Primary'
+            elif state == 2:
+                return 'Secondary'
+            elif state == 3:
+                return 'Recovering'
+            elif state == 4:
+                return 'Fatal'
+            elif state == 5:
+                return 'Starting up (initial sync)'
+            elif state == 6:
+                return 'Unknown'
+            elif state == 7:
+                return 'Arbiter'
+            elif state == 8:
+                return 'Down'
+            elif state == 9:
+                return 'Rollback'
 
         status = get_state_description(state)
         hostname = get_hostname(agentConfig)
@@ -258,7 +274,7 @@ class TokuMX(AgentCheck):
         # de-dupe tags to avoid a memory leak
         tags = list(set(tags))
 
-         # Configuration a URL, mongodb://user:pass@server/db
+        # Configuration a URL, mongodb://user:pass@server/db
         parsed = uri_parser.parse_uri(server)
         username = parsed.get('username')
         password = parsed.get('password')
@@ -325,8 +341,10 @@ class TokuMX(AgentCheck):
                     if hasattr(lag,'total_seconds'):
                         data['replicationLag'] = lag.total_seconds()
                     else:
-                        data['replicationLag'] = (lag.microseconds + \
-                                                  (lag.seconds + lag.days * 24 * 3600) * 10**6) / 10.0**6
+                        data['replicationLag'] = (
+                            lag.microseconds +
+                            (lag.seconds + lag.days * 24 * 3600) * 10**6
+                        ) / 10.0**6
 
                 if current is not None:
                     data['health'] = current['health']
@@ -349,7 +367,7 @@ class TokuMX(AgentCheck):
                 raise e
 
     def submit_idx_rate(self, metric_name, value, tags, key):
-        if not key in self.idx_rates:
+        if key not in self.idx_rates:
             local_rate = LocalRate(self, metric_name, tags)
             self.idx_rates[key] = local_rate
         else:
@@ -393,6 +411,7 @@ class TokuMX(AgentCheck):
                         continue
                     m = 'stats.db.%s' % m
                     m = self.normalize(m, 'tokumx')
+                    # FIXME: here tokumx.stats.db.* are potentially unbounded
                     self.gauge(m, v, db_tags)
                 for collname in db.collection_names(False):
                     stats = db.command('collStats', collname)
@@ -408,6 +427,7 @@ class TokuMX(AgentCheck):
                                 for k in ['queries', 'nscanned', 'nscannedObjects', 'inserts', 'deletes']:
                                     key = (dbname, collname, idx_stats['name'])
                                     self.submit_idx_rate('tokumx.statsd.idx.%s' % k, idx_stats[k], tags=db_tags, key=key)
+                        # FIXME: here tokumx.stats.coll.* are potentially unbounded
                         elif type(v) in (types.IntType, types.LongType, types.FloatType):
                             self.histogram('tokumx.stats.coll.%s' % m, v, db_tags)
 

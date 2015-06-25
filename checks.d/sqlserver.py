@@ -17,9 +17,9 @@ ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')
 
 # Constant for SQLServer cntr_type
-PERF_LARGE_RAW_BASE =    1073939712
+PERF_LARGE_RAW_BASE = 1073939712
 PERF_RAW_LARGE_FRACTION = 537003264
-PERF_AVERAGE_BULK =      1073874176
+PERF_AVERAGE_BULK = 1073874176
 PERF_COUNTER_BULK_COUNT = 272696576
 PERF_COUNTER_LARGE_RAWCOUNT = 65792
 
@@ -43,74 +43,96 @@ VALUE_AND_BASE_QUERY = '''select cntr_value
                           and instance_name=?
                           order by cntr_type;'''
 
+
+class SQLConnectionError(Exception):
+    """
+    Exception raised for SQL instance connection issues
+    """
+    pass
+
+
 class SQLServer(AgentCheck):
 
     SOURCE_TYPE_NAME = 'sql server'
     SERVICE_CHECK_NAME = 'sqlserver.can_connect'
+    # FIXME: 6.x, set default to 5s (like every check)
+    DEFAULT_COMMAND_TIMEOUT = 30
 
     METRICS = [
-        ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio', ''), # RAW_LARGE_FRACTION
-        ('sqlserver.buffer.page_life_expectancy', 'Page life expectancy', ''), # LARGE_RAWCOUNT
-        ('sqlserver.stats.batch_requests', 'Batch Requests/sec', ''), # BULK_COUNT
-        ('sqlserver.stats.sql_compilations', 'SQL Compilations/sec', ''), # BULK_COUNT
-        ('sqlserver.stats.sql_recompilations', 'SQL Re-Compilations/sec', ''), # BULK_COUNT
-        ('sqlserver.stats.connections', 'User Connections', ''), # LARGE_RAWCOUNT
-        ('sqlserver.stats.lock_waits', 'Lock Waits/sec', '_Total'), # BULK_COUNT
-        ('sqlserver.access.page_splits', 'Page Splits/sec', ''), # BULK_COUNT
-        ('sqlserver.stats.procs_blocked', 'Processes blocked', ''), # LARGE_RAWCOUNT
-        ('sqlserver.buffer.checkpoint_pages', 'Checkpoint pages/sec', '') #BULK_COUNT
+        ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio', ''),  # RAW_LARGE_FRACTION
+        ('sqlserver.buffer.page_life_expectancy', 'Page life expectancy', ''),  # LARGE_RAWCOUNT
+        ('sqlserver.stats.batch_requests', 'Batch Requests/sec', ''),  # BULK_COUNT
+        ('sqlserver.stats.sql_compilations', 'SQL Compilations/sec', ''),  # BULK_COUNT
+        ('sqlserver.stats.sql_recompilations', 'SQL Re-Compilations/sec', ''),  # BULK_COUNT
+        ('sqlserver.stats.connections', 'User Connections', ''),  # LARGE_RAWCOUNT
+        ('sqlserver.stats.lock_waits', 'Lock Waits/sec', '_Total'),  # BULK_COUNT
+        ('sqlserver.access.page_splits', 'Page Splits/sec', ''),  # BULK_COUNT
+        ('sqlserver.stats.procs_blocked', 'Processes blocked', ''),  # LARGE_RAWCOUNT
+        ('sqlserver.buffer.checkpoint_pages', 'Checkpoint pages/sec', '')  # BULK_COUNT
     ]
 
-    def __init__(self, name, init_config, agentConfig, instances = None):
+    def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # Cache connections
         self.connections = {}
-
+        self.failed_connections = {}
         self.instances_metrics = {}
+
+        # Pre-process the list of metrics to collect
+        custom_metrics = init_config.get('custom_metrics', [])
         for instance in instances:
+            try:
+                self._make_metric_list_to_collect(instance, custom_metrics)
+            except SQLConnectionError:
+                self.log.exception("Skipping SQL Server instance")
+                continue
 
-            metrics_to_collect = []
-            for name, counter_name, instance_name  in self.METRICS:
-                try:
-                    sql_type, base_name = self.get_sql_type(instance, counter_name)
-                    metrics_to_collect.append(self.typed_metric(name,
-                                                                counter_name,
-                                                                base_name,
-                                                                None,
-                                                                sql_type,
-                                                                instance_name,
-                                                                None))
-                except Exception:
-                    self.log.warning("Can't load the metric %s, ignoring", name, exc_info=True)
-                    continue
-
-            # Load any custom metrics from conf.d/sqlserver.yaml
-            for row in init_config.get('custom_metrics', []):
-                user_type = row.get('type')
-                if user_type is not None and user_type not in VALID_METRIC_TYPES:
-                    self.log.error('%s has an invalid metric type: %s' \
-                                    % (row['name'], user_type))
-                sql_type = None
-                try:
-                    if user_type is None:
-                        sql_type, base_name = self.get_sql_type(instance, row['counter_name'])
-                except Exception:
-                    self.log.warning("Can't load the metric %s, ignoring", name, exc_info=True)
-                    continue
-
-
-                metrics_to_collect.append(self.typed_metric(row['name'],
-                                                            row['counter_name'],
+    def _make_metric_list_to_collect(self, instance, custom_metrics):
+        """
+        Store the list of metrics to collect by instance_key.
+        Will also create and cache cursors to query the db.
+        """
+        metrics_to_collect = []
+        for name, counter_name, instance_name in self.METRICS:
+            try:
+                sql_type, base_name = self.get_sql_type(instance, counter_name)
+                metrics_to_collect.append(self.typed_metric(name,
+                                                            counter_name,
                                                             base_name,
-                                                            user_type,
+                                                            None,
                                                             sql_type,
-                                                            row.get('instance_name', ''),
-                                                            row.get('tag_by', None)))
+                                                            instance_name,
+                                                            None))
+            except SQLConnectionError:
+                raise
+            except Exception:
+                self.log.warning("Can't load the metric %s, ignoring", name, exc_info=True)
+                continue
 
+        # Load any custom metrics from conf.d/sqlserver.yaml
+        for row in custom_metrics:
+            user_type = row.get('type')
+            if user_type is not None and user_type not in VALID_METRIC_TYPES:
+                self.log.error('%s has an invalid metric type: %s', row['name'], user_type)
+            sql_type = None
+            try:
+                if user_type is None:
+                    sql_type, base_name = self.get_sql_type(instance, row['counter_name'])
+            except Exception:
+                self.log.warning("Can't load the metric %s, ignoring", row['name'], exc_info=True)
+                continue
 
-            instance_key = self._conn_key(instance)
-            self.instances_metrics[instance_key] = metrics_to_collect
+            metrics_to_collect.append(self.typed_metric(row['name'],
+                                                        row['counter_name'],
+                                                        base_name,
+                                                        user_type,
+                                                        sql_type,
+                                                        row.get('instance_name', ''),
+                                                        row.get('tag_by', None)))
+
+        instance_key = self._conn_key(instance)
+        self.instances_metrics[instance_key] = metrics_to_collect
 
     def typed_metric(self, dd_name, sql_name, base_name, user_type, sql_type, instance_name, tag_by):
         '''
@@ -122,12 +144,12 @@ class SQLServer(AgentCheck):
         '''
 
         metric_type_mapping = {
-                PERF_COUNTER_BULK_COUNT: (self.rate, SqlSimpleMetric),
-                PERF_COUNTER_LARGE_RAWCOUNT: (self.gauge, SqlSimpleMetric),
-                PERF_LARGE_RAW_BASE: (self.gauge, SqlSimpleMetric),
-                PERF_RAW_LARGE_FRACTION: (self.gauge, SqlFractionMetric),
-                PERF_AVERAGE_BULK: (self.gauge, SqlIncrFractionMetric)
-            }
+            PERF_COUNTER_BULK_COUNT: (self.rate, SqlSimpleMetric),
+            PERF_COUNTER_LARGE_RAWCOUNT: (self.gauge, SqlSimpleMetric),
+            PERF_LARGE_RAW_BASE: (self.gauge, SqlSimpleMetric),
+            PERF_RAW_LARGE_FRACTION: (self.gauge, SqlFractionMetric),
+            PERF_AVERAGE_BULK: (self.gauge, SqlIncrFractionMetric)
+        }
         if user_type is not None:
             # user type overrides any other value
             metric_type = getattr(self, user_type)
@@ -159,7 +181,7 @@ class SQLServer(AgentCheck):
         '''
         host, username, password, database = self._get_access_info(instance)
         conn_str = 'Provider=SQLOLEDB;Data Source=%s;Initial Catalog=%s;' \
-                        % (host, database)
+            % (host, database)
         if username:
             conn_str += 'User ID=%s;' % (username)
         if password:
@@ -168,7 +190,7 @@ class SQLServer(AgentCheck):
             conn_str += 'Integrated Security=SSPI;'
         return conn_str
 
-    def get_cursor(self, instance):
+    def get_cursor(self, instance, cache_failure=False):
         '''
         Return a cursor to execute query against the db
         Cursor are cached in the self.connections dict
@@ -181,25 +203,35 @@ class SQLServer(AgentCheck):
             'db:%s' % database
         ]
 
+        if conn_key in self.failed_connections:
+            raise self.failed_connections[conn_key]
+
         if conn_key not in self.connections:
             try:
-                conn_str = self._conn_string(instance)
-                conn = adodbapi.connect(conn_str)
+                conn = adodbapi.connect(
+                    self._conn_string(instance),
+                    timeout=int(instance.get('command_timeout',
+                                             self.DEFAULT_COMMAND_TIMEOUT))
+                )
                 self.connections[conn_key] = conn
                 self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
             except Exception:
                 cx = "%s - %s" % (host, database)
                 message = "Unable to connect to SQL Server for instance %s." % cx
-                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, 
-                    tags=service_check_tags, message=message)
-                
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                                   tags=service_check_tags, message=message)
+
                 password = instance.get('password')
                 tracebk = traceback.format_exc()
                 if password is not None:
                     tracebk = tracebk.replace(password, "*" * 6)
-                    
-                raise Exception("%s \n %s" \
-                    % (message, tracebk))
+
+                # Avoid multiple connection timeouts (too slow):
+                # save the exception, re-raise it when needed
+                cxn_failure_exp = SQLConnectionError("%s \n %s" % (message, tracebk))
+                if cache_failure:
+                    self.failed_connections[conn_key] = cxn_failure_exp
+                raise cxn_failure_exp
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()
@@ -212,51 +244,69 @@ class SQLServer(AgentCheck):
         If the sql_type is one that needs a base (PERF_RAW_LARGE_FRACTION and
         PERF_AVERAGE_BULK), the name of the base counter will also be returned
         '''
-        cursor = self.get_cursor(instance)
+        cursor = self.get_cursor(instance, cache_failure=True)
         cursor.execute(COUNTER_TYPE_QUERY, (counter_name,))
         (sql_type,) = cursor.fetchone()
         if sql_type == PERF_LARGE_RAW_BASE:
-            self.log.warning("Metric %s is of type Base and shouldn't be reported this way", counter_name)
+            self.log.warning("Metric %s is of type Base and shouldn't be reported this way",
+                             counter_name)
         base_name = None
         if sql_type in [PERF_AVERAGE_BULK, PERF_RAW_LARGE_FRACTION]:
             # This is an ugly hack. For certains type of metric (PERF_RAW_LARGE_FRACTION
             # and PERF_AVERAGE_BULK), we need two metrics: the metrics specified and
             # a base metrics to get the ratio. There is no unique schema so we generate
             # the possible candidates and we look at which ones exist in the db.
-            candidates = ( counter_name + " base",
-                           counter_name.replace("(ms)", "base"),
-                           counter_name.replace("Avg ", "") + " base"
-                           )
+            candidates = (counter_name + " base",
+                          counter_name.replace("(ms)", "base"),
+                          counter_name.replace("Avg ", "") + " base"
+                          )
             try:
                 cursor.execute(BASE_NAME_QUERY, candidates)
                 base_name = cursor.fetchone().counter_name.strip()
                 self.log.debug("Got base metric: %s for metric: %s", base_name, counter_name)
             except Exception, e:
-                self.log.warning("Could not get counter_name of base for metric: %s",e)
+                self.log.warning("Could not get counter_name of base for metric: %s", e)
+
+        self.close_cursor(cursor)
 
         return sql_type, base_name
 
     def check(self, instance):
-        ''' Fetch the metrics from the sys.dm_os_performance_counters table
-        '''
+        """
+        Fetch the metrics from the sys.dm_os_performance_counters table
+        """
         cursor = self.get_cursor(instance)
+
         custom_tags = instance.get('tags', [])
         instance_key = self._conn_key(instance)
         metrics_to_collect = self.instances_metrics[instance_key]
-        cursor = self.get_cursor(instance)
+
         for metric in metrics_to_collect:
             try:
                 metric.fetch_metric(cursor, custom_tags)
             except Exception, e:
                 self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
+        self.close_cursor(cursor)
+
+    def close_cursor(self, cursor):
+        """
+        We close the cursor explicitly b/c we had proven memory leaks
+        We handle any exception from closing, although according to the doc:
+        "in adodbapi, it is NOT an error to re-close a closed cursor"
+        """
+        try:
+            cursor.close()
+        except Exception as e:
+            self.log.warning("Could not close adodbapi cursor\n{0}".format(e))
+
+
 class SqlServerMetric(object):
     '''General class for common methods, should never be instantiated directly
     '''
 
     def __init__(self, datadog_name, sql_name, base_name,
-                       report_function, instance, tag_by,
-                       logger):
+                 report_function, instance, tag_by, logger):
         self.datadog_name = datadog_name
         self.sql_name = sql_name
         self.base_name = base_name
@@ -269,6 +319,7 @@ class SqlServerMetric(object):
 
     def fetch_metrics(self, cursor, tags):
         raise NotImplementedError
+
 
 class SqlSimpleMetric(SqlServerMetric):
 
@@ -293,6 +344,7 @@ class SqlSimpleMetric(SqlServerMetric):
                 metric_tags = metric_tags + ['%s:%s' % (self.tag_by, instance_name.strip())]
             self.report_function(self.datadog_name, cntr_value,
                                  tags=metric_tags)
+
 
 class SqlFractionMetric(SqlServerMetric):
 
@@ -321,6 +373,7 @@ class SqlFractionMetric(SqlServerMetric):
                 continue
             value = rows[0, "cntr_value"]
             base = rows[1, "cntr_value"]
+
             metric_tags = tags
             if self.instance == ALL_INSTANCES:
                 metric_tags = metric_tags + ['%s:%s' % (self.tag_by, instance.strip())]
@@ -328,11 +381,12 @@ class SqlFractionMetric(SqlServerMetric):
 
     def report_fraction(self, value, base, metric_tags):
         try:
-            result = value/base
+            result = value / float(base)
             self.report_function(self.datadog_name, result, tags=metric_tags)
         except ZeroDivisionError:
             self.log.debug("Base value is 0, won't report metric %s for tags %s",
-                                                  self.datadog_name, metric_tags)
+                           self.datadog_name, metric_tags)
+
 
 class SqlIncrFractionMetric(SqlFractionMetric):
 
@@ -343,9 +397,9 @@ class SqlIncrFractionMetric(SqlFractionMetric):
             diff_value = value - old_value
             diff_base = base - old_base
             try:
-                result = diff_value/diff_base
+                result = diff_value / float(diff_base)
                 self.report_function(self.datadog_name, result, tags=metric_tags)
             except ZeroDivisionError:
                 self.log.debug("Base value is 0, won't report metric %s for tags %s",
-                                                      self.datadog_name, metric_tags)
+                               self.datadog_name, metric_tags)
         self.past_values[key] = (value, base)

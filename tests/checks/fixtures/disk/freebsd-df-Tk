@@ -1,0 +1,20 @@
+Filesystem                 Type  1024-blocks    Used   Avail Capacity  Mounted on
+zroot                      zfs             5       4       1    80%    /
+devfs                      devfs           1       1       0   100%    /dev
+zroot/tmp                  zfs       6013913      88 6013825     0%    /tmp
+zroot/usr                  zfs       7317053 1303228 6013825    18%    /usr
+zroot/usr/home             zfs       6013857      32 6013825     0%    /usr/home
+zroot/usr/home/vagrant     zfs       6077010   63185 6013825     1%    /usr/home/vagrant
+zroot/usr/ports            zfs       6013858      33 6013825     0%    /usr/ports
+zroot/usr/ports/distfiles  zfs       6013856      31 6013825     0%    /usr/ports/distfiles
+zroot/usr/ports/packages   zfs       6013856      31 6013825     0%    /usr/ports/packages
+zroot/usr/src              zfs       6013856      31 6013825     0%    /usr/src
+zroot/var                  zfs       6159848  146023 6013825     2%    /var
+zroot/var/crash            zfs       6013856      31 6013825     0%    /var/crash
+zroot/var/db               zfs       6013910      85 6013825     0%    /var/db
+zroot/var/db/pkg           zfs       6038024   24199 6013825     0%    /var/db/pkg
+zroot/var/empty            zfs       6013856      31 6013825     0%    /var/empty
+zroot/var/log              zfs       6013882      57 6013825     0%    /var/log
+zroot/var/mail             zfs       6013856      31 6013825     0%    /var/mail
+zroot/var/run              zfs       6013882      57 6013825     0%    /var/run
+zroot/var/tmp              zfs       6013857      32 6013825     0%    /var/tmp

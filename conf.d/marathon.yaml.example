@@ -5,3 +5,7 @@ init_config:
 instances:
 # url: the API endpoint of your Marathon master
   # - url: "https://server:port"
+  #
+  #   if marathon is protected by basic auth
+  #   user: "username"
+  #   password: "password"

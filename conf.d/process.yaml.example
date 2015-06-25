@@ -1,4 +1,8 @@
 init_config:
+  # the check will refresh the matching pid list every X seconds
+  # except if it detects a change before. You might want to set it
+  # low if you want to alert on process service checks.
+  # pid_cache_duration: 120
 
 instances:
 #  - name: (required) STRING. It will be used to uniquely identify your metrics as they will be tagged with this name
@@ -23,6 +27,9 @@ instances:
 
   - name: ssh
     search_string: ['ssh', 'sshd']
+    # tags:
+    #   - env:staging
+    #   - cluster:big-data
     thresholds:
       # critical if no sshd or more than 8 sshd are running
       critical: [1, 7]

@@ -41,7 +41,7 @@ instances:
   # This instance will capture all system errors and tag them with #system.
   #
   # - log_file:
-  #   - System
+  #     - System
   #   type:
   #     - Error
   #   tags:

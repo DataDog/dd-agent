@@ -1,0 +1,1635 @@
+<?xml version="1.0"?>
+        <varnishstat timestamp="2012-05-21T17:19:59">
+            <stat>
+                <name>client_conn</name>
+                <value>475607</value>
+                <flag>a</flag>
+                <description>Client connections accepted</description>
+            </stat>
+            <stat>
+                <name>client_drop</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Connection dropped, no sess/wrk</description>
+            </stat>
+            <stat>
+                <name>client_req</name>
+                <value>46007888</value>
+                <flag>a</flag>
+                <description>Client requests received</description>
+            </stat>
+            <stat>
+                <name>cache_hit</name>
+                <value>29652727</value>
+                <flag>a</flag>
+                <description>Cache hits</description>
+            </stat>
+            <stat>
+                <name>cache_hitpass</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Cache hits for pass</description>
+            </stat>
+            <stat>
+                <name>cache_miss</name>
+                <value>11551328</value>
+                <flag>a</flag>
+                <description>Cache misses</description>
+            </stat>
+            <stat>
+                <name>backend_conn</name>
+                <value>187918</value>
+                <flag>a</flag>
+                <description>Backend conn. success</description>
+            </stat>
+            <stat>
+                <name>backend_unhealthy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Backend conn. not attempted</description>
+            </stat>
+            <stat>
+                <name>backend_busy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Backend conn. too many</description>
+            </stat>
+            <stat>
+                <name>backend_fail</name>
+                <value>912</value>
+                <flag>a</flag>
+                <description>Backend conn. failures</description>
+            </stat>
+            <stat>
+                <name>backend_reuse</name>
+                <value>16078929</value>
+                <flag>a</flag>
+                <description>Backend conn. reuses</description>
+            </stat>
+            <stat>
+                <name>backend_toolate</name>
+                <value>13560</value>
+                <flag>a</flag>
+                <description>Backend conn. was closed</description>
+            </stat>
+            <stat>
+                <name>backend_recycle</name>
+                <value>16092503</value>
+                <flag>a</flag>
+                <description>Backend conn. recycles</description>
+            </stat>
+            <stat>
+                <name>backend_retry</name>
+                <value>45</value>
+                <flag>a</flag>
+                <description>Backend conn. retry</description>
+            </stat>
+            <stat>
+                <name>fetch_head</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Fetch head</description>
+            </stat>
+            <stat>
+                <name>fetch_length</name>
+                <value>12638932</value>
+                <flag>a</flag>
+                <description>Fetch with Length</description>
+            </stat>
+            <stat>
+                <name>fetch_chunked</name>
+                <value>3627795</value>
+                <flag>a</flag>
+                <description>Fetch chunked</description>
+            </stat>
+            <stat>
+                <name>fetch_eof</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Fetch EOF</description>
+            </stat>
+            <stat>
+                <name>fetch_bad</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Fetch had bad headers</description>
+            </stat>
+            <stat>
+                <name>fetch_close</name>
+                <value>36</value>
+                <flag>a</flag>
+                <description>Fetch wanted close</description>
+            </stat>
+            <stat>
+                <name>fetch_oldhttp</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Fetch pre HTTP/1.1 closed</description>
+            </stat>
+            <stat>
+                <name>fetch_zero</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Fetch zero len</description>
+            </stat>
+            <stat>
+                <name>fetch_failed</name>
+                <value>9</value>
+                <flag>a</flag>
+                <description>Fetch failed</description>
+            </stat>
+            <stat>
+                <name>fetch_1xx</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Fetch no body (1xx)</description>
+            </stat>
+            <stat>
+                <name>fetch_204</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Fetch no body (204)</description>
+            </stat>
+            <stat>
+                <name>fetch_304</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Fetch no body (304)</description>
+            </stat>
+            <stat>
+                <name>n_sess_mem</name>
+                <value>334</value>
+                <flag>i</flag>
+                <description>N struct sess_mem</description>
+            </stat>
+            <stat>
+                <name>n_sess</name>
+                <value>31</value>
+                <flag>i</flag>
+                <description>N struct sess</description>
+            </stat>
+            <stat>
+                <name>n_object</name>
+                <value>391072</value>
+                <flag>i</flag>
+                <description>N struct object</description>
+            </stat>
+            <stat>
+                <name>n_vampireobject</name>
+                <value>0</value>
+                <flag>i</flag>
+                <description>N unresurrected objects</description>
+            </stat>
+            <stat>
+                <name>n_objectcore</name>
+                <value>391086</value>
+                <flag>i</flag>
+                <description>N struct objectcore</description>
+            </stat>
+            <stat>
+                <name>n_objecthead</name>
+                <value>119540</value>
+                <flag>i</flag>
+                <description>N struct objecthead</description>
+            </stat>
+            <stat>
+                <name>n_waitinglist</name>
+                <value>42255</value>
+                <flag>i</flag>
+                <description>N struct waitinglist</description>
+            </stat>
+            <stat>
+                <name>n_vbc</name>
+                <value>13</value>
+                <flag>i</flag>
+                <description>N struct vbc</description>
+            </stat>
+            <stat>
+                <name>n_wrk</name>
+                <value>24</value>
+                <flag>i</flag>
+                <description>N worker threads</description>
+            </stat>
+            <stat>
+                <name>n_wrk_create</name>
+                <value>3718</value>
+                <flag>a</flag>
+                <description>N worker threads created</description>
+            </stat>
+            <stat>
+                <name>n_wrk_failed</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>N worker threads not created</description>
+            </stat>
+            <stat>
+                <name>n_wrk_max</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>N worker threads limited</description>
+            </stat>
+            <stat>
+                <name>n_wrk_lqueue</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>work request queue length</description>
+            </stat>
+            <stat>
+                <name>n_wrk_queued</name>
+                <value>37387</value>
+                <flag>a</flag>
+                <description>N queued work requests</description>
+            </stat>
+            <stat>
+                <name>n_wrk_drop</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>N dropped work requests</description>
+            </stat>
+            <stat>
+                <name>n_backend</name>
+                <value>17</value>
+                <flag>i</flag>
+                <description>N backends</description>
+            </stat>
+            <stat>
+                <name>n_expired</name>
+                <value>5509942</value>
+                <flag>i</flag>
+                <description>N expired objects</description>
+            </stat>
+            <stat>
+                <name>n_lru_nuked</name>
+                <value>5650303</value>
+                <flag>i</flag>
+                <description>N LRU nuked objects</description>
+            </stat>
+            <stat>
+                <name>n_lru_moved</name>
+                <value>14960592</value>
+                <flag>i</flag>
+                <description>N LRU moved objects</description>
+            </stat>
+            <stat>
+                <name>losthdr</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>HTTP header overflows</description>
+            </stat>
+            <stat>
+                <name>n_objsendfile</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Objects sent with sendfile</description>
+            </stat>
+            <stat>
+                <name>n_objwrite</name>
+                <value>46952631</value>
+                <flag>a</flag>
+                <description>Objects sent with write</description>
+            </stat>
+            <stat>
+                <name>n_objoverflow</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Objects overflowing workspace</description>
+            </stat>
+            <stat>
+                <name>s_sess</name>
+                <value>475606</value>
+                <flag>a</flag>
+                <description>Total Sessions</description>
+            </stat>
+            <stat>
+                <name>s_req</name>
+                <value>46007888</value>
+                <flag>a</flag>
+                <description>Total Requests</description>
+            </stat>
+            <stat>
+                <name>s_pipe</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Total pipe</description>
+            </stat>
+            <stat>
+                <name>s_pass</name>
+                <value>4715470</value>
+                <flag>a</flag>
+                <description>Total pass</description>
+            </stat>
+            <stat>
+                <name>s_fetch</name>
+                <value>16266754</value>
+                <flag>a</flag>
+                <description>Total fetch</description>
+            </stat>
+            <stat>
+                <name>s_hdrbytes</name>
+                <value>13489812656</value>
+                <flag>a</flag>
+                <description>Total header bytes</description>
+            </stat>
+            <stat>
+                <name>s_bodybytes</name>
+                <value>870366768630</value>
+                <flag>a</flag>
+                <description>Total body bytes</description>
+            </stat>
+            <stat>
+                <name>sess_closed</name>
+                <value>90657</value>
+                <flag>a</flag>
+                <description>Session Closed</description>
+            </stat>
+            <stat>
+                <name>sess_pipeline</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Session Pipeline</description>
+            </stat>
+            <stat>
+                <name>sess_readahead</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Session Read Ahead</description>
+            </stat>
+            <stat>
+                <name>sess_linger</name>
+                <value>45917694</value>
+                <flag>a</flag>
+                <description>Session Linger</description>
+            </stat>
+            <stat>
+                <name>sess_herd</name>
+                <value>15876611</value>
+                <flag>a</flag>
+                <description>Session herd</description>
+            </stat>
+            <stat>
+                <name>shm_records</name>
+                <value>2312772697</value>
+                <flag>a</flag>
+                <description>SHM records</description>
+            </stat>
+            <stat>
+                <name>shm_writes</name>
+                <value>97762309</value>
+                <flag>a</flag>
+                <description>SHM writes</description>
+            </stat>
+            <stat>
+                <name>shm_flushes</name>
+                <value>3</value>
+                <flag>a</flag>
+                <description>SHM flushes due to overflow</description>
+            </stat>
+            <stat>
+                <name>shm_cont</name>
+                <value>31213</value>
+                <flag>a</flag>
+                <description>SHM MTX contention</description>
+            </stat>
+            <stat>
+                <name>shm_cycles</name>
+                <value>967</value>
+                <flag>a</flag>
+                <description>SHM cycles through buffer</description>
+            </stat>
+            <stat>
+                <name>sms_nreq</name>
+                <value>88407</value>
+                <flag>a</flag>
+                <description>SMS allocator requests</description>
+            </stat>
+            <stat>
+                <name>sms_nobj</name>
+                <value>0</value>
+                <flag>i</flag>
+                <description>SMS outstanding allocations</description>
+            </stat>
+            <stat>
+                <name>sms_nbytes</name>
+                <value>0</value>
+                <flag>i</flag>
+                <description>SMS outstanding bytes</description>
+            </stat>
+            <stat>
+                <name>sms_balloc</name>
+                <value>477828</value>
+                <flag>i</flag>
+                <description>SMS bytes allocated</description>
+            </stat>
+            <stat>
+                <name>sms_bfree</name>
+                <value>477828</value>
+                <flag>i</flag>
+                <description>SMS bytes freed</description>
+            </stat>
+            <stat>
+                <name>backend_req</name>
+                <value>16266804</value>
+                <flag>a</flag>
+                <description>Backend requests made</description>
+            </stat>
+            <stat>
+                <name>n_vcl</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>N vcl total</description>
+            </stat>
+            <stat>
+                <name>n_vcl_avail</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>N vcl available</description>
+            </stat>
+            <stat>
+                <name>n_vcl_discard</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>N vcl discarded</description>
+            </stat>
+            <stat>
+                <name>n_ban</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>N total active bans</description>
+            </stat>
+            <stat>
+                <name>n_ban_add</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>N new bans added</description>
+            </stat>
+            <stat>
+                <name>n_ban_retire</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>N old bans deleted</description>
+            </stat>
+            <stat>
+                <name>n_ban_obj_test</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>N objects tested</description>
+            </stat>
+            <stat>
+                <name>n_ban_re_test</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>N regexps tested against</description>
+            </stat>
+            <stat>
+                <name>n_ban_dups</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>N duplicate bans removed</description>
+            </stat>
+            <stat>
+                <name>hcb_nolock</name>
+                <value>41204059</value>
+                <flag>a</flag>
+                <description>HCB Lookups without lock</description>
+            </stat>
+            <stat>
+                <name>hcb_lock</name>
+                <value>3053198</value>
+                <flag>a</flag>
+                <description>HCB Lookups with lock</description>
+            </stat>
+            <stat>
+                <name>hcb_insert</name>
+                <value>3053197</value>
+                <flag>a</flag>
+                <description>HCB Inserts</description>
+            </stat>
+            <stat>
+                <name>esi_errors</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>ESI parse errors (unlock)</description>
+            </stat>
+            <stat>
+                <name>esi_warnings</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>ESI parse warnings (unlock)</description>
+            </stat>
+            <stat>
+                <name>accept_fail</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Accept failures</description>
+            </stat>
+            <stat>
+                <name>client_drop_late</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Connection dropped late</description>
+            </stat>
+            <stat>
+                <name>uptime</name>
+                <value>265069</value>
+                <flag>a</flag>
+                <description>Client uptime</description>
+            </stat>
+            <stat>
+                <name>dir_dns_lookups</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>DNS director lookups</description>
+            </stat>
+            <stat>
+                <name>dir_dns_failed</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>DNS director failed lookups</description>
+            </stat>
+            <stat>
+                <name>dir_dns_hit</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>DNS director cached lookups hit</description>
+            </stat>
+            <stat>
+                <name>dir_dns_cache_full</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>DNS director full dnscache</description>
+            </stat>
+            <stat>
+                <name>vmods</name>
+                <value>0</value>
+                <flag>i</flag>
+                <description>Loaded VMODs</description>
+            </stat>
+            <stat>
+                <name>n_gzip</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Gzip operations</description>
+            </stat>
+            <stat>
+                <name>n_gunzip</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Gunzip operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>sms</ident>
+                <name>creat</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>sms</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>sms</ident>
+                <name>locks</name>
+                <value>265221</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>sms</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>smp</ident>
+                <name>creat</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>smp</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>smp</ident>
+                <name>locks</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>smp</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>sma</ident>
+                <name>creat</name>
+                <value>2</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>sma</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>sma</ident>
+                <name>locks</name>
+                <value>74266910</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>sma</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>smf</ident>
+                <name>creat</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>smf</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>smf</ident>
+                <name>locks</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>smf</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>hsl</ident>
+                <name>creat</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>hsl</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>hsl</ident>
+                <name>locks</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>hsl</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>hcb</ident>
+                <name>creat</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>hcb</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>hcb</ident>
+                <name>locks</name>
+                <value>5991389</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>hcb</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>hcl</ident>
+                <name>creat</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>hcl</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>hcl</ident>
+                <name>locks</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>hcl</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>vcl</ident>
+                <name>creat</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>vcl</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>vcl</ident>
+                <name>locks</name>
+                <value>82036</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>vcl</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>stat</ident>
+                <name>creat</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>stat</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>stat</ident>
+                <name>locks</name>
+                <value>334</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>stat</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>sessmem</ident>
+                <name>creat</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>sessmem</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>sessmem</ident>
+                <name>locks</name>
+                <value>480320</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>sessmem</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>wstat</ident>
+                <name>creat</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>wstat</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>wstat</ident>
+                <name>locks</name>
+                <value>1636233</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>wstat</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>herder</ident>
+                <name>creat</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>herder</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>herder</ident>
+                <name>locks</name>
+                <value>35720</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>herder</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>wq</ident>
+                <name>creat</name>
+                <value>2</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>wq</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>wq</ident>
+                <name>locks</name>
+                <value>32549458</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>wq</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>objhdr</ident>
+                <name>creat</name>
+                <value>3056380</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>objhdr</ident>
+                <name>destroy</name>
+                <value>2936840</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>objhdr</ident>
+                <name>locks</name>
+                <value>195679071</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>objhdr</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>exp</ident>
+                <name>creat</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>exp</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>exp</ident>
+                <name>locks</name>
+                <value>22976360</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>exp</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>lru</ident>
+                <name>creat</name>
+                <value>2</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>lru</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>lru</ident>
+                <name>locks</name>
+                <value>17201617</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>lru</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>cli</ident>
+                <name>creat</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>cli</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>cli</ident>
+                <name>locks</name>
+                <value>88310</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>cli</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>ban</ident>
+                <name>creat</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>ban</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>ban</ident>
+                <name>locks</name>
+                <value>22976610</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>ban</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>vbp</ident>
+                <name>creat</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>vbp</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>vbp</ident>
+                <name>locks</name>
+                <value>1412365</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>vbp</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>vbe</ident>
+                <name>creat</name>
+                <value>1</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>vbe</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>vbe</ident>
+                <name>locks</name>
+                <value>377647</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>vbe</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>backend</ident>
+                <name>creat</name>
+                <value>17</value>
+                <flag>a</flag>
+                <description>Created locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>backend</ident>
+                <name>destroy</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Destroyed locks</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>backend</ident>
+                <name>locks</name>
+                <value>52925585</value>
+                <flag>a</flag>
+                <description>Lock Operations</description>
+            </stat>
+            <stat>
+                <type>LCK</type>
+                <ident>backend</ident>
+                <name>colls</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Collisions</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>s0</ident>
+                <name>c_req</name>
+                <value>26057659</value>
+                <flag>a</flag>
+                <description>Allocator requests</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>s0</ident>
+                <name>c_fail</name>
+                <value>732800073660</value>
+                <flag>a</flag>
+                <description>Allocator failures</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>s0</ident>
+                <name>c_bytes</name>
+                <value>506580500540</value>
+                <flag>a</flag>
+                <description>Bytes allocated</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>s0</ident>
+                <name>c_freed</name>
+                <value>500138170202</value>
+                <flag>a</flag>
+                <description>Bytes freed</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>s0</ident>
+                <name>g_alloc</name>
+                <value>791369</value>
+                <flag>i</flag>
+                <description>Allocations outstanding</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>s0</ident>
+                <name>g_bytes</name>
+                <value>6442330338</value>
+                <flag>i</flag>
+                <description>Bytes outstanding</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>s0</ident>
+                <name>g_space</name>
+                <value>120606</value>
+                <flag>i</flag>
+                <description>Bytes available</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>Transient</ident>
+                <name>c_req</name>
+                <value>12490635</value>
+                <flag>a</flag>
+                <description>Allocator requests</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>Transient</ident>
+                <name>c_fail</name>
+                <value>0</value>
+                <flag>a</flag>
+                <description>Allocator failures</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>Transient</ident>
+                <name>c_bytes</name>
+                <value>44213239981</value>
+                <flag>a</flag>
+                <description>Bytes allocated</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>Transient</ident>
+                <name>c_freed</name>
+                <value>44213169757</value>
+                <flag>a</flag>
+                <description>Bytes freed</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>Transient</ident>
+                <name>g_alloc</name>
+                <value>192</value>
+                <flag>i</flag>
+                <description>Allocations outstanding</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>Transient</ident>
+                <name>g_bytes</name>
+                <value>70224</value>
+                <flag>i</flag>
+                <description>Bytes outstanding</description>
+            </stat>
+            <stat>
+                <type>SMA</type>
+                <ident>Transient</ident>
+                <name>g_space</name>
+                <value>0</value>
+                <flag>i</flag>
+                <description>Bytes available</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>default(127.0.0.1,,80)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>default(127.0.0.1,,80)</ident>
+                <name>happy</name>
+                <value>0</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_video_prd_services_01(10.93.67.16,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_video_prd_services_01(10.93.67.16,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_video_prd_services_02(10.93.67.17,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_video_prd_services_02(10.93.67.17,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_video_prd_services_03(10.93.67.18,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_video_prd_services_03(10.93.67.18,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_video_prd_services_04(10.93.67.105,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_video_prd_services_04(10.93.67.105,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_video_prd_services_06(10.93.67.133,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_video_prd_services_06(10.93.67.133,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_video_prd_services_07(10.93.67.134,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_video_prd_services_07(10.93.67.134,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_article_prd_services_01(10.93.67.75,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_article_prd_services_01(10.93.67.75,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_article_prd_services_02(10.93.67.76,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_article_prd_services_02(10.93.67.76,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_article_prd_services_03(10.93.67.77,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_article_prd_services_03(10.93.67.77,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_article_prd_services_04(10.93.67.121,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_article_prd_services_04(10.93.67.121,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_article_prd_services_05(10.93.67.122,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_article_prd_services_05(10.93.67.122,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_object_prd_services_01(10.93.66.132,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_object_prd_services_01(10.93.66.132,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_object_prd_services_02(10.93.66.150,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_object_prd_services_02(10.93.66.150,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_object_prd_services_03(10.93.67.107,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_object_prd_services_03(10.93.67.107,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_object_prd_services_04(10.93.67.125,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_object_prd_services_04(10.93.67.125,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_object_prd_services_05(10.93.67.126,,8080)</ident>
+                <name>vcls</name>
+                <value>1</value>
+                <flag>i</flag>
+                <description>VCL references</description>
+            </stat>
+            <stat>
+                <type>VBE</type>
+                <ident>media_object_prd_services_05(10.93.67.126,,8080)</ident>
+                <name>happy</name>
+                <value>18446744073709551615</value>
+                <flag>b</flag>
+                <description>Happy health probes</description>
+            </stat>
+        </varnishstat>
