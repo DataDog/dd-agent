@@ -90,7 +90,7 @@ class DockerDaemon(AgentCheck):
 
         # Get the list of containers and the index of their names
         containers_by_id = self._get_and_count_containers(instance)
-
+        self._crawl_container_pids()
         # Report performance container metrics (cpu, mem, net, io)
         self._report_performance_metrics(instance, containers_by_id)
         # TODO: report container sizes (and image sizes?) --> OK - need to test
@@ -487,16 +487,17 @@ class DockerDaemon(AgentCheck):
 
     # proc files
 
-    def _get_proc_root(self, container):
-        """Find PID then proc directory of a container.
-
-        Does it with docker inspect. That's for the POC, should use something smarter (such as walking /proc and
-        looking at /proc/$PID/cgroup to make it matches to a container.
-        """
-        if not container.get('_pid'):
-            inspection = self.client.inspect_container(container["Id"])
-            pid = inspection.get("State", {}).get("Pid")
-            # TODO: catch exceptions
-            container["_pid"] = pid
-
-        return '/proc/%s/' % container["_pid"]
+    def _crawl_container_pids(self, container_dict):
+        """Crawl `/proc` to find container PIDs and add them to `containers_by_id`."""
+        for folder in os.listdir('/proc'):
+            try:
+                int(folder)
+                f = open('/proc/%s/cgroup' % folder)
+                content = [line.strip().split(':') for line in f.readlines()]
+                content = {line[1]: line[2] for line in content}
+                if 'docker-' in content.get('cpu,cpuacct'):
+                    container_id = content['cpu,cpuacct'].split('docker-')[1].rstrip('.scope')
+                    container_dict[container_id]['_pid'] = folder
+                    container_dict[container_id]['_proc_root'] = '/proc/%s/' % folder
+            except:
+                continue
