@@ -235,7 +235,7 @@ class TestCore(unittest.TestCase):
         }
         environ_proxies = get_environ_proxies("https://www.google.com")
         self.assertEquals(expected_proxies, environ_proxies,
-            (expected_proxies, environ_proxies))
+                          (expected_proxies, environ_proxies))
 
         # Clear the env variables set
         del env["http_proxy"]
@@ -271,8 +271,6 @@ class TestCore(unittest.TestCase):
                 "password": "barenv"
             })
 
-
-
     def test_min_collection_interval(self):
         config = {'instances': [{}], 'init_config': {}}
 
@@ -282,7 +280,7 @@ class TestCore(unittest.TestCase):
         }
 
         # default min collection interval for that check was 20sec
-        check = load_check('ntp', config, agentConfig)
+        check = load_check('disk', config, agentConfig)
         check.DEFAULT_MIN_COLLECTION_INTERVAL = 20
 
         check.run()
@@ -309,7 +307,7 @@ class TestCore(unittest.TestCase):
         self.assertTrue(len(metrics) > 0, metrics)
 
         config = {'instances': [{'min_collection_interval':3}], 'init_config': {}}
-        check = load_check('ntp', config, agentConfig)
+        check = load_check('disk', config, agentConfig)
         check.run()
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
@@ -322,7 +320,7 @@ class TestCore(unittest.TestCase):
         self.assertTrue(len(metrics) > 0, metrics)
 
         config = {'instances': [{'min_collection_interval': 12}], 'init_config': {'min_collection_interval':3}}
-        check = load_check('ntp', config, agentConfig)
+        check = load_check('disk', config, agentConfig)
         check.run()
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
