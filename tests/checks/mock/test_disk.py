@@ -131,6 +131,8 @@ class TestCheckDisk(AgentCheckTest):
         for metric, value in self.GAUGES_VALUES.iteritems():
             self.assertMetric(metric, value=value, tags=[],
                               device_name=DEFAULT_DEVICE_NAME)
+            # backward compatibility with the old check
+            self.assertMetric(metric, tags=[], device_name='udev')
 
         self.coverage_report()
 

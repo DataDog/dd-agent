@@ -137,6 +137,12 @@ CLUSTER_HEALTH_METRICS = {
     "elasticsearch.cluster_status": ("gauge", "status", lambda v: {"red": 0, "yellow": 1, "green": 2}.get(v, -1)),
 }
 
+CLUSTER_PENDING_TASKS = {
+    "elasticsearch.pending_tasks_total": ("gauge", "pending_task_total"),
+    "elasticsearch.pending_tasks_priority_high": ("gauge", "pending_tasks_priority_high"),
+    "elasticsearch.pending_tasks_priority_urgent": ("gauge", "pending_tasks_priority_urgent")
+}
+
 
 def get_es_version():
     version = os.environ.get("FLAVOR_VERSION")
@@ -177,6 +183,7 @@ class TestElastic(AgentCheckTest):
         default_tags = ["url:http://localhost:{0}".format(port)]
 
         expected_metrics = STATS_METRICS
+        CLUSTER_HEALTH_METRICS.update(CLUSTER_PENDING_TASKS)
         expected_metrics.update(CLUSTER_HEALTH_METRICS)
 
         instance_config = self.check.get_instance_config(config['instances'][0])
@@ -219,11 +226,26 @@ class TestElastic(AgentCheckTest):
                                         tags=bad_sc_tags,
                                         count=1)
 
-
         # Assert service metadata
         self.assertServiceMetadata(['version'], count=3)
 
-        self.coverage_report()
+        # FIXME: 0.90.13 returns randomly a red status instead of yellow,
+        # so we don't do a coverage test for it
+        # Remove me when we stop supporting 0.90.x (not supported anymore by ES)
+        if get_es_version() != [0, 90, 13]:
+            # Warning because elasticsearch status should be yellow, according to
+            # http://chrissimpson.co.uk/elasticsearch-yellow-cluster-status-explained.html
+            self.assertServiceCheckWarning('elasticsearch.cluster_health',
+                                           tags=good_sc_tags,
+                                           count=2)
+
+            # Assert event
+            self.assertEvent('ElasticSearch: foo just reported as yellow', count=1,
+                             tags=default_tags+tags, msg_title='foo is yellow',
+                             event_type='elasticsearch', alert_type='warning',
+                             source_type_name='elasticsearch')
+
+            self.coverage_report()
 
     def test_config_parser(self):
         check = load_check(self.CHECK_NAME, {}, {})

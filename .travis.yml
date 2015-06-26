@@ -20,6 +20,7 @@ matrix:
 env:
   global:
     - CONCURRENCY=2
+    - COVERAGE=true
     - NOSE_FILTER="not windows"
     - INTEGRATIONS_DIR=$HOME/embedded
     - PIP_CACHE=$HOME/.cache/pip
