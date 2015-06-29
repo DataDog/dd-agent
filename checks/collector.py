@@ -761,6 +761,11 @@ class Collector(object):
 
         metadata["hostname"] = get_hostname()
 
+        # Add cloud provider aliases
+        host_aliases = GCE.get_host_aliases(self.agentConfig)
+        if host_aliases:
+            metadata['host_aliases'] = host_aliases
+
         return metadata
 
     def _should_send_additional_data(self, data_name):

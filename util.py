@@ -312,6 +312,16 @@ class GCE(object):
         except Exception:
             return None
 
+    @staticmethod
+    def get_host_aliases(agentConfig):
+        try:
+            host_metadata = GCE._get_metadata(agentConfig)
+            project_id = host_metadata['project']['projectId']
+            instance_name = host_metadata['instance']['hostname'].split('.')[0]
+            return ['%s.%s' % (instance_name, project_id)]
+        except Exception:
+            return None
+
 
 
 class EC2(object):
