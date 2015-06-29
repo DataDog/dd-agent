@@ -2,9 +2,11 @@
 
 Collects metrics from the pgbouncer database.
 """
-from checks import AgentCheck, CheckException
-
+# 3p
 import psycopg2 as pg
+
+# project
+from checks import AgentCheck, CheckException
 
 
 class ShouldRestartException(Exception):

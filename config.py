@@ -1,31 +1,30 @@
 import ConfigParser
-import os
+from cStringIO import StringIO
+import glob
+import imp
+import inspect
 import itertools
 import logging
 import logging.config
 import logging.handlers
+from optparse import OptionParser, Values
+import os
 import platform
+import re
+from socket import gaierror, gethostbyname
 import string
 import sys
-import glob
-import inspect
 import traceback
-import re
-import imp
-import socket
-from socket import gaierror
-from optparse import OptionParser, Values
-from cStringIO import StringIO
 from urlparse import urlparse
+
+# 3rd party
+import yaml
 
 # project
 from util import get_os, yLoader
 from utils.platform import Platform
 from utils.proxy import get_proxy
 from utils.subprocess_output import subprocess
-
-# 3rd party
-import yaml
 
 # CONSTANTS
 AGENT_VERSION = "5.5.0"
@@ -238,7 +237,7 @@ def get_config_path(cfg_path=None, os_name=None):
 
 def get_default_bind_host():
     try:
-        socket.gethostbyname('localhost')
+        gethostbyname('localhost')
     except gaierror:
         log.warning("localhost seems undefined in your hosts file, using 127.0.0.1 instead")
         return '127.0.0.1'

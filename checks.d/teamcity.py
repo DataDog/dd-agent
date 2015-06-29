@@ -1,6 +1,8 @@
 # stdlib
-import requests
 import time
+
+# 3p
+import requests
 
 # project
 from checks import AgentCheck

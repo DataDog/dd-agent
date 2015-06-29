@@ -6,9 +6,10 @@ Add to datadog.conf as follows:
 dogstreams: [path_to_supervisord.log]:datadog.streams.supervisord:parse_supervisord
 
 """
+# stdlib
 from datetime import datetime
-import time
 import re
+import time
 
 EVENT_TYPE = "supervisor"
 

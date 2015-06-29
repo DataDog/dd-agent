@@ -1,15 +1,16 @@
 # std
 from collections import defaultdict
 
+# 3rd party
+from pysnmp.entity.rfc3413.oneliner import cmdgen
+import pysnmp.proto.rfc1902 as snmp_type
+from pysnmp.smi import builder
+from pysnmp.smi.exval import noSuchInstance, noSuchObject
+
 # project
 from checks import AgentCheck
 from config import _is_affirmative
 
-# 3rd party
-from pysnmp.entity.rfc3413.oneliner import cmdgen
-from pysnmp.smi.exval import noSuchInstance, noSuchObject
-from pysnmp.smi import builder
-import pysnmp.proto.rfc1902 as snmp_type
 
 # Additional types that are not part of the SNMP protocol. cf RFC 2856
 (CounterBasedGauge64, ZeroBasedCounter64) = builder.MibBuilder().importSymbols(

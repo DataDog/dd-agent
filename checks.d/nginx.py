@@ -1,14 +1,15 @@
 # stdlib
 import re
-import requests
 import urlparse
 
-# project
-from util import headers
-from checks import AgentCheck
-
 # 3rd party
+import requests
 import simplejson as json
+
+# project
+from checks import AgentCheck
+from util import headers
+
 
 class Nginx(AgentCheck):
     """Tracks basic nginx metrics via the status module

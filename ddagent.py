@@ -10,7 +10,7 @@
     (C) Datadog, Inc. 2010-2013 all rights reserved
 '''
 # set up logging before importing any other components
-from config import initialize_logging
+from config import initialize_logging  # noqa
 initialize_logging('forwarder')
 
 # stdlib
@@ -18,7 +18,7 @@ from datetime import timedelta
 import logging
 import os
 from Queue import Full, Queue
-from socket import gaierror, error as socket_error
+from socket import error as socket_error, gaierror
 import sys
 import threading
 import zlib
@@ -36,7 +36,7 @@ from tornado.escape import json_decode
 import tornado.httpclient
 import tornado.httpserver
 import tornado.ioloop
-from tornado.options import define, parse_command_line, options
+from tornado.options import define, options, parse_command_line
 import tornado.web
 
 # project
@@ -48,14 +48,14 @@ from config import (
     get_version
 )
 import modules
+from transaction import Transaction, TransactionManager
 from util import (
-    get_uuid,
     get_hostname,
     get_tornado_ioloop,
+    get_uuid,
     json,
     Watchdog,
 )
-from transaction import Transaction, TransactionManager
 
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)

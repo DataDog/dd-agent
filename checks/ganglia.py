@@ -1,6 +1,10 @@
-from checks import Check
-import socket
+# stdlib
 from cStringIO import StringIO
+import socket
+
+# project
+from checks import Check
+
 
 class Ganglia(Check):
     BUFFER = 4096

@@ -1,18 +1,21 @@
 # stdlib
+from datetime import datetime, timedelta
 import unittest
-from datetime import timedelta, datetime
 
 # 3rd party
 from nose.plugins.attrib import attr
-from tornado.web import Application
 import requests
 import simplejson as json
+from tornado.web import Application
 
 # project
 from config import get_version
 from ddagent import (
-    MAX_QUEUE_SIZE, THROTTLING_DELAY,
-    APIMetricTransaction, APIServiceCheckTransaction, MetricTransaction
+    APIMetricTransaction,
+    APIServiceCheckTransaction,
+    MAX_QUEUE_SIZE,
+    MetricTransaction,
+    THROTTLING_DELAY,
 )
 from transaction import Transaction, TransactionManager
 

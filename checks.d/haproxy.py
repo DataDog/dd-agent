@@ -3,13 +3,13 @@ from collections import defaultdict
 import re
 import time
 
+# 3rd party
+import requests
+
 # project
 from checks import AgentCheck
 from config import _is_affirmative
 from util import headers
-
-# 3rd party
-import requests
 
 STATS_URL = "/;csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'

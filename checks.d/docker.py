@@ -1,18 +1,18 @@
 # stdlib
-import urllib2
-import urllib
+from collections import defaultdict
 import httplib
-import socket
 import os
 import re
+import socket
 import time
+import urllib
+import urllib2
 from urlparse import urlsplit
-from util import json
-from collections import defaultdict
 
 # project
 from checks import AgentCheck
 from config import _is_affirmative
+from util import json
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'docker'
 

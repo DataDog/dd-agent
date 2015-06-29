@@ -7,15 +7,15 @@ import sys
 import time
 
 # project
-from checks import AgentCheck, AGENT_METRICS_CHECK_NAME, create_service_check
+from checks import AGENT_METRICS_CHECK_NAME, AgentCheck, create_service_check
 from checks.check_status import (
     CheckStatus,
     CollectorStatus,
     EmitterStatus,
-    STATUS_OK,
     STATUS_ERROR,
+    STATUS_OK,
 )
-from checks.datadog import Dogstreams, DdForwarder
+from checks.datadog import DdForwarder, Dogstreams
 from checks.ganglia import Ganglia
 import checks.system.unix as u
 import checks.system.win32 as w32

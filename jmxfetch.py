@@ -2,16 +2,21 @@
 import glob
 import logging
 import os
-import sys
 import signal
+import sys
 import time
 
 # 3rd party
 import yaml
 
 # datadog
-from config import get_config, get_confd_path, get_logging_config, \
-    PathNotFound, DEFAULT_CHECK_FREQUENCY
+from config import (
+    DEFAULT_CHECK_FREQUENCY,
+    get_confd_path,
+    get_config,
+    get_logging_config,
+    PathNotFound,
+)
 from util import get_os, yLoader
 from utils.jmxfiles import JMXFiles
 from utils.platform import Platform

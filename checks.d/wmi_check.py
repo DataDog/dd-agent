@@ -5,11 +5,11 @@ Generic WMI check. This check allows you to specify particular metrics that you
 want from WMI in your configuration. Check wmi_check.yaml.example in your conf.d
 directory for more details on configuration.
 '''
-# project
-from checks import AgentCheck
-
 # 3rd party
 import wmi
+
+# project
+from checks import AgentCheck
 
 UP_METRIC = 'Up'
 SEARCH_WILDCARD = '*'

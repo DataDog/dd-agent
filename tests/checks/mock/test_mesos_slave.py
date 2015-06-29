@@ -1,9 +1,13 @@
-from tests.checks.common import AgentCheckTest, get_check_class, Fixtures
-
-from nose.plugins.attrib import attr
-from mock import patch
-from checks import AgentCheck
+# stdlib
 import json
+
+# 3p
+from mock import patch
+from nose.plugins.attrib import attr
+
+# project
+from checks import AgentCheck
+from tests.checks.common import AgentCheckTest, Fixtures, get_check_class
 
 
 def _mocked_get_state(*args, **kwargs):

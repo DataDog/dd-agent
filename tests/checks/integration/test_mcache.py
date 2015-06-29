@@ -1,7 +1,7 @@
 # stdlib
 import os
+from subprocess import PIPE, Popen
 import time
-from subprocess import Popen, PIPE
 
 # 3p
 import memcache

@@ -4,38 +4,40 @@ A Python Statsd implementation with some datadog special sauce.
 """
 
 # set up logging before importing any other components
-from config import initialize_logging
+from config import initialize_logging  # noqa
 initialize_logging('dogstatsd')
 
-import os
-os.umask(022)
 
-from utils.proxy import set_no_proxy_settings
+from utils.proxy import set_no_proxy_settings  # noqa
 set_no_proxy_settings()
 
 # stdlib
 import logging
 import optparse
+import os
 import select
 import signal
 import socket
 import sys
-import zlib
-from time import time, sleep
 import threading
+from time import sleep, time
 from urllib import urlencode
+import zlib
 
-# project
-from aggregator import MetricsBucketAggregator, get_formatter
-from checks.check_status import DogstatsdStatus
-from config import get_config, get_version
-from daemon import Daemon, AgentSupervisor
-from util import get_hostname, plural, get_uuid, chunks
-from utils.pidfile import PidFile
+# For pickle & PID files, see issue 293
+os.umask(022)
 
 # 3rd party
 import requests
 import simplejson as json
+
+# project
+from aggregator import get_formatter, MetricsBucketAggregator
+from checks.check_status import DogstatsdStatus
+from config import get_config, get_version
+from daemon import AgentSupervisor, Daemon
+from util import chunks, get_hostname, get_uuid, plural
+from utils.pidfile import PidFile
 
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")

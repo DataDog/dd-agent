@@ -1,16 +1,16 @@
 # stdlib
-import subprocess
 import os
-import sys
 import re
+import subprocess
+import sys
 import traceback
+
+# 3rd party
+import pymysql
 
 # project
 from checks import AgentCheck
 from utils.platform import Platform
-
-# 3rd party
-import pymysql
 
 GAUGE = "gauge"
 RATE = "rate"

@@ -1,3 +1,4 @@
+# stdlib
 import atexit
 import cStringIO as StringIO
 import glob
@@ -9,6 +10,9 @@ import sys
 import tarfile
 import tempfile
 from time import strftime
+
+# 3p
+import requests
 
 # DD imports
 from checks.check_status import CollectorStatus, DogstatsdStatus, ForwarderStatus
@@ -22,9 +26,6 @@ from config import (
 )
 from util import get_hostname
 from utils.platform import Platform
-
-# 3p
-import requests
 
 # Globals
 log = logging.getLogger(__name__)

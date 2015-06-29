@@ -5,9 +5,8 @@ import urlparse
 import requests
 
 # project
-from util import headers
 from checks import AgentCheck
-
+from util import headers
 
 
 class Fluentd(AgentCheck):

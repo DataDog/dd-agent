@@ -1,9 +1,9 @@
 # stdlib
-import sys
-import time
 from datetime import datetime, timedelta
 import logging
 from operator import attrgetter
+import sys
+import time
 
 # project
 from checks.check_status import ForwarderStatus

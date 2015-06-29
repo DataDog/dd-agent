@@ -1,18 +1,18 @@
 # stdlib
 from datetime import datetime
 import os.path
+import re
 import socket
 import ssl
 import time
-import re
 from urlparse import urlparse
 
 # 3rd party
-import tornado
 import requests
+import tornado
 
 # project
-from checks.network_checks import NetworkCheck, Status, EventType
+from checks.network_checks import EventType, NetworkCheck, Status
 from config import _is_affirmative
 from util import headers as agent_headers
 

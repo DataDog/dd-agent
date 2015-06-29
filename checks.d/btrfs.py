@@ -1,16 +1,16 @@
 # stdlib
+import array
+from collections import defaultdict
+import fcntl
+import itertools
 import os
 import struct
-import array
-import itertools
-import fcntl
-from collections import defaultdict
-
-# project
-from checks import AgentCheck
 
 # 3rd party
 import psutil
+
+# project
+from checks import AgentCheck
 
 MIXED = "mixed"
 DATA = "data"

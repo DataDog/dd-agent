@@ -1,6 +1,8 @@
 # stdlib
-from setuptools import setup, find_packages
 import sys
+
+# 3p
+from setuptools import find_packages, setup
 
 # project
 from config import get_version
