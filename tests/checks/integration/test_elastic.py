@@ -1,6 +1,7 @@
 # stdlib
-import socket
 import os
+import time
+import socket
 
 # 3p
 import requests
@@ -9,6 +10,46 @@ from nose.plugins.attrib import attr
 # project
 from tests.checks.common import AgentCheckTest, load_check
 from config import get_version
+
+# Clusterwise metrics, pre aggregated on ES, compatible with all ES versions
+PRIMARY_SHARD_METRICS = {
+    "elasticsearch.primaries.docs.count": ("gauge", "_all.primaries.docs.count"),
+    "elasticsearch.primaries.docs.deleted": ("gauge", "_all.primaries.docs.deleted"),
+    "elasticsearch.primaries.store.size": ("gauge", "_all.primaries.store.size_in_bytes"),
+    "elasticsearch.primaries.indexing.index.total": ("gauge", "_all.primaries.indexing.index_total"),
+    "elasticsearch.primaries.indexing.index.time": ("gauge", "_all.primaries.indexing.index_time_in_millis", lambda v: float(v)/1000),
+    "elasticsearch.primaries.indexing.index.current": ("gauge", "_all.primaries.indexing.index_current"),
+    "elasticsearch.primaries.indexing.delete.total": ("gauge", "_all.primaries.indexing.delete_total"),
+    "elasticsearch.primaries.indexing.delete.time": ("gauge", "_all.primaries.indexing.delete_time_in_millis", lambda v: float(v)/1000),
+    "elasticsearch.primaries.indexing.delete.current": ("gauge", "_all.primaries.indexing.delete_current"),
+    "elasticsearch.primaries.get.total": ("gauge", "_all.primaries.get.total"),
+    "elasticsearch.primaries.get.time": ("gauge", "_all.primaries.get.time_in_millis", lambda v: float(v)/1000),
+    "elasticsearch.primaries.get.current": ("gauge", "_all.primaries.get.current"),
+    "elasticsearch.primaries.get.exists.total": ("gauge", "_all.primaries.get.exists_total"),
+    "elasticsearch.primaries.get.exists.time": ("gauge", "_all.primaries.get.exists_time_in_millis", lambda v: float(v)/1000),
+    "elasticsearch.primaries.get.missing.total": ("gauge", "_all.primaries.get.missing_total"),
+    "elasticsearch.primaries.get.missing.time": ("gauge", "_all.primaries.get.missing_time_in_millis", lambda v: float(v)/1000),
+    "elasticsearch.primaries.search.query.total": ("gauge", "_all.primaries.search.query_total"),
+    "elasticsearch.primaries.search.query.time": ("gauge", "_all.primaries.search.query_time_in_millis", lambda v: float(v)/1000),
+    "elasticsearch.primaries.search.query.current": ("gauge", "_all.primaries.search.query_current"),
+    "elasticsearch.primaries.search.fetch.total": ("gauge", "_all.primaries.search.fetch_total"),
+    "elasticsearch.primaries.search.fetch.time": ("gauge", "_all.primaries.search.fetch_time_in_millis", lambda v: float(v)/1000),
+    "elasticsearch.primaries.search.fetch.current": ("gauge", "_all.primaries.search.fetch_current")
+}
+
+PRIMARY_SHARD_METRICS_POST_1_0 = {
+    "elasticsearch.primaries.merges.current": ("gauge", "_all.primaries.merges.current"),
+    "elasticsearch.primaries.merges.current.docs": ("gauge", "_all.primaries.merges.current_docs"),
+    "elasticsearch.primaries.merges.current.size": ("gauge", "_all.primaries.merges.current_size_in_bytes"),
+    "elasticsearch.primaries.merges.total": ("gauge", "_all.primaries.merges.total"),
+    "elasticsearch.primaries.merges.total.time": ("gauge", "_all.primaries.merges.total_time_in_millis", lambda v: float(v)/1000),
+    "elasticsearch.primaries.merges.total.docs": ("gauge", "_all.primaries.merges.total_docs"),
+    "elasticsearch.primaries.merges.total.size": ("gauge", "_all.primaries.merges.total_size_in_bytes"),
+    "elasticsearch.primaries.refresh.total": ("gauge", "_all.primaries.refresh.total"),
+    "elasticsearch.primaries.refresh.total.time": ("gauge", "_all.primaries.refresh.total_time_in_millis", lambda v: float(v)/1000),
+    "elasticsearch.primaries.flush.total": ("gauge", "_all.primaries.flush.total"),
+    "elasticsearch.primaries.flush.total.time": ("gauge", "_all.primaries.flush.total_time_in_millis", lambda v: float(v)/1000)
+}
 
 STATS_METRICS = {  # Metrics that are common to all Elasticsearch versions
     "elasticsearch.docs.count": ("gauge", "indices.docs.count"),
@@ -152,7 +193,7 @@ class TestElastic(AgentCheckTest):
     def test_check(self):
         conf_hostname = "foo"
         port = 9200
-        bad_port = 9205
+        bad_port = 9405
         agent_config = {
             "hostname": conf_hostname, "version": get_version(),
             "api_key": "bar"
@@ -219,7 +260,6 @@ class TestElastic(AgentCheckTest):
                                         tags=bad_sc_tags,
                                         count=1)
 
-
         # Assert service metadata
         self.assertServiceMetadata(['version'], count=3)
 
@@ -283,6 +323,7 @@ class TestElastic(AgentCheckTest):
 
         # Set number of replicas to 0 for all indices
         requests.put('http://localhost:9200/_settings', data='{"index": {"number_of_replicas": 0}}')
+        time.sleep(5)
         # Now shards should be green
         self.run_check(config)
 
@@ -297,3 +338,40 @@ class TestElastic(AgentCheckTest):
             tags=['host:localhost', 'port:9200'],
             count=1
         )
+
+    def test_pshard_metrics(self):
+        """ Tests that the pshard related metrics are forwarded and that the
+        document count for primary indexes is twice smaller as the global
+        document count when "number_of_replicas" is set to 1 """
+        elastic_latency = 10
+
+        config = {'instances': [
+            {'url': 'http://localhost:9200', 'pshard_stats': True}
+        ]}
+        # Cleaning up everything won't hurt.
+        req = requests.get('http://localhost:9200/_cat/indices?v')
+        indices_info = req.text.split('\n')[1::-1]
+        for index_info in indices_info:
+            index_name = index_info.split()[1]
+            requests.delete('http://localhost:9200/' + index_name)
+
+        requests.put('http://localhost:9200/_settings', data='{"index": {"number_of_replicas": 1}}')
+        requests.put('http://localhost:9200/testindex/testtype/2', data='{"name": "Jane Doe", "age": 27}')
+        requests.put('http://localhost:9200/testindex/testtype/1', data='{"name": "John Doe", "age": 42}')
+
+        time.sleep(elastic_latency)
+
+        self.run_check(config)
+
+        pshard_stats_metrics = dict(PRIMARY_SHARD_METRICS)
+        if get_es_version() >= [1, 0, 0]:
+            pshard_stats_metrics.update(PRIMARY_SHARD_METRICS_POST_1_0)
+
+        for m_name, desc in pshard_stats_metrics.iteritems():
+            if desc[0] == "gauge":
+                self.assertMetric(m_name, count=1)
+
+        # Our pshard metrics are getting sent, let's check that they're accurate
+        # Note: please make sure you don't install Maven on the CI for future
+        # elastic search CI integrations. It would make the line below fail :/
+        self.assertMetric('elasticsearch.primaries.docs.count', value=2)

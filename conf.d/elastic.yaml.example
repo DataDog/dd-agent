@@ -15,10 +15,19 @@ instances:
   # This parameter was also called `is_external` and you can still use it but it
   # will be removed in version 6.
   #
+  # If you enable the "pshard_stats" flag, statistics over primary shards
+  # will be collected by the check and sent to the backend with the
+  # 'elasticsearch.primary' prefix. It is particularly useful if you want to
+  # get certain metrics without taking replicas into account. For instance,
+  # 'elasticsearch.primaries.docs.count` will give you the total number of
+  # documents in your indexes WITHOUT counting duplicates due to the existence
+  # of replica shards in your ES cluster
+  #
   - url: http://localhost:9200
     # username: username
     # password: password
-    # is_external: false
+    # cluster_stats: false
+    # pshard_stats: false
     # tags:
     #   - 'tag1:key1'
     #   - 'tag2:key2'
