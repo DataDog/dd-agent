@@ -88,7 +88,10 @@ def logger_info():
     if len(root_logger.handlers) > 0:
         for handler in root_logger.handlers:
             if isinstance(handler, logging.StreamHandler):
-                loggers.append(handler.stream.name)
+                try:
+                    loggers.append(handler.stream.name)
+                except AttributeError:
+                    loggers.append("unnamed stream")
             if isinstance(handler, logging.handlers.SysLogHandler):
                 if isinstance(handler.address, basestring):
                     loggers.append('syslog:%s' % handler.address)

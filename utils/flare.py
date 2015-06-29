@@ -228,8 +228,7 @@ class Flare(object):
             log.info("  * datadog-agent jmx {0} output".format(command))
             self._add_command_output_tar(
                 os.path.join('jmxinfo', '{0}.log'.format(command)),
-                partial(self._jmx_command_call, command),
-                'jmxfetch'
+                partial(self._jmx_command_call, command)
             )
 
         # java version
@@ -238,8 +237,7 @@ class Flare(object):
             os.path.join('jmxinfo', 'java_version.log'),
             # We use lambda so that JMXFetch.get_configuration is evaluated in _add_command_output_tar,
             # which captures the logging output from JMXFetch
-            lambda: self._java_version(JMXFetch.get_configuration(get_confd_path())[2]),
-            'jmxfetch'
+            lambda: self._java_version(JMXFetch.get_configuration(get_confd_path())[2])
         )
 
     # Check if the file is readable (and log it)
@@ -295,23 +293,14 @@ class Flare(object):
         return temp_path, password_found
 
     # Add output of the command to the tarfile
-    def _add_command_output_tar(self, name, command, logger_name=None):
+    def _add_command_output_tar(self, name, command):
         backup_out, backup_err = sys.stdout, sys.stderr
-        backup_handlers = logging.root.handlers[:]
         out, err = StringIO.StringIO(), StringIO.StringIO()
-        if logger_name:
-            # If specified, redirect logger output to `out`
-            logger = logging.getLogger(logger_name)
-            backup_logger_handlers = logger.handlers[:]
-            logger.handlers = [logging.StreamHandler(out)]
-            backup_logger_propagate = logger.propagate
-            logger.propagate = False
+        backup_handlers = logging.root.handlers[:]
+        logging.root.handlers = [logging.StreamHandler(out)]
         sys.stdout, sys.stderr = out, err
         command()
         sys.stdout, sys.stderr = backup_out, backup_err
-        if logger_name:
-            logger.handlers = backup_logger_handlers
-            logger.propagate = backup_logger_propagate
         logging.root.handlers = backup_handlers
         _, temp_path = tempfile.mkstemp(prefix='dd')
         with open(temp_path, 'w') as temp_file:
