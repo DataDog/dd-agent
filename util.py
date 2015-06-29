@@ -304,7 +304,11 @@ class GCE(object):
     def get_hostname(agentConfig):
         try:
             host_metadata = GCE._get_metadata(agentConfig)
-            return host_metadata['instance']['hostname'].split('.')[0]
+            hostname = host_metadata['instance']['hostname']
+            if agentConfig.get('gce_updated_hostname'):
+                return hostname
+            else:
+                return hostname.split('.')[0]
         except Exception:
             return None
 
