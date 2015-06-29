@@ -1,6 +1,5 @@
 # stdlib
 import os
-import time
 import socket
 
 # 3p
@@ -11,44 +10,52 @@ import requests
 from config import get_version
 from tests.checks.common import AgentCheckTest, load_check
 
-# Clusterwise metrics, pre aggregated on ES, compatible with all ES versions
-PRIMARY_SHARD_METRICS = {
-    "elasticsearch.primaries.docs.count": ("gauge", "_all.primaries.docs.count"),
-    "elasticsearch.primaries.docs.deleted": ("gauge", "_all.primaries.docs.deleted"),
-    "elasticsearch.primaries.store.size": ("gauge", "_all.primaries.store.size_in_bytes"),
-    "elasticsearch.primaries.indexing.index.total": ("gauge", "_all.primaries.indexing.index_total"),
-    "elasticsearch.primaries.indexing.index.time": ("gauge", "_all.primaries.indexing.index_time_in_millis", lambda v: float(v)/1000),
-    "elasticsearch.primaries.indexing.index.current": ("gauge", "_all.primaries.indexing.index_current"),
-    "elasticsearch.primaries.indexing.delete.total": ("gauge", "_all.primaries.indexing.delete_total"),
-    "elasticsearch.primaries.indexing.delete.time": ("gauge", "_all.primaries.indexing.delete_time_in_millis", lambda v: float(v)/1000),
-    "elasticsearch.primaries.indexing.delete.current": ("gauge", "_all.primaries.indexing.delete_current"),
-    "elasticsearch.primaries.get.total": ("gauge", "_all.primaries.get.total"),
-    "elasticsearch.primaries.get.time": ("gauge", "_all.primaries.get.time_in_millis", lambda v: float(v)/1000),
-    "elasticsearch.primaries.get.current": ("gauge", "_all.primaries.get.current"),
-    "elasticsearch.primaries.get.exists.total": ("gauge", "_all.primaries.get.exists_total"),
-    "elasticsearch.primaries.get.exists.time": ("gauge", "_all.primaries.get.exists_time_in_millis", lambda v: float(v)/1000),
-    "elasticsearch.primaries.get.missing.total": ("gauge", "_all.primaries.get.missing_total"),
-    "elasticsearch.primaries.get.missing.time": ("gauge", "_all.primaries.get.missing_time_in_millis", lambda v: float(v)/1000),
-    "elasticsearch.primaries.search.query.total": ("gauge", "_all.primaries.search.query_total"),
-    "elasticsearch.primaries.search.query.time": ("gauge", "_all.primaries.search.query_time_in_millis", lambda v: float(v)/1000),
-    "elasticsearch.primaries.search.query.current": ("gauge", "_all.primaries.search.query_current"),
-    "elasticsearch.primaries.search.fetch.total": ("gauge", "_all.primaries.search.fetch_total"),
-    "elasticsearch.primaries.search.fetch.time": ("gauge", "_all.primaries.search.fetch_time_in_millis", lambda v: float(v)/1000),
-    "elasticsearch.primaries.search.fetch.current": ("gauge", "_all.primaries.search.fetch_current")
+# Primary shard level metrics, these dicts are populated on the go when needed
+PRIMARY_SHARD_METRICS = {}
+PRIMARY_SHARD_METRICS_POST_1_0 = {}
+
+# Shard level metrics (also populated on the fly)
+SHARD_LEVEL_METRICS = {}
+SHARD_LEVEL_METRICS_POST_1_0 = {}
+
+# Shard-specific metrics
+SHARD_LEVEL_METRICS_SUFFIX = {
+    ".docs.count": ("gauge", "docs.count"),
+    ".docs.deleted": ("gauge", "docs.deleted"),
+    ".store.size": ("gauge", "store.size_in_bytes"),
+    ".indexing.index.total": ("gauge", "indexing.index_total"),
+    ".indexing.index.time": ("gauge", "indexing.index_time_in_millis", lambda v: float(v)/1000),
+    ".indexing.index.current": ("gauge", "indexing.index_current"),
+    ".indexing.delete.total": ("gauge", "indexing.delete_total"),
+    ".indexing.delete.time": ("gauge", "indexing.delete_time_in_millis", lambda v: float(v)/1000),
+    ".indexing.delete.current": ("gauge", "indexing.delete_current"),
+    ".get.total": ("gauge", "get.total"),
+    ".get.time": ("gauge", "get.time_in_millis", lambda v: float(v)/1000),
+    ".get.current": ("gauge", "get.current"),
+    ".get.exists.total": ("gauge", "get.exists_total"),
+    ".get.exists.time": ("gauge", "get.exists_time_in_millis", lambda v: float(v)/1000),
+    ".get.missing.total": ("gauge", "get.missing_total"),
+    ".get.missing.time": ("gauge", "get.missing_time_in_millis", lambda v: float(v)/1000),
+    ".search.query.total": ("gauge", "search.query_total"),
+    ".search.query.time": ("gauge", "search.query_time_in_millis", lambda v: float(v)/1000),
+    ".search.query.current": ("gauge", "search.query_current"),
+    ".search.fetch.total": ("gauge", "search.fetch_total"),
+    ".search.fetch.time": ("gauge", "search.fetch_time_in_millis", lambda v: float(v)/1000),
+    ".search.fetch.current": ("gauge", "search.fetch_current")
 }
 
-PRIMARY_SHARD_METRICS_POST_1_0 = {
-    "elasticsearch.primaries.merges.current": ("gauge", "_all.primaries.merges.current"),
-    "elasticsearch.primaries.merges.current.docs": ("gauge", "_all.primaries.merges.current_docs"),
-    "elasticsearch.primaries.merges.current.size": ("gauge", "_all.primaries.merges.current_size_in_bytes"),
-    "elasticsearch.primaries.merges.total": ("gauge", "_all.primaries.merges.total"),
-    "elasticsearch.primaries.merges.total.time": ("gauge", "_all.primaries.merges.total_time_in_millis", lambda v: float(v)/1000),
-    "elasticsearch.primaries.merges.total.docs": ("gauge", "_all.primaries.merges.total_docs"),
-    "elasticsearch.primaries.merges.total.size": ("gauge", "_all.primaries.merges.total_size_in_bytes"),
-    "elasticsearch.primaries.refresh.total": ("gauge", "_all.primaries.refresh.total"),
-    "elasticsearch.primaries.refresh.total.time": ("gauge", "_all.primaries.refresh.total_time_in_millis", lambda v: float(v)/1000),
-    "elasticsearch.primaries.flush.total": ("gauge", "_all.primaries.flush.total"),
-    "elasticsearch.primaries.flush.total.time": ("gauge", "_all.primaries.flush.total_time_in_millis", lambda v: float(v)/1000)
+SHARD_LEVEL_METRICS_POST_1_0_SUFFIX = {
+    ".merges.current": ("gauge", "merges.current"),
+    ".merges.current.docs": ("gauge", "merges.current_docs"),
+    ".merges.current.size": ("gauge", "merges.current_size_in_bytes"),
+    ".merges.total": ("gauge", "merges.total"),
+    ".merges.total.time": ("gauge", "merges.total_time_in_millis", lambda v: float(v)/1000),
+    ".merges.total.docs": ("gauge", "merges.total_docs"),
+    ".merges.total.size": ("gauge", "merges.total_size_in_bytes"),
+    ".refresh.total": ("gauge", "refresh.total"),
+    ".refresh.total.time": ("gauge", "refresh.total_time_in_millis", lambda v: float(v)/1000),
+    ".flush.total": ("gauge", "flush.total"),
+    ".flush.total.time": ("gauge", "flush.total_time_in_millis", lambda v: float(v)/1000)
 }
 
 STATS_METRICS = {  # Metrics that are common to all Elasticsearch versions
@@ -346,7 +353,8 @@ class TestElastic(AgentCheckTest):
 
         # Set number of replicas to 0 for all indices
         requests.put('http://localhost:9200/_settings', data='{"index": {"number_of_replicas": 0}}')
-        time.sleep(5)
+        # Let's wait a bit
+        requests.post('http://localhost:9200/_flush?wait_for_ongoing')
         # Now shards should be green
         self.run_check(config)
 
@@ -363,28 +371,35 @@ class TestElastic(AgentCheckTest):
         )
 
     def test_pshard_metrics(self):
-        """ Tests that the pshard related metrics are forwarded and that the
-        document count for primary indexes is twice smaller as the global
-        document count when "number_of_replicas" is set to 1 """
-        elastic_latency = 10
+        """ Tests that the pshard related metrics are forwarded  """
 
         config = {'instances': [
             {'url': 'http://localhost:9200', 'pshard_stats': True}
         ]}
         # Cleaning up everything won't hurt.
-        req = requests.get('http://localhost:9200/_cat/indices?v')
-        indices_info = req.text.split('\n')[1::-1]
-        for index_info in indices_info:
-            index_name = index_info.split()[1]
-            requests.delete('http://localhost:9200/' + index_name)
+        requests.delete('http://localhost:9200/_all/')
 
-        requests.put('http://localhost:9200/_settings', data='{"index": {"number_of_replicas": 1}}')
-        requests.put('http://localhost:9200/testindex/testtype/2', data='{"name": "Jane Doe", "age": 27}')
-        requests.put('http://localhost:9200/testindex/testtype/1', data='{"name": "John Doe", "age": 42}')
+        requests.put('http://localhost:9200/testindex/',
+                     data='{"settings": {"index": {"number_of_replicas": 1,'
+                          '"number_of_shards":5}}}')
+        requests.put('http://localhost:9200/testindex/testtype/2',
+                     data='{"name": "Jane Doe", "age": 27}')
+        requests.put('http://localhost:9200/testindex/testtype/1',
+                     data='{"name": "John Doe", "age": 42}')
 
-        time.sleep(elastic_latency)
+        # Let's wait for elasticsearch to process what we sent him
+        requests.post('http://localhost:9200/_flush?wait_for_ongoing')
 
         self.run_check(config)
+
+        # Let's populate the dicts of expected metrics
+        for k, v in SHARD_LEVEL_METRICS_SUFFIX.iteritems():
+            val = (v[0], '_all.primaries.{0}'.format(v[1]), v[2] if len(v) > 2 else None)
+            PRIMARY_SHARD_METRICS['elasticsearch.primaries{0}'.format(k)] = val
+
+        for k, v in SHARD_LEVEL_METRICS_POST_1_0_SUFFIX.iteritems():
+            val = (v[0], '_all.primaries.{0}'.format(v[1]), v[2] if len(v) > 2 else None)
+            PRIMARY_SHARD_METRICS_POST_1_0['elasticsearch.primaries{0}'.format(k)] = val
 
         pshard_stats_metrics = dict(PRIMARY_SHARD_METRICS)
         if get_es_version() >= [1, 0, 0]:
@@ -398,3 +413,43 @@ class TestElastic(AgentCheckTest):
         # Note: please make sure you don't install Maven on the CI for future
         # elastic search CI integrations. It would make the line below fail :/
         self.assertMetric('elasticsearch.primaries.docs.count', value=2)
+
+    def test_shard_level_metrics_and_service_checks(self):
+        """ Tests that when the option is set to true, the shard-level metrics
+        are sent as well as the service checks  """
+        config = {'instances': [
+            {'url': 'http://localhost:9200', 'shard_level_metrics': True}
+        ]}
+
+        requests.delete('http://localhost:9200/_all/')
+
+        requests.put('http://localhost:9200/testindex/',
+                     data='{"settings": {"index": {"number_of_replicas": 0,'
+                          '"number_of_shards":3}}}')
+        requests.put('http://localhost:9200/testindex/testtype/2',
+                     data='{"name": "Jane Doe", "age": 27}')
+
+        requests.post('http://localhost:9200/_flush?wait_for_ongoing')
+
+        self.run_check(config)
+
+        for k, v in SHARD_LEVEL_METRICS_SUFFIX.iteritems():
+            SHARD_LEVEL_METRICS['elasticsearch.shard{0}'.format(k)] = v
+
+        for k, v in SHARD_LEVEL_METRICS_POST_1_0_SUFFIX.iteritems():
+            SHARD_LEVEL_METRICS_POST_1_0['elasticsearch.shard{0}'.format(k)] = v
+
+        shard_level_metrics = dict(SHARD_LEVEL_METRICS)
+        if get_es_version() >= [1, 0, 0]:
+            shard_level_metrics.update(SHARD_LEVEL_METRICS_POST_1_0)
+
+        # Check for all the metrics
+        for m_name, desc in shard_level_metrics.iteritems():
+            if desc[0] == "gauge":
+                self.assertMetric(m_name, count=3)
+
+        # And for service checks as well
+        self.assertServiceCheckOK(
+            'elasticsearch.shard.state',
+            count=3
+        )
