@@ -113,7 +113,8 @@ SELECT mode,
 
     REL_METRICS = {
         'descriptors': [
-            ('relname', 'table')
+            ('relname', 'table'),
+            ('schemaname', 'schema'),
         ],
         'metrics': {
             'seq_scan'          : ('postgresql.seq_scans', RATE),
@@ -128,8 +129,7 @@ SELECT mode,
             'n_dead_tup'        : ('postgresql.dead_rows', GAUGE),
         },
         'query': """
-SELECT relname,
-       %s
+SELECT relname,schemaname,%s
   FROM pg_stat_user_tables
  WHERE relname = ANY(%s)""",
         'relation': True,
