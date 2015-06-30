@@ -717,7 +717,7 @@ class MetricsBucketAggregator(Aggregator):
     def __init__(self, hostname, interval=1.0, expiry_seconds=300,
             formatter=None, recent_point_threshold=None,
             histogram_aggregates=None, histogram_percentiles=None,
-            utf8_decoding=False):
+            utf8_decoding=False, host_tags=None):
         super(MetricsBucketAggregator, self).__init__(
             hostname,
             interval,
@@ -733,6 +733,7 @@ class MetricsBucketAggregator(Aggregator):
         self.current_bucket = None
         self.current_mbc = {}
         self.last_flush_cutoff_time = 0
+        self.host_tags = host_tags
         self.metric_type_to_class = {
             'g': BucketGauge,
             'c': Counter,
@@ -753,10 +754,19 @@ class MetricsBucketAggregator(Aggregator):
         # Keep hostname with empty string to unset it
         hostname = hostname if hostname is not None else self.hostname
 
+        host_tags = []
+        if self.host_tags is not None:
+            host_tags.extend([unicode(tag.strip()) for tag in self.host_tags.split(",")])
+
+        host_tags = tuple(host_tags) if host_tags else None
+
         if tags is None:
-            context = (name, tuple(), hostname, device_name)
-        else:
-            context = (name, tuple(sorted(set(tags))), hostname, device_name)
+            tags = host_tags
+        elif host_tags is not None:
+            tags += host_tags
+
+        context_tags = tuple() if tags is None else tuple(sorted(set(tags)))
+        context = (name, context_tags, hostname, device_name)
 
         cur_time = time()
         # Check to make sure that the timestamp that is passed in (if any) is not older than

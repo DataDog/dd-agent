@@ -98,6 +98,9 @@ use_mount: no
 #  Make sure your client is sending to the same port.
 # dogstatsd_port : 8125
 
+# Set default agent tags
+# dogstatsd_tags: mytag0,mytag1
+
 # By default dogstatsd will post aggregate metrics to the Agent (which handles
 # errors/timeouts/retries/etc). To send directly to the datadog api, set this
 # to https://app.datadoghq.com.

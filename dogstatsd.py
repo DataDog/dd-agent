@@ -380,6 +380,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     forward_to_port = c.get('statsd_forward_port')
     event_chunk_size = c.get('event_chunk_size')
     recent_point_threshold = c.get('recent_point_threshold', None)
+    agent_tags = c.get('dogstatsd_tags')
 
     target = c['dd_url']
     if use_forwarder:
@@ -398,7 +399,8 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         formatter=get_formatter(c),
         histogram_aggregates=c.get('histogram_aggregates'),
         histogram_percentiles=c.get('histogram_percentiles'),
-        utf8_decoding=c['utf8_decoding']
+        utf8_decoding=c['utf8_decoding'],
+        host_tags=agent_tags
     )
 
     # Start the reporting thread.
