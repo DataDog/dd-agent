@@ -9,6 +9,7 @@ instances:
 #      ssl_keyfile: /path/to/key/file
 # ssl_certfile: path to the certificate file used to communicate with etcd when client certificate authentication is enabled on etcd
 #      ssl_certfile: /path/to/certificate/file
-# ssl_cert_reqs: require verification SSL certificates for HTTPS requests (default: true), will take in the CA file if needed (choose one)
-#      ssl_cert_reqs: true
-#      ssl_cert_reqs: /path/to/CA/certificate/file
+# ssl_cert_validation: require verification of server's SSL certificates for HTTPS requests (default: true)
+#      ssl_cert_validation: true
+# ssl_ca_certs: if ssl_cert_validation is enabled, you can optionally provide a custom file that lists trusted CA certificates
+#      ssl_ca_certs: /path/to/CA/certificate/file

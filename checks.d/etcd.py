@@ -3,6 +3,7 @@ import requests
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 from util import headers
 
 
@@ -71,9 +72,10 @@ class Etcd(AgentCheck):
 
         # Load the ssl configuration
         ssl_params = {
-            'ssl_keyfile': instance.get('ssl_keyfile', None),
-            'ssl_certfile': instance.get('ssl_certfile', None),
-            'ssl_cert_reqs':  instance.get('ssl_cert_reqs', True)
+            'ssl_keyfile': instance.get('ssl_keyfile'),
+            'ssl_certfile': instance.get('ssl_certfile'),
+            'ssl_cert_validation': _is_affirmative(instance.get('ssl_cert_validation', True)),
+            'ssl_ca_certs': instance.get('ssl_ca_certs'),
         }
 
         for key, param in ssl_params.items():
@@ -155,8 +157,11 @@ class Etcd(AgentCheck):
 
     def _get_json(self, url, ssl_params, timeout):
         try:
-            certificate = (ssl_params['ssl_certfile'], ssl_params['ssl_keyfile']) if 'ssl_certfile' in ssl_params and 'ssl_keyfile' in ssl_params else None
-            r = requests.get(url, verify=ssl_params['ssl_cert_reqs'], cert=certificate, timeout=timeout, headers=headers(self.agentConfig))
+            certificate = None
+            if 'ssl_certfile' in ssl_params and 'ssl_keyfile' in ssl_params:
+                certificate = (ssl_params['ssl_certfile'], ssl_params['ssl_keyfile'])
+            verify = ssl_params.get('ssl_ca_certs', True) if ssl_params['ssl_cert_validation'] else False
+            r = requests.get(url, verify=verify, cert=certificate, timeout=timeout, headers=headers(self.agentConfig))
         except requests.exceptions.Timeout:
             # If there's a timeout
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
