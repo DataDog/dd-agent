@@ -98,11 +98,12 @@ class JMXFetch(object):
         except ValueError:
             log.exception("Unable to register signal handlers.")
 
-    def configure(self, checks_list=None):
+    def configure(self, checks_list=None, clean_status_file=True):
         """
         Instantiate JMXFetch parameters, clean potential previous run leftovers.
         """
-        JMXFiles.clean_status_file()
+        if clean_status_file:
+            JMXFiles.clean_status_file()
 
         self.jmx_checks, self.invalid_checks, self.java_bin_path, self.java_options, self.tools_jar_path = \
             self.get_configuration(self.confd_path, checks_list=checks_list)

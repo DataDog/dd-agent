@@ -210,35 +210,44 @@ class Flare(object):
             if self._can_read(file_path, output=False):
                 self._add_clean_confd(file_path)
 
-    # Collect JMXFetch-specific info and save to jmxinfo directory
+    # Collect JMXFetch-specific info and save to jmxinfo directory if jmx config
+    # files are present and valid
     def _add_jmxinfo_tar(self):
-        # status files (before listing beans because executing jmxfetch overwrites status files)
-        for file_name, file_path in [
-            (JMXFiles._STATUS_FILE, JMXFiles.get_status_file_path()),
-            (JMXFiles._PYTHON_STATUS_FILE, JMXFiles.get_python_status_file_path())
-        ]:
-            if self._can_read(file_path, warn=False):
-                self._tar.add(
-                    file_path,
-                    os.path.join(self._prefix, 'jmxinfo', file_name)
+        _, _, should_run_jmx = self._capture_output(self._should_run_jmx)
+        if should_run_jmx:
+            # status files (before listing beans because executing jmxfetch overwrites status files)
+            for file_name, file_path in [
+                (JMXFiles._STATUS_FILE, JMXFiles.get_status_file_path()),
+                (JMXFiles._PYTHON_STATUS_FILE, JMXFiles.get_python_status_file_path())
+            ]:
+                if self._can_read(file_path, warn=False):
+                    self._tar.add(
+                        file_path,
+                        os.path.join(self._prefix, 'jmxinfo', file_name)
+                    )
+
+            # beans lists
+            for command in ['list_matching_attributes', 'list_everything']:
+                log.info("  * datadog-agent jmx {0} output".format(command))
+                self._add_command_output_tar(
+                    os.path.join('jmxinfo', '{0}.log'.format(command)),
+                    partial(self._jmx_command_call, command)
                 )
 
-        # beans lists
-        for command in ['list_matching_attributes', 'list_everything']:
-            log.info("  * datadog-agent jmx {0} output".format(command))
+            # java version
+            log.info("  * java -version output")
             self._add_command_output_tar(
-                os.path.join('jmxinfo', '{0}.log'.format(command)),
-                partial(self._jmx_command_call, command)
+                os.path.join('jmxinfo', 'java_version.log'),
+                # We use lambda so that JMXFetch.get_configuration is evaluated in _add_command_output_tar,
+                # which captures the logging output from JMXFetch
+                lambda: self._java_version(JMXFetch.get_configuration(get_confd_path())[2])
             )
 
-        # java version
-        log.info("  * java -version output")
-        self._add_command_output_tar(
-            os.path.join('jmxinfo', 'java_version.log'),
-            # We use lambda so that JMXFetch.get_configuration is evaluated in _add_command_output_tar,
-            # which captures the logging output from JMXFetch
-            lambda: self._java_version(JMXFetch.get_configuration(get_confd_path())[2])
-        )
+    # Returns whether JMXFetch should run or not
+    def _should_run_jmx(self):
+        jmx_process = JMXFetch(get_confd_path(), self._config)
+        jmx_process.configure(clean_status_file=False)
+        return jmx_process.should_run()
 
     # Check if the file is readable (and log it)
     @classmethod
@@ -294,14 +303,7 @@ class Flare(object):
 
     # Add output of the command to the tarfile
     def _add_command_output_tar(self, name, command):
-        backup_out, backup_err = sys.stdout, sys.stderr
-        out, err = StringIO.StringIO(), StringIO.StringIO()
-        backup_handlers = logging.root.handlers[:]
-        logging.root.handlers = [logging.StreamHandler(out)]
-        sys.stdout, sys.stderr = out, err
-        command()
-        sys.stdout, sys.stderr = backup_out, backup_err
-        logging.root.handlers = backup_handlers
+        out, err, _ = self._capture_output(command)
         _, temp_path = tempfile.mkstemp(prefix='dd')
         with open(temp_path, 'w') as temp_file:
             temp_file.write(">>>> STDOUT <<<<\n")
@@ -312,6 +314,20 @@ class Flare(object):
             err.close()
         self._tar.add(temp_path, os.path.join(self._prefix, name))
         os.remove(temp_path)
+
+    # Capture the output of a command (from both std streams and loggers) and the
+    # value returned by the command
+    def _capture_output(self, command):
+        backup_out, backup_err = sys.stdout, sys.stderr
+        out, err = StringIO.StringIO(), StringIO.StringIO()
+        backup_handlers = logging.root.handlers[:]
+        logging.root.handlers = [logging.StreamHandler(out)]
+        sys.stdout, sys.stderr = out, err
+        return_value = command()
+        sys.stdout, sys.stderr = backup_out, backup_err
+        logging.root.handlers = backup_handlers
+
+        return out, err, return_value
 
     # Print supervisor status (and nothing on windows)
     def _supervisor_status(self):
