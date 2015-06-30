@@ -384,15 +384,19 @@ class Docker(AgentCheck):
             raise
 
         response = request.read()
-        response = response.replace('\n','') # Some Docker API versions occassionally send newlines in responses
-
+        response = response.replace('\n', '') # Some Docker API versions occassionally send newlines in responses
+        self.log.debug('Docker API response: %s', response)
         if multi and "}{" in response: # docker api sometimes returns juxtaposed json dictionaries
             response = "[{0}]".format(response.replace("}{", "},{"))
 
         if not response:
             return []
 
-        return json.loads(response)
+        try:
+            return json.loads(response)
+        except Exception as e:
+            self.log.error('Failed to parse Docker API response: %s', response)
+            raise
 
 
     # Cgroups
