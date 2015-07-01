@@ -11,6 +11,7 @@ import sys
 import tarfile
 import tempfile
 from time import strftime
+import traceback
 
 # 3p
 import requests
@@ -303,7 +304,7 @@ class Flare(object):
 
     # Add output of the command to the tarfile
     def _add_command_output_tar(self, name, command):
-        out, err, _ = self._capture_output(command)
+        out, err, _ = self._capture_output(command, print_exc_to_stderr=False)
         _, temp_path = tempfile.mkstemp(prefix='dd')
         with open(temp_path, 'w') as temp_file:
             temp_file.write(">>>> STDOUT <<<<\n")
@@ -317,15 +318,23 @@ class Flare(object):
 
     # Capture the output of a command (from both std streams and loggers) and the
     # value returned by the command
-    def _capture_output(self, command):
+    def _capture_output(self, command, print_exc_to_stderr=True):
         backup_out, backup_err = sys.stdout, sys.stderr
         out, err = StringIO.StringIO(), StringIO.StringIO()
         backup_handlers = logging.root.handlers[:]
         logging.root.handlers = [logging.StreamHandler(out)]
         sys.stdout, sys.stderr = out, err
-        return_value = command()
-        sys.stdout, sys.stderr = backup_out, backup_err
-        logging.root.handlers = backup_handlers
+        return_value = None
+        try:
+            return_value = command()
+        except Exception:
+            # Print the exception to either stderr or `err`
+            traceback.print_exc(file=backup_err if print_exc_to_stderr else err)
+        finally:
+            # Stop capturing in a `finally` block to reset std streams' and loggers'
+            # behaviors no matter what
+            sys.stdout, sys.stderr = backup_out, backup_err
+            logging.root.handlers = backup_handlers
 
         return out, err, return_value
 
