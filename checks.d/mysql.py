@@ -688,7 +688,7 @@ class MySql(AgentCheck):
             elif line.find('seconds the semaphore:') > 0:
                 # --Thread 907205 has waited at handler/ha_innodb.cc line 7156 for 1.00 seconds the semaphore:
                 results['Innodb_semaphore_waits'] += 1
-                results['Innodb_semaphore_wait_time'] += long(row[9]) * 1000
+                results['Innodb_semaphore_wait_time'] += long(float(row[9])) * 1000
 
             # TRANSACTIONS
             elif line.find('Trx id counter') == 0:
