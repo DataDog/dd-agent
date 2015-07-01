@@ -116,7 +116,8 @@ class Flare(object):
         self._add_command_output_tar('info.log', self._info_all)
         self._add_jmxinfo_tar()
         log.info("  * pip freeze")
-        self._add_command_output_tar('freeze.log', self._pip_freeze)
+        self._add_command_output_tar('freeze.log', self._pip_freeze,
+                                     command_desc="pip freeze --no-cache-dir")
 
         log.info("Saving all files to {0}".format(self._tar_path))
         self._tar.close()
@@ -237,11 +238,12 @@ class Flare(object):
 
             # java version
             log.info("  * java -version output")
+            _, _, java_bin_path = self._capture_output(
+                lambda: JMXFetch.get_configuration(get_confd_path())[2] or 'java')
             self._add_command_output_tar(
                 os.path.join('jmxinfo', 'java_version.log'),
-                # We use lambda so that JMXFetch.get_configuration is evaluated in _add_command_output_tar,
-                # which captures the logging output from JMXFetch
-                lambda: self._java_version(JMXFetch.get_configuration(get_confd_path())[2])
+                lambda: self._java_version(java_bin_path),
+                command_desc="{0} -version".format(java_bin_path)
             )
 
     # Returns whether JMXFetch should run or not
@@ -303,10 +305,14 @@ class Flare(object):
         return temp_path, password_found
 
     # Add output of the command to the tarfile
-    def _add_command_output_tar(self, name, command):
+    def _add_command_output_tar(self, name, command, command_desc=None):
         out, err, _ = self._capture_output(command, print_exc_to_stderr=False)
         _, temp_path = tempfile.mkstemp(prefix='dd')
         with open(temp_path, 'w') as temp_file:
+            if command_desc:
+                temp_file.write(">>>> CMD <<<<\n")
+                temp_file.write(command_desc)
+                temp_file.write("\n")
             temp_file.write(">>>> STDOUT <<<<\n")
             temp_file.write(out.getvalue())
             out.close()
@@ -406,7 +412,6 @@ class Flare(object):
 
     # Print java version
     def _java_version(self, java_bin_path):
-        java_bin_path = java_bin_path or 'java'
         try:
             self._print_output_command([java_bin_path, '-version'])
         except OSError:
