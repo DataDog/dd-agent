@@ -393,7 +393,7 @@ class Flare(object):
         try:
             status = subprocess.check_output(command, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError, e:
-            status = 'Not able to get ouput, exit number {0}, exit ouput:\n'\
+            status = 'Not able to get output, exit number {0}, exit output:\n'\
                      '{1}'.format(str(e.returncode), e.output)
         print status
 
