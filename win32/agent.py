@@ -28,7 +28,7 @@ import dogstatsd
 from emitter import http_emitter
 from jmxfetch import JMXFetch
 import modules
-from util import get_hostname, get_os
+from util import get_hostname
 from utils.jmx import JMXFiles
 from utils.profile import AgentProfiler
 
@@ -320,8 +320,7 @@ class JMXFetchProcess(multiprocessing.Process):
         self.hostname = hostname
 
         try:
-            osname = get_os()
-            confd_path = get_confd_path(osname)
+            confd_path = get_confd_path()
             self.jmx_daemon = JMXFetch(confd_path, agentConfig)
             self.jmx_daemon.configure()
             self.is_enabled = self.jmx_daemon.should_run()

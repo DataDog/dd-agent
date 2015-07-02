@@ -45,7 +45,7 @@ from config import (
     get_config_path,
     get_version,
 )
-from util import get_os, yLoader
+from util import yLoader
 
 log = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ SYSTEM_TRAY_MENU = [
 
 def get_checks():
     checks = {}
-    conf_d_directory = get_confd_path(get_os())
+    conf_d_directory = get_confd_path()
 
     for filename in sorted(os.listdir(conf_d_directory)):
         module_name, ext = osp.splitext(filename)

@@ -9,7 +9,7 @@ import yaml
 
 # datadog
 from config import _windows_commondata_path, get_confd_path
-from util import get_os, yDumper
+from util import yDumper
 from utils.pidfile import PidFile
 from utils.platform import Platform
 
@@ -36,7 +36,7 @@ def jmx_command(args, agent_config, redirect_std_streams=False):
     else:
         jmx_command = args[0]
         checks_list = args[1:]
-        confd_directory = get_confd_path(get_os())
+        confd_directory = get_confd_path()
 
         jmx_process = JMXFetch(confd_directory, agent_config)
         jmx_process.configure()

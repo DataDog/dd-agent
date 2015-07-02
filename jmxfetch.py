@@ -17,7 +17,7 @@ from config import (
     get_logging_config,
     PathNotFound,
 )
-from util import get_os, yLoader
+from util import yLoader
 from utils.jmx import JMXFiles
 from utils.platform import Platform
 from utils.subprocess_output import subprocess
@@ -416,9 +416,8 @@ class JMXFetch(object):
 
 def init(config_path=None):
     agentConfig = get_config(parse_args=False, cfg_path=config_path)
-    osname = get_os()
     try:
-        confd_path = get_confd_path(osname)
+        confd_path = get_confd_path()
     except PathNotFound, e:
         log.error("No conf.d folder found at '%s' or in the directory where"
                   "the Agent is currently deployed.\n" % e.args[0])
