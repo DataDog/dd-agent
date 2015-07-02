@@ -30,7 +30,7 @@ from util import (
     get_uuid,
     Timer,
 )
-from utils.jmxfiles import JMXFiles
+from utils.jmx import JMXFiles
 from utils.subprocess_output import subprocess
 
 log = logging.getLogger(__name__)

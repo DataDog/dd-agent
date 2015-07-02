@@ -17,8 +17,8 @@ from config import (
     get_logging_config,
     PathNotFound,
 )
-from util import get_os, yLoader
-from utils.jmxfiles import JMXFiles
+from util import yLoader
+from utils.jmx import JMXFiles
 from utils.platform import Platform
 from utils.subprocess_output import subprocess
 
@@ -98,14 +98,15 @@ class JMXFetch(object):
         except ValueError:
             log.exception("Unable to register signal handlers.")
 
-    def configure(self, check_list=None):
+    def configure(self, checks_list=None, clean_status_file=True):
         """
         Instantiate JMXFetch parameters, clean potential previous run leftovers.
         """
-        JMXFiles.clean_status_file()
+        if clean_status_file:
+            JMXFiles.clean_status_file()
 
         self.jmx_checks, self.invalid_checks, self.java_bin_path, self.java_options, self.tools_jar_path = \
-            self.get_configuration(check_list)
+            self.get_configuration(self.confd_path, checks_list=checks_list)
 
     def should_run(self):
         """
@@ -113,12 +114,20 @@ class JMXFetch(object):
         """
         return self.jmx_checks is not None and self.jmx_checks != []
 
-    def run(self, command=None, check_list=None, reporter=None):
+    def run(self, command=None, checks_list=None, reporter=None, redirect_std_streams=False):
+        """
+        Run JMXFetch
 
-        if check_list or self.jmx_checks is None:
-            # (Re)set/(re)configure JMXFetch parameters when `check_list` is specified or
+        redirect_std_streams: if left to False, the stdout and stderr of JMXFetch are streamed
+        directly to the environment's stdout and stderr and cannot be retrieved via python's
+        sys.stdout and sys.stderr. Set to True to redirect these streams to python's sys.stdout
+        and sys.stderr.
+        """
+
+        if checks_list or self.jmx_checks is None:
+            # (Re)set/(re)configure JMXFetch parameters when `checks_list` is specified or
             # no configuration was found
-            self.configure(check_list)
+            self.configure(checks_list)
 
         try:
             command = command or JMX_COLLECT_COMMAND
@@ -131,7 +140,7 @@ class JMXFetch(object):
 
             if len(self.jmx_checks) > 0:
                 return self._start(self.java_bin_path, self.java_options, self.jmx_checks,
-                                   command, reporter, self.tools_jar_path)
+                                   command, reporter, self.tools_jar_path, redirect_std_streams)
             else:
                 # We're exiting purposefully, so exit with zero (supervisor's expected
                 # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly
@@ -142,9 +151,10 @@ class JMXFetch(object):
             log.exception("Error while initiating JMXFetch")
             raise
 
-    def get_configuration(self, checks_list=None):
+    @classmethod
+    def get_configuration(cls, confd_path, checks_list=None):
         """
-        Return a tuple (jmx_checks, invalid_checks, java_bin_path, java_options)
+        Return a tuple (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path)
 
         jmx_checks: list of yaml files that are jmx checks
         (they have the is_jmx flag enabled or they are in JMX_CHECKS)
@@ -173,7 +183,7 @@ class JMXFetch(object):
         tools_jar_path = None
         invalid_checks = {}
 
-        for conf in glob.glob(os.path.join(self.confd_path, '*.yaml')):
+        for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
             filename = os.path.basename(conf)
             check_name = filename.split('.')[0]
 
@@ -190,7 +200,7 @@ class JMXFetch(object):
 
                 try:
                     is_jmx, check_java_bin_path, check_java_options, check_tools_jar_path = \
-                        self._is_jmx_check(check_config, check_name, checks_list)
+                        cls._is_jmx_check(check_config, check_name, checks_list)
                     if is_jmx:
                         jmx_checks.append(filename)
                         if java_bin_path is None and check_java_bin_path is not None:
@@ -207,7 +217,7 @@ class JMXFetch(object):
 
         return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path)
 
-    def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path):
+    def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path, redirect_std_streams):
         statsd_port = self.agentConfig.get('dogstatsd_port', "8125")
         if reporter is None:
             reporter = "statsd:%s" % str(statsd_port)
@@ -260,14 +270,27 @@ class JMXFetch(object):
                 subprocess_args.insert(1, opt)
 
             log.info("Running %s" % " ".join(subprocess_args))
-            jmx_process = subprocess.Popen(subprocess_args, close_fds=True)
+
+            # Launch JMXfetch subprocess
+            jmx_process = subprocess.Popen(
+                subprocess_args,
+                close_fds=not redirect_std_streams,  # set to True instead of False when the streams are redirected for WIN compatibility
+                stdout=subprocess.PIPE if redirect_std_streams else None,
+                stderr=subprocess.PIPE if redirect_std_streams else None
+            )
             self.jmx_process = jmx_process
 
             # Register SIGINT and SIGTERM signal handlers
             self.register_signal_handlers()
 
-            # Wait for JMXFetch to return
-            jmx_process.wait()
+            if redirect_std_streams:
+                # Wait for JMXFetch to return, and write out the stdout and stderr of JMXFetch to sys.stdout and sys.stderr
+                out, err = jmx_process.communicate()
+                sys.stdout.write(out)
+                sys.stderr.write(err)
+            else:
+                # Wait for JMXFetch to return
+                jmx_process.wait()
 
             return jmx_process.returncode
 
@@ -285,7 +308,8 @@ class JMXFetch(object):
             log.exception("Couldn't launch JMXFetch")
             raise
 
-    def _is_jmx_check(self, check_config, check_name, checks_list):
+    @staticmethod
+    def _is_jmx_check(check_config, check_name, checks_list):
         init_config = check_config.get('init_config', {}) or {}
         java_bin_path = None
         java_options = None
@@ -392,9 +416,8 @@ class JMXFetch(object):
 
 def init(config_path=None):
     agentConfig = get_config(parse_args=False, cfg_path=config_path)
-    osname = get_os()
     try:
-        confd_path = get_confd_path(osname)
+        confd_path = get_confd_path()
     except PathNotFound, e:
         log.error("No conf.d folder found at '%s' or in the directory where"
                   "the Agent is currently deployed.\n" % e.args[0])
