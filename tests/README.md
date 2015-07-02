@@ -22,6 +22,16 @@ They mainly concern the core of the Datadog agent:
 rake ci:run
 ```
 
+To run individual tests using [nosetests](https://nose.readthedocs.org/en/latest/):
+```
+# Whole file
+$ nosetests tests/checks/mock/test_system_swap.py
+# Whole class
+$ nosetests tests/checks/mock/test_system_swap.py:SystemSwapTestCase
+# Single test case
+$ nosetests tests/checks/mock/test_system_swap.py:SystemSwapTestCase.test_system_swap
+```
+
 # Integration tests
 
 They ensure that the agent is correctly talking to third party software which is necessary for most checks.
