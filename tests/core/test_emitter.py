@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
+# 3p
 import unittest
+
+# project
 from emitter import remove_control_chars
+
 
 class TestEmitter(unittest.TestCase):
 

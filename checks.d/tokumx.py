@@ -2,10 +2,6 @@
 import time
 import types
 
-# project
-from checks import AgentCheck
-from util import get_hostname
-
 # 3p
 from pymongo import (
     MongoClient,
@@ -13,6 +9,10 @@ from pymongo import (
     uri_parser,
     version as py_version,
 )
+
+# project
+from checks import AgentCheck
+from util import get_hostname
 
 DEFAULT_TIMEOUT = 10
 

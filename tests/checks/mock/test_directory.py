@@ -1,9 +1,10 @@
+# stdlib
 from itertools import product
 import os
-import tempfile
 import shutil
+import tempfile
 
-
+# project
 from tests.checks.common import AgentCheckTest
 
 

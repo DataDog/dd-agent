@@ -1,8 +1,11 @@
 # stdlib
+import calendar
+from datetime import datetime
 import logging
 import os
 import re
 from tempfile import gettempdir, NamedTemporaryFile
+import time
 import unittest
 
 # project
@@ -47,13 +50,10 @@ class ParseClassPlugin(object):
         res[3] = {'metric_type': 'counter'}
         return tuple(res)
 
-import time
-from datetime import datetime
-import calendar
 
 log_event_pattern = re.compile("".join([
-    r"(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) ", # iso timestamp
-    r"\[(?P<alert_type>(ERROR)|(RECOVERY))\] - ", # alert type
+    r"(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) ",  # iso timestamp
+    r"\[(?P<alert_type>(ERROR)|(RECOVERY))\] - ",  # alert type
     r"(?P<msg_title>(?P<host>[^ ]*).*)"
 ]))
 alert_types = {

@@ -7,11 +7,11 @@ for information on how to report the metrics available in the sys.dm_os_performa
 # stdlib
 import traceback
 
-# project
-from checks import AgentCheck
-
 # 3rd party
 import adodbapi
+
+# project
+from checks import AgentCheck
 
 ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')

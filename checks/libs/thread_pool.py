@@ -19,10 +19,10 @@
 #
 # The methods of a Pool object use all these concepts and expose
 # them to their caller in a very simple way.
-
+# stdlib
+import Queue
 import sys
 import threading
-import Queue
 import traceback
 
 

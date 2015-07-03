@@ -25,7 +25,7 @@ class PidFile(object):
             run_dir = os.path.join(run_dir, 'run')
 
         if os.path.exists(run_dir) and os.access(run_dir, os.W_OK):
-            return run_dir
+            return os.path.realpath(run_dir)
         else:
             return tempfile.gettempdir()
 

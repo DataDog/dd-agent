@@ -9,7 +9,7 @@ from nose.plugins.attrib import attr
 import nose.tools as nt
 
 # project
-from aggregator import MetricsAggregator, get_formatter, DEFAULT_HISTOGRAM_AGGREGATES
+from aggregator import DEFAULT_HISTOGRAM_AGGREGATES, get_formatter, MetricsAggregator
 
 
 class TestUnitDogStatsd(unittest.TestCase):

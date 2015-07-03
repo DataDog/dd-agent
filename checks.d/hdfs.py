@@ -1,9 +1,9 @@
-# project
-from checks import AgentCheck
-
 # 3rd party
 import snakebite.client
 import snakebite.version
+
+# project
+from checks import AgentCheck
 
 # This is only available on snakebite >= 2.2.0
 # but snakebite 2.x is only compatible with hadoop >= 2.2.0

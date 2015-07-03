@@ -2,21 +2,23 @@
 Monitor the Windows Event Log
 '''
 # stdlib
-from datetime import datetime, timedelta
 import calendar
-
-# project
-from checks import AgentCheck
+from datetime import datetime, timedelta
 
 # 3rd party
 import wmi
 
+# project
+from checks import AgentCheck
+
 SOURCE_TYPE_NAME = 'event viewer'
 EVENT_TYPE = 'win32_log_event'
 
+
 class Win32EventLog(AgentCheck):
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig,
+                            instances=instances)
         self.last_ts = {}
         self.wmi_conns = {}
 
@@ -185,7 +187,7 @@ class LogEvent(object):
             tz_delta = - tz_delta
 
         dt = datetime(year=year, month=month, day=day, hour=hour, minute=minute,
-            second=second, microsecond=microsecond) + tz_delta
+                      second=second, microsecond=microsecond) + tz_delta
         return int(calendar.timegm(dt.timetuple()))
 
     def _msg_title(self, event):

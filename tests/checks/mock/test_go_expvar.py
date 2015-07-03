@@ -1,8 +1,12 @@
+# stdlib
 from collections import defaultdict
 import copy
-import simplejson as json
 import time
 
+# 3p
+import simplejson as json
+
+# project
 from tests.checks.common import AgentCheckTest, Fixtures
 
 

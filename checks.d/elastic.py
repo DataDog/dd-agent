@@ -1,5 +1,5 @@
 # stdlib
-from collections import namedtuple, defaultdict
+from collections import defaultdict, namedtuple
 import time
 import urlparse
 

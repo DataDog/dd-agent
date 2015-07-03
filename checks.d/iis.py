@@ -1,11 +1,11 @@
 '''
 Check the performance counters from IIS
 '''
-# project
-from checks import AgentCheck
-
 # 3rd party
 import wmi
+
+# project
+from checks import AgentCheck
 
 
 class IIS(AgentCheck):

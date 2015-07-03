@@ -1,7 +1,11 @@
+# stdlib
 import unittest
+
+# 3p
 from nose.plugins.attrib import attr
 
-from tests.checks.common import load_check, Fixtures
+# project
+from tests.checks.common import Fixtures, load_check
 
 
 @attr(requires='nginx')

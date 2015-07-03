@@ -1,19 +1,20 @@
 # stdlib
 import copy
 import inspect
+from itertools import product
 import logging
 import os
+from pprint import pformat
 import signal
 import sys
 import time
 import traceback
 import unittest
-from pprint import pformat
 
 # project
 from checks import AgentCheck
 from config import get_checksd_path
-from util import get_os, get_hostname
+from util import get_hostname, get_os
 from utils.debug import get_check  # noqa -  FIXME 5.5.0 AgentCheck tests should not use this
 
 log = logging.getLogger('tests')
@@ -169,12 +170,16 @@ class AgentCheckTest(unittest.TestCase):
         self.metrics = self.check.get_metrics()
         self.events = self.check.get_events()
         self.service_checks = self.check.get_service_checks()
-        self.service_metadata = self.check.get_service_metadata()
+        self.service_metadata = []
         self.warnings = self.check.get_warnings()
 
-        # pylint doesn't understand that we are raising this only if it's here
+        # clean {} service_metadata (otherwise COVERAGE fails for nothing)
+        for metadata in self.check.get_service_metadata():
+            if metadata:
+                self.service_metadata.append(metadata)
+
         if error is not None:
-            raise error  # pylint: disable=E0702
+            raise error
 
     def print_current_state(self):
         log.debug("""++++++++ CURRENT STATE ++++++++
@@ -200,53 +205,41 @@ WARNINGS
             warnings=pformat(self.warnings)
         ))
 
+    def _generate_coverage_metrics(self, data, indice=None):
+        total = len(data)
+        tested = 0
+        untested = []
+
+        for d in data:
+            if (indice and d[indice] or d).get('tested'):
+                tested += 1
+            else:
+                untested.append(d)
+        if total == 0:
+            coverage = 100.0
+        else:
+            coverage = 100.0 * tested / total
+        return tested, total, coverage, untested
+
     def coverage_report(self):
-        total_metrics = len(self.metrics)
-        tested_metrics = 0
-        untested_metrics = []
-        for m in self.metrics:
-            if m[3].get('tested'):
-                tested_metrics += 1
-            else:
-                untested_metrics.append(m)
-        if total_metrics == 0:
-            coverage_metrics = 100.0
-        else:
-            coverage_metrics = 100.0 * tested_metrics / total_metrics
-
-        total_sc = len(self.service_checks)
-        tested_sc = 0
-        untested_sc = []
-        for sc in self.service_checks:
-            if sc.get('tested'):
-                tested_sc += 1
-            else:
-                untested_sc.append(sc)
-
-        if total_sc == 0:
-            coverage_sc = 100.0
-        else:
-            coverage_sc = 100.0 * tested_sc / total_sc
-
-        total_sm = len(self.service_metadata)
-        tested_sm = 0
-        untested_sm = []
-        for sm in self.service_metadata:
-            if sm.get('tested'):
-                tested_sm += 1
-            else:
-                untested_sm.append(sm)
-
-        if total_sm == 0:
-            coverage_sm = 100.0
-        else:
-            coverage_sm = 100.0 * tested_sm / total_sm
+        tested_metrics, total_metrics, coverage_metrics, untested_metrics = \
+            self._generate_coverage_metrics(self.metrics, indice=3)
+        tested_sc, total_sc, coverage_sc, untested_sc = \
+            self._generate_coverage_metrics(self.service_checks)
+        tested_sm, total_sm, coverage_sm, untested_sm = \
+            self._generate_coverage_metrics(self.service_metadata)
+        tested_events, total_events, coverage_events, untested_events = \
+            self._generate_coverage_metrics(self.events)
 
         coverage = """Coverage
 ========================================
     METRICS
         Tested {tested_metrics}/{total_metrics} ({coverage_metrics}%)
         UNTESTED: {untested_metrics}
+
+    EVENTS
+        Tested {tested_events}/{total_events} ({coverage_events}%)
+        UNTESTED: {untested_events}
 
     SERVICE CHECKS
         Tested {tested_sc}/{total_sc} ({coverage_sc}%)
@@ -269,10 +262,15 @@ WARNINGS
             total_sm=total_sm,
             coverage_sm=coverage_sm,
             untested_sm=pformat(untested_sm),
+            tested_events=tested_events,
+            total_events=total_events,
+            coverage_events=coverage_events,
+            untested_events=pformat(untested_events),
         ))
 
         if os.getenv('COVERAGE'):
             self.assertEquals(coverage_metrics, 100.0)
+            self.assertEquals(coverage_events, 100.0)
             self.assertEquals(coverage_sc, 100.0)
             self.assertEquals(coverage_sm, 100.0)
 
@@ -497,7 +495,48 @@ WARNINGS
             self._candidates_size_assert(candidates, count=count, at_least=at_least)
         except AssertionError:
             log.error("Candidates size assertion for {0}, count: {1}, "
-                "at_least: {2}) failed".format(warning, count, at_least))
+                      "at_least: {2}) failed".format(warning, count, at_least))
             raise
 
         log.debug("{0} FOUND !".format(warning))
+
+    # Potential kwargs: aggregation_key, alert_type, event_type,
+    # msg_title, source_type_name
+    def assertEvent(self, msg_text, count=None, at_least=1, exact_match=True,
+                    tags=None, **kwargs):
+        log.debug("Looking for event {0}".format(msg_text))
+        if tags is not None:
+            log.debug(" * tagged with {0}".format(tags))
+        for name, value in kwargs.iteritems():
+            if value is not None:
+                log.debug(" * with {0} {1}".format(name, value))
+        if count is not None:
+            log.debug(" * should have exactly {0} events".format(count))
+        elif at_least is not None:
+            log.debug(" * should have at least {0} events".format(count))
+
+        candidates = []
+        for e in self.events:
+            if exact_match and msg_text != e['msg_text'] or \
+                    not exact_match and msg_text not in e['msg_text']:
+                continue
+            if tags and set(tags) != set(e['tags']):
+                continue
+            for name, value in kwargs.iteritems():
+                if e[name] != value:
+                    break
+            else:
+                candidates.append(e)
+
+        try:
+            self._candidates_size_assert(candidates, count=count, at_least=at_least)
+        except AssertionError:
+            log.error("Candidates size assertion for {0}, count: {1}, "
+                      "at_least: {2}) failed".format(msg_text, count, at_least))
+            raise
+
+        for ev, ec in product(self.events, candidates):
+            if ec == ev:
+                ev['tested'] = True
+
+        log.debug("{0} FOUND !".format(msg_text))

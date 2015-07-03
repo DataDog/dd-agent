@@ -1,5 +1,9 @@
-from checks import AgentCheck
+# 3p
 import psutil
+
+# project
+from checks import AgentCheck
+
 
 class SystemSwap(AgentCheck):
 

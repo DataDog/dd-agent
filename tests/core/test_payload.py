@@ -1,10 +1,11 @@
+# stdlib
 import unittest
+
+#  3p
+from mock import Mock
 
 # project
 from checks.collector import AgentPayload
-
-# 3p
-from mock import Mock
 
 
 class TestAgentPayload(unittest.TestCase):

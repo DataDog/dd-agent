@@ -2,13 +2,15 @@
 
 Collects database-wide metrics and optionally per-relation metrics, custom metrics.
 """
-# project
-from checks import AgentCheck, CheckException
+# stdlib
+import socket
 
 # 3rd party
 import pg8000 as pg
 from pg8000 import InterfaceError, ProgrammingError
-import socket
+
+# project
+from checks import AgentCheck, CheckException
 
 
 MAX_CUSTOM_RESULTS = 100

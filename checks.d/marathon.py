@@ -1,11 +1,12 @@
 # stdlib
 from urlparse import urljoin
 
+# 3rd party
+import requests
+
 # project
 from checks import AgentCheck
 
-# 3rd party
-import requests
 
 class Marathon(AgentCheck):
 

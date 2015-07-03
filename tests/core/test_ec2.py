@@ -1,7 +1,9 @@
 # stdlib
-import unittest
-import types
 import time
+import types
+
+# 3p
+import unittest
 
 # project
 from util import EC2

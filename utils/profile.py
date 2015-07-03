@@ -1,8 +1,8 @@
 # stdlib
-import cProfile
+import cProfile  # noqa, it seems that import-names thinks it's not stdlib
 from cStringIO import StringIO
 import logging
-import pstats
+import pstats  # noqa, same here
 
 log = logging.getLogger('collector')
 

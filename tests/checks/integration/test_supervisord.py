@@ -1,9 +1,12 @@
+# stdlib
 import os
 from time import sleep
-
-from nose.plugins.attrib import attr
 import unittest
 
+# 3p
+from nose.plugins.attrib import attr
+
+# project
 from tests.checks.common import get_check
 
 

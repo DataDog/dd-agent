@@ -24,7 +24,7 @@ import yaml
 
 # project
 from checks import check_status
-from util import LaconicFilter, get_hostname, get_next_id, yLoader
+from util import get_hostname, get_next_id, LaconicFilter, yLoader
 from utils.platform import Platform
 from utils.profile import pretty_statistics
 if Platform.is_windows():

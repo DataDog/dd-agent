@@ -1,15 +1,16 @@
 # stdlib
-import re
 from collections import defaultdict
-
-# project
-from checks import AgentCheck
+import re
 
 # 3rd party
 import requests
 
+# project
+from checks import AgentCheck
+
 db_stats = re.compile(r'^db_(\d)+$')
 whitespace = re.compile(r'\s')
+
 
 class KyotoTycoonCheck(AgentCheck):
     """Report statistics about the Kyoto Tycoon DBM-style
