@@ -191,10 +191,12 @@ class MesosMaster(AgentCheck):
         state_metrics = self._check_leadership(url, timeout)
         if state_metrics:
             tags = [
-                'mesos_cluster:{0}'.format(state_metrics['cluster']),
                 'mesos_pid:{0}'.format(state_metrics['pid']),
-                'mesos_node:master'
+                'mesos_node:master',
             ]
+            if 'cluster' in state_metrics:
+                tags.append('mesos_cluster:{0}'.format(state_metrics['cluster']))
+
             tags += instance_tags
 
             if self.leader:

@@ -104,7 +104,7 @@ class Varnish(AgentCheck):
 
     def _get_varnishstat_output(self, cmd):
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
+                                stderr=subprocess.PIPE)
         output, error = proc.communicate()
         if error and len(error) > 0:
             self.log.error(error)

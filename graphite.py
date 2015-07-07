@@ -1,11 +1,13 @@
-import struct
-import logging
+# stdlib
 import cPickle as pickle
+import logging
+import struct
+
+# 3p
 from tornado.ioloop import IOLoop
 from tornado.tcpserver import TCPServer
 
 log = logging.getLogger(__name__)
-
 
 
 class GraphiteServer(TCPServer):

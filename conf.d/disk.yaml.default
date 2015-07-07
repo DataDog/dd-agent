@@ -6,8 +6,8 @@ instances:
   - use_mount: no
     # The (optional) excluded_filesystems parameter will instruct the check to
     # ignore disks using these filesystems
-    excluded_filesystems:
-      - tmpfs
+    # excluded_filesystems:
+    #   - tmpfs
 
     # The (optional) excluded_disks parameter will instruct the check to
     # ignore this list of disks
@@ -24,6 +24,6 @@ instances:
     # tag_by_filesystem: no
     #
     # The (optional) all_partitions parameter will instruct the check to
-    # only get metrics for physical disks if set to no
-    # all_partitions: yes
-
+    # get metrics for all partitions. use_mount should be set to yes (to avoid
+    # collecting empty device names) when using this option.
+    # all_partitions: no

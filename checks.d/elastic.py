@@ -1,7 +1,5 @@
 # stdlib
-from collections import namedtuple, defaultdict
-import socket
-import subprocess
+from collections import defaultdict, namedtuple
 import time
 import urlparse
 
@@ -11,7 +9,6 @@ import requests
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-from utils.platform import Platform
 from util import headers
 
 
@@ -21,7 +18,7 @@ class NodeNotFound(Exception):
 
 ESInstanceConfig = namedtuple(
     'ESInstanceConfig', [
-        'is_external',
+        'cluster_stats',
         'password',
         'service_check_tags',
         'tags',
@@ -183,7 +180,9 @@ class ESCheck(AgentCheck):
         if url is None:
             raise Exception("An url must be specified in the instance")
 
-        is_external = _is_affirmative(instance.get('is_external', False))
+        cluster_stats = _is_affirmative(instance.get('cluster_stats', False))
+        if 'is_external' in instance:
+            cluster_stats = _is_affirmative(instance.get('is_external', False))
 
         # Support URLs that have a path in them from the config, for
         # backwards-compatibility.
@@ -205,7 +204,7 @@ class ESCheck(AgentCheck):
         timeout = instance.get('timeout') or self.DEFAULT_TIMEOUT
 
         config = ESInstanceConfig(
-            is_external=is_external,
+            cluster_stats=cluster_stats,
             password=instance.get('password'),
             service_check_tags=service_check_tags,
             tags=tags,
@@ -223,7 +222,7 @@ class ESCheck(AgentCheck):
         version = self._get_es_version(config)
 
         health_url, nodes_url, stats_url, pending_tasks_url, stats_metrics\
-            = self._define_params(version, config.is_external)
+            = self._define_params(version, config.cluster_stats)
 
         # Load stats data.
         stats_url = urlparse.urljoin(config.url, stats_url)
@@ -261,10 +260,11 @@ class ESCheck(AgentCheck):
             )
             version = [1, 0, 0]
 
+        self.service_metadata('version', version)
         self.log.debug("Elasticsearch version is %s" % version)
         return version
 
-    def _define_params(self, version, is_external):
+    def _define_params(self, version, cluster_stats):
         """ Define the set of URLs and METRICS to use depending on the
             running ES version.
         """
@@ -275,7 +275,7 @@ class ESCheck(AgentCheck):
             pending_tasks_url = "/_cluster/pending_tasks?pretty=true"
 
             # For "external" clusters, we want to collect from all nodes.
-            if is_external:
+            if cluster_stats:
                 stats_url = "/_nodes/stats?all=true"
             else:
                 stats_url = "/_nodes/_local/stats?all=true"
@@ -285,7 +285,7 @@ class ESCheck(AgentCheck):
             health_url = "/_cluster/health?pretty=true"
             nodes_url = "/_cluster/nodes?network=true"
             pending_tasks_url = None
-            if is_external:
+            if cluster_stats:
                 stats_url = "/_cluster/nodes/stats?all=true"
             else:
                 stats_url = "/_cluster/nodes/_local/stats?all=true"
@@ -353,94 +353,20 @@ class ESCheck(AgentCheck):
             self._process_metric(node_data, metric, *desc, tags=config.tags)
 
     def _process_stats_data(self, nodes_url, data, stats_metrics, config):
-        is_external = config.is_external
+        cluster_stats = config.cluster_stats
         for node_name in data['nodes']:
             node_data = data['nodes'][node_name]
             # On newer version of ES it's "host" not "hostname"
             node_hostname = node_data.get(
                 'hostname', node_data.get('host', None))
-            should_process = (
-                is_external or self.should_process_node(
-                    nodes_url, node_name, node_hostname, config))
 
             # Override the metric hostname if we're hitting an external cluster
-            metric_hostname = node_hostname if is_external else None
+            metric_hostname = node_hostname if cluster_stats else None
 
-            if should_process:
-                for metric in stats_metrics:
-                    desc = stats_metrics[metric]
-                    self._process_metric(
-                        node_data, metric, *desc, tags=config.tags,
-                        hostname=metric_hostname)
-
-    def should_process_node(self, nodes_url, node_name, node_hostname, config):
-        """ The node stats API will return stats for every node so we
-            want to filter out nodes that we don't care about.
-        """
-        if node_hostname is not None:
-            # For ES >= 0.19
-            hostnames = (
-                self.hostname.decode('utf-8'),
-                socket.gethostname().decode('utf-8'),
-                socket.getfqdn().decode('utf-8')
-            )
-            if node_hostname.decode('utf-8') in hostnames:
-                return True
-        else:
-            # FIXME 6.x : deprecate this code, it's EOL'd
-            # ES < 0.19
-            # Fetch interface address from ifconfig or ip addr and check
-            # against the primary IP from ES
-            try:
-                nodes_url = urlparse.urljoin(config.url, nodes_url)
-                primary_addr = self._get_primary_addr(
-                    nodes_url, node_name, config)
-            except NodeNotFound:
-                # Skip any nodes that aren't found
-                return False
-            if self._host_matches_node(primary_addr):
-                return True
-
-    def _get_primary_addr(self, url, node_name, config):
-        """ Returns a list of primary interface addresses as seen by ES.
-            Used in ES < 0.19
-        """
-        data = self._get_data(url, config)
-
-        if node_name in data['nodes']:
-            node = data['nodes'][node_name]
-            if ('network' in node
-                    and 'primary_interface' in node['network']
-                    and 'address' in node['network']['primary_interface']):
-                return node['network']['primary_interface']['address']
-
-        raise NodeNotFound()
-
-    def _host_matches_node(self, primary_addrs):
-        """ For < 0.19, check if the current host matches the IP given in the
-            cluster nodes check `/_cluster/nodes`. Uses `ip addr` on Linux and
-            `ifconfig` on Mac
-        """
-        if Platform.is_darwin():
-            ifaces = subprocess.Popen(['ifconfig'], stdout=subprocess.PIPE)
-        else:
-            ifaces = subprocess.Popen(['ip', 'addr'], stdout=subprocess.PIPE)
-        grepper = subprocess.Popen(
-            ['grep', 'inet'], stdin=ifaces.stdout, stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE)
-
-        ifaces.stdout.close()
-        out, err = grepper.communicate()
-
-        # Capture the list of interface IPs
-        ips = []
-        for iface in out.split("\n"):
-            iface = iface.strip()
-            if iface:
-                ips.append(iface.split(' ')[1].split('/')[0])
-
-        # Check the interface addresses against the primary address
-        return primary_addrs in ips
+            for metric, desc in stats_metrics.iteritems():
+                self._process_metric(
+                    node_data, metric, *desc, tags=config.tags,
+                    hostname=metric_hostname)
 
     def _process_metric(self, data, metric, xtype, path, xform=None,
                         tags=None, hostname=None):

@@ -1,10 +1,10 @@
 # stdlib
-import re
 from collections import namedtuple
+import re
 
 # project
-from utils.tailfile import TailFile
 from checks import AgentCheck
+from utils.tailfile import TailFile
 
 # fields order for each event type, as named tuples
 EVENT_FIELDS = {

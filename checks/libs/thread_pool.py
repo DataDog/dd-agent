@@ -19,15 +19,17 @@
 #
 # The methods of a Pool object use all these concepts and expose
 # them to their caller in a very simple way.
-
+# stdlib
+import Queue
 import sys
 import threading
-import Queue
 import traceback
 
 
 # Item pushed on the work queue to tell the worker threads to terminate
 SENTINEL = "QUIT"
+
+
 def is_sentinel(obj):
     """Predicate to determine whether an item from the queue is the
     signal to stop"""
@@ -75,8 +77,8 @@ class Pool(object):
         \param nworkers (integer) number of worker threads to start
         \param name (string) prefix for the worker threads' name
         """
-        self._workq   = Queue.Queue()
-        self._closed  = False
+        self._workq = Queue.Queue()
+        self._closed = False
         self._workers = []
         for idx in xrange(nworkers):
             thr = PoolWorker(self._workq, name="Worker-%s-%d" % (name, idx))
@@ -159,7 +161,7 @@ class Pool(object):
         should complete immediately since otherwise the thread which
         handles the results will get blocked."""
         apply_result = ApplyResult(callback=callback)
-        collector    = OrderedResultCollector(apply_result, as_iterator=False)
+        collector = OrderedResultCollector(apply_result, as_iterator=False)
         self._create_sequences(func, iterable, chunksize, collector)
         return apply_result
 
@@ -174,7 +176,7 @@ class Pool(object):
         failed). callback should complete immediately since otherwise
         the thread which handles the results will get blocked."""
         apply_result = ApplyResult(callback=callback)
-        collector    = OrderedResultCollector(apply_result, as_iterator=True)
+        collector = OrderedResultCollector(apply_result, as_iterator=True)
         self._create_sequences(func, iterable, chunksize, collector)
         return apply_result
 
@@ -190,7 +192,7 @@ class Pool(object):
         failed). callback should complete immediately since otherwise
         the thread which handles the results will get blocked."""
         apply_result = ApplyResult(callback=callback)
-        collector    = UnorderedResultCollector(apply_result)
+        collector = UnorderedResultCollector(apply_result)
         self._create_sequences(func, iterable, chunksize, collector)
         return apply_result
 
@@ -236,9 +238,9 @@ class Pool(object):
         \return the list of WorkUnit objects (basically: JobSequences)
         pushed onto the work queue
         """
-        assert not self._closed # No lock here. We assume it's atomic...
+        assert not self._closed  # No lock here. We assume it's atomic...
         sequences = []
-        results   = []
+        results = []
         it_ = iter(iterable)
         exit_loop = False
         while not exit_loop:
@@ -278,9 +280,9 @@ class Job(WorkUnit):
         of the function call
         """
         WorkUnit.__init__(self)
-        self._func   = func
-        self._args   = args
-        self._kwds   = kwds
+        self._func = func
+        self._args = args
+        self._kwds = kwds
         self._result = apply_result
 
     def process(self):
@@ -329,17 +331,17 @@ class ApplyResult(object):
         result becomes available (this is the paramater passed to the
         Pool::*_async() methods.
         """
-        self._success   = False
-        self._event     = threading.Event()
-        self._data      = None
+        self._success = False
+        self._event = threading.Event()
+        self._data = None
         self._collector = None
-        self._callback  = callback
+        self._callback = callback
 
         if collector is not None:
             collector.register_result(self)
             self._collector = collector
 
-    def get(self, timeout = None):
+    def get(self, timeout=None):
         """
         Returns the result when it arrives. If timeout is not None and
         the result does not arrive within timeout seconds then
@@ -352,7 +354,7 @@ class ApplyResult(object):
             return self._data
         raise self._data[0], self._data[1], self._data[2]
 
-    def wait(self, timeout = None):
+    def wait(self, timeout=None):
         """Waits until the result is available or until timeout
         seconds pass."""
         self._event.wait(timeout)
@@ -375,7 +377,7 @@ class ApplyResult(object):
         ready and successful. The collector's notify_ready() method
         will be called, and the callback method too"""
         assert not self.ready()
-        self._data    = value
+        self._data = value
         self._success = True
         self._event.set()
         if self._collector is not None:
@@ -392,7 +394,7 @@ class ApplyResult(object):
         ready but not successful. The collector's notify_ready()
         method will be called, but NOT the callback method"""
         assert not self.ready()
-        self._data    = sys.exc_info()
+        self._data = sys.exc_info()
         self._success = False
         self._event.set()
         if self._collector is not None:
@@ -431,7 +433,7 @@ class AbstractResultCollector(object):
         """
         raise NotImplementedError("Children classes must implement it")
 
-    def _get_result(self, idx, timeout = None):
+    def _get_result(self, idx, timeout=None):
         """Called by the CollectorIterator object to retrieve the
         result's values one after another (order defined by the
         implementation)
@@ -455,12 +457,12 @@ class CollectorIterator(object):
     def __init__(self, collector):
         """\param AbstractResultCollector instance"""
         self._collector = collector
-        self._idx       = 0
+        self._idx = 0
 
     def __iter__(self):
         return self
 
-    def next(self, timeout = None):
+    def next(self, timeout=None):
         """Return the next result value in the sequence. Raise
         StopIteration at the end. Can raise the exception raised by
         the Job"""
@@ -484,15 +486,15 @@ class UnorderedResultCollector(AbstractResultCollector):
     CollectorIterator object returned by __iter__() will iterate over
     them in the order they become ready"""
 
-    def __init__(self, to_notify = None):
+    def __init__(self, to_notify=None):
         """
         \param to_notify ApplyResult object to notify when all the
         results we're waiting for become available. Can be None.
         """
         AbstractResultCollector.__init__(self, to_notify)
-        self._cond       = threading.Condition()
+        self._cond = threading.Condition()
         self._collection = []
-        self._expected   = 0
+        self._expected = 0
 
     def register_result(self, apply_result):
         """Used to identify which results we're waiting for. Will
@@ -503,7 +505,7 @@ class UnorderedResultCollector(AbstractResultCollector):
         """
         self._expected += 1
 
-    def _get_result(self, idx, timeout = None):
+    def _get_result(self, idx, timeout=None):
         """Called by the CollectorIterator object to retrieve the
         result's values one after another, in the order the results have
         become available.
@@ -558,7 +560,7 @@ class OrderedResultCollector(AbstractResultCollector):
     submitted. The CollectorIterator object returned by __iter__()
     will iterate over them in the order they have been submitted"""
 
-    def __init__(self, to_notify = None, as_iterator = True):
+    def __init__(self, to_notify=None, as_iterator=True):
         """
         \param to_notify ApplyResult object to notify when all the
         results we're waiting for become available. Can be None.
@@ -568,9 +570,9 @@ class OrderedResultCollector(AbstractResultCollector):
         result arrived)
         """
         AbstractResultCollector.__init__(self, to_notify)
-        self._results     = []
-        self._lock        = threading.Lock()
-        self._remaining   = 0
+        self._results = []
+        self._lock = threading.Lock()
+        self._remaining = 0
         self._as_iterator = as_iterator
 
     def register_result(self, apply_result):
@@ -583,7 +585,7 @@ class OrderedResultCollector(AbstractResultCollector):
         self._results.append(apply_result)
         self._remaining += 1
 
-    def _get_result(self, idx, timeout = None):
+    def _get_result(self, idx, timeout=None):
         """Called by the CollectorIterator object to retrieve the
         result's values one after another (order defined by the
         implementation)
@@ -604,13 +606,13 @@ class OrderedResultCollector(AbstractResultCollector):
         has been processed
         """
         got_first = False
-        got_last  = False
+        got_last = False
         self._lock.acquire()
         try:
             assert self._remaining > 0
             got_first = (len(self._results) == self._remaining)
             self._remaining -= 1
-            got_last  = (self._remaining == 0)
+            got_last = (self._remaining == 0)
         finally:
             self._lock.release()
 

@@ -3,9 +3,12 @@ import socket
 import time
 
 # project
-from checks.network_checks import NetworkCheck, Status, EventType
+from checks.network_checks import EventType, NetworkCheck, Status
 
-class BadConfException(Exception): pass
+
+class BadConfException(Exception):
+    pass
+
 
 class TCPCheck(NetworkCheck):
 
@@ -27,11 +30,11 @@ class TCPCheck(NetworkCheck):
         try:
             url = instance.get('host', None)
             split = url.split(":")
-        except Exception: # Would be raised if url is not a string
+        except Exception:  # Would be raised if url is not a string
             raise BadConfException("A valid url must be specified")
 
         # IPv6 address format: 2001:db8:85a3:8d3:1319:8a2e:370:7348
-        if len(split) == 8: # It may then be a IP V6 address, we check that
+        if len(split) == 8:  # It may then be a IP V6 address, we check that
             for block in split:
                 if len(block) != 4:
                     raise BadConfException("%s is not a correct IPv6 address." % url)
@@ -92,7 +95,6 @@ class TCPCheck(NetworkCheck):
         self.log.debug("%s:%s is UP" % (addr, port))
         return Status.UP, "UP"
 
-
     # FIXME: 5.3 remove that
     def _create_status_event(self, sc_name, status, msg, instance):
         # Get the instance settings
@@ -107,14 +109,12 @@ class TCPCheck(NetworkCheck):
         if custom_message:
             custom_message += " \n"
 
-
         # Let the possibility to override the source type name
         instance_source_type_name = instance.get('source_type', None)
         if instance_source_type_name is None:
             source_type = "%s.%s" % (NetworkCheck.SOURCE_TYPE_NAME, name)
         else:
             source_type = "%s.%s" % (NetworkCheck.SOURCE_TYPE_NAME, instance_source_type_name)
-
 
         # Get the handles you want to notify
         notify = instance.get('notify', self.init_config.get('notify', []))
@@ -125,7 +125,6 @@ class TCPCheck(NetworkCheck):
                 notify_list.append("@%s" % handle.strip())
             notify_message = " ".join(notify_list) + " \n"
 
-
         if status == Status.DOWN:
             title = "[Alert] %s reported that %s is down" % (self.hostname, name)
             alert_type = "error"
@@ -134,7 +133,7 @@ class TCPCheck(NetworkCheck):
                 custom_message, self.hostname, name, host, port, nb_failures, nb_tries, msg)
             event_type = EventType.DOWN
 
-        else: # Status is UP
+        else:  # Status is UP
             title = "[Recovered] %s reported that %s is up" % (self.hostname, name)
             alert_type = "success"
             msg = "%s %s %s reported that %s (%s:%s) recovered." % (notify_message,

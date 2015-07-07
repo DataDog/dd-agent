@@ -1,12 +1,12 @@
 # stdlib
 import urlparse
 
-# project
-from util import headers
-from checks import AgentCheck
-
 # 3rd party
 import requests
+
+# project
+from checks import AgentCheck
+from util import headers
 
 
 class Apache(AgentCheck):

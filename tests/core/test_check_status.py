@@ -1,7 +1,15 @@
-
-from checks import AgentCheck
-from checks.check_status import STATUS_OK, STATUS_ERROR, InstanceStatus, CheckStatus, CollectorStatus
+# stdlib
 import nose.tools as nt
+
+# project
+from checks import AgentCheck
+from checks.check_status import (
+    CheckStatus,
+    CollectorStatus,
+    InstanceStatus,
+    STATUS_ERROR,
+    STATUS_OK,
+)
 
 
 class DummyAgentCheck(AgentCheck):
@@ -13,9 +21,9 @@ class DummyAgentCheck(AgentCheck):
 
 def test_check_status_fail():
     instances = [
-        {'pass':True},
-        {'pass':False},
-        {'pass':True}
+        {'pass': True},
+        {'pass': False},
+        {'pass': True}
     ]
 
     check = DummyAgentCheck('dummy_agent_check', {}, {}, instances)
@@ -28,8 +36,8 @@ def test_check_status_fail():
 
 def test_check_status_pass():
     instances = [
-        {'pass':True},
-        {'pass':True},
+        {'pass': True},
+        {'pass': True},
     ]
 
     check = DummyAgentCheck('dummy_agent_check', {}, {}, instances)

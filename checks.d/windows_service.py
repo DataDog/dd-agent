@@ -1,10 +1,10 @@
 """ Collect status information for Windows services
 """
-# project
-from checks import AgentCheck
-
 # 3rd party
 import wmi
+
+# project
+from checks import AgentCheck
 
 
 class WindowsService(AgentCheck):

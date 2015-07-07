@@ -1,7 +1,11 @@
+# stdlib
 import os
 
-from checks import AgentCheck
+# 3p
 from nose.plugins.attrib import attr
+
+# project
+from checks import AgentCheck
 from tests.checks.common import AgentCheckTest
 from util import get_hostname
 

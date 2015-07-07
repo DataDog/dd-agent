@@ -1,9 +1,9 @@
 # stdlib
-import mock
 import os.path
 import unittest
 
 # 3p
+import mock
 from nose.plugins.attrib import attr
 
 # project

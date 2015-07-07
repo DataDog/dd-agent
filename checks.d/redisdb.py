@@ -2,15 +2,15 @@
 Redis checks
 '''
 # stdlib
+from collections import defaultdict
 import re
 import time
-from collections import defaultdict
-
-# project
-from checks import AgentCheck
 
 # 3rd party
 import redis
+
+# project
+from checks import AgentCheck
 
 DEFAULT_MAX_SLOW_ENTRIES = 128
 MAX_SLOW_ENTRIES_KEY = "slowlog-max-len"
@@ -18,12 +18,11 @@ MAX_SLOW_ENTRIES_KEY = "slowlog-max-len"
 REPL_KEY = 'master_link_status'
 LINK_DOWN_KEY = 'master_link_down_since_seconds'
 
+
 class Redis(AgentCheck):
     db_key_pattern = re.compile(r'^db\d+')
     slave_key_pattern = re.compile(r'^slave\d+')
     subkeys = ['keys', 'expires']
-
-
 
     SOURCE_TYPE_NAME = 'redis'
 
@@ -159,14 +158,15 @@ class Redis(AgentCheck):
 
         tags, tags_to_add = self._get_tags(custom_tags, instance)
 
-
         # Ping the database for info, and track the latency.
         # Process the service check: the check passes if we can connect to Redis
         start = time.time()
+        info = None
         try:
             info = conn.info()
             status = AgentCheck.OK
             self.service_check('redis.can_connect', status, tags=tags_to_add)
+            self._collect_metadata(info)
         except ValueError, e:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
@@ -186,7 +186,7 @@ class Redis(AgentCheck):
                 # allows tracking percentage of expired keys as DD does not
                 # currently allow arithmetic on metric for monitoring
                 expires_keys = info[key]["expires"]
-                total_keys   = info[key]["keys"]
+                total_keys = info[key]["keys"]
                 persist_keys = total_keys - expires_keys
                 self.gauge("redis.persist", persist_keys, tags=db_tags)
                 self.gauge("redis.persist.percent", 100.0 * persist_keys / total_keys, tags=db_tags)
@@ -240,7 +240,6 @@ class Redis(AgentCheck):
                             self.warning("{0} key not found in redis".format(key))
                         self.gauge('redis.key.length', 0, tags=key_tags)
 
-
         self._check_replication(info, tags)
 
     def _check_replication(self, info, tags):
@@ -271,7 +270,6 @@ class Redis(AgentCheck):
             self.service_check('redis.replication.master_link_status', status, tags=tags)
             self.gauge('redis.replication.master_link_down_since_seconds', down_seconds, tags=tags)
 
-
     def _check_slowlog(self, instance, custom_tags):
         """Retrieve length and entries from Redis' SLOWLOG
 
@@ -279,8 +277,6 @@ class Redis(AgentCheck):
         within the time range between the last seen entries and now
 
         """
-
-
         conn = self._get_conn(instance)
 
         tags, _ = self._get_tags(custom_tags, instance)
@@ -295,7 +291,6 @@ class Redis(AgentCheck):
         else:
             max_slow_entries = int(instance.get(MAX_SLOW_ENTRIES_KEY))
 
-
         # Generate a unique id for this instance to be persisted across runs
         ts_key = self._generate_instance_key(instance)
 
@@ -306,7 +301,6 @@ class Redis(AgentCheck):
         # Find slowlog entries between last timestamp and now using start_time
         slowlogs = [s for s in slowlogs if s['start_time'] >
             self.last_timestamp_seen[ts_key]]
-
 
         max_ts = 0
         # Slowlog entry looks like:
@@ -331,3 +325,7 @@ class Redis(AgentCheck):
 
         self._check_db(instance, custom_tags)
         self._check_slowlog(instance, custom_tags)
+
+    def _collect_metadata(self, info):
+        if info and 'redis_version' in info:
+            self.service_metadata('version', info['redis_version'])

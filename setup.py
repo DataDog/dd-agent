@@ -1,6 +1,8 @@
 # stdlib
-from setuptools import setup, find_packages
 import sys
+
+# 3p
+from setuptools import find_packages, setup
 
 # project
 from config import get_version
@@ -38,7 +40,6 @@ if sys.platform == 'win32':
 
     # windows-specific deps
     install_requires.append('pywin32==217')
-    install_requires.append('wmi==1.4.9')
 
     # Modules to force-include in the exe
     include_modules = [

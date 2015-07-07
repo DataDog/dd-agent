@@ -1,6 +1,8 @@
 # stdlib
-import mock
 import re
+
+# 3p
+import mock
 
 # project
 from tests.checks.common import AgentCheckTest, Fixtures
@@ -67,7 +69,9 @@ class TestCheckDisk(AgentCheckTest):
         self.assertFalse(exclude_disk(MockPart()))
 
         # standard fake devices
-        self.assertTrue(exclude_disk(MockPart(device='udev')))
+        self.assertTrue(exclude_disk(MockPart(device='')))
+        self.assertTrue(exclude_disk(MockPart(device='none')))
+        self.assertFalse(exclude_disk(MockPart(device='udev')))
 
         # excluded filesystems list
         self.assertTrue(exclude_disk(MockPart(fstype='aaaaaa')))
@@ -81,21 +85,23 @@ class TestCheckDisk(AgentCheckTest):
         self.assertTrue(exclude_disk(MockPart(device='tevvv')))
         self.assertFalse(exclude_disk(MockPart(device='tevvs')))
 
+        # and now with all_partitions
+        self.check._all_partitions = True
+        self.assertFalse(exclude_disk(MockPart(device='')))
+        self.assertFalse(exclude_disk(MockPart(device='none')))
+        self.assertFalse(exclude_disk(MockPart(device='udev')))
+
     @mock.patch('psutil.disk_partitions', return_value=[MockPart()])
     @mock.patch('psutil.disk_usage', return_value=MockDiskMetrics())
-    @mock.patch('psutil.disk_io_counters',
-                return_value={'sda1': MockIoCountersMetrics()})
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
-    def test_psutil(self, mock_partitions, mock_usage,
-                    mock_io_counters, mock_inodes):
+    def test_psutil(self, mock_partitions, mock_usage, mock_inodes):
         for tag_by in ['yes', 'no']:
             self.run_check({'instances': [{'tag_by_filesystem': tag_by}]},
                            force_reload=True)
 
             # Assert metrics
             tags = ['ext4'] if tag_by == 'yes' else []
-            self.GAUGES_VALUES_PSUTIL.update(self.GAUGES_VALUES)
-            for metric, value in self.GAUGES_VALUES_PSUTIL.iteritems():
+            for metric, value in self.GAUGES_VALUES.iteritems():
                 self.assertMetric(metric, value=value, tags=tags,
                                   device_name=DEFAULT_DEVICE_NAME)
 
@@ -103,16 +109,12 @@ class TestCheckDisk(AgentCheckTest):
 
     @mock.patch('psutil.disk_partitions', return_value=[MockPart()])
     @mock.patch('psutil.disk_usage', return_value=MockDiskMetrics())
-    @mock.patch('psutil.disk_io_counters',
-                return_value={'sda1': MockIoCountersMetrics()})
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
-    def test_use_mount(self, mock_partitions, mock_usage,
-                       mock_io_counters, mock_inodes):
+    def test_use_mount(self, mock_partitions, mock_usage, mock_inodes):
         self.run_check({'instances': [{'use_mount': 'yes'}]})
 
         # Assert metrics
-        self.GAUGES_VALUES_PSUTIL.update(self.GAUGES_VALUES)
-        for metric, value in self.GAUGES_VALUES_PSUTIL.iteritems():
+        for metric, value in self.GAUGES_VALUES.iteritems():
             self.assertMetric(metric, value=value, tags=[],
                               device_name='/')
 
@@ -157,6 +159,7 @@ class TestCheckDisk(AgentCheckTest):
                         agent_config={'use_mount': 'yes'})
         self.assertFalse(self.check._use_mount)
 
+    # FIXME: test default options on Windows (not the same all_partitions)
     def test_default_options(self):
         self.load_check({'instances': [{}]})
         self.check._load_conf({})
@@ -165,5 +168,14 @@ class TestCheckDisk(AgentCheckTest):
         self.assertEqual(self.check._excluded_filesystems, [])
         self.assertEqual(self.check._excluded_disks, [])
         self.assertFalse(self.check._tag_by_filesystem)
-        self.assertTrue(self.check._all_partitions)
+        self.assertFalse(self.check._all_partitions)
+        self.assertEqual(self.check._excluded_disk_re, re.compile('^$'))
+
+    def test_ignore_empty_regex(self):
+        """
+        Ignore empty regex as they match all strings
+        (and so exclude all disks from the check)
+        """
+        self.load_check({'instances': [{}]}, agent_config={'device_blacklist_re': ''})
+        self.check._load_conf({})
         self.assertEqual(self.check._excluded_disk_re, re.compile('^$'))

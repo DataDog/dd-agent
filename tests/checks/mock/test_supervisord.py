@@ -1,9 +1,12 @@
+# stdlib
 from socket import socket
-
-from mock import patch
 import unittest
 import xmlrpclib
 
+# 3p
+from mock import patch
+
+# project
 from checks import AgentCheck
 from tests.checks.common import get_check
 

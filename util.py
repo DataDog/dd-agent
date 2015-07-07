@@ -6,9 +6,7 @@ import os
 import platform
 import re
 import signal
-import simplejson as json
 import socket
-import subprocess
 import sys
 import time
 import types
@@ -16,6 +14,7 @@ import urllib2
 import uuid
 
 # 3p
+import simplejson as json
 import yaml  # noqa, let's guess, probably imported somewhere
 from tornado import ioloop
 try:
@@ -32,6 +31,7 @@ except ImportError:
 # FIXME: remove them at a point (6.x)
 from utils.pidfile import PidFile  # noqa, see ^^^
 from utils.platform import Platform
+from utils.subprocess_output import subprocess
 
 
 VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")

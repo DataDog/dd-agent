@@ -6,9 +6,10 @@ Add to datadog.conf as follows:
 dogstreams: [path_to_supervisord.log]:datadog.streams.supervisord:parse_supervisord
 
 """
+# stdlib
 from datetime import datetime
-import time
 import re
+import time
 
 EVENT_TYPE = "supervisor"
 
@@ -37,6 +38,7 @@ ALERT_TYPES_MAPPING = {
 # regex to extract the 'program' supervisord is managing from the text
 program_matcher = re.compile("^\w+:? '?(?P<program>\w+)'?")
 
+
 def parse_supervisord(log, line):
     """
     Parse the supervisord.log line into a dogstream event
@@ -44,7 +46,8 @@ def parse_supervisord(log, line):
     if len(line) == 0:
         log.info("Skipping empty line of supervisord.log")
         return None
-    if log: log.debug('PARSE supervisord:%s' % line)
+    if log:
+        log.debug('PARSE supervisord:%s' % line)
     line_items = line.split(' ', 3)
     timestamp = ' '.join(line_items[:2])
     timestamp_parts = timestamp.split(',')
@@ -64,7 +67,8 @@ def parse_supervisord(log, line):
         program_result = program_matcher.match(msg)
         if program_result:
             event['event_object'] = program_result.groupdict()['program']
-        if log: log.debug('RESULT supervisord:%s' % event)
+        if log:
+            log.debug('RESULT supervisord:%s' % event)
         return [event]
     else:
         return None

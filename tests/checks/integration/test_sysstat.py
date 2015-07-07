@@ -1,7 +1,10 @@
-import unittest
-from nose.plugins.attrib import attr
+# stdlib
 import logging
 import os
+import unittest
+
+# 3p
+from nose.plugins.attrib import attr
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__file__)

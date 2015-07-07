@@ -19,8 +19,13 @@ log = logging.getLogger(__name__)
 # MetricsBucketAggregator constructor.
 RECENT_POINT_THRESHOLD_DEFAULT = 3600
 
-class Infinity(Exception): pass
-class UnknownValue(Exception): pass
+
+class Infinity(Exception):
+    pass
+
+
+class UnknownValue(Exception):
+    pass
 
 
 class Metric(object):
@@ -626,7 +631,7 @@ class Aggregator(object):
         return hostname, device_name, tags
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
-                                device_name=None, timestamp=None, sample_rate=1):
+                      device_name=None, timestamp=None, sample_rate=1):
         """ Add a metric to be aggregated """
         raise NotImplementedError()
 
@@ -740,7 +745,7 @@ class MetricsBucketAggregator(Aggregator):
         return timestamp - (timestamp % self.interval)
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
-                                device_name=None, timestamp=None, sample_rate=1):
+                      device_name=None, timestamp=None, sample_rate=1):
         # Avoid calling extra functions to dedupe tags if there are none
         # Note: if you change the way that context is created, please also change create_empty_metrics,
         #  which counts on this order
@@ -827,7 +832,7 @@ class MetricsBucketAggregator(Aggregator):
             #  We should only create these non-expired metrics if we've passed an interval since the last flush
             if flush_cutoff_time >= self.last_flush_cutoff_time + self.interval:
                 self.create_empty_metrics(self.last_sample_time_by_context.copy(), expiry_timestamp,
-                                                flush_cutoff_time-self.interval, metrics)
+                                          flush_cutoff_time-self.interval, metrics)
 
         # Log a warning regarding metrics with old timestamps being submitted
         if self.num_discarded_old_points > 0:
@@ -876,7 +881,7 @@ class MetricsAggregator(Aggregator):
         }
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
-                                device_name=None, timestamp=None, sample_rate=1):
+                      device_name=None, timestamp=None, sample_rate=1):
         # Avoid calling extra functions to dedupe tags if there are none
 
         # Keep hostname with empty string to unset it

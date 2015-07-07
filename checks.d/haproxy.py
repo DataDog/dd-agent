@@ -3,13 +3,13 @@ from collections import defaultdict
 import re
 import time
 
+# 3rd party
+import requests
+
 # project
 from checks import AgentCheck
 from config import _is_affirmative
 from util import headers
-
-# 3rd party
-import requests
 
 STATS_URL = "/;csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
@@ -390,8 +390,8 @@ class HAProxy(AgentCheck):
 
         if status in Services.STATUSES_TO_SERVICE_CHECK:
             service_check_tags = ["service:%s" % service_name]
+            hostname = data['svname']
             if data['back_or_front'] == Services.BACKEND:
-                hostname = data['svname']
                 service_check_tags.append('backend:%s' % hostname)
 
             status = Services.STATUSES_TO_SERVICE_CHECK[status]

@@ -2,21 +2,23 @@
 Monitor the Windows Event Log
 '''
 # stdlib
-from datetime import datetime, timedelta
 import calendar
-
-# project
-from checks import AgentCheck
+from datetime import datetime, timedelta
 
 # 3rd party
 import wmi
 
+# project
+from checks import AgentCheck
+
 SOURCE_TYPE_NAME = 'event viewer'
 EVENT_TYPE = 'win32_log_event'
 
+
 class Win32EventLog(AgentCheck):
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig,
+                            instances=instances)
         self.last_ts = {}
         self.wmi_conns = {}
 
@@ -81,7 +83,7 @@ class Win32EventLog(AgentCheck):
 
 class EventLogQuery(object):
     def __init__(self, ltype=None, user=None, source_name=None, log_file=None,
-                    event_id=None, start_ts=None, message_filters=None):
+                 event_id=None, start_ts=None, message_filters=None):
 
         self.filters = [
             ('Type', self._convert_event_types(ltype)),
@@ -137,14 +139,15 @@ class EventLogQuery(object):
             time struct.
         '''
         return wmi.from_time(year=dt.year, month=dt.month, day=dt.day,
-            hours=dt.hour, minutes=dt.minute, seconds=dt.second, microseconds=0,
-            timezone=0)
+                             hours=dt.hour, minutes=dt.minute,
+                             seconds=dt.second, microseconds=0, timezone=0)
 
     def _convert_event_types(self, types):
         ''' Detect if we are running on <= Server 2003. If so, we should convert
             the EventType values to integers
         '''
         return types
+
 
 class LogEvent(object):
     def __init__(self, ev, api_key, hostname, tags, notify_list):
@@ -178,14 +181,13 @@ class LogEvent(object):
     def _wmi_to_ts(self, wmi_ts):
         ''' Convert a wmi formatted timestamp into an epoch using wmi.to_time().
         '''
-        year, month, day, hour, minute, second, microsecond, tz = \
-                                                            wmi.to_time(wmi_ts)
+        year, month, day, hour, minute, second, microsecond, tz = wmi.to_time(wmi_ts)
         tz_delta = timedelta(minutes=int(tz))
         if '+' in wmi_ts:
             tz_delta = - tz_delta
 
         dt = datetime(year=year, month=month, day=day, hour=hour, minute=minute,
-            second=second, microsecond=microsecond) + tz_delta
+                      second=second, microsecond=microsecond) + tz_delta
         return int(calendar.timegm(dt.timetuple()))
 
     def _msg_title(self, event):

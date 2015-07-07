@@ -1,6 +1,10 @@
+# stdlibb
 import time
+
+# 3p
 import mock
 
+# project
 from checks import AgentCheck
 from tests.checks.common import AgentCheckTest
 

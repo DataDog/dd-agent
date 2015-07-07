@@ -1,6 +1,9 @@
+# 3p
 import mock
-from tests.checks.common import AgentCheckTest, load_check
+
+# project
 from checks import AGENT_METRICS_CHECK_NAME
+from tests.checks.common import AgentCheckTest, load_check
 
 MOCK_CONFIG = {
     'instances': [

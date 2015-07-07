@@ -19,7 +19,6 @@ class Disk(AgentCheck):
     """ Collects metrics about the machine's disks. """
     # -T for filesystem info
     DF_COMMAND = ['df', '-T']
-    FAKE_DEVICES = ['udev', 'sysfs', 'rpc_pipefs', 'proc', 'devpts']
     METRIC_DISK = 'system.disk.{0}'
     METRIC_INODE = 'system.fs.inodes.{0}'
 
@@ -38,6 +37,7 @@ class Disk(AgentCheck):
         if self._psutil():
             self.collect_metrics_psutil()
         else:
+            # FIXME: implement all_partitions (df -a)
             self.collect_metrics_manually()
 
     @classmethod
@@ -50,7 +50,7 @@ class Disk(AgentCheck):
         self._tag_by_filesystem = _is_affirmative(
             instance.get('tag_by_filesystem', False))
         self._all_partitions = _is_affirmative(
-            instance.get('all_partitions', True))
+            instance.get('all_partitions', False))
 
         # FIXME: 6.x, drop use_mount option in datadog.conf
         self._load_legacy_option(instance, 'use_mount', False,
@@ -70,14 +70,24 @@ class Disk(AgentCheck):
                 "Using `{0}` in datadog.conf has been deprecated"
                 " in favor of `{1}` in disk.yaml".format(legacy_name, option)
             )
-            value = self.agentConfig.get(legacy_name)
+            value = self.agentConfig.get(legacy_name) or default
         setattr(self, '_{0}'.format(option), operation(value))
 
     def collect_metrics_psutil(self):
         self._valid_disks = {}
-        for part in psutil.disk_partitions(all=self._all_partitions):
+        for part in psutil.disk_partitions(all=True):
             # we check all exclude conditions
             if self._exclude_disk_psutil(part):
+                continue
+            # Get disk metrics here to be able to exclude on total usage
+            try:
+                disk_usage = psutil.disk_usage(part.mountpoint)
+            except Exception, e:
+                self.log.debug("Unable to get disk metrics for %s: %s",
+                               part.mountpoint, e)
+                continue
+            # Exclude disks with total disk size 0
+            if disk_usage.total == 0:
                 continue
             # For later, latency metrics
             self._valid_disks[part.device] = (part.fstype, part.mountpoint)
@@ -85,11 +95,16 @@ class Disk(AgentCheck):
 
             tags = [part.fstype] if self._tag_by_filesystem else []
             device_name = part.mountpoint if self._use_mount else part.device
-            for metric_name, metric_value in self._collect_part_metrics(part).iteritems():
+
+            # legacy check names c: vs psutil name C:\\
+            if Platform.is_win32():
+                device_name = device_name.strip('\\').lower()
+            for metric_name, metric_value in self._collect_part_metrics(part, disk_usage).iteritems():
                 self.gauge(metric_name, metric_value,
                            tags=tags, device_name=device_name)
         # And finally, latency metrics, a legacy gift from the old Windows Check
-        self.collect_latency_metrics()
+        if Platform.is_win32():
+            self.collect_latency_metrics()
 
     def _exclude_disk_psutil(self, part):
         # skip cd-rom drives with no disk in it; they may raise
@@ -102,13 +117,12 @@ class Disk(AgentCheck):
 
     # We don't want all those incorrect devices
     def _exclude_disk(self, name, filesystem):
-        return (name in self.FAKE_DEVICES or
+        return (((not name or name == 'none') and not self._all_partitions) or
                 name in self._excluded_disks or
                 self._excluded_disk_re.match(name) or
                 filesystem in self._excluded_filesystems)
 
-    def _collect_part_metrics(self, part):
-        usage = psutil.disk_usage(part.mountpoint)
+    def _collect_part_metrics(self, part, usage):
         metrics = {}
         for name in ['total', 'used', 'free']:
             # For legacy reasons,  the standard unit it kB
@@ -136,28 +150,15 @@ class Disk(AgentCheck):
 
     def collect_latency_metrics(self):
         for disk_name, disk in psutil.disk_io_counters(True).iteritems():
-            # disk_name is sda1, _valid_disks contains /dev/sda1
-            match_disks = [d for d in self._valid_disks
-                           if re.match('^(/dev/)?{0}$'.format(disk_name), d)]
-            if not match_disks:
-                continue
-
-            device = match_disks[0]
-            fstype, mountpoint = self._valid_disks[device]
-            self.log.debug('Passed: {0} -> {1}'.format(disk_name, device))
-            tags = []
-            if self._tag_by_filesystem:
-                tags = [fstype]
-            device_name = mountpoint if self._use_mount else device
-
+            self.log.debug('IO Counters: {0} -> {1}'.format(disk_name, disk))
             # x100 to have it as a percentage,
             # /1000 as psutil returns the value in ms
             read_time_pct = disk.read_time * 100.0 / 1000.0
             write_time_pct = disk.write_time * 100.0 / 1000.0
-            self.gauge(self.METRIC_DISK.format('read_time_pct'),
-                       read_time_pct, device_name=device_name, tags=tags)
-            self.gauge(self.METRIC_DISK.format('write_time_pct'),
-                       write_time_pct, device_name=device_name, tags=tags)
+            self.rate(self.METRIC_DISK.format('read_time_pct'),
+                      read_time_pct, device_name=disk_name)
+            self.rate(self.METRIC_DISK.format('write_time_pct'),
+                      write_time_pct, device_name=disk_name)
 
     # no psutil, let's use df
     def collect_metrics_manually(self):

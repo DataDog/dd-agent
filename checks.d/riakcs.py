@@ -1,13 +1,13 @@
 # stdlib
 from collections import defaultdict
 
+# 3rd party
+from boto.s3.connection import S3Connection
+import simplejson as json
+
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-
-# 3rd party
-import simplejson as json
-from boto.s3.connection import S3Connection
 
 
 def multidict(ordered_pairs):

@@ -1,7 +1,13 @@
+# stdlib
 import unittest
+
+# 3p
 from nose.plugins.attrib import attr
-from tests.checks.common import load_check
+
+# project
 from checks import AgentCheck
+from tests.checks.common import load_check
+
 
 @attr(requires='ssh')
 class SshTestCase(unittest.TestCase):

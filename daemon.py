@@ -12,12 +12,12 @@
 
 # Core modules
 import atexit
+import errno
+import logging
 import os
+import signal
 import sys
 import time
-import logging
-import errno
-import signal
 
 # 3p
 from psutil import pid_exists
