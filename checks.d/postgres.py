@@ -5,13 +5,13 @@ Collects database-wide metrics and optionally per-relation metrics, custom metri
 # stdlib
 import socket
 
-# project
-from checks import AgentCheck, CheckException
-from config import _is_affirmative
-
 # 3rd party
 import pg8000 as pg
 from pg8000 import InterfaceError, ProgrammingError
+
+# project
+from checks import AgentCheck, CheckException
+from config import _is_affirmative
 
 MAX_CUSTOM_RESULTS = 100
 
