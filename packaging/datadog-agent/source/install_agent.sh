@@ -147,6 +147,8 @@ if [ -e /etc/dd-agent/datadog.conf ]; then
 else
     printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
     $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
+    $sudo_cmd chown dd-agent:root /etc/dd-agent/datadog.conf
+    $sudo_cmd chmod 640 /etc/dd-agent/datadog.conf
 fi
 
 restart_cmd="$sudo_cmd /etc/init.d/datadog-agent restart"
