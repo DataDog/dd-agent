@@ -282,11 +282,15 @@ class Redis(AgentCheck):
         tags, _ = self._get_tags(custom_tags, instance)
 
         if not instance.get(MAX_SLOW_ENTRIES_KEY):
-            max_slow_entries = int(conn.config_get(MAX_SLOW_ENTRIES_KEY)[MAX_SLOW_ENTRIES_KEY])
-            if max_slow_entries > DEFAULT_MAX_SLOW_ENTRIES:
-                self.warning("Redis {0} is higher than {1}. Defaulting to {1}."
-                    "If you need a higher value, please set {0} in your check config"
-                    .format(MAX_SLOW_ENTRIES_KEY, DEFAULT_MAX_SLOW_ENTRIES))
+            try:
+                max_slow_entries = int(conn.config_get(MAX_SLOW_ENTRIES_KEY)[MAX_SLOW_ENTRIES_KEY])
+                if max_slow_entries > DEFAULT_MAX_SLOW_ENTRIES:
+                    self.warning("Redis {0} is higher than {1}. Defaulting to {1}."
+                                 "If you need a higher value, please set {0} in your check config"
+                                 .format(MAX_SLOW_ENTRIES_KEY, DEFAULT_MAX_SLOW_ENTRIES))
+                    max_slow_entries = DEFAULT_MAX_SLOW_ENTRIES
+            # No config on AWS Elasticache
+            except redis.ResponseError:
                 max_slow_entries = DEFAULT_MAX_SLOW_ENTRIES
         else:
             max_slow_entries = int(instance.get(MAX_SLOW_ENTRIES_KEY))
