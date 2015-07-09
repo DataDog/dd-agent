@@ -408,13 +408,14 @@ class Docker(AgentCheck):
 
     # Cgroups
 
-    def _find_cgroup_filename_pattern(self):
+    def _find_cgroup_filename_pattern(self, container_id):
         if self._mountpoints:
             # We try with different cgroups so that it works even if only one is properly working
             for mountpoint in self._mountpoints.values():
                 stat_file_path_lxc = os.path.join(mountpoint, "lxc")
                 stat_file_path_docker = os.path.join(mountpoint, "docker")
                 stat_file_path_coreos = os.path.join(mountpoint, "system.slice")
+                stat_file_path_kubernetes = os.path.join(mountpoint, container_id)
 
                 if os.path.exists(stat_file_path_lxc):
                     return os.path.join('%(mountpoint)s/lxc/%(id)s/%(file)s')
@@ -422,13 +423,15 @@ class Docker(AgentCheck):
                     return os.path.join('%(mountpoint)s/docker/%(id)s/%(file)s')
                 elif os.path.exists(stat_file_path_coreos):
                     return os.path.join('%(mountpoint)s/system.slice/docker-%(id)s.scope/%(file)s')
+                elif os.path.exists(stat_file_path_kubernetes):
+                    return os.path.join('%(mountpoint)s/%(id)s/%(file)s')
 
         raise Exception("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
     def _get_cgroup_file(self, cgroup, container_id, filename):
         # This can't be initialized at startup because cgroups may not be mounted yet
         if not self._cgroup_filename_pattern:
-            self._cgroup_filename_pattern = self._find_cgroup_filename_pattern()
+            self._cgroup_filename_pattern = self._find_cgroup_filename_pattern(container_id)
 
         return self._cgroup_filename_pattern % (dict(
             mountpoint=self._mountpoints[cgroup],
