@@ -17,7 +17,7 @@ RATE = "rate"
 
 STATUS_VARS = {
     'Connections': ('mysql.net.connections', RATE),
-    'Max_used_connections': ('mysql.net.max_connections', GAUGE),
+    'Max_used_connections': ('mysql.net.max_used_connections', GAUGE),
     'Open_files': ('mysql.performance.open_files', GAUGE),
     'Table_locks_waited': ('mysql.performance.table_locks_waited', GAUGE),
     'Threads_connected': ('mysql.performance.threads_connected', GAUGE),
