@@ -13,6 +13,7 @@ python:
 cache:
   directories:
     - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION.9
+    - vendor/cache
 
 matrix:
   fast_finish: true
@@ -92,6 +93,7 @@ before_script: echo "OVERRIDING TRAVIS STEPS"
 
 script:
   - bundle install
+  - bundle package
   # Needed if no cache exists
   - mkdir -p $INTEGRATIONS_DIR
   - ls -al $INTEGRATIONS_DIR
