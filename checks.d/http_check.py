@@ -105,6 +105,16 @@ class HTTPCheck(NetworkCheck):
                 "%s. Connection failed after %s ms" % (str(e), length)
             ))
 
+        except requests.exceptions.Timeout, e:
+            length = int((time.time() - start) * 1000)
+            self.log.info("%s is DOWN, error: %s. Connection failed after %s ms"
+                          % (addr, str(e), length))
+            service_checks.append((
+                self.SC_STATUS,
+                Status.DOWN,
+                "%s. Connection failed after %s ms" % (str(e), length)
+            ))
+
         except socket.error, e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms"
