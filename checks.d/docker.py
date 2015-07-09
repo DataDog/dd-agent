@@ -65,6 +65,9 @@ NEW_TAGS_MAP = {
 
 DEFAULT_SOCKET_TIMEOUT = 5
 
+class DockerJSONDecodeError(Exception):
+    """ Raised when there is trouble parsing the API response sent by Docker Remote API """
+    pass
 
 class UnixHTTPConnection(httplib.HTTPConnection):
     """Class used in conjuction with UnixSocketHandler to make urllib2
@@ -355,16 +358,21 @@ class Docker(AgentCheck):
     def _get_events(self, instance):
         """Get the list of events """
         now = int(time.time())
-        result = self._get_json(
-            "%s/events" % instance["url"],
-            params={
-                "until": now,
-                "since": self._last_event_collection_ts[instance["url"]] or now - 60,
-            }, multi=True)
-        self._last_event_collection_ts[instance["url"]] = now
-        if type(result) == dict:
-            result = [result]
-        return result
+        try:
+            result = self._get_json(
+                "%s/events" % instance["url"],
+                params={
+                    "until": now,
+                    "since": self._last_event_collection_ts[instance["url"]] or now - 60,
+                },
+                multi=True
+            )
+            self._last_event_collection_ts[instance["url"]] = now
+            if type(result) == dict:
+                result = [result]
+            return result
+        except DockerJSONDecodeError:
+            return []
 
     def _get_json(self, uri, params=None, multi=False):
         """Utility method to get and parse JSON streams."""
@@ -381,14 +389,19 @@ class Docker(AgentCheck):
             raise
 
         response = request.read()
+        response = response.replace('\n', '') # Some Docker API versions occassionally send newlines in responses
+        self.log.debug('Docker API response: %s', response)
         if multi and "}{" in response: # docker api sometimes returns juxtaposed json dictionaries
             response = "[{0}]".format(response.replace("}{", "},{"))
 
         if not response:
             return []
 
-        return json.loads(response)
-
+        try:
+            return json.loads(response)
+        except Exception as e:
+            self.log.error('Failed to parse Docker API response: %s', response)
+            raise DockerJSONDecodeError
 
     # Cgroups
 
