@@ -365,7 +365,7 @@ SELECT relname,
         for x in yc:
             try:
                 if isinstance(x, str):
-                    config[x] = { 'relation_name': x, 'schemas': [] }
+                    config[x] = {'relation_name': x, 'schemas': []}
                 elif isinstance(x, dict):
                     name = x['relation_name']
                     config[name] = {}
@@ -376,7 +376,7 @@ SELECT relname,
             except:
                 pass
         return config
-        
+
     def _collect_stats(self, key, db, instance_tags, relations, custom_metrics):
         """Query pg_stat_* for various metrics
         If relations is not an empty list, gather per-relation metrics
