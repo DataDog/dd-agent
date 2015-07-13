@@ -101,7 +101,7 @@ class DockerDaemon(AgentCheck):
         if _is_affirmative(instance.get('collect_container_size', True)):
             self._report_container_size(instance, containers_by_id)
 
-        # TODO: bring events back
+        # TODO: bring events back --> OK - need to test
         # Send events from Docker API
         if _is_affirmative(instance.get('collect_events', True)):
             self._process_events(instance, containers_by_id)
@@ -490,7 +490,6 @@ class DockerDaemon(AgentCheck):
         return metrics
 
     # proc files
-    # TODO: return something, yo!
     def _crawl_container_pids(self, container_dict):
         """Crawl `/proc` to find container PIDs and add them to `containers_by_id`."""
         for folder in os.listdir('/proc'):
