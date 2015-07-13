@@ -85,27 +85,7 @@ class HTTPCheck(NetworkCheck):
             r = requests.get(addr, auth=auth, timeout=timeout, headers=headers,
                              verify=not disable_ssl_validation)
 
-        except socket.timeout, e:
-            length = int((time.time() - start) * 1000)
-            self.log.info("%s is DOWN, error: %s. Connection failed after %s ms"
-                          % (addr, str(e), length))
-            service_checks.append((
-                self.SC_STATUS,
-                Status.DOWN,
-                "%s. Connection failed after %s ms" % (str(e), length)
-            ))
-
-        except requests.exceptions.ConnectionError, e:
-            length = int((time.time() - start) * 1000)
-            self.log.info("%s is DOWN, error: %s. Connection failed after %s ms"
-                          % (addr, str(e), length))
-            service_checks.append((
-                self.SC_STATUS,
-                Status.DOWN,
-                "%s. Connection failed after %s ms" % (str(e), length)
-            ))
-
-        except requests.exceptions.Timeout, e:
+        except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms"
                           % (addr, str(e), length))
