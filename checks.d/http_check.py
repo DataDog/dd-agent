@@ -60,14 +60,15 @@ class HTTPCheck(NetworkCheck):
         include_content = _is_affirmative(instance.get('include_content', False))
         ssl = _is_affirmative(instance.get('disable_ssl_validation', True))
         ssl_expire = _is_affirmative(instance.get('check_certificate_expiration', True))
+        instance_ca_certs = instance.get('ca_certs', self.ca_certs)
 
         return url, username, password, http_response_status_code, timeout, include_content,\
-            headers, response_time, content_match, tags, ssl, ssl_expire
+            headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs
 
     def _check(self, instance):
         addr, username, password, http_response_status_code, timeout, include_content, headers,\
             response_time, content_match, tags, disable_ssl_validation,\
-            ssl_expire = self._load_conf(instance)
+            ssl_expire, instance_ca_certs = self._load_conf(instance)
         start = time.time()
 
         service_checks = []
@@ -83,7 +84,7 @@ class HTTPCheck(NetworkCheck):
                 auth = (username, password)
 
             r = requests.get(addr, auth=auth, timeout=timeout, headers=headers,
-                             verify=not disable_ssl_validation)
+                             verify=False if disable_ssl_validation else instance_ca_certs)
 
         except socket.timeout, e:
             length = int((time.time() - start) * 1000)
@@ -167,7 +168,7 @@ class HTTPCheck(NetworkCheck):
                 ))
 
         if ssl_expire and urlparse(addr)[0] == "https":
-            status, msg = self.check_cert_expiration(instance)
+            status, msg = self.check_cert_expiration(instance, timeout, instance_ca_certs)
             service_checks.append((
                 self.SC_SSL_CERT, status, msg
             ))
@@ -273,7 +274,7 @@ class HTTPCheck(NetworkCheck):
                            message=msg
                            )
 
-    def check_cert_expiration(self, instance):
+    def check_cert_expiration(self, instance, timeout, instance_ca_certs):
         warning_days = int(instance.get('days_warning', 14))
         url = instance.get('url')
 
@@ -284,9 +285,10 @@ class HTTPCheck(NetworkCheck):
 
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(float(timeout))
             sock.connect((host, port))
             ssl_sock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED,
-                                       ca_certs=self.ca_certs)
+                                       ca_certs=instance_ca_certs)
             cert = ssl_sock.getpeercert()
 
         except Exception as e:
