@@ -1,7 +1,7 @@
 # stdlib
 import os
 import re
-# import time
+import time
 # from collections import defaultdict
 
 # project
@@ -66,6 +66,11 @@ class MountException(Exception):
     pass
 
 
+class DockerJSONDecodeError(Exception):
+    """ Raised when there is trouble parsing the API response sent by Docker Remote API """
+    pass
+
+
 class DockerDaemon(AgentCheck):
     """Collect metrics and events from Docker API and cgroups"""
 
@@ -99,8 +104,8 @@ class DockerDaemon(AgentCheck):
 
         # TODO: bring events back
         # Send events from Docker API
-        # if _is_affirmative(instance.get('collect_events', True)):
-        #     self._process_events(instance, containers_by_id)
+        if _is_affirmative(instance.get('collect_events', True)):
+            self._process_events(instance, containers_by_id)
 
     def _connect_api(self, instance):
         base_url = instance.get('url')
@@ -315,14 +320,14 @@ class DockerDaemon(AgentCheck):
 
     # Events
 
-    # def _process_events(self, instance, ids_to_names, skipped_container_ids):
-    #     try:
-    #         api_events = self._get_events(instance)
-    #         aggregated_events = self._pre_aggregate_events(api_events, skipped_container_ids)
-    #         events = self._format_events(aggregated_events, ids_to_names)
-    #         self._report_events(events)
-    #     except (socket.timeout, urllib2.URLError):
-    #         self.warning('Timeout during socket connection. Events will be missing.')
+    def _process_events(self, instance, ids_to_names, skipped_container_ids):
+        try:
+            api_events = self._get_events(instance)
+            aggregated_events = self._pre_aggregate_events(api_events, skipped_container_ids)
+            events = self._format_events(aggregated_events, ids_to_names)
+            self._report_events(events)
+        except (socket.timeout, urllib2.URLError):
+            self.warning('Timeout during socket connection. Events will be missing.')
 
     # def _pre_aggregate_events(self, api_events, skipped_container_ids):
     #     # Aggregate events, one per image. Put newer events first.
@@ -384,19 +389,19 @@ class DockerDaemon(AgentCheck):
     #         self.log.debug("Creating event: %s" % ev['msg_title'])
     #         self.event(ev)
 
-    # def _get_events(self, instance):
-    #     """Get the list of events """
-    #     now = int(time.time())
-    #     result = self._get_json(
-    #         "%s/events" % instance["url"],
-    #         params={
-    #             "until": now,
-    #             "since": self._last_event_collection_ts[instance["url"]] or now - 60,
-    #         }, multi=True)
-    #     self._last_event_collection_ts[instance["url"]] = now
-    #     if type(result) == dict:
-    #         result = [result]
-    #     return result
+    def _get_events(self, instance):
+        """Get the list of events."""
+        now = int(time.time())
+        since = self._last_event_collection_ts[instance["url"]] or now - 60
+        try:
+            #TODO: this is supposed to return a generator, make sure it doesn't block the check
+            result = self.client.events(since=since, until=now, decode=True)
+        except ValueError:
+            return []
+        self._last_event_collection_ts[instance["url"]] = now
+        if type(result) == dict:
+            result = [result]
+        return result
 
     # Cgroups
 
