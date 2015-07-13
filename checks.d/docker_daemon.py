@@ -2,7 +2,9 @@
 import os
 import re
 import time
-# from collections import defaultdict
+import socket
+import urllib2
+from collections import defaultdict
 
 # project
 from checks import AgentCheck
@@ -66,11 +68,6 @@ class MountException(Exception):
     pass
 
 
-class DockerJSONDecodeError(Exception):
-    """ Raised when there is trouble parsing the API response sent by Docker Remote API """
-    pass
-
-
 class DockerDaemon(AgentCheck):
     """Collect metrics and events from Docker API and cgroups"""
 
@@ -86,6 +83,7 @@ class DockerDaemon(AgentCheck):
 
     def check(self, instance):
         """Run the Docker check for one instance."""
+
         # Connect to the Docker daemon
         self._connect_api(instance)
 
@@ -96,6 +94,7 @@ class DockerDaemon(AgentCheck):
         # Get the list of containers and the index of their names
         containers_by_id = self._get_and_count_containers(instance)
         self._crawl_container_pids()
+
         # Report performance container metrics (cpu, mem, net, io)
         self._report_performance_metrics(instance, containers_by_id)
         # TODO: report container sizes (and image sizes?) --> OK - need to test
@@ -113,7 +112,7 @@ class DockerDaemon(AgentCheck):
             raise Exception('Invalid configuration, missing "url" parameter')
         tls = _is_affirmative(instance.get('tls', False))
         # TODO: configurable timeout ---> OK - need to test
-        self.client = Client(base_url=base_url, tls=tls, version='1.18', timeout=self.DEFAULT_SOCKET_TIMEOUT)
+        self.client = Client(base_url=base_url, tls=tls, version='auto', timeout=self.DEFAULT_SOCKET_TIMEOUT)
 
     # Containers
 
@@ -320,74 +319,14 @@ class DockerDaemon(AgentCheck):
 
     # Events
 
-    def _process_events(self, instance, ids_to_names, skipped_container_ids):
+    def _process_events(self, instance, containers_by_id):
         try:
             api_events = self._get_events(instance)
-            aggregated_events = self._pre_aggregate_events(api_events, skipped_container_ids)
-            events = self._format_events(aggregated_events, ids_to_names)
+            aggregated_events = self._pre_aggregate_events(api_events, containers_by_id)
+            events = self._format_events(aggregated_events, containers_by_id)
             self._report_events(events)
         except (socket.timeout, urllib2.URLError):
             self.warning('Timeout during socket connection. Events will be missing.')
-
-    # def _pre_aggregate_events(self, api_events, skipped_container_ids):
-    #     # Aggregate events, one per image. Put newer events first.
-    #     events = defaultdict(list)
-    #     for event in api_events:
-    #         # Skip events related to filtered containers
-    #         if event['id'] in skipped_container_ids:
-    #             self.log.debug("Excluded event: container {0} status changed to {1}".format(
-    #                 event['id'], event['status']))
-    #             continue
-    #         # Known bug: from may be missing
-    #         if 'from' in event:
-    #             events[event['from']].insert(0, event)
-
-    #     return events
-
-    # def _format_events(self, aggregated_events, ids_to_names):
-    #     events = []
-    #     for image_name, event_group in aggregated_events.iteritems():
-    #         max_timestamp = 0
-    #         status = defaultdict(int)
-    #         status_change = []
-    #         for event in event_group:
-    #             max_timestamp = max(max_timestamp, int(event['time']))
-    #             status[event['status']] += 1
-    #             container_name = event['id'][:12]
-    #             if event['id'] in ids_to_names:
-    #                 container_name = "%s %s" % (container_name, ids_to_names[event['id']])
-    #             status_change.append([container_name, event['status']])
-
-    #         status_text = ", ".join(["%d %s" % (count, st) for st, count in status.iteritems()])
-    #         msg_title = "%s %s on %s" % (image_name, status_text, self.hostname)
-    #         msg_body = (
-    #             "%%%\n"
-    #             "{image_name} {status} on {hostname}\n"
-    #             "```\n{status_changes}\n```\n"
-    #             "%%%"
-    #         ).format(
-    #             image_name=image_name,
-    #             status=status_text,
-    #             hostname=self.hostname,
-    #             status_changes="\n".join(
-    #                 ["%s \t%s" % (change[1].upper(), change[0]) for change in status_change])
-    #         )
-    #         events.append({
-    #             'timestamp': max_timestamp,
-    #             'host': self.hostname,
-    #             'event_type': EVENT_TYPE,
-    #             'msg_title': msg_title,
-    #             'msg_text': msg_body,
-    #             'source_type_name': EVENT_TYPE,
-    #             'event_object': 'docker:%s' % image_name,
-    #         })
-
-    #     return events
-
-    # def _report_events(self, events):
-    #     for ev in events:
-    #         self.log.debug("Creating event: %s" % ev['msg_title'])
-    #         self.event(ev)
 
     def _get_events(self, instance):
         """Get the list of events."""
@@ -402,6 +341,66 @@ class DockerDaemon(AgentCheck):
         if type(result) == dict:
             result = [result]
         return result
+
+    def _pre_aggregate_events(self, api_events, containers_by_id):
+        # Aggregate events, one per image. Put newer events first.
+        events = defaultdict(list)
+        for event in api_events:
+            # Skip events related to filtered containers
+            if _is_container_excluded(containers_by_id[event['id']]):
+                self.log.debug("Excluded event: container {0} status changed to {1}".format(
+                    event['id'], event['status']))
+                continue
+            # Known bug: from may be missing
+            if 'from' in event:
+                events[event['from']].insert(0, event)
+        return events
+
+    def _format_events(self, aggregated_events, containers_by_id):
+        events = []
+        for image_name, event_group in aggregated_events.iteritems():
+            max_timestamp = 0
+            status = defaultdict(int)
+            status_change = []
+            for event in event_group:
+                max_timestamp = max(max_timestamp, int(event['time']))
+                status[event['status']] += 1
+                container_name = event['id'][:12]
+                if event['id'] in containers_by_id:
+                    container_name = "%s %s" % (container_name, containers_by_id[event['id']]['name'])
+                status_change.append([container_name, event['status']])
+
+            status_text = ", ".join(["%d %s" % (count, st) for st, count in status.iteritems()])
+            msg_title = "%s %s on %s" % (image_name, status_text, self.hostname)
+            msg_body = (
+                "%%%\n"
+                "{image_name} {status} on {hostname}\n"
+                "```\n{status_changes}\n```\n"
+                "%%%"
+            ).format(
+                image_name=image_name,
+                status=status_text,
+                hostname=self.hostname,
+                status_changes="\n".join(
+                    ["%s \t%s" % (change[1].upper(), change[0]) for change in status_change])
+            )
+            events.append({
+                'timestamp': max_timestamp,
+                'host': self.hostname,
+                'event_type': EVENT_TYPE,
+                'msg_title': msg_title,
+                'msg_text': msg_body,
+                'source_type_name': EVENT_TYPE,
+                'event_object': 'docker:%s' % image_name,
+            })
+
+        return events
+
+    def _report_events(self, events):
+        for ev in events:
+            self.log.debug("Creating event: %s" % ev['msg_title'])
+            self.event(ev)
+
 
     # Cgroups
 
@@ -491,7 +490,7 @@ class DockerDaemon(AgentCheck):
         return metrics
 
     # proc files
-
+    # TODO: return something, yo!
     def _crawl_container_pids(self, container_dict):
         """Crawl `/proc` to find container PIDs and add them to `containers_by_id`."""
         for folder in os.listdir('/proc'):
