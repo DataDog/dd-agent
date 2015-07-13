@@ -191,7 +191,6 @@ CLUSTER_PENDING_TASKS = {
     "elasticsearch.pending_tasks_priority_urgent": ("gauge", "pending_tasks_priority_urgent")
 }
 
-
 def get_es_version():
     version = os.environ.get("FLAVOR_VERSION")
     if version is None:
@@ -202,6 +201,43 @@ def get_es_version():
 @attr(requires='elasticsearch')
 class TestElastic(AgentCheckTest):
     CHECK_NAME = "elastic"
+
+    def _get_default_expected_metrics(self, config):
+        """ A small helper method returning the list of configuration-agnostic
+        metrics sent by the check. Since every coverage report needs to have
+        these metrics tested, it's good to be able to fetch them in one call."""
+        expected_metrics = STATS_METRICS
+        CLUSTER_HEALTH_METRICS.update(CLUSTER_PENDING_TASKS)
+        expected_metrics.update(CLUSTER_HEALTH_METRICS)
+
+        instance_config = self.check.get_instance_config(config['instances'][0])
+        es_version = self.check._get_es_version(instance_config)
+
+        if es_version >= [0, 90, 5]:
+            expected_metrics.update(ADDITIONAL_METRICS_POST_0_90_5)
+            if es_version >= [0, 90, 10]:
+                expected_metrics.update(JVM_METRICS_POST_0_90_10)
+            else:
+                expected_metrics.update(JVM_METRICS_PRE_0_90_10)
+        else:
+            expected_metrics.update(ADDITIONAL_METRICS_PRE_0_90_5)
+            expected_metrics.update(JVM_METRICS_PRE_0_90_10)
+
+        return expected_metrics
+
+    def assert_default_metrics(self, config):
+        """ Another helper function checking for the presence of the default
+        metrics defined above. It's a minimalistic version, doesn't include
+        context checks, count checks etc... That's why it's not used in
+        test_check which needs more advanced tests. It's very convenient for
+        tests whose aim is to test the presence of configuration specific
+        metrics."""
+        for m_name, desc in self._get_default_expected_metrics(config).iteritems():
+            if desc[0] == "gauge":
+                self.assertMetric(m_name)
+        self.assertServiceCheck('elasticsearch.can_connect')
+        self.assertServiceCheck('elasticsearch.cluster_health')
+        self.assertServiceMetadata(['version'])
 
     def test_check(self):
         conf_hostname = "foo"
@@ -230,31 +266,17 @@ class TestElastic(AgentCheckTest):
 
         default_tags = ["url:http://localhost:{0}".format(port)]
 
-        expected_metrics = STATS_METRICS
-        CLUSTER_HEALTH_METRICS.update(CLUSTER_PENDING_TASKS)
-        expected_metrics.update(CLUSTER_HEALTH_METRICS)
-
         instance_config = self.check.get_instance_config(config['instances'][0])
+
         es_version = self.check._get_es_version(instance_config)
-
         self.assertEquals(es_version, get_es_version())
-
-        if es_version >= [0, 90, 5]:
-            expected_metrics.update(ADDITIONAL_METRICS_POST_0_90_5)
-            if es_version >= [0, 90, 10]:
-                expected_metrics.update(JVM_METRICS_POST_0_90_10)
-            else:
-                expected_metrics.update(JVM_METRICS_PRE_0_90_10)
-        else:
-            expected_metrics.update(ADDITIONAL_METRICS_PRE_0_90_5)
-            expected_metrics.update(JVM_METRICS_PRE_0_90_10)
 
         contexts = [
             (conf_hostname, default_tags + tags),
             (socket.gethostname(), default_tags)
         ]
 
-        for m_name, desc in expected_metrics.iteritems():
+        for m_name, desc in self._get_default_expected_metrics(config).iteritems():
             for hostname, m_tags in contexts:
                 if (m_name in CLUSTER_HEALTH_METRICS
                         and hostname == socket.gethostname()):
@@ -374,7 +396,7 @@ class TestElastic(AgentCheckTest):
         """ Tests that the pshard related metrics are forwarded  """
 
         config = {'instances': [
-            {'url': 'http://localhost:9200', 'pshard_stats': True}
+            {'url': 'http://localhost:9200', 'pshard_stats': True, 'hostname': 'foo'}
         ]}
         # Cleaning up everything won't hurt.
         requests.delete('http://localhost:9200/_all/')
@@ -414,11 +436,17 @@ class TestElastic(AgentCheckTest):
         # elastic search CI integrations. It would make the line below fail :/
         self.assertMetric('elasticsearch.primaries.docs.count', value=2)
 
+        # And let's add the configuration-agnostic metrics to our coverage report
+        self.assert_default_metrics(config)
+        # This event will be sent because replication doesn't work on one node :)
+        self.assertEvent('yellow', exact_match=False)
+        self.coverage_report()
+
     def test_shard_level_metrics_and_service_checks(self):
         """ Tests that when the option is set to true, the shard-level metrics
         are sent as well as the service checks  """
         config = {'instances': [
-            {'url': 'http://localhost:9200', 'shard_level_metrics': True}
+            {'url': 'http://localhost:9200', 'shard_level_metrics': True, 'hostname': 'foo'}
         ]}
 
         requests.delete('http://localhost:9200/_all/')
@@ -453,3 +481,6 @@ class TestElastic(AgentCheckTest):
             'elasticsearch.shard.state',
             count=3
         )
+
+        self.assert_default_metrics(config)
+        self.coverage_report()
