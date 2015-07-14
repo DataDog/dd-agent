@@ -107,3 +107,9 @@ instances:
     # Available: ["image_name", "image_tag", "docker_image", "container_command"]
     #
     # container_tags: ["image_name"]
+
+    # Tags per container
+    # Define the name of your containers and a list of their tags
+    # tags_per_container_name:
+    #   container0: ["tag0:foo", "tag1:bar"]
+    #   container1: ["tag2:baz"]

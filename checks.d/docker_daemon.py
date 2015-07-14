@@ -58,7 +58,7 @@ TAG_EXTRACTORS = {
 
 TODO:
  - Support a global "extra_tags" configuration, adding tags to all the metrics/events --> OK, need to test
- - Figure out the need to have "per-container" custom tags (often requested)
+ - Figure out the need to have "per-container" custom tags (often requested) --> OK, need to test
  - Write tests
  - Test on all the platforms
 """
@@ -150,10 +150,15 @@ class DockerDaemon(AgentCheck):
         self._filter_containers(instance, containers)
 
         containers_by_id = {}
-        for container in containers:
-            tag_names = instance.get("container_tags", ["image_name"])
-            container_tags = self._get_tags(container, tag_names) + instance.get('tags', [])
+        custom_container_tags = instance.get('tags_per_container_name', {})
 
+        for container in containers:
+            custom_tags = []
+            if container['name'] in custom_container_tags:
+                custom_tags = custom_container_tags[container['name']]
+                container['_custom_tags'] = dict(map(lambda x: x.split(':'), custom_tags))
+            tag_names = instance.get("container_tags", ["image_name"])
+            container_tags = self._get_tags(container, tag_names) + instance.get('tags', []) + custom_tags
             # Check if the container is included/excluded via its tags
             if self._is_container_excluded(container):
                 continue
@@ -249,7 +254,10 @@ class DockerDaemon(AgentCheck):
             elif 'SizeRw' not in container or 'SizeRootFs' not in container:
                 continue
             tag_names = instance.get("performance_tags", ["image_name", "container_name"])
-            container_tags = self._get_tags(container, tag_names) + instance.get('tags', [])
+            custom_tags = container.get('custom_tags', [])
+            if custom_tags:
+                custom_tags = ['%s:%s' % (tag[0], tag[1]) for tag in custom_tags.iteritems()]
+            container_tags = self._get_tags(container, tag_names) + instance.get('tags', []) + custom_tags
             self.gauge('docker.container.size_rw', container['SizeRw'], tags=container_tags)
             self.gauge('docker.container.size_rootfs', container['SizeRootFs'], tags=container_tags)
 
@@ -270,7 +278,10 @@ class DockerDaemon(AgentCheck):
                 continue
 
             tag_names = instance.get("performance_tags", ["image_name", "container_name"])
-            container_tags = self._get_tags(container, tag_names) + instance.get('tags', [])
+            custom_tags = container.get('custom_tags', [])
+            if custom_tags:
+                custom_tags = ['%s:%s' % (tag[0], tag[1]) for tag in custom_tags.iteritems()]
+            container_tags = self._get_tags(container, tag_names) + instance.get('tags', []) + custom_tags
 
             self._report_cgroup_metrics(container, container_tags)
             self._report_net_metrics(container, container_tags)
