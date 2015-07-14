@@ -27,11 +27,11 @@ class ZooKeeperTestCase(AgentCheckTest):
     CONNECTION_FAILURE_CONFIG = {
         'host': "127.0.0.1",
         'port': 2182,
-        'expected_mode': "follower",
+        'expected_mode': "down",
         'tags': []
     }
 
-    METRICS = [
+    STAT_METRICS = [
         'zookeeper.latency.min',
         'zookeeper.latency.avg',
         'zookeeper.latency.max',
@@ -44,6 +44,33 @@ class ZooKeeperTestCase(AgentCheckTest):
         'zookeeper.zxid.epoch',
         'zookeeper.zxid.count',
         'zookeeper.nodes',
+        'zookeeper.instances',
+    ]
+
+    MNTR_METRICS = [
+        'zookeeper.packets.sent',
+        'zookeeper.approximate.data.size',
+        'zookeeper.num.alive.connections',
+        'zookeeper.open.file.descriptor.count',
+        'zookeeper.avg.latency',
+        'zookeeper.znode.count',
+        'zookeeper.outstanding.requests',
+        'zookeeper.min.latency',
+        'zookeeper.ephemerals.count',
+        'zookeeper.watch.count',
+        'zookeeper.max.file.descriptor.count',
+        'zookeeper.packets.received',
+        'zookeeper.max.latency',
+    ]
+
+    STATUS_TYPES = [
+        'leader',
+        'follower',
+        'observer',
+        'standalone',
+        'down',
+        'inactive',
+        'unknown',
     ]
 
     def test_check(self):
@@ -56,12 +83,23 @@ class ZooKeeperTestCase(AgentCheckTest):
         self.run_check(config)
 
         # Test metrics
-        for mname in self.METRICS:
+        for mname in self.STAT_METRICS:
+            self.assertMetric(mname, tags=["mode:standalone", "mytag"], count=1)
+
+        for mname in self.MNTR_METRICS:
             self.assertMetric(mname, tags=["mode:standalone", "mytag"], count=1)
 
         # Test service checks
         self.assertServiceCheck("zookeeper.ruok", status=AgentCheck.OK)
         self.assertServiceCheck("zookeeper.mode", status=AgentCheck.OK)
+
+        expected_mode = self.CONFIG['expected_mode']
+        for t in self.STATUS_TYPES:
+            expected_value = 0
+            if t == expected_mode:
+                expected_value = 1
+            mname = "zookeeper.instances." + t
+            self.assertMetric(mname, value=expected_value, count=1)
 
         self.coverage_report()
 
@@ -79,7 +117,8 @@ class ZooKeeperTestCase(AgentCheckTest):
 
     def test_error_state(self):
         """
-        Raise a 'critical' service check when ZooKeeper is in an error state
+        Raise a 'critical' service check when ZooKeeper is in an error state.
+        Report status as down.
         """
         config = {
             'instances': [self.CONNECTION_FAILURE_CONFIG]
@@ -90,5 +129,14 @@ class ZooKeeperTestCase(AgentCheckTest):
             lambda: self.run_check(config)
         )
 
-        # Test service checks
         self.assertServiceCheck("zookeeper.ruok", status=AgentCheck.CRITICAL)
+
+        self.assertMetric("zookeeper.instances", tags=["mode:down"], count=1)
+
+        expected_mode = self.CONNECTION_FAILURE_CONFIG['expected_mode']
+        for t in self.STATUS_TYPES:
+            expected_value = 0
+            if t == expected_mode:
+                expected_value = 1
+            mname = "zookeeper.instances." + t
+            self.assertMetric(mname, value=expected_value, count=1)
