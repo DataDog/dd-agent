@@ -1,4 +1,25 @@
 '''
+As of zookeeper 3.4.0, the `mntr` admin command is provided for easy parsing of zookeeper stats.
+This check first parses the `stat` admin command for a version number.
+If the zookeeper version supports `mntr`, it is also parsed.
+
+Duplicate information is being reported by both `mntr` and `stat` to keep backwards compatability.
+Example:
+    `stat` reports: zookeeper.latency.avg
+    `mntr` reports: zookeeper.avg.latency
+If available, make use of the data reported by `mntr` not `stat`.
+The dublicate `stat` reports are only kept for backward compatability.
+
+Besides the usual zookeeper state of `leader`, `follower`, `observer` and `standalone`,
+this check will report three other states:
+
+    `down`: the check cannot connect to zookeeper
+    `inactive`: the zookeeper instance has lost connection to the cluster
+    `unknown`: an unexpected error has occured in this check
+
+States can be accessed through the gauge `zookeeper.instances.<state>,
+through the set `zookeeper.instances`, or through the `mode:<state>` tag.
+
 Parses the response from zookeeper's `stat` admin command, which looks like:
 
 ```
@@ -20,14 +41,37 @@ Mode: leader
 Node count: 487
 ```
 
-Tested with Zookeeper versions 3.0.0 to 3.4.5
+`stat` tested with Zookeeper versions 3.0.0 to 3.4.5
 
+The following is an example of the `mntr` commands output:
+
+```
+zk_version  3.4.5-cdh4.4.0--1, built on 09/04/2013 01:46 GMT
+zk_avg_latency  0
+zk_max_latency  0
+zk_min_latency  0
+zk_packets_received 4
+zk_packets_sent 3
+zk_num_alive_connections    1
+zk_outstanding_requests 0
+zk_server_state standalone
+zk_znode_count  4
+zk_watch_count  0
+zk_ephemerals_count 0
+zk_approximate_data_size    27
+zk_open_file_descriptor_count   29
+zk_max_file_descriptor_count    4096
+```
+
+`mntr` tested with ZooKeeper 3.4.5
 '''
 # stdlib
+from distutils.version import LooseVersion
 import re
 import socket
 from StringIO import StringIO
 import struct
+import sys
 
 # project
 from checks import AgentCheck
@@ -51,8 +95,12 @@ class ZookeeperCheck(AgentCheck):
         tags = instance.get('tags', [])
         cx_args = (host, port, timeout)
         sc_tags = ["host:{0}".format(host), "port:{0}".format(port)]
+        hostname = socket.gethostname()
+
+        zk_version = None # parse_stat will parse and set version string
 
         # Send a service check based on the `ruok` response.
+        # Set instance status to down if not ok.
         try:
             ruok_out = self._send_command('ruok', *cx_args)
         except ZKConnectionFailure:
@@ -60,6 +108,8 @@ class ZookeeperCheck(AgentCheck):
             status = AgentCheck.CRITICAL
             message = 'No response from `ruok` command'
             self.increment('zookeeper.timeouts')
+            self.report_instance_mode(hostname, 'down', tags)
+            raise
         else:
             ruok_out.seek(0)
             ruok = ruok_out.readline()
@@ -68,22 +118,32 @@ class ZookeeperCheck(AgentCheck):
             else:
                 status = AgentCheck.WARNING
             message = u'Response from the server: %s' % ruok
-        self.service_check('zookeeper.ruok', status, message=message,
-                           tags=sc_tags)
+        finally:
+            self.service_check('zookeeper.ruok', status, message=message,
+                    tags=sc_tags)
 
         # Read metrics from the `stat` output.
         try:
             stat_out = self._send_command('stat', *cx_args)
         except ZKConnectionFailure:
             self.increment('zookeeper.timeouts')
+            self.report_instance_mode(hostname, 'down', tags)
+            raise
+        except:
+            e = sys.exc_info()[1]
+            print >> sys.stderr, "Error: %s" % e
+            self.increment('zookeeper.datadog_client_exception')
+            self.report_instance_mode(hostname, 'unknown', tags)
             raise
         else:
             # Parse the response
-            metrics, new_tags, mode = self.parse_stat(stat_out)
+            metrics, new_tags, mode, zk_version = self.parse_stat(stat_out)
 
             # Write the data
-            for metric, value in metrics:
-                self.gauge(metric, value, tags=tags + new_tags)
+            if mode != 'inactive':
+                for metric, value in metrics:
+                    self.gauge(metric, value, tags=tags + new_tags)
+            self.report_instance_mode(hostname, mode, tags)
 
             if expected_mode:
                 if mode == expected_mode:
@@ -95,6 +155,50 @@ class ZookeeperCheck(AgentCheck):
                               % (mode, expected_mode)
                 self.service_check('zookeeper.mode', status, message=message,
                                    tags=sc_tags)
+
+        if zk_version and LooseVersion(zk_version) > LooseVersion("3.4.0"):
+            try:
+                mntr_out = self._send_command('mntr', *cx_args)
+            except ZKConnectionFailure:
+                self.increment('zookeeper.timeouts')
+                self.report_instance_mode(hostname, 'down', tags)
+                raise
+            except:
+                e = sys.exc_info()[1]
+                print >> sys.stderr, "Error: %s" % e
+                self.increment('zookeeper.datadog_client_exception')
+                self.report_instance_mode(hostname, 'unknown', tags)
+                raise
+            else:
+                metrics, mode = self.parse_mntr(mntr_out)
+                mode_tag = "mode:%s" % mode
+                if mode != 'inactive':
+                    for name in metrics:
+                        self.gauge(name, metrics[name], tags=tags + [mode_tag])
+
+
+    def report_instance_mode(self, hostname, mode, tags):
+        tags = tags + ['mode:%s' % mode]
+        self.set('zookeeper.instances', hostname, tags=tags)
+
+        gauges = {
+            'leader': 0,
+            'follower': 0,
+            'observer': 0,
+            'standalone': 0,
+            'down': 0,
+            'inactive': 0,
+            'unknown': 0
+        }
+
+        if mode in gauges:
+            gauges[mode] = 1
+        else:
+            gauges['unknown'] = 1
+
+        for k in gauges:
+            gauge_name = 'zookeeper.instances.%s' % k
+            self.gauge(gauge_name, gauges[k])
 
     def _send_command(self, command, host, port, timeout):
         sock = socket.socket()
@@ -127,9 +231,10 @@ class ZookeeperCheck(AgentCheck):
             sock.close()
         return buf
 
+
     def parse_stat(self, buf):
         ''' `buf` is a readable file-like object
-            returns a tuple: ([(metric_name, value)], tags)
+            returns a tuple: (metrics, tags, mode, version)
         '''
         metrics = []
         buf.seek(0)
@@ -140,10 +245,12 @@ class ZookeeperCheck(AgentCheck):
         start_line = buf.readline()
         match = self.version_pattern.match(start_line)
         if match is None:
+            return (None, None, "inactive", None)
             raise Exception("Could not parse version from stat command output: %s" % start_line)
         else:
             version_tuple = match.groups()
         has_connections_val = version_tuple >= ('3', '4', '4')
+        version = "%s.%s.%s" % version_tuple
 
         # Clients:
         buf.readline() # skip the Clients: header
@@ -210,4 +317,34 @@ class ZookeeperCheck(AgentCheck):
         _, value = buf.readline().split(':')
         metrics.append(('zookeeper.nodes', long(value.strip())))
 
-        return metrics, tags, mode
+        return metrics, tags, mode, version
+
+
+    def parse_mntr(self, buf):
+        ''' `buf` is a readable file-like object
+            Returns: a tuple (metrics, mode)
+            if mode == 'inactive', metrics will be None
+        '''
+
+        buf.seek(0)
+        first = buf.readline() # first is version string or error
+        if first == 'This ZooKeeper instance is not currently serving requests':
+            return (None, 'inactive')
+
+        metrics = {}
+
+        for line in buf:
+            data = line.split()
+            if len(data) == 2:
+                name = data[0].replace('zk', 'zookeeper').replace('_', '.')
+                metrics[name] = data[1]
+            else:
+                raise Exception("Data not in 'key value' format, could not parse '%s'" % line)
+
+        # mode is a string {'standalone', 'leader', 'follower', 'observer'}
+        mode = metrics.pop('zookeeper.server.state').lower()
+
+        for key in metrics: # everything else is an int
+            metrics[key] = int(metrics[key])
+
+        return (metrics, mode)
