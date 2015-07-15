@@ -1,5 +1,7 @@
 # stdlib
 from collections import defaultdict
+import itertools
+import re
 import socket
 import time
 import xmlrpclib
@@ -53,45 +55,35 @@ class SupervisordCheck(AgentCheck):
         supe = self._connect(instance)
         count_by_status = defaultdict(int)
 
-        # Grab process information
+        # Gather all process information
         try:
-            proc_names = instance.get('proc_names')
-            if proc_names:
-                if not isinstance(proc_names, list) or not len(proc_names):
-                    raise Exception("Empty or invalid proc_names.")
-                processes = []
-                for proc_name in proc_names:
-                    try:
-                        processes.append(supe.getProcessInfo(proc_name))
-                    except xmlrpclib.Fault, e:
-                        if e.faultCode == 10: # bad process name
-                            self.warning('Process not found: %s' % proc_name)
-                        else:
-                            raise Exception('An error occurred while reading'
-                                            'process %s information: %s %s'
-                                            % (proc_name, e.faultCode, e.faultString))
-            else:
-                processes = supe.getAllProcessInfo()
+            processes = supe.getAllProcessInfo()
+        except xmlrpclib.Fault, error:
+            raise Exception(
+                'An error occurred while reading process information: %s %s'
+                % (error.faultCode, error.faultString)
+            )
         except socket.error, e:
             host = instance.get('host', DEFAULT_HOST)
             port = instance.get('port', DEFAULT_PORT)
             sock = instance.get('socket')
             if sock is None:
                 msg = 'Cannot connect to http://%s:%s. ' \
-                    'Make sure that supervisor is running and XML-RPC ' \
-                    'inet interface is enabled.' % (host, port)
+                      'Make sure supervisor is running and XML-RPC ' \
+                      'inet interface is enabled.' % (host, port)
             else:
-                msg = 'Cannot connect to %s. Make sure that supervisor ' \
-                    'is running and that the socket file' \
-                    ' has the right permissions.' % sock
+                msg = 'Cannot connect to %s. Make sure sure supervisor ' \
+                      'is running and socket is enabled and socket file' \
+                      ' has the right permissions.' % sock
 
             self.service_check(SERVER_SERVICE_CHECK, AgentCheck.CRITICAL,
                                tags=server_service_check_tags,
                                message=msg)
 
             raise Exception(msg)
+
         except xmlrpclib.ProtocolError, e:
-            if e.errcode == 401: # authorization error
+            if e.errcode == 401:  # authorization error
                 msg = 'Username or password to %s are incorrect.' % server_name
             else:
                 msg = "An error occurred while connecting to %s: "\
@@ -102,13 +94,36 @@ class SupervisordCheck(AgentCheck):
                                message=msg)
             raise Exception(msg)
 
-
         # If we're here, we were able to connect to the server
         self.service_check(SERVER_SERVICE_CHECK, AgentCheck.OK,
-            tags=server_service_check_tags)
+                           tags=server_service_check_tags)
+
+        # Filter monitored processes on configuration directives
+        proc_regex = instance.get('proc_regex', [])
+        if not isinstance(proc_regex, list):
+            raise Exception("Empty or invalid proc_regex.")
+
+        proc_names = instance.get('proc_names', [])
+        if not isinstance(proc_names, list):
+            raise Exception("Empty or invalid proc_names.")
+
+        # Collect information on each monitored process
+        monitored_processes = []
+
+        # monitor all processes if no filters were specified
+        if len(proc_regex) == 0 and len(proc_names) == 0:
+            monitored_processes = processes
+
+        for pattern, process in itertools.product(proc_regex, processes):
+            if re.match(pattern, process['name']) and process not in monitored_processes:
+                monitored_processes.append(process)
+
+        for process in processes:
+            if process['name'] in proc_names and process not in monitored_processes:
+                monitored_processes.append(process)
 
         # Report service checks and uptime for each process
-        for proc in processes:
+        for proc in monitored_processes:
             proc_name = proc['name']
             tags = ['%s:%s' % (SERVER_TAG, server_name),
                     '%s:%s' % (PROCESS_TAG, proc_name)]
