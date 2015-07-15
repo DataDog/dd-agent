@@ -138,6 +138,10 @@ print_console() {
     printf "%s\n" "$*" | tee /dev/fd/3
 }
 
+print_console_wo_nl() {
+    printf "%s" "$*" | tee /dev/fd/3
+}
+
 print_red() {
     printf "\033[31m%s\033[0m\n" "$*" | tee /dev/fd/3
 }
@@ -267,8 +271,10 @@ detect_python() {
 detect_downloader() {
     if command -v curl; then
         export DOWNLOADER="curl -k -L -o"
+        export HTTP_TESTER="curl -f"
     elif command -v wget; then
         export DOWNLOADER="wget -O"
+        export HTTP_TESTER="wget -O /dev/null"
     fi
 }
 
@@ -471,33 +477,34 @@ shortly at:
       $INFRA_URL"
 
 print_console
-print_console "* Waiting 30s to see if the agent submits metrics correctly"
+print_console "* Waiting 30s to see if the Agent submits metrics correctly"
 c=0
 while [ "$c" -lt "30" ]; do
     sleep 1
-    printf "."
+    print_console_wo_nl "."
     c=$((c+1))
 done
 
 # Hit this endpoint to check if the Agent is submitting metrics
 # and retry every sec for 60 more sec before failing
-ERROR_MESSAGE="Agent did not submit metrics after 90 seconds"
+print_console
+print_console "* Testing if the Agent is submitting metrics"
+ERROR_MESSAGE="The Agent hasn't submitted metrics after 90 seconds"
 while [ "$c" -lt "90" ]; do
     sleep 1
-    printf "."
-    if curl -f "http://localhost:17123/status?threshold=0"; then
+    print_console_wo_nl "."
+    if $HTTP_TESTER "http://localhost:17123/status?threshold=0"; then
         break
     fi
     c=$((c+1))
 done
+print_console
 
-if [ "$c" -gt "91" ]; then
-    exit 1
+if [ "$c" -ge "90" ]; then
+    error_trap
 fi
 
 # Yay IT WORKED!
-print_console
-
 print_green "Success! Your Agent is functioning properly, and will continue to run
 in the foreground. To stop it, simply press CTRL-C. To start it back
 up again in the foreground, run:
