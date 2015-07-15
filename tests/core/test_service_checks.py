@@ -35,7 +35,8 @@ class ServiceCheckTestCase(AgentCheckTest):
         self.load_check(config, agentConfig)
         url, username, password, http_response_status_code, timeout,\
             include_content, headers, response_time, content_match,\
-            tags, ssl, ssl_expiration = self.check._load_conf(config['instances'][0])
+            tags, ssl, ssl_expiration,\
+            instance_ca_certs = self.check._load_conf(config['instances'][0])
 
         self.assertEqual(headers["X-Auth-Token"], "SOME-AUTH-TOKEN", headers)
         expected_headers = agent_headers(agentConfig).get('User-Agent')

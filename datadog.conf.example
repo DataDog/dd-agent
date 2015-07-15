@@ -46,9 +46,10 @@ api_key:
 # Set the threshold for accepting points to allow anything
 # with recent_point_threshold seconds
 # Defaults to 30 seconds if no value is provided
-#recent_point_threshold: 30
+# recent_point_threshold: 30
 
 # Use mount points instead of volumes to track disk and fs metrics
+# DEPRECATED: use conf.d/disk.yaml instead to configure it
 use_mount: no
 
 # Change port the Agent is listening to
@@ -134,6 +135,7 @@ use_mount: no
 # running constantly churning linux containers) whose metrics aren't
 # interesting for datadog. To filter out a particular pattern of devices
 # from collection, configure a regex here:
+# DEPRECATED: use conf.d/disk.yaml instead to configure it
 # device_blacklist_re: .*\/dev\/mapper\/lxc-box.*
 
 # -------------------------------------------------------------------------- #

@@ -1,6 +1,17 @@
 Changes
 =======
 
+# 5.4.3 / 07-13-2015
+**Linux or Source Install only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.4.2...5.4.3
+
+### Changes
+* [SECURITY] The deb and rpm packages now bundle OpenSSL 1.0.1p. For more details, see the [security advisory](http://openssl.org/news/secadv_20150709.txt).
+* [BUGFIX] Docker: Do not fail when the event API returns a bad JSON response. See [#1757][]
+
+
 # 5.4.2 / 06-18-2015
 **Linux or Source Install only**
 
@@ -1754,6 +1765,7 @@ If you use ganglia, you want this version.
 [#1701]: https://github.com/DataDog/dd-agent/issues/1701
 [#1709]: https://github.com/DataDog/dd-agent/issues/1709
 [#1710]: https://github.com/DataDog/dd-agent/issues/1710
+[#1757]: https://github.com/DataDog/dd-agent/issues/1757
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour

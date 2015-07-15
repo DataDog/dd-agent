@@ -6,6 +6,7 @@ instances:
 #    username: my_username
 #    password: my_password
 #    dbname: db_name
+#    ssl: False
 #    tags:
 #      - optional_tag1
 #      - optional_tag2

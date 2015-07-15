@@ -10,17 +10,47 @@ import logging
 import os
 import os.path as osp
 import platform
+# To manage the agent on OSX
+from subprocess import (
+    CalledProcessError,
+    check_call,
+    check_output,
+)
 import sys
 import thread  # To manage the windows process asynchronously
 
 # 3p
 # GUI Imports
-from guidata.configtools import get_family, get_icon, MONOSPACE
-from guidata.qt.QtCore import QPoint, QSize, Qt, QTimer, SIGNAL
-from guidata.qt.QtGui import (QFont, QGroupBox, QHBoxLayout, QInputDialog,
-                              QLabel, QListWidget, QMenu, QMessageBox,
-                              QPushButton, QSplitter, QSystemTrayIcon,
-                              QTextEdit, QVBoxLayout, QWidget)
+from guidata.configtools import (
+    add_image_path,
+    get_family,
+    get_icon,
+    MONOSPACE,
+)
+from guidata.qt.QtCore import (
+    QPoint,
+    QSize,
+    Qt,
+    QTimer,
+    SIGNAL,
+)
+from guidata.qt.QtGui import (
+    QApplication,
+    QFont,
+    QGroupBox,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QListWidget,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QSystemTrayIcon,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 from guidata.qthelpers import get_std_icon
 
 # small hack to avoid having to patch the spyderlib library
@@ -30,22 +60,47 @@ import spyderlib.baseconfig
 spyderlib.baseconfig.IMG_PATH = [""]
 from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 
-# Windows management & others
+# 3rd Party others
 import tornado.template as template
-import win32service
-import win32serviceutil
 import yaml
 
 # Datadog
-from checks.check_status import CollectorStatus, DogstatsdStatus, ForwarderStatus, logger_info
+from checks.check_status import (
+    CollectorStatus,
+    DogstatsdStatus,
+    ForwarderStatus,
+    logger_info,
+)
 from config import (
-    _windows_commondata_path,
     get_confd_path,
     get_config,
     get_config_path,
-    get_version,
+    get_logging_config,
+    get_version
 )
 from util import yLoader
+from utils.platform import Platform
+
+
+# Constants describing the agent state
+AGENT_RUNNING = 0
+AGENT_START_PENDING = 1
+AGENT_STOP_PENDING = 2
+AGENT_STOPPED = 3
+AGENT_UNKNOWN = 4
+
+# Windows management
+# Import Windows stuff only on Windows
+if Platform.is_windows():
+    import win32serviceutil
+    import win32service
+    WIN_STATUS_TO_AGENT = {
+        win32service.SERVICE_RUNNING: AGENT_RUNNING,
+        win32service.SERVICE_START_PENDING: AGENT_START_PENDING,
+        win32service.SERVICE_STOP_PENDING: AGENT_STOP_PENDING,
+        win32service.SERVICE_STOPPED: AGENT_STOPPED,
+    }
+
 
 log = logging.getLogger(__name__)
 
@@ -68,37 +123,31 @@ EXCLUDED_WINDOWS_CHECKS = [
     'zk',
 ]
 
+EXCLUDED_MAC_CHECKS = [
+    'cacti',
+    'iis',
+    'sqlserver',
+    'win32_event_log',
+    'windows_service',
+    'wmi_check',
+]
+
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"
 
 DATADOG_SERVICE = "DatadogAgent"
 
-COLLECTOR_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'collector.log')
-FORWARDER_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'forwarder.log')
-DOGSTATSD_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'dogstatsd.log')
-JMXFETCH_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'jmxfetch.log')
-
 HUMAN_SERVICE_STATUS = {
-    win32service.SERVICE_RUNNING : 'Service is running',
-    win32service.SERVICE_START_PENDING : 'Service is starting',
-    win32service.SERVICE_STOP_PENDING : 'Service is stopping',
-    win32service.SERVICE_STOPPED : 'Service is stopped',
-    "Unknown" : "Cannot get service status",
+    AGENT_RUNNING: 'Agent is running',
+    AGENT_START_PENDING: 'Agent is starting',
+    AGENT_STOP_PENDING: 'Agent is stopping',
+    AGENT_STOPPED: 'Agent is stopped',
+    AGENT_UNKNOWN: "Cannot get Agent status",
 }
 
 REFRESH_PERIOD = 5000
 
-START_AGENT = "Start Agent"
-STOP_AGENT = "Stop Agent"
-RESTART_AGENT = "Restart Agent"
-EXIT_MANAGER = "Exit Agent Manager"
 OPEN_LOG = "Open log file"
 
-SYSTEM_TRAY_MENU = [
-    (START_AGENT, lambda: service_manager("start")),
-    (STOP_AGENT, lambda: service_manager("stop")),
-    (RESTART_AGENT, lambda: service_manager("restart")),
-    (EXIT_MANAGER, lambda: sys.exit(0)),
-]
 
 def get_checks():
     checks = {}
@@ -106,7 +155,11 @@ def get_checks():
 
     for filename in sorted(os.listdir(conf_d_directory)):
         module_name, ext = osp.splitext(filename)
-        if filename.split('.')[0] in EXCLUDED_WINDOWS_CHECKS:
+        if Platform.is_windows():
+            excluded_checks = EXCLUDED_WINDOWS_CHECKS
+        else:
+            excluded_checks = EXCLUDED_MAC_CHECKS
+        if filename.split('.')[0] in excluded_checks:
             continue
         if ext not in ('.yaml', '.example', '.disabled'):
             continue
@@ -121,6 +174,7 @@ def get_checks():
 
     return checks_list
 
+
 class EditorFile(object):
     def __init__(self, file_path, description):
         self.file_path = file_path
@@ -131,7 +185,7 @@ class EditorFile(object):
 
     def save(self, content):
         try:
-            f = open(self.file_path,'w')
+            f = open(self.file_path, 'w')
             f.write(content)
             self.content = content
             info_popup("File saved.")
@@ -139,23 +193,10 @@ class EditorFile(object):
             warning_popup("Unable to save file: \n %s" % str(e))
             raise
 
-class ForwarderLogFile(EditorFile):
-    def __init__(self):
-        EditorFile.__init__(self, FORWARDER_LOG_FILE, "Forwarder log file")
-
-class CollectorLogFile(EditorFile):
-    def __init__(self):
-        EditorFile.__init__(self, COLLECTOR_LOG_FILE, "Collector log file")
-
-class DogstatsdLogFile(EditorFile):
-    def __init__(self):
-        EditorFile.__init__(self, DOGSTATSD_LOG_FILE, "Dogstatsd log file")
-
-class JMXFetchLogFile(EditorFile):
-    def __init__(self):
-        EditorFile.__init__(self, JMXFETCH_LOG_FILE, "JMX Fetch log file")
 
 class DatadogConf(EditorFile):
+    def __init__(self, config_path):
+        EditorFile.__init__(self, config_path, "Agent settings file: datadog.conf")
 
     @property
     def api_key(self):
@@ -167,8 +208,11 @@ class DatadogConf(EditorFile):
 
     def check_api_key(self, editor):
         if self.api_key is None:
-            api_key, ok = QInputDialog.getText(None, "Add your API KEY",
-            "You must first set your api key in this file. You can find it here: https://app.datadoghq.com/account/settings#api")
+            api_key, ok = QInputDialog.getText(
+                None, "Add your API KEY",
+                "You must first set your api key in this file."
+                " You can find it here: https://app.datadoghq.com/account/settings#api"
+            )
             if ok and api_key:
                 new_content = []
                 for line in self.content.splitlines():
@@ -180,12 +224,17 @@ class DatadogConf(EditorFile):
                 self.save(new_content)
                 editor.set_text(new_content)
 
-                if not is_service_stopped():
-                    service_manager("restart")
+                if agent_status() != AGENT_STOPPED:
+                    agent_manager("restart")
                 else:
-                    service_manager("start")
+                    agent_manager("start")
+            elif not ok:
+                warning_popup("The agent needs an API key to send metrics to Datadog")
+                if agent_status() != AGENT_STOPPED:
+                    agent_manager("stop")
             else:
                 self.check_api_key(editor)
+
 
 class AgentCheck(EditorFile):
     def __init__(self, filename, ext, conf_d_directory):
@@ -212,6 +261,7 @@ class AgentCheck(EditorFile):
     def save(self, content):
         check_yaml_syntax(content)
         EditorFile.save(self, content)
+
 
 class PropertiesWidget(QWidget):
     def __init__(self, parent):
@@ -252,22 +302,21 @@ class PropertiesWidget(QWidget):
         self.group_code.setLayout(layout)
 
         self.enable_button = QPushButton(get_icon("apply.png"),
-                                      "Enable", self)
+                                         "Enable", self)
 
         self.save_button = QPushButton(get_icon("filesave.png"),
-                                      "Save", self)
+                                       "Save", self)
 
         self.disable_button = QPushButton(get_icon("delete.png"),
-                                      "Disable", self)
+                                          "Disable", self)
 
         self.refresh_button = QPushButton(get_icon("restart.png"),
-                                      "Refresh", self)
+                                          "Refresh", self)
         hlayout = QHBoxLayout()
         hlayout.addWidget(self.save_button)
         hlayout.addWidget(self.enable_button)
         hlayout.addWidget(self.disable_button)
         hlayout.addWidget(self.refresh_button)
-
 
         vlayout = QVBoxLayout()
         vlayout.addWidget(self.group_desc)
@@ -325,6 +374,7 @@ class PropertiesWidget(QWidget):
         except Exception:
             self.editor.set_text("Log file not found")
 
+
 class HTMLWindow(QTextEdit):
     def __init__(self, parent=None):
         QTextEdit.__init__(self, parent)
@@ -354,6 +404,12 @@ class HTMLWindow(QTextEdit):
 
 class MainWindow(QSplitter):
     def __init__(self, parent=None):
+        prefix_conf = ''
+
+        if Platform.is_windows():
+            prefix_conf = 'windows_'
+
+        log_conf = get_logging_config()
 
         QSplitter.__init__(self, parent)
         self.setWindowTitle(MAIN_WINDOW_TITLE)
@@ -364,12 +420,8 @@ class MainWindow(QSplitter):
         self.connect(self.sysTray, SIGNAL("activated(QSystemTrayIcon::ActivationReason)"), self.__icon_activated)
 
         checks = get_checks()
-        datadog_conf = DatadogConf(get_config_path(), description="Agent settings file: datadog.conf")
-
-        self.forwarder_log_file = ForwarderLogFile()
-        self.collector_log_file = CollectorLogFile()
-        self.dogstatsd_log_file = DogstatsdLogFile()
-        self.jmxfetch_log_file = JMXFetchLogFile()
+        datadog_conf = DatadogConf(get_config_path())
+        self.create_logs_files_windows(log_conf, prefix_conf)
 
         listwidget = QListWidget(self)
         listwidget.addItems([osp.basename(check.module_name).replace("_", " ").title() for check in checks])
@@ -377,9 +429,9 @@ class MainWindow(QSplitter):
         self.properties = PropertiesWidget(self)
 
         self.setting_button = QPushButton(get_icon("info.png"),
-                                      "Logs and Status", self)
+                                          "Logs and Status", self)
         self.menu_button = QPushButton(get_icon("settings.png"),
-                                      "Actions", self)
+                                       "Actions", self)
         self.settings = [
             ("Forwarder Logs", lambda: [self.properties.set_log_file(self.forwarder_log_file),
                 self.show_html(self.properties.group_code, self.properties.html_window, False)]),
@@ -395,18 +447,18 @@ class MainWindow(QSplitter):
         ]
 
         self.agent_settings = QPushButton(get_icon("edit.png"),
-                                      "Settings", self)
+                                          "Settings", self)
         self.connect(self.agent_settings, SIGNAL("clicked()"),
-            lambda: [self.properties.set_datadog_conf(datadog_conf),
-                self.show_html(self.properties.group_code, self.properties.html_window, False)])
+                     lambda: [self.properties.set_datadog_conf(datadog_conf),
+                     self.show_html(self.properties.group_code, self.properties.html_window, False)])
 
         self.setting_menu = SettingMenu(self.settings)
         self.connect(self.setting_button, SIGNAL("clicked()"),
-            lambda: self.setting_menu.popup(self.setting_button.mapToGlobal(QPoint(0,0))))
+                     lambda: self.setting_menu.popup(self.setting_button.mapToGlobal(QPoint(0, 0))))
 
         self.manager_menu = Menu(self)
         self.connect(self.menu_button, SIGNAL("clicked()"),
-            lambda: self.manager_menu.popup(self.menu_button.mapToGlobal(QPoint(0,0))))
+                     lambda: self.manager_menu.popup(self.menu_button.mapToGlobal(QPoint(0, 0))))
 
         holdingBox = QGroupBox("", self)
         Box = QVBoxLayout(self)
@@ -448,7 +500,7 @@ class MainWindow(QSplitter):
     def do_refresh(self):
         try:
             if self.isVisible():
-                service_status = get_service_status()
+                service_status = agent_status()
                 self.properties.service_status_label.setText(HUMAN_SERVICE_STATUS[service_status])
         finally:
             QTimer.singleShot(REFRESH_PERIOD, self.do_refresh)
@@ -470,34 +522,108 @@ class MainWindow(QSplitter):
             editor.setVisible(True)
             html.setVisible(False)
 
-class Menu(QMenu):
+    def create_logs_files_windows(self, config, prefix):
+        self.forwarder_log_file = EditorFile(
+            config.get('%sforwarder_log_file' % prefix),
+            "Forwarder log file"
+        )
+        self.collector_log_file = EditorFile(
+            config.get('%scollector_log_file' % prefix),
+            "Collector log file"
+        )
+        self.dogstatsd_log_file = EditorFile(
+            config.get('%sdogstatsd_log_file' % prefix),
+            "Dogstatsd log file"
+        )
+        self.jmxfetch_log_file = EditorFile(
+            config.get('jmxfetch_log_file'),
+            "JMX log file"
+        )
 
-    def __init__(self, parent=None, ):
+    def show(self):
+        QSplitter.show(self)
+        self.raise_()
+
+
+class Menu(QMenu):
+    ABOUT = "Datadog Agent v{0}"
+    START = "Start"
+    STOP = "Stop"
+    RESTART = "Restart"
+    MAC_LOGIN = '{0} at login'
+    EXIT = "Exit"
+    SYSTEM_EVENTS_CMD = 'tell application "System Events" to {0}'
+
+    def __init__(self, parent=None):
         QMenu.__init__(self, parent)
         self.options = {}
+        system_tray_menu = [
+            (self.START, lambda: agent_manager("start")),
+            (self.STOP, lambda: agent_manager("stop")),
+            (self.RESTART, lambda: agent_manager("restart")),
+        ]
+        # First the version
+        self.addAction(self.ABOUT.format(get_version())).setEnabled(False)
+        self.addSeparator()
 
-        for name, action in SYSTEM_TRAY_MENU:
-            menu_action = self.addAction(name)
-            self.connect(menu_action, SIGNAL('triggered()'), action)
-            self.options[name] = menu_action
+        for name, action in system_tray_menu:
+            self.add_option(name, action)
+
+        # enable or disable mac login
+        if Platform.is_mac():
+            self.add_option(self.MAC_LOGIN.format(self.enable_or_disable_mac()),
+                            lambda: self.enable_or_disable_login())
+
+        # And finally the exit
+        self.add_option(self.EXIT, lambda: sys.exit(0))
 
         self.connect(self, SIGNAL("aboutToShow()"), lambda: self.update_options())
 
+    def add_option(self, name, action):
+        menu_action = self.addAction(name)
+        self.connect(menu_action, SIGNAL('triggered()'), action)
+        self.options[name] = menu_action
+
+    def enable_or_disable_mac(self):
+        try:
+            output = check_output(['osascript', '-e',
+                                   self.SYSTEM_EVENTS_CMD.format('get the path of every login item whose name is "Datadog Agent"')])
+            return 'Disable' if 'Datadog' in output else 'Enable'
+        except CalledProcessError, e:
+            log.warning('Get login item failed with output:{0}'.format(e.output))
+            return 'Disable'
+
+    def enable_or_disable_login(self):
+        previous = self.enable_or_disable_mac()
+        if previous == 'Disable':
+            command = 'delete every login item whose name is "Datadog Agent"'
+        else:
+            command = 'make login item at end with properties {path:"/Applications/Datadog Agent.app", name:"Datadog Agent", hidden:false}'
+        try:
+            check_call(['osascript', '-e', self.SYSTEM_EVENTS_CMD.format(command)])
+            self.removeAction(self.options[self.MAC_LOGIN.format(previous)])
+            self.removeAction(self.options[self.EXIT])
+            self.add_option(self.MAC_LOGIN.format(self.enable_or_disable_mac()),
+                            lambda: self.enable_or_disable_login())
+            self.add_option(self.EXIT, lambda: sys.exit(0))
+        except Exception, e:
+            log.warning('Exception during Mac item login {0}: {1}'.format(previous, e))
 
     def update_options(self):
-        status = get_service_status()
-        if is_service_running(status):
-            self.options[START_AGENT].setEnabled(False)
-            self.options[RESTART_AGENT].setEnabled(True)
-            self.options[STOP_AGENT].setEnabled(True)
-        elif is_service_stopped(status):
-            self.options[START_AGENT].setEnabled(True)
-            self.options[RESTART_AGENT].setEnabled(False)
-            self.options[STOP_AGENT].setEnabled(False)
-        elif is_service_pending(status):
-            self.options[START_AGENT].setEnabled(False)
-            self.options[RESTART_AGENT].setEnabled(False)
-            self.options[STOP_AGENT].setEnabled(False)
+        status = agent_status()
+        if status == AGENT_RUNNING:
+            self.options[self.START].setEnabled(False)
+            self.options[self.RESTART].setEnabled(True)
+            self.options[self.STOP].setEnabled(True)
+        elif status == AGENT_STOPPED:
+            self.options[self.START].setEnabled(True)
+            self.options[self.RESTART].setEnabled(False)
+            self.options[self.STOP].setEnabled(False)
+        elif status in [AGENT_START_PENDING, AGENT_STOP_PENDING]:
+            self.options[self.START].setEnabled(False)
+            self.options[self.RESTART].setEnabled(False)
+            self.options[self.STOP].setEnabled(False)
+
 
 class SettingMenu(QMenu):
 
@@ -535,6 +661,7 @@ def disable_check(properties):
     properties.disable_button.setEnabled(False)
     check.disable()
 
+
 def enable_check(properties):
     check = properties.current_file
 
@@ -553,6 +680,7 @@ def save_file(properties):
     new_content = properties.editor.toPlainText().__str__()
     current_file.save(new_content)
 
+
 def check_yaml_syntax(content):
     try:
         yaml.load(content, Loader=yLoader)
@@ -560,7 +688,8 @@ def check_yaml_syntax(content):
         warning_popup("Unable to parse yaml: \n %s" % str(e))
         raise
 
-def _service_manager(action):
+
+def service_manager(action):
     try:
         if action == 'stop':
             win32serviceutil.StopService(DATADOG_SERVICE)
@@ -571,43 +700,78 @@ def _service_manager(action):
     except Exception, e:
         warning_popup("Couldn't %s service: \n %s" % (action, str(e)))
 
-def service_manager(action, async=True):
-    if not async:
-        _service_manager(action)
-    else:
-        thread.start_new_thread(_service_manager, (action,))
 
-def get_service_status():
+def service_manager_status():
     try:
-        return win32serviceutil.QueryServiceStatus(DATADOG_SERVICE)[1]
+        return WIN_STATUS_TO_AGENT[
+            win32serviceutil.QueryServiceStatus(DATADOG_SERVICE)[1]
+        ]
     except Exception:
-        return "Unknown"
+        return AGENT_UNKNOWN
 
-def is_service_running(status = None):
-    if status is None:
-        status = get_service_status()
-    return status == win32service.SERVICE_RUNNING
 
-def is_service_pending(status = None):
-    if status is None:
-        status = get_service_status()
-    return status in [win32service.SERVICE_STOP_PENDING, win32service.SERVICE_START_PENDING]
+def osx_manager(action):
+    try:
+        check_call(['datadog-agent', action])
+    except Exception, e:
+        warning_popup("Couldn't execute datadog-agent %s: \n %s" % (action, str(e)))
 
-def is_service_stopped(status = None):
-    if status is None:
-        status = get_service_status()
-    return status == win32service.SERVICE_STOPPED
+
+def osx_manager_status():
+    try:
+        check_output(['datadog-agent', 'status'])
+        return AGENT_RUNNING
+    except CalledProcessError, e:
+        if 'not running' in e.output:
+            return AGENT_STOPPED
+        elif 'STARTING' in e.output:
+            return AGENT_START_PENDING
+        elif 'STOPPED' in e.output:
+            return AGENT_STOP_PENDING
+        else:
+            return AGENT_UNKNOWN
+
+
+def agent_status():
+    if Platform.is_windows():
+        return service_manager_status()
+    else:
+        return osx_manager_status()
+
+
+def agent_manager(action, async=True):
+    if Platform.is_windows():
+        manager = service_manager
+    else:
+        manager = osx_manager
+    if not async:
+        manager(action)
+    else:
+        thread.start_new_thread(manager, (action,))
+
 
 def warning_popup(message, parent=None):
     QMessageBox.warning(parent, 'Message', message, QMessageBox.Ok)
+
 
 def info_popup(message, parent=None):
     QMessageBox.information(parent, 'Message', message, QMessageBox.Ok)
 
 
 if __name__ == '__main__':
-    from guidata.qt.QtGui import QApplication
     app = QApplication([])
-    win = MainWindow()
+    if Platform.is_mac():
+        add_image_path(osp.join(os.getcwd(), 'images'))
+        # add datadog-agent in PATH
+        os.environ['PATH'] = "{0}:{1}".format(
+            '/opt/datadog-agent/bin/',
+            os.environ['PATH']
+        )
+        win = SystemTray() if len(sys.argv) < 2 else MainWindow()
+    else:
+        win = MainWindow()
+    # Let's start the agent if he's not already started
+    if agent_status() not in [AGENT_RUNNING, AGENT_START_PENDING]:
+        agent_manager('start')
     win.show()
     app.exec_()

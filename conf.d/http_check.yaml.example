@@ -60,13 +60,22 @@ instances:
     # This is mostly useful when checking SSL connections signed with
     # certificates that are not themselves signed by a public authority.
     # When true, the check logs a warning in collector.log
+    # Defaults to true, set to false if you want SSL certificate validation.
     #
     # disable_ssl_validation: true
+
+    # Path of trusted CA certificates used to validate the SSL certificate
+    # for this url.
+    # Overrides the default path and the one specified in init_config.
+    #
+    # ca_certs: /etc/ssl/certs/ca-certificates.crt
 
     # The (optional) ssl_expire will instruct the check
     # to create a service check that checks the expiration of the
     # ssl certificate. Allow for a warning to occur when x days are
     # left in the certificate.
+    # The SSL certificate will always be validated for this additional
+    # service check regardless of the value of disable_ssl_validation
     #
     # check_certificate_expiration: true
     # days_warning: 14

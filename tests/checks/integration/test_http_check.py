@@ -5,7 +5,6 @@ import time
 import mock
 
 # project
-from checks import AgentCheck
 from tests.checks.common import AgentCheckTest
 
 RESULTS_TIMEOUT = 5
@@ -53,7 +52,7 @@ CONFIG_SSL_ONLY = {
         'days_warning': 14
     }, {
         'name': 'cert_exp_soon',
-        'url': 'https://github.com',
+        'url': 'https://google.com',
         'timeout': 1,
         'check_certificate_expiration': True,
         'days_warning': 9999
@@ -107,33 +106,24 @@ class HTTPCheckTest(AgentCheckTest):
         # HTTP connection error
         tags = ['url:https://thereisnosuchlink.com', 'instance:conn_error']
 
-        self.assertServiceCheck("http.can_connect", status=AgentCheck.CRITICAL,
-                                tags=tags
-                                )
+        self.assertServiceCheckCritical("http.can_connect", tags=tags)
 
         # Wrong HTTP response status code
         tags = ['url:http://httpbin.org/404', 'instance:http_error_status_code']
-        self.assertServiceCheck("http.can_connect",
-            status=AgentCheck.CRITICAL,
-            tags=tags)
+        self.assertServiceCheckCritical("http.can_connect", tags=tags)
 
-        self.assertServiceCheck("http.can_connect", status=AgentCheck.OK,
-                                tags=tags, count=0)
+        self.assertServiceCheckOK("http.can_connect", tags=tags, count=0)
 
         # HTTP response status code match
         tags = ['url:http://httpbin.org/404', 'instance:status_code_match', 'foo:bar']
-        self.assertServiceCheck("http.can_connect", status=AgentCheck.OK,
-                                tags=tags)
+        self.assertServiceCheckOK("http.can_connect", tags=tags)
 
         # Content match & mismatching
         tags = ['url:https://github.com', 'instance:cnt_mismatch']
-        self.assertServiceCheck("http.can_connect", status=AgentCheck.CRITICAL,
-                                tags=tags)
-        self.assertServiceCheck("http.can_connect", status=AgentCheck.OK,
-                                tags=tags, count=0)
+        self.assertServiceCheckCritical("http.can_connect", tags=tags)
+        self.assertServiceCheckOK("http.can_connect", tags=tags, count=0)
         tags = ['url:https://github.com', 'instance:cnt_match']
-        self.assertServiceCheck("http.can_connect", status=AgentCheck.OK,
-                                tags=tags)
+        self.assertServiceCheckOK("http.can_connect", tags=tags)
 
         self.coverage_report()
 
@@ -142,16 +132,16 @@ class HTTPCheckTest(AgentCheckTest):
         # Overrides self.service_checks attribute when values are available
         self.service_checks = self.wait_for_async_service_checks(6)
         tags = ['url:https://github.com', 'instance:good_cert']
-        self.assertServiceCheck("http.ssl_cert", status=AgentCheck.OK,
-                                tags=tags)
+        self.assertServiceCheckOK("http.can_connect", tags=tags)
+        self.assertServiceCheckOK("http.ssl_cert", tags=tags)
 
-        tags = ['url:https://github.com', 'instance:cert_exp_soon']
-        self.assertServiceCheck("http.ssl_cert", status=AgentCheck.WARNING,
-                                tags=tags)
+        tags = ['url:https://google.com', 'instance:cert_exp_soon']
+        self.assertServiceCheckOK("http.can_connect", tags=tags)
+        self.assertServiceCheckWarning("http.ssl_cert", tags=tags)
 
         tags = ['url:https://thereisnosuchlink.com', 'instance:conn_error']
-        self.assertServiceCheck("http.ssl_cert", status=AgentCheck.CRITICAL,
-                                tags=tags)
+        self.assertServiceCheckCritical("http.can_connect", tags=tags)
+        self.assertServiceCheckCritical("http.ssl_cert", tags=tags)
 
         self.coverage_report()
 
@@ -162,6 +152,6 @@ class HTTPCheckTest(AgentCheckTest):
         # Needed for the HTTP headers
         self.service_checks = self.wait_for_async_service_checks(2)
         tags = ['url:https://github.com', 'instance:expired_cert']
-        self.assertServiceCheck("http.ssl_cert", status=AgentCheck.CRITICAL,
-                                tags=tags)
+        self.assertServiceCheckOK("http.can_connect", tags=tags)
+        self.assertServiceCheckCritical("http.ssl_cert", tags=tags)
         self.coverage_report()

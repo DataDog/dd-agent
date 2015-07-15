@@ -11,7 +11,7 @@ from pg8000 import InterfaceError, ProgrammingError
 
 # project
 from checks import AgentCheck, CheckException
-
+from config import _is_affirmative
 
 MAX_CUSTOM_RESULTS = 100
 
@@ -526,7 +526,7 @@ SELECT relname,
         ]
         return service_check_tags
 
-    def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
+    def get_connection(self, key, host, port, user, password, dbname, ssl, use_cached=True):
         "Get and memoize connections to instances"
         if key in self.dbs and use_cached:
             return self.dbs[key]
@@ -538,10 +538,10 @@ SELECT relname,
                     connection = pg.connect("user=%s dbname=%s" % (user, dbname))
                 elif port != '':
                     connection = pg.connect(host=host, port=port, user=user,
-                        password=password, database=dbname)
+                        password=password, database=dbname, ssl=ssl)
                 else:
                     connection = pg.connect(host=host, user=user, password=password,
-                        database=dbname)
+                        database=dbname, ssl=ssl)
             except Exception as e:
                 message = u'Error establishing postgres connection: %s' % (str(e))
                 service_check_tags = self._get_service_check_tags(host, port, dbname)
@@ -592,6 +592,7 @@ SELECT relname,
         tags = instance.get('tags', [])
         dbname = instance.get('dbname', None)
         relations = instance.get('relations', [])
+        ssl = _is_affirmative(instance.get('ssl', False))
 
         if relations and not dbname:
             self.warning('"dbname" parameter must be set when using the "relations" parameter.')
@@ -621,13 +622,13 @@ SELECT relname,
         # Collect metrics
         try:
             # Check version
-            db = self.get_connection(key, host, port, user, password, dbname)
+            db = self.get_connection(key, host, port, user, password, dbname, ssl)
             version = self._get_version(key, db)
             self.log.debug("Running check against version %s" % version)
             self._collect_stats(key, db, tags, relations, custom_metrics)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
-            db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
+            db = self.get_connection(key, host, port, user, password, dbname, ssl, use_cached=False)
             self._collect_stats(key, db, tags, relations, custom_metrics)
 
         if db is not None:

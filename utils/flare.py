@@ -3,9 +3,20 @@ import atexit
 import cStringIO as StringIO
 from functools import partial
 import glob
+try:
+    import grp
+except ImportError:
+    # The module only exists on Unix platforms
+    grp = None
 import logging
-import os.path
+import os
+try:
+    import pwd
+except ImportError:
+    # Same as above (exists on Unix platforms only)
+    pwd = None
 import re
+import stat
 import subprocess
 import sys
 import tarfile
@@ -76,6 +87,7 @@ class Flare(object):
         self._case_id = case_id
         self._cmdline = cmdline
         self._init_tarfile()
+        self._init_permissions_file()
         self._save_logs_path()
         self._config = get_config()
         self._api_key = self._config.get('api_key')
@@ -90,7 +102,7 @@ class Flare(object):
     # Otherwise emit a warning, and ask for confirmation
     @staticmethod
     def check_user_rights():
-        if Platform.is_unix() and not os.geteuid() == 0:
+        if Platform.is_linux() and not os.geteuid() == 0:
             log.warning("You are not root, some information won't be collected")
             choice = raw_input('Are you sure you want to continue [y/N]? ')
             if choice.strip().lower() not in ['yes', 'y']:
@@ -118,6 +130,11 @@ class Flare(object):
         log.info("  * pip freeze")
         self._add_command_output_tar('freeze.log', self._pip_freeze,
                                      command_desc="pip freeze --no-cache-dir")
+
+        log.info("  * log permissions on collected files")
+        self._permissions_file.close()
+        self._add_file_tar(self._permissions_file.name, 'permissions.log',
+                           log_permissions=False)
 
         log.info("Saving all files to {0}".format(self._tar_path))
         self._tar.close()
@@ -158,6 +175,17 @@ class Flare(object):
             os.remove(self._tar_path)
         self._tar = tarfile.open(self._tar_path, 'w:bz2')
 
+    # Create a file to log permissions on collected files and write header line
+    def _init_permissions_file(self):
+        self._permissions_file = tempfile.NamedTemporaryFile(mode='w', prefix='dd', delete=False)
+        if Platform.is_unix():
+            self._permissions_file_format = "{0:50} | {1:5} | {2:10} | {3:10}\n"
+            header = self._permissions_file_format.format("File path", "mode", "owner", "group")
+            self._permissions_file.write(header)
+            self._permissions_file.write('-'*len(header) + "\n")
+        else:
+            self._permissions_file.write("Not implemented: file permissions are only logged on Unix platforms")
+
     # Save logs file paths
     def _save_logs_path(self):
         prefix = ''
@@ -182,18 +210,19 @@ class Flare(object):
     def _add_log_file_tar(self, file_path):
         for f in glob.glob('{0}*'.format(file_path)):
             if self._can_read(f):
-                self._tar.add(
+                self._add_file_tar(
                     f,
-                    os.path.join(self._prefix, 'log', os.path.basename(f))
+                    os.path.join('log', os.path.basename(f))
                 )
 
     # Collect all conf
     def _add_conf_tar(self):
         conf_path = get_config_path()
         if self._can_read(conf_path):
-            self._tar.add(
+            self._add_file_tar(
                 self._strip_comment(conf_path),
-                os.path.join(self._prefix, 'etc', 'datadog.conf')
+                os.path.join('etc', 'datadog.conf'),
+                original_file_path=conf_path
             )
 
         if not Platform.is_windows():
@@ -202,9 +231,10 @@ class Flare(object):
                 'supervisor.conf'
             )
             if self._can_read(supervisor_path):
-                self._tar.add(
+                self._add_file_tar(
                     self._strip_comment(supervisor_path),
-                    os.path.join(self._prefix, 'etc', 'supervisor.conf')
+                    os.path.join('etc', 'supervisor.conf'),
+                    original_file_path=supervisor_path
                 )
 
         for file_path in glob.glob(os.path.join(get_confd_path(), '*.yaml')) +\
@@ -223,9 +253,9 @@ class Flare(object):
                 (JMXFiles._PYTHON_STATUS_FILE, JMXFiles.get_python_status_file_path())
             ]:
                 if self._can_read(file_path, warn=False):
-                    self._tar.add(
+                    self._add_file_tar(
                         file_path,
-                        os.path.join(self._prefix, 'jmxinfo', file_name)
+                        os.path.join('jmxinfo', file_name)
                     )
 
             # beans lists
@@ -245,6 +275,28 @@ class Flare(object):
                 lambda: self._java_version(java_bin_path),
                 command_desc="{0} -version".format(java_bin_path)
             )
+
+    # Add a file to the tar and append the file's rights to the permissions log (on Unix)
+    # If original_file_path is passed, the file_path will be added to the tar but the original file's
+    # permissions are logged
+    def _add_file_tar(self, file_path, target_path, log_permissions=True, original_file_path=None):
+        target_full_path = os.path.join(self._prefix, target_path)
+        if log_permissions and Platform.is_unix():
+            stat_file_path = original_file_path or file_path
+            file_stat = os.stat(stat_file_path)
+            # The file mode is returned in binary format, convert it to a more readable octal string
+            mode = oct(stat.S_IMODE(file_stat.st_mode))
+            try:
+                uname = pwd.getpwuid(file_stat.st_uid).pw_name
+            except KeyError:
+                uname = str(file_stat.st_uid)
+            try:
+                gname = grp.getgrgid(file_stat.st_gid).gr_name
+            except KeyError:
+                gname = str(file_stat.st_gid)
+            self._permissions_file.write(self._permissions_file_format.format(stat_file_path, mode, uname, gname))
+
+        self._tar.add(file_path, target_full_path)
 
     # Returns whether JMXFetch should run or not
     def _should_run_jmx(self):
@@ -282,9 +334,10 @@ class Flare(object):
 
         temp_path, password_found = self._strip_password(file_path)
         log.info("  * {0}{1}".format(file_path, password_found))
-        self._tar.add(
+        self._add_file_tar(
             temp_path,
-            os.path.join(self._prefix, 'etc', 'conf.d', basename)
+            os.path.join('etc', 'conf.d', basename),
+            original_file_path=file_path
         )
 
     # Return path to a temp file without password and comment
@@ -319,7 +372,7 @@ class Flare(object):
             temp_file.write(">>>> STDERR <<<<\n")
             temp_file.write(err.getvalue())
             err.close()
-        self._tar.add(temp_path, os.path.join(self._prefix, name))
+        self._add_file_tar(temp_path, name, log_permissions=False)
         os.remove(temp_path)
 
     # Capture the output of a command (from both std streams and loggers) and the
@@ -360,7 +413,11 @@ class Flare(object):
 
     # Find the agent exec (package or source)
     def _get_path_agent_exec(self):
-        agent_exec = '/etc/init.d/datadog-agent'
+        if Platform.is_mac():
+            agent_exec = '/opt/datadog-agent/bin/datadog-agent'
+        else:
+            agent_exec = '/etc/init.d/datadog-agent'
+
         if not os.path.isfile(agent_exec):
             agent_exec = os.path.join(
                 os.path.dirname(os.path.realpath(__file__)),
@@ -380,7 +437,11 @@ class Flare(object):
 
     # Find the supervisor conf (package or source)
     def _get_path_supervisor_conf(self):
-        supervisor_conf = '/etc/dd-agent/supervisor.conf'
+        if Platform.is_mac():
+            supervisor_conf = '/opt/datadog-agent/etc/supervisor.conf'
+        else:
+            supervisor_conf = '/etc/dd-agent/supervisor.conf'
+
         if not os.path.isfile(supervisor_conf):
             supervisor_conf = os.path.join(
                 os.path.dirname(os.path.realpath(__file__)),

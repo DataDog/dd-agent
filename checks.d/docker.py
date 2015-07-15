@@ -65,6 +65,9 @@ NEW_TAGS_MAP = {
 
 DEFAULT_SOCKET_TIMEOUT = 5
 
+class DockerJSONDecodeError(Exception):
+    """ Raised when there is trouble parsing the API response sent by Docker Remote API """
+    pass
 
 class UnixHTTPConnection(httplib.HTTPConnection):
     """Class used in conjuction with UnixSocketHandler to make urllib2
@@ -358,16 +361,21 @@ class Docker(AgentCheck):
     def _get_events(self, instance):
         """Get the list of events """
         now = int(time.time())
-        result = self._get_json(
-            "%s/events" % instance["url"],
-            params={
-                "until": now,
-                "since": self._last_event_collection_ts[instance["url"]] or now - 60,
-            }, multi=True)
-        self._last_event_collection_ts[instance["url"]] = now
-        if type(result) == dict:
-            result = [result]
-        return result
+        try:
+            result = self._get_json(
+                "%s/events" % instance["url"],
+                params={
+                    "until": now,
+                    "since": self._last_event_collection_ts[instance["url"]] or now - 60,
+                },
+                multi=True
+            )
+            self._last_event_collection_ts[instance["url"]] = now
+            if type(result) == dict:
+                result = [result]
+            return result
+        except DockerJSONDecodeError:
+            return []
 
     def _get_json(self, uri, params=None, multi=False):
         """Utility method to get and parse JSON streams."""
@@ -396,18 +404,18 @@ class Docker(AgentCheck):
             return json.loads(response)
         except Exception as e:
             self.log.error('Failed to parse Docker API response: %s', response)
-            raise
-
+            raise DockerJSONDecodeError
 
     # Cgroups
 
-    def _find_cgroup_filename_pattern(self):
+    def _find_cgroup_filename_pattern(self, container_id):
         if self._mountpoints:
             # We try with different cgroups so that it works even if only one is properly working
             for mountpoint in self._mountpoints.values():
                 stat_file_path_lxc = os.path.join(mountpoint, "lxc")
                 stat_file_path_docker = os.path.join(mountpoint, "docker")
                 stat_file_path_coreos = os.path.join(mountpoint, "system.slice")
+                stat_file_path_kubernetes = os.path.join(mountpoint, container_id)
 
                 if os.path.exists(stat_file_path_lxc):
                     return os.path.join('%(mountpoint)s/lxc/%(id)s/%(file)s')
@@ -415,13 +423,15 @@ class Docker(AgentCheck):
                     return os.path.join('%(mountpoint)s/docker/%(id)s/%(file)s')
                 elif os.path.exists(stat_file_path_coreos):
                     return os.path.join('%(mountpoint)s/system.slice/docker-%(id)s.scope/%(file)s')
+                elif os.path.exists(stat_file_path_kubernetes):
+                    return os.path.join('%(mountpoint)s/%(id)s/%(file)s')
 
         raise Exception("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
     def _get_cgroup_file(self, cgroup, container_id, filename):
         # This can't be initialized at startup because cgroups may not be mounted yet
         if not self._cgroup_filename_pattern:
-            self._cgroup_filename_pattern = self._find_cgroup_filename_pattern()
+            self._cgroup_filename_pattern = self._find_cgroup_filename_pattern(container_id)
 
         return self._cgroup_filename_pattern % (dict(
             mountpoint=self._mountpoints[cgroup],
