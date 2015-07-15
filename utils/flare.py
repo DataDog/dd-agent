@@ -140,28 +140,39 @@ class Flare(object):
         self._tar.close()
 
     # Upload the tar file
-    def upload(self):
+    def upload(self, email=None):
         self._check_size()
 
         if self._cmdline:
             self._ask_for_confirmation()
 
-        email = self._ask_for_email()
+        if not email:
+            email = self._ask_for_email()
 
         log.info("Uploading {0} to Datadog Support".format(self._tar_path))
         url = self._url
         if self._case_id:
             url = '{0}/{1}'.format(self._url, str(self._case_id))
         url = "{0}?api_key={1}".format(url, self._api_key)
-        files = {'flare_file': open(self._tar_path, 'rb')}
-        data = {
-            'case_id': self._case_id,
-            'hostname': self._hostname,
-            'email': email
+        requests_options = {
+            'data': {
+                'case_id': self._case_id,
+                'hostname': self._hostname,
+                'email': email
+            },
+            'files': {'flare_file': open(self._tar_path, 'rb')},
+            'timeout': self.TIMEOUT
         }
-        self._resp = requests.post(url, files=files, data=data,
-                                   timeout=self.TIMEOUT)
+        if Platform.is_windows():
+            requests_options['verify'] = os.path.realpath(os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                os.pardir, os.pardir,
+                'datadog-cert.pem'
+            ))
+
+        self._resp = requests.post(url, **requests_options)
         self._analyse_result()
+        return self._case_id
 
     # Start by creating the tar file which will contain everything
     def _init_tarfile(self):
@@ -318,9 +329,9 @@ class Flare(object):
 
     # Return path to a temp file without comment
     def _strip_comment(self, file_path):
-        _, temp_path = tempfile.mkstemp(prefix='dd')
+        fh, temp_path = tempfile.mkstemp(prefix='dd')
         atexit.register(os.remove, temp_path)
-        with open(temp_path, 'w') as temp_file:
+        with os.fdopen(fh, 'w') as temp_file:
             with open(file_path, 'r') as orig_file:
                 for line in orig_file.readlines():
                     if not self.COMMENT_REGEX.match(line):
@@ -342,9 +353,9 @@ class Flare(object):
 
     # Return path to a temp file without password and comment
     def _strip_password(self, file_path):
-        _, temp_path = tempfile.mkstemp(prefix='dd')
+        fh, temp_path = tempfile.mkstemp(prefix='dd')
         atexit.register(os.remove, temp_path)
-        with open(temp_path, 'w') as temp_file:
+        with os.fdopen(fh, 'w') as temp_file:
             with open(file_path, 'r') as orig_file:
                 password_found = ''
                 for line in orig_file.readlines():
@@ -360,8 +371,8 @@ class Flare(object):
     # Add output of the command to the tarfile
     def _add_command_output_tar(self, name, command, command_desc=None):
         out, err, _ = self._capture_output(command, print_exc_to_stderr=False)
-        _, temp_path = tempfile.mkstemp(prefix='dd')
-        with open(temp_path, 'w') as temp_file:
+        fh, temp_path = tempfile.mkstemp(prefix='dd')
+        with os.fdopen(fh, 'w') as temp_file:
             if command_desc:
                 temp_file.write(">>>> CMD <<<<\n")
                 temp_file.write(command_desc)
@@ -516,10 +527,11 @@ class Flare(object):
         self._resp.raise_for_status()
         try:
             json_resp = self._resp.json()
+            self._case_id = self._resp.json()['case_id']
         # Failed parsing
         except ValueError:
             raise Exception('An unknown error has occured - '
                             'Please contact support by email')
         # Finally, correct
         log.info("Your logs were successfully uploaded. For future reference,"
-                 " your internal case id is {0}".format(json_resp['case_id']))
+                 " your internal case id is {0}".format(self._case_id))
