@@ -1,12 +1,12 @@
 # stdlib
 import socket
 
+# 3rd party
+from httplib2 import Http, HttpLib2Error
+import simplejson as json
+
 # project
 from checks import AgentCheck
-
-# 3rd party
-import simplejson as json
-from httplib2 import Http, HttpLib2Error
 
 
 class Riak(AgentCheck):

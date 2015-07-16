@@ -1,18 +1,18 @@
 # stdlib
 from datetime import datetime
 import os.path
+import re
 import socket
 import ssl
 import time
-import re
 from urlparse import urlparse
 
 # 3rd party
-import tornado
 import requests
+import tornado
 
 # project
-from checks.network_checks import NetworkCheck, Status, EventType
+from checks.network_checks import EventType, NetworkCheck, Status
 from config import _is_affirmative
 from util import headers as agent_headers
 
@@ -35,8 +35,8 @@ def get_ca_certs_path():
 
 class HTTPCheck(NetworkCheck):
     SOURCE_TYPE_NAME = 'system'
-    SC_STATUS = 'http_check'
-    SC_SSL_CERT = 'http_check.ssl_cert'
+    SC_STATUS = 'http.can_connect'
+    SC_SSL_CERT = 'http.ssl_cert'
 
     def __init__(self, name, init_config, agentConfig, instances):
         self.ca_certs = init_config.get('ca_certs', get_ca_certs_path())
@@ -60,14 +60,15 @@ class HTTPCheck(NetworkCheck):
         include_content = _is_affirmative(instance.get('include_content', False))
         ssl = _is_affirmative(instance.get('disable_ssl_validation', True))
         ssl_expire = _is_affirmative(instance.get('check_certificate_expiration', True))
+        instance_ca_certs = instance.get('ca_certs', self.ca_certs)
 
         return url, username, password, http_response_status_code, timeout, include_content,\
-            headers, response_time, content_match, tags, ssl, ssl_expire
+            headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs
 
     def _check(self, instance):
         addr, username, password, http_response_status_code, timeout, include_content, headers,\
             response_time, content_match, tags, disable_ssl_validation,\
-            ssl_expire = self._load_conf(instance)
+            ssl_expire, instance_ca_certs = self._load_conf(instance)
         start = time.time()
 
         service_checks = []
@@ -83,19 +84,9 @@ class HTTPCheck(NetworkCheck):
                 auth = (username, password)
 
             r = requests.get(addr, auth=auth, timeout=timeout, headers=headers,
-                             verify=not disable_ssl_validation)
+                             verify=False if disable_ssl_validation else instance_ca_certs)
 
-        except socket.timeout, e:
-            length = int((time.time() - start) * 1000)
-            self.log.info("%s is DOWN, error: %s. Connection failed after %s ms"
-                          % (addr, str(e), length))
-            service_checks.append((
-                self.SC_STATUS,
-                Status.DOWN,
-                "%s. Connection failed after %s ms" % (str(e), length)
-            ))
-
-        except requests.exceptions.ConnectionError, e:
+        except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms"
                           % (addr, str(e), length))
@@ -167,7 +158,7 @@ class HTTPCheck(NetworkCheck):
                 ))
 
         if ssl_expire and urlparse(addr)[0] == "https":
-            status, msg = self.check_cert_expiration(instance)
+            status, msg = self.check_cert_expiration(instance, timeout, instance_ca_certs)
             service_checks.append((
                 self.SC_SSL_CERT, status, msg
             ))
@@ -250,9 +241,10 @@ class HTTPCheck(NetworkCheck):
 
     def report_as_service_check(self, sc_name, status, instance, msg=None):
         instance_name = instance['name']
-        service_check_name = self.normalize(instance_name, sc_name)
         url = instance.get('url', None)
-        sc_tags = ['url:%s' % url]
+        sc_tags = ['url:{0}'.format(url), "instance:{0}".format(instance_name)]
+        custom_tags = instance.get('tags', [])
+        tags = sc_tags + custom_tags
 
         if sc_name == self.SC_STATUS:
             # format the HTTP response body into the event
@@ -266,13 +258,13 @@ class HTTPCheck(NetworkCheck):
                 msg = "%d %s\n\n%s" % (code, reason, content)
                 msg = msg.rstrip()
 
-        self.service_check(service_check_name,
+        self.service_check(sc_name,
                            NetworkCheck.STATUS_TO_SERVICE_CHECK[status],
-                           tags=sc_tags,
+                           tags=tags,
                            message=msg
                            )
 
-    def check_cert_expiration(self, instance):
+    def check_cert_expiration(self, instance, timeout, instance_ca_certs):
         warning_days = int(instance.get('days_warning', 14))
         url = instance.get('url')
 
@@ -283,9 +275,10 @@ class HTTPCheck(NetworkCheck):
 
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(float(timeout))
             sock.connect((host, port))
             ssl_sock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED,
-                                       ca_certs=self.ca_certs)
+                                       ca_certs=instance_ca_certs)
             cert = ssl_sock.getpeercert()
 
         except Exception as e:

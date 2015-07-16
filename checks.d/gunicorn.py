@@ -3,16 +3,15 @@ Collects metrics from the gunicorn web server.
 
 http://gunicorn.org/
 """
-# project
-from checks import AgentCheck
-
 # stdlib
-import os
-import sys
 import time
 
 # 3rd party
 import psutil
+
+# project
+from checks import AgentCheck
+
 
 class GUnicornCheck(AgentCheck):
 
@@ -103,7 +102,7 @@ class GUnicornCheck(AgentCheck):
         if len(master_procs) == 0:
             # process not found, it's dead.
             self.service_check(self.SVC_NAME, AgentCheck.CRITICAL, tags=['app:' + name],
-                                message="No gunicorn process with name %s found" % name)
+                               message="No gunicorn process with name %s found" % name)
             raise GUnicornCheckError("Found no master process with name: %s" % master_name)
         elif len(master_procs) > 1:
             raise GUnicornCheckError("Found more than one master process with name: %s" % master_name)

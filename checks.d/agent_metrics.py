@@ -1,4 +1,4 @@
-import os
+# stdlib
 import threading
 
 # 3p
@@ -90,7 +90,7 @@ class AgentMetrics(AgentCheck):
         """
 
         base_metric = 'datadog.agent.collector.{0}.{1}'
-        #TODO: May have to call self.normalize(metric_name) to get a compliant name
+        # TODO: May have to call self.normalize(metric_name) to get a compliant name
         for k, v in stats.iteritems():
             metric_type = names_to_metric_types[k]
             if isinstance(v, dict):
@@ -122,30 +122,30 @@ class AgentMetrics(AgentCheck):
             self.gauge('datadog.agent.collector.threads.count', threading.activeCount())
             self.log.info("Thread count is high: %d" % threading.activeCount())
 
-        collect_time_exceeds_threshold = collection_time  > MAX_COLLECTION_TIME
+        collect_time_exceeds_threshold = collection_time > MAX_COLLECTION_TIME
         if collection_time is not None and \
                 (collect_time_exceeds_threshold or self.in_developer_mode):
 
             self.gauge('datadog.agent.collector.collection.time', collection_time)
             if collect_time_exceeds_threshold:
-                self.log.info("Collection time (s) is high: %.1f, metrics count: %d, events count: %d"
-                                    % (collection_time, len(payload['metrics']), len(payload['events'])))
+                self.log.info("Collection time (s) is high: %.1f, metrics count: %d, events count: %d",
+                              collection_time, len(payload['metrics']), len(payload['events']))
 
         emit_time_exceeds_threshold = emit_time > MAX_EMIT_TIME
         if emit_time is not None and \
                 (emit_time_exceeds_threshold or self.in_developer_mode):
             self.gauge('datadog.agent.emitter.emit.time', emit_time)
             if emit_time_exceeds_threshold:
-                self.log.info("Emit time (s) is high: %.1f, metrics count: %d, events count: %d"
-                                    % (emit_time, len(payload['metrics']), len(payload['events'])))
+                self.log.info("Emit time (s) is high: %.1f, metrics count: %d, events count: %d",
+                              emit_time, len(payload['metrics']), len(payload['events']))
 
         if cpu_time is not None:
             try:
                 cpu_used_pct = 100.0 * float(cpu_time)/float(collection_time)
                 if cpu_used_pct > MAX_CPU_PCT:
                     self.gauge('datadog.agent.collector.cpu.used', cpu_used_pct)
-                    self.log.info("CPU consumed (%%) is high: %.1f, metrics count: %d, events count: %d"
-                                        % (cpu_used_pct, len(payload['metrics']), len(payload['events'])))
+                    self.log.info("CPU consumed (%%) is high: %.1f, metrics count: %d, events count: %d",
+                                  cpu_used_pct, len(payload['metrics']), len(payload['events']))
             except Exception, e:
-                self.log.debug("Couldn't compute cpu used by collector with values %s %s %s"
-                                  % (cpu_time, collection_time, str(e)))
+                self.log.debug("Couldn't compute cpu used by collector with values %s %s %s",
+                               cpu_time, collection_time, str(e))

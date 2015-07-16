@@ -6,17 +6,16 @@ import time
 from types import ListType
 import unittest
 
-# 3rd party
+# 3p
 from mock import patch
 from nose.plugins.attrib import attr
 import yaml
 
-# datadog
+# project
 from aggregator import MetricsAggregator
 from dogstatsd import Server
 from jmxfetch import JMXFetch
 from tests.checks.common import AgentCheckTest
-from utils.pidfile import PidFile
 
 STATSD_PORT = 8129
 

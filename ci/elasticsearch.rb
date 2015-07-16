@@ -1,7 +1,7 @@
 require './ci/common'
 
 def es_version
-  ENV['FLAVOR_VERSION'] || '1.4.4'
+  ENV['FLAVOR_VERSION'] || '1.6.0'
 end
 
 def es_rootdir
@@ -26,11 +26,16 @@ namespace :ci do
     end
 
     task before_script: ['ci:common:before_script'] do
-      pid = spawn %(#{es_rootdir}/bin/elasticsearch)
+      sh %(mkdir -p $VOLATILE_DIR/es_data)
+      pid = spawn %(#{es_rootdir}/bin/elasticsearch --path.data=$VOLATILE_DIR/es_data)
       Process.detach(pid)
       sh %(echo #{pid} > $VOLATILE_DIR/elasticsearch.pid)
       # Waiting for elaticsearch to start
       Wait.for 'http://localhost:9200', 15
+      # Create an index in ES
+      http = Net::HTTP.new('localhost', 9200)
+      resp = http.send_request('PUT', '/datadog/')
+      puts "Creating index returned #{resp.code}"
     end
 
     task script: ['ci:common:script'] do
@@ -40,9 +45,7 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task before_cache: ['ci:common:before_cache'] do
-      Rake::Task['ci:elasticsearch:cleanup'].invoke
-    end
+    task before_cache: ['ci:common:before_cache']
 
     task cache: ['ci:common:cache']
 
@@ -51,7 +54,6 @@ namespace :ci do
       # (the only version spawning a process in background)
       sh %(kill `cat $VOLATILE_DIR/elasticsearch.pid` || true)
       sleep_for 1
-      sh %(rm -rf #{es_rootdir}/data || true)
     end
 
     task :execute do

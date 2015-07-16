@@ -33,6 +33,7 @@ COMMON_METRICS = [
     'rabbitmq.node.mem_used',
     'rabbitmq.node.run_queue',
     'rabbitmq.node.sockets_used',
+    'rabbitmq.node.partitions'
 ]
 
 
@@ -46,6 +47,8 @@ class RabbitMQCheckTest(AgentCheckTest):
         # Node attributes
         for mname in COMMON_METRICS:
             self.assertMetricTagPrefix(mname, 'rabbitmq_node', count=1)
+
+        self.assertMetric('rabbitmq.node.partitions', value=0, count=1)
 
         # Queue attributes, should be only one queue fetched
         # TODO: create a 'fake consumer' and get missing metrics

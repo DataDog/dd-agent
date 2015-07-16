@@ -1,8 +1,8 @@
-# project
-from checks import AgentCheck
-
 # 3rd party
 import gearman
+
+# project
+from checks import AgentCheck
 
 class Gearman(AgentCheck):
     SERVICE_CHECK_NAME = 'gearman.can_connect'

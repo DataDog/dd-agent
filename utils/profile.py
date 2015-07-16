@@ -1,10 +1,11 @@
-import os
-import logging
-import cProfile
-import pstats
+# stdlib
+import cProfile  # noqa, it seems that import-names thinks it's not stdlib
 from cStringIO import StringIO
+import logging
+import pstats  # noqa, same here
 
 log = logging.getLogger('collector')
+
 
 class AgentProfiler(object):
     PSTATS_LIMIT = 20
@@ -36,8 +37,7 @@ class AgentProfiler(object):
         log.debug(s.getvalue())
         log.debug("Agent profiling is disabled")
         if self.DUMP_TO_FILE:
-            log.debug("Pstats dumps are enabled. Dumping pstats output to {0}"
-                        .format(self.STATS_DUMP_FILE))
+            log.debug("Pstats dumps are enabled. Dumping pstats output to {0}".format(self.STATS_DUMP_FILE))
             ps.dump_stats(self.STATS_DUMP_FILE)
 
     @staticmethod
@@ -50,7 +50,6 @@ class AgentProfiler(object):
         """
         def wrapped_func(*args, **kwargs):
             try:
-                import cProfile
                 profiler = cProfile.Profile()
                 profiler.enable()
                 log.debug("Agent profiling is enabled")
@@ -63,8 +62,6 @@ class AgentProfiler(object):
             # disable profiler and printout stats to stdout
             try:
                 profiler.disable()
-                import pstats
-                from cStringIO import StringIO
                 s = StringIO()
                 ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
                 ps.print_stats(AgentProfiler.PSTATS_LIMIT)

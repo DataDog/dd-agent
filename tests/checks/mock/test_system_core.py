@@ -17,7 +17,7 @@ if Platform.is_mac():
         psutil._psosx.scputimes(user=7486.51, nice=0.0, system=5991.36, idle=40031.88),
         psutil._psosx.scputimes(user=3964.85, nice=0.0, system=2862.37, idle=46682.5)
     ]
-else:
+elif Platform.is_unix():
     CHECK_RATES = [
         'system.core.idle',
         'system.core.nice',
@@ -44,7 +44,8 @@ else:
                                   iowait=2.43, irq=0.0, softirq=3.8, steal=0.0,
                                   guest=0.0, guest_nice=0.0)
     ]
-
+else:
+    MOCK_PSUTIL_CPU_TIMES = []
 
 class SystemCoreTestCase(AgentCheckTest):
 

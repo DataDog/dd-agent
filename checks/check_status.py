@@ -2,31 +2,29 @@
 This module contains classes which are used to occasionally persist the status
 of checks.
 """
-
 # stdlib
+from collections import defaultdict
+import cPickle as pickle
 import datetime
 import logging
 import os
-import cPickle as pickle
 import platform
 import sys
 import tempfile
 import time
-from collections import defaultdict
-import os.path
 
-# 3rd party
+# 3p
 import ntplib
 import yaml
 
 # project
 import config
-from config import get_config, get_jmx_status_path, _windows_commondata_path
-
-from util import get_os, plural
-from utils.ntp import get_ntp_datadog_host
-from utils.platform import Platform
+from config import _is_affirmative, _windows_commondata_path, get_config
+from util import plural
+from utils.jmx import JMXFiles
+from utils.ntp import get_ntp_args
 from utils.pidfile import PidFile
+from utils.platform import Platform
 from utils.profile import pretty_statistics
 
 
@@ -34,7 +32,7 @@ STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
 STATUS_WARNING = 'WARNING'
 
-NTP_OFFSET_THRESHOLD = 600
+NTP_OFFSET_THRESHOLD = 60
 
 
 log = logging.getLogger(__name__)
@@ -76,12 +74,13 @@ class Stylizer(object):
         for style in styles or []:
             text = fmt % (cls.STYLES[style], text)
 
-        return text + fmt % (0, '') # reset
+        return text + fmt % (0, '')  # reset
 
 
 # a small convienence method
 def style(*args):
     return Stylizer.stylize(*args)
+
 
 def logger_info():
     loggers = []
@@ -89,7 +88,10 @@ def logger_info():
     if len(root_logger.handlers) > 0:
         for handler in root_logger.handlers:
             if isinstance(handler, logging.StreamHandler):
-                loggers.append(handler.stream.name)
+                try:
+                    loggers.append(handler.stream.name)
+                except AttributeError:
+                    loggers.append("unnamed stream")
             if isinstance(handler, logging.handlers.SysLogHandler):
                 if isinstance(handler.address, basestring):
                     loggers.append('syslog:%s' % handler.address)
@@ -101,8 +103,8 @@ def logger_info():
 
 
 def get_ntp_info():
-    ntp_host = get_ntp_datadog_host()
-    ntp_offset = ntplib.NTPClient().request(ntp_host, version=3).offset
+    req_args = get_ntp_args()
+    ntp_offset = ntplib.NTPClient().request(**req_args).offset
     if abs(ntp_offset) > NTP_OFFSET_THRESHOLD:
         ntp_styles = ['red', 'bold']
     else:
@@ -169,9 +171,10 @@ class AgentStatus(object):
         fields = [
             (
                 style("Status date", *styles),
-                style("%s (%ss ago)" %
-                    (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                        self.created_seconds_ago()), *styles)
+                style("%s (%ss ago)" % (
+                    self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    self.created_seconds_ago()), *styles
+                )
             )
         ]
 
@@ -288,7 +291,7 @@ class InstanceStatus(object):
 class CheckStatus(object):
 
     def __init__(self, check_name, instance_statuses, metric_count=None,
-                 event_count=None, service_check_count=None,
+                 event_count=None, service_check_count=None, service_metadata=[],
                  init_failed_error=None, init_failed_traceback=None,
                  library_versions=None, source_type_name=None,
                  check_stats=None):
@@ -302,6 +305,7 @@ class CheckStatus(object):
         self.init_failed_traceback = init_failed_traceback
         self.library_versions = library_versions
         self.check_stats = check_stats
+        self.service_metadata = service_metadata
 
     @property
     def status(self):
@@ -343,7 +347,7 @@ class CollectorStatus(AgentStatus):
         AgentStatus.__init__(self)
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
-        self.metadata = metadata or []
+        self.host_metadata = metadata or []
 
     @property
     def status(self):
@@ -389,7 +393,8 @@ class CollectorStatus(AgentStatus):
                 if s.has_warnings():
                     for warning in s.warnings:
                         warn = warning.split('\n')
-                        if not len(warn): continue
+                        if not len(warn):
+                            continue
                         check_lines.append(u"        %s: %s" %
                             (style("Warning", 'yellow'), warn[0]))
                         check_lines.extend(u"        %s" % l for l in
@@ -436,7 +441,6 @@ class CollectorStatus(AgentStatus):
             'instance-id'
         ]
 
-
         lines = [
             'Clocks',
             '======',
@@ -480,10 +484,10 @@ class CollectorStatus(AgentStatus):
             ''
         ]
 
-        if not self.metadata:
+        if not self.host_metadata:
             lines.append("  No host information available yet.")
         else:
-            for key, host in self.metadata.items():
+            for key, host in self.host_metadata.iteritems():
                 for whitelist_item in metadata_whitelist:
                     if whitelist_item in key:
                         lines.append("  " + key + ": " + host)
@@ -534,7 +538,8 @@ class CollectorStatus(AgentStatus):
                         if s.has_warnings():
                             for warning in s.warnings:
                                 warn = warning.split('\n')
-                                if not len(warn): continue
+                                if not len(warn):
+                                    continue
                                 check_lines.append(u"        %s: %s" %
                                     (style("Warning", 'yellow'), warn[0]))
                                 check_lines.extend(u"        %s" % l for l in
@@ -566,6 +571,41 @@ class CollectorStatus(AgentStatus):
 
                 lines += check_lines
 
+        # Metadata status
+        metadata_enabled = _is_affirmative(get_config().get('display_service_metadata', False))
+
+        if metadata_enabled:
+            lines += [
+                "",
+                "Service metadata",
+                "================",
+                ""
+            ]
+            if not check_statuses:
+                lines.append("  No checks have run yet.")
+            else:
+                meta_lines = []
+                for cs in check_statuses:
+                    # Check title
+                    check_line = [
+                        '  ' + cs.name,
+                        '  ' + '-' * len(cs.name)
+                    ]
+                    instance_lines = []
+                    for i, meta in enumerate(cs.service_metadata):
+                        if not meta:
+                            continue
+                        instance_lines += ["    - instance #%s:" % i]
+                        for k, v in meta.iteritems():
+                            instance_lines += ["        - %s: %s" % (k, v)]
+                    if instance_lines:
+                        check_line += instance_lines
+                        meta_lines += check_line
+                if meta_lines:
+                    lines += meta_lines
+                else:
+                    lines.append("  No metadata were collected.")
+
         # Emitter status
         lines += [
             "",
@@ -580,7 +620,7 @@ class CollectorStatus(AgentStatus):
                 c = 'green'
                 if es.has_error():
                     c = 'red'
-                line = "  - %s [%s]" % (es.name, style(es.status,c))
+                line = "  - %s [%s]" % (es.name, style(es.status, c))
                 if es.status != STATUS_OK:
                     line += ": %s" % es.error
                 lines.append(line)
@@ -598,8 +638,8 @@ class CollectorStatus(AgentStatus):
             'ipv4',
             'instance-id'
         ]
-        if self.metadata:
-            for key, host in self.metadata.items():
+        if self.host_metadata:
+            for key, host in self.host_metadata.iteritems():
                 for whitelist_item in metadata_whitelist:
                     if whitelist_item in key:
                         status_info['hostnames'][key] = host
@@ -816,8 +856,8 @@ def get_jmx_status():
         ###
     """
     check_statuses = []
-    java_status_path = os.path.join(get_jmx_status_path(), "jmx_status.yaml")
-    python_status_path = os.path.join(get_jmx_status_path(), "jmx_status_python.yaml")
+    java_status_path = JMXFiles.get_status_file_path()
+    python_status_path = JMXFiles.get_python_status_file_path()
     if not os.path.exists(java_status_path) and not os.path.exists(python_status_path):
         log.debug("There is no jmx_status file at: %s or at: %s" % (java_status_path, python_status_path))
         return []

@@ -2,30 +2,63 @@ init_config:
 
 instances:
   # Each Event Log instance lets you define the type of events you want to
-  # match and how to tag those events. You can use the following filters:
-  #
-  # - log_file: Application, System, Setup, Security
-  #
-  # - source_name: Any available source name
-  #
-  # - type: Warning, Error, Information
-  #
-  # - user: Any valid user name
-  #
-  # - event_id: The Event ID can be found through http://www.eventid.net/ and
-  #   viewed in the window event viewer.
-  #
-  # - message_filters: A list of message filters, using % as a wildcard.
-  #   See http://msdn.microsoft.com/en-us/library/aa392263(v=vs.85).aspx for
-  #   more on the format for LIKE queries.
-  #   NOTE: Any filter that starts with "-" will be a NOT query, e.g.: '-%success%'
-  #   will search for events without 'success' in the message.
+  # match and how to tag those events.
+
+  -
+    # By default, the local machine's event logs are captured. To capture a remote
+    # machine's event logs, specify the machine name (DCOM has to be enabled on
+    # the remote machine). If authentication is needed, specify a username and a
+    # password.
+    # host: remote_machine_name
+    # username: user
+    # password: pass
+
+    # The (optional) log_file filter will instruct the check to only capture events
+    # that belong to one of the specified LogFiles (Application, System, Setup, Security,
+    # or application-specific LogFile).
+    # log_file:
+    #   - Security
+
+    # The (optional) source_name filter will instruct the check to only capture events
+    # that come from one of the specified SourceNames.
+    # source_name:
+    #   - Microsoft-Windows-Security-Auditing
+
+    # The (optional) type filter will instruct the check to only capture events
+    # that have one of the specified Types.
+    # Standard values are: Critical, Error, Warning, Information, Audit Success, Audit Failure.
+    # type:
+    #   - Audit Failure
+
+    # The (optional) event_id filter will instruct the check to only capture events
+    # that have one of the specified EventCodes.
+    # The event ID can be found through http://www.eventid.net/ and viewed in the
+    # Windows Event Viewer.
+    # event_id:
+    #   - 4776
+    #   - 4672
+
+    # The (optional) message_filters filter will instruct the check to only capture
+    # events which Message field matches all of the specified filters.
+    # Use % as a wildcard. See http://msdn.microsoft.com/en-us/library/aa392263(v=vs.85).aspx
+    # for more on the format for LIKE queries.
+    # NOTE: Any filter that starts with "-" will be a NOT query, e.g.: '-%success%'
+    # will search for events without 'success' in the message.
+    # message_filters:
+    #   - "-%success%"
+    #   - "%SYSTEM%"
+
+    # The (optional) tags parameter will instruct the check to tag the captured
+    # events with the specified tags.
+    # tags:
+    #   - security
+
 
   # Here are a couple basic examples:
 
-  # The following will capture errors and warnings from SQL Server which
+  # The following instance will capture errors and warnings from SQL Server which
   # puts all events under the MSSQLSERVER source and tag them with #sqlserver.
-  #
+
   # - log_file:
   #     - Application
   #   source_name:
@@ -39,9 +72,9 @@ instances:
   #     - sqlserver
 
   # This instance will capture all system errors and tag them with #system.
-  #
+
   # - log_file:
-  #   - System
+  #     - System
   #   type:
   #     - Error
   #   tags:

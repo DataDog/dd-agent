@@ -21,12 +21,10 @@ namespace :ci do
 
     task before_script: ['ci:common:before_script'] do
       sh %(mkdir -p $VOLATILE_DIR/supervisor)
-      %w(supervisord.conf supervisord.yaml).each do |conf|
-        sh %(cp $TRAVIS_BUILD_DIR/ci/resources/supervisord/#{conf}\
-             $VOLATILE_DIR/supervisor/)
-        sh %(sed -i -- 's/VOLATILE_DIR/#{ENV['VOLATILE_DIR'].gsub '/', '\/'}/g'\
-           $VOLATILE_DIR/supervisor/#{conf})
-      end
+      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/supervisord/supervisord.conf\
+           $VOLATILE_DIR/supervisor/)
+      sh %(sed -i -- 's/VOLATILE_DIR/#{ENV['VOLATILE_DIR'].gsub '/', '\/'}/g'\
+         $VOLATILE_DIR/supervisor/supervisord.conf)
 
       3.times do |i|
         sh %(cp $TRAVIS_BUILD_DIR/ci/resources/supervisord/program_#{i}.sh\

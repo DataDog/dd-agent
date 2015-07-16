@@ -1,34 +1,27 @@
 # stdlib
 from Queue import Empty
-import unittest
 import time
 
 # 3p
 from nose.plugins.attrib import attr
-import nose.tools as nt
 
 # project
 from config import AGENT_VERSION
-from tests.checks.common import load_check
+from tests.checks.common import AgentCheckTest
 from util import headers as agent_headers
 
 
 @attr(requires='core_integration')
-class ServiceCheckTestCase(unittest.TestCase):
+class ServiceCheckTestCase(AgentCheckTest):
 
-    def setUp(self):
-        self.checks = []
+    CHECK_NAME = "http_check"
 
-    def init_check(self, config, check_name):
-        self.agentConfig = {
+    def testHTTPHeaders(self):
+        agentConfig = {
             'version': AGENT_VERSION,
             'api_key': 'toto'
         }
 
-        self.check = load_check(check_name, config, self.agentConfig)
-        self.checks.append(self.check)
-
-    def testHTTPHeaders(self):
         config = {
             'init_config': {},
             'instances': [{
@@ -39,40 +32,54 @@ class ServiceCheckTestCase(unittest.TestCase):
             }]
         }
 
-        self.init_check(config, 'http_check')
-        url, username, password, timeout, http_response_status_code, include_content, headers, \
-            response_time, content_match, tags, ssl, \
-            ssl_expiration = self.check._load_conf(config['instances'][0])
+        self.load_check(config, agentConfig)
+        url, username, password, http_response_status_code, timeout,\
+            include_content, headers, response_time, content_match,\
+            tags, ssl, ssl_expiration,\
+            instance_ca_certs = self.check._load_conf(config['instances'][0])
 
-        self.assertTrue(headers["X-Auth-Token"] == "SOME-AUTH-TOKEN", headers)
-        self.assertTrue(headers.get('User-Agent') == agent_headers(self.agentConfig).get('User-Agent'), headers)
+        self.assertEqual(headers["X-Auth-Token"], "SOME-AUTH-TOKEN", headers)
+        expected_headers = agent_headers(agentConfig).get('User-Agent')
+        self.assertEqual(expected_headers, headers.get('User-Agent'), headers)
+
 
     def testHTTPWarning(self):
+        self.CHECK_NAME = "http_check"
+
         config = {
             'init_config': {},
             'instances': [{
                 'url': 'http://127.0.0.1:55555',
                 'name': 'DownService',
                 'timeout': 1
-            }, {
+            },{
                 'url': 'https://google.com',
                 'name': 'UpService',
                 'timeout': 1
             }]
         }
-        self.init_check(config, 'http_check')
 
-        self.check.run()
-        time.sleep(1)
+
+        self.run_check(config, force_reload=True)
+        time.sleep(2)
         # This would normally be called during the next run(), it is what
         # flushes the results of the check
-        self.check._process_results()
-        warnings = self.check.get_warnings()
 
-        self.assertTrue(len(warnings) == 4, warnings)
-        self.assertTrue(len([k for k in warnings if "Skipping SSL certificate validation" in k]) == 1, warnings)
+        self.check._process_results()
+        self.warnings = self.check.get_warnings()
+
+        self.assertEqual(len(self.warnings), 4, self.warnings)
+        self.assertWarning("Skipping SSL certificate validation for "
+            "https://google.com based on configuration", count=1)
+        self.assertWarning("Using events for service checks is deprecated in "
+            "favor of monitors and will be removed in future versions of the "
+            "Datadog Agent.", count=3)
+
+        self.check.stop()
 
     def testHTTP(self):
+        self.CHECK_NAME = "http_check"
+
         # No passwords this time
         config = {
             'init_config': {},
@@ -87,36 +94,27 @@ class ServiceCheckTestCase(unittest.TestCase):
             }]
         }
 
-        self.init_check(config, 'http_check')
-
-        def verify_service_checks(service_checks):
-            for service_check in service_checks:
-                if service_check['check'] == 'http_check.DownService':
-                    self.assertEqual(service_check['status'], 2, service_check)
-                elif service_check['check'] == 'http_check.UpService':
-                    self.assertEqual(service_check['status'], 0, service_check)
-                else:
-                    raise Exception('Bad check name %s' % service_check)
-
-
-        self.check.run()
+        self.run_check(config, force_reload=True)
         time.sleep(2)
-        nt.assert_equals(self.check.pool.get_nworkers(), 2)
-        # This would normally be called during the next run(), it is what
-        # flushes the results of the check
+        self.assertEqual(self.check.pool.get_nworkers(), 2)
+
         self.check._process_results()
 
-        events = self.check.get_events()
-        service_checks = self.check.get_service_checks()
+        self.events = self.check.get_events()
+        self.service_checks = self.check.get_service_checks()
 
-        assert events
-        self.assertEqual(type(events), type([]))
-        self.assertEqual(len(events), 1, events)
-        self.assertEqual(events[0]['event_object'], 'DownService')
-        assert service_checks
-        self.assertEqual(type(service_checks), type([]))
-        self.assertEqual(len(service_checks), 2, service_checks)  # 1 per instance
-        verify_service_checks(service_checks)
+        self.assertEqual(type(self.events), type([]))
+        self.assertEqual(len(self.events), 1, self.events)
+        self.assertEqual(self.events[0]['event_object'], 'DownService')
+
+        self.assertEqual(type(self.service_checks), type([]))
+        self.assertEqual(len(self.service_checks), 2, self.service_checks) # 1 per instance
+
+        expected_tags = ["instance:DownService", "url:http://127.0.0.1:55555"]
+        self.assertServiceCheck("http.can_connect", status=2, tags=expected_tags)
+
+        expected_tags = ["instance:UpService", "url:http://google.com"]
+        self.assertServiceCheck("http.can_connect", status=0, tags=expected_tags)
 
         events = self.check.get_events()
         service_checks = self.check.get_service_checks()
@@ -126,27 +124,6 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.assertEqual(len(service_checks), 0)
         # result Q should be empty here
         self.assertRaises(Empty, self.check.resultsq.get_nowait)
-
-        # We change the stored status, so next check should trigger an event
-        self.check.log.warning(self.check.notified)
-        self.check.notified[('UpService', 'http_check')] = "DOWN"
-
-        time.sleep(1)
-        self.check.run()
-        time.sleep(1)
-        self.check.run()
-
-        time.sleep(1)
-        events = self.check.get_events()
-        service_checks = self.check.get_service_checks()
-
-        self.assertEqual(type(events), type([]), events)
-        self.assertEqual(len(events), 1, events)
-        self.assertEqual(events[0]['event_object'], 'UpService', events)
-        self.assertEqual(type(service_checks), type([]))
-        # FIXME: sometimes it's 3 instead of 2
-        self.assertTrue(len(service_checks) >= 2, service_checks)  # Only 2 because the second run wasn't flushed
-        verify_service_checks(service_checks)
 
         # Cleanup the threads
         self.check.stop()
@@ -161,12 +138,12 @@ class ServiceCheckTestCase(unittest.TestCase):
                 'port': 65530,
                 'timeout': 1,
                 'name': 'DownService'
-            }, {
+            },{
                 'host': '126.0.0.1',
                 'port': 65530,
                 'timeout': 1,
                 'name': 'DownService2'
-            }, {
+            },{
                 'host': 'datadoghq.com',
                 'port': 80,
                 'timeout': 1,
@@ -175,67 +152,34 @@ class ServiceCheckTestCase(unittest.TestCase):
             }]
         }
 
-        self.init_check(config, 'tcp_check')
 
-        def verify_service_checks(service_checks):
-            for service_check in service_checks:
-                if service_check['check'].startswith('tcp_check.DownService'):
-                    self.assertEqual(service_check['status'], 2, service_check)
-                elif service_check['check'] == 'tcp_check.UpService':
-                    self.assertEqual(service_check['status'], 0, service_check)
-                else:
-                    raise Exception('Bad check name %s' % service_check['check'])
-
-        self.check.run()
+        self.CHECK_NAME = "tcp_check"
+        self.run_check(config, force_reload=True)
         time.sleep(2)
-        nt.assert_equals(self.check.pool.get_nworkers(), 3)
+        self.assertEqual(self.check.pool.get_nworkers(), 3)
         # This would normally be called during the next run(), it is what
         # flushes the results of the check
         self.check._process_results()
 
-        events = self.check.get_events()
-        service_checks = self.check.get_service_checks()
+        self.events = self.check.get_events()
+        self.service_checks = self.check.get_service_checks()
 
-        assert events
-        self.assertEqual(type(events), type([]))
-        self.assertEqual(len(events), 2, events)
-        for event in events:
+
+        self.assertEqual(type(self.events), type([]))
+        self.assertEqual(len(self.events), 2, self.events)
+        for event in self.events:
             self.assertTrue(event['event_object'][:11] == 'DownService')
-        assert service_checks
-        self.assertEqual(type(service_checks), type([]))
-        self.assertEqual(len(service_checks), 3, service_checks)  # 1 per instance
-        verify_service_checks(service_checks)
 
-        events = self.check.get_events()
-        service_checks = self.check.get_service_checks()
-        self.assertEqual(type(events), type([]))
-        self.assertEqual(len(events), 0)
-        self.assertEqual(type(service_checks), type([]))
-        self.assertEqual(len(service_checks), 0)
-        # result Q should be empty here
-        self.assertRaises(Empty, self.check.resultsq.get_nowait)
+        self.assertEqual(type(self.service_checks), type([]))
+        self.assertEqual(len(self.service_checks), 3, self.service_checks) # 1 per instance
 
-        # We change the stored status, so next check should trigger an event
-        self.check.notified[('UpService', None)] = "DOWN"
+        expected_tags = ["instance:DownService", "target_host:127.0.0.1", "port:65530"]
+        self.assertServiceCheck("tcp.can_connect", status=2, tags=expected_tags)
 
-        time.sleep(1)
-        self.check.run()
-        time.sleep(2)
-        self.check.run()
+        expected_tags = ["instance:DownService2", "target_host:126.0.0.1", "port:65530"]
+        self.assertServiceCheck("tcp.can_connect", status=2, tags=expected_tags)
 
-        events = self.check.get_events()
-        service_checks = self.check.get_service_checks()
+        expected_tags = ["instance:UpService", "target_host:datadoghq.com", "port:80"]
+        self.assertServiceCheck("tcp.can_connect", status=0, tags=expected_tags)
 
-        assert events
-        self.assertEqual(type(events), type([]))
-        self.assertEqual(len(events), 1)
-        self.assertEqual(events[0]['event_object'], 'UpService')
-        assert service_checks
-        self.assertEqual(type(service_checks), type([]))
-        # FIXME: sometimes it's 4 instead of 3
-        self.assertTrue(len(service_checks) >= 3, service_checks)  # Only 3 because the second run wasn't flushed
-        verify_service_checks(service_checks)
-
-    def tearDown(self):
-        for check in self.checks:
-            check.stop()
+        self.check.stop()

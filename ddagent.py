@@ -9,48 +9,53 @@
     (C) Boxed Ice 2010 all rights reserved
     (C) Datadog, Inc. 2010-2013 all rights reserved
 '''
-
 # set up logging before importing any other components
-from config import initialize_logging
+from config import initialize_logging  # noqa
 initialize_logging('forwarder')
-from config import get_logging_config
 
-import os
-os.umask(022)
-
-# Standard imports
+# stdlib
 from datetime import timedelta
 import logging
+import os
 from Queue import Full, Queue
-from socket import gaierror, error as socket_error
+from socket import error as socket_error, gaierror
 import sys
 import threading
 import zlib
 
-# Tornado
-from tornado.escape import json_decode
-import tornado.httpserver
-import tornado.ioloop
-from tornado.options import define, parse_command_line, options
-import tornado.web
+# For pickle & PID files, see issue 293
+os.umask(022)
 
-# agent import
-from checks.check_status import ForwarderStatus
-from config import (
-    get_config,
-    get_url_endpoint,
-    get_version
-)
-from util import Watchdog, get_uuid, get_hostname, json, get_tornado_ioloop
-from transaction import Transaction, TransactionManager
-import modules
-
-# 3rd party
+# 3p
 try:
     import pycurl
 except ImportError:
     # For the source install, pycurl might not be installed
     pycurl = None
+from tornado.escape import json_decode
+import tornado.httpclient
+import tornado.httpserver
+import tornado.ioloop
+from tornado.options import define, options, parse_command_line
+import tornado.web
+
+# project
+from checks.check_status import ForwarderStatus
+from config import (
+    get_config,
+    get_logging_config,
+    get_url_endpoint,
+    get_version
+)
+import modules
+from transaction import Transaction, TransactionManager
+from util import (
+    get_hostname,
+    get_tornado_ioloop,
+    get_uuid,
+    json,
+    Watchdog,
+)
 
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)
@@ -137,7 +142,6 @@ class EmitterManager(object):
 
 
 class AgentTransaction(Transaction):
-
     _application = None
     _trManager = None
     _endpoints = []
@@ -173,10 +177,11 @@ class AgentTransaction(Transaction):
         except Exception:
             log.info("Not a Datadog user")
 
-    def __init__(self, data, headers):
+    def __init__(self, data, headers, msg_type=""):
         self._data = data
         self._headers = headers
         self._headers['DD-Forwarder-Version'] = get_version()
+        self._msg_type = msg_type
 
         # Call after data has been set (size is computed in Transaction's init)
         Transaction.__init__(self)
@@ -192,6 +197,13 @@ class AgentTransaction(Transaction):
 
     def __sizeof__(self):
         return sys.getsizeof(self._data)
+
+    def get_url(self, endpoint):
+        endpoint_base_url = get_url_endpoint(self._application._agentConfig[endpoint])
+        api_key = self._application._agentConfig.get('api_key')
+        if api_key:
+            return "{0}/intake/{1}?api_key={2}".format(endpoint_base_url, self._msg_type, api_key)
+        return "{0}/intake/{1}".format(endpoint_base_url, self._msg_type)
 
     def flush(self):
         for endpoint in self._endpoints:
@@ -263,13 +275,6 @@ class AgentTransaction(Transaction):
 class MetricTransaction(AgentTransaction):
     _type = "metrics"
 
-    def get_url(self, endpoint):
-        endpoint_base_url = get_url_endpoint(self._application._agentConfig[endpoint])
-        api_key = self._application._agentConfig.get('api_key')
-        if api_key:
-            return endpoint_base_url + '/intake?api_key=%s' % api_key
-        return endpoint_base_url + '/intake'
-
 
 class APIMetricTransaction(MetricTransaction):
 
@@ -315,6 +320,7 @@ class StatusHandler(tornado.web.RequestHandler):
 
 
 class AgentInputHandler(tornado.web.RequestHandler):
+    _MSG_TYPE = ""
 
     def post(self):
         """Read the message and forward it to the intake"""
@@ -322,14 +328,23 @@ class AgentInputHandler(tornado.web.RequestHandler):
         # read message
         msg = self.request.body
         headers = self.request.headers
+        msg_type = self._MSG_TYPE
 
         if msg is not None:
             # Setup a transaction for this message
-            tr = MetricTransaction(msg, headers)
+            tr = MetricTransaction(msg, headers, msg_type)
         else:
             raise tornado.web.HTTPError(500)
 
         self.write("Transaction: %s" % tr.get_id())
+
+
+class MetricsAgentInputHandler(AgentInputHandler):
+    _MSG_TYPE = "metrics"
+
+
+class MetadataAgentInputHandler(AgentInputHandler):
+    _MSG_TYPE = "metadata"
 
 
 class ApiInputHandler(tornado.web.RequestHandler):
@@ -430,6 +445,8 @@ class Application(tornado.web.Application):
     def run(self):
         handlers = [
             (r"/intake/?", AgentInputHandler),
+            (r"/intake/metrics?", MetricsAgentInputHandler),
+            (r"/intake/metadata?", MetadataAgentInputHandler),
             (r"/api/v1/series/?", ApiInputHandler),
             (r"/api/v1/check_run/?", ApiCheckRunHandler),
             (r"/status/?", StatusHandler),
@@ -551,7 +568,6 @@ def main():
 
     # If we don't have any arguments, run the server.
     if not args:
-        import tornado.httpclient
         app = init(skip_ssl_validation, use_simple_http_client=use_simple_http_client)
         try:
             app.run()

@@ -1,7 +1,11 @@
+# stdlib
 from collections import defaultdict
-from nose.plugins.attrib import attr
 import time
 
+# 3p
+from nose.plugins.attrib import attr
+
+# project
 from tests.checks.common import AgentCheckTest
 
 

@@ -1,18 +1,14 @@
-import platform
+# stdlib
+from datetime import date
+import os
 import sys
+
+# 3p
+from setuptools import find_packages, setup
+
+# project
 from config import get_version
-from jmxfetch import JMX_FETCH_JAR_NAME
-
-try:
-    from setuptools import setup, find_packages
-
-    # required to build the cython extensions
-    from distutils.extension import Extension  # pylint: disable=no-name-in-module
-
-except ImportError:
-    from ez_setup import use_setuptools
-    use_setuptools()
-    from setuptools import setup, find_packages
+from utils.jmx import JMX_FETCH_JAR_NAME
 
 # Extra arguments to pass to the setup function
 extra_args = {}
@@ -23,12 +19,18 @@ setup_requires = []
 # Prereqs of the install. Will install when deploying the egg.
 install_requires = []
 
+# Modified on mac
+app_name = 'datadog-agent'
+# plist (used only on mac)
+plist = None
+
 if sys.platform == 'win32':
     from glob import glob
-    import py2exe
-    import pysnmp_mibs
-    import pyVim
-    import pyVmomi
+    # noqa for flake8, these imports are probably here to force packaging of these modules
+    import py2exe  # noqa
+    import pysnmp_mibs  # noqa
+    import pyVim  # noqa
+    import pyVmomi  # noqa
 
     # That's just a copy/paste of requirements.txt
     for reqfile in ('requirements.txt', 'requirements-opt.txt'):
@@ -45,7 +47,6 @@ if sys.platform == 'win32':
 
     # windows-specific deps
     install_requires.append('pywin32==217')
-    install_requires.append('wmi==1.4.9')
 
     # Modules to force-include in the exe
     include_modules = [
@@ -118,8 +119,35 @@ if sys.platform == 'win32':
         ],
     }
 
+elif sys.platform == 'darwin':
+    app_name = 'Datadog Agent'
+
+    from plistlib import Plist
+    plist = Plist.fromFile(os.path.dirname(os.path.realpath(__file__)) + '/packaging/Info.plist')
+    plist.update(dict(
+        CFBundleGetInfoString="{0}, Copyright (c) 2009-{1}, Datadog Inc.".format(
+            get_version(), date.today().year),
+        CFBundleVersion=get_version()
+    ))
+
+    extra_args = {
+        'app': ['gui.py'],
+        'data_files': [
+            'images',
+            'status.html',
+        ],
+        'options': {
+            'py2app': {
+                'optimize': 0,
+                'iconfile': 'packaging/Agent.icns',
+                'plist': plist
+            }
+        }
+    }
+
+
 setup(
-    name='datadog-agent',
+    name=app_name,
     version=get_version(),
     description="DevOps' best friend",
     author='DataDog',

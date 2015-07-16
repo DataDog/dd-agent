@@ -10,7 +10,7 @@ import redis
 
 # project
 from checks import AgentCheck
-from tests.checks.common import load_check, AgentCheckTest
+from tests.checks.common import AgentCheckTest, load_check
 
 logger = logging.getLogger()
 
@@ -145,6 +145,13 @@ class TestRedis(AgentCheckTest):
         metrics = self._sort_metrics(r.get_metrics())
         keys = [m[0] for m in metrics]
         assert 'redis.net.commands' in keys
+
+        # Service metadata
+        service_metadata = r.get_service_metadata()
+        service_metadata_count = len(service_metadata)
+        self.assertTrue(service_metadata_count > 0)
+        for meta_dict in service_metadata:
+            assert meta_dict
 
     def test_redis_replication_link_metric(self):
         metric_name = 'redis.replication.master_link_down_since_seconds'

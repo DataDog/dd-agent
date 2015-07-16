@@ -1,18 +1,18 @@
 # stdlib
-import urllib2
-import urllib
+from collections import defaultdict
 import httplib
-import socket
 import os
 import re
+import socket
 import time
+import urllib
+import urllib2
 from urlparse import urlsplit
-from util import json
-from collections import defaultdict
 
 # project
 from checks import AgentCheck
 from config import _is_affirmative
+from util import json
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'docker'
 
@@ -65,6 +65,9 @@ NEW_TAGS_MAP = {
 
 DEFAULT_SOCKET_TIMEOUT = 5
 
+class DockerJSONDecodeError(Exception):
+    """ Raised when there is trouble parsing the API response sent by Docker Remote API """
+    pass
 
 class UnixHTTPConnection(httplib.HTTPConnection):
     """Class used in conjuction with UnixSocketHandler to make urllib2
@@ -234,6 +237,9 @@ class Docker(AgentCheck):
             for name in container["Names"]:
                 container_tags.append(self._make_tag("name", name.lstrip("/"), instance))
             for key in DOCKER_TAGS:
+                if key == 'Image' and ':' in container[key]:
+                    tag = self._make_tag('image_repository', container[key].split(':')[0], instance)
+                    container_tags.append(tag)
                 tag = self._make_tag(key, container[key], instance)
                 if tag:
                     container_tags.append(tag)
@@ -355,16 +361,21 @@ class Docker(AgentCheck):
     def _get_events(self, instance):
         """Get the list of events """
         now = int(time.time())
-        result = self._get_json(
-            "%s/events" % instance["url"],
-            params={
-                "until": now,
-                "since": self._last_event_collection_ts[instance["url"]] or now - 60,
-            }, multi=True)
-        self._last_event_collection_ts[instance["url"]] = now
-        if type(result) == dict:
-            result = [result]
-        return result
+        try:
+            result = self._get_json(
+                "%s/events" % instance["url"],
+                params={
+                    "until": now,
+                    "since": self._last_event_collection_ts[instance["url"]] or now - 60,
+                },
+                multi=True
+            )
+            self._last_event_collection_ts[instance["url"]] = now
+            if type(result) == dict:
+                result = [result]
+            return result
+        except DockerJSONDecodeError:
+            return []
 
     def _get_json(self, uri, params=None, multi=False):
         """Utility method to get and parse JSON streams."""
@@ -381,24 +392,30 @@ class Docker(AgentCheck):
             raise
 
         response = request.read()
+        response = response.replace('\n', '') # Some Docker API versions occassionally send newlines in responses
+        self.log.debug('Docker API response: %s', response)
         if multi and "}{" in response: # docker api sometimes returns juxtaposed json dictionaries
             response = "[{0}]".format(response.replace("}{", "},{"))
 
         if not response:
             return []
 
-        return json.loads(response)
-
+        try:
+            return json.loads(response)
+        except Exception as e:
+            self.log.error('Failed to parse Docker API response: %s', response)
+            raise DockerJSONDecodeError
 
     # Cgroups
 
-    def _find_cgroup_filename_pattern(self):
+    def _find_cgroup_filename_pattern(self, container_id):
         if self._mountpoints:
             # We try with different cgroups so that it works even if only one is properly working
             for mountpoint in self._mountpoints.values():
                 stat_file_path_lxc = os.path.join(mountpoint, "lxc")
                 stat_file_path_docker = os.path.join(mountpoint, "docker")
                 stat_file_path_coreos = os.path.join(mountpoint, "system.slice")
+                stat_file_path_kubernetes = os.path.join(mountpoint, container_id)
 
                 if os.path.exists(stat_file_path_lxc):
                     return os.path.join('%(mountpoint)s/lxc/%(id)s/%(file)s')
@@ -406,13 +423,15 @@ class Docker(AgentCheck):
                     return os.path.join('%(mountpoint)s/docker/%(id)s/%(file)s')
                 elif os.path.exists(stat_file_path_coreos):
                     return os.path.join('%(mountpoint)s/system.slice/docker-%(id)s.scope/%(file)s')
+                elif os.path.exists(stat_file_path_kubernetes):
+                    return os.path.join('%(mountpoint)s/%(id)s/%(file)s')
 
         raise Exception("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
     def _get_cgroup_file(self, cgroup, container_id, filename):
         # This can't be initialized at startup because cgroups may not be mounted yet
         if not self._cgroup_filename_pattern:
-            self._cgroup_filename_pattern = self._find_cgroup_filename_pattern()
+            self._cgroup_filename_pattern = self._find_cgroup_filename_pattern(container_id)
 
         return self._cgroup_filename_pattern % (dict(
             mountpoint=self._mountpoints[cgroup],

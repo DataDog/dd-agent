@@ -1,9 +1,12 @@
+# stdlib
 from socket import socket
-
-from mock import patch
 import unittest
 import xmlrpclib
 
+# 3p
+from mock import patch
+
+# project
 from checks import AgentCheck
 from tests.checks.common import get_check
 
@@ -129,7 +132,7 @@ instances:
             'host': 'invalid_host',
             'port': 9009
         }],
-        'error_message': """Cannot connect to http://invalid_host:9009. Make sure that supervisor is running and XML-RPC inet interface is enabled."""
+        'error_message': """Cannot connect to http://invalid_host:9009. Make sure supervisor is running and XML-RPC inet interface is enabled."""
     }, {
         'yaml': """
 init_config:
@@ -171,6 +174,47 @@ instances:
                 ('supervisord.process.count', 0, {'type': 'gauge', 'tags': ['supervisord_server:server0', 'status:down']}),
                 ('supervisord.process.count', 0, {'type': 'gauge', 'tags': ['supervisord_server:server0', 'status:unknown']}),
                 ('supervisord.process.uptime', 125, {'type': 'gauge', 'tags': ['supervisord_server:server0', 'supervisord_process:mysql']})
+            ]
+        },
+        'expected_service_checks': {
+            'server0': [{
+                'status': AgentCheck.OK,
+                'tags': ['supervisord_server:server0'],
+                'check': 'supervisord.can_connect',
+            }, {
+                'status': AgentCheck.OK,
+                'tags': ['supervisord_server:server0', 'supervisord_process:mysql'],
+                'check': 'supervisord.process.status'
+            }]
+        }
+    }, {
+        'yaml': """
+init_config:
+
+instances:
+  - name: server0
+    host: localhost
+    port: 9001
+    proc_regex:
+      - '^mysq.$'
+      - invalid_process""",
+        'expected_instances': [{
+                               'name': 'server0',
+                               'host': 'localhost',
+                               'port': 9001,
+                               'proc_regex': ['^mysq.$', 'invalid_process']
+                               }],
+        'expected_metrics': {
+            'server0': [
+                ('supervisord.process.count', 1,
+                 {'type': 'gauge', 'tags': ['supervisord_server:server0', 'status:up']}),
+                ('supervisord.process.count', 0,
+                 {'type': 'gauge', 'tags': ['supervisord_server:server0', 'status:down']}),
+                ('supervisord.process.count', 0,
+                 {'type': 'gauge', 'tags': ['supervisord_server:server0', 'status:unknown']}),
+                ('supervisord.process.uptime', 125, {'type': 'gauge',
+                                                     'tags': ['supervisord_server:server0',
+                                                              'supervisord_process:mysql']})
             ]
         },
         'expected_service_checks': {

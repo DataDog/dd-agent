@@ -1,41 +1,42 @@
 # stdlib
+from collections import deque
 import logging
-import modules
 import multiprocessing
 from optparse import Values
-import servicemanager
 import sys
-import threading
 import time
-import tornado.httpclient
+
+# 3p
+import servicemanager
 from win32.common import handle_exe_click
 import win32event
-import win32evtlogutil
 import win32service
 import win32serviceutil
 
-# DD
+# project
 from checks.collector import Collector
 from config import (
-    get_config,
     get_confd_path,
+    get_config,
     get_system_stats,
-    get_win32service_file,
     load_check_directory,
-    set_win32_cert_path,
     PathNotFound,
+    set_win32_cert_path,
 )
-import dogstatsd
 from ddagent import Application
+import dogstatsd
 from emitter import http_emitter
 from jmxfetch import JMXFetch
-from util import get_hostname, get_os
+import modules
+from util import get_hostname
+from utils.jmx import JMXFiles
+from utils.profile import AgentProfiler
 
 log = logging.getLogger(__name__)
 
 SERVICE_SLEEP_INTERVAL = 1
 MAX_FAILED_HEARTBEATS = 8  # runs of collector
-
+DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
 class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "DatadogAgent"
@@ -131,11 +132,17 @@ class ProcessWatchDog(object):
     Monitor the attached process.
     Restarts when it exits until the limit set is reached.
     """
-    def __init__(self, name, process, max_restarts=5):
+    DEFAULT_MAX_RESTARTS = 5
+    _RESTART_TIMEFRAME = 3600
+
+    def __init__(self, name, process, max_restarts=None):
+        """
+        :param max_restarts: maximum number of restarts per _RESTART_TIMEFRAME timeframe.
+        """
         self._name = name
         self._process = process
-        self._count_restarts = 0
-        self._MAX_RESTARTS = max_restarts
+        self._restarts = deque([])
+        self._max_restarts = max_restarts or self.DEFAULT_MAX_RESTARTS
 
     def start(self):
         return self._process.start()
@@ -149,14 +156,25 @@ class ProcessWatchDog(object):
     def is_enabled(self):
         return self._process.is_enabled
 
+    def _can_restart(self):
+        now = time.time()
+        while(self._restarts and self._restarts[0] < now - self._RESTART_TIMEFRAME):
+            self._restarts.popleft()
+
+        return len(self._restarts) < self._max_restarts
+
     def restart(self):
-        self._count_restarts += 1
-        if self._count_restarts >= self._MAX_RESTARTS:
+        if not self._can_restart():
             servicemanager.LogInfoMsg(
-                "%s reached the limit of restarts. Not restarting..." % self._name)
+                "{0} reached the limit of restarts ({1} tries during the last {2}s"
+                " (max authorized: {3})). Not restarting..."
+                .format(self._name, len(self._restarts),
+                        self._RESTART_TIMEFRAME, self._max_restarts)
+            )
             self._process.is_enabled = False
             return
 
+        self._restarts.append(time.time())
         # Make a new proc instances because multiprocessing
         # won't let you call .start() twice on the same instance.
         if self._process.is_alive():
@@ -184,6 +202,14 @@ class DDAgent(multiprocessing.Process):
         systemStats = get_system_stats()
         self.collector = Collector(self.config, emitters, systemStats, self.hostname)
 
+        in_developer_mode = self.config.get('developer_mode')
+
+        # In developer mode, the number of runs to be included in a single collector profile
+        collector_profile_interval = self.config.get('collector_profile_interval',
+                                                     DEFAULT_COLLECTOR_PROFILE_INTERVAL)
+        profiled = False
+        collector_profiled_runs = 0
+
         # Load the checks.d checks
         checksd = load_check_directory(self.config, self.hostname)
 
@@ -191,14 +217,33 @@ class DDAgent(multiprocessing.Process):
         while self.running:
             if self._heartbeat:
                 self._heartbeat.send(0)
+
+            if in_developer_mode and not profiled:
+                try:
+                    profiler = AgentProfiler()
+                    profiler.enable_profiling()
+                    profiled = True
+                except Exception as e:
+                    log.warn("Cannot enable profiler: %s" % str(e))
+
             self.collector.run(checksd=checksd)
+
+            if profiled:
+                if collector_profiled_runs >= collector_profile_interval:
+                    try:
+                        profiler.disable_profiling()
+                        profiled = False
+                        collector_profiled_runs = 0
+                    except Exception as e:
+                        log.warn("Cannot disable profiler: %s" % str(e))
+                else:
+                    collector_profiled_runs += 1
+
             time.sleep(self.config['check_freq'])
 
     def stop(self):
         log.debug("Windows Service - Stopping collector")
         self.collector.stop()
-        if JMXFetch.is_running():
-            JMXFetch.stop()
         self.running = False
 
     def get_emitters(self):
@@ -275,8 +320,7 @@ class JMXFetchProcess(multiprocessing.Process):
         self.hostname = hostname
 
         try:
-            osname = get_os()
-            confd_path = get_confd_path(osname)
+            confd_path = get_confd_path()
             self.jmx_daemon = JMXFetch(confd_path, agentConfig)
             self.jmx_daemon.configure()
             self.is_enabled = self.jmx_daemon.should_run()
@@ -286,10 +330,15 @@ class JMXFetchProcess(multiprocessing.Process):
 
     def run(self):
         if self.is_enabled:
+            JMXFiles.clean_exit_file()
             self.jmx_daemon.run()
 
-    def stop(self):
-        pass
+    def terminate(self):
+        """
+        Override `terminate` method to properly exit JMXFetch.
+        """
+        JMXFiles.write_exit_file()
+        self.join()
 
 
 if __name__ == '__main__':

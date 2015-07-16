@@ -1,14 +1,13 @@
 # stdlib
+from collections import defaultdict
+from glob import glob
 import os
 import time
-from collections import defaultdict
-from datetime import datetime
-from glob import glob
 from xml.etree.ElementTree import ElementTree
 
 # project
-from util import get_hostname
 from checks import AgentCheck
+from util import get_hostname
 
 
 class Skip(Exception):

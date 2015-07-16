@@ -1,16 +1,14 @@
 # stdlib
-import urlparse
-import time
 import re
-import pprint
+import time
 import urllib
+import urlparse
+
+# 3p
+import requests
 
 # project
 from checks import AgentCheck
-
-# 3rd party
-import simplejson as json
-import requests
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'rabbitmq'
 QUEUE_TYPE = 'queues'
@@ -21,43 +19,44 @@ MAX_DETAILED_NODES = 100
 # collect is above 90% of the limit:
 ALERT_THRESHOLD = 0.9
 QUEUE_ATTRIBUTES = [
-    # Path, Name
-    ('active_consumers', 'active_consumers'),
-    ('consumers', 'consumers'),
-    ('consumer_utilisation', 'consumer_utilisation'),
+    # Path, Name, Operation
+    ('active_consumers', 'active_consumers', float),
+    ('consumers', 'consumers', float),
+    ('consumer_utilisation', 'consumer_utilisation', float),
 
-    ('memory', 'memory'),
+    ('memory', 'memory', float),
 
-    ('messages', 'messages'),
-    ('messages_details/rate', 'messages.rate'),
+    ('messages', 'messages', float),
+    ('messages_details/rate', 'messages.rate', float),
 
-    ('messages_ready', 'messages_ready'),
-    ('messages_ready_details/rate', 'messages_ready.rate'),
+    ('messages_ready', 'messages_ready', float),
+    ('messages_ready_details/rate', 'messages_ready.rate', float),
 
-    ('messages_unacknowledged', 'messages_unacknowledged'),
-    ('messages_unacknowledged_details/rate', 'messages_unacknowledged.rate'),
+    ('messages_unacknowledged', 'messages_unacknowledged', float),
+    ('messages_unacknowledged_details/rate', 'messages_unacknowledged.rate', float),
 
-    ('message_stats/ack', 'messages.ack.count'),
-    ('message_stats/ack_details/rate', 'messages.ack.rate'),
+    ('message_stats/ack', 'messages.ack.count', float),
+    ('message_stats/ack_details/rate', 'messages.ack.rate', float),
 
-    ('message_stats/deliver', 'messages.deliver.count'),
-    ('message_stats/deliver_details/rate', 'messages.deliver.rate'),
+    ('message_stats/deliver', 'messages.deliver.count', float),
+    ('message_stats/deliver_details/rate', 'messages.deliver.rate', float),
 
-    ('message_stats/deliver_get', 'messages.deliver_get.count'),
-    ('message_stats/deliver_get_details/rate', 'messages.deliver_get.rate'),
+    ('message_stats/deliver_get', 'messages.deliver_get.count', float),
+    ('message_stats/deliver_get_details/rate', 'messages.deliver_get.rate', float),
 
-    ('message_stats/publish', 'messages.publish.count'),
-    ('message_stats/publish_details/rate', 'messages.publish.rate'),
+    ('message_stats/publish', 'messages.publish.count', float),
+    ('message_stats/publish_details/rate', 'messages.publish.rate', float),
 
-    ('message_stats/redeliver', 'messages.redeliver.count'),
-    ('message_stats/redeliver_details/rate', 'messages.redeliver.rate'),
+    ('message_stats/redeliver', 'messages.redeliver.count', float),
+    ('message_stats/redeliver_details/rate', 'messages.redeliver.rate', float),
 ]
 
 NODE_ATTRIBUTES = [
-    ('fd_used', 'fd_used'),
-    ('mem_used', 'mem_used'),
-    ('run_queue', 'run_queue'),
-    ('sockets_used', 'sockets_used'),
+    ('fd_used', 'fd_used', float),
+    ('mem_used', 'mem_used', float),
+    ('run_queue', 'run_queue', float),
+    ('sockets_used', 'sockets_used', float),
+    ('partitions', 'partitions', len)
 ]
 
 ATTRIBUTES = {
@@ -250,7 +249,7 @@ class RabbitMQ(AgentCheck):
                 # FIXME 6.x: remove this suffix or unify (sc doesn't have it)
                 tags.append('rabbitmq_%s:%s' % (tag_list[t], tag))
 
-        for attribute, metric_name in ATTRIBUTES[object_type]:
+        for attribute, metric_name, operation in ATTRIBUTES[object_type]:
             # Walk down through the data path, e.g. foo/bar => d['foo']['bar']
             root = data
             keys = attribute.split('/')
@@ -261,7 +260,7 @@ class RabbitMQ(AgentCheck):
             if value is not None:
                 try:
                     self.gauge('rabbitmq.%s.%s' % (
-                        METRIC_SUFFIX[object_type], metric_name), float(value), tags=tags)
+                        METRIC_SUFFIX[object_type], metric_name), operation(value), tags=tags)
                 except ValueError:
                     self.log.debug("Caught ValueError for %s %s = %s  with tags: %s" % (
                         METRIC_SUFFIX[object_type], attribute, value, tags))

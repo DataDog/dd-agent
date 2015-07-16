@@ -1,11 +1,6 @@
 # stdlib
 from cStringIO import StringIO
 import logging
-try:
-    import cProfile as profile
-except ImportError:
-    import profile
-import pstats
 import subprocess
 import tempfile
 import time

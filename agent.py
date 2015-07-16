@@ -9,26 +9,24 @@
     (C) Boxed Ice 2010 all rights reserved
     (C) Datadog, Inc. 2010-2014 all rights reserved
 '''
-
 # set up logging before importing any other components
-from config import get_version, initialize_logging
+from config import get_version, initialize_logging # noqa
 initialize_logging('collector')
 
-import os
-os.umask(022)
-
-# Core modules
+# stdlib
 import logging
+import os
 import signal
 import sys
 import time
 
-# Custom modules
-from checks.collector import Collector
+# For pickle & PID files, see issue 293
+os.umask(022)
+
+# project
 from checks.check_status import CollectorStatus
-from utils.profile import pretty_statistics
+from checks.collector import Collector
 from config import (
-    get_confd_path,
     get_config,
     get_parsed_args,
     get_system_stats,
@@ -36,15 +34,14 @@ from config import (
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from jmxfetch import JMXFetch, JMX_LIST_COMMANDS
 from util import (
     EC2,
     get_hostname,
-    get_os,
     Watchdog,
 )
-from utils.pidfile import PidFile
 from utils.flare import configcheck, Flare
+from utils.jmx import jmx_command
+from utils.pidfile import PidFile
 from utils.profile import AgentProfiler
 
 # Constants
@@ -330,33 +327,7 @@ def main():
         configcheck()
 
     elif 'jmx' == command:
-        if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS.keys():
-            print "#" * 80
-            print "JMX tool to be used to help configuring your JMX checks."
-            print "See http://docs.datadoghq.com/integrations/java/ for more information"
-            print "#" * 80
-            print "\n"
-            print "You have to specify one of the following commands:"
-            for command, desc in JMX_LIST_COMMANDS.iteritems():
-                print "      - %s [OPTIONAL: LIST OF CHECKS]: %s" % (command, desc)
-            print "Example: sudo /etc/init.d/datadog-agent jmx list_matching_attributes tomcat jmx solr"
-            print "\n"
-
-        else:
-            jmx_command = args[1]
-            checks_list = args[2:]
-            confd_directory = get_confd_path(get_os())
-
-            jmx_process = JMXFetch(confd_directory, agentConfig)
-            jmx_process.configure()
-            should_run = jmx_process.should_run()
-
-            if should_run:
-                jmx_process.run(jmx_command, checks_list, reporter="console")
-            else:
-                print "Couldn't find any valid JMX configuration in your conf.d directory: %s" % confd_directory
-                print "Have you enabled any JMX check ?"
-                print "If you think it's not normal please get in touch with Datadog Support"
+        jmx_command(args[1:], agentConfig)
 
     elif 'flare' == command:
         Flare.check_user_rights()

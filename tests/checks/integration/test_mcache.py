@@ -1,16 +1,15 @@
-import unittest
-from nose.plugins.attrib import attr
+# stdlib
 import os
+from subprocess import PIPE, Popen
 import time
-from subprocess import Popen, PIPE
 
-from tests.checks.common import AgentCheckTest
-
-from checks import AgentCheck
-
-# 3rd party
+# 3p
 import memcache
+from nose.plugins.attrib import attr
 
+# project
+from checks import AgentCheck
+from tests.checks.common import AgentCheckTest
 
 GAUGES = [
     "total_items",

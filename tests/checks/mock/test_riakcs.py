@@ -1,8 +1,13 @@
-import unittest
-from tests.checks.common import load_check, Fixtures, AgentCheckTest
-from mock import Mock
+# stdlib
 from socket import error
+import unittest
+
+# 3p
+from mock import Mock
+
+# project
 from checks import AgentCheck
+from tests.checks.common import AgentCheckTest, Fixtures, load_check
 
 
 class RiakCSTest(AgentCheckTest):

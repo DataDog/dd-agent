@@ -52,7 +52,7 @@ namespace :ci do
             #{apache_rootdir}/conf/httpd.conf)
       sh %(#{apache_rootdir}/bin/apachectl start)
       # Wait for Apache to start
-      Wait.for 'http://localhost:8080'
+      Wait.for 'http://localhost:8080', 15
       # Simulate activity to populate metrics
       100.times do
         sh %(curl --silent http://localhost:8080 > /dev/null)

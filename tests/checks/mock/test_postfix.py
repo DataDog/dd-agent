@@ -2,7 +2,7 @@
 import binascii
 import logging
 import os
-from random import shuffle, sample
+from random import sample, shuffle
 import re
 import shutil
 import unittest

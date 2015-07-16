@@ -1,9 +1,5 @@
-# stdlib
-import unittest
-
 # 3p
 from nose.plugins.attrib import attr
-from requests.exceptions import Timeout
 
 # project
 from tests.checks.common import AgentCheckTest
@@ -89,7 +85,7 @@ class CheckEtcdTest(AgentCheckTest):
         }
 
         mocks = {
-            '_get_leader_metrics': lambda u, t: mock
+            '_get_leader_metrics': lambda url, ssl, timeout: mock
         }
 
         self.run_check_twice(self.config, mocks=mocks)

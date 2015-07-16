@@ -6,34 +6,32 @@ import os
 import platform
 import re
 import signal
-import simplejson as json
 import socket
-import subprocess
 import sys
 import time
 import types
 import urllib2
 import uuid
 
-# Tornado
+# 3p
+import simplejson as json
+import yaml  # noqa, let's guess, probably imported somewhere
 from tornado import ioloop
-
-# yaml
-import yaml
 try:
     from yaml import CLoader as yLoader
     from yaml import CDumper as yDumper
 except ImportError:
     # On source install C Extensions might have not been built
-    from yaml import Loader as yLoader
-    from yaml import Dumper as yDumper
+    from yaml import Loader as yLoader  # noqa, imported from here elsewhere
+    from yaml import Dumper as yDumper  # noqa, imported from here elsewhere
 
 # These classes are now in utils/, they are just here for compatibility reasons,
 # if a user actually uses them in a custom check
 # If you're this user, please use utils.pidfile or utils.platform instead
 # FIXME: remove them at a point (6.x)
-from utils.pidfile import PidFile
+from utils.pidfile import PidFile  # noqa, see ^^^
 from utils.platform import Platform
+from utils.subprocess_output import subprocess
 
 
 VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")

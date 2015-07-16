@@ -2,8 +2,8 @@
 """
 
 # stdlib
-import os
 import imp
+import os
 import re
 import sys
 

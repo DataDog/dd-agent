@@ -8,11 +8,13 @@ from tests.checks.common import AgentCheckTest
 class TestLighttpd(AgentCheckTest):
     CHECK_NAME = 'lighttpd'
     CHECK_GAUGES = [
-        'lighttpd.performance.busy_servers',
         'lighttpd.net.bytes',
+        'lighttpd.net.bytes_per_s',
         'lighttpd.net.hits',
+        'lighttpd.net.request_per_s',
+        'lighttpd.performance.busy_servers',
         'lighttpd.performance.idle_server',
-        'lighttpd.performance.uptime'
+        'lighttpd.performance.uptime',
     ]
 
     def __init__(self, *args, **kwargs):

@@ -1,19 +1,24 @@
 # stdlib
-import re
-import types
 import time
+import types
+
+# 3p
+from pymongo import (
+    MongoClient,
+    ReadPreference,
+    uri_parser,
+    version as py_version,
+)
 
 # project
 from checks import AgentCheck
 from util import get_hostname
 
-# 3rd party
-from pymongo import uri_parser, MongoClient, ReadPreference, version as py_version
-
 DEFAULT_TIMEOUT = 10
 
+
 class LocalRate:
-    """ To be used for metrics that should be sent as rates but that we want to send as histograms"""
+    """To be used for metrics that should be sent as rates but that we want to send as histograms"""
 
     def __init__(self, agent_check, metric_name, tags):
         self.agent_check = agent_check
@@ -42,6 +47,7 @@ class LocalRate:
             self.cur_val = val
             self.cur_ts = time.time()
             self.submit_histogram()
+
 
 class TokuMX(AgentCheck):
     SERVICE_CHECK_NAME = 'tokumx.can_connect'
@@ -210,16 +216,26 @@ class TokuMX(AgentCheck):
             state of a mongo node"""
 
         def get_state_description(state):
-            if state == 0: return 'Starting Up'
-            elif state == 1: return 'Primary'
-            elif state == 2: return 'Secondary'
-            elif state == 3: return 'Recovering'
-            elif state == 4: return 'Fatal'
-            elif state == 5: return 'Starting up (initial sync)'
-            elif state == 6: return 'Unknown'
-            elif state == 7: return 'Arbiter'
-            elif state == 8: return 'Down'
-            elif state == 9: return 'Rollback'
+            if state == 0:
+                return 'Starting Up'
+            elif state == 1:
+                return 'Primary'
+            elif state == 2:
+                return 'Secondary'
+            elif state == 3:
+                return 'Recovering'
+            elif state == 4:
+                return 'Fatal'
+            elif state == 5:
+                return 'Starting up (initial sync)'
+            elif state == 6:
+                return 'Unknown'
+            elif state == 7:
+                return 'Arbiter'
+            elif state == 8:
+                return 'Down'
+            elif state == 9:
+                return 'Rollback'
 
         status = get_state_description(state)
         hostname = get_hostname(agentConfig)

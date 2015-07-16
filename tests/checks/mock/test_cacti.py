@@ -5,7 +5,7 @@ import shutil
 import unittest
 
 # project
-from tests.checks.common import get_check, Fixtures
+from tests.checks.common import Fixtures, get_check
 
 log = logging.getLogger()
 

@@ -13,6 +13,7 @@ python:
 cache:
   directories:
     - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION.9
+    - vendor/cache
 
 matrix:
   fast_finish: true
@@ -20,6 +21,7 @@ matrix:
 env:
   global:
     - CONCURRENCY=2
+    - COVERAGE=true
     - NOSE_FILTER="not windows"
     - INTEGRATIONS_DIR=$HOME/embedded
     - PIP_CACHE=$HOME/.cache/pip
@@ -39,9 +41,10 @@ env:
     - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.0.3
     - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.1.2
     - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.2.4
-    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.3.7
-    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.4.4
-    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.5.0
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.3.9
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.4.5
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.5.2
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.6.0
     - TRAVIS_FLAVOR=etcd
     - TRAVIS_FLAVOR=fluentd
     - TRAVIS_FLAVOR=go_expvar
@@ -90,6 +93,7 @@ before_script: echo "OVERRIDING TRAVIS STEPS"
 
 script:
   - bundle install
+  - bundle package
   # Needed if no cache exists
   - mkdir -p $INTEGRATIONS_DIR
   - ls -al $INTEGRATIONS_DIR

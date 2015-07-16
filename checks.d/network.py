@@ -2,10 +2,8 @@
 Collects network metrics.
 """
 # stdlib
-import platform
-import subprocess
-import sys
 import re
+import subprocess
 
 # project
 from checks import AgentCheck
@@ -22,6 +20,7 @@ SOLARIS_TCP_METRICS = [
     (re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.in_segs'),
     (re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.out_segs')
 ]
+
 
 class Network(AgentCheck):
 
@@ -331,9 +330,9 @@ class Network(AgentCheck):
         for interface, metrics in metrics_by_interface.iteritems():
             self._submit_devicemetrics(interface, metrics)
 
-        netstat = subprocess.Popen(["netstat", "-s","-P" "tcp"],
-                                    stdout=subprocess.PIPE,
-                                    close_fds=True).communicate()[0]
+        netstat = subprocess.Popen(["netstat", "-s", "-P" "tcp"],
+                                   stdout=subprocess.PIPE,
+                                   close_fds=True).communicate()[0]
         # TCP: tcpRtoAlgorithm=     4 tcpRtoMin           =   200
         # tcpRtoMax           = 60000 tcpMaxConn          =    -1
         # tcpActiveOpens      =    57 tcpPassiveOpens     =    50

@@ -1,14 +1,13 @@
 # stdlib
-import time
 from hashlib import md5
+import time
+
+# 3rd party
+import requests
 
 # project
 from checks import AgentCheck
-from util import headers
 
-# 3rd party
-import simplejson as json
-import requests
 
 class Mesos(AgentCheck):
     SERVICE_CHECK_NAME = "mesos.can_connect"

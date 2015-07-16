@@ -1,11 +1,8 @@
 # stdlib
+from collections import namedtuple
 from fnmatch import fnmatch
 import os
 import time
-from collections import namedtuple
-
-# project
-from checks import AgentCheck
 
 # 3rd party
 try:
@@ -13,6 +10,9 @@ try:
 except ImportError:
     rrdtool = None
 import pymysql
+
+# project
+from checks import AgentCheck
 
 CFUNC_TO_AGGR = {
     'AVERAGE': 'avg',
