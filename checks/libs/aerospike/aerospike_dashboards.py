@@ -1,10 +1,4 @@
-dogapi_flag = True
 datadog_flag = True
-
-try:
-    from dogapi import dog_http_api
-except ImportError:
-    dogapi_flag = False
 
 try:
     from datadog import initialize, api
@@ -46,8 +40,9 @@ def get_all_dashboards(api_key, api_app_key, instance_name, ns_name=None):
 
 def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
 
-    global dogapi_flag, datadog_flag
-    if dogapi_flag == False or datadog_flag == False:
+    global datadog_flag
+
+    if datadog_flag == False:
         return None
     dashboards_response = get_all_dashboards(api_key, api_app_key,
                                              instance_name)
@@ -59,8 +54,12 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
             draw_namespace_flag = False
             return 1
 
-    dog_http_api.api_key = str(api_key)
-    dog_http_api.application_key = str(api_app_key)
+    options = {
+        "api_key": str(api_key),
+        "app_key": str(api_app_key)
+    }
+    
+    initialize(**options)
 
     title = "Aerospike Dashboard: " + str(instance_name)
     description = "An Informative Dashboard about Aerospike Node"
@@ -533,20 +532,25 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
 
     template_variables = [{}]
 
-    response = dog_http_api.create_dashboard(title, description, graphs,
-                                             template_variables)
+    response = api.Timeboard.create(title=title, description=description,
+                         graphs=graphs, template_variables=template_variables)
     return response
 
 
 def draw_namespace_dashboard(api_key, api_app_key, instance_name, node_address,
                              namespace):
 
-    global dogapi_flag, datadog_flag
-    if dogapi_flag == False or datadog_flag == False:
+    global datadog_flag
+
+    if datadog_flag == False:
         return None
 
-    dog_http_api.api_key = str(api_key)
-    dog_http_api.application_key = str(api_app_key)
+    options = {
+        "api_key": str(api_key),
+        "app_key": str(api_app_key)
+    }
+    
+    initialize(**options)
 
     dashboards_response = get_all_dashboards(api_key, api_app_key,
                                              instance_name, ns_name=namespace)
@@ -679,6 +683,7 @@ def draw_namespace_dashboard(api_key, api_app_key, instance_name, node_address,
     ]
 
     template_variables = [{}]
-    response = dog_http_api.create_dashboard(title, description, graphs,
-                                             template_variables)
+
+    response = api.Timeboard.create(title=title, description=description,
+                         graphs=graphs, template_variables=template_variables)
     return response
