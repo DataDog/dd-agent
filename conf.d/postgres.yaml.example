@@ -18,6 +18,14 @@ instances:
 #    relations:
 #      - my_table
 #      - my_other_table
+#
+# By default all schemas are included. To track relations from specific schemas only, 
+# use the following syntax:
+#
+#    relations:
+#      - relation_name: another_table
+#        schemas: public prod
+#      
 
 
 # Custom metrics 
