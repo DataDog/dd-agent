@@ -8,7 +8,7 @@ Example:
     `stat` reports: zookeeper.latency.avg
     `mntr` reports: zookeeper.avg.latency
 If available, make use of the data reported by `mntr` not `stat`.
-The dublicate `stat` reports are only kept for backward compatability.
+The duplicate `stat` reports are only kept for backward compatability.
 
 Besides the usual zookeeper state of `leader`, `follower`, `observer` and `standalone`,
 this check will report three other states:
@@ -86,6 +86,16 @@ class ZookeeperCheck(AgentCheck):
     version_pattern = re.compile(r'Zookeeper version: ([^.]+)\.([^.]+)\.([^-]+)', flags=re.I)
 
     SOURCE_TYPE_NAME = 'zookeeper'
+
+    STATUS_TYPES = [
+        'leader',
+        'follower',
+        'observer',
+        'standalone',
+        'down',
+        'inactive',
+        'unknown',
+    ]
 
     def check(self, instance):
         host = instance.get('host', 'localhost')
@@ -181,15 +191,9 @@ class ZookeeperCheck(AgentCheck):
         tags = tags + ['mode:%s' % mode]
         self.set('zookeeper.instances', hostname, tags=tags)
 
-        gauges = {
-            'leader': 0,
-            'follower': 0,
-            'observer': 0,
-            'standalone': 0,
-            'down': 0,
-            'inactive': 0,
-            'unknown': 0
-        }
+        gauges = {}
+        for key in self.STATUS_TYPES:
+            gauges[key] = 0
 
         if mode in gauges:
             gauges[mode] = 1
@@ -334,12 +338,13 @@ class ZookeeperCheck(AgentCheck):
         metrics = {}
 
         for line in buf:
-            data = line.split()
-            if len(data) == 2:
-                name = data[0].replace('zk', 'zookeeper').replace('_', '.')
-                metrics[name] = data[1]
-            else:
-                raise Exception("Data not in 'key value' format, could not parse '%s'" % line)
+            try:
+                key, value = line.split()
+                name = self._normalize_metric_label(key)
+                metrics[name] = value
+            except:
+                e = sys.exc_info()[1]
+                raise Exception("Data not in 'key value' format, error: %s" % e)
 
         # mode is a string {'standalone', 'leader', 'follower', 'observer'}
         mode = metrics.pop('zookeeper.server.state').lower()
@@ -348,3 +353,8 @@ class ZookeeperCheck(AgentCheck):
             metrics[key] = int(metrics[key])
 
         return (metrics, mode)
+
+    def _normalize_metric_label(self, key):
+        if re.match('zk', key):
+            key = key.replace('zk', 'zookeeper', 1)
+        return key.replace('_', '.')
