@@ -175,8 +175,9 @@ class ProcessCheck(AgentCheck):
             # Skip processes dead in the meantime
             except psutil.NoSuchProcess:
                 self.warning('Process %s disappeared while scanning' % pid)
-                # reset the PID cache now, something chaned
+                # reset the PID cache now, something changed
                 self.last_pid_cache_ts[name] = 0
+                continue
 
             meminfo = self.psutil_wrapper(p, 'memory_info', ['rss', 'vms'])
             st['rss'].append(meminfo.get('rss'))
@@ -259,10 +260,10 @@ class ProcessCheck(AgentCheck):
 
     def _process_service_check(self, name, nb_procs, bounds):
         '''
-        Repport a service check, for each processes in search_string.
-        Repport as OK if the process is in the warning thresolds
-                   CRITICAL             out of the critical thresolds
-                   WARNING              out of the warning thresolds
+        Report a service check, for each process in search_string.
+        Report as OK if the process is in the warning thresholds
+                   CRITICAL             out of the critical thresholds
+                   WARNING              out of the warning thresholds
         '''
         tag = ["process:%s" % name]
         status = AgentCheck.OK
