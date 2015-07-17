@@ -24,7 +24,9 @@ instances:
 #
 #    relations:
 #      - relation_name: another_table
-#        schemas: public prod
+#        schemas:
+#          - public 
+#          - prod
 #      
 
 

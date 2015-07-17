@@ -358,23 +358,23 @@ SELECT relname,
             metrics = self.replication_metrics.get(key)
         return metrics
 
-    def _build_relations_config(self, yc):
+    def _build_relations_config(self, yamlconfig):
         """Builds a dictionary from relations configuration while maintaining compatibility
         """
         config = {}
-        for x in yc:
+        for element in yamlconfig:
             try:
-                if isinstance(x, str):
-                    config[x] = {'relation_name': x, 'schemas': []}
-                elif isinstance(x, dict):
-                    name = x['relation_name']
+                if isinstance(element, str):
+                    config[element] = {'relation_name': element, 'schemas': []}
+                elif isinstance(element, dict):
+                    name = element['relation_name']
                     config[name] = {}
-                    config[name]['schemas'] = x['schemas'].split()
+                    config[name]['schemas'] = element['schemas']
                     config[name]['relation_name'] = name
                 else:
-                    self.log.warn('Unhandled relations config type: %s' % str(x))
-            except:
-                pass
+                    self.log.warn('Unhandled relations config type: %s' % str(element))
+            except KeyError:
+                self.log.warn('Failed to parse config element=%s, check syntax' % str(element))
         return config
 
     def _collect_stats(self, key, db, instance_tags, relations, custom_metrics):
@@ -497,7 +497,7 @@ SELECT relname,
                     else:
                         tags = [t for t in instance_tags]
 
-                    tags += [("%s:%s" % (k,v)) for (k,v) in desc_map.items()]
+                    tags += [("%s:%s" % (k,v)) for (k,v) in desc_map.iteritems()]
 
                     # [(metric-map, value), (metric-map, value), ...]
                     # metric-map is: (dd_name, "rate"|"gauge")
