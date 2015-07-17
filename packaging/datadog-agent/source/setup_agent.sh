@@ -434,7 +434,7 @@ if [ "$DD_START_AGENT" = "0" ]; then
 fi
 
 # on solaris, skip the test, svcadm the Agent
-if [ "$(uname)" = "SunOs" ]; then
+if [ "$(uname)" = "SunOS" ]; then
     # Install pyexpat for our version of python, a dependency for xml parsing (varnish et al.)
     # Tested with /bin/sh
     $PYTHON_CMD -V 2>&1 | awk '{split($2, arr, "."); printf("py%d%d-expat", arr[1], arr[2]);}' | xargs pkgin -y in
