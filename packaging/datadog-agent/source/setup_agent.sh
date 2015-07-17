@@ -248,7 +248,8 @@ print_console "Checking that logfile is writable"
 print_green "OK"
 
 # Catch errors and handle them
-trap error_trap INT TERM EXIT
+trap error_trap INT TERM
+trap '[ "$?" -eq 0 ] || error_trap' EXIT
 
 if [ "$DD_DOG" != "0" ]; then
     echo "$DOG" 1>&3
@@ -446,7 +447,6 @@ if [ "$(uname)" = "SunOS" ]; then
         print_console "*** The Agent is running. My work here is done... (^_^) ***"
         exit 0
     else
-        # KTHXBYE
         exit $?
     fi
 fi
