@@ -332,8 +332,8 @@ class EC2(object):
             pass
 
         try:
-            iam_role = urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials").read().strip()
-            iam_params = json.loads(urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials" + "/" + unicode(iam_role)).read().strip())
+            iam_role = urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials/").read().strip()
+            iam_params = json.loads(urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials/" + unicode(iam_role)).read().strip())
             instance_identity = json.loads(urllib2.urlopen(EC2.INSTANCE_IDENTITY_URL).read().strip())
             region = instance_identity['region']
 
@@ -384,11 +384,11 @@ class EC2(object):
         except Exception:
             pass
 
-        for k in ('instance-id', 'hostname', 'local-hostname', 'public-hostname', 'ami-id', 'local-ipv4', 'public-keys', 'public-ipv4', 'reservation-id', 'security-groups'):
+        for k in ('instance-id', 'hostname', 'local-hostname', 'public-hostname', 'ami-id', 'local-ipv4', 'public-keys/', 'public-ipv4', 'reservation-id', 'security-groups'):
             try:
                 v = urllib2.urlopen(EC2.METADATA_URL_BASE + "/" + unicode(k)).read().strip()
                 assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
-                EC2.metadata[k] = v
+                EC2.metadata[k.rstrip('/')] = v
             except Exception:
                 pass
 
