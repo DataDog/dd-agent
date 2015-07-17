@@ -135,19 +135,19 @@ BASE_GITHUB_URL="https://raw.githubusercontent.com/DataDog/dd-agent/$AGENT_VERSI
 # Error reporting helpers
 #######################################################################
 print_console() {
-    printf "%s\n" "$*" | tee /dev/fd/3
+    printf "%s\n" "$*" | tee -a "$LOGFILE" >&3
 }
 
 print_console_wo_nl() {
-    printf "%s" "$*" | tee /dev/fd/3
+    printf "%s" "$*" | tee -a "$LOGFILE" >&3
 }
 
 print_red() {
-    printf "\033[31m%s\033[0m\n" "$*" | tee /dev/fd/3
+    printf "\033[31m%s\033[0m\n" "$*" | tee -a "$LOGFILE" >&3
 }
 
 print_green() {
-    printf "\033[32m%s\033[0m\n" "$*" | tee /dev/fd/3
+    printf "\033[32m%s\033[0m\n" "$*" | tee -a "$LOGFILE" >&3
 }
 
 print_done() {
@@ -218,7 +218,7 @@ error_trap() {
     if [ -n "$ERROR_MESSAGE" ]; then
         print_red "$ERROR_MESSAGE"
     else
-        tail -n 5 "$LOGFILE" | tee /dev/fd/3
+        tail -n 5 "$LOGFILE" | tee -a "$LOGFILE" >&3
     fi
     print_console "###"
 
