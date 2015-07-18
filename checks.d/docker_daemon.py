@@ -69,21 +69,21 @@ class MountException(Exception):
 
 
 class DockerDaemon(AgentCheck):
-    """Collect metrics and events from Docker API and cgroups"""
+    """Collect metrics and events from Docker API and cgroups."""
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
-        self.DEFAULT_SOCKET_TIMEOUT = init_config.get('timeout', '5')
+        self.DEFAULT_SOCKET_TIMEOUT = int(init_config.get('timeout', '5'))
         self._cgroup_filename_pattern = None
         self._mountpoints = {}
         self.docker_root = init_config.get('docker_root', '/')
         self.cgroup_listing_retries = 0
         self._latest_size_query = 0
+        self._last_event_collection_ts = defaultdict(lambda: None)
 
     def check(self, instance):
         """Run the Docker check for one instance."""
-
         # Connect to the Docker daemon
         self._connect_api(instance)
 
@@ -93,7 +93,7 @@ class DockerDaemon(AgentCheck):
 
         # Get the list of containers and the index of their names
         containers_by_id = self._get_and_count_containers(instance)
-        self._crawl_container_pids()
+        containers_by_id = self._crawl_container_pids(containers_by_id)
 
         # Report performance container metrics (cpu, mem, net, io)
         self._report_performance_metrics(instance, containers_by_id)
@@ -154,8 +154,8 @@ class DockerDaemon(AgentCheck):
 
         for container in containers:
             custom_tags = []
-            if container['name'] in custom_container_tags:
-                custom_tags = custom_container_tags[container['name']]
+            if container['Names'][0] in custom_container_tags:
+                custom_tags = custom_container_tags[container['Names'][0]]
                 container['_custom_tags'] = dict(map(lambda x: x.split(':'), custom_tags))
             tag_names = instance.get("container_tags", ["image_name"])
             container_tags = self._get_tags(container, tag_names) + instance.get('tags', []) + custom_tags
@@ -305,8 +305,7 @@ class DockerDaemon(AgentCheck):
 
     def _report_net_metrics(self, container, tags):
         """Find container network metrics by looking at /proc/$PID/net/dev of the container process."""
-        proc_root = self._get_proc_root(container)
-        proc_net_file = os.path.join(proc_root, 'net/dev')
+        proc_net_file = os.path.join(container['_proc_root'], 'net/dev')
 
         fp = None
         try:
@@ -343,22 +342,20 @@ class DockerDaemon(AgentCheck):
         """Get the list of events."""
         now = int(time.time())
         since = self._last_event_collection_ts[instance["url"]] or now - 60
-        try:
-            #TODO: this is supposed to return a generator, make sure it doesn't block the check
-            result = self.client.events(since=since, until=now, decode=True)
-        except ValueError:
-            return []
+        events = []
+        event_generator = self.client.events(since=since, until=now, decode=True)
+        for event in event_generator:
+            if event != '':
+                events.append(event)
         self._last_event_collection_ts[instance["url"]] = now
-        if type(result) == dict:
-            result = [result]
-        return result
+        return events
 
     def _pre_aggregate_events(self, api_events, containers_by_id):
         # Aggregate events, one per image. Put newer events first.
         events = defaultdict(list)
         for event in api_events:
             # Skip events related to filtered containers
-            if _is_container_excluded(containers_by_id[event['id']]):
+            if self._is_container_excluded(containers_by_id[event['id']]):
                 self.log.debug("Excluded event: container {0} status changed to {1}".format(
                     event['id'], event['status']))
                 continue
@@ -376,9 +373,9 @@ class DockerDaemon(AgentCheck):
             for event in event_group:
                 max_timestamp = max(max_timestamp, int(event['time']))
                 status[event['status']] += 1
-                container_name = event['id'][:12]
+                container_name = event['id'][:11]
                 if event['id'] in containers_by_id:
-                    container_name = "%s %s" % (container_name, containers_by_id[event['id']]['name'])
+                    container_name = containers_by_id[event['id']]['Names'][0].strip('/')
                 status_change.append([container_name, event['status']])
 
             status_text = ", ".join(["%d %s" % (count, st) for st, count in status.iteritems()])
@@ -509,9 +506,10 @@ class DockerDaemon(AgentCheck):
                 f = open('/proc/%s/cgroup' % folder)
                 content = [line.strip().split(':') for line in f.readlines()]
                 content = {line[1]: line[2] for line in content}
-                if 'docker-' in content.get('cpu,cpuacct'):
-                    container_id = content['cpu,cpuacct'].split('docker-')[1].rstrip('.scope')
+                if 'docker/' in content.get('cpuacct'):
+                    container_id = content['cpuacct'].split('docker/')[1]
                     container_dict[container_id]['_pid'] = folder
                     container_dict[container_id]['_proc_root'] = '/proc/%s/' % folder
             except:
                 continue
+        return container_dict
