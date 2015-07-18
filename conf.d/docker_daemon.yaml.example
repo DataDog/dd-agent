@@ -40,18 +40,21 @@ instances:
     ##
 
     # Create events whenever a container status change.
+    # Defaults to true.
     #
-    # collect_events: true
+    # collect_events: false
 
     # Collect disk usage per container with docker.container.size_rw and
     # docker.container.size_rootfs metrics.
     # Warning: This might take time for Docker daemon to generate,
     # ensure that `docker ps -a -q` run fast before enabling it.
+    # Defaults to true.
     #
     # collect_container_size: false
 
     # Collect disk usage per image with docker.image.size and docker.image.virtual_size metrics.
     # The check gets this size with the `docker images` command.
+    # Defaults to true.
     #
     # collect_image_size: false
 
