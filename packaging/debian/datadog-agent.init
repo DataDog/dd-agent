@@ -134,7 +134,16 @@ case "$1" in
         ;;
 
     status)
-        check_status
+        # Check for kernel version 3.18+ - overlayfs has known bug affecting unix domain sockets
+        IFS='.' read -ra VERS <<< "$( uname -r )"
+        # If major version 3, and minor version 18+, OR major version 4+
+        if [[ ( $(( ${VERS[0]} )) -eq 3 && $(( ${VERS[1]} )) -ge 18 ) || ( $(( ${VERS[0]} )) -gt 3 ) ]]; then
+            echo "Warning: Known bug in Linux Kernel 3.18+ causes 'status' to fail."
+            echo "Calling 'info', instead..."
+            info
+        else
+            check_status
+        fi
         ;;
 
     restart|force-reload)
