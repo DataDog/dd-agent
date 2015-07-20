@@ -112,7 +112,7 @@ instances:
     # container_tags: ["image_name"]
 
     # Tags per container
-    # Define the name of your containers and a list of their tags
+    # Add the name of your containers and a list of the tags you want to assign them
     # tags_per_container_name:
-    #   container0: ["tag0:foo", "tag1:bar"]
+    #   container0: ["tag0:foo", "tag1"]
     #   container1: ["tag2:baz"]

@@ -154,9 +154,10 @@ class DockerDaemon(AgentCheck):
 
         for container in containers:
             custom_tags = []
-            if container['Names'][0] in custom_container_tags:
-                custom_tags = custom_container_tags[container['Names'][0]]
-                container['_custom_tags'] = dict(map(lambda x: x.split(':'), custom_tags))
+            container_name = container['Names'][0].strip('/')
+            if container_name in custom_container_tags:
+                custom_tags = custom_container_tags[container_name]
+                container['_custom_tags'] = custom_tags
             tag_names = instance.get("container_tags", ["image_name"])
             container_tags = self._get_tags(container, tag_names) + instance.get('tags', []) + custom_tags
             # Check if the container is included/excluded via its tags
@@ -254,7 +255,7 @@ class DockerDaemon(AgentCheck):
             elif 'SizeRw' not in container or 'SizeRootFs' not in container:
                 continue
             tag_names = instance.get("performance_tags", ["image_name", "container_name"])
-            custom_tags = container.get('custom_tags', [])
+            custom_tags = container.get('_custom_tags', [])
             if custom_tags:
                 custom_tags = ['%s:%s' % (tag[0], tag[1]) for tag in custom_tags.iteritems()]
             container_tags = self._get_tags(container, tag_names) + instance.get('tags', []) + custom_tags
@@ -278,9 +279,7 @@ class DockerDaemon(AgentCheck):
                 continue
 
             tag_names = instance.get("performance_tags", ["image_name", "container_name"])
-            custom_tags = container.get('custom_tags', [])
-            if custom_tags:
-                custom_tags = ['%s:%s' % (tag[0], tag[1]) for tag in custom_tags.iteritems()]
+            custom_tags = container.get('_custom_tags', [])
             container_tags = self._get_tags(container, tag_names) + instance.get('tags', []) + custom_tags
 
             self._report_cgroup_metrics(container, container_tags)
