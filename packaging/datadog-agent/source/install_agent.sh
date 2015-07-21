@@ -111,6 +111,9 @@ if [ $OS = "RedHat" ]; then
     fi
     $sudo_cmd yum -y --disablerepo='*' --enablerepo='datadog' install datadog-agent
 elif [ $OS = "Debian" ]; then
+    printf "\033[34m\n* Installing apt-transport-https\n\033[0m\n"
+    $sudo_cmd apt-get update
+    $sudo_cmd apt-get install -y apt-transport-https
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
     $sudo_cmd sh -c "echo 'deb http://apt.datadoghq.com/ stable main' > /etc/apt/sources.list.d/datadog.list"
     $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
