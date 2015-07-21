@@ -1,11 +1,13 @@
-# 3p
-import requests
-
 # stdlib
-import time
+from collections import defaultdict
+from datetime import datetime, timedelta
+from urlparse import urljoin
 
 # project
 from checks import AgentCheck
+
+# 3p
+import requests
 
 
 class ConsulCheck(AgentCheck):
@@ -15,13 +17,25 @@ class ConsulCheck(AgentCheck):
     CONSUL_CATALOG_CHECK = 'consul.catalog'
     CONSUL_NODE_CHECK = 'consul.node'
 
+    SOURCE_TYPE_NAME = 'consul'
+
+    MAX_CONFIG_TTL = 300 # seconds
+    STATUS_SC = {
+        'passing': AgentCheck.OK,
+        'warning': AgentCheck.WARNING,
+        'critical': AgentCheck.CRITICAL,
+    }
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
+
+        self._local_config = None
+        self._last_config_fetch_time = None
         self._last_known_leader = None
 
     def consul_request(self, instance, endpoint):
-        url = "{0}{1}".format(instance.get('url'), endpoint)
+        url = urljoin(instance.get('url'), endpoint)
         try:
             resp = requests.get(url)
         except requests.exceptions.Timeout:
@@ -33,10 +47,12 @@ class ConsulCheck(AgentCheck):
 
     ### Consul Config Accessors
     def _get_local_config(self, instance):
-        #TODO: Maybe store the config on `self` here so we don't have to keep retrieving it?
-        # But how do we invalidate?
+        if not self._local_config or datetime.now() - self._last_config_fetch_time > timedelta(seconds=self.MAX_CONFIG_TTL):
+            self._local_config = self.consul_request(instance, '/v1/agent/self')
+            self._last_config_fetch_time = datetime.now()
 
-        return self.consul_request(instance, '/v1/agent/self')
+
+        return self._local_config
 
     def _get_cluster_leader(self, instance):
         return self.consul_request(instance, '/v1/status/leader')
@@ -88,9 +104,9 @@ class ConsulCheck(AgentCheck):
                 self._last_known_leader, leader))
 
             self.event({
-                "timestamp": int(time.time()),
+                "timestamp": int(datetime.now().strftime("%s")),
                 "event_type": "consul.new_leader",
-                "api_key": self.agentConfig.get("api_key", ''),
+                "source_type_name": self.SOURCE_TYPE_NAME,
                 "msg_title": "New Consul Leader Elected in {0}".format(agent_dc),
                 "aggregation_key": "consul.new_leader",
                 "msg_text": "The Node at {0} is the new leader of the consul cluster {1}".format(
@@ -110,11 +126,8 @@ class ConsulCheck(AgentCheck):
     def get_nodes_in_cluster(self, instance):
         return self.consul_request(instance, '/v1/catalog/nodes')
 
-    def get_nodes_with_service(self, instance, service, tag=None):
-        if tag:
-            consul_request_url = '/v1/catalog/service/{0}?tag={1}'.format(service,tag)
-        else:
-            consul_request_url = '/v1/catalog/service/{0}'.format(service)
+    def get_nodes_with_service(self, instance, service):
+        consul_request_url = '/v1/catalog/service/{0}'.format(service)
 
         return self.consul_request(instance, consul_request_url)
 
@@ -142,14 +155,8 @@ class ConsulCheck(AgentCheck):
         try:
             health_state = self.consul_request(instance, '/v1/health/state/any')
 
-            STATUS_SC = {
-                'passing': AgentCheck.OK,
-                'warning': AgentCheck.WARNING,
-                'critical': AgentCheck.CRITICAL,
-            }
-
             for check in health_state:
-                status = STATUS_SC.get(check['Status'])
+                status = self.STATUS_SC.get(check['Status'])
                 if status is None:
                     continue
 
@@ -175,7 +182,7 @@ class ConsulCheck(AgentCheck):
                 services = [s for s in services if s in service_whitelist]
             else:
                 #Default to polling all services
-                self.log.warn('Consul service whitelist not defined. Agent will poll for all %d services found' % len(services))
+                self.warning('Consul service whitelist not defined. Agent will poll for all %d services found' % len(services))
 
             nodes = self.get_nodes_in_cluster(instance)
 
@@ -184,7 +191,7 @@ class ConsulCheck(AgentCheck):
             if agent_dc is not None:
                 main_tags.append('consul_datacenter:{0}'.format(agent_dc))
 
-            nodes_to_services = {}
+            nodes_to_services = defaultdict(list)
 
             self.gauge('consul.catalog.services_up', len(services), tags=main_tags)
             self.gauge('consul.catalog.nodes_up', len(nodes), tags=main_tags)
@@ -203,12 +210,9 @@ class ConsulCheck(AgentCheck):
                     if not node_id:
                         continue
 
-                    if node_id in nodes_to_services:
-                        nodes_to_services[node_id].append(service)
-                    else:
-                        nodes_to_services[node_id] = [service]
+                    nodes_to_services[node_id].append(service)
 
-            for node, services in nodes_to_services.items():
+            for node, services in nodes_to_services.iteritems():
                 tags = ['consul_node_id:{0}'.format(node)]
                 self.gauge('consul.catalog.services_up',
                            len(services),
