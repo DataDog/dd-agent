@@ -1,6 +1,7 @@
 # stdlib
 import os
 import re
+import requests
 import time
 import socket
 import urllib2
@@ -16,6 +17,8 @@ from docker import Client
 EVENT_TYPE = 'docker'
 
 SIZE_REFRESH_RATE = 5
+
+ECS_PORT = '51678/tcp'
 
 CGROUP_METRICS = [
     {
@@ -152,8 +155,13 @@ class DockerDaemon(AgentCheck):
         containers_by_id = {}
         custom_container_tags = instance.get('tags_per_container_name', {})
 
+        # Dict of container ids and a list of their Amazon ECS task tags
+        ecs_tags = self._get_ecs_tag(container.get('Id')) if instance.get('ecs_tag', False) else None
+
         for container in containers:
             custom_tags = []
+            if ecs_tags:
+                custom_tags += ecs_tags.get(container['Id'], [])
             container_name = container['Names'][0].strip('/')
             if container_name in custom_container_tags:
                 custom_tags = custom_container_tags[container_name]
@@ -204,6 +212,20 @@ class DockerDaemon(AgentCheck):
             entity["_tag_values"][tag_name] = TAG_EXTRACTORS[tag_name](entity).strip()
 
         return entity["_tag_values"][tag_name]
+
+    def _get_ecs_tag(self):
+        ecs_config = self.client.inspect_container('ecs-agent')
+        net_conf = ecs_config['NetworkSettings']['Ports'].get(ECS_PORT, [])
+        container_tags = {}
+        if net_conf:
+            net_conf = net_conf[0] if isinstance(net_conf, list) else net_conf
+            ip, port = net_conf.get('HostIp'), net_conf.get('HostPort')
+            tasks = requests.get('http://%s:%s' % (ip, port)).json()
+            for task in tasks.get('Tasks', []):
+                for container in task.get('Containers', []):
+                    tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
+                    container_tags[container['DockerId']] = tags
+        return container_tags
 
     def _filter_containers(self, instance, containers):
         # The reasoning is to check exclude first, so we can skip if there is no exclude
@@ -354,7 +376,7 @@ class DockerDaemon(AgentCheck):
         events = defaultdict(list)
         for event in api_events:
             # Skip events related to filtered containers
-            if self._is_container_excluded(containers_by_id[event['id']]):
+            if self._is_container_excluded(containers_by_id.get(event['id'], {})):
                 self.log.debug("Excluded event: container {0} status changed to {1}".format(
                     event['id'], event['status']))
                 continue
