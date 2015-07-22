@@ -52,6 +52,9 @@ class Disk(AgentCheck):
         self._all_partitions = _is_affirmative(
             instance.get('all_partitions', False))
 
+        # Force exclusion of CDROM (iso9660) from disk check
+        self._excluded_filesystems.append('iso9660')
+
         # FIXME: 6.x, drop use_mount option in datadog.conf
         self._load_legacy_option(instance, 'use_mount', False,
                                  operation=_is_affirmative)
