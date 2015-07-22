@@ -167,7 +167,20 @@ case "$1" in
         restart
         ;;
     status)
-        check_status
+        # Note: sh does not support arrays
+        # Check for kernel version 3.18+ - overlayfs has known bug affecting unix domain sockets
+        major=$(echo "$( uname -r )" | cut -d"." -f1)
+        minor=$(echo "$( uname -r )" | cut -d"." -f2)
+        # If major version 3, and minor version 18+, OR major version 4+
+        if ( [ $major -eq 3 ] && [ $minor -ge 18 ] ) || [ $major -gt 3 ]; then
+            RED='\033[0;31m' # Red Text
+            NC='\033[0m' # No Color
+            echo "${RED}Warning: Known bug in Linux Kernel 3.18+ causes 'status' to fail.${NC}"
+            echo "Calling 'info', instead..."
+            service datadog-agent info
+        else
+            check_status
+        fi
         ;;
     info)
         info "$@"
