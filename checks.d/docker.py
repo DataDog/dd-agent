@@ -3,6 +3,7 @@ from collections import defaultdict
 import httplib
 import os
 import re
+import requests
 import socket
 import time
 import urllib
@@ -13,6 +14,7 @@ from urlparse import urlsplit
 from checks import AgentCheck
 from config import _is_affirmative
 from util import json
+from utils.platform import Platform
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'docker'
 
@@ -175,8 +177,16 @@ class Docker(AgentCheck):
 
         running_containers_ids = set([container['Id'] for container in running_containers])
 
+        # Dict of container ids and a list of their Amazon ECS task tags
+        if Platform.is_ecs_instance() and instance.get('ecs_tags', True):
+            ecs_tags = self._get_ecs_tags(instance, running_containers)
+        else:
+            ecs_tags = None
+
         for container in all_containers:
             container_tags = list(tags)
+            if ecs_tags:
+                container_tags += ecs_tags.get(container['Id'], [])
             for key in DOCKER_TAGS:
                 tag = self._make_tag(key, container[key], instance)
                 if tag:
@@ -229,11 +239,18 @@ class Docker(AgentCheck):
         collect_uncommon_metrics = _is_affirmative(instance.get("collect_all_metrics", False))
         tags = instance.get("tags", [])
 
+        if Platform.is_ecs_instance() and instance.get('ecs_tags', True):
+            ecs_tags = self._get_ecs_tags(instance, containers)
+        else:
+            ecs_tags = None
+
         # Pre-compile regex to include/exclude containers
         use_filters = self._prepare_filters(instance)
 
         for container in containers:
             container_tags = list(tags)
+            if ecs_tags:
+                container_tags += ecs_tags.get(container['Id'], [])
             for name in container["Names"]:
                 container_tags.append(self._make_tag("name", name.lstrip("/"), instance))
             for key in DOCKER_TAGS:
@@ -277,6 +294,26 @@ class Docker(AgentCheck):
         # Prefix tags to avoid conflict with AWS tags
         return NEW_TAGS_MAP.get(tag, tag)
 
+    def _get_ecs_tags(self, instance, containers):
+        ecs_id = None
+        for co in containers:
+            if '/ecs-agent' in co.get('Names', []):
+                ecs_id = co.get('Id')
+        if ecs_id is None:
+            return []
+        ecs_config = self._inspect_container(instance, ecs_id)
+        net_conf = ecs_config['NetworkSettings'].get('Ports', {})
+        net_conf = net_conf.get(net_conf.keys()[0], [])
+        container_tags = {}
+        if net_conf:
+            net_conf = net_conf[0] if isinstance(net_conf, list) else net_conf
+            ip, port = ecs_config.get('NetworkSettings', {})['IPAddress'], net_conf.get('HostPort')
+            tasks = requests.get('http://%s:%s/v1/tasks' % (ip, port)).json()
+            for task in tasks.get('Tasks', []):
+                for container in task.get('Containers', []):
+                    tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
+                    container_tags[container['DockerId']] = tags
+        return container_tags
 
     # Events
 
@@ -353,6 +390,10 @@ class Docker(AgentCheck):
     def _get_containers(self, instance, with_size=False, get_all=False):
         """Gets the list of running/all containers in Docker."""
         return self._get_json("%(url)s/containers/json" % instance, params={'size': with_size, 'all': get_all})
+
+    def _inspect_container(self, instance, container_id):
+        """Get the list of running/all containers in Docker."""
+        return self._get_json("%s/containers/%s/json" % (instance['url'], container_id))
 
     def _get_images(self, instance, with_size=True, get_all=False):
         """Gets the list of images in Docker."""
