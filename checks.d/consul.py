@@ -31,7 +31,8 @@ class ConsulCheck(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
-
+        if instances is not None and len(instances) > 1:
+            raise Exception("Consul check only supports one configured instance.")
 
         self._local_config = None
         self._last_config_fetch_time = None

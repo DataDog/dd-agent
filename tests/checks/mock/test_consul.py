@@ -1,4 +1,5 @@
 import random
+
 from tests.checks.common import AgentCheckTest, load_check
 
 MOCK_CONFIG = {
@@ -27,6 +28,18 @@ MOCK_CONFIG_LEADER_CHECK = {
     }]
 }
 
+MOCK_BAD_CONFIG = {
+    'init_config': {},
+    'instances' : [{ # Multiple instances should cause it to fail
+        'url': 'http://localhost:8500',
+        'catalog_checks': True,
+        'new_leader_checks': True
+    }, {
+        'url': 'http://localhost:8501',
+        'catalog_checks': True,
+        'new_leader_checks': True
+    }]
+}
 
 class TestCheckConsul(AgentCheckTest):
     CHECK_NAME = 'consul'
@@ -54,7 +67,11 @@ class TestCheckConsul(AgentCheckTest):
         }
 
     def mock_get_n_services_in_cluster(self, n):
-        return {"service_{0}".format(k):[] for k in range(n)}
+        dct = {}
+        for i in range(n):
+            k = "service_{0}".format(i)
+            dct[k] = []
+        return dct
 
     def mock_get_local_config(self, instance):
         return {
@@ -123,6 +140,9 @@ class TestCheckConsul(AgentCheckTest):
             '_get_local_config': self.mock_get_local_config,
             '_get_cluster_leader': self.mock_get_cluster_leader_A
         }
+
+    def test_bad_config(self):
+        self.assertRaises(Exception, self.run_check, MOCK_BAD_CONFIG)
 
     def test_get_nodes_in_cluster(self):
         self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
