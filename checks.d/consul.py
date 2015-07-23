@@ -1,6 +1,7 @@
 # stdlib
 from collections import defaultdict
 from datetime import datetime, timedelta
+from itertools import islice
 from urlparse import urljoin
 
 # project
@@ -20,6 +21,8 @@ class ConsulCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'consul'
 
     MAX_CONFIG_TTL = 300 # seconds
+    MAX_SERVICES = 50 # cap on distinct Consul ServiceIDs to interrogate
+
     STATUS_SC = {
         'passing': AgentCheck.OK,
         'warning': AgentCheck.WARNING,
@@ -134,6 +137,21 @@ class ConsulCheck(AgentCheck):
     def get_services_on_node(self, instance, node):
         return self.consul_request(instance, '/v1/catalog/node/{0}'.format(node))
 
+    def _cull_services_list(self, services, service_whitelist):
+        if service_whitelist:
+            if len(service_whitelist) > self.MAX_SERVICES:
+                self.warning('More than %d services in whitelist. Service list will be truncated.' % self.MAX_SERVICES)
+
+            services = [s for s in services if s in service_whitelist][:self.MAX_SERVICES]
+        else:
+            if len(services) <= self.MAX_SERVICES:
+                self.warning('Consul service whitelist not defined. Agent will poll for all %d services found' % len(services))
+            else:
+                self.warning('Consul service whitelist not defined. Agent will poll for at most %d services' % self.MAX_SERVICES)
+                services = list(islice(services.iterkeys(), 0, self.MAX_SERVICES))
+
+        return services
+
     def check(self, instance):
         perform_new_leader_checks = instance.get('new_leader_checks',
                                                  self.init_config.get('new_leader_checks', False))
@@ -144,9 +162,6 @@ class ConsulCheck(AgentCheck):
             self.log.debug("This consul agent is not the cluster leader." +
                            "Skipping service and catalog checks for this instance")
             return
-
-        service_whitelist = instance.get('service_whitelist',
-                                         self.init_config.get('service_whitelist', []))
 
         service_check_tags = ['consul_url:{0}'.format(instance.get('url'))]
         perform_catalog_checks = instance.get('catalog_checks',
@@ -177,25 +192,25 @@ class ConsulCheck(AgentCheck):
                                tags=service_check_tags)
 
         if perform_catalog_checks:
-            services = self.get_services_in_cluster(instance)
-            if service_whitelist:
-                services = [s for s in services if s in service_whitelist]
-            else:
-                #Default to polling all services
-                self.warning('Consul service whitelist not defined. Agent will poll for all %d services found' % len(services))
-
-            nodes = self.get_nodes_in_cluster(instance)
-
             main_tags = []
             agent_dc = self._get_agent_datacenter(instance)
             if agent_dc is not None:
                 main_tags.append('consul_datacenter:{0}'.format(agent_dc))
 
-            nodes_to_services = defaultdict(list)
-
-            self.gauge('consul.catalog.services_up', len(services), tags=main_tags)
+            nodes = self.get_nodes_in_cluster(instance)
             self.gauge('consul.catalog.nodes_up', len(nodes), tags=main_tags)
 
+            services = self.get_services_in_cluster(instance)
+            nodes_to_services = defaultdict(list)
+
+            # There's no computational disadvantage to sending the true number of services here.
+            # It's only when iterating that we'd like to limit it
+            self.gauge('consul.catalog.services_up', len(services), tags=main_tags)
+
+            service_whitelist = instance.get('service_whitelist',
+                                             self.init_config.get('service_whitelist', []))
+
+            services = self._cull_services_list(services, service_whitelist)
             for service in services:
                 nodes_with_service = self.get_nodes_with_service(instance, service)
                 node_tags = ['consul_service_id:{0}'.format(service)]

@@ -9,6 +9,15 @@ MOCK_CONFIG = {
     }]
 }
 
+MOCK_CONFIG_SERVICE_WHITELIST = {
+    'init_config': {},
+    'instances' : [{
+        'url': 'http://localhost:8500',
+        'catalog_checks': True,
+        'service_whitelist': ['service_{0}'.format(k) for k in range(70)]
+    }]
+}
+
 MOCK_CONFIG_LEADER_CHECK = {
     'init_config': {},
     'instances' : [{
@@ -43,6 +52,9 @@ class TestCheckConsul(AgentCheckTest):
                 "az-us-east-1a"
             ]
         }
+
+    def mock_get_n_services_in_cluster(self, n):
+        return {"service_{0}".format(k):[] for k in range(n)}
 
     def mock_get_local_config(self, instance):
         return {
@@ -127,6 +139,37 @@ class TestCheckConsul(AgentCheckTest):
     def test_get_services_on_node(self):
         self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
         self.assertMetric('consul.catalog.services_up', value=6, tags=['consul_node_id:node-1'])
+
+    def test_cull_services_list(self):
+        self.check = load_check(self.CHECK_NAME, MOCK_CONFIG_LEADER_CHECK, self.DEFAULT_AGENT_CONFIG)
+
+        # Pad num_services to kick in truncation logic
+        num_services = self.check.MAX_SERVICES + 20
+
+        # Big whitelist
+        services = self.mock_get_n_services_in_cluster(num_services)
+        whitelist = ['service_{0}'.format(k) for k in range(num_services)]
+        self.assertEqual(len(self.check._cull_services_list(services, whitelist)), self.check.MAX_SERVICES)
+
+        # Whitelist < MAX_SERVICES should spit out the whitelist
+        services = self.mock_get_n_services_in_cluster(num_services)
+        whitelist = ['service_{0}'.format(k) for k in range(self.check.MAX_SERVICES-1)]
+        self.assertEqual(set(self.check._cull_services_list(services, whitelist)), set(whitelist))
+
+        # No whitelist, still triggers truncation
+        whitelist = []
+        self.assertEqual(len(self.check._cull_services_list(services, whitelist)), self.check.MAX_SERVICES)
+
+        # Num. services < MAX_SERVICES should be no-op in absence of whitelist
+        num_services = self.check.MAX_SERVICES - 1
+        services = self.mock_get_n_services_in_cluster(num_services)
+        self.assertEqual(len(self.check._cull_services_list(services, whitelist)), num_services)
+
+        # Num. services < MAX_SERVICES should spit out only the whitelist when one is defined
+        num_services = self.check.MAX_SERVICES - 1
+        whitelist = ['service_1', 'service_2', 'service_3']
+        services = self.mock_get_n_services_in_cluster(num_services)
+        self.assertEqual(set(self.check._cull_services_list(services, whitelist)), set(whitelist))
 
     def test_new_leader_event(self):
         self.check = load_check(self.CHECK_NAME, MOCK_CONFIG_LEADER_CHECK, self.DEFAULT_AGENT_CONFIG)
