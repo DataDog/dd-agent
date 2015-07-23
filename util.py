@@ -208,7 +208,7 @@ def get_hostname(config=None):
                 hostname = unix_hostname
 
     # if we have an ec2 default hostname, see if there's an instance-id available
-    if hostname is not None and True in [hostname.lower().startswith(p) for p in [u'ip-', u'domu']]:
+    if (Platform.is_ecs_instance()) or (hostname is not None and True in [hostname.lower().startswith(p) for p in [u'ip-', u'domu']]):
         instanceid = EC2.get_instance_id(config)
         if instanceid:
             hostname = instanceid

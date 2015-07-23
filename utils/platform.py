@@ -1,5 +1,5 @@
 import sys
-
+import docker
 
 class Platform(object):
     """
@@ -53,3 +53,13 @@ class Platform(object):
     @staticmethod
     def is_windows(name=None):
         return Platform.is_win32(name)
+
+    @staticmethod
+    def is_ecs_instance():
+        """Return True if the agent is running in an ECS instance, False otherwise."""
+        cl = docker.Client(version='auto')
+        containers = cl.containers()
+        for co in containers:
+            if '/ecs-agent' in co.get('Names', ''):
+                return True
+        return False
