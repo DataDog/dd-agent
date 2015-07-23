@@ -110,12 +110,12 @@ class MongoDb(AgentCheck):
     def get_library_versions(self):
         return {"pymongo": pymongo.version}
 
-    def check_last_state(self, state, server, agentConfig):
-        if self._last_state_by_server.get(server, -1) != state:
-            self._last_state_by_server[server] = state
-            return self.create_event(state, server, agentConfig)
+    def check_last_state(self, state, clean_server_name, agentConfig):
+        if self._last_state_by_server.get(clean_server_name, -1) != state:
+            self._last_state_by_server[clean_server_name] = state
+            return self.create_event(state, clean_server_name, agentConfig)
 
-    def create_event(self, state, server, agentConfig):
+    def create_event(self, state, clean_server_name, agentConfig):
         """Create an event with a message describing the replication
             state of a mongo node"""
 
@@ -143,8 +143,8 @@ class MongoDb(AgentCheck):
 
         status = get_state_description(state)
         hostname = get_hostname(agentConfig)
-        msg_title = "%s is %s" % (server, status)
-        msg = "MongoDB %s just reported as %s" % (server, status)
+        msg_title = "%s is %s" % (clean_server_name, status)
+        msg = "MongoDB %s just reported as %s" % (clean_server_name, status)
 
         self.event({
             'timestamp': int(time.time()),
@@ -181,12 +181,10 @@ class MongoDb(AgentCheck):
         username = parsed.get('username')
         password = parsed.get('password')
         db_name = parsed.get('database')
+        clean_server_name = server.replace(password, "*" * 5) if password is not None else server
 
         tags = instance.get('tags', [])
-        if password is not None:
-            tags.append('server:%s' % server.replace(password, "*" * 5))
-        else:
-            tags.append('server:%s' % server)
+        tags.append('server:%s' % clean_server_name)
 
         # de-dupe tags to avoid a memory leak
         tags = list(set(tags))
@@ -268,7 +266,7 @@ class MongoDb(AgentCheck):
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
-                self.check_last_state(data['state'], server, self.agentConfig)
+                self.check_last_state(data['state'], clean_server_name, self.agentConfig)
                 status['replSet'] = data
         except Exception, e:
             if "OperationFailure" in repr(e) and "replSetGetStatus" in str(e):
