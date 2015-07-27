@@ -24,7 +24,7 @@ namespace :ci do
         sh %(tar zxf $VOLATILE_DIR/nginx-#{nginx_version}.tar.gz\
              -C $VOLATILE_DIR/nginx --strip-components=1)
         sh %(cd $VOLATILE_DIR/nginx\
-             && ./configure --prefix=#{nginx_rootdir} --with-http_stub_status_module\
+             && ./configure --prefix=#{nginx_rootdir} --with-http_stub_status_module --with-http_ssl_module\
              && make -j $CONCURRENCY\
              && make install)
       end
@@ -33,6 +33,10 @@ namespace :ci do
     task before_script: ['ci:common:before_script'] do
       sh %(cp $TRAVIS_BUILD_DIR/ci/resources/nginx/nginx.conf\
            #{nginx_rootdir}/conf/nginx.conf)
+      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/nginx/testing.crt\
+           #{nginx_rootdir}/conf/testing.crt)
+      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/nginx/testing.key\
+           #{nginx_rootdir}/conf/testing.key)
       sh %(#{nginx_rootdir}/sbin/nginx -g "pid #{ENV['VOLATILE_DIR']}/nginx.pid;")
     end
 
@@ -46,6 +50,8 @@ namespace :ci do
     task before_cache: ['ci:common:before_cache'] do
       # Conf is regenerated at every run
       sh %(rm -f #{nginx_rootdir}/conf/nginx.conf)
+      sh %(rm -f #{nginx_rootdir}/conf/testing.cert)
+      sh %(rm -f #{nginx_rootdir}/conf/testing.key)
     end
 
     task cache: ['ci:common:cache']
