@@ -14,6 +14,7 @@ You're looking at the source code right now. We provide a number of
 First of all and most importantly, **thank you** for sharing.
 
 If you want to submit code, please fork this repository and submit pull requests against the `master` branch.
+For more information, please read our [contributing guidelines](CONTRIBUTING.md).
 
 Please note that the Agent is licensed for simplicity's sake
 under a simplified BSD license, as indicated in the `LICENSE` file.
@@ -41,10 +42,10 @@ rake setup_env
 source venv/bin/activate
 
 # Lint
-rake lint
+bundle exec rake lint
 
 # Run a flavored test
-rake ci:run[apache]
+bundle exec rake ci:run[apache]
 ```
 
 ## Test suite
