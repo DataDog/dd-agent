@@ -91,11 +91,10 @@ instances:
     #
     # tags: []
 
-    # If the agent is running in an Amazon ECS task, you can set this flag to true.
-    # It will tag container metrics with the name of the ECS task.
-    # Default: false
+    # If the agent is running in an Amazon ECS task, tags container metrics with the ECS task name and version.
+    # Default: true
     #
-    # ecs_tag: true
+    # ecs_tags: false
 
     # Custom metrics tagging
     # Define which Docker tags to apply on metrics.

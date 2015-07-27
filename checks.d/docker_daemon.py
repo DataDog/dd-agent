@@ -10,6 +10,7 @@ from collections import defaultdict
 # project
 from checks import AgentCheck
 from config import _is_affirmative
+from utils.platform import Platform
 
 # 3rd party
 from docker import Client
@@ -17,8 +18,6 @@ from docker import Client
 EVENT_TYPE = 'docker'
 
 SIZE_REFRESH_RATE = 5
-
-ECS_PORT = '51678/tcp'
 
 CGROUP_METRICS = [
     {
@@ -156,8 +155,10 @@ class DockerDaemon(AgentCheck):
         custom_container_tags = instance.get('tags_per_container_name', {})
 
         # Dict of container ids and a list of their Amazon ECS task tags
-        ecs_tags = self._get_ecs_tag(container.get('Id')) if instance.get('ecs_tag', False) else None
-
+        if Platform.is_ecs_instance() and instance.get('ecs_tags', True):
+            ecs_tags = self._get_ecs_tags()
+        else:
+            ecs_tags = None
         for container in containers:
             custom_tags = []
             if ecs_tags:
@@ -213,9 +214,10 @@ class DockerDaemon(AgentCheck):
 
         return entity["_tag_values"][tag_name]
 
-    def _get_ecs_tag(self):
+    def _get_ecs_tags(self):
         ecs_config = self.client.inspect_container('ecs-agent')
-        net_conf = ecs_config['NetworkSettings']['Ports'].get(ECS_PORT, [])
+        net_conf = ecs_config['NetworkSettings'].get('Ports', {})
+        net_conf = net_conf.get(net_conf.keys()[0], [])
         container_tags = {}
         if net_conf:
             net_conf = net_conf[0] if isinstance(net_conf, list) else net_conf
