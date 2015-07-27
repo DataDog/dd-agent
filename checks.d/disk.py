@@ -187,14 +187,18 @@ class Disk(AgentCheck):
 
     def _collect_metrics_manually(self, device):
         result = {}
+
+        used = float(device[3])
+        free = float(device[4])
+
         # device is
         # ["/dev/sda1", "ext4", 524288,  171642,  352646, "33%", "/"]
         result[self.METRIC_DISK.format('total')] = float(device[2])
-        result[self.METRIC_DISK.format('used')] = float(device[3])
-        result[self.METRIC_DISK.format('free')] = float(device[4])
-        if len(device[5]) > 1 and device[5][-1] == '%':
-            result[self.METRIC_DISK.format('in_use')] = \
-                float(device[5][:-1]) / 100.0
+        result[self.METRIC_DISK.format('used')] = used
+        result[self.METRIC_DISK.format('free')] = free
+
+        # Rather than grabbing in_use, let's calculate it to be more precise
+        result[self.METRIC_DISK.format('in_use')] = used / (used + free)
 
         result.update(self._collect_inodes_metrics(device[-1]))
         return result
