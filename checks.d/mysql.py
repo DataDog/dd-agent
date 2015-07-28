@@ -1,16 +1,16 @@
 # stdlib
-import os
-import re
 import subprocess
+import os
 import sys
+import re
 import traceback
-
-# 3rd party
-import pymysql
 
 # project
 from checks import AgentCheck
 from utils.platform import Platform
+
+# 3rd party
+import pymysql
 
 GAUGE = "gauge"
 RATE = "rate"
@@ -52,6 +52,8 @@ STATUS_VARS = {
 
 class MySql(AgentCheck):
     SERVICE_CHECK_NAME = 'mysql.can_connect'
+    MAX_CUSTOM_QUERIES = 20
+    DEFAULT_TIMEOUT = 5
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
@@ -62,8 +64,10 @@ class MySql(AgentCheck):
         return {"pymysql": pymysql.__version__}
 
     def check(self, instance):
-        host, port, user, password, mysql_sock, defaults_file, tags, options, queries = self._get_config(instance)
+        host, port, user, password, mysql_sock, defaults_file, tags, options, queries = \
+            self._get_config(instance)
 
+        default_timeout = self.init_config.get('default_timeout', self.DEFAULT_TIMEOUT)
 
         if (not host or not user) and not defaults_file:
             raise Exception("Mysql host and user are needed.")
@@ -192,12 +196,19 @@ class MySql(AgentCheck):
                 "SHOW SLAVE STATUS", db, tags=tags
             )
 
+        # Collect custom query metrics
+        # Max of 20 queries allowed
+        if isinstance(queries, list):
+            for index, check in enumerate(queries[:self.MAX_CUSTOM_QUERIES]):
+                self._collect_dict(check['type'], {check['field']: check['metric']}, check['query'], db, tags=tags)
+
+            if len(queries) > self.MAX_CUSTOM_QUERIES:
+                self.warning("Maximum number (%s) of custom queries reached.  Skipping the rest."
+                             % self.MAX_CUSTOM_QUERIES)
+
+
     def _collect_metadata(self, db, host):
         self._get_version(db, host)
-
-        if isinstance(queries, list):
-            for check in queries:
-                self._collect_dict(check['type'], {check['field']: check['metric']}, check['query'], db, tags=tags)
 
     def _rate_or_gauge_statuses(self, statuses, dbResults, tags):
         for status, metric in statuses.iteritems():
@@ -292,7 +303,9 @@ class MySql(AgentCheck):
                     # cursor.description is a tuple of (column_name, ..., ...)
                     try:
                         col_idx = [d[0].lower() for d in cursor.description].index(field.lower())
+                        self.log.debug("Collecting metric: %s" % metric)
                         if result[col_idx] is not None:
+                            self.log.debug("Collecting done, value %s" % result[col_idx])
                             if metric_type == GAUGE:
                                 self.gauge(metric, float(result[col_idx]), tags=tags)
                             elif metric_type == RATE:
