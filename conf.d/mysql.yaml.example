@@ -13,3 +13,14 @@ instances:
     # options:               # Optional
     #   replication: 0
     #   galera_cluster: 1
+    # queries:               # Optional, maximum of 20 custom query metrics
+    #  - # Sample Custom metric
+    #    query: SELECT TIMESTAMPDIFF(second,MAX(create_time),NOW()) as last_accessed FROM requests
+    #    metric: app.seconds_since_last_request
+    #    type: gauge
+    #    field: last_accessed
+    #  - # Sample Custom metric
+    #    query: SELECT TIMESTAMPDIFF(second,MAX(create_time),NOW()) as last_user FROM users
+    #    metric: app.seconds_since_new_user
+    #    type: gauge
+    #    field: last_user
