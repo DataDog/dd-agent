@@ -71,10 +71,10 @@ import re
 import socket
 from StringIO import StringIO
 import struct
-import sys
 
 # project
 from checks import AgentCheck
+from util import get_hostname
 
 
 class ZKConnectionFailure(Exception):
@@ -105,7 +105,7 @@ class ZookeeperCheck(AgentCheck):
         tags = instance.get('tags', [])
         cx_args = (host, port, timeout)
         sc_tags = ["host:{0}".format(host), "port:{0}".format(port)]
-        hostname = socket.gethostname()
+        hostname = get_hostname(self.agentConfig)
 
         zk_version = None # parse_stat will parse and set version string
 
@@ -139,9 +139,8 @@ class ZookeeperCheck(AgentCheck):
             self.increment('zookeeper.timeouts')
             self.report_instance_mode(hostname, 'down', tags)
             raise
-        except:
-            e = sys.exc_info()[1]
-            print >> sys.stderr, "Error: %s" % e
+        except Exception as e:
+            self.warning(e)
             self.increment('zookeeper.datadog_client_exception')
             self.report_instance_mode(hostname, 'unknown', tags)
             raise
@@ -173,9 +172,8 @@ class ZookeeperCheck(AgentCheck):
                 self.increment('zookeeper.timeouts')
                 self.report_instance_mode(hostname, 'down', tags)
                 raise
-            except:
-                e = sys.exc_info()[1]
-                print >> sys.stderr, "Error: %s" % e
+            except Exception as e:
+                self.warning(e)
                 self.increment('zookeeper.datadog_client_exception')
                 self.report_instance_mode(hostname, 'unknown', tags)
                 raise
@@ -342,8 +340,7 @@ class ZookeeperCheck(AgentCheck):
                 key, value = line.split()
                 name = self._normalize_metric_label(key)
                 metrics[name] = value
-            except:
-                e = sys.exc_info()[1]
+            except Exception as e:
                 raise Exception("Data not in 'key value' format, error: %s" % e)
 
         # mode is a string {'standalone', 'leader', 'follower', 'observer'}
