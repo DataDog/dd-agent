@@ -109,8 +109,12 @@ class WMICheck(AgentCheck):
                     # Special-case metric will just submit 1 for every value
                     # returned in the result.
                     val = 1
-                else:
+                elif getattr(res, wmi_property):
                     val = float(getattr(res, wmi_property))
+                else:
+                    self.log.warning("When extracting metrics with wmi, found a null value for property '{0}'. "
+                                     "Metric type of property is {1}."
+                                     .format(wmi_property, mtype))
 
                 try:
                     func = getattr(self, mtype)
