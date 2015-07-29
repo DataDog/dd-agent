@@ -26,6 +26,10 @@ api_key:
 # Set the host's tags
 #tags: mytag0, mytag1
 
+# Add one "dd_check:checkname" tag per running check. It makes it possible to slice
+# and dice per monitored app (= running Agent Check) on Datadog's backend.
+# create_dd_check_tags: no
+
 # Collect AWS EC2 custom tags as agent tags
 # collect_ec2_tags: no
 
