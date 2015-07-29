@@ -10,6 +10,11 @@ namespace :ci do
 
     task before_script: ['ci:common:before_script'] do
       sh %(mysql -e "create user 'dog'@'localhost' identified by 'dog'" -uroot)
+      sh %(mysql -e "CREATE DATABASE testdb;" -uroot)
+      sh %(mysql -e "CREATE TABLE testdb.users (name VARCHAR(20), age INT);" -uroot)
+      sh %(mysql -e "GRANT SELECT ON testdb.users TO 'dog'@'localhost';" -uroot)
+      sh %(mysql -e "INSERT INTO testdb.users (name,age) VALUES('Alice',25);" -uroot)
+      sh %(mysql -e "INSERT INTO testdb.users (name,age) VALUES('Bob',20);" -uroot)
     end
 
     task script: ['ci:common:script'] do
