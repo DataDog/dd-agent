@@ -715,13 +715,14 @@ class DogstatsdStatus(AgentStatus):
     NAME = 'Dogstatsd'
 
     def __init__(self, flush_count=0, packet_count=0, packets_per_second=0,
-            metric_count=0, event_count=0):
+            metric_count=0, event_count=0, service_check_count=0):
         AgentStatus.__init__(self)
         self.flush_count = flush_count
         self.packet_count = packet_count
         self.packets_per_second = packets_per_second
         self.metric_count = metric_count
         self.event_count = event_count
+        self.service_check_count = service_check_count
 
     def has_error(self):
         return self.flush_count == 0 and self.packet_count == 0 and self.metric_count == 0
@@ -733,6 +734,7 @@ class DogstatsdStatus(AgentStatus):
             "Packets per second: %s" % self.packets_per_second,
             "Metric count: %s" % self.metric_count,
             "Event count: %s" % self.event_count,
+            "Service check count: %s" % self.service_check_count,
         ]
         return lines
 
@@ -744,6 +746,7 @@ class DogstatsdStatus(AgentStatus):
             'packets_per_second': self.packets_per_second,
             'metric_count': self.metric_count,
             'event_count': self.event_count,
+            'service_check_count': self.service_check_count,
         })
         return status_info
 
