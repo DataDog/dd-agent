@@ -124,6 +124,9 @@ class ConsulCheck(AgentCheck):
         self._last_known_leader = leader
 
     ### Consul Catalog Accessors
+    def get_peers_in_cluster(self, instance):
+        return self.consul_request(instance, '/v1/status/peers')
+
     def get_services_in_cluster(self, instance):
         return self.consul_request(instance, '/v1/catalog/services')
 
@@ -159,10 +162,20 @@ class ConsulCheck(AgentCheck):
         if perform_new_leader_checks:
             self._check_for_leader_change(instance)
 
+        peers = self.get_peers_in_cluster(instance)
+        main_tags = []
+        agent_dc = self._get_agent_datacenter(instance)
+
+        if agent_dc is not None:
+            main_tags.append('consul_datacenter:{0}'.format(agent_dc))
+
         if not self._is_instance_leader(instance):
+            self.gauge("consul.peers", len(peers), tags=main_tags + ["mode:follower"])
             self.log.debug("This consul agent is not the cluster leader." +
                            "Skipping service and catalog checks for this instance")
             return
+        else:
+            self.gauge("consul.peers", len(peers), tags=main_tags + ["mode:leader"])
 
         service_check_tags = ['consul_url:{0}'.format(instance.get('url'))]
         perform_catalog_checks = instance.get('catalog_checks',
@@ -193,11 +206,6 @@ class ConsulCheck(AgentCheck):
                                tags=service_check_tags)
 
         if perform_catalog_checks:
-            main_tags = []
-            agent_dc = self._get_agent_datacenter(instance)
-            if agent_dc is not None:
-                main_tags.append('consul_datacenter:{0}'.format(agent_dc))
-
             nodes = self.get_nodes_in_cluster(instance)
             self.gauge('consul.catalog.nodes_up', len(nodes), tags=main_tags)
 

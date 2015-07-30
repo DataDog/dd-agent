@@ -44,6 +44,13 @@ MOCK_BAD_CONFIG = {
 class TestCheckConsul(AgentCheckTest):
     CHECK_NAME = 'consul'
 
+    def mock_get_peers_in_cluster(self, instance):
+        return [
+            "10.0.2.14:8300",
+            "10.0.2.15:8300",
+            "10.0.2.16:8300"
+        ]
+
     def mock_get_services_in_cluster(self, instance):
         return {
             "service-1": [
@@ -137,6 +144,7 @@ class TestCheckConsul(AgentCheckTest):
             'get_services_in_cluster': self.mock_get_services_in_cluster,
             'get_nodes_in_cluster': self.mock_get_nodes_in_cluster,
             'get_nodes_with_service': self.mock_get_nodes_with_service,
+            'get_peers_in_cluster': self.mock_get_peers_in_cluster,
             '_get_local_config': self.mock_get_local_config,
             '_get_cluster_leader': self.mock_get_cluster_leader_A
         }
@@ -155,6 +163,20 @@ class TestCheckConsul(AgentCheckTest):
     def test_get_nodes_with_service(self):
         self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
         self.assertMetric('consul.catalog.nodes_up', value=1, tags=['consul_service_id:service-1'])
+
+    def test_get_peers_in_cluster(self):
+        mocks = self._get_consul_mocks()
+
+        # When node is leader
+        self.run_check(MOCK_CONFIG, mocks=mocks)
+        self.assertMetric('consul.peers', value=3, tags=['consul_datacenter:dc1', 'mode:leader'])
+
+        mocks['_get_cluster_leader'] = self.mock_get_cluster_leader_B
+
+        # When node is follower
+        self.run_check(MOCK_CONFIG, mocks=mocks)
+        self.assertMetric('consul.peers', value=3, tags=['consul_datacenter:dc1', 'mode:follower'])
+
 
     def test_get_services_on_node(self):
         self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
