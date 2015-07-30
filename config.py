@@ -658,6 +658,14 @@ def get_checksd_path(osname=None):
     else:
         return _unix_checksd_path()
 
+def get_checkse_path():
+    # FIXME tristan: different directory + OS support
+    cur_path = os.path.dirname(os.path.realpath(__file__))
+    path = os.path.join(cur_path, 'checks.e')
+    if os.path.exists(path):
+        return path
+    raise PathNotFound(path)
+
 
 def get_win32service_file(osname, filename):
     # This file is needed to log in the event viewer for windows
@@ -727,6 +735,80 @@ def check_yaml(conf_path):
             return check_config
     finally:
         f.close()
+
+
+def initialize_checkse(agent_config):
+    from checks import AgentCheck
+    EXPECTED_FILES = ['check.yaml', 'check.py']
+    checkse_path = get_checkse_path()
+
+    # get all valid checks
+    initialized_checks = {}
+    init_failed_checks = {}
+    for dir_name, _, file_list in os.walk(checkse_path):
+        if all([_file in file_list for _file in EXPECTED_FILES]):
+
+            check_name = dir_name[len(checkse_path)+1:]
+            check_id = check_name.replace('/', '_')
+
+            # validate config
+            try:
+                check_config = check_yaml(dir_name + '/check.yaml')
+                # FIXME tristan: do we want this?
+            except Exception, e:
+                log.exception("Unable to parse yaml config in %s", check_name)
+                traceback_message = traceback.format_exc()
+                init_failed_checks[check_name] = {'error': str(e), 'traceback': traceback_message}
+                continue
+
+            # import the check
+            # FIXME tristan: function for that
+            try:
+                check_module = imp.load_source('checkse_%s' % check_id, os.path.join(dir_name, 'check.py'))
+            except Exception, e:
+                traceback_message = traceback.format_exc()
+                # There is a configuration file for that check but the module can't be imported
+                init_failed_checks[check_name] = {'error': str(e), 'traceback':traceback_message}
+                log.exception('Unable to import check module %s', dir_name)
+                continue
+
+            # check that there is an AgentCheck class defined
+            # FIXME tristan: function for that
+
+            check_class = None
+            classes = inspect.getmembers(check_module, inspect.isclass)
+            for _, clsmember in classes:
+                if clsmember == AgentCheck:
+                    continue
+                if issubclass(clsmember, AgentCheck):
+                    check_class = clsmember
+                    if AgentCheck in clsmember.__bases__:
+                        continue
+                    else:
+                        break
+            if not check_class:
+                log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
+                continue
+
+            # init check
+            init_config = check_config.get('init_config', {})
+            if init_config is None:
+                init_config = {}
+            instances = check_config['instances']
+            try:
+                check = check_class(
+                    check_name, init_config=init_config,
+                    agent_config=agent_config, instances=instances
+                )
+            except Exception, e:
+                log.exception('Unable to initialize check %s', check_name)
+                traceback_message = traceback.format_exc()
+                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
+            else:
+                initialized_checks[check_name] = check
+
+    log.debug('Loaded check.e')
+    return initialized_checks, init_failed_checks
 
 
 def load_check_directory(agentConfig, hostname):
@@ -880,6 +962,10 @@ def load_check_directory(agentConfig, hostname):
             sys.path.extend(pythonpath)
 
         log.debug('Loaded check.d/%s.py' % check_name)
+
+    checkse_init, checkse_failed = initialize_checkse(agentConfig)
+    init_failed_checks.update(checkse_failed)
+    initialized_checks.update(checkse_init)
 
     init_failed_checks.update(deprecated_checks)
     log.info('initialized checks.d checks: %s' % [k for k in initialized_checks.keys() if k != AGENT_METRICS_CHECK_NAME])

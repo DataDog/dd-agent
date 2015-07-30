@@ -40,6 +40,7 @@ from util import (
     Watchdog,
 )
 from utils.flare import configcheck, Flare
+from utils.check_manager import CheckManager
 from utils.jmx import jmx_command
 from utils.pidfile import PidFile
 from utils.profile import AgentProfiler
@@ -226,6 +227,7 @@ def main():
 
     COMMANDS_NO_AGENT = [
         'info',
+        'install',
         'check',
         'configcheck',
         'jmx',
@@ -338,6 +340,17 @@ def main():
             f.upload()
         except Exception, e:
             print 'The upload failed:\n{0}'.format(str(e))
+
+    elif 'install' == command:
+        if len(args) < 2:
+            sys.stderr.write(
+                "Usage: %s install <check_name>\n"
+                % sys.argv[0]
+            )
+            return 1
+
+        check_name = args[1]
+        return CheckManager.install(check_name)
 
     return 0
 

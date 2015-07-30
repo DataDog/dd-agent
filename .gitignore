@@ -23,6 +23,7 @@ dist/*
 *.exe
 nosetests*.xml
 stats.dat
+checks.e/*
 conf.d/*.yaml
 !conf.d/network.yaml
 packaging/build/
