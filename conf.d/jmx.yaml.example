@@ -34,6 +34,11 @@ instances:
     #           alias: jmx.my2ndattribute
     #   - include:
     #       domain: 2nd_domain
-    #   - exclude:
+    #     exclude:
     #       bean:
     #         - excluded_bean
+    #   - include:
+    #       domain_regex: regex_on_domain
+    #     exclude:
+    #       bean_regex:
+    #         - regex_on_excluded_bean
