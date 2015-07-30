@@ -545,6 +545,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option("Main", "utf8_decoding"):
             agentConfig["utf8_decoding"] = _is_affirmative(config.get("Main", "utf8_decoding"))
 
+        agentConfig["gce_updated_hostname"] = False
+        if config.has_option("Main", "gce_updated_hostname"):
+            agentConfig["gce_updated_hostname"] = _is_affirmative(config.get("Main", "gce_updated_hostname"))
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)

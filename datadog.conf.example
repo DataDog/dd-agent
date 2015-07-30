@@ -47,6 +47,9 @@ api_key:
 # for more information
 # collect_instance_metadata: yes
 
+# use unique hostname for GCE hosts, see http://dtdg.co/1eAynZk
+gce_updated_hostname: yes
+
 # Set the threshold for accepting points to allow anything
 # with recent_point_threshold seconds
 # Defaults to 30 seconds if no value is provided
