@@ -202,7 +202,7 @@ def hashpassword(password):
     if password is None:
         password = ""
 
-    if len(password) != 60 or password.startswith("$2a$") == False:
+    if len(password) != 60 or password.startswith("$2a$") is False:
         password = bcrypt.hashpw(password, "$2a$10$7EqJtq98hPqEX7fNZaFWoO")
 
     return password

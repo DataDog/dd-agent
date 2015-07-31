@@ -42,7 +42,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
 
     global datadog_flag
 
-    if datadog_flag == False:
+    if datadog_flag is False:
         return None
     dashboards_response = get_all_dashboards(api_key, api_app_key,
                                              instance_name)
@@ -58,7 +58,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
         "api_key": str(api_key),
         "app_key": str(api_app_key)
     }
-    
+
     initialize(**options)
 
     title = "Aerospike Dashboard: " + str(instance_name)
@@ -542,14 +542,14 @@ def draw_namespace_dashboard(api_key, api_app_key, instance_name, node_address,
 
     global datadog_flag
 
-    if datadog_flag == False:
+    if datadog_flag is False:
         return None
 
     options = {
         "api_key": str(api_key),
         "app_key": str(api_app_key)
     }
-    
+
     initialize(**options)
 
     dashboards_response = get_all_dashboards(api_key, api_app_key,

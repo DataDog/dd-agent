@@ -177,6 +177,6 @@ def get_metrics(obj, ip, port, username, passwd, instance_name):
 
 def is_valid_password(password, key):
 
-    if len(password) != 60 or password.startswith("$2a$") == False:
+    if len(password) != 60 or password.startswith("$2a$") is False:
         return True
     return False

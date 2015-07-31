@@ -1,11 +1,7 @@
 # stdlib
-import os
-from inspect import getsourcefile
-from os.path import abspath
 
 # project
 from checks import AgentCheck
-from hashlib import md5
 from aerospike.constants import ERROR_CODES
 from aerospike.constants import HASH_KEY
 
