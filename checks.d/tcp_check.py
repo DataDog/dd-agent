@@ -152,7 +152,7 @@ class TCPCheck(NetworkCheck):
         }
 
     def report_as_service_check(self, sc_name, status, instance, msg=None):
-        instance_name = instance['name']
+        instance_name = self.normalize(instance['name'])
         host = instance.get('host', None)
         port = instance.get('port', None)
         custom_tags = instance.get('tags', [])
