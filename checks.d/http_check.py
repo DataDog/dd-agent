@@ -149,7 +149,7 @@ class HTTPCheck(NetworkCheck):
                     service_checks.append((
                         self.SC_STATUS,
                         Status.DOWN,
-                        "Content %s not found in response" % content_match
+                        'Content "%s" not found in response' % content_match
                     ))
             else:
                 self.log.debug("%s is UP" % addr)
