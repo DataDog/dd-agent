@@ -337,7 +337,7 @@ class SnmpCheck(AgentCheck):
                 name = metric['symbol']
                 result = results[name].items()
                 if len(result) > 1:
-                    self.log("Several rows corresponding while the metric is supposed to be a scalar")
+                    self.log.warning("Several rows corresponding while the metric is supposed to be a scalar")
                     continue
                 val = result[0][1]
                 self.submit_metric(name, val, tags)
