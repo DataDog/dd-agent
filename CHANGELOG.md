@@ -8,7 +8,7 @@ Changes
 https://github.com/DataDog/dd-agent/compare/5.4.3...5.4.4
 
 ### Changes
-* [BUGFIX] Update `ntplib` to 0.3.3 to fix the source install. See [#1792][]
+* [BUGFIX] Update `ntplib` to 0.3.3 to fix source install requirements. See [#1792][]
 
 # 5.4.3 / 07-13-2015
 **Linux or Source Install only**
