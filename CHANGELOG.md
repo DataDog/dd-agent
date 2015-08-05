@@ -1,6 +1,15 @@
 Changes
 =======
 
+# 5.4.4 / 08-05-2015
+**Source Install only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.4.3...5.4.4
+
+### Changes
+* [BUGFIX] Update `ntplib` to 0.3.3 to fix the source install. See [#1792][]
+
 # 5.4.3 / 07-13-2015
 **Linux or Source Install only**
 
@@ -1766,6 +1775,7 @@ If you use ganglia, you want this version.
 [#1709]: https://github.com/DataDog/dd-agent/issues/1709
 [#1710]: https://github.com/DataDog/dd-agent/issues/1710
 [#1757]: https://github.com/DataDog/dd-agent/issues/1757
+[#1792]: https://github.com/DataDog/dd-agent/issues/1792
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
