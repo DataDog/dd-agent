@@ -5,7 +5,7 @@ def raw_pg_version
 end
 
 def pg_version
-  "REL#{raw_pg_version.gsub('.', '_')}"
+  "REL#{raw_pg_version.tr('.', '_')}"
 end
 
 def pg_rootdir
