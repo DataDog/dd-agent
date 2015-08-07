@@ -212,7 +212,7 @@ class RabbitMQ(AgentCheck):
                 absolute_name = '%s/%s' % (data_line.get("vhost"), name)
                 if absolute_name in explicit_filters:
                     matching_lines.append(data_line)
-                    explicit_filters.remove(name)
+                    explicit_filters.remove(absolute_name)
                     continue
 
                 for p in regex_filters:
