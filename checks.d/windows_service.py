@@ -41,6 +41,7 @@ class WindowsService(AgentCheck):
             raise Exception('No services defined in windows_service.yaml')
 
         for service in services:
+            self.log.debug(u"Looking for service name: %s" % service)
             results = w.Win32_Service(name=service)
             if len(results) == 0:
                 self.warning(u"No services found matching %s" % service)
