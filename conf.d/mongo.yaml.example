@@ -3,6 +3,9 @@ init_config:
 instances:
   # Specify the MongoDB URI, with database to use for reporting (defaults to "admin")
   - server: mongodb://localhost:27017/admin
+    # Time to wait on creating a MongoDB connection
+    # timeout: 30
+
     # tags:
     #   - optional_tag1
     #   - optional_tag2
