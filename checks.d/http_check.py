@@ -72,7 +72,6 @@ class HTTPCheck(NetworkCheck):
         start = time.time()
 
         service_checks = []
-
         try:
             self.log.debug("Connecting to %s" % addr)
             if disable_ssl_validation and urlparse(addr)[0] == "https":
@@ -240,7 +239,7 @@ class HTTPCheck(NetworkCheck):
         }
 
     def report_as_service_check(self, sc_name, status, instance, msg=None):
-        instance_name = instance['name']
+        instance_name = self.normalize(instance['name'])
         url = instance.get('url', None)
         sc_tags = ['url:{0}'.format(url), "instance:{0}".format(instance_name)]
         custom_tags = instance.get('tags', [])
