@@ -13,6 +13,15 @@ class Mesos(AgentCheck):
     SERVICE_CHECK_NAME = "mesos.can_connect"
 
     def check(self, instance):
+        """
+        DEPRECATED:
+        This generic Mesosphere check is deprecated not actively developed anymore. It will be
+        removed in a future version of the Datadog Agent.
+        Please head over to the Mesosphere master and slave specific checks.
+        """
+        self.warning("This check is deprecated in favor of Mesos master and slave specific checks."
+                     " It will be removed in a future version of the Datadog Agent.")
+
         if 'url' not in instance:
             raise Exception('Mesos instance missing "url" value.')
 
