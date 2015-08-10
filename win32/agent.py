@@ -6,14 +6,14 @@ from optparse import Values
 import sys
 import time
 
-# 3p
-import servicemanager
-from win32.common import handle_exe_click
-import win32event
-import win32service
-import win32serviceutil
+# win32 (yeah that's a pity but we need that to handle sigterms)
+import win32api
+
+# TODO: dogstatsd and the collector are still up when our guy here is killed...
+# Investigate this !
 
 # project
+from win32.common import handle_exe_click
 from checks.collector import Collector
 from config import (
     get_confd_path,
@@ -40,14 +40,8 @@ MAX_FAILED_HEARTBEATS = 8  # runs of collector
 DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
 
-class AgentSvc(win32serviceutil.ServiceFramework):
-    _svc_name_ = "DatadogAgent"
-    _svc_display_name_ = "Datadog Agent"
-    _svc_description_ = "Sends metrics to Datadog"
-
-    def __init__(self, args):
-        win32serviceutil.ServiceFramework.__init__(self, args)
-        self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
+class AgentSupervisor():
+    def __init__(self):
         config = get_config(parse_args=False)
 
         # Setup the correct options so the agent will use the forwarder
@@ -81,20 +75,13 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             'jmxfetch': ProcessWatchDog("jmxfetch", JMXFetchProcess(config, self.hostname), 3),
         }
 
-    def SvcStop(self):
-        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-        win32event.SetEvent(self.hWaitStop)
-
+    def stop(self):
         # Stop all services.
         self.running = False
         for proc in self.procs.values():
             proc.terminate()
 
-    def SvcDoRun(self):
-        servicemanager.LogMsg(
-            servicemanager.EVENTLOG_INFORMATION_TYPE,
-            servicemanager.PYS_SERVICE_STARTED,
-            (self._svc_name_, ''))
+    def run(self):
         self.start_ts = time.time()
 
         # Start all services.
@@ -108,7 +95,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             # Restart any processes that might have died.
             for name, proc in self.procs.iteritems():
                 if not proc.is_alive() and proc.is_enabled():
-                    servicemanager.LogInfoMsg("%s has died. Restarting..." % name)
+                    print("%s has died. Restarting..." % name)
                     proc.restart()
 
             self._check_collector_blocked()
@@ -123,8 +110,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         else:
             self._collector_failed_heartbeats += 1
             if self._collector_failed_heartbeats > self._max_failed_heartbeats:
-                servicemanager.LogInfoMsg(
-                    "%s was unresponsive for too long. Restarting..." % 'collector')
+                print("%s was unresponsive for too long. Restarting..." % 'collector')
                 self.procs['collector'].restart()
                 self._collector_failed_heartbeats = 0
 
@@ -167,7 +153,7 @@ class ProcessWatchDog(object):
 
     def restart(self):
         if not self._can_restart():
-            servicemanager.LogInfoMsg(
+            print(
                 "{0} reached the limit of restarts ({1} tries during the last {2}s"
                 " (max authorized: {3})). Not restarting..."
                 .format(self._name, len(self._restarts),
@@ -361,6 +347,18 @@ class JMXFetchProcess(multiprocessing.Process):
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     if len(sys.argv) == 1:
-        handle_exe_click(AgentSvc._svc_name_)
+        handle_exe_click("Datadog-Agent Windows service")
+        pass
     else:
-        win32serviceutil.HandleCommandLine(AgentSvc)
+        if sys.argv[1] == "start":
+            # Let's start our stuff and register a good old SINGINT callback
+            supervisor = AgentSupervisor()
+
+            def bye_bye():
+                print("salut les pds !")
+                supervisor.stop()
+
+            win32api.SetConsoleCtrlHandler(bye_bye, True)
+
+            # Here we go !
+            supervisor.run()
