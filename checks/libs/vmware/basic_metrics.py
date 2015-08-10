@@ -89,4 +89,16 @@ BASIC_METRICS = {
         'rollup'       : 'average',
         'entity'       : ['VirtualMachine', 'HostSystem', 'ResourcePool']
     },
+    'network.received': {
+        's_type'       : 'rate',
+        'unit'         : 'kiloBytesPerSecond',
+        'rollup'       : 'average',
+        'entity'       : ['VirtualMachine', 'HostSystem']
+    },
+    'network.transmitted': {
+        's_type'       : 'rate',
+        'unit'         : 'kiloBytesPerSecond',
+        'rollup'       : 'average',
+        'entity'       : ['VirtualMachine', 'HostSystem']
+    },
 }
