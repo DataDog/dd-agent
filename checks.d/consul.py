@@ -55,7 +55,6 @@ class ConsulCheck(AgentCheck):
             self._local_config = self.consul_request(instance, '/v1/agent/self')
             self._last_config_fetch_time = datetime.now()
 
-
         return self._local_config
 
     def _get_cluster_leader(self, instance):
@@ -111,9 +110,9 @@ class ConsulCheck(AgentCheck):
                 "timestamp": int(datetime.now().strftime("%s")),
                 "event_type": "consul.new_leader",
                 "source_type_name": self.SOURCE_TYPE_NAME,
-                "msg_title": "New Consul Leader Elected in {0}".format(agent_dc),
+                "msg_title": "New Consul Leader Elected in consul_datacenter:{0}".format(agent_dc),
                 "aggregation_key": "consul.new_leader",
-                "msg_text": "The Node at {0} is the new leader of the consul cluster {1}".format(
+                "msg_text": "The Node at {0} is the new leader of the consul datacenter {1}".format(
                     leader,
                     agent_dc
                 ),
@@ -130,9 +129,6 @@ class ConsulCheck(AgentCheck):
 
     def get_services_in_cluster(self, instance):
         return self.consul_request(instance, '/v1/catalog/services')
-
-    def get_nodes_in_cluster(self, instance):
-        return self.consul_request(instance, '/v1/catalog/nodes')
 
     def get_nodes_with_service(self, instance, service):
         consul_request_url = '/v1/catalog/service/{0}'.format(service)
@@ -196,7 +192,6 @@ class ConsulCheck(AgentCheck):
                 if check["ServiceID"]:
                     tags.append("service-id:{0}".format(check["ServiceID"]))
 
-            services = self.get_services_in_cluster(instance)
             self.service_check(self.HEALTH_CHECK, status, tags=tags)
 
         except Exception as e:
@@ -207,8 +202,6 @@ class ConsulCheck(AgentCheck):
                                tags=service_check_tags)
 
         if perform_catalog_checks:
-            nodes = self.get_nodes_in_cluster(instance)
-
             services = self.get_services_in_cluster(instance)
             nodes_to_services = defaultdict(list)
 

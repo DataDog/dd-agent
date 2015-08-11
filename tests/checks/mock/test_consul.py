@@ -142,7 +142,6 @@ class TestCheckConsul(AgentCheckTest):
     def _get_consul_mocks(self):
         return {
             'get_services_in_cluster': self.mock_get_services_in_cluster,
-            'get_nodes_in_cluster': self.mock_get_nodes_in_cluster,
             'get_nodes_with_service': self.mock_get_nodes_with_service,
             'get_peers_in_cluster': self.mock_get_peers_in_cluster,
             '_get_local_config': self.mock_get_local_config,
@@ -152,17 +151,18 @@ class TestCheckConsul(AgentCheckTest):
     def test_bad_config(self):
         self.assertRaises(Exception, self.run_check, MOCK_BAD_CONFIG)
 
-    def test_get_nodes_in_cluster(self):
-        self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
-        self.assertMetric('consul.catalog.nodes_up', value=3, tags=['consul_datacenter:dc1'])
+    # def test_get_nodes_in_cluster(self):
+    #     self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
+    #     self.assertMetric('consul.catalog.nodes_up', value=3, tags=['consul_datacenter:dc1'])
 
-    def test_get_services_in_cluster(self):
-        self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
-        self.assertMetric('consul.catalog.services_up', value=6, tags=['consul_datacenter:dc1'])
+    # def test_get_services_in_cluster(self):
+    #     self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
+    #     self.assertMetric('consul.catalog.services_up', value=6, tags=['consul_datacenter:dc1'])
+
 
     def test_get_nodes_with_service(self):
         self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
-        self.assertMetric('consul.catalog.nodes_up', value=1, tags=['consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.nodes_up', value=1, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
 
     def test_get_peers_in_cluster(self):
         mocks = self._get_consul_mocks()
@@ -180,7 +180,7 @@ class TestCheckConsul(AgentCheckTest):
 
     def test_get_services_on_node(self):
         self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
-        self.assertMetric('consul.catalog.services_up', value=6, tags=['consul_node_id:node-1'])
+        self.assertMetric('consul.catalog.services_up', value=6, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
 
     def test_cull_services_list(self):
         self.check = load_check(self.CHECK_NAME, MOCK_CONFIG_LEADER_CHECK, self.DEFAULT_AGENT_CONFIG)
