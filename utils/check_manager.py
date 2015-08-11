@@ -34,9 +34,11 @@ class CheckManager(object):
             raise CheckNotFound()
 
         # initialize directory
+        _agent_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+
         check_repository = checks_list[check_name]
         check_repository_uri = check_repository.replace(GITHUB_SOURCE, '')
-        check_directory = os.path.join(CHECKS_PATH, check_repository_uri)
+        check_directory = os.path.join(_agent_path, CHECKS_PATH, check_repository_uri)
         if not os.path.exists(check_directory):
             os.makedirs(check_directory)
 
@@ -48,4 +50,4 @@ class CheckManager(object):
             with open(file_path, 'w') as _file:
                 _file.write(r.content)
 
-        return 1
+        return 0
