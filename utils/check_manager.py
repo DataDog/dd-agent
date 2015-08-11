@@ -14,7 +14,7 @@ OFFICIAL_REPOSITORY = '%s/tmichelet/dd-checks/master/checks.json' % GITHUB_CONTE
 CHECKS_PATH = 'checks.e'
 
 DEFAULT_VERSION = 'master'
-REQUIRED_FILES = ['check.py', 'check.yaml.example']
+REQUIRED_FILES = ['check.py', 'check.yaml.example', 'check.yaml.erb']
 
 
 class CheckNotFound(Exception):
