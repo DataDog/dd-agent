@@ -236,13 +236,24 @@ class MongoDb(AgentCheck):
     }
 
     """
-    Associates with the metric list to collect.
+    WiredTiger storage engine.
+
     """
-    AVAILABLE_METRICS = {
-        'durability': DURABILITY_METRICS,
-        'locks': LOCKS_METRICS,
-        'metrics.commands': COMMANDS_METRICS,
-        'tcmalloc': TCMALLOC_METRICS,
+    WIREDTIGER_METRICS = {
+        "wiredTiger.cache.bytes currently in the cache": (GAUGE, "wiredTiger.cache.bytes_currently_in_cache"),  # noqa
+        "wiredTiger.cache.failed eviction of pages that exceeded the in-memory maximum": (RATE, "wiredTiger.cache.failed_eviction_of_pages_exceeding_the_in-memory_maximum"),  # noqa
+        "wiredTiger.cache.in-memory page splits": GAUGE,
+        "wiredTiger.cache.maximum bytes configured": GAUGE,
+        "wiredTiger.cache.maximum page size at eviction": GAUGE,
+        "wiredTiger.cache.pages currently held in the cache": (GAUGE, "wiredTiger.cache.pages_currently_held_in_cache"),  # noqa
+        "wiredTiger.cache.pages evicted because they exceeded the in-memory maximum": (RATE, "wiredTiger.cache.pages_evicted_exceeding_the_in-memory_maximum"),  # noqa
+        "wiredTiger.cache.pages evicted by application threads": RATE,
+        "wiredTiger.concurrentTransactions.read.available": GAUGE,
+        "wiredTiger.concurrentTransactions.read.out": GAUGE,
+        "wiredTiger.concurrentTransactions.read.totalTickets": GAUGE,
+        "wiredTiger.concurrentTransactions.write.available": GAUGE,
+        "wiredTiger.concurrentTransactions.write.out": GAUGE,
+        "wiredTiger.concurrentTransactions.write.totalTickets": GAUGE,
     }
 
     """
@@ -255,6 +266,17 @@ class MongoDb(AgentCheck):
         '\.r\\b': ".intent_shared",
         '\.W\\b': ".exclusive",
         '\.w\\b': ".intent_exclusive",
+    }
+
+    """
+    Associates with the metric list to collect.
+    """
+    AVAILABLE_METRICS = {
+        'durability': DURABILITY_METRICS,
+        'locks': LOCKS_METRICS,
+        'metrics.commands': COMMANDS_METRICS,
+        'tcmalloc': TCMALLOC_METRICS,
+        'wiredtiger': WIREDTIGER_METRICS,
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
