@@ -118,7 +118,8 @@ class ConsulCheck(AgentCheck):
                     agent_dc
                 ),
                 "tags": ["prev_consul_leader:{0}".format(self._last_known_leader),
-                         "curr_consul_leader:{0}".format(leader)]
+                         "curr_consul_leader:{0}".format(leader),
+                         "consul_datacenter:{0}".format(agent_dc)]
             })
 
         self._last_known_leader = leader
@@ -207,14 +208,9 @@ class ConsulCheck(AgentCheck):
 
         if perform_catalog_checks:
             nodes = self.get_nodes_in_cluster(instance)
-            self.gauge('consul.catalog.nodes_up', len(nodes), tags=main_tags)
 
             services = self.get_services_in_cluster(instance)
             nodes_to_services = defaultdict(list)
-
-            # There's no computational disadvantage to sending the true number of services here.
-            # It's only when iterating that we'd like to limit it
-            self.gauge('consul.catalog.services_up', len(services), tags=main_tags)
 
             service_whitelist = instance.get('service_whitelist',
                                              self.init_config.get('service_whitelist', []))
@@ -226,7 +222,7 @@ class ConsulCheck(AgentCheck):
 
                 self.gauge('consul.catalog.nodes_up',
                            len(nodes_with_service),
-                           tags=node_tags)
+                           tags=main_tags+node_tags)
 
                 for n in nodes_with_service:
                     node_id = n.get('Node') or None
@@ -240,4 +236,4 @@ class ConsulCheck(AgentCheck):
                 tags = ['consul_node_id:{0}'.format(node)]
                 self.gauge('consul.catalog.services_up',
                            len(services),
-                           tags=tags)
+                           tags=main_tags+tags)
