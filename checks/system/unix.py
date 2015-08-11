@@ -303,6 +303,7 @@ class Memory(Check):
             # $ cat /proc/meminfo
             # MemTotal:        7995360 kB
             # MemFree:         1045120 kB
+            # MemAvailable:    1253920 kB
             # Buffers:          226284 kB
             # Cached:           775516 kB
             # SwapCached:       248868 kB
@@ -361,6 +362,7 @@ class Memory(Check):
             try:
                 memData['physTotal'] = int(meminfo.get('MemTotal', 0)) / 1024
                 memData['physFree'] = int(meminfo.get('MemFree', 0)) / 1024
+                memData['physAvailable'] = int(meminfo.get('MemAvailable', 0)) / 1024
                 memData['physBuffers'] = int(meminfo.get('Buffers', 0)) / 1024
                 memData['physCached'] = int(meminfo.get('Cached', 0)) / 1024
                 memData['physShared'] = int(meminfo.get('Shmem', 0)) / 1024
@@ -371,6 +373,7 @@ class Memory(Check):
 
                 if memData['physTotal'] > 0:
                     memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
+                    memData['physPctAvailable'] = float(memData['physAvailable']) / float(memData['physTotal'])
             except Exception:
                 self.logger.exception('Cannot compute stats from /proc/meminfo')
 

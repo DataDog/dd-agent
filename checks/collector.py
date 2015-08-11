@@ -307,6 +307,8 @@ class Collector(object):
                     'memPhysUsed': memory.get('physUsed'),
                     'memPhysPctUsable': memory.get('physPctUsable'),
                     'memPhysFree': memory.get('physFree'),
+                    'memPhysAvailable':memory.get('physAvailable'),
+                    'memPhysPctAvailable':memory.get('physPctAvailable'),
                     'memPhysTotal': memory.get('physTotal'),
                     'memPhysUsable': memory.get('physUsable'),
                     'memSwapUsed': memory.get('swapUsed'),
