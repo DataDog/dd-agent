@@ -225,6 +225,27 @@ class MongoDb(AgentCheck):
         "tcmalloc.tcmalloc.transfer_cache_free_bytes": GAUGE,
     }
 
+    WIREDTIGER_METRICS = {
+        """
+        WiredTiger storage engine.
+
+        """
+        "wiredTiger.cache.bytes currently in the cache": GAUGE,
+        "wiredTiger.cache.failed eviction of pages that exceeded the in-memory maximum": GAUGE,
+        "wiredTiger.cache.in-memory page splits": GAUGE,
+        "wiredTiger.cache.maximum bytes configured": GAUGE,
+        "wiredTiger.cache.maximum page size at eviction": GAUGE,
+        "wiredTiger.cache.pages currently held in the cache": GAUGE,
+        "wiredTiger.cache.pages evicted because they exceeded the in-memory maximum": GAUGE,
+        "wiredTiger.cache.pages evicted by application threads": GAUGE,
+        "wiredTiger.concurrentTransactions.read.available": GAUGE,
+        "wiredTiger.concurrentTransactions.read.out": GAUGE,
+        "wiredTiger.concurrentTransactions.read.totalTickets": GAUGE,
+        "wiredTiger.concurrentTransactions.write.available": GAUGE,
+        "wiredTiger.concurrentTransactions.write.out": GAUGE,
+        "wiredTiger.concurrentTransactions.write.totalTickets": GAUGE,
+    }
+
     AVAILABLE_METRICS = {
         """
         Associates with the metric list to collect.
@@ -233,6 +254,7 @@ class MongoDb(AgentCheck):
         'locks': LOCKS_METRICS,
         'metrics.commands': COMMANDS_METRICS,
         'tcmalloc': TCMALLOC_METRICS,
+        'wiredtiger': WIREDTIGER_METRICS,
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
