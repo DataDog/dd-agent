@@ -50,8 +50,9 @@ class TCPCheckTest(AgentCheckTest):
                 return getattr(self.check, method)()
             time.sleep(1)
             i += 1
-        raise Exception("Didn't get the right count of service checks in time {0}"
-                        .format(getattr(self.check, attribute)))
+        raise Exception("Didn't get the right count of service checks in time, {0}/{1} in {2}s: {3}"
+                        .format(len(getattr(self.check, attribute)), count, i,
+                                getattr(self.check, attribute)))
 
     def test_event_deprecation(self):
         """

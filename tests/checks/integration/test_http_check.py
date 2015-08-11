@@ -96,6 +96,15 @@ CONFIG_UNORMALIZED_INSTANCE_NAME = {
     ]
 }
 
+SIMPLE_CONFIG = {
+    'instances': [{
+        'name': 'simple_config',
+        'url': 'http://httpbin.org',
+        'check_certificate_expiration': False,
+    },
+    ]
+}
+
 CONFIG_HTTP_HEADERS = {
     'instances': [{
         'url': 'https://google.com',
@@ -130,8 +139,9 @@ class HTTPCheckTest(AgentCheckTest):
                 return getattr(self.check, method)()
             time.sleep(1)
             i += 1
-        raise Exception("Didn't get the right count of service checks in time {0}"
-                        .format(getattr(self.check, attribute)))
+        raise Exception("Didn't get the right count of service checks in time, {0}/{1} in {2}s: {3}"
+                        .format(len(getattr(self.check, attribute)), count, i,
+                                getattr(self.check, attribute)))
 
     def test_http_headers(self):
         """
@@ -231,25 +241,15 @@ class HTTPCheckTest(AgentCheckTest):
         """
         Deprecate events usage for service checks.
         """
-        self.run_check(CONFIG)
+        self.run_check(SIMPLE_CONFIG)
 
         # Overrides self.service_checks attribute when values are available\
-        self.warnings = self.wait_for_async('get_warnings', 'warnings', 8)
+        self.warnings = self.wait_for_async('get_warnings', 'warnings', 1)
 
         # Assess warnings
-        self.assertWarning(
-            "Skipping SSL certificate validation for "
-            "https://github.com based on configuration",
-            count=2
-        )
-        self.assertWarning(
-            "Skipping SSL certificate validation for "
-            "https://thereisnosuchlink.com based on configuration",
-            count=1
-        )
         self.assertWarning(
             "Using events for service checks is deprecated in "
             "favor of monitors and will be removed in future versions of the "
             "Datadog Agent.",
-            count=5
+            count=1
         )
