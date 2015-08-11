@@ -62,6 +62,21 @@ class MongoDb(AgentCheck):
         "metrics.repl.buffer.count",
         "metrics.repl.buffer.maxSizeBytes",
         "metrics.repl.buffer.sizeBytes",
+
+        "wiredTiger.cache.maximum bytes configured",
+        "wiredTiger.cache.bytes currently in the cache",
+        "wiredTiger.cache.pages evicted by application threads",
+        "wiredTiger.cache.pages evicted because they exceeded the in-memory maximum",
+        "wiredTiger.cache.failed eviction of pages that exceeded the in-memory maximum",
+        "wiredTiger.cache.maximum page size at eviction",
+        "wiredTiger.cache.in-memory page splits",
+        "wiredTiger.cache.pages currently held in the cache",
+        "wiredTiger.concurrentTransactions.write.out",
+        "wiredTiger.concurrentTransactions.write.available",
+        "wiredTiger.concurrentTransactions.write.totalTickets"
+        "wiredTiger.concurrentTransactions.read.out",
+        "wiredTiger.concurrentTransactions.read.available",
+        "wiredTiger.concurrentTransactions.read.totalTickets",
     ]
 
     RATES = [
