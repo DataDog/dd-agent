@@ -137,8 +137,10 @@ class TestMongo(unittest.TestCase):
 
         # Run the check against our running server
         self.check.check(self.config['instances'][0])
+
         # Sleep for 1 second so the rate interval >=1
         time.sleep(1)
+
         # Run the check again so we get the rates
         self.check.check(self.config['instances'][0])
 
