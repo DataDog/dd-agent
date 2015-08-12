@@ -151,15 +151,6 @@ class TestCheckConsul(AgentCheckTest):
     def test_bad_config(self):
         self.assertRaises(Exception, self.run_check, MOCK_BAD_CONFIG)
 
-    # def test_get_nodes_in_cluster(self):
-    #     self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
-    #     self.assertMetric('consul.catalog.nodes_up', value=3, tags=['consul_datacenter:dc1'])
-
-    # def test_get_services_in_cluster(self):
-    #     self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
-    #     self.assertMetric('consul.catalog.services_up', value=6, tags=['consul_datacenter:dc1'])
-
-
     def test_get_nodes_with_service(self):
         self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
         self.assertMetric('consul.catalog.nodes_up', value=1, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
