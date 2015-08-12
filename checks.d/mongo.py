@@ -9,7 +9,7 @@ import pymongo
 from checks import AgentCheck
 from util import get_hostname
 
-DEFAULT_TIMEOUT = 10
+DEFAULT_TIMEOUT = 30
 
 
 class MongoDb(AgentCheck):
@@ -211,8 +211,9 @@ class MongoDb(AgentCheck):
             self.log.debug("Mongo: cannot extract username and password from config %s" % server)
             do_auth = False
 
+        timeout = float(instance.get('timeout', DEFAULT_TIMEOUT))
         try:
-            conn = pymongo.Connection(server, network_timeout=DEFAULT_TIMEOUT,
+            conn = pymongo.Connection(server, network_timeout=timeout,
                 **ssl_params)
             db = conn[db_name]
         except Exception:
