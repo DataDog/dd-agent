@@ -17,6 +17,7 @@ class MongoDb(AgentCheck):
     SOURCE_TYPE_NAME = 'mongodb'
 
     GAUGES = [
+        # L21-23,25,68-74 Deprecated as if V 3.0.0
         "indexCounters.btree.missRatio",
         "indexCounters.missRatio",
         "globalLock.ratio",
@@ -25,24 +26,39 @@ class MongoDb(AgentCheck):
         "globalLock.currentQueue.total",
         "globalLock.currentQueue.readers",
         "globalLock.currentQueue.writers",
+        "globalLock.activeClients.total",
+        "globalLock.activeClients.readers",
+        "globalLock.activeClients.writers",
         "connections.current",
         "connections.available",
+        "connections.totalCreated",
+        "mem.bits",
         "mem.resident",
         "mem.virtual",
         "mem.mapped",
+        "mem.mappedWithJournal",
         "cursors.totalOpen",
         "cursors.timedOut",
         "uptime",
 
-        "stats.indexes",
-        "stats.indexSize",
+
+        "stats.collections",
         "stats.objects",
+        "stats.avgObjSize",
         "stats.dataSize",
         "stats.storageSize",
+        "stats.numExtents",
+        "stats.indexes",
+        "stats.indexSize",
+        "stats.fileSize",
+        "stats.nsSizeMB",
+
+
 
         "replSet.health",
         "replSet.state",
         "replSet.replicationLag",
+
         "metrics.repl.buffer.count",
         "metrics.repl.buffer.maxSizeBytes",
         "metrics.repl.buffer.sizeBytes",
@@ -57,6 +73,7 @@ class MongoDb(AgentCheck):
         "indexCounters.misses",
         "indexCounters.resets",
         "extra_info.page_faults",
+        "extra_info.heap_usage_bytes",
         "opcounters.insert",
         "opcounters.query",
         "opcounters.update",
@@ -94,6 +111,8 @@ class MongoDb(AgentCheck):
         "metrics.repl.network.getmores.totalMillis",
         "metrics.repl.network.ops",
         "metrics.repl.network.readersCreated",
+        "metrics.repl.preload.indexes.num"
+        "metrics.repl.preload.indexes.totalMillis"
         "metrics.repl.oplog.insert.num",
         "metrics.repl.oplog.insert.totalMillis",
         "metrics.repl.oplog.insertBytes",
