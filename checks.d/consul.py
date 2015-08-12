@@ -55,7 +55,6 @@ class ConsulCheck(AgentCheck):
             self._local_config = self.consul_request(instance, '/v1/agent/self')
             self._last_config_fetch_time = datetime.now()
 
-
         return self._local_config
 
     def _get_cluster_leader(self, instance):
@@ -111,14 +110,15 @@ class ConsulCheck(AgentCheck):
                 "timestamp": int(datetime.now().strftime("%s")),
                 "event_type": "consul.new_leader",
                 "source_type_name": self.SOURCE_TYPE_NAME,
-                "msg_title": "New Consul Leader Elected in {0}".format(agent_dc),
+                "msg_title": "New Consul Leader Elected in consul_datacenter:{0}".format(agent_dc),
                 "aggregation_key": "consul.new_leader",
-                "msg_text": "The Node at {0} is the new leader of the consul cluster {1}".format(
+                "msg_text": "The Node at {0} is the new leader of the consul datacenter {1}".format(
                     leader,
                     agent_dc
                 ),
                 "tags": ["prev_consul_leader:{0}".format(self._last_known_leader),
-                         "curr_consul_leader:{0}".format(leader)]
+                         "curr_consul_leader:{0}".format(leader),
+                         "consul_datacenter:{0}".format(agent_dc)]
             })
 
         self._last_known_leader = leader
@@ -129,9 +129,6 @@ class ConsulCheck(AgentCheck):
 
     def get_services_in_cluster(self, instance):
         return self.consul_request(instance, '/v1/catalog/services')
-
-    def get_nodes_in_cluster(self, instance):
-        return self.consul_request(instance, '/v1/catalog/nodes')
 
     def get_nodes_with_service(self, instance, service):
         consul_request_url = '/v1/catalog/service/{0}'.format(service)
@@ -195,7 +192,6 @@ class ConsulCheck(AgentCheck):
                 if check["ServiceID"]:
                     tags.append("service-id:{0}".format(check["ServiceID"]))
 
-            services = self.get_services_in_cluster(instance)
             self.service_check(self.HEALTH_CHECK, status, tags=tags)
 
         except Exception as e:
@@ -206,15 +202,8 @@ class ConsulCheck(AgentCheck):
                                tags=service_check_tags)
 
         if perform_catalog_checks:
-            nodes = self.get_nodes_in_cluster(instance)
-            self.gauge('consul.catalog.nodes_up', len(nodes), tags=main_tags)
-
             services = self.get_services_in_cluster(instance)
             nodes_to_services = defaultdict(list)
-
-            # There's no computational disadvantage to sending the true number of services here.
-            # It's only when iterating that we'd like to limit it
-            self.gauge('consul.catalog.services_up', len(services), tags=main_tags)
 
             service_whitelist = instance.get('service_whitelist',
                                              self.init_config.get('service_whitelist', []))
@@ -226,7 +215,7 @@ class ConsulCheck(AgentCheck):
 
                 self.gauge('consul.catalog.nodes_up',
                            len(nodes_with_service),
-                           tags=node_tags)
+                           tags=main_tags+node_tags)
 
                 for n in nodes_with_service:
                     node_id = n.get('Node') or None
@@ -240,4 +229,4 @@ class ConsulCheck(AgentCheck):
                 tags = ['consul_node_id:{0}'.format(node)]
                 self.gauge('consul.catalog.services_up',
                            len(services),
-                           tags=tags)
+                           tags=main_tags+tags)
