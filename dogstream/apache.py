@@ -1,3 +1,23 @@
+"""
+DogStream parser capible of reading Apache Common and Combined logging formats.
+
+Parser will generate two metrics
+1.) apache.net.requests
+2.) apache.net.request_size
+
+Both metrics will be tagged with 'status' code family (2xx, 3xx, 4xx, 5xx, etc)
+and HTTP 'verb' (GET, PUT, POST, etc)
+
+To parse common logs add the following to your agent configuration
+dogstreams: /var/log/httpd/access.log:/etc/dd-agent/dogstream/apache.py:parse_common
+
+To parse combined logs add the following to your agent configuration
+dogstreams: /var/log/httpd/access.log:/etc/dd-agent/dogstream/apache.py:parse_combined
+
+both config lines assume your logs are in /var/log/httpd/access.log and this file is
+at /etc/dd-agent/dogstream/apache.py
+
+"""
 import time
 from datetime import datetime
 import re
@@ -66,9 +86,9 @@ def build_message(raw_data):
 
     status_code_family = raw_data['status'][0] + 'xx'
     return_value.append(('apache.net.requests', timestamp, 1, {'metric_type': 'counter',
-                                                              'unit': 'request',
-                                                              'status': status_code_family,
-                                                              'verb': raw_data['verb']}))
+                                                               'unit': 'request',
+                                                               'status': status_code_family,
+                                                               'verb': raw_data['verb']}))
 
     return_value.append(('apache.net.request_size', timestamp,
                         raw_data["size"], {'metric_type': 'histogram',
