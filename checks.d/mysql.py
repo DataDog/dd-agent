@@ -77,7 +77,7 @@ class MySql(AgentCheck):
         self._collect_metrics(host, db, tags, options)
         if Platform.is_linux():
             self._collect_system_metrics(host, db, tags)
-            
+
         # Close connection
         db.close()
 
