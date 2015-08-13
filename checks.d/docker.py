@@ -442,13 +442,9 @@ class Docker(AgentCheck):
     def _find_cgroup(self, hierarchy, docker_root):
         """Finds the mount point for a specified cgroup hierarchy. Works with
         old style and new style mounts."""
-        fp = None
-        try:
-            fp = open(os.path.join(docker_root, "/proc/mounts"))
+        with open(os.path.join(docker_root, "/proc/mounts"), 'r') as fp:
             mounts = map(lambda x: x.split(), fp.read().splitlines())
-        finally:
-            if fp is not None:
-                fp.close()
+
         cgroup_mounts = filter(lambda x: x[2] == "cgroup", mounts)
         if len(cgroup_mounts) == 0:
             raise Exception("Can't find mounted cgroups. If you run the Agent inside a container,"
@@ -456,20 +452,24 @@ class Docker(AgentCheck):
         # Old cgroup style
         if len(cgroup_mounts) == 1:
             return os.path.join(docker_root, cgroup_mounts[0][1])
+
+        candidate = None
         for _, mountpoint, _, opts, _, _ in cgroup_mounts:
             if hierarchy in opts:
-                return os.path.join(docker_root, mountpoint)
+                if mountpoint.startswith("/host/"):
+                    return os.path.join(docker_root, mountpoint)
+                candidate = mountpoint
+        if candidate is not None:
+            return os.path.join(docker_root, candidate)
+        raise Exception("Can't find mounted %s cgroups." % hierarchy) 
+
 
     def _parse_cgroup_file(self, stat_file):
         """Parses a cgroup pseudo file for key/values."""
-        fp = None
         self.log.debug("Opening cgroup file: %s" % stat_file)
         try:
-            fp = open(stat_file)
-            return dict(map(lambda x: x.split(), fp.read().splitlines()))
+            with open(stat_file, 'r') as fp:
+                return dict(map(lambda x: x.split(), fp.read().splitlines()))
         except IOError:
             # It is possible that the container got stopped between the API call and now
             self.log.info("Can't open %s. Metrics for this container are skipped." % stat_file)
-        finally:
-            if fp is not None:
-                fp.close()
