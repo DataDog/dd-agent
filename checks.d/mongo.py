@@ -16,12 +16,12 @@ class MongoDb(AgentCheck):
     SOURCE_TYPE_NAME = 'mongodb'
 
     GAUGES = [
-        # L21-23,25,68-74 Deprecated as if V 3.0.0
+        # L21-24 removed as of V 3.0.0
         "indexCounters.btree.missRatio",
         "indexCounters.missRatio",
         "globalLock.ratio",
-        "globalLock.totalTime",
         "globalLock.lockTime",
+        "globalLock.totalTime",
         "globalLock.currentQueue.total",
         "globalLock.currentQueue.readers",
         "globalLock.currentQueue.writers",
@@ -40,7 +40,6 @@ class MongoDb(AgentCheck):
         "cursors.timedOut",
         "uptime",
 
-
         "stats.collections",
         "stats.objects",
         "stats.avgObjSize",
@@ -52,8 +51,6 @@ class MongoDb(AgentCheck):
         "stats.fileSize",
         "stats.nsSizeMB",
 
-
-
         "replSet.health",
         "replSet.state",
         "replSet.replicationLag",
@@ -61,9 +58,21 @@ class MongoDb(AgentCheck):
         "metrics.repl.buffer.count",
         "metrics.repl.buffer.maxSizeBytes",
         "metrics.repl.buffer.sizeBytes",
+
+        "tcmalloc.generic.current_allocated_bytes",
+        "tcmalloc.generic.heap_size",
+        "tcmalloc.tcmalloc.pageheap_free_bytes",
+        "tcmalloc.tcmalloc.pageheap_unmapped_bytes",
+        "tcmalloc.tcmalloc.max_total_thread_cache_bytes",
+        "tcmalloc.tcmalloc.current_total_thread_cache_bytes",
+        "tcmalloc.tcmalloc.central_cache_free_bytes",
+        "tcmalloc.tcmalloc.transfer_cache_free_bytes",
+        "tcmalloc.tcmalloc.thread_cache_free_bytes",
+        "tcmalloc.tcmalloc.aggressive_memory_decommit",
     ]
 
     RATES = [
+        # indexCounters removed as of V 3.0.0
         "indexCounters.btree.accesses",
         "indexCounters.btree.hits",
         "indexCounters.btree.misses",
