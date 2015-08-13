@@ -28,7 +28,7 @@ from utils.subprocess_output import subprocess
 import yaml
 
 # CONSTANTS
-AGENT_VERSION = "5.4.4"
+AGENT_VERSION = "5.4.5"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
