@@ -7,9 +7,7 @@ import requests
 # project
 
 GITHUB_CONTENT = 'https://raw.githubusercontent.com'
-GITHUB_SOURCE = 'https://github.com/'
-
-OFFICIAL_REPOSITORY = '%s/tmichelet/dd-checks/master/checks.json' % GITHUB_CONTENT
+GITHUB_SOURCE = 'https://github.com'
 
 CHECKS_PATH = 'checks.e'
 
@@ -29,15 +27,15 @@ class CheckManager(object):
     @classmethod
     def install(cls, check_name, *args, **kwargs):
         # retrieve check from official repo
-        checks_list = requests.get(OFFICIAL_REPOSITORY).json()
-        if check_name not in checks_list:
+        check_repository_uri = check_name if '/' in check_name else 'tmichelet/dd-%s-check' % check_name
+
+        repo_url = '/'.join([GITHUB_SOURCE, check_repository_uri])
+        if requests.get(repo_url).status_code == 404:
             raise CheckNotFound()
 
         # initialize directory
         _agent_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 
-        check_repository = checks_list[check_name]
-        check_repository_uri = check_repository.replace(GITHUB_SOURCE, '')
         check_directory = os.path.join(_agent_path, CHECKS_PATH, check_repository_uri)
         if not os.path.exists(check_directory):
             os.makedirs(check_directory)
