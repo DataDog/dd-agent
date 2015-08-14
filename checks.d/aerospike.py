@@ -1,14 +1,15 @@
 # stdlib
 
 # project
-from checks import AgentCheck
+
+from aerospike import aerospike_dashboards
+from aerospike import citrusleaf as cl
+from aerospike import interface
+from aerospike import log
 from aerospike.constants import ERROR_CODES
 from aerospike.constants import HASH_KEY
 
-from aerospike import interface
-from aerospike import log
-from aerospike import citrusleaf as cl
-from aerospike import aerospike_dashboards
+from checks import AgentCheck
 
 # global variables
 bcrypt_flag = True
@@ -53,7 +54,7 @@ class Aerospike(AgentCheck):
         user = instance['user']
         password = str(instance['password'])
         cls_mode = instance['cluster_mode']
-        debug_mode = instance['debug_mode']
+        # debug_mode = instance['debug_mode']
         instance_name = str(instance['cluster_name'])
         api_key = str(instance['api_key'])
         api_application_key = str(instance['api_application_key'])

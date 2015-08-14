@@ -1,10 +1,9 @@
 # stdlib
-import time
 import sys
+import time
 # project
 import base
 from constants import ERROR_CODES
-
 import log
 
 sys.path.insert(1, '/usr/local/lib/python2.7/dist-packages/')

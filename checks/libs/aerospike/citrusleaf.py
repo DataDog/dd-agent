@@ -26,14 +26,13 @@
 #
 #
 
-import sys                  # please do not remove. used for stand alone build
+from ctypes import create_string_buffer
 import socket
 import struct
-
-from ctypes import create_string_buffer
-
+import sys                  # please do not remove. used for stand alone build
 from time import time
 import types
+
 import log
 
 try:

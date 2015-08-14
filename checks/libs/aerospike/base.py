@@ -1,16 +1,16 @@
 # stdlib
-from datetime import datetime
+
 import calendar
 from collections import deque
+from datetime import datetime
 
 # project
 import citrusleaf as cl
-import convertor
-import log
 from constants import NOT_SUPPORTED
-from constants import TPS_HISTORY_LIMIT
 from constants import queue_limit
+from constants import TPS_HISTORY_LIMIT
 from constants import UNABLE_TO_CONNECT
+import convertor
 
 
 """Variable definitions"""
