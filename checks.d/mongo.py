@@ -37,8 +37,6 @@ class MongoDb(AgentCheck):
         "mem.virtual",
         "mem.mapped",
         "mem.mappedWithJournal",
-        "cursors.totalOpen",
-        "cursors.timedOut",
         "uptime",
 
 
@@ -59,6 +57,10 @@ class MongoDb(AgentCheck):
         "replSet.state",
         "replSet.replicationLag",
 
+        "metrics.cursor.open.noTimeout",
+        "metrics.cursor.open.pinned",
+        "metrics.cursor.open.total",
+        "metrics.cursor.timedOut",
         "metrics.repl.buffer.count",
         "metrics.repl.buffer.maxSizeBytes",
         "metrics.repl.buffer.sizeBytes",
