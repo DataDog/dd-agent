@@ -461,7 +461,7 @@ class Docker(AgentCheck):
                 candidate = mountpoint
         if candidate is not None:
             return os.path.join(docker_root, candidate)
-        raise Exception("Can't find mounted %s cgroups." % hierarchy) 
+        raise Exception("Can't find mounted %s cgroups." % hierarchy)
 
 
     def _parse_cgroup_file(self, stat_file):
