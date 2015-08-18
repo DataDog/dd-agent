@@ -13,6 +13,9 @@ instances:
     # options:               # Optional
     #   replication: 0
     #   galera_cluster: 1
+    #   extra_status_metrics: 0
+    #   extra_innodb_metrics: 0
+
     # queries:               # Optional
     #  - # Sample Custom metric
     #    query: SELECT TIMESTAMPDIFF(second,MAX(create_time),NOW()) as last_accessed FROM requests
