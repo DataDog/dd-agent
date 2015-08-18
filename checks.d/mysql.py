@@ -15,113 +15,142 @@ import pymysql
 GAUGE = "gauge"
 RATE = "rate"
 
+#Vars found in "SHOW STATUS;"
 STATUS_VARS = {
+    # Command Metrics
     'Slow_queries': ('mysql.performance.slow_queries', RATE),
-    # MySQL command metrics
-    'Queries': ('mysql.performance.queries', RATE),
     'Questions': ('mysql.performance.questions', RATE),
+    'Queries': ('mysql.performance.queries', RATE),
     'Com_select': ('mysql.performance.com_select', RATE),
-    'Com_delete': ('mysql.performance.com_delete', RATE),
     'Com_insert': ('mysql.performance.com_insert', RATE),
     'Com_update': ('mysql.performance.com_update', RATE),
+    'Com_delete': ('mysql.performance.com_delete', RATE),
     'Com_replace': ('mysql.performance.com_replace', RATE),
     'Com_load': ('mysql.performance.com_load', RATE),
-    'Com_delete_multi': ('mysql.performance.com_delete_multi', RATE),
     'Com_insert_select': ('mysql.performance.com_insert_select', RATE),
     'Com_update_multi': ('mysql.performance.com_update_multi', RATE),
+    'Com_delete_multi': ('mysql.performance.com_delete_multi', RATE),
     'Com_replace_select': ('mysql.performance.com_replace_select', RATE),
-    # MySQL connections metrics
-    'Max_connections': ('mysql.net.max_connections_available', GAUGE),
+    # Connection Metrics
+    'Connections': ('mysql.net.connections', RATE),
     'Max_used_connections': ('mysql.net.max_connections', RATE),
     'Aborted_clients': ('mysql.net.aborted_clients', RATE),
     'Aborted_connects': ('mysql.net.aborted_connects', RATE),
-    'Connections': ('mysql.net.connections', RATE),
-    # Table cache metrics
-    'Table_cache_size': ('mysql.performance.table_cache_size', GAUGE),
+    # Table Cache Metrics
     'Open_files': ('mysql.performance.open_files', GAUGE),
     'Open_tables': ('mysql.performance.open_tables', GAUGE),
-    'Opened_tables': ('mysql.performance.opened_tables', RATE),
-    'Table_open_cache_hits': ('mysql.performance.table_cache_hits', RATE),
-    'Table_open_cache_misses': ('mysql.performance.table_cache_misses', RATE),
-    # Handler metrics
-    'Handler_write':('mysql.performance.handler_write', RATE),
-    'Handler_update':('mysql.performance.handler_update', RATE),
-    'Handler_delete':('mysql.performance.handler_delete', RATE),
-    'Handler_read_first':('mysql.performance.handler_read_first', RATE),
-    'Handler_read_key':('mysql.performance.handler_read_key', RATE),
-    'Handler_read_next':('mysql.performance.handler_read_next', RATE),
-    'Handler_read_prev':('mysql.performance.handler_read_prev', RATE),
-    'Handler_read_rnd':('mysql.performance.handler_read_rnd', RATE),
-    'Handler_read_rnd_next':('mysql.performance.handler_read_rnd_next', RATE),
-    'Handler_commit':('mysql.performance.handler_commit', RATE),
-    'Handler_rollback':('mysql.performance.handler_rollback', RATE),
-    # Network metrics
+    # Network Metrics
     'Bytes_sent':('mysql.performance.bytes_sent', RATE),
     'Bytes_received':('mysql.performance.bytes_received', RATE),
-    # Query cache metrics
-    'Qcache_queries_in_cache':('mysql.performance.qcache_queries_in_cache', GAUGE),
-    'Qcache_hits':('mysql.performance.qcache_hits', RATE),
+    # Query Cache Metrics
+    'Qcache_hits': ('mysql.performance.qcache_hits', RATE),
     'Qcache_inserts':('mysql.performance.qcache_inserts', RATE),
-    'Qcache_not_cached':('mysql.performance.qcache_not_cached', RATE),
     'Qcache_lowmem_prunes':('mysql.performance.qcache_lowmem_prunes', RATE),
-    'Qcache_size':('mysql.performance.qcache_size', GAUGE),
-    'Qcache_free_memory':('mysql.performance.qcache_free_memory', GAUGE),
-    # Select query type metrics
-    'Select_full_join':('mysql.performance.select_full_join', RATE),
-    'Select_full_range_join':('mysql.performance.select_full_range_join', RATE),
-    'Select_range':('mysql.performance.select_range', RATE),
-    'Select_range_check':('mysql.performance.select_range_check', RATE),
-    'Select_scan':('mysql.performance.select_scan', RATE),
-    # Sort related metrics
-    'Sort_rows':('mysql.performance.sort_rows', RATE),
-    'Sort_range':('mysql.performance.sort_range', RATE),
-    'Sort_merge_passes':('mysql.performance.sort_merge_passes', RATE),
-    'Sort_scan':('mysql.performance.sort_scan', RATE),
-    # Table locks related metrics
-    'Table_locks_immediate': ('mysql.performance.table_locks_immediate', RATE),
-    'Table_locks_waited': ('mysql.performance.table_locks_waited', RATE),
-    # Temporary table metrics
+    # Table Lock Metrics
+    'Table_locks_waited': ('mysql.performance.table_locks_waited', GAUGE),
+    # Temporary Table Metrics
     'Created_tmp_tables': ('mysql.performance.created_tmp_tables', RATE),
     'Created_tmp_disk_tables': ('mysql.performance.created_tmp_disk_tables', RATE),
     'Created_tmp_files': ('mysql.performance.created_tmp_files', RATE),
-    # MySQL threads metrics
-    'Thread_cache_size': ('mysql.performance.thread_cache_size', GAUGE),
+    # Thread Metrics
     'Threads_connected': ('mysql.performance.threads_connected', GAUGE),
     'Threads_running': ('mysql.performance.threads_running', GAUGE),
-    'Threads_created': ('mysql.performance.threads_created', GAUGE),
-    'Threads_cached': ('mysql.performance.threads_cached', GAUGE),
-    # MyISAM metrics start below
+    # MyISAM Metrics
     'Key_read_requests': ('mysql.myisam.key_read_requests', RATE),
     'Key_reads': ('mysql.myisam.key_reads', RATE),
     'Key_write_requests': ('mysql.myisam.key_write_requests', RATE),
     'Key_writes': ('mysql.myisam.key_writes', RATE),
-    'Key_buffer_size': ('mysql.myisam.key_buffer_size', GAUGE),
-    'Key_buffer_bytes_used': ('mysql.myisam.key_buffer_bytes_used', GAUGE),
+}
+
+#Possibly from SHOW GLOBAL VARIABLES
+VARIABLES_VARS = {
     'Key_buffer_bytes_unflushed': ('mysql.myisam.key_buffer_bytes_unflushed', RATE),
+    'Key_buffer_bytes_used': ('mysql.myisam.key_buffer_bytes_used', GAUGE),
+    'Key_buffer_size': ('mysql.myisam.key_buffer_size', GAUGE),
     'Key_cache_utilization': ('mysql.performance.key_cache_utilization', GAUGE),
-    # Binary log and replication metrics
-    'Binlog_cache_disk_use': ('mysql.binlog.cache_disk_use', GAUGE),
-    'Binlog_cache_use': ('mysql.binlog.cache_use', GAUGE),
-    'Binlog_space_usage_bytes': ('mysql.binlog.disk_use', GAUGE),
-    # InnoDB metrics start below
-    'Innodb_active_transactions': ('mysql.innodb.active_transactions', GAUGE),
-    'Innodb_available_undo_logs': ('mysql.innodb.available_undo_logs', GAUGE),
-    'Innodb_buffer_pool_bytes_data': ('mysql.innodb.buffer_pool_data', GAUGE),
+    'max_connections': ('mysql.net.max_connections_available', GAUGE),
+    'query_cache_size': ('mysql.performance.qcache_size', GAUGE),
+    'table_open_cache': ('mysql.performance.table_open_cache', GAUGE),
+    'thread_cache_size': ('mysql.performance.thread_cache_size', GAUGE)
+
+
+}
+
+INNODB_VARS = {
+    # InnoDB metrics
+    'Innodb_data_reads': ('mysql.innodb.data_reads', RATE),
+    'Innodb_data_writes': ('mysql.innodb.data_writes', RATE),
+    'Innodb_os_log_fsyncs': ('mysql.innodb.os_log_fsyncs', RATE),
+    'Innodb_mutex_spin_waits': ('mysql.innodb.mutex_spin_waits', RATE),
+    'Innodb_mutex_spin_rounds': ('mysql.innodb.mutex_spin_rounds', RATE),
+    'Innodb_mutex_os_waits': ('mysql.innodb.mutex_os_waits', RATE),
+    'Innodb_row_lock_waits': ('mysql.innodb.row_lock_waits', RATE),
+    'Innodb_row_lock_time': ('mysql.innodb.row_lock_time', RATE),
+    'Innodb_row_lock_current_waits': ('mysql.innodb.row_lock_current_waits', GAUGE),
+    'Innodb_current_row_locks': ('mysql.innodb.current_row_locks', GAUGE),
     'Innodb_buffer_pool_bytes_dirty': ('mysql.innodb.buffer_pool_dirty', GAUGE),
     'Innodb_buffer_pool_bytes_free': ('mysql.innodb.buffer_pool_free', GAUGE),
     'Innodb_buffer_pool_bytes_used': ('mysql.innodb.buffer_pool_used', GAUGE),
     'Innodb_buffer_pool_bytes_total': ('mysql.innodb.buffer_pool_total', GAUGE),
+    'Innodb_buffer_pool_read_requests': ('mysql.innodb.buffer_pool_read_requests', RATE),
+    'Innodb_buffer_pool_reads': ('mysql.innodb.buffer_pool_reads', RATE),
+    'Innodb_buffer_pool_pages_utilization': ('mysql.innodb.buffer_pool_utilization', GAUGE),
+}
+
+
+# Calculated from "SHOW MASTER LOGS;"
+BINLOG_VARS = {
+    'Binlog_space_usage_bytes': ('mysql.binlog.disk_use', GAUGE),
+}
+
+# Additional Vars found in "SHOW STATUS;"
+# Will collect if [FLAG NAME] is True
+OPTIONAL_STATUS_VARS = {
+    'Binlog_cache_disk_use': ('mysql.binlog.cache_disk_use', GAUGE),
+    'Binlog_cache_use': ('mysql.binlog.cache_use', GAUGE),
+    'Handler_commit': ('mysql.performance.handler_commit', RATE),
+    'Handler_delete': ('mysql.performance.handler_delete', RATE),
+    'Handler_read_first': ('mysql.performance.handler_read_first', RATE),
+    'Handler_read_key': ('mysql.performance.handler_read_key', RATE),
+    'Handler_read_next': ('mysql.performance.handler_read_next', RATE),
+    'Handler_read_prev': ('mysql.performance.handler_read_prev', RATE),
+    'Handler_read_rnd': ('mysql.performance.handler_read_rnd', RATE),
+    'Handler_read_rnd_next': ('mysql.performance.handler_read_rnd_next', RATE),
+    'Handler_rollback': ('mysql.performance.handler_rollback', RATE),
+    'Handler_update': ('mysql.performance.handler_update', RATE),
+    'Handler_write': ('mysql.performance.handler_write', RATE),
+    'Opened_tables': ('mysql.performance.opened_tables', RATE),
+    'Qcache_free_memory': ('mysql.performance.qcache_free_memory', GAUGE),
+    'Qcache_not_cached': ('mysql.performance.qcache_not_cached', RATE),
+    'Qcache_queries_in_cache': ('mysql.performance.qcache_queries_in_cache', GAUGE),
+    'Select_full_join': ('mysql.performance.select_full_join', RATE),
+    'Select_full_range_join': ('mysql.performance.select_full_range_join', RATE),
+    'Select_range': ('mysql.performance.select_range', RATE),
+    'Select_range_check': ('mysql.performance.select_range_check', RATE),
+    'Select_scan': ('mysql.performance.select_scan', RATE),
+    'Sort_merge_passes': ('mysql.performance.sort_merge_passes', RATE),
+    'Sort_range': ('mysql.performance.sort_range', RATE),
+    'Sort_rows': ('mysql.performance.sort_rows', RATE),
+    'Sort_scan': ('mysql.performance.sort_scan', RATE),
+    'Table_locks_immediate': ('mysql.performance.table_locks_immediate', RATE),
+    # 'Table_open_cache_hits': ('mysql.performance.table_cache_hits', RATE), added in Mysql 5.6.6
+    # 'Table_open_cache_misses': ('mysql.performance.table_cache_misses', RATE), added in Mysql 5.6.6
+    'Threads_cached': ('mysql.performance.threads_cached', GAUGE),
+    'Threads_created': ('mysql.performance.threads_created', GAUGE)
+}
+
+# Will collect if [FLAG NAME] is True
+OPTIONAL_INNODB_VARS = {
+    'Innodb_active_transactions': ('mysql.innodb.active_transactions', GAUGE),
+    'Innodb_buffer_pool_bytes_data': ('mysql.innodb.buffer_pool_data', GAUGE),
     'Innodb_buffer_pool_pages_data': ('mysql.innodb.buffer_pool_pages_data', GAUGE),
     'Innodb_buffer_pool_pages_dirty': ('mysql.innodb.buffer_pool_pages_dirty', GAUGE),
     'Innodb_buffer_pool_pages_flushed': ('mysql.innodb.buffer_pool_pages_flushed', RATE),
     'Innodb_buffer_pool_pages_free': ('mysql.innodb.buffer_pool_pages_free', GAUGE),
     'Innodb_buffer_pool_pages_total': ('mysql.innodb.buffer_pool_pages_total', GAUGE),
-    'Innodb_buffer_pool_pages_utilization': ('mysql.innodb.buffer_pool_utilization', GAUGE),
     'Innodb_buffer_pool_read_ahead': ('mysql.innodb.buffer_pool_read_ahead', RATE),
     'Innodb_buffer_pool_read_ahead_evicted': ('mysql.innodb.buffer_pool_read_ahead_evicted', GAUGE),
     'Innodb_buffer_pool_read_ahead_rnd': ('mysql.innodb.buffer_pool_read_ahead_rnd', GAUGE),
-    'Innodb_buffer_pool_read_requests': ('mysql.innodb.buffer_pool_read_requests', RATE),
-    'Innodb_buffer_pool_reads': ('mysql.innodb.buffer_pool_reads', RATE),
     'Innodb_buffer_pool_wait_free': ('mysql.innodb.buffer_pool_wait_free', GAUGE),
     'Innodb_buffer_pool_write_requests': ('mysql.innodb.buffer_pool_write_requests', RATE),
     'Innodb_checkpoint_age': ('mysql.innodb.checkpoint_age', GAUGE),
@@ -131,8 +160,6 @@ STATUS_VARS = {
     'Innodb_data_pending_reads': ('mysql.innodb.data_pending_reads', GAUGE),
     'Innodb_data_pending_writes': ('mysql.innodb.data_pending_writes', GAUGE),
     'Innodb_data_read': ('mysql.innodb.data_read', GAUGE),
-    'Innodb_data_reads': ('mysql.innodb.data_reads', GAUGE),
-    'Innodb_data_writes': ('mysql.innodb.data_writes', GAUGE),
     'Innodb_data_written': ('mysql.innodb.data_written', GAUGE),
     'Innodb_dblwr_pages_written': ('mysql.innodb.dblwr_pages_written', GAUGE),
     'Innodb_dblwr_writes': ('mysql.innodb.dblwr_writes', GAUGE),
@@ -165,14 +192,9 @@ STATUS_VARS = {
     'Innodb_mem_recovery_system': ('mysql.innodb.mem_recovery_system', GAUGE),
     'Innodb_mem_thread_hash': ('mysql.innodb.mem_thread_hash', GAUGE),
     'Innodb_mem_total': ('mysql.innodb.mem_total', GAUGE),
-    'Innodb_mutex_os_waits': ('mysql.innodb.mutex_os_waits', RATE),
-    'Innodb_mutex_spin_rounds': ('mysql.innodb.mutex_spin_rounds', RATE),
-    'Innodb_mutex_spin_waits': ('mysql.innodb.mutex_spin_waits', RATE),
-    'Innodb_num_open_files': ('mysql.innodb.num_open_files', GAUGE),
     'Innodb_os_file_fsyncs': ('mysql.innodb.os_file_fsyncs', RATE),
     'Innodb_os_file_reads': ('mysql.innodb.os_file_reads', RATE),
     'Innodb_os_file_writes': ('mysql.innodb.os_file_writes', RATE),
-    'Innodb_os_log_fsyncs': ('mysql.innodb.os_log_fsyncs', RATE),
     'Innodb_os_log_pending_fsyncs': ('mysql.innodb.os_log_pending_fsyncs', RATE),
     'Innodb_os_log_pending_writes': ('mysql.innodb.os_log_pending_writes', RATE),
     'Innodb_os_log_written': ('mysql.innodb.os_log_written', RATE),
@@ -191,9 +213,6 @@ STATUS_VARS = {
     'Innodb_queries_inside': ('mysql.innodb.queries_inside', RATE),
     'Innodb_queries_queued': ('mysql.innodb.queries_queued', RATE),
     'Innodb_read_views': ('mysql.innodb.read_views', GAUGE),
-    'Innodb_row_lock_current_waits': ('mysql.innodb.row_lock_current_waits', GAUGE),
-    'Innodb_row_lock_time': ('mysql.innodb.row_lock_time', RATE),
-    'Innodb_row_lock_waits': ('mysql.innodb.row_lock_waits', RATE),
     'Innodb_rows_deleted': ('mysql.innodb.rows_deleted', RATE),
     'Innodb_rows_inserted': ('mysql.innodb.rows_inserted', RATE),
     'Innodb_rows_read': ('mysql.innodb.rows_read', RATE),
@@ -301,94 +320,88 @@ class MySql(AgentCheck):
         return db
 
     def _collect_metrics(self, host, db, tags, options, queries):
-        cursor = db.cursor()
-        cursor.execute("SHOW /*!50002 GLOBAL */ STATUS;")
-        status_results = dict(cursor.fetchall())
-        cursor.execute("SHOW GLOBAL VARIABLES;")
-        variables_results = dict(cursor.fetchall())
-        cursor.close()
-        del cursor
 
-        # Compute MyISAM key cache utilization metric
-        key_blocks_unused = self._collect_scalar('Key_blocks_unused', status_results)
-        key_cache_block_size = self._collect_scalar('key_cache_block_size', variables_results)
-        key_buffer_size = self._collect_scalar('key_buffer_size', variables_results)
-        key_cache_utilization = 1 - ((key_blocks_unused * key_cache_block_size) / key_buffer_size)
+        # collect results from db
+        results = self._get_stats_from_status(db)
+        results.update(self._get_stats_from_variables(db))
 
-
-        status_results['Key_buffer_size'] = key_buffer_size
-        status_results['Key_buffer_bytes_used'] = self._collect_scalar('Key_blocks_used', status_results) * key_cache_block_size
-        status_results['Key_buffer_bytes_unflushed'] = self._collect_scalar('Key_blocks_not_flushed', status_results) * key_cache_block_size
-        status_results['Key_cache_utilization'] = key_cache_utilization
-
-        # Compute additional InnoDB metrics from InnoDB SATUS output.
-        # These additional metrics are then merged with the SHOW GLOBAL STATUS
-        # dictionary. These additional metrics are only computed if InnoDB
-        # engine is enabled
         if self._is_innodb_engine_enabled(db):
-            innodb_additional_stats = self._get_stats_from_innodb_status(db)
-            innodb_additional_stats.update(status_results)
-            status_results = innodb_additional_stats
-
-            innodb_page_size = self._collect_scalar('Innodb_page_size', status_results)
-            innodb_buffer_pool_pages_data = self._collect_scalar('Innodb_buffer_pool_pages_data', status_results)
-            innodb_buffer_pool_pages_dirty = self._collect_scalar('Innodb_buffer_pool_pages_dirty', status_results)
-            innodb_buffer_pool_pages_total = self._collect_scalar('Innodb_buffer_pool_pages_total', status_results)
-            innodb_buffer_pool_pages_free = self._collect_scalar('Innodb_buffer_pool_pages_free', status_results)
+            results.update(self._get_stats_from_innodb_status(db))
+            innodb_page_size = self._collect_scalar('Innodb_page_size', results)
+            innodb_buffer_pool_pages_data = self._collect_scalar('Innodb_buffer_pool_pages_data', results)
+            innodb_buffer_pool_pages_dirty = self._collect_scalar('Innodb_buffer_pool_pages_dirty', results)
+            innodb_buffer_pool_pages_total = self._collect_scalar('Innodb_buffer_pool_pages_total', results)
+            innodb_buffer_pool_pages_free = self._collect_scalar('Innodb_buffer_pool_pages_free', results)
             innodb_buffer_pool_pages_used = innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free
 
-            if 'Innodb_buffer_pool_bytes_data' not in status_results:
-                status_results['Innodb_buffer_pool_bytes_data'] = innodb_buffer_pool_pages_data * innodb_page_size
+            if 'Innodb_buffer_pool_bytes_data' not in results:
+                results['Innodb_buffer_pool_bytes_data'] = innodb_buffer_pool_pages_data * innodb_page_size
 
-            if 'Innodb_buffer_pool_bytes_dirty' not in status_results:
-                status_results['Innodb_buffer_pool_bytes_dirty'] = innodb_buffer_pool_pages_dirty * innodb_page_size
+            if 'Innodb_buffer_pool_bytes_dirty' not in results:
+                results['Innodb_buffer_pool_bytes_dirty'] = innodb_buffer_pool_pages_dirty * innodb_page_size
 
-            if 'Innodb_buffer_pool_bytes_free' not in status_results:
-                status_results['Innodb_buffer_pool_bytes_free'] = innodb_buffer_pool_pages_free * innodb_page_size
+            if 'Innodb_buffer_pool_bytes_free' not in results:
+                results['Innodb_buffer_pool_bytes_free'] = innodb_buffer_pool_pages_free * innodb_page_size
 
-            if 'Innodb_buffer_pool_bytes_total' not in status_results:
-                status_results['Innodb_buffer_pool_bytes_total'] = innodb_buffer_pool_pages_total * innodb_page_size
+            if 'Innodb_buffer_pool_bytes_total' not in results:
+                results['Innodb_buffer_pool_bytes_total'] = innodb_buffer_pool_pages_total * innodb_page_size
 
-            if 'Innodb_buffer_pool_pages_utilization' not in status_results:
-                status_results['Innodb_buffer_pool_pages_utilization'] = innodb_buffer_pool_pages_used / innodb_buffer_pool_pages_total
+            if 'Innodb_buffer_pool_pages_utilization' not in results:
+                results['Innodb_buffer_pool_pages_utilization'] = innodb_buffer_pool_pages_used / innodb_buffer_pool_pages_total
 
-            if 'Innodb_buffer_pool_bytes_used' not in status_results:
-                status_results['Innodb_buffer_pool_bytes_used'] = innodb_buffer_pool_pages_used * innodb_page_size
+            if 'Innodb_buffer_pool_bytes_used' not in results:
+                results['Innodb_buffer_pool_bytes_used'] = innodb_buffer_pool_pages_used * innodb_page_size
 
         # Binary log statistics
-        binlog_enabled = self._collect_string('log_bin', variables_results)
+        binlog_enabled = self._collect_string('log_bin', results)
         if binlog_enabled is not None and binlog_enabled.lower().strip() == 'on':
-            status_results['Binlog_space_usage_bytes'] = self._get_binary_log_stats(db)
+            results['Binlog_space_usage_bytes'] = self._get_binary_log_stats(db)
 
-        # Additional connection statistics
-        status_results['Max_connections'] = self._collect_scalar('max_connections', variables_results)
+        # Compute key cache utilization metric
+        key_blocks_unused = self._collect_scalar('Key_blocks_unused', results)
+        key_cache_block_size = self._collect_scalar('key_cache_block_size', results)
+        key_buffer_size = self._collect_scalar('key_buffer_size', results)
+        key_cache_utilization = 1 - ((key_blocks_unused * key_cache_block_size) / key_buffer_size)
 
-        # Additional table cache statistics
-        status_results['Table_cache_size'] = self._collect_scalar('table_open_cache', variables_results)
+        results['Key_buffer_size'] = key_buffer_size
+        results['Key_buffer_bytes_used'] = self._collect_scalar('Key_blocks_used', results) * key_cache_block_size
+        results['Key_buffer_bytes_unflushed'] = self._collect_scalar('Key_blocks_not_flushed', results) * key_cache_block_size
+        results['Key_cache_utilization'] = key_cache_utilization
 
-        # Additional query cache statistics
-        status_results['Qcache_size'] = self._collect_scalar('query_cache_size', variables_results)
+        #Get aggregate of all VARS we want to collect
+        VARS = STATUS_VARS
+        VARS.update(VARIABLES_VARS)
+        VARS.update(INNODB_VARS)
+        VARS.update(BINLOG_VARS)
 
-        # Additional threads cache statistics
-        status_results['Thread_cache_size'] = self._collect_scalar('thread_cache_size', variables_results)
+        if 'extra_status_metrics' in options and options['extra_status_metrics']:
+            self.log.debug("Collecting Extra Status Metrics")
+            VARS.update(OPTIONAL_STATUS_VARS)
 
-        # Register the metrics with Datadog using appropriate type,
-        # either RATE or GUAGE
-        self._rate_or_gauge_statuses(STATUS_VARS, status_results, tags)
+        if 'extra_innodb_metrics' in options and options['extra_innodb_metrics']:
+            self.log.debug("Collecting Extra Innodb Metrics")
+            VARS.update(OPTIONAL_INNODB_VARS)
+
+        self._rate_or_gauge_vars(VARS, results, tags)
 
         if 'galera_cluster' in options and options['galera_cluster']:
-            value = self._collect_scalar('wsrep_cluster_size', status_results)
+            value = self._collect_scalar('wsrep_cluster_size', results)
             self.gauge('mysql.galera.wsrep_cluster_size', value, tags=tags)
 
         if 'replication' in options and options['replication']:
             # get slave running form global status page
-            slave_running = self._collect_string('Slave_running', status_results)
+            slave_running = self._collect_string('Slave_running', results)
             if slave_running is not None:
                 if slave_running.lower().strip() == 'on':
                     slave_running = 1
                 else:
                     slave_running = 0
                 self.gauge("mysql.replication.slave_running", slave_running, tags=tags)
+            self._collect_dict(
+                GAUGE,
+                {"Seconds_behind_master": "mysql.replication.seconds_behind_master"},
+                "SHOW SLAVE STATUS", db, tags=tags
+            )
 
         # Collect custom query metrics
         # Max of 20 queries allowed
@@ -404,16 +417,10 @@ class MySql(AgentCheck):
     def _collect_metadata(self, db, host):
         self._get_version(db, host)
 
-            field_metric_map = {
-                "Seconds_behind_master": "mysql.replication.seconds_behind_master",
-                "Relay_Log_Space": "mysql.replication.relay_log_disk_use"
-            }
-            self._collect_dict(GAUGE, field_metric_map, "SHOW SLAVE STATUS", db, tags=tags)
-
-    def _rate_or_gauge_statuses(self, statuses, dbResults, tags):
-        for status, metric in statuses.iteritems():
+    def _rate_or_gauge_vars(self, variables, dbResults, tags):
+        for variable, metric in variables.iteritems():
             metric_name, metric_type = metric
-            value = self._collect_scalar(status, dbResults)
+            value = self._collect_scalar(variable, dbResults)
             if value is not None:
                 if metric_type == RATE:
                     self.rate(metric_name, value, tags=tags)
@@ -593,6 +600,22 @@ class MySql(AgentCheck):
 
         return pid
 
+    def _get_stats_from_status(self, db):
+        cursor = db.cursor()
+        cursor.execute("SHOW /*!50002 GLOBAL */ STATUS;")
+        results = dict(cursor.fetchall())
+        cursor.close()
+        del cursor
+        return results
+
+    def _get_stats_from_variables(self, db):
+        cursor = db.cursor()
+        cursor.execute("SHOW GLOBAL VARIABLES;")
+        results = dict(cursor.fetchall())
+        cursor.close()
+        del cursor
+        return results
+
     def _get_binary_log_stats(self, db):
         cursor = db.cursor()
         cursor.execute("SHOW MASTER LOGS;")
@@ -635,7 +658,7 @@ class MySql(AgentCheck):
         cursor.close()
         del cursor
 
-        results  = {
+        results = {
             'Innodb_mutex_spin_waits': 0,
             'Innodb_mutex_spin_rounds': 0,
             'Innodb_mutex_os_waits': 0,
@@ -782,6 +805,10 @@ class MySql(AgentCheck):
                 if line.find('LOCK WAIT') == 0:
                     results['Innodb_lock_structs'] += long(row[2])
                     results['Innodb_locked_transactions'] += 1
+                elif line.find('ROLLING BACK') == 0:
+                    # ROLLING BACK 127539 lock struct(s), heap size 15201832,
+                    # 4411492 row lock(s), undo log entries 1042488
+                    results['Innodb_lock_structs'] += long(row[2])
                 else:
                     results['Innodb_lock_structs'] += long(row[0])
 
@@ -849,7 +876,7 @@ class MySql(AgentCheck):
                 results['Innodb_log_writes'] = long(row[0])
             elif line.find(" pending log writes, ") > 0:
                 # 0 pending log writes, 0 pending chkp writes
-                results['Innodb_pending_log_writes']  = long(row[0])
+                results['Innodb_pending_log_writes'] = long(row[0])
                 results['Innodb_pending_checkpoint_writes'] = long(row[4])
             elif line.find("Log sequence number") == 0:
                 # This number is NOT printed in hex in InnoDB plugin.
