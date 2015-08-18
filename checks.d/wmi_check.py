@@ -112,14 +112,15 @@ class WMICheck(AgentCheck):
                 elif getattr(res, wmi_property):
                     val = float(getattr(res, wmi_property))
                 else:
-                    self.log.warning("When extracting metrics with wmi, found a null value for property '{0}'. "
-                                     "Metric type of property is {1}."
+                    self.log.warning("When extracting metrics with wmi, found a null value"
+                                     " for property '{0}'. Metric type of property is {1}."
                                      .format(wmi_property, mtype))
+                    continue
 
+                # Submit the metric to Datadog
                 try:
                     func = getattr(self, mtype)
                 except AttributeError:
                     raise Exception('Invalid metric type: {0}'.format(mtype))
 
-                # submit the metric to datadog
                 func(name, val, tags=tags)
