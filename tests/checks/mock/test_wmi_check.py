@@ -104,8 +104,12 @@ class Mocked_Win32_Service(object):
     """
     Generate Mocked Win32 Service from given attributes
     """
-    def __init__(self, **entries):
+    def __init__(self, wmi_conn_args=None, **entries):
+        self._wmi_conn_args = wmi_conn_args
         self.__dict__.update(entries)
+
+    def get_conn_args(self):
+        return self._wmi_conn_args
 
     def query(self, q):
         if q == "SELECT CommandLine FROM Win32_Process WHERE Handle = 4036":
@@ -116,7 +120,7 @@ class Mocked_Win32_Service(object):
 
 class Mocked_WMI(object):
     """
-    Mock WMI methods for test purpose
+    Mock WMI methods for test purpose.
     """
     def __init__(self, mocked_wmi_classes):
         # Make WMI classes callable
@@ -128,15 +132,25 @@ class Mocked_WMI(object):
 
         self._mocked_classes = mocked_wmi_classes
 
-    def WMI(self, host, user, password):
+    def WMI(self, *args, **kwargs):
         """
-        Return a mock WMI object with a mock class
+        Return a mock WMI object with a mock class.
         """
-        return Mocked_Win32_Service(**self._mocked_classes)
+        wmi_conn_args = (args, kwargs)
+        return Mocked_Win32_Service(wmi_conn_args, **self._mocked_classes)
 
 
 class WMITestCase(AgentCheckTest):
     CHECK_NAME = 'wmi_check'
+
+    WMI_CONNECTION_CONFIG = {
+        'host': "myhost",
+        'namespace': "some/namespace",
+        'username': "datadog",
+        'password': "datadog",
+        'class': "Win32_OperatingSystem",
+        'metrics': []
+    }
 
     CONFIG = {
         'class': "Win32_OperatingSystem",
@@ -170,9 +184,42 @@ class WMITestCase(AgentCheckTest):
                     Mocked_Win32_Service(**Win32_PerfFormattedData_PerfProc_Process_attr),
             })
 
+    def assertWMIConnWith(self, wmi_instance, param):
+        """
+        Helper, assert that the WMI connection was established with the right parameter and value.
+        """
+        wmi_conn_args, wmi_conn_kwargs = wmi_instance.get_conn_args()
+        if isinstance(param, tuple):
+            key, value = param
+            self.assertIn(key, wmi_conn_kwargs)
+            self.assertEquals(wmi_conn_kwargs[key], value)
+        else:
+            self.assertIn(param, wmi_conn_args)
+
+    def test_wmi_conn(self):
+        """
+        Establish a WMI connection to the specificied host/namespace, with the right credentials.
+        """
+        # Run check
+        config = {
+            'instances': [self.WMI_CONNECTION_CONFIG]
+        }
+
+        self.run_check(config)
+
+        # WMI connection is cached
+        self.assertIn('myhost:datadog:some/namespace:datadog', self.check.wmi_conns)
+
+        # `host`, `namespace, and credentials are passed to `wmi.WMI` method
+        wmi_instance = self.check.wmi_conns['myhost:datadog:some/namespace:datadog']
+        self.assertWMIConnWith(wmi_instance, "myhost")
+        self.assertWMIConnWith(wmi_instance, ('namespace', "some/namespace"))
+        self.assertWMIConnWith(wmi_instance, ('user', "datadog"))
+        self.assertWMIConnWith(wmi_instance, ('password', "datadog"))
+
     def test_check(self):
         """
-        Collect WMI metrics + `constant_tags`
+        Collect WMI metrics + `constant_tags`.
         """
         # Run check
         config = {

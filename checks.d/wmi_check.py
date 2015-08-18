@@ -20,17 +20,19 @@ class WMICheck(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.wmi_conns = {}
 
-    def _get_wmi_conn(self, host, user, password):
-        key = "%s:%s:%s" % (host, user, password)
+    def _get_wmi_conn(self, host, **kwargs):
+        key = "{0}:".format(host)
+        key += ":".join(str(v) for v in kwargs.values())
         if key not in self.wmi_conns:
-            self.wmi_conns[key] = wmi.WMI(host, user=user, password=password)
+            self.wmi_conns[key] = wmi.WMI(host, **kwargs)
         return self.wmi_conns[key]
 
     def check(self, instance):
         host = instance.get('host', None)
+        namespace = instance.get('namespace', None)
         user = instance.get('username', None)
         password = instance.get('password', None)
-        w = self._get_wmi_conn(host, user, password)
+        w = self._get_wmi_conn(host, namespace=namespace, user=user, password=password)
         wmi_class = instance.get('class')
         metrics = instance.get('metrics')
         filters = instance.get('filters')
