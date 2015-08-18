@@ -132,7 +132,7 @@ class BTRFS(AgentCheck):
                 ]
 
                 free = total_bytes - used_bytes
-                usage = float(free) / float(total_bytes)
+                usage = float(used_bytes) / float(total_bytes)
 
                 self.gauge('system.disk.btrfs.total', total_bytes, tags=tags, device_name=device)
                 self.gauge('system.disk.btrfs.used', used_bytes, tags=tags, device_name=device)
