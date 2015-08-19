@@ -14,6 +14,7 @@ http://ryrobes.com/python/running-python-scripts-as-a-windows-service/
 # 3p
 import os
 import time
+import psutil
 
 import win32api
 import subprocess
@@ -22,15 +23,15 @@ import win32service
 import win32serviceutil
 import servicemanager
 
+import ctypes
+from ctypes import wintypes, windll
+
 
 def _windows_commondata_path():
     """Return the common appdata path, using ctypes
     From http://stackoverflow.com/questions/626796/\
     how-do-i-find-the-windows-common-application-data-folder-using-python
     """
-    import ctypes
-    from ctypes import wintypes, windll
-
     CSIDL_COMMON_APPDATA = 35
 
     _SHGetFolderPath = windll.shell32.SHGetFolderPathW
@@ -60,12 +61,29 @@ class AgentService(win32serviceutil.ServiceFramework):
         win32serviceutil.ServiceFramework.__init__(self, args)
 
         self.log_path = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'service.log')
-        self.supervisor_log_path = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'supervisor.log')
 
-        self.agent_path = os.path.dirname(os.path.realpath(__file__)) + "\\supervisor.py'
+        self.agent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        self.log("Agent path: {0}".format(self.agent_path))
+        self.proc = None
 
     def SvcStop(self):
         """ Called when Windows wants to stop the service """
+        # Happy endings
+        if self.proc is not None:
+            self.log("Killing supervisor")
+            # Not so happy actually. This is dirty but there is no other simple way
+            # We seem to have to kill all our subprocess the violent way...
+            parent=psutil.Process(self.proc.pid)
+            children = parent.children(recursive=True)
+            for child in children:
+                child.kill()
+            # Kids, you have 4 seconds to die !
+            parent.kill()
+            psutil.wait_procs([parent] + children, timeout=4)
+            #
+            self.log("The supervisor and all his child processes have been killed.")
+
+        # We can sleep quietly now
         win32event.SetEvent(self.h_wait_stop)
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
 
@@ -79,16 +97,16 @@ class AgentService(win32serviceutil.ServiceFramework):
         # appropriate log file. This program also logs a minimalistic set of
         # lines in the same supervisor.log.
 
-        log_pipe = open(self.supervisor_log_path, 'a')
         self.log("Starting Supervisor!")
-        self.log(os.getcwd())
 
         # Since we don't call terminate here, the execution of the supervisord
         # will be performed in a non blocking way. If an error is triggered
         # here, tell windows we're closing the service and report accordingly
         try:
-            proc = subprocess.Popen(["python", self.agent_path , "start"],
-                stdout=log_pipe, stderr=log_pipe)
+            os.chdir(self.agent_path)
+
+            self.proc = subprocess.Popen(["python", "windows_supervisor.py" , "start"], shell=True)
+            os.chdir(self.agent_path + "\\win32")
         except WindowsError as e:
             self.log("WindowsError occured when starting our supervisor :\n\t"
                      "[Errno {1}] {0}".
@@ -101,6 +119,8 @@ class AgentService(win32serviceutil.ServiceFramework):
             self.SvcStop()
             return
 
+        self.log("Supervisor started!")
+
         # Let's wait for our user to send a sigkill. We can't have RunSvc exit
         # before we actually kill our subprocess (the while True is just a
         # paranoia check in case win32event.INFINITE isn't really... infinite)
@@ -110,11 +130,7 @@ class AgentService(win32serviceutil.ServiceFramework):
                 self.log("Service stop requested")
                 break
 
-        # Happy endings
-        self.log("Killing supervisor")
-        proc.terminate()
-        self.log("Supervisor killed")
-        log_pipe.close()
+        self.log("Service stopped")
 
     def log(self, msg):
         with open(self.log_path, 'a') as logfile:
@@ -129,13 +145,6 @@ if __name__ == '__main__':
     # really need the console to be used on windows (do we?) so let's just don't
     # do anything here.
     win32api.SetConsoleCtrlHandler(lambda ctrlType: True, True)
-
-    # Let's handle traditionnal SIGTERMs in case we're killing the pythonservice.exe
-    # process from the task manager... a common operation on Windows :)
-    def bye_bye():
-        win32event.SetEvent(AgentService.h_wait_stop)
-
-    win32api.SetConsoleCtrlHandler(bye_bye, True)
 
     # And here we go !
     win32serviceutil.HandleCommandLine(AgentService)
