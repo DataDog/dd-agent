@@ -467,49 +467,87 @@ class EC2(object):
         except Exception:
             return None
 
+if os.name == 'nt':
+    class Watchdog(object):
+        """ Simple psutil based watchdog for WIndows (and possibly for Unix one
+        day too. Theoretically it should work but maybe it's wiser to take the
+        risk to switch Watchdogs on Unix for a later release :)
+        For now it only restarts if a certain amount of memory is exceeded.
+        Actually it shouldn't be a problem. Supervisord and the new supervisor
+        on Windows will make sure that all process die accordingly"""
 
-class Watchdog(object):
-    """Simple signal-based watchdog that will scuttle the current process
-    if it has not been reset every N seconds, or if the processes exceeds
-    a specified memory threshold.
-    Can only be invoked once per process, so don't use with multiple threads.
-    If you instantiate more than one, you're also asking for trouble.
-    """
-    def __init__(self, duration, max_mem_mb = None):
-        import resource
+        def __init__(self, duration, max_mem_mb = None):
+            import psutil
 
-        #Set the duration
-        self._duration = int(duration)
-        signal.signal(signal.SIGALRM, Watchdog.self_destruct)
+            self._duration = int(duration)
 
-        # cap memory usage
-        if max_mem_mb is not None:
-            self._max_mem_kb = 1024 * max_mem_mb
-            max_mem_bytes = 1024 * self._max_mem_kb
-            resource.setrlimit(resource.RLIMIT_AS, (max_mem_bytes, max_mem_bytes))
-            self.memory_limit_enabled = True
-        else:
-            self.memory_limit_enabled = False
+            if max_mem_mb is not None:
+                self._max_mem_kb = 1024 * max_mem_mb
+                max_mem_bytes = 1024 * self._max_mem_kb
+                self.memory_limit_enabled = True
+            else:
+                self.memory_limit_enabled = False
 
-    @staticmethod
-    def self_destruct(signum, frame):
-        try:
-            import traceback
-            log.error("Self-destructing...")
-            log.error(traceback.format_exc())
-        finally:
-            os.kill(os.getpid(), signal.SIGKILL)
+        @staticmethod
+        def self_destruct():
+            try:
+                import traceback
+                log.error("Self-destructing...")
+                log.error(traceback.format_exc())
+            finally:
+                psutil.Process().kill()
+
+        def reset(self):
+            if self.memory_limit_enabled:
+                mem_usage_kb = psutil.Process().memory_info[0] + \
+                               psutil.Process().memory_info[1]
+
+                if mem_usage_kb > (0.95 * self._max_mem_kb):
+                    Watchdog.self_destruct()
+
+else:
+    class Watchdog(object):
+        """Simple signal-based watchdog that will scuttle the current process
+        if it has not been reset every N seconds, or if the processes exceeds
+        a specified memory threshold.
+        Can only be invoked once per process, so don't use with multiple threads.
+        If you instantiate more than one, you're also asking for trouble.
+        """
+        def __init__(self, duration, max_mem_mb = None):
+            import resource
+
+            #Set the duration
+            self._duration = int(duration)
+            signal.signal(signal.SIGALRM, Watchdog.self_destruct)
+
+            # cap memory usage
+            if max_mem_mb is not None:
+                self._max_mem_kb = 1024 * max_mem_mb
+                max_mem_bytes = 1024 * self._max_mem_kb
+                resource.setrlimit(resource.RLIMIT_AS, (max_mem_bytes, max_mem_bytes))
+                self.memory_limit_enabled = True
+            else:
+                self.memory_limit_enabled = False
+
+        @staticmethod
+        def self_destruct(signum, frame):
+            try:
+                import traceback
+                log.error("Self-destructing...")
+                log.error(traceback.format_exc())
+            finally:
+                os.kill(os.getpid(), signal.SIGKILL)
 
 
-    def reset(self):
-        # self destruct if using too much memory, as tornado will swallow MemoryErrors
-        if self.memory_limit_enabled:
-            mem_usage_kb = int(os.popen('ps -p %d -o %s | tail -1' % (os.getpid(), 'rss')).read())
-            if mem_usage_kb > (0.95 * self._max_mem_kb):
-                Watchdog.self_destruct(signal.SIGKILL, sys._getframe(0))
+        def reset(self):
+            # self destruct if using too much memory, as tornado will swallow MemoryErrors
+            if self.memory_limit_enabled:
+                mem_usage_kb = int(os.popen('ps -p %d -o %s | tail -1' % (os.getpid(), 'rss')).read())
+                if mem_usage_kb > (0.95 * self._max_mem_kb):
+                    Watchdog.self_destruct(signal.SIGKILL, sys._getframe(0))
 
-        log.debug("Resetting watchdog for %d" % self._duration)
-        signal.alarm(self._duration)
+            log.debug("Resetting watchdog for %d" % self._duration)
+            signal.alarm(self._duration)
 
 
 class LaconicFilter(logging.Filter):

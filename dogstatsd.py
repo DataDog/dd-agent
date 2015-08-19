@@ -2,7 +2,6 @@
 """
 A Python Statsd implementation with some datadog special sauce.
 """
-
 # set up logging before importing any other components
 from config import initialize_logging  # noqa
 initialize_logging('dogstatsd')
@@ -12,9 +11,9 @@ from utils.proxy import set_no_proxy_settings  # noqa
 set_no_proxy_settings()
 
 # stdlib
+import os
 import logging
 import optparse
-import os
 import select
 import signal
 import socket

@@ -122,11 +122,12 @@ class Agent(Daemon):
         # Gracefully exit on sigterm.
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
-        # A SIGUSR1 signals an exit with an autorestart
-        signal.signal(signal.SIGUSR1, self._handle_sigusr1)
+        if os.name != 'nt':
+            # A SIGUSR1 signals an exit with an autorestart
+            signal.signal(signal.SIGUSR1, self._handle_sigusr1)
 
-        # Handle Keyboard Interrupt
-        signal.signal(signal.SIGINT, self._handle_sigterm)
+            # Handle Keyboard Interrupt
+            signal.signal(signal.SIGINT, self._handle_sigterm)
 
         # A SIGHUP signals a configuration reload
         signal.signal(signal.SIGHUP, self._handle_sighup)
