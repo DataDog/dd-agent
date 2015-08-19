@@ -75,6 +75,16 @@ namespace :ci do
       sh %(#{couchdb_rootdir}/bin/couchdb -b)
       # Couch takes some time to start
       Wait.for 5984
+
+      # Create a test database
+      sh %(curl -X PUT http://localhost:5984/kennel)
+
+      # Create a user
+      sh %(curl -X PUT http://localhost:5984/_config/admins/dduser -d '"pawprint"')
+
+      # Restrict test databse to authenticated user
+      sh %(curl -X PUT http://dduser:pawprint@127.0.0.1:5984/kennel/_security \
+           -d '{"admins":{"names":[],"roles":[]},"members":{"names":["dduser"],"roles":[]}}')
     end
 
     task script: ['ci:common:script'] do
