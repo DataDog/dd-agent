@@ -170,13 +170,13 @@ class MesosMaster(AgentCheck):
 
     def _check_leadership(self, url, timeout):
         state_metrics = self._get_master_state(url, timeout)
+        self.leader = False
 
         if state_metrics is not None:
             self.version = map(int, state_metrics['version'].split('.'))
             if state_metrics['leader'] == state_metrics['pid']:
                 self.leader = True
-        else:
-            self.leader = False
+
         return state_metrics
 
     def check(self, instance):
