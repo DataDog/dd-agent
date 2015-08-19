@@ -1,6 +1,130 @@
 Changes
 =======
 
+# 5.5.0 / Unreleased
+### Details
+https://github.com/DataDog/dd-agent/compare/5.4.4...5.5.0
+
+### New integrations
+* Consul
+* Fail2ban
+
+### Updated integrations
+* Agent Metrics
+* Amazon EC2
+* Couchbase
+* Disk
+* Docker
+* Elasticsearch
+* etcd
+* Google Compute Engine
+* HTTP Check
+* JMXFetch
+* MongoDB
+* MySQL
+* Nginx
+* PostgreSQL
+* Process
+* RabbitMQ
+* Redis
+* Supervisor
+* Windows Event Viewer
+
+### OS X Installer
+The Datadog Agent can be installed on Mac OS X via a DMG package.
+For more information, please visit [our Integrations/Agent page](https://app.datadoghq.com/account/settings#agent/mac).
+
+### Windows 64bit - Datadog Agent
+The Datadog Agent is now available in a 64bit version on Windows.
+For more information, please visit [our Integrations/Agent page](https://app.datadoghq.com/account/settings#agent/windows).
+
+### Consul check
+New [Consul](https://www.consul.io/) check.
+
+Supported metrics:
+
+* Number of Consul Agents in the Cluter
+    `consul.peers`: tagged by `consul_datacenter` and mode (`leader` | `follower`)
+* Consul Catalog Nodes Up by Service
+    `consul.catalog.nodes_up`: tagged by `consul_datacenter` and `consul_service_id`
+* Consul Catalog Services Up by Node
+    `consul.catalog.services_up`: tagged by `consul_datacenter` and `consul_node_id`
+
+Supported events:
+
+* `consul.new_leader` events when a leader change is detected.
+
+See [#1628][]
+
+### Flare on Windows
+Datadog Agent `flare` feature makes easy to ship a tarball with logs and configurations to ease agent troubleshooting. Previously exclusive to Linux, it's now available on Windows.
+For more information, please visit [our wiki page](https://github.com/DataDog/dd-agent/wiki/Send-logs-to-support).
+
+### [WARNING] JMX `host` tag issues & potential backward incompatibilities issues with service check monitors
+JMX related checks -c.f. list below- were illegitimately submitting service checks tagged with the `host` value defined in the YAML configuration file. As it was overriding the agent hostname, with a value often equals to `localhost`, it was difficult to define and scope monitors based on these service checks.
+
+The issue is addressed. JMX service checks have a new `jmx_server` tag which contains the YAML configuration host value so it does not replace the actual agent hostname in the `host` tag anymore.
+
+**Warning**: these changes affect your JMX-service-checks related existing monitors scoped with the `host` tag. For more information, please get in touch with support[@datadoghq][].com
+
+*JMX related checks*: ActiveMQ, Cassandra, JMX, Solr, Tomcat.
+
+
+See [#66](https://github.com/DataDog/jmxfetch/pull/66)
+
+### Deprecation notice
+
+####  Generic Mesosphere check
+The previous generic Mesosphere check is deprecated, in favor of the Mesosphere master and slave specific checks introduced in the 5.4.0 release. It will be removed in a future version of the Datadog Agent.
+
+See [#1535][]
+
+#### `datadog.conf` disk options
+[Disk options](https://github.com/DataDog/dd-agent/blob/master/datadog.conf.example#L137-L146) in `datadog.conf` file are being deprecated to promote the new Disk check introduced in the 5.4.0 release. It will be removed in a future version of the Datadog Agent.
+Please consider [conf.d/disk.yaml](https://github.com/DataDog/dd-agent/blob/master/conf.d/disk.yaml.default) instead to configure it.
+
+See [#1758][]
+
+### Changes
+* [FEATURE] Consul: New check reporting cluster, service and node wide metrics and events for leader election. See [#1628][]
+* [FEATURE] Elasticsearch: Support shard level metrics. See [#1752][]
+* [FEATURE] etcd: SSL support. See [#1745][] (Thanks [@KnownSubset][])
+* [FEATURE] Fail2ban: New check reporting metrics from the server status. See [#1427][] (Thanks [@brettlangdon][])
+* [FEATURE] Flare: Add JMXFetch-specific information. See [#1726][]
+* [FEATURE] Flare: Log permissions on collected files. See [#1767][]
+* [FEATURE] Flare: Windows support. See [#1773][]
+* [FEATURE] HTTP Check: Add SSL certificate configuration and validation options. See [#1720][]
+* [FEATURE] JMXFetch: Memory saving by limiting MBeans queries to certain scopes. See [#63](https://github.com/DataDog/jmxfetch/issues/63)
+* [FEATURE] JMXFetch: Wildcard support on domains and bean names. See [#57](https://github.com/DataDog/jmxfetch/issues/57)
+* [FEATURE] MySQL: Custom query metrics. See [#1793][] (Thanks [@obi11235][])
+* [FEATURE] Nginx: Option to disable SSL validation. See [#1626][] [#1782][]
+* [FEATURE] PostgreSQL: SSL support. See [#1696][] (Thanks [@bdotdub][])
+* [FEATURE] PostgreSQL: Support for relation schemas. See [#1771][]
+* [FEATURE] RabbitMQ: Collect the number of RabbitMQ partitions per node. See [#1715][] (Thanks [@ulich][])
+* [FEATURE] Supervisor: Option to select processes to monitor by regex name match. See [#1747][] (Thanks [@ckrough][])
+
+* [IMPROVEMENT] Docker: Add an `image_repository` tag to the docker check. See [#1691][]
+* [IMPROVEMENT] Docker: Add logging around API response parsing. See [#1744][]
+* [IMPROVEMENT] Windows Event Viewer: Better configuration YAML example file. See [#1734][]
+
+* [BUGFIX] Agent Metrics: Fix the configuration YAML example file rights. See [#1725][]
+* [BUGFIX] Amazon EC2: Update metadata endpoint list to avoid redirections. See [#1750][] (Thanks [@dspangen][])
+* [BUGFIX] Couchbase: Send service check tags on OK status. See [#1722][] [#1776][]
+* [BUGFIX] Disk: Recalculate `disk.in_use` to make consistent with `df`'s 'Use% metric'. See [#1785][]
+* [BUGFIX] Docker: Fallback when Docker Remote API `/events` returns an invalid JSON. See [#1757][]
+* [BUGFIX] Docker: Kubernetes support -new cgroups path-. See [#1759][]
+* [BUGFIX] Docker: Strip newlines from API responses to avoid parsing issues. See [#1727][]
+* [BUGFIX] Fix developer mode configuration on Windows. See [#1717][]
+* [BUGFIX] Google Compute Engine: Update hostname to be unique. See [#1736][], [#1737][]
+* [BUGFIX] HTTP Check: Handle `requests` timeout exceptions to send the appropriate service check. See [#1761][]
+* [BUGFIX] JMXFetch: Fix indentation in the configuration YAML example file. See [#1774][]
+* [BUGFIX] MongoDB: Clean password from `state changed` events. See [#1789][]
+* [BUGFIX] Process: Correctly handle disappearing PID. See [#1721][] [#1772][]
+* [BUGFIX] Redis: Handle the exception when CONFIG command is disabled. See [#1755][]
+* [BUGFIX] Windows Event Viewer: Fix indentation in the configuration YAML example file. See [#1725][]
+* [BUGFIX] JMXFetch: Do not override service checks's `host` tag with JMX host. See [#66](https://github.com/DataDog/jmxfetch/issues/66)
+
+
 # 5.4.4 / 08-05-2015
 **Source Install only**
 
@@ -9,6 +133,7 @@ https://github.com/DataDog/dd-agent/compare/5.4.3...5.4.4
 
 ### Changes
 * [BUGFIX] Update `ntplib` to 0.3.3 to fix source install requirements. See [#1792][]
+
 
 # 5.4.3 / 07-13-2015
 **Linux or Source Install only**
@@ -1402,8 +1527,11 @@ If you use ganglia, you want this version.
 [#42]: https://github.com/DataDog/dd-agent/issues/42
 [#51]: https://github.com/DataDog/dd-agent/issues/51
 [#55]: https://github.com/DataDog/dd-agent/issues/55
+[#57]: https://github.com/DataDog/dd-agent/issues/57
 [#62]: https://github.com/DataDog/dd-agent/issues/62
+[#63]: https://github.com/DataDog/dd-agent/issues/63
 [#65]: https://github.com/DataDog/dd-agent/issues/65
+[#66]: https://github.com/DataDog/dd-agent/issues/66
 [#68]: https://github.com/DataDog/dd-agent/issues/68
 [#71]: https://github.com/DataDog/dd-agent/issues/71
 [#72]: https://github.com/DataDog/dd-agent/issues/72
@@ -1703,6 +1831,7 @@ If you use ganglia, you want this version.
 [#1415]: https://github.com/DataDog/dd-agent/issues/1415
 [#1416]: https://github.com/DataDog/dd-agent/issues/1416
 [#1422]: https://github.com/DataDog/dd-agent/issues/1422
+[#1427]: https://github.com/DataDog/dd-agent/issues/1427
 [#1429]: https://github.com/DataDog/dd-agent/issues/1429
 [#1435]: https://github.com/DataDog/dd-agent/issues/1435
 [#1436]: https://github.com/DataDog/dd-agent/issues/1436
@@ -1755,6 +1884,8 @@ If you use ganglia, you want this version.
 [#1619]: https://github.com/DataDog/dd-agent/issues/1619
 [#1621]: https://github.com/DataDog/dd-agent/issues/1621
 [#1623]: https://github.com/DataDog/dd-agent/issues/1623
+[#1626]: https://github.com/DataDog/dd-agent/issues/1626
+[#1628]: https://github.com/DataDog/dd-agent/issues/1628
 [#1630]: https://github.com/DataDog/dd-agent/issues/1630
 [#1631]: https://github.com/DataDog/dd-agent/issues/1631
 [#1633]: https://github.com/DataDog/dd-agent/issues/1633
@@ -1770,28 +1901,64 @@ If you use ganglia, you want this version.
 [#1664]: https://github.com/DataDog/dd-agent/issues/1664
 [#1666]: https://github.com/DataDog/dd-agent/issues/1666
 [#1679]: https://github.com/DataDog/dd-agent/issues/1679
+[#1691]: https://github.com/DataDog/dd-agent/issues/1691
+[#1696]: https://github.com/DataDog/dd-agent/issues/1696
 [#1700]: https://github.com/DataDog/dd-agent/issues/1700
 [#1701]: https://github.com/DataDog/dd-agent/issues/1701
 [#1709]: https://github.com/DataDog/dd-agent/issues/1709
 [#1710]: https://github.com/DataDog/dd-agent/issues/1710
+[#1715]: https://github.com/DataDog/dd-agent/issues/1715
+[#1717]: https://github.com/DataDog/dd-agent/issues/1717
+[#1720]: https://github.com/DataDog/dd-agent/issues/1720
+[#1721]: https://github.com/DataDog/dd-agent/issues/1721
+[#1722]: https://github.com/DataDog/dd-agent/issues/1722
+[#1725]: https://github.com/DataDog/dd-agent/issues/1725
+[#1726]: https://github.com/DataDog/dd-agent/issues/1726
+[#1727]: https://github.com/DataDog/dd-agent/issues/1727
+[#1734]: https://github.com/DataDog/dd-agent/issues/1734
+[#1736]: https://github.com/DataDog/dd-agent/issues/1736
+[#1737]: https://github.com/DataDog/dd-agent/issues/1737
+[#1744]: https://github.com/DataDog/dd-agent/issues/1744
+[#1745]: https://github.com/DataDog/dd-agent/issues/1745
+[#1747]: https://github.com/DataDog/dd-agent/issues/1747
+[#1750]: https://github.com/DataDog/dd-agent/issues/1750
+[#1752]: https://github.com/DataDog/dd-agent/issues/1752
+[#1755]: https://github.com/DataDog/dd-agent/issues/1755
 [#1757]: https://github.com/DataDog/dd-agent/issues/1757
+[#1758]: https://github.com/DataDog/dd-agent/issues/1758
+[#1759]: https://github.com/DataDog/dd-agent/issues/1759
+[#1761]: https://github.com/DataDog/dd-agent/issues/1761
+[#1767]: https://github.com/DataDog/dd-agent/issues/1767
+[#1771]: https://github.com/DataDog/dd-agent/issues/1771
+[#1772]: https://github.com/DataDog/dd-agent/issues/1772
+[#1773]: https://github.com/DataDog/dd-agent/issues/1773
+[#1774]: https://github.com/DataDog/dd-agent/issues/1774
+[#1776]: https://github.com/DataDog/dd-agent/issues/1776
+[#1782]: https://github.com/DataDog/dd-agent/issues/1782
+[#1785]: https://github.com/DataDog/dd-agent/issues/1785
+[#1789]: https://github.com/DataDog/dd-agent/issues/1789
 [#1792]: https://github.com/DataDog/dd-agent/issues/1792
+[#1793]: https://github.com/DataDog/dd-agent/issues/1793
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
+[@KnownSubset]: https://github.com/KnownSubset
 [@Osterjour]: https://github.com/Osterjour
 [@PedroMiguelFigueiredo]: https://github.com/PedroMiguelFigueiredo
 [@adriandoolittle]: https://github.com/adriandoolittle
 [@arosenhagen]: https://github.com/arosenhagen
 [@arthurnn]: https://github.com/arthurnn
+[@bdotdub]: https://github.com/bdotdub
 [@bpuzon]: https://github.com/bpuzon
 [@brettlangdon]: https://github.com/brettlangdon
 [@charles-dyfis-net]: https://github.com/charles-dyfis-net
 [@chrissnel]: https://github.com/chrissnel
 [@ckrough]: https://github.com/ckrough
 [@clly]: https://github.com/clly
+[@datadoghq]: https://github.com/datadoghq
 [@dcrosta]: https://github.com/dcrosta
 [@djensen47]: https://github.com/djensen47
 [@donalguy]: https://github.com/donalguy
+[@dspangen]: https://github.com/dspangen
 [@echohead]: https://github.com/echohead
 [@etrepum]: https://github.com/etrepum
 [@glickbot]: https://github.com/glickbot
@@ -1819,6 +1986,7 @@ If you use ganglia, you want this version.
 [@morskoyzmey]: https://github.com/morskoyzmey
 [@mutemule]: https://github.com/mutemule
 [@nambrosch]: https://github.com/nambrosch
+[@obi11235]: https://github.com/obi11235
 [@ordenull]: https://github.com/ordenull
 [@oremj]: https://github.com/oremj
 [@orenmazor]: https://github.com/orenmazor
@@ -1836,6 +2004,7 @@ If you use ganglia, you want this version.
 [@stefan-mees]: https://github.com/stefan-mees
 [@takus]: https://github.com/takus
 [@tomduckering]: https://github.com/tomduckering
+[@ulich]: https://github.com/ulich
 [@walkeran]: https://github.com/walkeran
 [@warnerpr-cyan]: https://github.com/warnerpr-cyan
 [@yyamano]: https://github.com/yyamano
