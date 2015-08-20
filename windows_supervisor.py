@@ -24,22 +24,9 @@ import win32api
 # project
 from win32.common import handle_exe_click
 from checks.collector import Collector
-from config import (
-    get_confd_path,
-    get_config,
-    get_system_stats,
-    load_check_directory,
-    PathNotFound,
-    set_win32_cert_path
-)
-from ddagent import Application
-import dogstatsd
-from emitter import http_emitter
-from jmxfetch import JMXFetch
-import modules
+from config import get_config
 from util import get_hostname
 from utils.jmx import JMXFiles
-from utils.profile import AgentProfiler
 
 
 log = logging.getLogger('supervisor')
@@ -112,7 +99,7 @@ class AgentSupervisor():
             self.start_ts = time.time()
         time.sleep(SERVICE_SLEEP_INTERVAL*2)
         secs = int(time.time()-self.start_ts)
-        mins =  int(secs/60)
+        mins = int(secs/60)
         hours = int(secs/3600)
         log.info("They're all dead! The agent has been run for {0} hours {1} "
                  "minutes {2} seconds".

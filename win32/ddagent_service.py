@@ -73,7 +73,7 @@ class AgentService(win32serviceutil.ServiceFramework):
             self.log("Killing supervisor")
             # Not so happy actually. This is dirty but there is no other simple way
             # We seem to have to kill all our subprocess the violent way...
-            parent=psutil.Process(self.proc.pid)
+            parent = psutil.Process(self.proc.pid)
             children = parent.children(recursive=True)
             for child in children:
                 child.kill()
