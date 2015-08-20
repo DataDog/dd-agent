@@ -66,8 +66,11 @@ zk_max_file_descriptor_count    4096
 `mntr` tested with ZooKeeper 3.4.5
 '''
 # stdlib
+<<<<<<< HEAD
 from collections import defaultdict, namedtuple
 from distutils.version import LooseVersion
+=======
+>>>>>>> a58add0... [zk] :heavy_plus_sign: `zookeeper.bytes_received/sent*` rates
 from StringIO import StringIO
 import re
 import socket
@@ -83,13 +86,13 @@ class ZKConnectionFailure(Exception):
     pass
 
 
-class ZKMetric(namedtuple('ZKMetric', ['name', 'value', 'm_type'])):
+class ZKMetric(tuple):
     """
     A Zookeeper metric.
-    Named tuple with an optional metric type (default is 'gauge').
+    Tuple with an optional metric type (default is 'gauge').
     """
     def __new__(cls, name, value, m_type="gauge"):
-        return super(ZKMetric, cls).__new__(cls, name, value, m_type)
+        return super(ZKMetric, cls).__new__(cls, [name, value, m_type])
 
 
 class ZookeeperCheck(AgentCheck):
@@ -295,10 +298,12 @@ class ZookeeperCheck(AgentCheck):
         # Received: 101032173
         _, value = buf.readline().split(':')
         metrics.append(ZKMetric('zookeeper.bytes_received', long(value.strip())))
+        metrics.append(ZKMetric('zookeeper.bytes_received_per_second', long(value.strip()), "rate"))
 
         # Sent: 1324
         _, value = buf.readline().split(':')
         metrics.append(ZKMetric('zookeeper.bytes_sent', long(value.strip())))
+        metrics.append(ZKMetric('zookeeper.bytes_sent_per_second', long(value.strip()), "rate"))
 
         if has_connections_val:
             # Connections: 1

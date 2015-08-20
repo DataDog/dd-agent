@@ -39,6 +39,8 @@ class ZooKeeperTestCase(AgentCheckTest):
         'zookeeper.latency.max',
         'zookeeper.bytes_received',
         'zookeeper.bytes_sent',
+        'zookeeper.bytes_received_per_second',
+        'zookeeper.bytes_sent_per_second',
         'zookeeper.connections',
         'zookeeper.connections',
         'zookeeper.bytes_outstanding',
@@ -82,7 +84,7 @@ class ZooKeeperTestCase(AgentCheckTest):
         config = {
             'instances': [self.CONFIG]
         }
-        self.run_check(config)
+        self.run_check_twice(config)
 
         # Test metrics
         for mname in self.STAT_METRICS:
@@ -106,7 +108,7 @@ class ZooKeeperTestCase(AgentCheckTest):
 
     def test_wrong_expected_mode(self):
         """
-        Raise a 'critical' service check when ZooKeeper is not in the expected mode
+        Raise a 'critical' service check when ZooKeeper is not in the expected mode.
         """
         config = {
             'instances': [self.WRONG_EXPECTED_MODE]
