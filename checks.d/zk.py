@@ -66,7 +66,7 @@ zk_max_file_descriptor_count    4096
 `mntr` tested with ZooKeeper 3.4.5
 '''
 # stdlib
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from distutils.version import LooseVersion
 from StringIO import StringIO
 import re
@@ -81,6 +81,15 @@ from util import get_hostname
 class ZKConnectionFailure(Exception):
     """ Raised when we are unable to connect or get the output of a command. """
     pass
+
+
+class ZKMetric(namedtuple('ZKMetric', ['name', 'value', 'm_type'])):
+    """
+    A Zookeeper metric.
+    Named tuple with an optional metric type (default is 'gauge').
+    """
+    def __new__(cls, name, value, m_type="gauge"):
+        return super(ZKMetric, cls).__new__(cls, name, value, m_type)
 
 
 class ZookeeperCheck(AgentCheck):
@@ -155,8 +164,9 @@ class ZookeeperCheck(AgentCheck):
 
             # Write the data
             if mode != 'inactive':
-                for metric, value in metrics:
-                    self.gauge(metric, value, tags=tags + new_tags)
+                for metric, value, m_type in metrics:
+                    submit_metric = getattr(self, m_type)
+                    submit_metric(metric, value, tags=tags + new_tags)
 
             if report_instance_mode:
                 self.report_instance_mode(hostname, mode, tags)
@@ -265,7 +275,7 @@ class ZookeeperCheck(AgentCheck):
         version = "%s.%s.%s" % version_tuple
 
         # Clients:
-        buf.readline() # skip the Clients: header
+        buf.readline()  # skip the Clients: header
         connections = 0
         client_line = buf.readline().strip()
         if client_line:
@@ -278,33 +288,33 @@ class ZookeeperCheck(AgentCheck):
         # Latency min/avg/max: -10/0/20007
         _, value = buf.readline().split(':')
         l_min, l_avg, l_max = [int(v) for v in value.strip().split('/')]
-        metrics.append(('zookeeper.latency.min', l_min))
-        metrics.append(('zookeeper.latency.avg', l_avg))
-        metrics.append(('zookeeper.latency.max', l_max))
+        metrics.append(ZKMetric('zookeeper.latency.min', l_min))
+        metrics.append(ZKMetric('zookeeper.latency.avg', l_avg))
+        metrics.append(ZKMetric('zookeeper.latency.max', l_max))
 
         # Received: 101032173
         _, value = buf.readline().split(':')
-        metrics.append(('zookeeper.bytes_received', long(value.strip())))
+        metrics.append(ZKMetric('zookeeper.bytes_received', long(value.strip())))
 
         # Sent: 1324
         _, value = buf.readline().split(':')
-        metrics.append(('zookeeper.bytes_sent', long(value.strip())))
+        metrics.append(ZKMetric('zookeeper.bytes_sent', long(value.strip())))
 
         if has_connections_val:
             # Connections: 1
             _, value = buf.readline().split(':')
-            metrics.append(('zookeeper.connections', int(value.strip())))
+            metrics.append(ZKMetric('zookeeper.connections', int(value.strip())))
         else:
             # If the zk version doesnt explicitly give the Connections val,
             # use the value we computed from the client list.
-            metrics.append(('zookeeper.connections', connections))
+            metrics.append(ZKMetric('zookeeper.connections', connections))
 
         # Outstanding: 0
         _, value = buf.readline().split(':')
         # Fixme: This metric name is wrong. It should be removed in a major version of the agent
         # See https://github.com/DataDog/dd-agent/issues/1383
-        metrics.append(('zookeeper.bytes_outstanding', long(value.strip())))
-        metrics.append(('zookeeper.outstanding_requests', long(value.strip())))
+        metrics.append(ZKMetric('zookeeper.bytes_outstanding', long(value.strip())))
+        metrics.append(ZKMetric('zookeeper.outstanding_requests', long(value.strip())))
 
         # Zxid: 0x1034799c7
         _, value = buf.readline().split(':')
@@ -317,8 +327,8 @@ class ZookeeperCheck(AgentCheck):
         # the lower order 4 bytes is the count
         (zxid_count,) = struct.unpack('>i', zxid_bytes[4:8])
 
-        metrics.append(('zookeeper.zxid.epoch', zxid_epoch))
-        metrics.append(('zookeeper.zxid.count', zxid_count))
+        metrics.append(ZKMetric('zookeeper.zxid.epoch', zxid_epoch))
+        metrics.append(ZKMetric('zookeeper.zxid.count', zxid_count))
 
         # Mode: leader
         _, value = buf.readline().split(':')
@@ -327,7 +337,7 @@ class ZookeeperCheck(AgentCheck):
 
         # Node count: 487
         _, value = buf.readline().split(':')
-        metrics.append(('zookeeper.nodes', long(value.strip())))
+        metrics.append(ZKMetric('zookeeper.nodes', long(value.strip())))
 
         return metrics, tags, mode, version
 
