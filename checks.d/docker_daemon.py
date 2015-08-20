@@ -168,10 +168,13 @@ class DockerDaemon(AgentCheck):
                 custom_tags = custom_container_tags[container_name]
                 container['_custom_tags'] = custom_tags
             tag_names = instance.get("container_tags", ["image_name"])
-            container_tags = self._get_tags(container, tag_names) + instance.get('tags', []) + custom_tags
+            container_tags = self._get_tags(
+                container, tag_names) + instance.get('tags', []) + custom_tags
             # Check if the container is included/excluded via its tags
             if self._is_container_excluded(container):
                 continue
+
+            self.increment("docker.containers.count", tags=container_tags)
 
             if self._is_container_running(container):
                 self.set("docker.containers.running", container['Id'], tags=container_tags)
