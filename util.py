@@ -24,6 +24,8 @@ except ImportError:
     # On source install C Extensions might have not been built
     from yaml import Loader as yLoader  # noqa, imported from here elsewhere
     from yaml import Dumper as yDumper  # noqa, imported from here elsewhere
+if os.name == 'nt':
+    import psutil
 
 # These classes are now in utils/, they are just here for compatibility reasons,
 # if a user actually uses them in a custom check
@@ -477,8 +479,6 @@ if os.name == 'nt':
         on Windows will make sure that all process die accordingly"""
 
         def __init__(self, duration, max_mem_mb = None):
-            import psutil
-
             self._duration = int(duration)
 
             if max_mem_mb is not None:
@@ -500,7 +500,7 @@ if os.name == 'nt':
         def reset(self):
             if self.memory_limit_enabled:
                 mem_usage_kb = psutil.Process().memory_info[0] + \
-                               psutil.Process().memory_info[1]
+                    psutil.Process().memory_info[1]
 
                 if mem_usage_kb > (0.95 * self._max_mem_kb):
                     Watchdog.self_destruct()

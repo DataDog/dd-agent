@@ -249,13 +249,10 @@ class Flare(object):
 
     # Save logs file paths
     def _save_logs_path(self):
-        prefix = ''
-        if Platform.is_windows():
-            prefix = 'windows_'
         config = get_logging_config()
-        self._collector_log = config.get('{0}collector_log_file'.format(prefix))
-        self._forwarder_log = config.get('{0}forwarder_log_file'.format(prefix))
-        self._dogstatsd_log = config.get('{0}dogstatsd_log_file'.format(prefix))
+        self._collector_log = config.get('collector_log_file')
+        self._forwarder_log = config.get('forwarder_log_file')
+        self._dogstatsd_log = config.get('dogstatsd_log_file')
         self._jmxfetch_log = config.get('jmxfetch_log_file')
         self._gometro_log = config.get('go-metro_log_file')
 
@@ -266,9 +263,17 @@ class Flare(object):
         self._add_log_file_tar(self._dogstatsd_log)
         self._add_log_file_tar(self._jmxfetch_log)
         self._add_log_file_tar(self._gometro_log)
-        self._add_log_file_tar(
-            "{0}/*supervisord.log".format(os.path.dirname(self._collector_log))
-        )
+        if not Platform.is_windows():
+            self._add_log_file_tar(
+                "{0}/*supervisord.log".format(os.path.dirname(self._collector_log))
+            )
+        else:
+            self._add_log_file_tar(
+                "{0}/supervisor.log".format(os.path.dirname(self._collector_log))
+            )
+            self._add_log_file_tar(
+                "{0}/service.log".format(os.path.dirname(self._collector_log))
+            )
 
     def _add_log_file_tar(self, file_path):
         for f in glob.glob('{0}*'.format(file_path)):
