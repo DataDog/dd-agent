@@ -1,6 +1,7 @@
 # set up logging before importing any other components
-from config import initialize_logging  # noqa
-initialize_logging('jmxfetch')
+if __name__ == '__main__':
+    from config import initialize_logging  # noqa
+    initialize_logging('jmxfetch')
 
 # std
 import glob
