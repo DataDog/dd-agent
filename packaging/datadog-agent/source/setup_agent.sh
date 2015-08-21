@@ -512,14 +512,4 @@ up again in the foreground, run:
     $DD_HOME/bin/agent
 "
 
-if [ "$(uname)" = "Darwin" ]; then
-    print_console "To set it up as a daemon that always runs in the background
-while you're logged in, run:
-
-    mkdir -p ~/Library/LaunchAgents
-    cp $DD_HOME/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/
-    launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
-"
-fi
-
 wait $AGENT_PID
