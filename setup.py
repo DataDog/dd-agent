@@ -32,10 +32,18 @@ if sys.platform == 'win32':
 
     # Modules to force-include in the exe
     include_modules = [
+        # stdlib
+        'os',
+        'time',
+
         # 3p
+        'psutil',
+        'win32api',
+        'subprocess',
         'win32service',
         'win32serviceutil',
         'win32event',
+        'servicemanager',
     ]
 
     class Target(object):

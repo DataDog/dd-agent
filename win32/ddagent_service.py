@@ -10,12 +10,12 @@ Many thanks to the author of the article below which saved me quite some time:
 http://ryrobes.com/python/running-python-scripts-as-a-windows-service/
 
 """
-
-# 3p
+#stdlib
 import os
 import time
-import psutil
 
+# 3p
+import psutil
 import win32api
 import subprocess
 import win32event
@@ -62,7 +62,8 @@ class AgentService(win32serviceutil.ServiceFramework):
 
         self.log_path = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'service.log')
 
-        self.agent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        self.agent_path = os.path.dirname(os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
         self.log("Agent path: {0}".format(self.agent_path))
         self.proc = None
 
@@ -103,10 +104,9 @@ class AgentService(win32serviceutil.ServiceFramework):
         # will be performed in a non blocking way. If an error is triggered
         # here, tell windows we're closing the service and report accordingly
         try:
-            os.chdir(self.agent_path)
-
-            self.proc = subprocess.Popen(["python", "windows_supervisor.py" , "start"], shell=True)
-            os.chdir(self.agent_path + "\\win32")
+            self.log("Changing working directory to \"{0}\"".format(self.agent_path + "\\agent\\"))
+            os.chdir(self.agent_path + "\\agent\\")
+            self.proc = subprocess.Popen(["..\\embedded\\python.exe", "windows_supervisor.py" , "start"], shell=True)
         except WindowsError as e:
             self.log("WindowsError occured when starting our supervisor :\n\t"
                      "[Errno {1}] {0}".
