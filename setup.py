@@ -5,7 +5,6 @@ import sys
 
 # 3p
 from setuptools import setup
-from requests.certs import where
 
 # project
 from config import get_version
@@ -33,43 +32,19 @@ if sys.platform == 'win32':
 
     # Modules to force-include in the exe
     include_modules = [
+        # stdlib
+        'os',
+        'time',
+
         # 3p
         'wmi',
+        'psutil',
+        'win32api',
+        'subprocess',
         'win32service',
         'win32serviceutil',
         'win32event',
-
-        'simplejson',
-        'adodbapi',
-        'pycurl',
-        'tornado.curl_httpclient',
-        'pymongo',
-        'pymysql',
-        'psutil',
-        'pg8000',
-        'redis',
-        'requests',
-        'pysnmp',
-        'pysnmp.smi.mibs.*',
-        'pysnmp.smi.mibs.instances.*',
-        'pysnmp_mibs.*',
-        'pysnmp.entity.rfc3413.oneliner.*',
-        'pyVim.*',
-        'pyVmomi.*',
-        'paramiko',
-        'Crypto',
-        'winrandom',
-        'uptime',
-
-        # agent
-        'checks.network_checks',
-        'checks.libs.vmware.*',
-        'httplib2',
-
-        # pup
-        'tornado.websocket',
-        'tornado.web',
-        'tornado.ioloop',
+        'servicemanager',
     ]
 
     class Target(object):
