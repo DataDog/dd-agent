@@ -1,0 +1,145 @@
+init_config:
+
+instances:
+    # values to be read from /proc/vmstat
+    - vmstat:
+        gauges:
+            # pages that are dirty, under writeback, or unstable
+            - nr_dirty
+            - nr_writeback
+            - nr_unstable
+            # pages mapped to pg table, mapped by files, or by slab alloc
+            - nr_page_table_pages
+            - nr_mapped
+            - nr_slab_reclaimable
+            - nr_slab_unreclaimable
+            # free pages
+            - nr_free_pages
+            - nr_alloc_batch
+            - nr_inactive_anon
+            - nr_active_anon
+            - nr_inactive_file
+            - nr_active_file
+            - nr_unevictable
+            - nr_mlock
+            - nr_anon_pages
+            - nr_file_pages
+            - nr_kernel_stack
+            - nr_bounce
+            - nr_vmscan_write
+            - nr_vmscan_immediate_reclaim
+            - nr_writeback_temp
+            - nr_isolated_anon
+            - nr_isolated_file
+            - nr_shmem
+            # calculated dirty_threshold & background_threshold in pages based on sysctls
+            - nr_dirty_threshold
+            - nr_dirty_background_threshold
+        counts:
+            # number of pages dirtied and written since boot
+            - nr_dirtied
+            - nr_written
+            # numa stats
+            # - numa_hit
+            # - numa_miss
+            # - numa_foreign
+            # - numa_interleave
+            # - numa_local
+            # - numa_other
+            # ?
+            - nr_anon_transparent_hugepages
+            - nr_free_cma
+            # page ins & page outs since last boot
+            - pgpgin
+            - pgpgout
+            # of swap ins & swap outs since last boot
+            - pswpin
+            - pswpout
+            # of page allocations/zone since last boot
+            - pgalloc_dma
+            - pgalloc_dma32
+            - pgalloc_normal
+            - pgalloc_movable
+            # page frees, activations & deactivations since last boot
+            - pgfree
+            - pgactivate
+            - pgdeactivate
+            # minor+major, major page faults since last boot
+            - pgfault
+            - pgmajfault
+            # page refills/zone since last boot
+            - pgrefill_dma
+            - pgrefill_dma32
+            - pgrefill_normal
+            - pgrefill_movable
+            # page steals/zone by kswapd daemon since last boot
+            - pgsteal_kswapd_dma
+            - pgsteal_kswapd_dma32
+            - pgsteal_kswapd_normal
+            - pgsteal_kswapd_movable
+            # page steals/zone since last boot
+            - pgsteal_direct_dma
+            - pgsteal_direct_dma32
+            - pgsteal_direct_normal
+            - pgsteal_direct_movable
+            # page scans by kswapd daemon since last boot
+            - pgscan_kswapd_dma
+            - pgscan_kswapd_dma32
+            - pgscan_kswapd_normal
+            - pgscan_kswapd_movable
+            # page scans/zone since last boot
+            - pgscan_direct_dma
+            - pgscan_direct_dma32
+            - pgscan_direct_normal
+            - pgscan_direct_movable
+            - pgscan_direct_throttle
+            # ?
+            - zone_reclaim_failed
+            # pages reclaimed by inode freeing
+            - pginodesteal
+            - slabs_scanned
+            - kswapd_inodesteal
+            - kswapd_low_wmark_hit_quickly
+            - kswapd_high_wmark_hit_quickly
+            - pageoutrun
+            - allocstall
+            - pgrotated
+            - numa_pte_updates
+            - numa_huge_pte_updates
+            - numa_hint_faults
+            - numa_hint_faults_local
+            - numa_pages_migrated
+            - pgmigrate_success
+            - pgmigrate_fail
+            - compact_migrate_scanned
+            - compact_free_scanned
+            - compact_isolated
+            - compact_stall
+            - compact_fail
+            - compact_success
+            # - htlb_buddy_alloc_success
+            # - htlb_buddy_alloc_fail
+            - unevictable_pgs_culled
+            - unevictable_pgs_scanned
+            - unevictable_pgs_rescued
+            - unevictable_pgs_mlocked
+            - unevictable_pgs_munlocked
+            - unevictable_pgs_cleared
+            - unevictable_pgs_stranded
+            # transparent huge-page stats
+            - thp_fault_alloc
+            - thp_fault_fallback
+            - thp_collapse_alloc
+            - thp_collapse_alloc_failed
+            - thp_split
+            - thp_zero_page_alloc
+            - thp_zero_page_alloc_failed
+            # translation lookaside buffer stats
+            - nr_tlb_remote_flush
+            - nr_tlb_remote_flush_received
+            - nr_tlb_local_flush_all
+            - nr_tlb_local_flush_one
+    # values to be read directly from proc (single value in file)
+    - proc:
+        gauges:
+            - /proc/sys/vm/nr_pdflush_threads
