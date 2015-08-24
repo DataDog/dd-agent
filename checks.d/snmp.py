@@ -188,6 +188,8 @@ class SnmpCheck(AgentCheck):
                 lookupValues=lookup_names,
                 lookupNames=lookup_names)
 
+            first_oid = first_oid + OID_BATCH_SIZE
+
             # Raise on error_indication
             self.raise_on_error_indication(error_indication, instance)
 
@@ -234,7 +236,6 @@ class SnmpCheck(AgentCheck):
                     complete_results.extend(table_row)
 
             all_binds.extend(complete_results)
-            first_oid = first_oid + OID_BATCH_SIZE
 
         for result_oid, value in all_binds:
             if lookup_names:
