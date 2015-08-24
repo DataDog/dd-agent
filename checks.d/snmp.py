@@ -193,14 +193,6 @@ class SnmpCheck(AgentCheck):
             # Raise on error_indication
             self.raise_on_error_indication(error_indication, instance)
 
-            # Continue on error_status
-            if error_status:
-                message = "{0} for instance {1}".format(error_status.prettyPrint(),
-                                                        instance["ip_address"])
-                instance["service_check_error"] = message
-                self.log.warning(message)
-                continue
-
             missing_results = []
             complete_results = []
 
@@ -225,13 +217,12 @@ class SnmpCheck(AgentCheck):
                 # Raise on error_indication
                 self.raise_on_error_indication(error_indication, instance)
 
-                # Continue on error_status
                 if error_status:
                     message = "{0} for instance {1}".format(error_status.prettyPrint(),
                                                             instance["ip_address"])
                     instance["service_check_error"] = message
                     self.log.warning(message)
-                    continue
+
                 for table_row in var_binds_table:
                     complete_results.extend(table_row)
 
