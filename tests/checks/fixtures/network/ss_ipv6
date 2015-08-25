@@ -1,0 +1,8 @@
+Netid  State      Recv-Q Send-Q     Local Address:Port       Peer Address:Port
+udp    UNCONN     0      0                     :::111                  :::*
+udp    UNCONN     0      0        fe80::a00:27ff:fe1c:3c4:123                  :::*
+udp    ESTAB      0      0       fe80::a00:27ff:fee9:10ee:123                  :::*
+tcp    LISTEN     0      128                   :::6380                 :::*
+tcp    TIME-WAIT  0      0       ::ffff:127.0.0.1:58488  ::ffff:127.0.0.1:7199
+tcp    ESTAB      0      0       ::ffff:127.0.0.1:42395  ::ffff:127.0.0.1:2181
+tcp    CLOSING    0      0       ::ffff:127.0.0.1:58439  ::ffff:127.0.0.1:7199
