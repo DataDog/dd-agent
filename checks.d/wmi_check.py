@@ -111,13 +111,17 @@ class WMICheck(AgentCheck):
                     # Special-case metric will just submit 1 for every value
                     # returned in the result.
                     val = 1
-                elif getattr(res, wmi_property):
-                    val = float(getattr(res, wmi_property))
                 else:
-                    self.log.warning("When extracting metrics with wmi, found a null value"
-                                     " for property '{0}'. Metric type of property is {1}."
-                                     .format(wmi_property, mtype))
-                    continue
+                    try:
+                        val = float(getattr(res, wmi_property))
+                    except ValueError:
+                        self.log.warning("When extracting metrics with WMI, found a non digit value"
+                                         " for property '{0}'.".format(wmi_property))
+                        continue
+                    except AttributeError:
+                        self.log.warning("'{0}' WMI class has no property '{1}'."
+                                         .format(res.__class__.__name__, wmi_property))
+                        continue
 
                 # Submit the metric to Datadog
                 try:
