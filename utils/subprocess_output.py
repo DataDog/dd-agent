@@ -24,7 +24,7 @@ def get_subprocess_output(command, log, shell=None, stdin=None):
         proc.wait()
         stderr_f.seek(0)
         err = stderr_f.read()
-        stderr_f.closer()
+        stderr_f.close()
         if err:
             log.debug("Error while running {0} : {1}".format(" ".join(command),
                                                              err))
