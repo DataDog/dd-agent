@@ -194,6 +194,7 @@ def get_hostname(config=None):
         def _get_hostname_unix():
             try:
                 # try fqdn
+                # FIXME: Use get_subprocess_output() instead of subprocess.Popen
                 p = subprocess.Popen(['/bin/hostname', '-f'], stdout=subprocess.PIPE)
                 out, err = p.communicate()
                 if p.returncode == 0:

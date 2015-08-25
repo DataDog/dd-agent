@@ -1,6 +1,5 @@
 # stdlib
 from collections import namedtuple
-import subprocess
 
 # project
 from resources import (
@@ -9,6 +8,7 @@ from resources import (
     SnapshotDescriptor,
     SnapshotField,
 )
+from utils.subprocess_output import get_subprocess_output
 
 
 class Processes(ResourcePlugin):
@@ -36,7 +36,7 @@ class Processes(ResourcePlugin):
                 ps_arg = 'aux'
             else:
                 ps_arg = 'auxww'
-            ps = subprocess.Popen(['ps', ps_arg], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+            ps = get_subprocess_output(['ps', ps_arg], self.log)
         except Exception, e:
             self.log.exception('Cannot get process list')
             return False

@@ -642,6 +642,7 @@ class Collector(object):
                     command = "gohai"
                 else:
                     command = "gohai\gohai.exe"
+                # FIXME: Use get_subprocess_output() instead of subprocess.Popen
                 gohai_metadata, gohai_log = subprocess.Popen(
                     [command], stdout=subprocess.PIPE, stderr=subprocess.PIPE
                 ).communicate()

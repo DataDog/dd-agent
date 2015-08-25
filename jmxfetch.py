@@ -3,7 +3,7 @@ if __name__ == '__main__':
     from config import initialize_logging  # noqa
     initialize_logging('jmxfetch')
 
-# std
+# stdlib
 import glob
 import logging
 import os
@@ -11,10 +11,10 @@ import signal
 import sys
 import time
 
-# 3rd party
+# 3p
 import yaml
 
-# datadog
+# project
 from config import (
     DEFAULT_CHECK_FREQUENCY,
     get_confd_path,
@@ -275,6 +275,7 @@ class JMXFetch(object):
             log.info("Running %s" % " ".join(subprocess_args))
 
             # Launch JMXfetch subprocess
+            # FIXME: Use get_subprocess_output() instead of subprocess.Popen
             jmx_process = subprocess.Popen(
                 subprocess_args,
                 close_fds=not redirect_std_streams,  # set to True instead of False when the streams are redirected for WIN compatibility

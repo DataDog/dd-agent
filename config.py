@@ -1,3 +1,4 @@
+# stdlib
 import ConfigParser
 from cStringIO import StringIO
 import glob
@@ -14,17 +15,18 @@ import re
 from socket import gaierror, gethostbyname
 import string
 import sys
+import tempfile
 import traceback
 from urlparse import urlparse
 
-# 3rd party
+# 3p
 import yaml
 
 # project
 from util import get_os, yLoader
 from utils.platform import Platform
 from utils.proxy import get_proxy
-from utils.subprocess_output import subprocess
+from utils.subprocess_output import get_subprocess_output
 
 # CONSTANTS
 AGENT_VERSION = "5.5.0"
@@ -581,15 +583,20 @@ def get_system_stats():
     platf = sys.platform
 
     if Platform.is_linux(platf):
-        grep = subprocess.Popen(['grep', 'model name', '/proc/cpuinfo'], stdout=subprocess.PIPE, close_fds=True)
-        wc = subprocess.Popen(['wc', '-l'], stdin=grep.stdout, stdout=subprocess.PIPE, close_fds=True)
-        systemStats['cpuCores'] = int(wc.communicate()[0])
+        grep = get_subprocess_output(['grep', 'model name', '/proc/cpuinfo'], log)
+        # Must use tempfiles to redirect stdout to second command
+        tempgrep = tempfile.TemporaryFile()
+        tempgrep.write(grep)
+        tempgrep.seek(0)
+        wc = get_subprocess_output(['wc', '-l'], log, stdin=tempgrep)
+        tempgrep.close()
+        systemStats['cpuCores'] = int(wc)
 
     if Platform.is_darwin(platf):
-        systemStats['cpuCores'] = int(subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1])
+        systemStats['cpuCores'] = int(get_subprocess_output(['sysctl', 'hw.ncpu'], log).split(': ')[1])
 
     if Platform.is_freebsd(platf):
-        systemStats['cpuCores'] = int(subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1])
+        systemStats['cpuCores'] = int(get_subprocess_output(['sysctl', 'hw.ncpu'], log).split(': ')[1])
 
     if Platform.is_linux(platf):
         systemStats['nixV'] = platform.dist()

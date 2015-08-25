@@ -1,7 +1,7 @@
 # stdlib
 import subprocess  # noqa
 
-# third party
+# 3p
 import mock
 
 # project

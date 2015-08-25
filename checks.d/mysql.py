@@ -1,16 +1,16 @@
 # stdlib
-import subprocess
 import os
 import sys
 import re
 import traceback
 
+# 3p
+import pymysql
+
 # project
 from checks import AgentCheck
 from utils.platform import Platform
-
-# 3rd party
-import pymysql
+from utils.subprocess_output import get_subprocess_output
 
 GAUGE = "gauge"
 RATE = "rate"
@@ -385,8 +385,7 @@ class MySql(AgentCheck):
         if pid is None:
             try:
                 if sys.platform.startswith("linux"):
-                    ps = subprocess.Popen(['ps', '-C', 'mysqld', '-o', 'pid'],
-                                          stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                    ps = get_subprocess_output(['ps', '-C', 'mysqld', '-o', 'pid'], self.log)
                     pslines = ps.strip().split('\n')
                     # First line is header, second line is mysql pid
                     if len(pslines) == 2 and pslines[1] != '':

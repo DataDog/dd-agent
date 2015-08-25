@@ -1,8 +1,6 @@
-# stdlib
-import subprocess
-
 # project
 from checks import AgentCheck
+from utils.subprocess_output import subprocess
 
 
 class Fail2Ban(AgentCheck):
@@ -58,6 +56,7 @@ class Fail2Ban(AgentCheck):
         """
         if sudo:
             args.insert(0, "sudo")
+        # FIXME: Use get_subprocess_output() instead of subprocess.Popen
         process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, err = process.communicate()
         if output and not err and process.returncode == 0:
