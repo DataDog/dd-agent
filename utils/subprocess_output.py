@@ -14,8 +14,9 @@ def get_subprocess_output(command, log, shell=None, stdin=None):
     if an error occurs.
     """
 
-    # Use temporary file to allow reasonable amount of output memory. When using
-    # subprocess.PIPE, the PIPE has a maximum writable memory of 65,535 bytes.
+    # Use tempfile, allowing a larger amount of memory. The subprocess.Popen
+    # docs warn that the data read is buffered in memory. They suggest not to
+    # use subprocess.PIPE if the data size is large or unlimited.
     with tempfile.TemporaryFile('rw') as stdout_f:
         stderr_f = tempfile.TemporaryFile('rw')
         proc = subprocess.Popen(command, close_fds=True, shell=shell, stdin=stdin,
