@@ -3,7 +3,7 @@ Changes
 
 # 5.5.0 / Unreleased
 ### Details
-https://github.com/DataDog/dd-agent/compare/5.4.4...5.5.0
+https://github.com/DataDog/dd-agent/compare/5.4.5...5.5.0
 
 ### New integrations
 * Consul
@@ -13,6 +13,7 @@ https://github.com/DataDog/dd-agent/compare/5.4.4...5.5.0
 * Agent Metrics
 * Amazon EC2
 * Couchbase
+* CouchDB
 * Disk
 * Docker
 * Elasticsearch
@@ -20,8 +21,10 @@ https://github.com/DataDog/dd-agent/compare/5.4.4...5.5.0
 * Google Compute Engine
 * HTTP Check
 * JMXFetch
+* Mesos
 * MongoDB
 * MySQL
+* Network
 * Nginx
 * PostgreSQL
 * Process
@@ -29,10 +32,7 @@ https://github.com/DataDog/dd-agent/compare/5.4.4...5.5.0
 * Redis
 * Supervisor
 * Windows Event Viewer
-
-### OS X Installer
-The Datadog Agent can be installed on Mac OS X via a DMG package.
-For more information, please visit [our Integrations/Agent page](https://app.datadoghq.com/account/settings#agent/mac).
+* WMI
 
 ### Windows 64bit - Datadog Agent
 The Datadog Agent is now available in a 64bit version on Windows.
@@ -87,6 +87,7 @@ See [#1758][]
 
 ### Changes
 * [FEATURE] Consul: New check reporting cluster, service and node wide metrics and events for leader election. See [#1628][]
+* [FEATURE] CouchDB: Allow blacklisting of specific databases. See [#1760][]
 * [FEATURE] Elasticsearch: Support shard level metrics. See [#1752][]
 * [FEATURE] etcd: SSL support. See [#1745][] (Thanks [@KnownSubset][])
 * [FEATURE] Fail2ban: New check reporting metrics from the server status. See [#1427][] (Thanks [@brettlangdon][])
@@ -96,6 +97,8 @@ See [#1758][]
 * [FEATURE] HTTP Check: Add SSL certificate configuration and validation options. See [#1720][]
 * [FEATURE] JMXFetch: Memory saving by limiting MBeans queries to certain scopes. See [#63](https://github.com/DataDog/jmxfetch/issues/63)
 * [FEATURE] JMXFetch: Wildcard support on domains and bean names. See [#57](https://github.com/DataDog/jmxfetch/issues/57)
+* [FEATURE] MongoDB: Collect active client connections metrics. Enhance `connections`, `dbStats`, `mem` and `rpl` metric coverage. See [#1798][]
+* [FEATURE] MongoDB: Make timeout configurable and increase the default. See [#1823][] (Thanks [@benmccann][])
 * [FEATURE] MySQL: Custom query metrics. See [#1793][] (Thanks [@obi11235][])
 * [FEATURE] Nginx: Option to disable SSL validation. See [#1626][] [#1782][]
 * [FEATURE] PostgreSQL: SSL support. See [#1696][] (Thanks [@bdotdub][])
@@ -103,13 +106,14 @@ See [#1758][]
 * [FEATURE] RabbitMQ: Collect the number of RabbitMQ partitions per node. See [#1715][] (Thanks [@ulich][])
 * [FEATURE] Supervisor: Option to select processes to monitor by regex name match. See [#1747][] (Thanks [@ckrough][])
 
+* [IMPROVEMENT] CouchDB: Fail gracefully when one or more individual databases are not readable by the configured user. See [#1760][]
 * [IMPROVEMENT] Docker: Add an `image_repository` tag to the docker check. See [#1691][]
-* [IMPROVEMENT] Docker: Add logging around API response parsing. See [#1744][]
 * [IMPROVEMENT] Windows Event Viewer: Better configuration YAML example file. See [#1734][]
 
 * [BUGFIX] Agent Metrics: Fix the configuration YAML example file rights. See [#1725][]
 * [BUGFIX] Amazon EC2: Update metadata endpoint list to avoid redirections. See [#1750][] (Thanks [@dspangen][])
 * [BUGFIX] Couchbase: Send service check tags on OK status. See [#1722][] [#1776][]
+* [BUGFIX] Disk: Force CDROM (iso9660) exclusion. See [#1786][]
 * [BUGFIX] Disk: Recalculate `disk.in_use` to make consistent with `df`'s 'Use% metric'. See [#1785][]
 * [BUGFIX] Docker: Fallback when Docker Remote API `/events` returns an invalid JSON. See [#1757][]
 * [BUGFIX] Docker: Kubernetes support -new cgroups path-. See [#1759][]
@@ -117,12 +121,31 @@ See [#1758][]
 * [BUGFIX] Fix developer mode configuration on Windows. See [#1717][]
 * [BUGFIX] Google Compute Engine: Update hostname to be unique. See [#1736][], [#1737][]
 * [BUGFIX] HTTP Check: Handle `requests` timeout exceptions to send the appropriate service check. See [#1761][]
+* [BUGFIX] JMXFetch: Do not override service checks's `host` tag with JMX host. See [#66](https://github.com/DataDog/jmxfetch/issues/66)
+* [BUGFIX] JMXFetch: Fix collector logs being duplicated to JMXFetch ones. See [#1852][]
 * [BUGFIX] JMXFetch: Fix indentation in the configuration YAML example file. See [#1774][]
+* [BUGFIX] Mesos: Do not fail if no cluster name is found. See [#1843][]
+* [BUGFIX] Mesos: Fix `AttributeError` on non leader nodes. See [#1844][]
 * [BUGFIX] MongoDB: Clean password from `state changed` events. See [#1789][]
+* [BUGFIX] MySQL: Close connection when complete. See [#1777][] (Thanks [@nambrosch][])
+* [BUGFIX] Network: Normalize `instance_name` tags to avoid mismatch and backward incompatiblity. See [#1811][]
 * [BUGFIX] Process: Correctly handle disappearing PID. See [#1721][] [#1772][]
+* [BUGFIX] RabbitMQ: Fix `ValueError` error when an absolute queue name is used. See [#1820][]
 * [BUGFIX] Redis: Handle the exception when CONFIG command is disabled. See [#1755][]
 * [BUGFIX] Windows Event Viewer: Fix indentation in the configuration YAML example file. See [#1725][]
-* [BUGFIX] JMXFetch: Do not override service checks's `host` tag with JMX host. See [#66](https://github.com/DataDog/jmxfetch/issues/66)
+* [BUGFIX] WMI: Fix errors when a property does not exist or has a non digit value. See [#1800][], [#1846][]
+
+* [OTHER] Mesos: Deprecate previous generic check in favor of the Mesosphere master and slave specific checks introduced in the 5.4.0 release. See [#1822][]
+
+
+# 5.4.5 / 08-20-2015
+**Datadog Agent container only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.4.4...5.4.5
+
+### Changes
+* [IMPROVEMENT] Docker: Support for Docker 1.8 version. See [#1831][]
 
 
 # 5.4.4 / 08-05-2015
@@ -1927,6 +1950,7 @@ If you use ganglia, you want this version.
 [#1757]: https://github.com/DataDog/dd-agent/issues/1757
 [#1758]: https://github.com/DataDog/dd-agent/issues/1758
 [#1759]: https://github.com/DataDog/dd-agent/issues/1759
+[#1760]: https://github.com/DataDog/dd-agent/issues/1760
 [#1761]: https://github.com/DataDog/dd-agent/issues/1761
 [#1767]: https://github.com/DataDog/dd-agent/issues/1767
 [#1771]: https://github.com/DataDog/dd-agent/issues/1771
@@ -1934,11 +1958,24 @@ If you use ganglia, you want this version.
 [#1773]: https://github.com/DataDog/dd-agent/issues/1773
 [#1774]: https://github.com/DataDog/dd-agent/issues/1774
 [#1776]: https://github.com/DataDog/dd-agent/issues/1776
+[#1777]: https://github.com/DataDog/dd-agent/issues/1777
 [#1782]: https://github.com/DataDog/dd-agent/issues/1782
 [#1785]: https://github.com/DataDog/dd-agent/issues/1785
+[#1786]: https://github.com/DataDog/dd-agent/issues/1786
 [#1789]: https://github.com/DataDog/dd-agent/issues/1789
 [#1792]: https://github.com/DataDog/dd-agent/issues/1792
 [#1793]: https://github.com/DataDog/dd-agent/issues/1793
+[#1798]: https://github.com/DataDog/dd-agent/issues/1798
+[#1800]: https://github.com/DataDog/dd-agent/issues/1800
+[#1811]: https://github.com/DataDog/dd-agent/issues/1811
+[#1820]: https://github.com/DataDog/dd-agent/issues/1820
+[#1822]: https://github.com/DataDog/dd-agent/issues/1822
+[#1823]: https://github.com/DataDog/dd-agent/issues/1823
+[#1831]: https://github.com/DataDog/dd-agent/issues/1831
+[#1843]: https://github.com/DataDog/dd-agent/issues/1843
+[#1844]: https://github.com/DataDog/dd-agent/issues/1844
+[#1846]: https://github.com/DataDog/dd-agent/issues/1846
+[#1852]: https://github.com/DataDog/dd-agent/issues/1852
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@KnownSubset]: https://github.com/KnownSubset
@@ -1948,6 +1985,7 @@ If you use ganglia, you want this version.
 [@arosenhagen]: https://github.com/arosenhagen
 [@arthurnn]: https://github.com/arthurnn
 [@bdotdub]: https://github.com/bdotdub
+[@benmccann]: https://github.com/benmccann
 [@bpuzon]: https://github.com/bpuzon
 [@brettlangdon]: https://github.com/brettlangdon
 [@charles-dyfis-net]: https://github.com/charles-dyfis-net
