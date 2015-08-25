@@ -360,12 +360,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         #
 
         # FIXME unnecessarily complex
-
-        if config.has_option('Main', 'use_dd'):
-            agentConfig['use_dd'] = config.get('Main', 'use_dd').lower() in ("yes", "true")
-        else:
-            agentConfig['use_dd'] = True
-
         agentConfig['use_forwarder'] = False
         if options is not None and options.use_forwarder:
             listen_port = 17123
@@ -399,10 +393,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig['use_web_info_page'] = config.get('Main', 'use_web_info_page').lower() in ("yes", "true")
         else:
             agentConfig['use_web_info_page'] = True
-
-        if not agentConfig['use_dd']:
-            sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
-            exit(2)
 
         # Which API key to use
         agentConfig['api_key'] = config.get('Main', 'api_key')
