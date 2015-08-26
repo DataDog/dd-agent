@@ -265,7 +265,7 @@ SELECT relname,
 SELECT datname,
        usename,
        application_name,
-       state,
+       case state when 'idle' then 'idle' when 'idle in transaction' then 'idle_tx' when 'active' then 'active' end state,
        %s
   FROM pg_stat_activity
  GROUP BY datname, usename, application_name, state
