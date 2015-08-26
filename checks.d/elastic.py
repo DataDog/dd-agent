@@ -163,6 +163,8 @@ class ESCheck(AgentCheck):
         "elasticsearch.http.total_opened": ("gauge", "http.total_opened"),
         "jvm.mem.heap_committed": ("gauge", "jvm.mem.heap_committed_in_bytes"),
         "jvm.mem.heap_used": ("gauge", "jvm.mem.heap_used_in_bytes"),
+        "jvm.mem.heap_in_use": ("gauge", "jvm.mem.heap_used_percent"),
+        "jvm.mem.heap_max": ("gauge", "jvm.mem.heap_max_in_bytes"),
         "jvm.mem.non_heap_committed": ("gauge", "jvm.mem.non_heap_committed_in_bytes"),
         "jvm.mem.non_heap_used": ("gauge", "jvm.mem.non_heap_used_in_bytes"),
         "jvm.threads.count": ("gauge", "jvm.threads.count"),
