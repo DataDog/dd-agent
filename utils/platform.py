@@ -1,5 +1,10 @@
+# stdlib
 import sys
-import docker
+
+# project
+from utils.dockerutil import get_client
+
+_is_ecs = None
 
 class Platform(object):
     """
@@ -57,9 +62,19 @@ class Platform(object):
     @staticmethod
     def is_ecs_instance():
         """Return True if the agent is running in an ECS instance, False otherwise."""
-        cl = docker.Client(version='auto')
-        containers = cl.containers()
-        for co in containers:
-            if '/ecs-agent' in co.get('Names', ''):
-                return True
+        global _is_ecs
+        if _is_ecs is not None:
+            return _is_ecs
+
+        try:
+            client = get_client()
+            containers = client.containers()
+            for co in containers:
+                if '/ecs-agent' in co.get('Names', ''):
+                    _is_ecs = True
+                    return True
+        except Exception, e:
+            pass
+
+        _is_ecs = False
         return False

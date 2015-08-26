@@ -199,7 +199,7 @@ namespace :ci do
         # separate dir we symlink stuff in the rootdir
         path = %(PATH="#{ENV['INTEGRATIONS_DIR']}/bin:#{ENV['PATH']}" )
       end
-      sh %(#{path}nosetests -v -A "#{nose}" #{tests_directory})
+      sh %(#{path}nosetests -s -v -A "#{nose}" #{tests_directory})
       t.reenable
     end
     task execute: [:before_install, :install, :before_script, :script]

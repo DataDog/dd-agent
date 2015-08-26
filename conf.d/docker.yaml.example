@@ -27,11 +27,6 @@ instances:
     # Example:
     # tags: ["extra_tag", "env:example"]
 
-    # If the agent is running in an Amazon ECS task, tags container metrics with the ECS task name and version.
-    # Default: true
-    #
-    # ecs_tags: false
-
     # Exclude containers based on their tags
     # An excluded container will ne longer report performance metrics or events. However,
     # we still count the number of running and stopped of all containers.
@@ -72,6 +67,6 @@ instances:
     # collect_all_metrics: false
 
     # Collect images stats
-    # Number of available active images and intermediate images as gauges. Default: true.
+    # Number of available active images and intermediate images as gauges. Default: false.
     #
     collect_images_stats: false

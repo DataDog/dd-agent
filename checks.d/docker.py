@@ -1,20 +1,18 @@
 # stdlib
-from collections import defaultdict
+import urllib2
+import urllib
 import httplib
+import socket
 import os
 import re
-import requests
-import socket
 import time
-import urllib
-import urllib2
 from urlparse import urlsplit
+from util import json
+from collections import defaultdict
 
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-from util import json
-from utils.platform import Platform
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'docker'
 
@@ -133,6 +131,8 @@ class Docker(AgentCheck):
 
     def check(self, instance):
         # Report image metrics
+        self.warning('Using the "docker" check is deprecated and will be removed'
+        ' in a future version of the agent. Please use the "docker_daemon" one instead')
         if _is_affirmative(instance.get('collect_images_stats', True)):
             self._count_images(instance)
 
@@ -177,16 +177,8 @@ class Docker(AgentCheck):
 
         running_containers_ids = set([container['Id'] for container in running_containers])
 
-        # Dict of container ids and a list of their Amazon ECS task tags
-        if Platform.is_ecs_instance() and instance.get('ecs_tags', True):
-            ecs_tags = self._get_ecs_tags(instance, running_containers)
-        else:
-            ecs_tags = None
-
         for container in all_containers:
             container_tags = list(tags)
-            if ecs_tags:
-                container_tags += ecs_tags.get(container['Id'], [])
             for key in DOCKER_TAGS:
                 tag = self._make_tag(key, container[key], instance)
                 if tag:
@@ -239,24 +231,14 @@ class Docker(AgentCheck):
         collect_uncommon_metrics = _is_affirmative(instance.get("collect_all_metrics", False))
         tags = instance.get("tags", [])
 
-        if Platform.is_ecs_instance() and instance.get('ecs_tags', True):
-            ecs_tags = self._get_ecs_tags(instance, containers)
-        else:
-            ecs_tags = None
-
         # Pre-compile regex to include/exclude containers
         use_filters = self._prepare_filters(instance)
 
         for container in containers:
             container_tags = list(tags)
-            if ecs_tags:
-                container_tags += ecs_tags.get(container['Id'], [])
             for name in container["Names"]:
                 container_tags.append(self._make_tag("name", name.lstrip("/"), instance))
             for key in DOCKER_TAGS:
-                if key == 'Image' and ':' in container[key]:
-                    tag = self._make_tag('image_repository', container[key].split(':')[0], instance)
-                    container_tags.append(tag)
                 tag = self._make_tag(key, container[key], instance)
                 if tag:
                     container_tags.append(tag)
@@ -294,26 +276,6 @@ class Docker(AgentCheck):
         # Prefix tags to avoid conflict with AWS tags
         return NEW_TAGS_MAP.get(tag, tag)
 
-    def _get_ecs_tags(self, instance, containers):
-        ecs_id = None
-        for co in containers:
-            if '/ecs-agent' in co.get('Names', []):
-                ecs_id = co.get('Id')
-        if ecs_id is None:
-            return []
-        ecs_config = self._inspect_container(instance, ecs_id)
-        net_conf = ecs_config['NetworkSettings'].get('Ports', {})
-        net_conf = net_conf.get(net_conf.keys()[0], [])
-        container_tags = {}
-        if net_conf:
-            net_conf = net_conf[0] if isinstance(net_conf, list) else net_conf
-            ip, port = ecs_config.get('NetworkSettings', {})['IPAddress'], net_conf.get('HostPort')
-            tasks = requests.get('http://%s:%s/v1/tasks' % (ip, port)).json()
-            for task in tasks.get('Tasks', []):
-                for container in task.get('Containers', []):
-                    tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
-                    container_tags[container['DockerId']] = tags
-        return container_tags
 
     # Events
 
@@ -391,10 +353,6 @@ class Docker(AgentCheck):
         """Gets the list of running/all containers in Docker."""
         return self._get_json("%(url)s/containers/json" % instance, params={'size': with_size, 'all': get_all})
 
-    def _inspect_container(self, instance, container_id):
-        """Get the list of running/all containers in Docker."""
-        return self._get_json("%s/containers/%s/json" % (instance['url'], container_id))
-
     def _get_images(self, instance, with_size=True, get_all=False):
         """Gets the list of images in Docker."""
         return self._get_json("%(url)s/images/json" % instance, params={'all': get_all})
@@ -449,14 +407,13 @@ class Docker(AgentCheck):
 
     # Cgroups
 
-    def _find_cgroup_filename_pattern(self, container_id):
+    def _find_cgroup_filename_pattern(self):
         if self._mountpoints:
             # We try with different cgroups so that it works even if only one is properly working
             for mountpoint in self._mountpoints.values():
                 stat_file_path_lxc = os.path.join(mountpoint, "lxc")
                 stat_file_path_docker = os.path.join(mountpoint, "docker")
                 stat_file_path_coreos = os.path.join(mountpoint, "system.slice")
-                stat_file_path_kubernetes = os.path.join(mountpoint, container_id)
 
                 if os.path.exists(stat_file_path_lxc):
                     return os.path.join('%(mountpoint)s/lxc/%(id)s/%(file)s')
@@ -464,15 +421,13 @@ class Docker(AgentCheck):
                     return os.path.join('%(mountpoint)s/docker/%(id)s/%(file)s')
                 elif os.path.exists(stat_file_path_coreos):
                     return os.path.join('%(mountpoint)s/system.slice/docker-%(id)s.scope/%(file)s')
-                elif os.path.exists(stat_file_path_kubernetes):
-                    return os.path.join('%(mountpoint)s/%(id)s/%(file)s')
 
         raise Exception("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
     def _get_cgroup_file(self, cgroup, container_id, filename):
         # This can't be initialized at startup because cgroups may not be mounted yet
         if not self._cgroup_filename_pattern:
-            self._cgroup_filename_pattern = self._find_cgroup_filename_pattern(container_id)
+            self._cgroup_filename_pattern = self._find_cgroup_filename_pattern()
 
         return self._cgroup_filename_pattern % (dict(
             mountpoint=self._mountpoints[cgroup],

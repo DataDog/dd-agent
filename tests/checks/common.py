@@ -68,8 +68,10 @@ def load_check(name, config, agentConfig):
     # init the check class
     try:
         return check_class(name, init_config=init_config, agentConfig=agentConfig, instances=instances)
-    except Exception as e:
+    except TypeError as e:
         raise Exception("Check is using old API, {0}".format(e))
+    except Exception:
+        raise
 
 
 def kill_subprocess(process_obj):

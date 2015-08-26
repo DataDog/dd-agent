@@ -39,6 +39,7 @@ require './ci/tomcat'
 require './ci/varnish'
 require './ci/windows'
 require './ci/zookeeper'
+require './ci/docker_daemon'
 
 CLOBBER.include '**/*.pyc'
 
