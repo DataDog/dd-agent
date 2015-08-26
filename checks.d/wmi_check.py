@@ -21,13 +21,23 @@ class WMICheck(AgentCheck):
         self.wmi_conns = {}
 
     def _get_wmi_conn(self, host, **kwargs):
+        """
+        Connect to WMI (default to localhost on the root\CIMV2 WMI namespace).
+        Turn off introspection by setting `find_classes` to False.
+        """
         key = "{0}:".format(host)
         key += ":".join(str(v) for v in kwargs.values())
         if key not in self.wmi_conns:
-            self.wmi_conns[key] = wmi.WMI(host, **kwargs)
+            self.wmi_conns[key] = wmi.WMI(host, find_classes=False, **kwargs)
         return self.wmi_conns[key]
 
     def check(self, instance):
+        """
+        Run WMI check on `instance`.
+
+        Note: by default a WMI query will return all the properties of a class in each instance.
+        Specify them to avoid any expensive lookups.
+        """
         host = instance.get('host', None)
         namespace = instance.get('namespace', None)
         user = instance.get('username', None)
@@ -40,24 +50,31 @@ class WMICheck(AgentCheck):
         tag_queries = instance.get('tag_queries')
         constant_tags = instance.get('constant_tags')
 
+        # Get properties so it can be specified in the query
+        properties = map(lambda x: x[0], metrics)
+
         if not wmi_class:
             raise Exception('WMI instance is missing a value for `class` in wmi_check.yaml')
 
         # If there are filters, we need one query per filter.
         if filters:
             for f in filters:
-                prop = f.keys()[0]
+                field = f.keys()[0]
                 search = f.values()[0]
                 if SEARCH_WILDCARD in search:
                     search = search.replace(SEARCH_WILDCARD, '%')
-                    wql = "SELECT * FROM %s WHERE %s LIKE '%s'" \
-                        % (wmi_class, prop, search)
+                    wql = "SELECT {properties} FROM {wclass} WHERE {field} LIKE '{search}'".format(
+                        properties=", ".join(properties),
+                        wclass=wmi_class,
+                        field=field,
+                        search=search
+                    )
                     results = w.query(wql)
                 else:
-                    results = getattr(w, wmi_class)(**f)
+                    results = getattr(w, wmi_class)(properties, **f)
                 self._extract_metrics(results, metrics, tag_by, w, tag_queries, constant_tags)
         else:
-            results = getattr(w, wmi_class)()
+            results = getattr(w, wmi_class)(properties)
             self._extract_metrics(results, metrics, tag_by, w, tag_queries, constant_tags)
 
     def _extract_metrics(self, results, metrics, tag_by, wmi, tag_queries, constant_tags):
