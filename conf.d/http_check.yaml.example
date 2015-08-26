@@ -77,6 +77,11 @@ instances:
     # The SSL certificate will always be validated for this additional
     # service check regardless of the value of disable_ssl_validation
     #
+    # Be aware that the warning/errors will not be issued to the traditionnal
+    # "HTTP" network check but to the one labeled "SSL". When creating a new
+    # network monitor on datadoghq.com, you will have to select SSL instead
+    # of HTTP in the first section.
+    #
     # check_certificate_expiration: true
     # days_warning: 14
 
