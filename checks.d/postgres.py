@@ -250,6 +250,29 @@ SELECT relname,
         'relation': True,
     }
 
+    # 
+    ACTIVITY_METRICS = {
+        'descriptors': [
+            ('datname', 'db'),
+            ('usename', 'db_user'),
+            ('application_name', 'app_name'),
+            ('state', 'state'),
+        ],
+        'metrics': {
+            'count(*)': ('postgresql.process', GAUGE),
+        },
+        'query': """
+SELECT datname,
+       usename,
+       application_name,
+       state,
+       %s
+  FROM pg_stat_activity
+ GROUP BY datname, usename, application_name, state
+        """,
+        'relation': False,
+    }
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.dbs = {}
@@ -388,6 +411,7 @@ SELECT relname,
             self.CONNECTION_METRICS,
             self.LOCK_METRICS,
             self.COUNT_METRICS,
+            self.ACTIVITY_METRICS
         ]
 
         # These are added only once per PG server, thus the test
@@ -497,7 +521,7 @@ SELECT relname,
                     else:
                         tags = [t for t in instance_tags]
 
-                    tags += [("%s:%s" % (k,v)) for (k,v) in desc_map.iteritems()]
+                    tags += [("%s:%s" % (k,v)) for (k,v) in desc_map.iteritems() if v is not None and v <> '']
 
                     # [(metric-map, value), (metric-map, value), ...]
                     # metric-map is: (dd_name, "rate"|"gauge")
