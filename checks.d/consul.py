@@ -16,7 +16,6 @@ class ConsulCheck(AgentCheck):
     HEALTH_CHECK = 'consul.check'
 
     CONSUL_CATALOG_CHECK = 'consul.catalog'
-    CONSUL_NODE_CHECK = 'consul.node'
 
     SOURCE_TYPE_NAME = 'consul'
 
@@ -135,9 +134,6 @@ class ConsulCheck(AgentCheck):
 
         return self.consul_request(instance, consul_request_url)
 
-    def get_services_on_node(self, instance, node):
-        return self.consul_request(instance, '/v1/catalog/node/{0}'.format(node))
-
     def _cull_services_list(self, services, service_whitelist):
         if service_whitelist:
             if len(service_whitelist) > self.MAX_SERVICES:
@@ -213,7 +209,7 @@ class ConsulCheck(AgentCheck):
                 nodes_with_service = self.get_nodes_with_service(instance, service)
                 node_tags = ['consul_service_id:{0}'.format(service)]
 
-                self.gauge('consul.catalog.nodes_up',
+                self.gauge('{0}.nodes_up'.format(self.CONSUL_CATALOG_CHECK),
                            len(nodes_with_service),
                            tags=main_tags+node_tags)
 
@@ -227,6 +223,6 @@ class ConsulCheck(AgentCheck):
 
             for node, services in nodes_to_services.iteritems():
                 tags = ['consul_node_id:{0}'.format(node)]
-                self.gauge('consul.catalog.services_up',
+                self.gauge('{0}.services_up'.format(self.CONSUL_CATALOG_CHECK),
                            len(services),
                            tags=main_tags+tags)
