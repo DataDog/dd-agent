@@ -87,7 +87,6 @@ See [#1758][]
 ### Changes
 * [FEATURE] Consul: New check reporting cluster, service and node wide metrics and events for leader election. See [#1628][]
 * [FEATURE] CouchDB: Allow blacklisting of specific databases. See [#1760][]
-* [FEATURE] Elasticsearch: Support shard level metrics. See [#1752][]
 * [FEATURE] etcd: SSL support. See [#1745][] (Thanks [@KnownSubset][])
 * [FEATURE] Flare: Add JMXFetch-specific information. See [#1726][]
 * [FEATURE] Flare: Log permissions on collected files. See [#1767][]
