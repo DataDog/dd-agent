@@ -1,8 +1,12 @@
 init_config:
 
 instances:
-  # Each WMI query has 2 required options, `class` and `metrics` and five
-  # optional options, `namespace`, `filters`, `tag_by`, `constant_tags` and `tag_queries`.
+  # Each WMI query has 2 required options, `class` and `metrics` and six 
+  # optional options, `host`, `namespace`, `filters`, `tag_by`, `constant_tags` and `tag_queries`.
+  #
+  # `host` is the optional target of the WMI query, `localhost` is assumed by default
+  # if you set this option, make sure that Remote Management is enabled on the target host
+  # see https://technet.microsoft.com/en-us/library/Hh921475.aspx for more information
   #
   # `class` is the name of the WMI class, for example Win32_OperatingSystem
   # or Win32_PerfFormattedData_PerfProc_Process. You can find many of the
