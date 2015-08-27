@@ -2,7 +2,8 @@ init_config:
 
 instances:
   # Specify the MongoDB URI, with database to use for reporting (defaults to "admin")
-  - server: mongodb://localhost:27017/admin
+  # E.g. mongodb://datadog:LnCbkX4uhpuLHSUrcayEoAZA@localhost:27016/my-db
+  - server: mongodb://user:pass@host:port/db-name
     # Time to wait on creating a MongoDB connection
     # timeout: 30
 
