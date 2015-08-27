@@ -7,7 +7,6 @@ https://github.com/DataDog/dd-agent/compare/5.4.5...5.5.0
 
 ### New integrations
 * Consul
-* Fail2ban
 
 ### Updated integrations
 * Agent Metrics
@@ -90,7 +89,6 @@ See [#1758][]
 * [FEATURE] CouchDB: Allow blacklisting of specific databases. See [#1760][]
 * [FEATURE] Elasticsearch: Support shard level metrics. See [#1752][]
 * [FEATURE] etcd: SSL support. See [#1745][] (Thanks [@KnownSubset][])
-* [FEATURE] Fail2ban: New check reporting metrics from the server status. See [#1427][] (Thanks [@brettlangdon][])
 * [FEATURE] Flare: Add JMXFetch-specific information. See [#1726][]
 * [FEATURE] Flare: Log permissions on collected files. See [#1767][]
 * [FEATURE] Flare: Windows support. See [#1773][]
