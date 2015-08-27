@@ -589,10 +589,7 @@ class Cpu(Check):
         """
         def format_results(us, sy, wa, idle, st, guest=None):
             data = {'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st, 'cpuGuest': guest}
-            for key in data.keys():
-                if data[key] is None:
-                    del data[key]
-            return data
+            return dict((k, v) for k, v in data.iteritems() if v is not None)
 
         def get_value(legend, data, name, filter_value=None):
             "Using the legend and a metric name, get the value or None from the data line"
