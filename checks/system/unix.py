@@ -587,12 +587,9 @@ class Cpu(Check):
         """Return an aggregate of CPU stats across all CPUs
         When figures are not available, False is sent back.
         """
-        def format_results(us, sy, wa, idle, st):
-            data = {'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st}
-            for key in data.keys():
-                if data[key] is None:
-                    del data[key]
-            return data
+        def format_results(us, sy, wa, idle, st, guest=None):
+            data = {'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st, 'cpuGuest': guest}
+            return dict((k, v) for k, v in data.iteritems() if v is not None)
 
         def get_value(legend, data, name, filter_value=None):
             "Using the legend and a metric name, get the value or None from the data line"
@@ -642,6 +639,7 @@ class Cpu(Check):
                         "%usr": None, "%user": None, "%nice": None,
                         "%iowait": None, "%idle": None, "%sys": None,
                         "%irq": None, "%soft": None, "%steal": None,
+                        "%guest": None
                     }
 
                     for cpu_m in cpu_metrics:
@@ -655,12 +653,14 @@ class Cpu(Check):
                     cpu_wait = cpu_metrics["%iowait"]
                     cpu_idle = cpu_metrics["%idle"]
                     cpu_stolen = cpu_metrics["%steal"]
+                    cpu_guest = cpu_metrics["%guest"]
 
                     return format_results(cpu_user,
                                           cpu_system,
                                           cpu_wait,
                                           cpu_idle,
-                                          cpu_stolen)
+                                          cpu_stolen,
+                                          cpu_guest)
                 else:
                     return False
 
