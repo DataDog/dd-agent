@@ -18,8 +18,6 @@ class NodeNotFound(Exception):
 
 ESInstanceConfig = namedtuple(
     'ESInstanceConfig', [
-        'shard_level_metrics',
-        'pshard_stats',
         'cluster_stats',
         'password',
         'service_check_tags',
@@ -33,58 +31,8 @@ ESInstanceConfig = namedtuple(
 class ESCheck(AgentCheck):
     SERVICE_CHECK_CONNECT_NAME = 'elasticsearch.can_connect'
     SERVICE_CHECK_CLUSTER_STATUS = 'elasticsearch.cluster_health'
-    SERVICE_CHECK_SHARD_STATE = 'elasticsearch.shard.state'
 
     DEFAULT_TIMEOUT = 5
-
-    # Pre aggregated metrics concerning only primary shards
-    # Those dicts are populated in the ESCheck constructor
-    PRIMARY_SHARD_METRICS = {}
-    PRIMARY_SHARD_METRICS_POST_1_0 = {}
-
-    # Same kind of dicts for SHARD_LEVEL_METRICS
-    SHARD_LEVEL_METRICS = {}
-    SHARD_LEVEL_METRICS_POST_1_0 = {}
-
-    # Shard-specific metrics
-    SHARD_LEVEL_METRICS_SUFFIX = {
-        ".docs.count": ("gauge", "docs.count"),
-        ".docs.deleted": ("gauge", "docs.deleted"),
-        ".store.size": ("gauge", "store.size_in_bytes"),
-        ".indexing.index.total": ("gauge", "indexing.index_total"),
-        ".indexing.index.time": ("gauge", "indexing.index_time_in_millis", lambda v: float(v)/1000),
-        ".indexing.index.current": ("gauge", "indexing.index_current"),
-        ".indexing.delete.total": ("gauge", "indexing.delete_total"),
-        ".indexing.delete.time": ("gauge", "indexing.delete_time_in_millis", lambda v: float(v)/1000),
-        ".indexing.delete.current": ("gauge", "indexing.delete_current"),
-        ".get.total": ("gauge", "get.total"),
-        ".get.time": ("gauge", "get.time_in_millis", lambda v: float(v)/1000),
-        ".get.current": ("gauge", "get.current"),
-        ".get.exists.total": ("gauge", "get.exists_total"),
-        ".get.exists.time": ("gauge", "get.exists_time_in_millis", lambda v: float(v)/1000),
-        ".get.missing.total": ("gauge", "get.missing_total"),
-        ".get.missing.time": ("gauge", "get.missing_time_in_millis", lambda v: float(v)/1000),
-        ".search.query.total": ("gauge", "search.query_total"),
-        ".search.query.time": ("gauge", "search.query_time_in_millis", lambda v: float(v)/1000),
-        ".search.query.current": ("gauge", "search.query_current"),
-        ".search.fetch.total": ("gauge", "search.fetch_total"),
-        ".search.fetch.time": ("gauge", "search.fetch_time_in_millis", lambda v: float(v)/1000),
-        ".search.fetch.current": ("gauge", "search.fetch_current")
-    }
-
-    SHARD_LEVEL_METRICS_POST_1_0_SUFFIX = {
-        ".merges.current": ("gauge", "merges.current"),
-        ".merges.current.docs": ("gauge", "merges.current_docs"),
-        ".merges.current.size": ("gauge", "merges.current_size_in_bytes"),
-        ".merges.total": ("gauge", "merges.total"),
-        ".merges.total.time": ("gauge", "merges.total_time_in_millis", lambda v: float(v)/1000),
-        ".merges.total.docs": ("gauge", "merges.total_docs"),
-        ".merges.total.size": ("gauge", "merges.total_size_in_bytes"),
-        ".refresh.total": ("gauge", "refresh.total"),
-        ".refresh.total.time": ("gauge", "refresh.total_time_in_millis", lambda v: float(v)/1000),
-        ".flush.total": ("gauge", "flush.total"),
-        ".flush.total.time": ("gauge", "flush.total_time_in_millis", lambda v: float(v)/1000)
-    }
 
     STATS_METRICS = {  # Metrics that are common to all Elasticsearch versions
         "elasticsearch.docs.count": ("gauge", "indices.docs.count"),
@@ -224,18 +172,6 @@ class ESCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'elasticsearch'
 
     def __init__(self, name, init_config, agentConfig, instances=None):
-
-        # Let's construct the PRIMARY_SHARD_METRICS and SHARD_LEVEL_METRICS dicts
-        for k, v in self.SHARD_LEVEL_METRICS_SUFFIX.iteritems():
-            val = (v[0], '_all.primaries.{0}'.format(v[1]), v[2] if len(v) > 2 else None)
-            self.PRIMARY_SHARD_METRICS['elasticsearch.primaries{0}'.format(k)] = val
-            self.SHARD_LEVEL_METRICS['elasticsearch.shard{0}'.format(k)] = v
-
-        for k, v in self.SHARD_LEVEL_METRICS_POST_1_0_SUFFIX.iteritems():
-            val = (v[0], '_all.primaries.{0}'.format(v[1]), v[2] if len(v) > 2 else None)
-            self.PRIMARY_SHARD_METRICS_POST_1_0['elasticsearch.primaries{0}'.format(k)] = val
-            self.SHARD_LEVEL_METRICS_POST_1_0['elasticsearch.shard{0}'.format(k)] = v
-
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # Host status needs to persist across all checks
@@ -245,9 +181,6 @@ class ESCheck(AgentCheck):
         url = instance.get('url')
         if url is None:
             raise Exception("An url must be specified in the instance")
-
-        pshard_stats = _is_affirmative(instance.get('pshard_stats', False))
-        shard_level_metrics = _is_affirmative(instance.get('shard_level_metrics', False))
 
         cluster_stats = _is_affirmative(instance.get('cluster_stats', False))
         if 'is_external' in instance:
@@ -273,8 +206,6 @@ class ESCheck(AgentCheck):
         timeout = instance.get('timeout') or self.DEFAULT_TIMEOUT
 
         config = ESInstanceConfig(
-            shard_level_metrics=shard_level_metrics,
-            pshard_stats=pshard_stats,
             cluster_stats=cluster_stats,
             password=instance.get('password'),
             service_check_tags=service_check_tags,
@@ -292,21 +223,8 @@ class ESCheck(AgentCheck):
         # (URLs and metrics) accordingly
         version = self._get_es_version(config)
 
-        health_url, nodes_url, stats_url, pshard_stats_url, pending_tasks_url, stats_metrics, \
-            pshard_stats_metrics, shard_level_metrics = self._define_params(version,
-                config.cluster_stats)
-
-        # Load primary shards data
-        if config.pshard_stats:
-            pshard_stats_url = urlparse.urljoin(config.url, pshard_stats_url)
-            pshard_stats_data = self._get_data(pshard_stats_url, config)
-            self._process_pshard_stats_data(pshard_stats_data, config, pshard_stats_metrics)
-
-        # Load shard-level metrics
-        if config.shard_level_metrics:
-            shard_level_url = urlparse.urljoin(config.url, pshard_stats_url) + '?level=shards'
-            shard_level_data = self._get_data(shard_level_url, config)
-            self._process_shard_level_data(shard_level_data, config, shard_level_metrics)
+        health_url, nodes_url, stats_url, pending_tasks_url, stats_metrics\
+            = self._define_params(version, config.cluster_stats)
 
         # Load stats data.
         stats_url = urlparse.urljoin(config.url, stats_url)
@@ -352,9 +270,6 @@ class ESCheck(AgentCheck):
         """ Define the set of URLs and METRICS to use depending on the
             running ES version.
         """
-
-        pshard_stats_url = "/_stats"
-
         if version >= [0, 90, 10]:
             # ES versions 0.90.10 and above
             health_url = "/_cluster/health?pretty=true"
@@ -384,21 +299,14 @@ class ESCheck(AgentCheck):
 
         if version >= [0, 90, 5]:
             # ES versions 0.90.5 and above
-            stats_metrics.update(self.ADDITIONAL_METRICS_POST_0_90_5)
+            additional_metrics = self.ADDITIONAL_METRICS_POST_0_90_5
         else:
             # ES version 0.90.4 and below
-            stats_metrics.update(self.ADDITIONAL_METRICS_PRE_0_90_5)
+            additional_metrics = self.ADDITIONAL_METRICS_PRE_0_90_5
 
-        # Version specific stats metrics about the primary shards
-        pshard_stats_metrics = dict(self.PRIMARY_SHARD_METRICS)
-        shard_level_metrics = dict(self.SHARD_LEVEL_METRICS)
+        stats_metrics.update(additional_metrics)
 
-        if version >= [1, 0, 0]:
-            pshard_stats_metrics.update(self.PRIMARY_SHARD_METRICS_POST_1_0)
-            shard_level_metrics.update(self.SHARD_LEVEL_METRICS_POST_1_0)
-
-        return health_url, nodes_url, stats_url, pshard_stats_url, pending_tasks_url, \
-            stats_metrics, pshard_stats_metrics, shard_level_metrics
+        return health_url, nodes_url, stats_url, pending_tasks_url, stats_metrics
 
     def _get_data(self, url, config, send_sc=True):
         """ Hit a given URL and return the parsed json
@@ -461,66 +369,6 @@ class ESCheck(AgentCheck):
                 self._process_metric(
                     node_data, metric, *desc, tags=config.tags,
                     hostname=metric_hostname)
-
-    def _process_pshard_stats_data(self, data, config, pshard_stats_metrics):
-        for metric, desc in pshard_stats_metrics.iteritems():
-            self._process_metric(data, metric, *desc, tags=config.tags)
-
-    def _process_shard_level_data(self, data, config, shard_level_metrics):
-        for index_name, index_data in data['indices'].iteritems():
-            for i_str, pshard_and_replicas in index_data['shards'].iteritems():
-                # Do we have more than one replica for this shard ?
-                count_replicas = len(pshard_and_replicas) > 2
-                replica_number = 0
-
-                for shard in pshard_and_replicas:
-                    # Let's get the host tag
-                    node = shard['routing']['node']
-
-                    # Let's compute our shard name
-                    shard_role = "replica"
-                    if shard['routing']['primary']:
-                        shard_name = 'P' + i_str
-                        shard_role = "primary"
-                    elif count_replicas:
-                        replica_number += 1
-                        shard_name = 'R{0}_{1}'.format(i_str, replica_number)
-                    else:
-                        shard_name = 'R' + i_str
-
-                    # Let's add some interesting tags that will enable us to
-                    # slice and dice as we wish in DatadogHQ
-                    es_shard_tags = ["es_node:{0}".format(node),
-                                     "es_shard:{0}".format(shard_name),
-                                     "es_index:{0}".format(index_name),
-                                     "es_role:{0}".format(shard_role),
-                                     "shard_specific"]
-
-                    tags = config.tags + es_shard_tags
-
-                    # Let's send a good old service check
-                    if shard['routing']['state'] == 'STARTED':
-                        state = AgentCheck.OK
-                        sc_msg = "Shard is running"
-                    elif shard['routing']['state'] == 'INITIALIZING':
-                        state = AgentCheck.WARNING
-                        sc_msg = ("Shard is currently being initialized. It should turn green "
-                                  "(or red...) soon")
-                    else:
-                        state = AgentCheck.CRITICAL
-                        sc_msg = "Shard is unassigned. Do you have enough nodes in your cluster ? "
-
-                    self.service_check(
-                        self.SERVICE_CHECK_SHARD_STATE,
-                        state,
-                        message=sc_msg,
-                        tags=config.service_check_tags + es_shard_tags
-                    )
-
-                    # And let's finally send our metric !
-                    for metric, desc in shard_level_metrics.iteritems():
-                        self._process_metric(shard, metric, *desc, tags=config.tags +
-                                             es_shard_tags)
 
     def _process_metric(self, data, metric, xtype, path, xform=None,
                         tags=None, hostname=None):
