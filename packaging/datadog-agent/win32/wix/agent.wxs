@@ -2,7 +2,7 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
     <Product Name="Datadog Agent" Id="*" UpgradeCode="82210ed1-bbe4-4051-aa15-002ea31dde15"
     Language="1033" Codepage="1252" Version="$(var.AgentVersion)" Manufacturer="Datadog Inc.">
-        <Package Id="*" Keywords="Installer" Description="Datadog Agent Installer"
+        <Package Id="*" Keywords="Installer" Description="Datadog Agent v$(var.AgentVersion)"
           Comments="Copyright 2013 Datadog, Inc." Manufacturer="Datadog Inc."
           InstallerVersion="100" Languages="1033" Compressed="yes" SummaryCodepage="1252" />
 
