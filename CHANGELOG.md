@@ -11,6 +11,7 @@ https://github.com/DataDog/dd-agent/compare/5.4.5...5.5.0
 ### Updated integrations
 * Agent Metrics
 * Amazon EC2
+* Btrfs
 * Couchbase
 * CouchDB
 * Disk
@@ -30,6 +31,7 @@ https://github.com/DataDog/dd-agent/compare/5.4.5...5.5.0
 * RabbitMQ
 * Redis
 * Supervisor
+* System
 * Windows Event Viewer
 * WMI
 
@@ -87,6 +89,8 @@ See [#1758][]
 ### Changes
 * [FEATURE] Consul: New check reporting cluster, service and node wide metrics and events for leader election. See [#1628][]
 * [FEATURE] CouchDB: Allow blacklisting of specific databases. See [#1760][]
+* [FEATURE] Elasticsearch: Collect common JVM metrics. See [#1865][]
+* [FEATURE] Elasticsearch: Collect primary shard statistic metrics. See [#1875][]
 * [FEATURE] etcd: SSL support. See [#1745][] (Thanks [@KnownSubset][])
 * [FEATURE] Flare: Add JMXFetch-specific information. See [#1726][]
 * [FEATURE] Flare: Log permissions on collected files. See [#1767][]
@@ -102,6 +106,7 @@ See [#1758][]
 * [FEATURE] PostgreSQL: Support for relation schemas. See [#1771][]
 * [FEATURE] RabbitMQ: Collect the number of RabbitMQ partitions per node. See [#1715][] (Thanks [@ulich][])
 * [FEATURE] Supervisor: Option to select processes to monitor by regex name match. See [#1747][] (Thanks [@ckrough][])
+* [FEATURE] System: Collect [`%guest`](http://man.he.net/man1/mpstat) CPU time. See [#1845][]
 
 * [IMPROVEMENT] CouchDB: Fail gracefully when one or more individual databases are not readable by the configured user. See [#1760][]
 * [IMPROVEMENT] Docker: Add an `image_repository` tag to the docker check. See [#1691][]
@@ -109,6 +114,7 @@ See [#1758][]
 
 * [BUGFIX] Agent Metrics: Fix the configuration YAML example file rights. See [#1725][]
 * [BUGFIX] Amazon EC2: Update metadata endpoint list to avoid redirections. See [#1750][] (Thanks [@dspangen][])
+* [BUGFIX] Btrfs: Track usage based on used bytes instead of free bytes. See [#1839][] (Thanks [@pbitty][])
 * [BUGFIX] Couchbase: Send service check tags on OK status. See [#1722][] [#1776][]
 * [BUGFIX] Disk: Force CDROM (iso9660) exclusion. See [#1786][]
 * [BUGFIX] Disk: Recalculate `disk.in_use` to make consistent with `df`'s 'Use% metric'. See [#1785][]
@@ -1969,10 +1975,14 @@ If you use ganglia, you want this version.
 [#1822]: https://github.com/DataDog/dd-agent/issues/1822
 [#1823]: https://github.com/DataDog/dd-agent/issues/1823
 [#1831]: https://github.com/DataDog/dd-agent/issues/1831
+[#1839]: https://github.com/DataDog/dd-agent/issues/1839
 [#1843]: https://github.com/DataDog/dd-agent/issues/1843
 [#1844]: https://github.com/DataDog/dd-agent/issues/1844
+[#1845]: https://github.com/DataDog/dd-agent/issues/1845
 [#1846]: https://github.com/DataDog/dd-agent/issues/1846
 [#1852]: https://github.com/DataDog/dd-agent/issues/1852
+[#1865]: https://github.com/DataDog/dd-agent/issues/1865
+[#1875]: https://github.com/DataDog/dd-agent/issues/1875
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@KnownSubset]: https://github.com/KnownSubset
