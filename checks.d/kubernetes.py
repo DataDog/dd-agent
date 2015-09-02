@@ -14,9 +14,11 @@ from util import json
 DEFAULT_BASEURL = "http://localhost:4194/"
 DEFAULT_METRICS_CMD = "/api/v1.3/subcontainers/"
 DEFAULT_EVENTS_CMD = "/api/v1.3/events/"
+DEFAULT_MAX_DEPTH = 10
+DEFAULT_NAMESPACE = 'kubernetes'
 
 class Kubernetes(AgentCheck):
-    """ Collect metrics and events from Kubernetes instance"""
+    """ Collect metrics and events from kubelet agent"""
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
@@ -36,22 +38,33 @@ class Kubernetes(AgentCheck):
         self.baseurl = instance.get('baseurl', DEFAULT_BASEURL)
         self.metrics_cmd = urljoin(self.baseurl, DEFAULT_METRICS_CMD)
         self.events_cmd = urljoin(self.baseurl, DEFAULT_EVENTS_CMD)
+        self.max_depth = instance.get('max_depth', DEFAULT_MAX_DEPTH)
+        self.namespace = instance.get('namespace', DEFAULT_NAMESPACE)
+        
         self._update_metrics(instance)
-
-    def _discover_metrics(self, metric, dat, tags):
+        
+    def _discover_metrics(self, metric, dat, tags, depth=0):
+        if depth>=self.max_depth:
+            return
+        
         type_ = type(dat)
         if type_ is int or type_ is long or type_ is float:
             self.rate(metric, long(dat), tags)
         elif type_ is dict:
             for k,v in dat.iteritems():
-                self._discover_metrics(metric+'.%s'%k.lower(), v, tags)
+                self._discover_metrics(metric+'.%s'%k.lower(), v, tags, depth+1)
         elif type_ is list:
-            self._discover_metrics(metric, dat[-1], tags)
+            self._discover_metrics(metric, dat[-1], tags, depth+1)
         else:
             return
     
     def _update_metrics(self, instance):
-        for subcontainer in self._retrieve_json(self.metrics_cmd):
+        metrics = self._retrieve_json(self.metrics_cmd)
+        if not metrics:
+            self.log.warning("Unable to retrieve metrics from %s" % self.metrics_cmd)
+            return
+        
+        for subcontainer in metrics:
             name = subcontainer['name']
             tags = [ 'container_name:%s' % name ]
 
@@ -61,24 +74,9 @@ class Kubernetes(AgentCheck):
             except KeyError:
                 pass
             
-            try:
-                namespace = subcontainer['namespace']
-                tags.append('namespace:%s' % namespace)
-            except KeyError:
-                namespace = 'kubernetes'
-            
-            stats = subcontainer['stats'][-1]
-            try:
-                self._discover_metrics(namespace+'.cpu', stats['cpu'], tags)
-            except KeyError:
-                pass
-                
-            try:
-                self._discover_metrics(namespace+'.diskio', stats['diskio'], tags)
-            except KeyError:
-                pass
-
-            try:
-                self._discover_metrics(namespace+'.network', stats['network'], tags)
-            except KeyError:
-                pass
+            stats = subcontainer['stats'][-1]  # take latest
+            for metrics_type in [ 'cpu', 'diskio', 'network' ]:
+                try:
+                    self._discover_metrics(self.namespace+'.'+metrics_type, stats[metrics_type], tags)
+                except KeyError:
+                    self.log.warning('Unable to retrieve %s metrics' % metrics_type)
