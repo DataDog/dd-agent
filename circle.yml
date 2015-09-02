@@ -1,0 +1,7 @@
+machine:
+  services:
+    - docker
+
+test:
+  override:
+    - docker run -it -h 'test-docker-check' -e BRANCH=remh/dockerv2 -e FLAVOR=docker_daemon -v /var/run/docker.sock:/var/run/docker.sock -v /proc:/host/proc:ro -v /sys/fs/cgroup/:/host/sys/fs/cgroup:ro remh/dev-dd-agent
