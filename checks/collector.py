@@ -17,11 +17,11 @@ from checks.check_status import (
 )
 from checks.datadog import DdForwarder, Dogstreams
 from checks.ganglia import Ganglia
+from config import get_system_stats, get_version
+from resources.processes import Processes as ResProcesses
 import checks.system.unix as u
 import checks.system.win32 as w32
-from config import get_system_stats, get_version
 import modules
-from resources.processes import Processes as ResProcesses
 from util import (
     EC2,
     GCE,
@@ -31,6 +31,7 @@ from util import (
     Timer,
 )
 from utils.jmx import JMXFiles
+from utils.platform import Platform
 from utils.subprocess_output import subprocess
 
 log = logging.getLogger(__name__)
@@ -252,7 +253,7 @@ class Collector(object):
         Collect data from each check and submit their data.
         """
         timer = Timer()
-        if self.os != 'windows':
+        if not Platform.is_windows():
             cpu_clock = time.clock()
         self.run_count += 1
         log.debug("Starting collection run #%s" % self.run_count)
@@ -280,7 +281,7 @@ class Collector(object):
         service_checks = payload['service_checks']
 
         # Run the system checks. Checks will depend on the OS
-        if self.os == 'windows':
+        if Platform.is_windows():
             # Win32 system checks
             try:
                 metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
@@ -354,7 +355,7 @@ class Collector(object):
             payload['datadog'] = ddforwarderData
 
         # Resources checks
-        if self.os != 'windows':
+        if not Platform.is_windows():
             has_resource = False
             for resources_check in self._resources_checks:
                 resources_check.check()
@@ -479,33 +480,22 @@ class Collector(object):
 
         collect_duration = timer.step()
 
-        if self.os != 'windows':
-            if self._agent_metrics is not None:
-                self._agent_metrics.set_metric_context(payload,
-                    {
-                        'collection_time': collect_duration,
-                        'emit_time': self.emit_duration,
-                        'cpu_time': time.clock() - cpu_clock
-                    })
-                self._agent_metrics.run()
-                agent_stats = self._agent_metrics.get_metrics()
-                payload['metrics'].extend(agent_stats)
-                # Dump the metrics to log when in developer mode
-                if self.agentConfig.get('developer_mode', False):
-                    log.info("\n AGENT STATS: \n {0}".format(Collector._stats_for_display(agent_stats)))
-        else:
-            if self._agent_metrics is not None:
-                self._agent_metrics.set_metric_context(payload,
-                    {
-                        'collection_time': collect_duration,
-                        'emit_time': self.emit_duration,
-                    })
-                self._agent_metrics.run()
-                agent_stats = self._agent_metrics.get_metrics()
-                payload['metrics'].extend(agent_stats)
-                # Dump the metrics to log when in developer mode
-                if self.agentConfig.get('developer_mode', False):
-                    log.info("\n AGENT STATS: \n {0}".format(Collector._stats_for_display(agent_stats)))
+        if self._agent_metrics:
+            metric_context = {
+                'collection_time': collect_duration,
+                'emit_time': self.emit_duration,
+            }
+            if not Platform.is_windows():
+                metric_context['cpu_time'] = time.clock() - cpu_clock
+
+            self._agent_metrics.set_metric_context(payload, metric_context)
+            self._agent_metrics.run()
+            agent_stats = self._agent_metrics.get_metrics()
+            payload['metrics'].extend(agent_stats)
+            if self.agentConfig.get('developer_mode'):
+                log.debug("\n Agent developer mode stats: \n {0}".format(
+                    Collector._stats_for_display(agent_stats))
+                )
 
         # Let's send our payload
         emitter_statuses = payload.emit(log, self.agentConfig, self.emitters,
@@ -638,7 +628,7 @@ class Collector(object):
         if self._should_send_additional_data('host_metadata'):
             # gather metadata with gohai
             try:
-                if get_os() != 'windows':
+                if not Platform.is_windows():
                     command = "gohai"
                 else:
                     command = "gohai\gohai.exe"

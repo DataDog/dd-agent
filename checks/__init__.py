@@ -310,7 +310,7 @@ class AgentCheck(object):
         self.name = name
         self.init_config = init_config or {}
         self.agentConfig = agentConfig
-        self.in_developer_mode = agentConfig.get('developer_mode') and psutil is not None
+        self.in_developer_mode = agentConfig.get('developer_mode') and psutil
         self._internal_profiling_stats = None
 
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
