@@ -45,6 +45,7 @@ class Kubernetes(AgentCheck):
         
     def _discover_metrics(self, metric, dat, tags, depth=0):
         if depth>=self.max_depth:
+            self.log.warning('Reached max depth on metric=%s' % metric)
             return
         
         type_ = type(dat)
@@ -61,7 +62,7 @@ class Kubernetes(AgentCheck):
     def _update_metrics(self, instance):
         metrics = self._retrieve_json(self.metrics_cmd)
         if not metrics:
-            self.log.warning("Unable to retrieve metrics from %s" % self.metrics_cmd)
+            self.log.warning('Unable to retrieve metrics cmd=%s' % self.metrics_cmd)
             return
         
         for subcontainer in metrics:
@@ -79,4 +80,4 @@ class Kubernetes(AgentCheck):
                 try:
                     self._discover_metrics(self.namespace+'.'+metrics_type, stats[metrics_type], tags)
                 except KeyError:
-                    self.log.warning('Unable to retrieve %s metrics' % metrics_type)
+                    self.log.warning('Unable to retrieve metrics_type=%s' % metrics_type)
