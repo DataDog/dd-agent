@@ -118,7 +118,6 @@ EXCLUDED_WINDOWS_CHECKS = [
     'mesos',
     'network',
     'postfix',
-    'process',
     'ssh_check',
     'zk',
 ]
