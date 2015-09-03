@@ -30,6 +30,7 @@ from util import (
     get_uuid,
     Timer,
 )
+from utils.debug import log_exceptions
 from utils.jmx import JMXFiles
 from utils.subprocess_output import subprocess
 
@@ -247,6 +248,7 @@ class Collector(object):
     def _stats_for_display(raw_stats):
         return pprint.pformat(raw_stats, indent=4)
 
+    @log_exceptions(log)
     def run(self, checksd=None, start_event=True):
         """
         Collect data from each check and submit their data.
