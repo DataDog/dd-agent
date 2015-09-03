@@ -48,8 +48,6 @@ class Redis(AgentCheck):
         'expired_keys':                 'redis.keys.expired',
 
         # stats
-        'keyspace_hits':                'redis.stats.keyspace_hits',
-        'keyspace_misses':              'redis.stats.keyspace_misses',
         'latest_fork_usec':             'redis.perf.latest_fork_usec',
 
         # pubsub
@@ -85,9 +83,16 @@ class Redis(AgentCheck):
         'used_cpu_user_children':       'redis.cpu.user_children',
     }
 
+    MONOTONIC_COUNT = {
+        # stats
+        'keyspace_hits':                'redis.stats.keyspace_hits',
+        'keyspace_misses':              'redis.stats.keyspace_misses',
+    }
+
     METRIC_KEYS_BY_TYPE = [
         ("gauge", GAUGE_KEYS),
         ("rate", RATE_KEYS),
+        ("monotonic_count", MONOTONIC_COUNT)
     ]
 
     def __init__(self, name, init_config, agentConfig, instances=None):
