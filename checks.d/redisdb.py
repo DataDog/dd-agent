@@ -85,6 +85,11 @@ class Redis(AgentCheck):
         'used_cpu_user_children':       'redis.cpu.user_children',
     }
 
+    METRIC_KEYS_BY_TYPE = [
+        ("gauge", GAUGE_KEYS),
+        ("rate", RATE_KEYS),
+    ]
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.connections = {}
@@ -205,10 +210,17 @@ class Redis(AgentCheck):
                     self.gauge(metric, val, tags=db_tags)
 
         # Save a subset of db-wide statistics
-        for k in set(info).intersection(self.GAUGE_KEYS):
-            self.gauge(self.GAUGE_KEYS[k], info[k], tags=tags)
-        for k in set(info).intersection(self.RATE_KEYS):
-            self.rate(self.RATE_KEYS[k], info[k], tags=tags)
+        for info_name, value in info.iteritems():
+            m_type, metric_name = next(
+                ((mtype, metric_keys[info_name]) for mtype, metric_keys in self.METRIC_KEYS_BY_TYPE
+                    if info_name in metric_keys),
+                (None, None)
+            )
+            if not m_type:
+                continue
+
+            submit_metric = getattr(self, m_type)
+            submit_metric(metric_name, value, tags=tags)
 
         # Save the number of commands.
         self.rate('redis.net.commands', info['total_commands_processed'],
