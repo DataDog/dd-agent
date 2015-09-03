@@ -114,7 +114,7 @@ class WMICheck(AgentCheck):
                 else:
                     try:
                         val = float(getattr(res, wmi_property))
-                    except ValueError:
+                    except (ValueError, TypeError):
                         self.log.warning("When extracting metrics with WMI, found a non digit value"
                                          " for property '{0}'.".format(wmi_property))
                         continue
