@@ -1,12 +1,34 @@
 # stdlib
+from functools import wraps
+from pprint import pprint
 import inspect
 import os
-from pprint import pprint
 import sys
 
 # datadog
 from config import get_checksd_path, get_confd_path
 from util import get_os
+
+
+def log_exceptions(logger):
+    """
+    A decorator that catches any exceptions thrown by the decorated function and
+    logs them along with a traceback.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                result = func(*args, **kwargs)
+            except Exception:
+                logger.exception(
+                    u"Uncaught exception while running {0}".format(func.__name__)
+                )
+                raise
+            return result
+        return wrapper
+    return decorator
+
 
 
 def run_check(name, path=None):
