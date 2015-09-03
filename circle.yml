@@ -10,8 +10,8 @@ general:
 dependencies:
   override:
     - pip install -r requirements.txt
-    - pip install -r requiremnts-opt.txt
-    - pip install -r requiremts-test.txt
+    - pip install -r requirements-opt.txt
+    - pip install -r requirements-test.txt
     - bundle install
 
 
