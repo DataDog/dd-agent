@@ -12,6 +12,8 @@ import os
 import sys
 import time
 import signal
+import select
+import socket
 import psutil
 import logging
 import multiprocessing
@@ -23,7 +25,18 @@ import win32api
 
 # project
 from win32.common import handle_exe_click
-from config import get_config
+from checks.collector import Collector
+from config import (
+    get_confd_path,
+    get_config,
+    get_system_stats,
+    load_check_directory,
+    PathNotFound,
+    set_win32_cert_path
+)
+from emitter import http_emitter
+from jmxfetch import JMXFetch
+import modules
 from util import get_hostname
 from utils.jmx import JMXFiles
 
@@ -39,10 +52,13 @@ DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 class AgentSupervisor():
     devnull = None
 
-    def __init__(self):
+    def __init__(self, server=False):
         AgentSupervisor.devnull = open(os.devnull, 'w')
 
         config = get_config(parse_args=False)
+
+        # Should we listen for killing requests on port 9001 ?
+        self.server_mode = server
 
         # Setup the correct options so the agent will use the forwarder
         opts, args = Values({
@@ -68,9 +84,13 @@ class AgentSupervisor():
         self._MAX_JMXFETCH_RESTARTS = 3
         self._count_jmxfetch_restarts = 0
 
+        # This allows us to use the system's Python in case there is no embedded python
+        embedded_python = '..\\embedded\\python.exe'
+        if not os.path.isfile(embedded_python):
+            embedded_python = "python"
+
         # Keep a list of running processes so we can start/end as needed.
         # Processes will start started in order and stopped in reverse order.
-        embedded_python = "..\\embedded\\python"
         self.procs = {
             'forwarder': ProcessWatchDog("forwarder",
                 DDProcess("Forwarder", [embedded_python, "ddagent.py"])),
@@ -107,6 +127,13 @@ class AgentSupervisor():
     def run(self):
         self.start_ts = time.time()
 
+        service_sock = None
+        clients = []
+        if(self.server_mode):
+            service_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            service_sock.bind(('', 9001))
+            service_sock.listen(1)
+
         # Start all services.
         for proc in self.procs.values():
             proc.start()
@@ -123,7 +150,35 @@ class AgentSupervisor():
 
             self._check_collector_blocked()
 
-            time.sleep(SERVICE_SLEEP_INTERVAL)
+            if(self.server_mode):
+                # Let's check if the service tried to connect to us
+                rlist, wlist, xlist = select.select([service_sock], [], [],
+                        SERVICE_SLEEP_INTERVAL/2.0)
+
+                for req in rlist:
+                    transaction, info = req.accept()
+                    clients.append(transaction)
+
+                log.info(str(len(clients)))
+
+                requests = []
+                try:
+                    requests, wlist, xlist = select.select(clients, [], [],
+                            SERVICE_SLEEP_INTERVAL/2.0)
+                except select.error:
+                    pass
+                else:
+                    for req in requests:
+                        msg = req.recv(1024)
+                        log.info("received message from Windows service layer : {0}".format(msg.decode()))
+                        if msg.decode() == "die":
+                            log.info("\"die\" received. Stopping all subprocesses...")
+                            supervisor.stop()
+                            log.info("Subprocesses have been stopped. Have a nice day !")
+                        else:
+                            time.sleep(SERVICE_SLEEP_INTERVAL)
+            else:
+                time.sleep(SERVICE_SLEEP_INTERVAL)
 
     def _check_collector_blocked(self):
         if self._collector_heartbeat.poll():
@@ -248,14 +303,16 @@ class JMXFetchProcess(DDProcess):
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
-    if len(sys.argv) != 2:
-        log.info("The agent supervisor has been called with the wrong nunmber of arguments")
+    if len(sys.argv) < 2:
         handle_exe_click("Datadog-Agent Supervisor")
     else:
         if sys.argv[1] == "start":
             log.info("Windows supervisor has just been started...")
             # Let's start our stuff and register a good old SIGINT callback
-            supervisor = AgentSupervisor()
+            if len(sys.argv) > 2 and sys.argv[2] == "server":
+                supervisor = AgentSupervisor(True)
+            else:
+                supervisor = AgentSupervisor(False)
 
             def bye_bye(signum, frame):
                 log.info("Stopping all subprocesses...")
@@ -263,6 +320,7 @@ if __name__ == '__main__':
                 log.info("Have a nice day !")
                 sys.exit(0)
 
+            # Let's get ourselves some traditionnal ways to kill our supervisor
             signal.signal(signal.SIGINT, bye_bye)
             signal.signal(signal.SIGTERM, bye_bye)
             win32api.SetConsoleCtrlHandler(bye_bye, True)
