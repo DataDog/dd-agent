@@ -24,8 +24,6 @@ except ImportError:
     # On source install C Extensions might have not been built
     from yaml import Loader as yLoader  # noqa, imported from here elsewhere
     from yaml import Dumper as yDumper  # noqa, imported from here elsewhere
-if os.name == 'nt':
-    import psutil
 
 # These classes are now in utils/, they are just here for compatibility reasons,
 # if a user actually uses them in a custom check
@@ -470,14 +468,11 @@ class EC2(object):
             return None
 
 if os.name == 'nt':
-    class Watchdog(object):
-        """ Simple psutil based watchdog for WIndows (and possibly for Unix one
-        day too. Theoretically it should work but maybe it's wiser to take the
-        risk to switch Watchdogs on Unix for a later release :)
-        For now it only restarts if a certain amount of memory is exceeded.
-        Actually it shouldn't be a problem. Supervisord and the new supervisor
-        on Windows will make sure that all process die accordingly"""
+    import psutil
+    import threading
 
+    class Watchdog(threading.Thread):
+        """ Simple watchdog for Windows (relies on psutil) """
         def __init__(self, duration, max_mem_mb = None):
             self._duration = int(duration)
 
@@ -488,13 +483,18 @@ if os.name == 'nt':
             else:
                 self.memory_limit_enabled = False
 
-        @staticmethod
+            threading.Thread.__init__(self)
+            self.tlock = threading.RLock()
+            self.reset()
+            self.start()
+
         def self_destruct():
             try:
                 import traceback
                 log.error("Self-destructing...")
                 log.error(traceback.format_exc())
             finally:
+                # This will kill the current process including the Watchdog's thread
                 psutil.Process().kill()
 
         def reset(self):
@@ -503,7 +503,17 @@ if os.name == 'nt':
                     psutil.Process().memory_info[1]
 
                 if mem_usage_kb > (0.95 * self._max_mem_kb):
-                    Watchdog.self_destruct()
+                    self.self_destruct()
+
+            log.debug("Resetting watchdog for %d" % self._duration)
+            with self.tlock:
+                self.expire_at = time.time() + self._duration
+
+        def watch(self):
+            while True:
+                if time.time() > self.expire_at:
+                    self.self_destruct()
+                time.sleep(self._duration/20)
 
 else:
     class Watchdog(object):
