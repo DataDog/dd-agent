@@ -436,11 +436,9 @@ class JMXFetch(object):
         return is_jmx, java_bin_path, java_options, tools_jar_path, custom_jar_paths
 
     def _get_path_to_jmxfetch(self):
-        if not Platform.is_windows():
-            return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks",
-                                    "libs", JMX_FETCH_JAR_NAME))
-        return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "..",
-                                "jmxfetch", JMX_FETCH_JAR_NAME))
+        return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks",
+            "libs", JMX_FETCH_JAR_NAME))
+
 
 
 def init(config_path=None):
