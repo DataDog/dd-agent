@@ -150,7 +150,7 @@ See [#1880][]
 * [OTHER] Mesos: Deprecate previous generic check in favor of the Mesosphere master and slave specific checks introduced in the 5.4.0 release. See [#1822][]
 
 
-# 5.4.6 / Unreleased
+# 5.4.6 / 09-08-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.4.5...5.4.6
 
