@@ -1,0 +1,13 @@
+init_config:
+  # The mandrill api already aggregates some metrics together so you probably
+  # do not need to call the api every 15 seconds so you can optionally set
+  # `min_collection_interval: <seconds>` here to limit how often metrics are fetched
+  # https://github.com/DataDog/dd-agent/blob/2498cd6c45fc88a841e189a8de0d59cecfd38631/checks/__init__.py#L539-L544
+  # Only fetch metrics once every 10 minutes
+  # min_collection_interval: 600
+
+instances:
+  # The `api_key` should be for the user you want to get the stats of
+  # You can find your api keys here: https://mandrillapp.com/settings
+  # Your api user will need `users:info`, `tags:list`, `tags:info` and `urls:list` permissions
+  - api_key: API_KEY_HERE
