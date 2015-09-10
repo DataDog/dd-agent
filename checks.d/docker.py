@@ -36,6 +36,8 @@ CGROUP_METRICS = [
             "pgpgin": ("docker.mem.pgpgin", "rate", False),
             "pgpgout": ("docker.mem.pgpgout", "rate", False),
             "unevictable": ("docker.mem.unevictable", "gauge", False),
+            "hierarchical_memory_limit": ("docker.mem.hierarchical_memory_limit", "gauge", False),
+            "hierarchical_memsw_limit": ("docker.mem.hierarchical_memsw_limit", "gauge", False),
         }
     },
     {
