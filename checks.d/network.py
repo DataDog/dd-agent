@@ -129,7 +129,7 @@ class Network(AgentCheck):
                 return 0
 
     def _submit_regexed_values(self, output, regex_list):
-        lines = output.split("\n")
+        lines = output.splitlines()
         for line in lines:
             for regex, metric in regex_list:
                 value = re.match(regex, line)
@@ -144,7 +144,7 @@ class Network(AgentCheck):
                 for ip_version in ['4', '6']:
                     # Call `ss` for each IP version because there's no built-in way of distinguishing
                     # between the IP versions in the output
-                    ss = get_subprocess_output(["ss", "-n", "-u", "-t", "-a", "-{0}".format(ip_version)], self.log)
+                    lines = get_subprocess_output(["ss", "-n", "-u", "-t", "-a", "-{0}".format(ip_version)], self.log).splitlines()
                     # Netid  State      Recv-Q Send-Q     Local Address:Port       Peer Address:Port
                     # udp    UNCONN     0      0              127.0.0.1:8125                  *:*
                     # udp    ESTAB      0      0              127.0.0.1:37036         127.0.0.1:8125
@@ -153,9 +153,7 @@ class Network(AgentCheck):
                     # tcp    LISTEN     0      0       ::ffff:127.0.0.1:33217  ::ffff:127.0.0.1:7199
                     # tcp    ESTAB      0      0       ::ffff:127.0.0.1:58975  ::ffff:127.0.0.1:2181
 
-                    lines = ss.split("\n")
-
-                    metrics = self._parse_linux_cx_state(lines[1:-1], self.TCP_STATES['ss'], 1, ip_version=ip_version)
+                    metrics = self._parse_linux_cx_state(lines[1:], self.TCP_STATES['ss'], 1, ip_version=ip_version)
                     # Only send the metrics which match the loop iteration's ip version
                     for stat, metric in self.CX_STATE_GAUGE.iteritems():
                         if stat[0].endswith(ip_version):
@@ -163,7 +161,7 @@ class Network(AgentCheck):
 
             except OSError:
                 self.log.info("`ss` not found: using `netstat` as a fallback")
-                netstat = get_subprocess_output(["netstat", "-n", "-u", "-t", "-a"], self.log)
+                lines = get_subprocess_output(["netstat", "-n", "-u", "-t", "-a"], self.log).splitlines()
                 # Active Internet connections (w/o servers)
                 # Proto Recv-Q Send-Q Local Address           Foreign Address         State
                 # tcp        0      0 46.105.75.4:80          79.220.227.193:2032     SYN_RECV
@@ -174,9 +172,7 @@ class Network(AgentCheck):
                 # udp        0      0 0.0.0.0:123             0.0.0.0:*
                 # udp6       0      0 :::41458                :::*
 
-                lines = netstat.split("\n")
-
-                metrics = self._parse_linux_cx_state(lines[2:-1], self.TCP_STATES['netstat'], 5)
+                metrics = self._parse_linux_cx_state(lines[2:], self.TCP_STATES['netstat'], 5)
                 for metric, value in metrics.iteritems():
                     self.gauge(metric, value)
 
@@ -294,7 +290,7 @@ class Network(AgentCheck):
         # ham0  1404  seneca.loca fe80:6::7879:5ff:    30100     -    6815204    18742     -    8494811     -
         # ham0  1404  2620:9b::54 2620:9b::54d:bff5    30100     -    6815204    18742     -    8494811     -
 
-        lines = netstat.split("\n")
+        lines = netstat.splitlines()
         headers = lines[0].split()
 
         # Given the irregular structure of the table above, better to parse from the end of each line
@@ -461,7 +457,7 @@ class Network(AgentCheck):
             'oerrors':'packets_out.error',
         }
 
-        lines = [l for l in netstat_output.split("\n") if len(l) > 0]
+        lines = [l for l in netstat_output.splitlines() if len(l) > 0]
 
         metrics_by_interface = {}
 
