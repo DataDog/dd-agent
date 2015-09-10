@@ -2,46 +2,50 @@
 Collects metrics from cAdvisor instance
 """
 
-# stdlib
-import urllib2
 from urlparse import urljoin
-
-# project
+import requests
 from checks import AgentCheck
-from util import json
-# import json
 
 DEFAULT_BASEURL = "http://localhost:4194/"
 DEFAULT_METRICS_CMD = "/api/v1.3/subcontainers/"
 DEFAULT_EVENTS_CMD = "/api/v1.3/events/"
 DEFAULT_MAX_DEPTH = 10
 DEFAULT_NAMESPACE = 'kubernetes'
+DEFAULT_HEALTHCHECK_URL = "http://localhost:10255/healthz"
+DEFAULT_PUBLISH_CONTAINER_NAMES = False
 
 class Kubernetes(AgentCheck):
-    """ Collect metrics and events from kubelet agent"""
+    """ Collect metrics and events from kubelet """
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
     def _retrieve_json(self, url):
         try:
-            fd = urllib2.urlopen(url)
-            raw_response = fd.read()
-            fd.close()
-            parsed_response = json.loads(raw_response)
+            r = requests.get(url)
+            return r.json()
         except Exception:
             return None
-        
-        return parsed_response
 
+    def _perform_health_check(self, url):
+        try:
+            r = requests.get(url)
+            return r.text.find('ok')==0
+        except Exception:
+            return False
+        
     def check(self, instance):
         self.baseurl = instance.get('baseurl', DEFAULT_BASEURL)
         self.metrics_cmd = urljoin(self.baseurl, DEFAULT_METRICS_CMD)
         self.events_cmd = urljoin(self.baseurl, DEFAULT_EVENTS_CMD)
         self.max_depth = instance.get('max_depth', DEFAULT_MAX_DEPTH)
         self.namespace = instance.get('namespace', DEFAULT_NAMESPACE)
-        
-        self._update_metrics(instance)
+
+        healthcheck_url = instance.get('healthcheck_url', DEFAULT_HEALTHCHECK_URL)
+        if healthcheck_url and not self._perform_health_check(healthcheck_url):
+            self.log.warning('Kubelet health check failed, url=%s' % healthcheck_url)
+
+        self._update_metrics(instance, instance.get('publish_container_names', DEFAULT_PUBLISH_CONTAINER_NAMES))
         
     def _discover_metrics(self, metric, dat, tags, depth=0):
         if depth>=self.max_depth:
@@ -59,15 +63,17 @@ class Kubernetes(AgentCheck):
         else:
             return
     
-    def _update_metrics(self, instance):
+    def _update_metrics(self, instance, publish_container_names):
         metrics = self._retrieve_json(self.metrics_cmd)
         if not metrics:
             self.log.warning('Unable to retrieve metrics cmd=%s' % self.metrics_cmd)
             return
         
         for subcontainer in metrics:
-            name = subcontainer['name']
-            tags = [ 'container_name:%s' % name ]
+            tags = []
+            if publish_container_names:
+                name = subcontainer['name']
+                tags.append('container_name:%s' % name)
 
             try:
                 for label_name,label in subcontainer['spec']['labels'].iteritems():
