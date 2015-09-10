@@ -5,23 +5,18 @@ import mock
 from tests.checks.common import AgentCheckTest, Fixtures
 
 
-def ss_popen_mock(*args, **kwargs):
-    popen_mock = mock.Mock()
+def ss_subprocess_mock(*args, **kwargs):
     if args[0][-1] == '-4':
-        popen_mock.communicate.return_value = (Fixtures.read_file('ss_ipv4'), None)
+        return Fixtures.read_file('ss_ipv4')
     elif args[0][-1] == '-6':
-        popen_mock.communicate.return_value = (Fixtures.read_file('ss_ipv6'), None)
-
-    return popen_mock
+        return Fixtures.read_file('ss_ipv6')
 
 
-def netstat_popen_mock(*args, **kwargs):
+def netstat_subprocess_mock(*args, **kwargs):
     if args[0][0] == 'ss':
         raise OSError
     elif args[0][0] == 'netstat':
-        popen_mock = mock.Mock()
-        popen_mock.communicate.return_value = (Fixtures.read_file('netstat'), None)
-        return popen_mock
+        return Fixtures.read_file('netstat')
 
 
 class TestCheckNetwork(AgentCheckTest):
@@ -52,18 +47,18 @@ class TestCheckNetwork(AgentCheckTest):
         'system.net.tcp6.time_wait': 1,
     }
 
-    @mock.patch('subprocess.Popen', side_effect=ss_popen_mock)
+    @mock.patch('network.get_subprocess_output', side_effect=ss_subprocess_mock)
     @mock.patch('network.Platform.is_linux', return_value=True)
-    def test_cx_state_linux_ss(self, mock_popen, mock_platform):
+    def test_cx_state_linux_ss(self, mock_subprocess, mock_platform):
         self.run_check({})
 
         # Assert metrics
         for metric, value in self.CX_STATE_GAUGES_VALUES.iteritems():
             self.assertMetric(metric, value=value)
 
-    @mock.patch('subprocess.Popen', side_effect=netstat_popen_mock)
+    @mock.patch('network.get_subprocess_output', side_effect=netstat_subprocess_mock)
     @mock.patch('network.Platform.is_linux', return_value=True)
-    def test_cx_state_linux_netstat(self, mock_popen, mock_platform):
+    def test_cx_state_linux_netstat(self, mock_subprocess, mock_platform):
         self.run_check({})
 
         # Assert metrics

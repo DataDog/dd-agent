@@ -8,6 +8,7 @@ import subprocess
 # project
 from checks import AgentCheck
 from utils.platform import Platform
+from utils.subprocess_output import get_subprocess_output
 
 BSD_TCP_METRICS = [
     (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
@@ -143,9 +144,7 @@ class Network(AgentCheck):
                 for ip_version in ['4', '6']:
                     # Call `ss` for each IP version because there's no built-in way of distinguishing
                     # between the IP versions in the output
-                    ss = subprocess.Popen(["ss", "-n", "-u", "-t", "-a", "-{0}".format(ip_version)],
-                                          stdout=subprocess.PIPE,
-                                          close_fds=True).communicate()[0]
+                    ss = get_subprocess_output(["ss", "-n", "-u", "-t", "-a", "-{0}".format(ip_version)], self.log)
                     # Netid  State      Recv-Q Send-Q     Local Address:Port       Peer Address:Port
                     # udp    UNCONN     0      0              127.0.0.1:8125                  *:*
                     # udp    ESTAB      0      0              127.0.0.1:37036         127.0.0.1:8125
@@ -164,9 +163,7 @@ class Network(AgentCheck):
 
             except OSError:
                 self.log.info("`ss` not found: using `netstat` as a fallback")
-                netstat = subprocess.Popen(["netstat", "-n", "-u", "-t", "-a"],
-                                           stdout=subprocess.PIPE,
-                                           close_fds=True).communicate()[0]
+                netstat = get_subprocess_output(["netstat", "-n", "-u", "-t", "-a"], self.log)
                 # Active Internet connections (w/o servers)
                 # Proto Recv-Q Send-Q Local Address           Foreign Address         State
                 # tcp        0      0 46.105.75.4:80          79.220.227.193:2032     SYN_RECV
