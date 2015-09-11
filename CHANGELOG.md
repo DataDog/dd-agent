@@ -149,6 +149,13 @@ See [#1880][]
 * [OTHER] Jenkins: Deprecate Jenkins check in favor of Jenkins Datadog plugin. See [#1880][]
 * [OTHER] Mesos: Deprecate previous generic check in favor of the Mesosphere master and slave specific checks introduced in the 5.4.0 release. See [#1822][]
 
+# 5.4.7 / 09-11-2015
+**Windows Only**
+### Details
+https://github.com/DataDog/dd-agent/compare/5.4.6...5.4.7
+
+### Changes
+* [BUGFIX] Fix `adodbapi` dependency issue with Windows MSI Installer. See [#1907][]
 
 # 5.4.6 / 09-08-2015
 ### Details
@@ -2009,6 +2016,7 @@ If you use ganglia, you want this version.
 [#1885]: https://github.com/DataDog/dd-agent/issues/1885
 [#1888]: https://github.com/DataDog/dd-agent/issues/1888
 [#1889]: https://github.com/DataDog/dd-agent/issues/1889
+[#1907]: https://github.com/DataDog/dd-agent/issues/1907
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@KnownSubset]: https://github.com/KnownSubset
