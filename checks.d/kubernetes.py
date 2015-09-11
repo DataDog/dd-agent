@@ -6,12 +6,12 @@ from urlparse import urljoin
 import requests
 from checks import AgentCheck
 
-DEFAULT_BASEURL = "http://localhost:4194/"
-DEFAULT_METRICS_CMD = "/api/v1.3/subcontainers/"
-DEFAULT_EVENTS_CMD = "/api/v1.3/events/"
+DEFAULT_PORT = 4194
+DEFAULT_METRICS_CMD = '/api/v1.3/subcontainers/'
+DEFAULT_EVENTS_CMD = '/api/v1.3/events/'
 DEFAULT_MAX_DEPTH = 10
 DEFAULT_NAMESPACE = 'kubernetes'
-DEFAULT_HEALTHCHECK_URL = "http://localhost:10255/healthz"
+DEFAULT_HEALTHCHECK_PORT = 10255
 DEFAULT_PUBLISH_CONTAINER_NAMES = False
 
 class Kubernetes(AgentCheck):
@@ -27,6 +27,19 @@ class Kubernetes(AgentCheck):
         except Exception:
             return None
 
+    def _get_default_router(self):
+        import socket
+        import struct
+        try:
+            for line in open("/proc/net/route").readlines():
+                fields = line.strip().split()
+                if fields[1]=='00000000':
+                    return socket.inet_ntoa(struct.pack("<L", int(fields[2], 16)))
+        except IOError:
+            pass
+
+        return None
+    
     def _perform_health_check(self, url):
         try:
             r = requests.get(url)
@@ -35,14 +48,18 @@ class Kubernetes(AgentCheck):
             return False
         
     def check(self, instance):
-        self.baseurl = instance.get('baseurl', DEFAULT_BASEURL)
+        host = instance.get('host', self._get_default_router())
+        port = instance.get('port', DEFAULT_PORT)
+        method = instance.get('method', 'http')
+        self.baseurl = '%s://%s:%d' % (method, host, port)
         self.metrics_cmd = urljoin(self.baseurl, DEFAULT_METRICS_CMD)
         self.events_cmd = urljoin(self.baseurl, DEFAULT_EVENTS_CMD)
         self.max_depth = instance.get('max_depth', DEFAULT_MAX_DEPTH)
         self.namespace = instance.get('namespace', DEFAULT_NAMESPACE)
 
-        healthcheck_url = instance.get('healthcheck_url', DEFAULT_HEALTHCHECK_URL)
-        if healthcheck_url and not self._perform_health_check(healthcheck_url):
+        healthcheck_port = instance.get('healthcheck_port', DEFAULT_HEALTHCHECK_PORT)
+        healthcheck_url = '%s://%s:%d' % (method, host, healthcheck_port)
+        if not self._perform_health_check(healthcheck_url):
             self.log.warning('Kubelet health check failed, url=%s' % healthcheck_url)
 
         self._update_metrics(instance, instance.get('publish_container_names', DEFAULT_PUBLISH_CONTAINER_NAMES))
