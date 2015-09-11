@@ -513,22 +513,38 @@ class Network(AgentCheck):
         try:
             proc = open(proc_name,'r')
             try:
-                lines = proc.readlines()
+                lines = proc.read()
             finally:
                 proc.close()
+            reg = re.compile("sockets: used (?P<sockets_used>\d+)\n"
+                        "TCP: inuse (?P<tcp_inuse>\d+) orphan (?P<orphans>\d+)"
+                        " tw (?P<tw_count>\d+) alloc (?P<tcp_sockets>\d+)"
+                        " mem (?P<tcp_pages>\d+)\n"
+                        "UDP: inuse (?P<udp_inuse>\d+)"
+                        "(?: mem (?P<udp_pages>\d+))?\n"
+                        "(?:UDPLITE: inuse (?P<udplite_inuse>\d+)\n)?"
+                        "RAW: inuse (?P<raw_inuse>\d+)\n"
+                        "FRAG: inuse (?P<ip_frag_nqueues>\d+)"
+                        " memory (?P<ip_frag_mem>\d+)\n")
+            match = re.match(reg, lines)
+            if not match:
+                self.log.debug("Unable to parse %s." %proc_name)
+                return
+            
             values = []
-            values.append(lines[0].split()[2] )
-            values.append(lines[1].split()[2] )
-            values.append(lines[1].split()[4] )
-            values.append(lines[1].split()[6] )
-            values.append(lines[1].split()[8] )
-            values.append(lines[1].split()[10])
-            values.append(lines[2].split()[2] )
-            values.append(lines[2].split()[4] )
-            values.append(lines[3].split()[2] )
-            values.append(lines[4].split()[2] )
-            values.append(lines[4].split()[4] )
-            metric_names = ['sockstat.sockets.used','sockstat.sockets.tcp.inuse','sockstat.sockets.tcp.orphan','sockstat.sockets.tcp.tw ','sockstat.sockets.tcp.alloc','sockstat.sockets.tcp.mem','sockstat.sockets.udp.inuse','sockstat.sockets.udp.mem','sockstat.sockets.raw.inuse','sockstat.sockets.frag.inuse','sockstat.sockets.frag.memory']
+            values.append(match.group("sockets_used"))
+            values.append(match.group("tcp_inuse"))
+            values.append(match.group("orphans"))
+            values.append(match.group("tw_count"))
+            values.append(match.group("tcp_sockets"))
+            values.append(match.group("tcp_pages"))
+            values.append(match.group("udp_inuse"))
+            values.append(match.group("udp_pages"))
+            values.append(match.group("udplite_inuse"))
+            values.append(match.group("raw_inuse"))
+            values.append(match.group("ip_frag_nqueues"))
+            values.append(match.group("ip_frag_mem"))
+            metric_names = ['sockstat.sockets.used','sockstat.sockets.tcp.inuse','sockstat.sockets.tcp.orphan','sockstat.sockets.tcp.tw ','sockstat.sockets.tcp.alloc','sockstat.sockets.tcp.mem','sockstat.sockets.udp.inuse','sockstat.sockets.udp.mem','sockstat.sockets.udp.lite','sockstat.sockets.raw.inuse','sockstat.sockets.frag.inuse','sockstat.sockets.frag.memory']
             metrics = dict(zip(metric_names,values))
             tcpMem = long(metrics['sockstat.sockets.tcp.alloc']) * Network._linux_sockstat_get_size_of_page()
             metrics['linux.kernel.tcp.memorypercentused'] = (long(tcpMem) / Network._linux_sockstat_get_max_memory()) * 100
