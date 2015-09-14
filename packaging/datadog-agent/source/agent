@@ -6,8 +6,8 @@ PATH=$BASEDIR/../venv/bin:$PATH
 
 SUPERVISOR_NOT_RUNNING="Supervisor is not running"
 SUPERVISOR_CONF_FILE='supervisord/supervisord.conf'
-SOCK_FILE='supervisord/agent-supervisor.sock'
-PID_FILE='supervisord/supervisord.pid'
+SOCK_FILE='run/agent-supervisor.sock'
+PID_FILE='run/supervisord.pid'
 action=$1
 
 if [ ! -n "$action" ]; then
