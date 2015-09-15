@@ -126,6 +126,7 @@ See [#1535][]
 * [BUGFIX] Google Compute Engine: Update hostname to be unique. See [#1736][], [#1737][]
 * [BUGFIX] HTTP Check: Handle `requests` timeout exceptions to send the appropriate service check. See [#1761][]
 * [BUGFIX] JMXFetch: Do not override service checks's `host` tag with JMX host. See [#66](https://github.com/DataDog/jmxfetch/issues/66)
+* [BUGFIX] JMXFetch: Do not send service check warnings on metric limit violation. See [#73](https://github.com/DataDog/jmxfetch/issues/73)
 * [BUGFIX] JMXFetch: Fix collector logs being duplicated to JMXFetch ones. See [#1852][]
 * [BUGFIX] JMXFetch: Fix indentation in the configuration YAML example file. See [#1774][]
 * [BUGFIX] Mesos: Do not fail if no cluster name is found. See [#1843][]
