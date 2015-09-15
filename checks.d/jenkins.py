@@ -137,16 +137,6 @@ class Jenkins(AgentCheck):
             self.log.error("Error while working on job %s, exception: %s" % (job_name, e))
 
     def check(self, instance, create_event=True):
-        """
-        DEPRECATED:
-        This Jenkins check is deprecated and not actively developed anymore. It will be
-        removed in a future version of the Datadog Agent. Please move to using the Datadog
-        plugin for Jenkins. More information can be found un the Jenkins Integration panel
-        under the Configuration tab (https://app.datadoghq.com/account/settings#integrations/jenkins)
-        """
-        self.warning("This check is deprecated in favor of our Jenkins Datadog plugin."
-                     " It will be removed in a future version of the Datadog Agent.")
-
         if self.high_watermarks.get(instance.get('name'), None) is None:
             # On the first run of check(), prime the high_watermarks dict
             # so that we only send events that occured after the agent
