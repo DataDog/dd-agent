@@ -118,7 +118,7 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
 
         self.assertEqual(
             results["disk0"],
-            {'system.io.bytes_per_s': float(0.02 * 10**6),}
+            {'system.io.bytes_per_s': float(0.02 * 2**20),}
         )
         self.assertEqual(
             results["disk1"],
