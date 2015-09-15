@@ -20,7 +20,6 @@ https://github.com/DataDog/dd-agent/compare/5.4.6...5.5.0
 * etcd
 * Google Compute Engine
 * HTTP Check
-* Jenkins
 * JMXFetch
 * Mesos
 * MongoDB
@@ -87,11 +86,6 @@ The previous generic Mesosphere check is deprecated, in favor of the Mesosphere 
 
 See [#1535][]
 
-### Jenkins check
-Datadog agent's Jenkins check is deprecated, in favor of [Jenkins Datadog plugin](https://wiki.jenkins-ci.org/display/JENKINS/Datadog+Plugin). It will be removed in a future version of the Datadog Agent. More information can be found on the [Jenkins integration tile](https://app.datadoghq.com/account/settings#integrations/jenkins) under the 'Configuration' tab.
-
-See [#1880][]
-
 ### Changes
 * [FEATURE] Consul: New check reporting cluster, service and node wide metrics and events for leader election. See [#1628][]
 * [FEATURE] CouchDB: Allow blacklisting of specific databases. See [#1760][]
@@ -146,7 +140,6 @@ See [#1880][]
 * [BUGFIX] Windows: Fix developer mode configuration on Windows. See [#1717][]
 * [BUGFIX] WMI: Fix errors when a property does not exist or has a non digit value. See [#1800][], [#1846][], [#1889][]
 
-* [OTHER] Jenkins: Deprecate Jenkins check in favor of Jenkins Datadog plugin. See [#1880][]
 * [OTHER] Mesos: Deprecate previous generic check in favor of the Mesosphere master and slave specific checks introduced in the 5.4.0 release. See [#1822][]
 
 # 5.4.7 / 09-11-2015
