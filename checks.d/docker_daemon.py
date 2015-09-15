@@ -161,6 +161,7 @@ class DockerDaemon(AgentCheck):
             self.cgroup_listing_retries = 0
             self._latest_size_query = 0
             self._filtered_containers = set()
+            self._disable_net_metrics = False
 
             # At first run we'll just collect the events from the latest 60 secs
             self._last_event_collection_ts = int(time.time()) - 60
@@ -476,6 +477,14 @@ class DockerDaemon(AgentCheck):
 
     def _report_net_metrics(self, container, tags):
         """Find container network metrics by looking at /proc/$PID/net/dev of the container process."""
+        if self._disable_net_metrics:
+            self.log.debug("Network metrics are disabled. Skipping")
+            return
+
+        if "_proc_root" not in container:
+            self.warning("Couldn't find pid directory for container: {0}".format(container))
+            return
+
         proc_net_file = os.path.join(container['_proc_root'], 'net/dev')
         try:
             with open(proc_net_file, 'r') as fp:
@@ -622,14 +631,23 @@ class DockerDaemon(AgentCheck):
     # proc files
     def _crawl_container_pids(self, container_dict):
         """Crawl `/proc` to find container PIDs and add them to `containers_by_id`."""
-        proc_dir = os.path.join(self._docker_root, 'proc')
-        for folder in os.listdir(proc_dir):
+        proc_path = os.path.join(self._docker_root, 'proc')
+        pid_dirs = [_dir for _dir in os.listdir(proc_path) if _dir.isdigit()]
+
+        if len(pid_dirs) == 0:
+            self.warning("Unable to find any pid directory in {0}. "
+                "If you are running the agent in a container, make sure to "
+                'share the volume properly: "/proc:/host/proc:ro". '
+                "Network metrics will be missing".format(proc_path))
+            self._disable_net_metrics = True
+            return container_dict
+
+        self._disable_net_metrics = False
+
+        for folder in pid_dirs:
+
             try:
-                int(folder)
-            except ValueError:
-                continue
-            try:
-                path = os.path.join(proc_dir, folder, 'cgroup')
+                path = os.path.join(proc_path, folder, 'cgroup')
                 with open(path, 'r') as f:
                     content = [line.strip().split(':') for line in f.readlines()]
             except Exception, e:
@@ -641,7 +659,7 @@ class DockerDaemon(AgentCheck):
                 if 'docker/' in content.get('cpuacct'):
                     container_id = content['cpuacct'].split('docker/')[1]
                     container_dict[container_id]['_pid'] = folder
-                    container_dict[container_id]['_proc_root'] = os.path.join(proc_dir, folder)
+                    container_dict[container_id]['_proc_root'] = os.path.join(proc_path, folder)
             except Exception, e:
                 self.warning("Cannot parse %s content: %s" % (path, str(e)))
                 continue
