@@ -268,7 +268,7 @@ class HTTPCheck(NetworkCheck):
         url = instance.get('url')
 
         o = urlparse(url)
-        host = o.netloc
+        host = o.hostname
 
         port = o.port or 443
 
