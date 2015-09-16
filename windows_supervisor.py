@@ -150,8 +150,6 @@ class AgentSupervisor():
                     transaction, info = req.accept()
                     clients.append(transaction)
 
-                log.info(str(len(clients)))
-
                 requests = []
                 try:
                     requests, wlist, xlist = select.select(clients, [], [],

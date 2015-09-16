@@ -15,6 +15,7 @@ import os
 import time
 import socket
 import select
+import logging
 
 # 3p
 import psutil
@@ -47,6 +48,13 @@ def _windows_commondata_path():
     return path_buf.value
 
 
+# Let's configure logging accordingly now (we need the above function for that)
+logging.basicConfig(
+    filename= os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'service.log'),
+    level = logging.DEBUG,
+    format = '%(asctime)s | %(levelname)s | %(name)s(%(filename)s:%(lineno)s) | %(message)s'
+)
+
 class AgentService(win32serviceutil.ServiceFramework):
     _svc_name_ = "DatadogAgent"
     _svc_display_name_ = "Datadog Agent"
@@ -62,8 +70,6 @@ class AgentService(win32serviceutil.ServiceFramework):
 
         win32serviceutil.ServiceFramework.__init__(self, args)
 
-        self.log_path = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'service.log')
-
         # Are we in a py2exed package or in a source install script or just a git pulled repo ?
         if not os.path.isfile(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..') +
                 '\\windows_supervisor.py'):
@@ -74,14 +80,14 @@ class AgentService(win32serviceutil.ServiceFramework):
             # If we are in a proper source install script, let's get into the agent directory
             if os.path.isdir(self.agent_path + "\\agent"):
                 self.agent_path += "agent"
-        self.log("Agent path: {0}".format(self.agent_path))
+        logging.info("Agent path: {0}".format(self.agent_path))
         self.proc = None
 
     def SvcStop(self):
         """ Called when Windows wants to stop the service """
         # Happy endings
         if self.proc is not None:
-            self.log("Killing supervisor...")
+            logging.info("Killing supervisor...")
             # Soft termination based on TCP sockets to handle communication between the service
             # layer and the Windows supervisor
             supervisor_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -91,18 +97,18 @@ class AgentService(win32serviceutil.ServiceFramework):
 
             rlist, wlist, xlist = select.select([supervisor_sock], [], [], 15)
             if rlist:
-                self.log("The supervisor and all its subprocesses exited accordingly :)")
+                logging.info("The supervisor and all its subprocesses exited accordingly :)")
             else:
                 # Ok some processes didn't want to die apparently, let's take care og them the hard
                 # way !
-                self.log("Some processes wouldn't exit... they're going to be force killed.")
+                logging.warning("Some processes wouldn't exit... they're going to be force killed.")
                 parent = psutil.Process(self.proc.pid)
                 children = parent.children(recursive=True)
 
                 for p in [parent] + children:
                     p.kill()
 
-            self.log("The supervisor and all his child processes are turned off, sleep well !")
+            logging.info("The supervisor and all his child processes are turned off, sleep well !")
 
         # We can sleep quietly now
         win32event.SetEvent(self.h_wait_stop)
@@ -118,13 +124,13 @@ class AgentService(win32serviceutil.ServiceFramework):
         # appropriate log file. This program also logs a minimalistic set of
         # lines in the same supervisor.log.
 
-        self.log("Starting Supervisor!")
+        logging.info("Starting Supervisor!")
 
         # Since we don't call terminate here, the execution of the supervisord
         # will be performed in a non blocking way. If an error is triggered
         # here, tell windows we're closing the service and report accordingly
         try:
-            self.log("Changing working directory to \"{0}\"".format(self.agent_path))
+            logging.info("Changing working directory to \"{0}\"".format(self.agent_path))
             os.chdir(self.agent_path)
 
             # This allows us to use the system's Python in case there is no embedded python
@@ -135,18 +141,18 @@ class AgentService(win32serviceutil.ServiceFramework):
             self.proc = subprocess.Popen([embedded_python, "windows_supervisor.py" , "start", "server"])
             os.chdir(self.agent_path + "\\win32")
         except WindowsError as e:
-            self.log("WindowsError occured when starting our supervisor :\n\t"
+            logging.exception("WindowsError occured when starting our supervisor :\n\t"
                      "[Errno {1}] {0}".
                      format(e.strerror, e.errno))
             self.SvcStop()
             return
         except Exception as e:
-            self.log("[Error happened when launching the Windows supervisor] {0}".
+            logging.exception("[Error happened when launching the Windows supervisor] {0}".
                      format(e.message))
             self.SvcStop()
             return
 
-        self.log("Supervisor started!")
+        logging.info("Supervisor started!")
 
         # Let's wait for our user to send a sigkill. We can't have RunSvc exit
         # before we actually kill our subprocess (the while True is just a
@@ -154,15 +160,10 @@ class AgentService(win32serviceutil.ServiceFramework):
         while True:
             rc = win32event.WaitForSingleObject(self.h_wait_stop, win32event.INFINITE)
             if rc == win32event.WAIT_OBJECT_0:
-                self.log("Service stop requested")
+                logging.info("Service stop requested")
                 break
 
-        self.log("Service stopped")
-
-    def log(self, msg):
-        with open(self.log_path, 'a') as logfile:
-            logfile.write("[{0}] ddagent.exe - {1} \n\n".
-                          format(time.strftime("%H:%M:%S"), msg))
+        logging.info("Service stopped")
 
 
 if __name__ == '__main__':
