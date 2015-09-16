@@ -70,7 +70,6 @@ if sys.platform == 'win32':
                 'ascii':False,
             },
         },
-        'console': ['win32\shell.py'],
         'service': [agent_svc],
         'windows': [{'script': 'win32\gui.py',
                      'dest_base': "agent-manager",
