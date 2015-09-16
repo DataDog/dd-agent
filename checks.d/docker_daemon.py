@@ -190,7 +190,7 @@ class DockerDaemon(AgentCheck):
 
 
             # Other options
-            self.collect_image_stats = _is_affirmative(instance.get('collect_images_stats', True))
+            self.collect_image_stats = _is_affirmative(instance.get('collect_images_stats', False))
             self.collect_container_size = _is_affirmative(instance.get('collect_container_size', False))
             self.collect_events = _is_affirmative(instance.get('collect_events', True))
             self.collect_image_size = _is_affirmative(instance.get('collect_image_size', False))
@@ -638,6 +638,7 @@ class DockerDaemon(AgentCheck):
             self.warning("Unable to find any pid directory in {0}. "
                 "If you are running the agent in a container, make sure to "
                 'share the volume properly: "/proc:/host/proc:ro". '
+                "See https://github.com/DataDog/docker-dd-agent/blob/master/README.md for more information. "
                 "Network metrics will be missing".format(proc_path))
             self._disable_net_metrics = True
             return container_dict

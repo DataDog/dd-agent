@@ -47,9 +47,9 @@ instances:
 
     # Collect images stats
     # Number of available active images and intermediate images as gauges.
-    # Defaults to true.
+    # Defaults to false.
     #
-    collect_images_stats: false
+    # collect_images_stats: false
 
     # Collect disk usage per image with docker.image.size and docker.image.virtual_size metrics.
     # The check gets this size with the `docker images` command.
