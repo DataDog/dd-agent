@@ -24,7 +24,6 @@ from collections import deque
 import win32api
 
 # project
-from win32.common import handle_exe_click
 from config import (
     get_config,
 )
@@ -293,7 +292,10 @@ class JMXFetchProcess(DDProcess):
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     if len(sys.argv) < 2:
-        handle_exe_click("Datadog-Agent Supervisor")
+        # if the user forgot the start argument, let's just tell him
+        print("To start the windows supervisor, please call the script with the `start` "
+              "argument. Then just kill it with CTRL+C when you're done.")
+        sys.exit(1)
     else:
         if sys.argv[1] == "start":
             log.info("Windows supervisor has just been started...")

@@ -12,7 +12,6 @@ http://ryrobes.com/python/running-python-scripts-as-a-windows-service/
 """
 #stdlib
 import os
-import time
 import socket
 import select
 import logging
