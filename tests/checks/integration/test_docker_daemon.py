@@ -89,6 +89,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             "instances": [{
                 "url": "unix://var/run/docker.sock",
                 "collect_image_size": True,
+                "collect_images_stats": True,
             },
             ],
         }
@@ -133,6 +134,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             "instances": [{
                 "url": "unix://var/run/docker.sock",
                 "tags": custom_tags,
+                "collect_images_stats": True,
             },
             ],
         }
@@ -184,6 +186,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             "instances": [{
                 "url": "unix://var/run/docker.sock",
                 "exclude": ["docker_image:nginx"],
+                "collect_images_stats": True,
                 "collect_image_size": True,
             },
             ],
@@ -250,6 +253,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
                 "url": "unix://var/run/docker.sock",
                 "include": ["image_name:redis"],
                 "exclude": [".*"],
+                "collect_images_stats": True,
                 "collect_image_size": True,
             },
             ],
@@ -327,6 +331,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
                 "url": "unix://var/run/docker.sock",
                 "performance_tags": ["container_command"],
                 "container_tags": ["container_command"],
+                "collect_images_stats": True,
                 "collect_image_size": True,
             },
             ],
@@ -397,6 +402,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
                 "url": "unix://var/run/docker.sock",
                 "collect_labels_as_tags": ["label1"],
                 "collect_image_size": True,
+                "collect_images_stats": True,
             },
             ],
         }
@@ -410,6 +416,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             "init_config": {},
             "instances": [{
                 "url": "unix://var/run/docker.sock",
+                "collect_images_stats": True,
             },
             ],
         }
@@ -460,6 +467,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
                 "url": "unix://var/run/docker.sock",
                 "collect_container_size": True,
                 "collect_image_size": True,
+                "collect_images_stats": True,
             },
             ],
         }
