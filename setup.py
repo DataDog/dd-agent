@@ -28,7 +28,7 @@ if sys.platform == 'win32':
     import py2exe  # noqa
 
     # windows-specific deps
-    install_requires.append('pywin32==219')
+    install_requires.append('pywin32==217')
 
     # Modules to force-include in the exe
     include_modules = [
