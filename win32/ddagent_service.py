@@ -65,12 +65,12 @@ class AgentService(win32serviceutil.ServiceFramework):
         self.log_path = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'service.log')
 
         # Are we in a py2exed package or in a source install script or just a git pulled repo ?
-        if os.path.isfile(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..') +
-                'windows_supervisor.py'):
+        if not os.path.isfile(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..') +
+                '\\windows_supervisor.py'):
             self.agent_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..',
                     '..', '..') + '\\agent'
         else:
-            self.agent_path = os.path.join(os.path.dirname(os.path.realpath(__file__), '..'))
+            self.agent_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')
             # If we are in a proper source install script, let's get into the agent directory
             if os.path.isdir(self.agent_path + "\\agent"):
                 self.agent_path += "agent"
