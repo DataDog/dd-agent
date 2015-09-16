@@ -25,18 +25,9 @@ import win32api
 
 # project
 from win32.common import handle_exe_click
-from checks.collector import Collector
 from config import (
-    get_confd_path,
     get_config,
-    get_system_stats,
-    load_check_directory,
-    PathNotFound,
-    set_win32_cert_path
 )
-from emitter import http_emitter
-from jmxfetch import JMXFetch
-import modules
 from util import get_hostname
 from utils.jmx import JMXFiles
 

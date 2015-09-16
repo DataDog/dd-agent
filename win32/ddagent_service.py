@@ -13,8 +13,6 @@ http://ryrobes.com/python/running-python-scripts-as-a-windows-service/
 #stdlib
 import os
 import time
-import psutil
-import signal
 import socket
 import select
 
@@ -98,7 +96,7 @@ class AgentService(win32serviceutil.ServiceFramework):
                 # Ok some processes didn't want to die apparently, let's take care og them the hard
                 # way !
                 self.log("Some processes wouldn't exit... they're going to be force killed.")
-                parent=psutil.Process(self.proc.pid)
+                parent = psutil.Process(self.proc.pid)
                 children = parent.children(recursive=True)
 
                 for p in [parent] + children:
