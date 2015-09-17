@@ -233,7 +233,10 @@ class OpenstackCheck(AgentCheck):
             return None
 
     def get_hypervisor_stats(self):
-        hypervisors = self.init_config.get('hypervisor_ids', [])
+        if self.init_config.get('check_all_hypervisors', False):
+            hypervisors = self.get_all_hypervisor_ids()
+        else:
+            hypervisors = self.init_config.get('hypervisor_ids', [])
 
         if not hypervisors:
             self.warning("Your check is not configured to monitor any hypervisors.\n" +
@@ -246,6 +249,21 @@ class OpenstackCheck(AgentCheck):
                 'uptime': self.get_uptime_for_single_hypervisor(hyp)
             }
         return stats
+
+    def get_all_hypervisor_ids(self):
+        url = '{0}/os-hypervisors'.format(self._nova_url)
+        headers = {'X-Auth-Token': self._auth_token}
+
+        hypervisor_ids = []
+        try:
+            resp = self._make_request_with_auth_fallback(url, headers)
+            hv_list = resp.json()
+            for hv in hv_list['hypervisors']:
+                hypervisor_ids.append(hv['id'])
+        except:
+            self.warning('Unable to get the list of all hypervisors.')
+
+        return hypervisor_ids
 
     def get_uptime_for_single_hypervisor(self, hyp_id):
         url = '{0}/os-hypervisors/{1}/uptime'.format(self._nova_url, hyp_id)
