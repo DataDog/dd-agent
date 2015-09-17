@@ -263,8 +263,7 @@ class Server(object):
         """ Run the server. """
         # Bind to the UDP socket.
         # IPv4 only
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.setblocking(0)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.socket.bind(self.address)
         except socket.gaierror:
@@ -288,24 +287,13 @@ class Server(object):
 
         # Run our select loop.
         self.running = True
+        self.socket.listen(5)
         while self.running:
-            try:
-                ready = select_select(sock, [], [], timeout)
-                if ready[0]:
-                    message = socket_recv(buffer_size)
-                    aggregator_submit(message)
-
-                    if should_forward:
-                        forward_udp_sock.send(message)
-            except select_error, se:
-                # Ignore interrupted system calls from sigterm.
-                errno = se[0]
-                if errno != 4:
-                    raise
-            except (KeyboardInterrupt, SystemExit):
-                break
-            except Exception:
-                log.exception('Error receiving datagram')
+            c, addr = self.socket.accept()
+            message = c.recv(buffer_size)
+            c.close()
+            if message:
+                aggregator_submit(message)
 
     def stop(self):
         self.running = False
