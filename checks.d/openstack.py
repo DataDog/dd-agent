@@ -129,8 +129,9 @@ class OpenstackCheck(AgentCheck):
 
         payload = {"auth": {"scope": auth_scope, "identity": identity}}
         auth_url = "{0}/{1}/auth/tokens".format(keystone_server_url, self.DEFAULT_KEYSTONE_API_VERSION)
+        headers = {'Content-Type': 'application/json'}
 
-        resp = requests.post(auth_url, data=json.dumps(payload))
+        resp = requests.post(auth_url, headers=headers, data=json.dumps(payload))
         resp.raise_for_status()
 
         self._nova_url = self.get_nova_url_from_auth_response(resp.json(),
