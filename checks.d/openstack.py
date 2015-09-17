@@ -159,7 +159,11 @@ class OpenstackCheck(AgentCheck):
             return None
 
     def get_network_stats(self):
-        network_ids = self.init_config.get('network_ids', [])
+        if self.init_config.get('check_all_networks', False):
+            network_ids = self.get_all_network_ids()
+        else:
+            network_ids = self.init_config.get('network_ids', [])
+
         if not network_ids:
             self.warning("Your check is not configured to monitor any networks.\n" +
                          "Please list `network_ids` under your init_config")
@@ -167,6 +171,20 @@ class OpenstackCheck(AgentCheck):
         for nid in network_ids:
             self.get_stats_for_single_network(nid)
 
+    def get_all_network_ids(self):
+        url = '{0}/{1}/networks'.format(self._neutron_url, self.DEFAULT_NEUTRON_API_VERSION)
+        headers = {'X-Auth-Token': self._auth_token}
+
+        network_ids = []
+        try:
+            resp = self._make_request_with_auth_fallback(url, headers)
+            net_details = resp.json()
+            for network in net_details['networks']:
+                network_ids.append(network['id'])
+        except:
+            self.warning('Unable to get the list of all network ids.')
+
+        return network_ids
 
     def get_stats_for_single_network(self, network_id):
         url = '{0}/{1}/networks/{2}'.format(self._neutron_url, self.DEFAULT_NEUTRON_API_VERSION, network_id)
