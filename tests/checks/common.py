@@ -43,9 +43,11 @@ def get_check_class(name):
 
 def load_class(check_name, class_name):
     """
-    Retrieve a class with the given name among the given check module.
+    Retrieve a class with the given name within the given check module.
     """
     checksd_path = get_checksd_path(get_os())
+    if checksd_path not in sys.path:
+        sys.path.append(checksd_path)
     check_module = __import__(check_name)
     classes = inspect.getmembers(check_module, inspect.isclass)
     for name, clsmember in classes:
