@@ -1,9 +1,9 @@
 Changes
 =======
 
-# 5.5.0 / Unreleased
+# 5.5.0 / 09-17-2015
 ### Details
-https://github.com/DataDog/dd-agent/compare/5.4.6...5.5.0
+https://github.com/DataDog/dd-agent/compare/5.4.7...5.5.0
 
 ### New integration(s)
 * Consul
