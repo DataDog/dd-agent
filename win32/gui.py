@@ -445,15 +445,22 @@ class MainWindow(QSplitter):
                 self.show_html(self.properties.group_code, self.properties.html_window, False)]),
             ("JMX Fetch Logs", lambda: [self.properties.set_log_file(self.jmxfetch_log_file),
                 self.show_html(self.properties.group_code, self.properties.html_window, False)]),
-            if Platform.is_windows():
+
+        ]
+
+        if Platform.is_windows():
+            self.settings.extend([
                 ("Supervisor Logs", lambda: [self.properties.set_log_file(self.supervisor_log_file),
                     self.show_html(self.properties.group_code, self.properties.html_window, False)]),
                 ("Service Logs", lambda: [self.properties.set_log_file(self.service_log_file),
                     self.show_html(self.properties.group_code, self.properties.html_window, False)]),
+            ])
+
+        self.settings.extend([
             ("Agent Status", lambda: [self.properties.html_window.setHtml(self.properties.html_window.latest_status()),
                 self.show_html(self.properties.group_code, self.properties.html_window, True),
                 self.properties.set_status()]),
-        ]
+        ])
 
         self.agent_settings = QPushButton(get_icon("edit.png"),
                                           "Settings", self)
