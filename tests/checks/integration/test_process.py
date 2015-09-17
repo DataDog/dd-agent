@@ -188,22 +188,24 @@ class ProcessCheckTest(AgentCheckTest):
             }]
         }
 
-        def deny_cmdline(obj):
+        def deny_name(obj):
             raise psutil.AccessDenied()
 
-        try:
-            with patch.object(psutil.Process, 'name', deny_cmdline):
-                self.run_check(config)
-        except psutil.AccessDenied:
-            pass
+        with patch.object(psutil.Process, 'name', deny_name):
+            self.assertRaises(psutil.AccessDenied, self.run_check, config)
 
         self.assertTrue(len(self.check.ad_cache) > 0)
+
         # The next run shoudn't throw an exception
         self.run_check(config)
+        # The ad cache should still be valid
+        self.assertFalse(self.check.should_refresh_ad_cache('python'))
 
-        # Reset the cache now
-        self.check.last_ad_cache_ts = 0
-        self.assertRaises(Exception, lambda: self.run_check, config)
+        # Reset caches
+        self.check.last_ad_cache_ts = {}
+        self.check.last_pid_cache_ts = {}
+        # Shouldn't throw an exception
+        self.run_check(config)
 
     def mock_find_pids(self, name, search_string, exact_match=True, ignore_ad=True,
                        refresh_ad_cache=True):

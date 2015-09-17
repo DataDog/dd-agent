@@ -38,8 +38,9 @@ class ProcessCheck(AgentCheck):
         # ad stands for access denied
         # We cache the PIDs getting this error and don't iterate on them
         # more often than `access_denied_cache_duration`
-        # This cache is for all PIDs so it's global
-        self.last_ad_cache_ts = 0
+        # This cache is for all PIDs so it's global, but it should
+        # be refreshed by instance
+        self.last_ad_cache_ts = {}
         self.ad_cache = set()
         self.access_denied_cache_duration = int(
             init_config.get(
@@ -63,16 +64,15 @@ class ProcessCheck(AgentCheck):
         # Process cache, indexed by instance
         self.process_cache = {}
 
-    def should_refresh_ad_cache(self):
+    def should_refresh_ad_cache(self, name):
         now = time.time()
-        return now - self.last_ad_cache_ts > self.access_denied_cache_duration
+        return now - self.last_ad_cache_ts.get(name, 0) > self.access_denied_cache_duration
 
     def should_refresh_pid_cache(self, name):
         now = time.time()
         return now - self.last_pid_cache_ts.get(name, 0) > self.pid_cache_duration
 
-    def find_pids(self, name, search_string, exact_match, ignore_ad=True,
-                  refresh_ad_cache=True):
+    def find_pids(self, name, search_string, exact_match, ignore_ad=True):
         """
         Create a set of pids of selected processes.
         Search for search_string
@@ -84,7 +84,7 @@ class ProcessCheck(AgentCheck):
         if not ignore_ad:
             ad_error_logger = self.log.error
 
-        refresh_ad_cache = self.should_refresh_ad_cache()
+        refresh_ad_cache = self.should_refresh_ad_cache(name)
 
         matching_pids = set()
 
@@ -124,6 +124,8 @@ class ProcessCheck(AgentCheck):
 
         self.pid_cache[name] = matching_pids
         self.last_pid_cache_ts[name] = time.time()
+        if refresh_ad_cache:
+            self.last_ad_cache_ts[name] = time.time()
         return matching_pids
 
     def psutil_wrapper(self, process, method, accessors, *args, **kwargs):
