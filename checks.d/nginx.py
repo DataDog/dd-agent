@@ -10,6 +10,10 @@ from checks import AgentCheck
 # 3rd party
 import simplejson as json
 
+import logging
+
+log = logging.getLogger('dd.collector')
+
 class Nginx(AgentCheck):
     """Tracks basic nginx metrics via the status module
     * number of connections
@@ -31,10 +35,14 @@ class Nginx(AgentCheck):
         tags = instance.get('tags', [])
 
         response, content_type = self._get_data(instance)
+        log.debug('response: %s', response)
+        log.debug('content_type: %s', content_type)
+        log.debug('if statement: %s', content_type.startswith('application/json'))
         if content_type == 'application/json':
             metrics = self.parse_json(response, tags)
         else:
             metrics = self.parse_text(response, tags)
+        log.debug('metrics: %s', metrics)
 
         funcs = {
             'gauge': self.gauge,
