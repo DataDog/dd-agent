@@ -268,6 +268,9 @@ class HAProxy(AgentCheck):
                 agg_statuses[service]['available'] += count
             elif 'down' in status or 'maint' in status or 'nolb' in status:
                 agg_statuses[service]['unavailable'] += count
+            else:
+                # create the entries for this service anyway
+                agg_statuses[service]
 
         for service in agg_statuses:
             tags = ['service:%s' % service]
@@ -279,6 +282,7 @@ class HAProxy(AgentCheck):
                 'haproxy.backend_hosts',
                 agg_statuses[service]['unavailable'],
                 tags=tags + ['available:false'])
+        return agg_statuses
 
     def _process_status_metric(self, hosts_statuses, collect_status_metrics_by_host,
                                services_incl_filter=None, services_excl_filter=None):
