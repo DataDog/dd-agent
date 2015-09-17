@@ -1,3 +1,0 @@
-include datadog.conf.example
-include checks/libs/jmxterm-1.0-alpha-4-uber.jar
-include checks/libs/jmxfetch-0.8.0-jar-with-dependencies.jar

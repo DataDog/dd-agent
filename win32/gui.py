@@ -92,8 +92,16 @@ AGENT_UNKNOWN = 4
 # Windows management
 # Import Windows stuff only on Windows
 if Platform.is_windows():
+    import win32api
+    import win32con
+    import win32process
     import win32serviceutil
     import win32service
+
+    # project
+    from utils.pidfile import PidFile
+    from utils.process import pid_exists
+
     WIN_STATUS_TO_AGENT = {
         win32service.SERVICE_RUNNING: AGENT_RUNNING,
         win32service.SERVICE_START_PENDING: AGENT_START_PENDING,
@@ -403,11 +411,6 @@ class HTMLWindow(QTextEdit):
 
 class MainWindow(QSplitter):
     def __init__(self, parent=None):
-        prefix_conf = ''
-
-        if Platform.is_windows():
-            prefix_conf = 'windows_'
-
         log_conf = get_logging_config()
 
         QSplitter.__init__(self, parent)
@@ -420,7 +423,7 @@ class MainWindow(QSplitter):
 
         checks = get_checks()
         datadog_conf = DatadogConf(get_config_path())
-        self.create_logs_files_windows(log_conf, prefix_conf)
+        self.create_logs_files_windows(log_conf)
 
         listwidget = QListWidget(self)
         listwidget.addItems([osp.basename(check.module_name).replace("_", " ").title() for check in checks])
@@ -440,10 +443,22 @@ class MainWindow(QSplitter):
                 self.show_html(self.properties.group_code, self.properties.html_window, False)]),
             ("JMX Fetch Logs", lambda: [self.properties.set_log_file(self.jmxfetch_log_file),
                 self.show_html(self.properties.group_code, self.properties.html_window, False)]),
+
+        ]
+
+        if Platform.is_windows():
+            self.settings.extend([
+                ("Supervisor Logs", lambda: [self.properties.set_log_file(self.supervisor_log_file),
+                    self.show_html(self.properties.group_code, self.properties.html_window, False)]),
+                ("Service Logs", lambda: [self.properties.set_log_file(self.service_log_file),
+                    self.show_html(self.properties.group_code, self.properties.html_window, False)]),
+            ])
+
+        self.settings.extend([
             ("Agent Status", lambda: [self.properties.html_window.setHtml(self.properties.html_window.latest_status()),
                 self.show_html(self.properties.group_code, self.properties.html_window, True),
                 self.properties.set_status()]),
-        ]
+        ])
 
         self.agent_settings = QPushButton(get_icon("edit.png"),
                                           "Settings", self)
@@ -521,23 +536,32 @@ class MainWindow(QSplitter):
             editor.setVisible(True)
             html.setVisible(False)
 
-    def create_logs_files_windows(self, config, prefix):
+    def create_logs_files_windows(self, config):
         self.forwarder_log_file = EditorFile(
-            config.get('%sforwarder_log_file' % prefix),
+            config.get('forwarder_log_file'),
             "Forwarder log file"
         )
         self.collector_log_file = EditorFile(
-            config.get('%scollector_log_file' % prefix),
+            config.get('collector_log_file'),
             "Collector log file"
         )
         self.dogstatsd_log_file = EditorFile(
-            config.get('%sdogstatsd_log_file' % prefix),
+            config.get('dogstatsd_log_file'),
             "Dogstatsd log file"
         )
         self.jmxfetch_log_file = EditorFile(
             config.get('jmxfetch_log_file'),
             "JMX log file"
         )
+        if Platform.is_windows():
+            self.supervisor_log_file = EditorFile(
+                config.get('supervisor_log_file'),
+                "Supervisor log file"
+            )
+            self.service_log_file = EditorFile(
+                config.get('service_log_file'),
+                "Service log file"
+            )
 
     def show(self):
         QSplitter.show(self)
@@ -791,7 +815,52 @@ def info_popup(message, parent=None):
     QMessageBox.information(parent, 'Message', message, QMessageBox.Ok)
 
 
+def kill_old_process():
+    """ Kills or brings to the foreground (if possible) any other instance of this program. It
+    avoids multiple icons in the Tray on Windows. On OSX, we don't have to do anything: icons
+    don't get duplicated. """
+    # On Windows, if a window is already opened, let's just bring it on the foreground
+    if Platform.is_windows():
+        # Is there another Agent Manager process running ?
+        pidfile = PidFile('agent-manager-gui').get_path()
+
+        old_pid = None
+        try:
+            pf = file(pidfile, 'r')
+            old_pid = int(pf.read().strip())
+            pf.close()
+        except (IOError, ValueError):
+            pass
+
+        if old_pid is not None and pid_exists(old_pid):
+            handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, False, old_pid)
+            exe_path = win32process.GetModuleFileNameEx(handle, 0)
+
+            # If (and only if) this process is indeed an instance of the GUI, let's kill it
+            if 'agent-manager.exe' in exe_path:
+                win32api.TerminateProcess(handle, -1)
+
+            win32api.CloseHandle(handle)
+
+        # If we reached that point it means the current process should be the only running
+        # agent-manager.exe, let's save its pid
+        pid = str(os.getpid())
+        try:
+            fp = open(pidfile, 'w+')
+            fp.write(str(pid))
+            fp.close()
+        except Exception, e:
+            msg = "Unable to write pidfile: %s" % pidfile
+            log.exception(msg)
+            sys.stderr.write(msg + "\n")
+            sys.exit(1)
+
+
 if __name__ == '__main__':
+    if Platform.is_windows():
+        # Let's kill any other running instance of our GUI/SystemTray before starting a new one.
+        kill_old_process()
+
     app = QApplication([])
     if Platform.is_mac():
         add_image_path(osp.join(os.getcwd(), 'images'))
