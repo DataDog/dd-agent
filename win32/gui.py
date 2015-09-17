@@ -829,9 +829,7 @@ def kill_old_process():
             pf = file(pidfile, 'r')
             old_pid = int(pf.read().strip())
             pf.close()
-        except IOError:
-            pass
-        except ValueError:
+        except (IOError, ValueError):
             pass
 
         if old_pid is not None and pid_exists(old_pid):
@@ -859,8 +857,9 @@ def kill_old_process():
 
 
 if __name__ == '__main__':
-    # Let's kill any other running instance of our GUI/SystemTray before starting a new one.
-    kill_old_process()
+    if Platform.is_windows():
+        # Let's kill any other running instance of our GUI/SystemTray before starting a new one.
+        kill_old_process()
 
     app = QApplication([])
     if Platform.is_mac():
