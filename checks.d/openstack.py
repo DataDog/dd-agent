@@ -346,7 +346,11 @@ class OpenstackCheck(AgentCheck):
         for _, v in stats.iteritems():
             payload = v['payload']
 
-            tags = ['hypervisor:{0}'.format(payload['hypervisor_hostname']),'virt_type:{0}'.format(payload['hypervisor_type'])]
+            tags = [
+                'hypervisor:{0}'.format(payload['hypervisor_hostname']),
+                'hypervisor_id:{0}'.format(payload['id']),
+                'virt_type:{0}'.format(payload['hypervisor_type'])
+            ]
 
             for label, val in payload.iteritems():
                 if label in NOVA_HYPERVISOR_METRICS:
