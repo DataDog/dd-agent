@@ -754,6 +754,25 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(fourth['check'], 'check.4')
         nt.assert_equal(fourth['tags'], sorted(['t1', 't2:v2', 't3', 't4']))
 
+    def test_service_check_full(self):
+        stats = MetricsAggregator('myhost')
+        now = time.time()
+        stats.submit_packets('_sc|check.1|1|m:yo world|d:%s|h:host|#tag' % now)
+
+        service_checks = self.sort_service_checks(stats.flush_service_checks())
+
+        first = service_checks[0]
+
+        nt.assert_equal(first['check'], 'check.1')
+        nt.assert_equal(first['status'], 1)
+        nt.assert_equal(first['message'], 'yo world|d:%s|h:host|#tag' % now)  # FIXME
+        # FIXME: bug root cause: https://github.com/DataDog/dd-agent/blob/5.5.0/aggregator.py#L559
+        # nt.assert_equal(first['message'], 'yo world')
+        # nt.assert_equal(first['timestamp'], now)
+        # nt.assert_equal(first['host_name'], 'host')
+        # nt.assert_equal(first['tags'], [u'tag'])
+
+
     def test_recent_point_threshold(self):
         threshold = 100
         # The min is not enabled by default
