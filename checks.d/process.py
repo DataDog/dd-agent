@@ -60,6 +60,9 @@ class ProcessCheck(AgentCheck):
             )
         )
 
+        # Process cache, indexed by instance
+        self.process_cache = {}
+
     def should_refresh_ad_cache(self):
         now = time.time()
         return now - self.last_ad_cache_ts > self.access_denied_cache_duration
@@ -163,21 +166,36 @@ class ProcessCheck(AgentCheck):
 
         return result
 
-
     def get_process_state(self, name, pids, cpu_check_interval):
         st = defaultdict(list)
+
+        if name not in self.process_cache:
+            self.process_cache[name] = {}
+
+        # Remove from cache the processes that are not in `pids`
+        cached_pids = set(self.process_cache[name].keys())
+        pids_to_remove = cached_pids - pids
+        for pid in pids_to_remove:
+            del self.process_cache[name][pid]
 
         for pid in pids:
             st['pids'].append(pid)
 
-            try:
-                p = psutil.Process(pid)
-            # Skip processes dead in the meantime
-            except psutil.NoSuchProcess:
-                self.warning('Process %s disappeared while scanning' % pid)
-                # reset the PID cache now, something changed
-                self.last_pid_cache_ts[name] = 0
-                continue
+            new_process = False
+            # If the pid's process is not cached, retrieve it
+            if pid not in self.process_cache[name] or not self.process_cache[name][pid].is_running():
+                new_process = True
+                try:
+                    self.process_cache[name][pid] = psutil.Process(pid)
+                    self.log.debug('New process in cache: %s' % pid)
+                # Skip processes dead in the meantime
+                except psutil.NoSuchProcess:
+                    self.warning('Process %s disappeared while scanning' % pid)
+                    # reset the PID cache now, something changed
+                    self.last_pid_cache_ts[name] = 0
+                    continue
+
+            p = self.process_cache[name][pid]
 
             meminfo = self.psutil_wrapper(p, 'memory_info', ['rss', 'vms'])
             st['rss'].append(meminfo.get('rss'))
@@ -195,7 +213,12 @@ class ProcessCheck(AgentCheck):
             st['ctx_swtch_invol'].append(ctxinfo.get('involuntary'))
 
             st['thr'].append(self.psutil_wrapper(p, 'num_threads', None))
-            st['cpu'].append(self.psutil_wrapper(p, 'cpu_percent', None, cpu_check_interval))
+            if new_process:
+                # Blocking call for `cpu_check_interval` seconds
+                st['cpu'].append(self.psutil_wrapper(p, 'cpu_percent', None, cpu_check_interval))
+            else:
+                # Non-blocking call
+                st['cpu'].append(self.psutil_wrapper(p, 'cpu_percent', None))
 
             st['open_fd'].append(self.psutil_wrapper(p, 'num_fds', None))
 

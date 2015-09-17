@@ -29,6 +29,10 @@ except Exception:
     _PSUTIL_MEM_SHARED = False
 
 
+class MockProcess(object):
+    def is_running(self):
+        return True
+
 
 class ProcessCheckTest(AgentCheckTest):
     CHECK_NAME = 'process'
@@ -43,7 +47,7 @@ class ProcessCheckTest(AgentCheckTest):
                     'warning': [1, 5]
                 }
             },
-            'mocked_processes': 0
+            'mocked_processes': set()
         },
         {
             'config': {
@@ -54,7 +58,7 @@ class ProcessCheckTest(AgentCheckTest):
                     'warning': [2, 4]
                 }
             },
-            'mocked_processes': 1
+            'mocked_processes': set([1])
         },
         {
             'config': {
@@ -65,7 +69,7 @@ class ProcessCheckTest(AgentCheckTest):
                     'warning': [1, 4]
                 }
             },
-            'mocked_processes': 3
+            'mocked_processes': set([22, 35])
         },
         {
             'config': {
@@ -76,7 +80,7 @@ class ProcessCheckTest(AgentCheckTest):
                     'warning': [2, 5]
                 }
             },
-            'mocked_processes': 5
+            'mocked_processes': set([1, 5, 44, 901, 34])
         },
         {
             'config': {
@@ -87,7 +91,7 @@ class ProcessCheckTest(AgentCheckTest):
                     'warning': [2, 5]
                 }
             },
-            'mocked_processes': 6
+            'mocked_processes': set([3, 7, 2, 9, 34, 72])
         },
         {
             'config': {
@@ -95,7 +99,7 @@ class ProcessCheckTest(AgentCheckTest):
                 'search_string': ['test_5'],  # index in the array for our find_pids mock
                 'tags': ['onetag', 'env:prod']
             },
-            'mocked_processes': 1
+            'mocked_processes': set([2])
         },
         {
             'config': {
@@ -105,7 +109,7 @@ class ProcessCheckTest(AgentCheckTest):
                     'test': 'test'
                 }
             },
-            'mocked_processes': 1
+            'mocked_processes': set([89])
         },
     ]
 
@@ -204,12 +208,21 @@ class ProcessCheckTest(AgentCheckTest):
     def mock_find_pids(self, name, search_string, exact_match=True, ignore_ad=True,
                        refresh_ad_cache=True):
         idx = search_string[0].split('_')[1]
-        # Use a real PID to get real metrics!
-        return [os.getpid()] * self.CONFIG_STUBS[int(idx)]['mocked_processes']
+        return self.CONFIG_STUBS[int(idx)]['mocked_processes']
 
-    def test_check(self):
+    def mock_psutil_wrapper(self, process, method, accessors, *args, **kwargs):
+        if accessors is None:
+            result = 0
+        else:
+            result = dict([(accessor, 0) for accessor in accessors])
+
+        return result
+
+    @patch('psutil.Process', return_value=MockProcess())
+    def test_check(self, mock_process):
         mocks = {
-            'find_pids': self.mock_find_pids
+            'find_pids': self.mock_find_pids,
+            'psutil_wrapper': self.mock_psutil_wrapper,
         }
 
         config = {
@@ -230,17 +243,12 @@ class ProcessCheckTest(AgentCheckTest):
                     expected_tags += stub['config']['tags']
 
                 expected_value = None
-                # cases where we don't actually expect some metrics
-                #  - if no processes are matched we don't send metrics except number
-                #  - if io_counters() is not available skip the metrics
-                #  - if memory_info_ex() is not available skip the metrics
-                if (mocked_processes == 0 and mname != 'system.processes.number')\
-                        or (not _PSUTIL_IO_COUNTERS and '.io' in mname)\
-                        or (not _PSUTIL_MEM_SHARED and 'mem.real' in mname):
+                # if no processes are matched we don't send metrics except number
+                if len(mocked_processes) == 0 and mname != 'system.processes.number':
                     continue
 
                 if mname == 'system.processes.number':
-                    expected_value = mocked_processes
+                    expected_value = len(mocked_processes)
 
                 self.assertMetric(
                     mname, count=1,
@@ -252,7 +260,7 @@ class ProcessCheckTest(AgentCheckTest):
             expected_tags = ['process:{0}'.format(stub['config']['name'])]
             critical = stub['config'].get('thresholds', {}).get('critical')
             warning = stub['config'].get('thresholds', {}).get('warning')
-            procs = stub['mocked_processes']
+            procs = len(stub['mocked_processes'])
 
             if critical is not None and (procs < critical[0] or procs > critical[1]):
                 self.assertServiceCheckCritical('process.up', count=1, tags=expected_tags)
@@ -280,7 +288,9 @@ class ProcessCheckTest(AgentCheckTest):
 
         expected_tags = ['py', 'process_name:py']
         for mname in self.PROCESS_METRIC:
-            # See same tests comment in the function `test_check`
+            # cases where we don't actually expect some metrics here:
+            #  - if io_counters() is not available
+            #  - if memory_info_ex() is not available
             if (not _PSUTIL_IO_COUNTERS and '.io' in mname)\
                     or (not _PSUTIL_MEM_SHARED and 'mem.real' in mname):
                 continue
