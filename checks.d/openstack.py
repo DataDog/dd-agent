@@ -148,6 +148,12 @@ class OpenstackCheck(AgentCheck):
 
         for entry in catalog:
             if entry['name'] == match:
+                for ep in entry['endpoints']:
+                    if ep.get('interface', '') == 'public':
+                        url = ep.get('url', None)
+                        if url is not None:
+                            return url
+                # Fall back to the 1st one
                 return entry['endpoints'][0].get('url', '')
         else:
             return None
@@ -194,6 +200,12 @@ class OpenstackCheck(AgentCheck):
         nova_match = 'novav21' if nova_version == 'v2.1' else 'nova'
         for entry in catalog:
             if entry['name'] == nova_match:
+                for ep in entry['endpoints']:
+                    if ep.get('interface', '') == 'public':
+                        url = ep.get('url', None)
+                        if url is not None:
+                            return url
+                # Fall back to the 1st one
                 return entry['endpoints'][0].get('url', '')
         else:
             return None
