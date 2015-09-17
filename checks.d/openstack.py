@@ -278,9 +278,30 @@ class OpenstackCheck(AgentCheck):
         headers = {'X-Auth-Token': self._auth_token}
         resp = self._make_request_with_auth_fallback(url, headers)
         hyp = resp.json()['hypervisor']
-        service_check_tags = ['hypervisor:{0}'.format(hyp['hypervisor_hostname'])]
 
-        if hyp['state'] != self.HYPERVISOR_STATE_UP:
+        hyp_state = hyp.get('state', None)
+        if hyp_state is None:
+            try:
+                # Fall back for pre Nova v2.1 to the uptime response
+                uptime = self.get_uptime_for_single_hypervisor(hyp_id)
+                if uptime.get('uptime_sec', 0) > 0:
+                    hyp_state = self.HYPERVISOR_STATE_UP
+                else:
+                    hyp_state = 'down'
+            except:
+                # This creates the AgentCheck.UNKNOWN state
+                pass
+
+        service_check_tags = [
+            'hypervisor:{0}'.format(hyp['hypervisor_hostname']),
+            'hypervisor_id:{0}'.format(hyp['id']),
+            'virt_type:{0}'.format(hyp['hypervisor_type'])
+        ]
+
+        if hyp_state is None:
+            self.service_check(self.HYPERVISOR_SERVICE_CHECK_NAME, AgentCheck.UNKNOWN,
+                               tags=service_check_tags)
+        elif hyp_state != self.HYPERVISOR_STATE_UP:
             self.service_check(self.HYPERVISOR_SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                                tags=service_check_tags)
         else:
