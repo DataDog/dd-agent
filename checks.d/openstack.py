@@ -244,10 +244,16 @@ class OpenstackCheck(AgentCheck):
 
         stats = {}
         for hyp in hypervisors:
-            stats[hyp] = {
-                'payload': self.get_stats_for_single_hypervisor(hyp),
-                'uptime': self.get_uptime_for_single_hypervisor(hyp)
-            }
+            try:
+                stats[hyp]['payload'] = self.get_stats_for_single_hypervisor(hyp)
+            except:
+                self.warning('Unable to get stats for hypervisor {0}.'.format(hyp))
+
+            try:
+                stats[hyp]['uptime'] = self.get_uptime_for_single_hypervisor(hyp)
+            except:
+                self.warning('Unable to get uptime for hypervisor {0}.'.format(hyp))
+
         return stats
 
     def get_all_hypervisor_ids(self):
