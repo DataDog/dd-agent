@@ -358,13 +358,11 @@ class OpenstackCheck(AgentCheck):
                     metric_label = "openstack.nova.{0}".format(label)
                     self.gauge(metric_label, val, tags=tags)
 
-            uptime = v.get('uptime', {})
-            load_averages = uptime['loads']
-
-            assert len(load_averages) == 3
-            for i, avg in enumerate([1, 5, 15]):
-                self.gauge('openstack.nova.hypervisor_load.{0}'.format(avg), load_averages[i], tags=tags)
-
+            load_averages = v.get('uptime', {}).get('loads', None)
+            if load_averages is not None:
+                assert len(load_averages) == 3
+                for i, avg in enumerate([1, 5, 15]):
+                    self.gauge('openstack.nova.hypervisor_load.{0}'.format(avg), load_averages[i], tags=tags)
 
     def check(self, instance):
 
