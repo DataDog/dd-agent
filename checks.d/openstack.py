@@ -244,6 +244,7 @@ class OpenstackCheck(AgentCheck):
 
         stats = {}
         for hyp in hypervisors:
+            stats[hyp] = {}
             try:
                 stats[hyp]['payload'] = self.get_stats_for_single_hypervisor(hyp)
             except:
