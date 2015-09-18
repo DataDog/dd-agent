@@ -357,7 +357,7 @@ class OpenstackCheck(AgentCheck):
                     metric_label = "openstack.nova.{0}".format(label)
                     self.gauge(metric_label, val, tags=tags)
 
-            uptime = v['uptime']
+            uptime = v.get('uptime', {})
             load_averages = uptime['loads']
 
             assert len(load_averages) == 3
