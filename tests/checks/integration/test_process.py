@@ -220,6 +220,13 @@ class ProcessCheckTest(AgentCheckTest):
 
         return result
 
+    def generate_expected_tags(self, instance_config):
+        proc_name = instance_config['name']
+        expected_tags = [proc_name, "process_name:{0}".format(proc_name)]
+        if 'tags' in instance_config:
+            expected_tags += instance_config['tags']
+        return expected_tags
+
     @patch('psutil.Process', return_value=MockProcess())
     def test_check(self, mock_process):
         mocks = {
@@ -237,16 +244,13 @@ class ProcessCheckTest(AgentCheckTest):
 
             # Assert metrics
             for mname in self.PROCESS_METRIC:
-                proc_name = stub['config']['name']
-                expected_tags = [proc_name, "process_name:{0}".format(proc_name)]
-
-                # If a list of tags is already there, the check extends it
-                if 'tags' in stub['config']:
-                    expected_tags += stub['config']['tags']
+                expected_tags = self.generate_expected_tags(stub['config'])
 
                 expected_value = None
-                # if no processes are matched we don't send metrics except number
-                if len(mocked_processes) == 0 and mname != 'system.processes.number':
+                # - if no processes are matched we don't send metrics except number
+                # - it's the first time the check runs so don't send cpu.pct
+                if (len(mocked_processes) == 0 and mname != 'system.processes.number')\
+                        or mname == 'system.processes.cpu.pct':
                     continue
 
                 if mname == 'system.processes.number':
@@ -274,6 +278,16 @@ class ProcessCheckTest(AgentCheckTest):
         # Raises when COVERAGE=true and coverage < 100%
         self.coverage_report()
 
+        # Run the check a second time and check that `cpu_pct` is there
+        self.run_check(config, mocks=mocks)
+        for stub in self.CONFIG_STUBS:
+            expected_tags = self.generate_expected_tags(stub['config'])
+
+            if len(stub['mocked_processes']) == 0:
+                continue
+
+            self.assertMetric('system.processes.cpu.pct', count=1, tags=expected_tags)
+
     def test_check_real_process(self):
         "Check that we detect python running (at least this process)"
         config = {
@@ -288,16 +302,22 @@ class ProcessCheckTest(AgentCheckTest):
 
         self.run_check(config)
 
-        expected_tags = ['py', 'process_name:py']
+        expected_tags = self.generate_expected_tags(config['instances'][0])
         for mname in self.PROCESS_METRIC:
             # cases where we don't actually expect some metrics here:
             #  - if io_counters() is not available
             #  - if memory_info_ex() is not available
+            #  - first run so no `cpu.pct`
             if (not _PSUTIL_IO_COUNTERS and '.io' in mname)\
-                    or (not _PSUTIL_MEM_SHARED and 'mem.real' in mname):
+                    or (not _PSUTIL_MEM_SHARED and 'mem.real' in mname)\
+                    or mname == 'system.processes.cpu.pct':
                 continue
             self.assertMetric(mname, at_least=1, tags=expected_tags)
 
         self.assertServiceCheckOK('process.up', count=1, tags=['process:py'])
 
         self.coverage_report()
+
+        # Run the check a second time and check that `cpu_pct` is there
+        self.run_check(config)
+        self.assertMetric('system.processes.cpu.pct', count=1, tags=expected_tags)

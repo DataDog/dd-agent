@@ -62,7 +62,7 @@ class ProcessCheck(AgentCheck):
         )
 
         # Process cache, indexed by instance
-        self.process_cache = {}
+        self.process_cache = defaultdict(dict)
 
     def should_refresh_ad_cache(self, name):
         now = time.time()
@@ -168,11 +168,8 @@ class ProcessCheck(AgentCheck):
 
         return result
 
-    def get_process_state(self, name, pids, cpu_check_interval):
+    def get_process_state(self, name, pids):
         st = defaultdict(list)
-
-        if name not in self.process_cache:
-            self.process_cache[name] = {}
 
         # Remove from cache the processes that are not in `pids`
         cached_pids = set(self.process_cache[name].keys())
@@ -215,12 +212,12 @@ class ProcessCheck(AgentCheck):
             st['ctx_swtch_invol'].append(ctxinfo.get('involuntary'))
 
             st['thr'].append(self.psutil_wrapper(p, 'num_threads', None))
-            if new_process:
-                # Blocking call for `cpu_check_interval` seconds
-                st['cpu'].append(self.psutil_wrapper(p, 'cpu_percent', None, cpu_check_interval))
-            else:
-                # Non-blocking call
-                st['cpu'].append(self.psutil_wrapper(p, 'cpu_percent', None))
+
+            cpu_percent = self.psutil_wrapper(p, 'cpu_percent', None)
+            if not new_process:
+                # psutil returns `0.` for `cpu_percent` the first time it's sampled on a process,
+                # so save the value only on non-new processes
+                st['cpu'].append(cpu_percent)
 
             st['open_fd'].append(self.psutil_wrapper(p, 'num_fds', None))
 
@@ -238,7 +235,6 @@ class ProcessCheck(AgentCheck):
         exact_match = _is_affirmative(instance.get('exact_match', True))
         search_string = instance.get('search_string', None)
         ignore_ad = _is_affirmative(instance.get('ignore_denied_access', True))
-        cpu_check_interval = instance.get('cpu_check_interval', 0.1)
 
         if not isinstance(search_string, list):
             raise KeyError('"search_string" parameter should be a list')
@@ -255,10 +251,6 @@ class ProcessCheck(AgentCheck):
         if search_string is None:
             raise KeyError('The "search_string" is mandatory')
 
-        if not isinstance(cpu_check_interval, (int, long, float)):
-            self.warning("cpu_check_interval must be a number. Defaulting to 0.1")
-            cpu_check_interval = 0.1
-
         pids = self.find_pids(
             name,
             search_string,
@@ -266,7 +258,7 @@ class ProcessCheck(AgentCheck):
             ignore_ad=ignore_ad
         )
 
-        proc_state = self.get_process_state(name, pids, cpu_check_interval)
+        proc_state = self.get_process_state(name, pids)
 
         # FIXME 6.x remove the `name` tag
         tags.extend(['process_name:%s' % name, name])
