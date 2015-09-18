@@ -36,9 +36,10 @@ class Nginx(AgentCheck):
 
         response, content_type = self._get_data(instance)
         log.debug('response: %s', response)
+        log.debug("response's type: %s", type(response))
         log.debug('content_type: %s', content_type)
         log.debug('if statement: %s', content_type.startswith('application/json'))
-        if content_type == 'application/json':
+        if content_type.startswith('application/json'):
             metrics = self.parse_json(response, tags)
         else:
             metrics = self.parse_text(response, tags)
@@ -88,6 +89,7 @@ class Nginx(AgentCheck):
     def parse_text(cls, raw, tags):
         # Thanks to http://hostingfu.com/files/nginx/nginxstats.py for this code
         # Connections
+        log.debug('This should not be logged')
         output = []
         parsed = re.search(r'Active connections:\s+(\d+)', raw)
         if parsed:
@@ -119,7 +121,9 @@ class Nginx(AgentCheck):
     def parse_json(cls, raw, tags=None):
         if tags is None:
             tags = []
+        log.debug('tags %s', tags)
         parsed = json.loads(raw)
+        log.debug('parsed %s', parsed)
         metric_base = 'nginx'
         output = []
         all_keys = parsed.keys()
@@ -131,14 +135,20 @@ class Nginx(AgentCheck):
         # getting concatenated to the metric name
         for key, tag_name in tagged_keys:
             metric_name = '%s.%s' % (metric_base, tag_name)
+            log.debug('metric_name %s', metric_name)
             for tag_val, data in parsed.get(key, {}).iteritems():
+                log.debug('tag_val %s', tag_val)
+                log.debug('data %s', data)
                 tag = '%s:%s' % (tag_name, tag_val)
+                log.debug('metric_output %s', cls._flatten_json(metric_name, data, tags + [tag]))
                 output.extend(cls._flatten_json(metric_name, data, tags + [tag]))
 
         # Process the rest of the keys
         rest = set(all_keys) - set([k for k, _ in tagged_keys])
         for key in rest:
+            log.debug('key %s', key)
             metric_name = '%s.%s' % (metric_base, key)
+            log.debug('metric_output %s', cls._flatten_json(metric_name, parsed[key], tags))
             output.extend(cls._flatten_json(metric_name, parsed[key], tags))
 
         return output
@@ -148,6 +158,8 @@ class Nginx(AgentCheck):
         ''' Recursively flattens the nginx json object. Returns the following:
             [(metric_name, value, tags)]
         '''
+        log.debug('_flatten_json with parameters %s, %s, %s', metric_base, val, tags)
+        log.debug('_flatten_json with types %s, %s, %s', type(metric_base), type(val), type(tags))
         output = []
         if isinstance(val, dict):
             # Pull out the server as a tag instead of trying to read as a metric
