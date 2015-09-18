@@ -10,7 +10,6 @@ instances:
 #                    return the counter of all the processes that contain the string
 #    exact_match: (optional) Boolean. Default to True, if you want to look for an arbitrary
 #                 string, use exact_match: False
-#    cpu_check_interval: (optional) CPU percent check interval: 0.1 - 1.0 sec.
 #    ignore_denied_access: (optional) Boolean. Default to True, when getting the number of files descriptors, dd-agent user might
 #    get a denied access. Set this to true to not issue a warning if that happens.
 #    thresholds: (optional) Two ranges: critical and warning
