@@ -193,11 +193,15 @@ class OpenstackCheck(AgentCheck):
         resp = self._make_request_with_auth_fallback(url, headers)
 
         net_details = resp.json()
-        service_check_tags = [
-            'network:{0}'.format(network_id),
-            'network_name:{0}'.format(net_details.get('network', {}).get('name')),
-            'tenant_id:{0}'.format(net_details.get('network', {}).get('tenant_id'))
-        ]
+        service_check_tags = ['network:{0}'.format(network_id)]
+
+        network_name = net_details.get('network', {}).get('name')
+        if network_name is not None:
+            service_check_tags.append('network_name:{0}'.format(network_name))
+
+        tenant_id = net_details.get('network', {}).get('tenant_id')
+        if tenant_id is not None:
+            service_check_tags.append('tenant_id:{0}'.format(tenant_id))
 
         if net_details.get('admin_state_up'):
             self.service_check(self.NETWORK_SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
