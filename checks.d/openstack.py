@@ -47,6 +47,7 @@ class IncompleteConfig(Exception):
 class OpenstackCheck(AgentCheck):
 
     HYPERVISOR_STATE_UP = 'up'
+    HYPERVISOR_STATE_DOWN = 'down'
     NETWORK_STATE_UP = 'UP'
 
     DEFAULT_KEYSTONE_API_VERSION = 'v3'
@@ -181,8 +182,8 @@ class OpenstackCheck(AgentCheck):
             net_details = resp.json()
             for network in net_details['networks']:
                 network_ids.append(network['id'])
-        except:
-            self.warning('Unable to get the list of all network ids.')
+        except Exception as e:
+            self.warning('Unable to get the list of all network ids: {0}'.format(str(e)))
 
         return network_ids
 
@@ -247,13 +248,13 @@ class OpenstackCheck(AgentCheck):
             stats[hyp] = {}
             try:
                 stats[hyp]['payload'] = self.get_stats_for_single_hypervisor(hyp)
-            except:
-                self.warning('Unable to get stats for hypervisor {0}.'.format(hyp))
+            except Exception as e:
+                self.warning('Unable to get stats for hypervisor {0}: {1}'.format(hyp, str(e)))
 
             try:
                 stats[hyp]['uptime'] = self.get_uptime_for_single_hypervisor(hyp)
-            except:
-                self.warning('Unable to get uptime for hypervisor {0}.'.format(hyp))
+            except Exception as e:
+                self.warning('Unable to get uptime for hypervisor {0}: {1}'.format(hyp, str(e)))
 
         return stats
 
@@ -267,8 +268,8 @@ class OpenstackCheck(AgentCheck):
             hv_list = resp.json()
             for hv in hv_list['hypervisors']:
                 hypervisor_ids.append(hv['id'])
-        except:
-            self.warning('Unable to get the list of all hypervisors.')
+        except Exception as e:
+            self.warning('Unable to get the list of all hypervisors: {0}'.format(str(e)))
 
         return hypervisor_ids
 
@@ -294,7 +295,7 @@ class OpenstackCheck(AgentCheck):
                 if uptime.get('uptime_sec', 0) > 0:
                     hyp_state = self.HYPERVISOR_STATE_UP
                 else:
-                    hyp_state = 'down'
+                    hyp_state = self.HYPERVISOR_STATE_DOWN
             except:
                 # This creates the AgentCheck.UNKNOWN state
                 pass
