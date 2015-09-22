@@ -359,13 +359,12 @@ class DockerDaemon(AgentCheck):
 
     def refresh_ecs_tags(self):
         ecs_config = self.client.inspect_container('ecs-agent')
-        net_conf = ecs_config['NetworkSettings'].get('Ports', {})
-        net_conf = net_conf.get(net_conf.keys()[0], [])
+        ip = ecs_config.get('NetworkSettings', {}).get('IPAddress')
+        ports = ecs_config.get('NetworkSettings', {}).get('Ports')
+        port = ports.keys()[0].split('/')[0] if ports else None
         ecs_tags = {}
-        if net_conf:
-            net_conf = net_conf[0] if isinstance(net_conf, list) else net_conf
-            ip, port = net_conf.get('HostIp'), net_conf.get('HostPort')
-            tasks = requests.get('http://%s:%s' % (ip, port)).json()
+        if ip and port:
+            tasks = requests.get('http://%s:%s/v1/tasks' % (ip, port)).json()
             for task in tasks.get('Tasks', []):
                 for container in task.get('Containers', []):
                     tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
