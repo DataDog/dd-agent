@@ -1,6 +1,18 @@
 Changes
 =======
 
+# 5.5.1 / Unreleased
+### Details
+https://github.com/DataDog/dd-agent/compare/5.5.0...5.5.1
+
+### Changes
+* [BUGFIX] Core: Fix `dd-agent` command-line interface on Linux. See [#49](https://github.com/DataDog/dd-agent-omnibus/pull/51), [#51](https://github.com/DataDog/dd-agent-omnibus/pull/49)
+* [BUGFIX] Docker: Fix Amazon EC2 Container Service (ECS) tags collection. See [#1932][]
+* [BUGFIX] HTTP Check: Fix SSL certificate check when specifying a non-default port in the URL. See [#1923][] (Thanks [@dmulter][])
+* [BUGFIX] Nginx: Fix 'application/json' content_type support. See [#1943][]
+* [BUGFIX] Windows: Ship Gohai latest version with Windows MSI Installer. See [663d96f711f159aa9ee3f540d7e2bf3a663e0cd7](https://github.com/DataDog/gohai/commit/663d96f711f159aa9ee3f540d7e2bf3a663e0cd7)
+
+
 # 5.5.0 / 09-17-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.4.7...5.5.0
@@ -1607,6 +1619,7 @@ If you use ganglia, you want this version.
 [#23]: https://github.com/DataDog/dd-agent/issues/23
 [#30]: https://github.com/DataDog/dd-agent/issues/30
 [#42]: https://github.com/DataDog/dd-agent/issues/42
+[#49]: https://github.com/DataDog/dd-agent/issues/49
 [#51]: https://github.com/DataDog/dd-agent/issues/51
 [#55]: https://github.com/DataDog/dd-agent/issues/55
 [#57]: https://github.com/DataDog/dd-agent/issues/57
@@ -2051,6 +2064,9 @@ If you use ganglia, you want this version.
 [#1907]: https://github.com/DataDog/dd-agent/issues/1907
 [#1908]: https://github.com/DataDog/dd-agent/issues/1908
 [#1912]: https://github.com/DataDog/dd-agent/issues/1912
+[#1923]: https://github.com/DataDog/dd-agent/issues/1923
+[#1932]: https://github.com/DataDog/dd-agent/issues/1932
+[#1943]: https://github.com/DataDog/dd-agent/issues/1943
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@KnownSubset]: https://github.com/KnownSubset
@@ -2070,6 +2086,7 @@ If you use ganglia, you want this version.
 [@datadoghq]: https://github.com/datadoghq
 [@dcrosta]: https://github.com/dcrosta
 [@djensen47]: https://github.com/djensen47
+[@dmulter]: https://github.com/dmulter
 [@donalguy]: https://github.com/donalguy
 [@dspangen]: https://github.com/dspangen
 [@echohead]: https://github.com/echohead
