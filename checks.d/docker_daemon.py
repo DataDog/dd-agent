@@ -18,6 +18,7 @@ EVENT_TYPE = 'docker'
 SERVICE_CHECK_NAME = 'docker.service_up'
 SIZE_REFRESH_RATE = 5 # Collect container sizes every 5 iterations of the check
 MAX_CGROUP_LISTING_RETRIES = 3
+CONTAINER_ID_RE = re.compile('[0-9a-f]{64}')
 
 GAUGE = AgentCheck.gauge
 RATE = AgentCheck.rate
@@ -655,9 +656,16 @@ class DockerDaemon(AgentCheck):
                 continue
 
             try:
-                content = dict((line[1], line[2]) for line in content)
-                if 'docker/' in content.get('cpuacct'):
-                    container_id = content['cpuacct'].split('docker/')[1]
+                for line in content:
+                    if line[1] in ('cpu,cpuacct', 'cpuacct,cpu', 'cpuacct') and 'docker' in line[2]:
+                        cpuacct = line[2]
+                        break
+                else:
+                    continue
+
+                match = CONTAINER_ID_RE.search(cpuacct)
+                if match:
+                    container_id = match.group(0)
                     container_dict[container_id]['_pid'] = folder
                     container_dict[container_id]['_proc_root'] = os.path.join(proc_path, folder)
             except Exception, e:
