@@ -250,6 +250,25 @@ SELECT relname,
         'relation': True,
     }
 
+    FUNCTION_METRICS = {
+        'descriptors': [
+            ('schemaname', 'schema'),
+            ('funcname', 'function'),
+        ],
+        'metrics': {
+            'calls'     : ('postgresql.function.calls', RATE),
+            'total_time': ('postgresql.function.total_time', RATE),
+            'self_time' : ('postgresql.function.self_time', RATE),
+        },
+        'query': """
+SELECT schemaname,
+       funcname,
+       %s
+  FROM pg_stat_user_functions
+        """,
+        'relation': False
+    }
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.dbs = {}
@@ -388,6 +407,7 @@ SELECT relname,
             self.CONNECTION_METRICS,
             self.LOCK_METRICS,
             self.COUNT_METRICS,
+            self.FUNCTION_METRICS,
         ]
 
         # These are added only once per PG server, thus the test
