@@ -508,7 +508,8 @@ SELECT relname,
                     # v[0] == (metric_name, submit_function)
                     # v[1] == the actual value
                     # tags are
-                    [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
+                    for v in values:
+                        v[0][1](self, v[0][0], v[1], tags=tags)
 
             cursor.close()
         except InterfaceError, e:
