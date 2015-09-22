@@ -139,10 +139,13 @@ class FlareTest(unittest.TestCase):
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
     def test_uri_password(self, mock_config, mock_tempdir, mock_strftime):
         f = Flare()
-        _, password_found = f._strip_password(os.path.join(get_mocked_temp(), mock_cfgs['uri_password']))
+        _, credentials_log = f._strip_credentials(
+            os.path.join(get_mocked_temp(), mock_cfgs['uri_password']),
+            f.CHECK_CREDENTIALS
+        )
         self.assertEqual(
-            password_found,
-            " - this file contains a password in a uri which has been removed in the version collected"
+            credentials_log,
+            " - this file contains a credential (password in a uri) which has been removed in the collected version"
         )
 
     @attr(requires='core_integration')
@@ -151,13 +154,18 @@ class FlareTest(unittest.TestCase):
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
     def test_uri_password_regex(self, mock_config, mock_tempdir, mock_strftime):
         f = Flare()
-        line = re.sub(f.URI_REGEX, r'\1://\2:********@', password_tests['uri_password'])
+        password_uri_pattern = filter(
+            lambda cred_pattern: cred_pattern.label == 'password in a uri',
+            f.CHECK_CREDENTIALS
+        ).pop()
+
+        line = re.sub(password_uri_pattern.pattern, password_uri_pattern.replacement, password_tests['uri_password'])
         self.assertEqual(
             line,
             password_tests['uri_password_expected']
         )
 
-        line = re.sub(f.URI_REGEX, r'\1://\2:********@', password_tests['uri_password_2'])
+        line = re.sub(password_uri_pattern.pattern, password_uri_pattern.replacement, password_tests['uri_password_2'])
         self.assertEqual(
             line,
             password_tests['uri_password_expected']
