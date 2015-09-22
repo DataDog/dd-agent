@@ -32,7 +32,10 @@ class Nginx(AgentCheck):
         tags = instance.get('tags', [])
 
         response, content_type = self._get_data(instance)
-        if content_type == 'application/json':
+        self.log.debug(u"Nginx status `response`: {0}".format(response))
+        self.log.debug(u"Nginx status `content_type`: {0}".format(content_type))
+
+        if content_type.startswith('application/json'):
             metrics = self.parse_json(response, tags)
         else:
             metrics = self.parse_text(response, tags)
@@ -64,6 +67,7 @@ class Nginx(AgentCheck):
         service_check_name = 'nginx.can_connect'
         service_check_tags = ['host:%s' % nginx_host, 'port:%s' % nginx_port]
         try:
+            self.log.debug(u"Querying URL: {0}".format(url))
             r = requests.get(url, auth=auth, headers=headers(self.agentConfig),
                              verify=ssl_validation)
             r.raise_for_status()
