@@ -23,7 +23,9 @@ init_config:
       hypervisor_ids:
           - 1
 
-      # Enable this option to list all hypervisors and check each one
+      # Enable this option to list all hypervisors and check each one.
+      # Note: this option supersedes `hypervisor_ids` above i.e. all hypervisors will be monitored regardless of which
+      # ones you enumerated under `hypervisor_ids`
       # check_all_hypervisors: true
 
       # IDs of Nova Servers to monitor
@@ -36,6 +38,8 @@ init_config:
           - 2f60042a-0d46-4023-905a-aebf23a350ff
 
       # Enable this option to list all networks and check each one
+      # Note: this option supersedes `network_ids` above i.e. all network_ids will be monitored regardless of which
+      # ones you enumerated under `network_ids`
       # check_all_networks: true
 
 # No need to change this. No instance-level config
