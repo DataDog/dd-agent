@@ -6,6 +6,7 @@ from urlparse import urljoin
 import requests
 from checks import AgentCheck
 
+DEFAULT_METHOD = 'http'
 DEFAULT_CADVISOR_PORT = 4194
 DEFAULT_METRICS_CMD = '/api/v1.3/subcontainers/'
 DEFAULT_MAX_DEPTH = 10
@@ -20,6 +21,7 @@ class Kubernetes(AgentCheck):
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.default_router = self._get_default_router()
+        self.log.info('default_router=%s' % self.default_router)
         
     def _retrieve_json(self, url):
         try:
@@ -70,12 +72,12 @@ class Kubernetes(AgentCheck):
     def check(self, instance):
         host = instance.get('host', self.default_router)
         port = instance.get('port', DEFAULT_CADVISOR_PORT)
-        method = instance.get('method', 'http')
+        method = instance.get('method', DEFAULT_METHOD)
         self.metrics_url = '%s://%s:%d' % (method, host, port)
         self.metrics_cmd = urljoin(self.metrics_url, DEFAULT_METRICS_CMD)
         self.max_depth = instance.get('max_depth', DEFAULT_MAX_DEPTH)
         self.namespace = instance.get('namespace', DEFAULT_NAMESPACE)
-
+        
         # master health checks
         if instance.get('enable_master_checks', False):
             master_port = instance.get('master_port', DEFAULT_MASTER_PORT)
@@ -86,7 +88,7 @@ class Kubernetes(AgentCheck):
         # kubelet health checks
         if instance.get('enable_kubelet_checks', True):
             kubelet_port = instance.get('kubelet_port', DEFAULT_KUBELET_PORT)
-            kubelet_url = '%s://%s:%d' % (method, host, kubelet_port)
+            kubelet_url = '%s://%s:%d/healthz' % (method, host, kubelet_port)
             self._perform_kubelet_checks(kubelet_url)
 
         # kubelet metrics

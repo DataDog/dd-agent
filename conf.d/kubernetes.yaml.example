@@ -1,5 +1,11 @@
 init_config:
-  foo: bar
 
 instances:
-  - foo: bar
+   - method: http
+#
+#   By default the kubernetes check will assume it's running under docker
+#   and will use the address of the default router.
+#
+#    host: localhost
+#    port: 5432
+#    enable_master_checks: True
