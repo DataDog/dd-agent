@@ -1,0 +1,16 @@
+init_config:
+  # How to connect to cAdvisor
+  # host: localhost
+  # port: 4194 
+  # method: http
+  #
+  # Getting the master checks
+  # master_host: localhost
+  # master_port: 8080
+  #
+  # Kubelet checks
+  # enable_kubelet_checks: true
+  # kubelet_port: 10255
+  #
+  # Do you want container names as tags?
+  # publish_container_names: false
