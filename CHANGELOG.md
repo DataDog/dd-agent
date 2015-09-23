@@ -8,9 +8,11 @@ https://github.com/DataDog/dd-agent/compare/5.5.0...5.5.1
 ### Changes
 * [BUGFIX] Core: Fix `dd-agent` command-line interface on Linux. See [#49](https://github.com/DataDog/dd-agent-omnibus/pull/51), [#51](https://github.com/DataDog/dd-agent-omnibus/pull/49)
 * [BUGFIX] Docker: Fix Amazon EC2 Container Service (ECS) tags collection. See [#1932][]
+* [BUGFIX] Docker: Improve parsing of the `cpuacct` field and of the container ID. See [#1940][] (Thanks [@joshk0][])
 * [BUGFIX] HTTP Check: Fix SSL certificate check when specifying a non-default port in the URL. See [#1923][] (Thanks [@dmulter][])
 * [BUGFIX] Nginx: Fix 'application/json' content_type support. See [#1943][]
-* [BUGFIX] Windows: Ship Gohai latest version with Windows MSI Installer. See [663d96f711f159aa9ee3f540d7e2bf3a663e0cd7](https://github.com/DataDog/gohai/commit/663d96f711f159aa9ee3f540d7e2bf3a663e0cd7)
+
+* [OTHER] Windows: Ship latest version of Gohai with Windows MSI Installer.
 
 
 # 5.5.0 / 09-17-2015
@@ -188,6 +190,7 @@ See [#1908][]
 * [BUGFIX] WMI: Fix errors when a property does not exist or has a non digit value. See [#1800][], [#1846][], [#1889][]
 
 * [OTHER] Mesos: Deprecate previous generic check in favor of the Mesosphere master and slave specific checks introduced in the 5.4.0 release. See [#1822][]
+* [OTHER] Mac OS X: Fix upgrade of the agent with DMG package. See [#48](https://github.com/DataDog/dd-agent-omnibus/pull/48)
 
 
 # 5.4.7 / 09-11-2015
@@ -2066,6 +2069,7 @@ If you use ganglia, you want this version.
 [#1912]: https://github.com/DataDog/dd-agent/issues/1912
 [#1923]: https://github.com/DataDog/dd-agent/issues/1923
 [#1932]: https://github.com/DataDog/dd-agent/issues/1932
+[#1940]: https://github.com/DataDog/dd-agent/issues/1940
 [#1943]: https://github.com/DataDog/dd-agent/issues/1943
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
@@ -2106,6 +2110,7 @@ If you use ganglia, you want this version.
 [@jkoppe]: https://github.com/jkoppe
 [@jonaf]: https://github.com/jonaf
 [@joningle]: https://github.com/joningle
+[@joshk0]: https://github.com/joshk0
 [@jzoldak]: https://github.com/jzoldak
 [@leifwalsh]: https://github.com/leifwalsh
 [@loris]: https://github.com/loris
