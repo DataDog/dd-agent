@@ -1,5 +1,8 @@
 init_config:
-  # How to connect to cAdvisor
+  # By default the kubernetes check will assume it's running under docker
+  # and will use the address of the default router.
+  # To override, use the following:
+  #
   # host: localhost
   # port: 4194 
   # method: http
