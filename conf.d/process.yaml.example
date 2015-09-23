@@ -5,6 +5,9 @@ init_config:
   # pid_cache_duration: 120
 
 instances:
+# The `system.processes.cpu.pct` metric sent by this check is only accurate for processes that live
+# for more than 30 seconds. Do not expect its value to be accurate for shorter-lived processes.
+#
 #  - name: (required) STRING. It will be used to uniquely identify your metrics as they will be tagged with this name
 #    search_string: (required) LIST OF STRINGS. If one of the elements in the list matches,
 #                    return the counter of all the processes that contain the string
