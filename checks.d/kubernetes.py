@@ -30,7 +30,7 @@ class Kubernetes(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.default_router = self._get_default_router()
         self.log.info('default_router=%s' % self.default_router)
-        
+
     def _retrieve_json(self, url):
         r = requests.get(url)
         r.raise_for_status()
@@ -49,17 +49,29 @@ class Kubernetes(AgentCheck):
         return None
 
     def _perform_kubelet_checks(self, url):
-        service_check_name = self.namespace + '.kubelet.check'
+        import re
+        service_check_base = self.namespace + '.kubelet.check'
         try:
             r = requests.get(url)
-            r.raise_for_status()
-            if r.text.find('ok') != -1:
-                self.service_check(service_check_name, AgentCheck.OK)
-                return
-            reason = 'health_not_ok'
+            for line in r.iter_lines():
+
+                # avoid noise; this check is expected to fail since we override the container hostname
+                if line.find('hostname')!=-1:
+                    continue
+
+                matches = re.match('\[(.)\]([^\s]+) (.*)?', line)
+                if not matches or len(matches.groups())<2:
+                    continue
+                
+                service_check_name = service_check_base + '.' + matches.group(2)
+                status = matches.group(1)
+                if status=='+':
+                    self.service_check(service_check_name, AgentCheck.OK)
+                else:
+                    self.service_check(service_check_name, AgentCheck.CRITICAL, matches.group(3))
+
         except Exception, e:
-            reason = str(e)
-        self.service_check(service_check_name, AgentCheck.CRITICAL, 'Kubelet health check failed: %s' % reason)
+            self.service_check(service_check_base, AgentCheck.CRITICAL, 'Kubelet check failed: %s' % str(e))
 
     def _perform_master_checks(self, url):
         try:
