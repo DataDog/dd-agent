@@ -149,7 +149,7 @@ class TransactionManager(object):
     def check_flush_should_clear_predicate(self):
         if self._CLEAR_PREDICATE is not None:
             try:
-                output = subprocess.check_output(self._CLEAR_PREDICATE, stderr=subprocess.STDOUT, shell=True)
+                subprocess.check_output(self._CLEAR_PREDICATE, stderr=subprocess.STDOUT, shell=True)
                 return False
             except subprocess.CalledProcessError as e:
                 ret = e.returncode
