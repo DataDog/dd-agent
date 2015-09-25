@@ -56,7 +56,7 @@ New [Consul](https://www.consul.io/) check.
 
 Supported metrics:
 
-* Number of Consul Agents in the Cluter
+* Number of Consul Agents in the Cluster
     `consul.peers`: tagged by `consul_datacenter` and mode (`leader` | `follower`)
 * Consul Catalog Nodes Up by Service
     `consul.catalog.nodes_up`: tagged by `consul_datacenter` and `consul_service_id`
@@ -99,7 +99,7 @@ For more information, please visit [our Integrations/Agent page](https://app.dat
 
 ### Flare on Windows
 Datadog Agent `flare` feature makes easy to ship a tarball with logs and configurations to ease agent troubleshooting. Previously exclusive to Linux, it's now available on Windows.
-For more information, please visit [our wiki page](https://github.com/DataDog/dd-agent/wiki/Send-logs-to-support).
+For more information, please visit [our wiki page](https://github.com/DataDog/dd-agent/wiki/Send-logs-to-support-using-flare).
 
 ### [WARNING] JMX `host` tag issues & potential backward incompatibilities issues with service check monitors
 JMX related checks -c.f. list below- were illegitimately submitting service checks tagged with the `host` value defined in the YAML configuration file. As it was overriding the agent hostname, with a value often equals to `localhost`, it was difficult to define and scope monitors based on these service checks.
