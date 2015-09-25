@@ -47,7 +47,7 @@ class Transaction(object):
         return self._next_flush
 
     def check_flush_should_clear_predicate(self):
-        return false
+        return False
 
     def compute_next_flush(self,max_delay):
         # Transactions are replayed, try to send them faster for newer transactions
