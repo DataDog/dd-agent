@@ -88,6 +88,51 @@ class TestTransaction(unittest.TestCase):
         trManager.flush()
         self.assertEqual(len(trManager._transactions), 0)
 
+    def testClearing(self):
+        """Test clearing a transaction manager"""
+
+        # No throttling, no delay for replay
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
+        trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
+
+        # Add 3 transactions, make sure no memory limit is in the way
+        oneTrSize = MAX_QUEUE_SIZE / 10
+        for i in xrange(3):
+            tr = memTransaction(oneTrSize, trManager)
+            trManager.append(tr)
+
+        numTransactions = len(trManager.get_transactions())
+        self.assertEqual(numTransactions, 3, "Transaction depth should be 3: %d" % (numTransactions))
+
+        # Clear em!
+        trManager.clear()
+        noTransactions = len(trManager.get_transactions())
+        self.assertEqual(noTransactions, 0, "Transaction depth should be zero: %d" % (noTransactions))
+
+    def testClearFlush(self):
+        """Test a transaction manager that should be dropping metrics at flush time"""
+
+        # Set the clear predicate to something that will exit with a non-zero
+        # value.
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE, THROTTLING_DELAY, clear_predicate="false")
+        trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
+
+        # Add 3 transactions, make sure no memory limit is in the way
+        oneTrSize = MAX_QUEUE_SIZE / 10
+        for i in xrange(3):
+            tr = memTransaction(oneTrSize, trManager)
+            trManager.append(tr)
+
+        numTransactions = len(trManager.get_transactions())
+        self.assertEqual(numTransactions, 3, "Transaction depth should be 3: %d" % (numTransactions))
+        numFlushes = trManager.get_flush_count()
+        self.assertEqual(numFlushes, 0, "No flushes yet: %d" % (numFlushes))
+
+        # Try to flush them, verify nothing happened!
+        trManager.flush()
+        noFlushes = trManager.get_flush_count()
+        self.assertEqual(noFlushes, 0, "No flushes because clear predicate is false: %d" % (noFlushes))
+
     def testThrottling(self):
         """Test throttling while flushing"""
 

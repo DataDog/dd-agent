@@ -93,6 +93,13 @@ use_mount: no
 # histogram_aggregates: max, median, avg, count
 # histogram_percentiles: 0.95
 
+# Use a local command as a predicate to determine if metrics should be sent
+# or just quietly dropped. This is useful for organizations with on-box "liveness"
+# controls to determine if hosts are up and worth monitoring. If the executed
+# command returns a non-zero status then metrics will be quietly dropped. This
+# check will be performed at each flush, so it is best to be a fast check!
+# flush_metrics_predicate: test -f /var/run/liveness-check
+
 # ========================================================================== #
 # DogStatsd configuration                                                    #
 # ========================================================================== #
