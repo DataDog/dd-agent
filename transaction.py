@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 import logging
 from operator import attrgetter
+import subprocess
 import sys
 import time
 
@@ -45,6 +46,9 @@ class Transaction(object):
     def get_next_flush(self):
         return self._next_flush
 
+    def check_flush_should_clear_predicate(self):
+        return False
+
     def compute_next_flush(self,max_delay):
         # Transactions are replayed, try to send them faster for newer transactions
         # Send them every MAX_WAIT_FOR_REPLAY at most
@@ -65,10 +69,11 @@ class TransactionManager(object):
     """Holds any transaction derived object list and make sure they
        are all commited, without exceeding parameters (throttling, memory consumption) """
 
-    def __init__(self, max_wait_for_replay, max_queue_size, throttling_delay):
+    def __init__(self, max_wait_for_replay, max_queue_size, throttling_delay, clear_predicate=None):
         self._MAX_WAIT_FOR_REPLAY = max_wait_for_replay
         self._MAX_QUEUE_SIZE = max_queue_size
         self._THROTTLING_DELAY = throttling_delay
+        self._CLEAR_PREDICATE = clear_predicate
 
         self._flush_without_ioloop = False # useful for tests
 
@@ -89,6 +94,12 @@ class TransactionManager(object):
         # Track an initial status message.
         ForwarderStatus().persist()
 
+    def get_flush_count(self):
+        return self._flush_count
+
+    def get_total_count(self):
+        return self._total_count
+
     def get_transactions(self):
         return self._transactions
 
@@ -99,6 +110,11 @@ class TransactionManager(object):
     def get_tr_id(self):
         self._counter = self._counter + 1
         return self._counter
+
+    def clear(self):
+        self._transactions = []
+        self._total_count = 0
+        self._total_size = 0
 
     def append(self,tr):
 
@@ -130,10 +146,26 @@ class TransactionManager(object):
         log.debug("Transaction %s added" % (tr.get_id()))
         self.print_queue_stats()
 
+    def check_flush_should_clear_predicate(self):
+        if self._CLEAR_PREDICATE is not None:
+            try:
+                subprocess.check_output(self._CLEAR_PREDICATE, stderr=subprocess.STDOUT, shell=True)
+                return False
+            except subprocess.CalledProcessError as e:
+                ret = e.returncode
+                out = e.output
+                log.debug("Flush clear check failed, assuming flush should clear: return code '%d', output: '%s'" % (ret, out))
+                return True
+
     def flush(self):
 
         if self._trs_to_flush is not None:
             log.debug("A flush is already in progress, not doing anything")
+            return
+
+        if self.check_flush_should_clear_predicate():
+            log.warn("Predicate check (flush_metrics_predicate) failed so dropping metrics...")
+            self.clear()
             return
 
         to_flush = []
