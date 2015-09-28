@@ -71,6 +71,7 @@ class Kubernetes(AgentCheck):
                     self.service_check(service_check_name, AgentCheck.CRITICAL, matches.group(3))
 
         except Exception, e:
+            self.log.warning('kubelet check failed: %s' % str(e))
             self.service_check(service_check_base, AgentCheck.CRITICAL, 'Kubelet check failed: %s' % str(e))
 
     def _perform_master_checks(self, url):
