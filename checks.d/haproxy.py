@@ -176,6 +176,11 @@ class HAProxy(AgentCheck):
                 services_incl_filter=services_incl_filter,
                 services_excl_filter=services_excl_filter
             )
+            self._process_backend_hosts_metric(
+                self.hosts_statuses,
+                services_incl_filter=services_incl_filter,
+                services_excl_filter=services_excl_filter
+            )
 
         return data
 
@@ -246,6 +251,38 @@ class HAProxy(AgentCheck):
             if re.search(rule, tag):
                 return True
         return False
+
+    def _process_backend_hosts_metric(self, hosts_statuses, services_incl_filter=None,
+                                      services_excl_filter=None):
+        agg_statuses = defaultdict(lambda: {'available': 0, 'unavailable': 0})
+        for host_status, count in hosts_statuses.iteritems():
+            try:
+                service, hostname, status = host_status
+            except Exception:
+                service, status = host_status
+
+            if self._is_service_excl_filtered(service, services_incl_filter, services_excl_filter):
+                continue
+            status = status.lower()
+            if 'up' in status:
+                agg_statuses[service]['available'] += count
+            elif 'down' in status or 'maint' in status or 'nolb' in status:
+                agg_statuses[service]['unavailable'] += count
+            else:
+                # create the entries for this service anyway
+                agg_statuses[service]
+
+        for service in agg_statuses:
+            tags = ['service:%s' % service]
+            self.gauge(
+                'haproxy.backend_hosts',
+                agg_statuses[service]['available'],
+                tags=tags + ['available:true'])
+            self.gauge(
+                'haproxy.backend_hosts',
+                agg_statuses[service]['unavailable'],
+                tags=tags + ['available:false'])
+        return agg_statuses
 
     def _process_status_metric(self, hosts_statuses, collect_status_metrics_by_host,
                                services_incl_filter=None, services_excl_filter=None):
