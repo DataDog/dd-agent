@@ -16,6 +16,7 @@ from pyVmomi import vim
 from checks import AgentCheck
 from checks.libs.thread_pool import Pool
 from checks.libs.vmware.basic_metrics import BASIC_METRICS
+from checks.libs.vmware.all_metrics import ALL_METRICS
 from util import Timer
 
 SOURCE_TYPE = 'vsphere'
@@ -768,7 +769,13 @@ class VSphereCheck(AgentCheck):
                     continue
                 instance_name = result.id.instance or "none"
                 value = self._transform_value(instance, result.id.counterId, result.value[0])
-                self.gauge(
+
+                # Metric types are absolute, delta, and rate
+                if ALL_METRICS[self.metrics_metadata[i_key][result.id.counterId]['name']]['s_type'] == 'rate':
+                    record_metric = self.rate
+                else:
+                    record_metric = self.gauge
+                record_metric(
                     "vsphere.%s" % self.metrics_metadata[i_key][result.id.counterId]['name'],
                     value,
                     hostname=mor['hostname'],
