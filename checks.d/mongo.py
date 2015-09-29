@@ -1,6 +1,5 @@
 # stdlib
 import time
-import types
 
 # 3p
 import pymongo
@@ -168,7 +167,7 @@ class MongoDb(AgentCheck):
         self.event({
             'timestamp': int(time.time()),
             'event_type': 'Mongo',
-            'api_key': agentConfig['api_key'],
+            'api_key': agentConfig.get('api_key', ''),
             'msg_title': msg_title,
             'msg_text': msg,
             'host': hostname
@@ -176,7 +175,8 @@ class MongoDb(AgentCheck):
 
     def check(self, instance):
         """
-        Returns a dictionary that looks a lot like what's sent back by db.serverStatus()
+        Returns a dictionary that looks a lot like what's sent back by
+        db.serverStatus()
         """
         if 'server' not in instance:
             raise Exception("Missing 'server' in mongo config")
@@ -200,7 +200,7 @@ class MongoDb(AgentCheck):
         username = parsed.get('username')
         password = parsed.get('password')
         db_name = parsed.get('database')
-        clean_server_name = server.replace(password, "*" * 5) if password is not None else server
+        clean_server_name = server.replace(password, "*"*5) if password is not None else server
 
         tags = instance.get('tags', [])
         tags.append('server:%s' % clean_server_name)
@@ -230,38 +230,75 @@ class MongoDb(AgentCheck):
             self.log.debug("Mongo: cannot extract username and password from config %s" % server)
             do_auth = False
 
-        timeout = float(instance.get('timeout', DEFAULT_TIMEOUT))
+        timeout = float(instance.get('timeout', DEFAULT_TIMEOUT)) * 1000
         try:
-            conn = pymongo.Connection(server, network_timeout=timeout,
+            cli = pymongo.mongo_client.MongoClient(
+                server,
+                socketTimeoutMS=timeout,
+                read_preference=pymongo.ReadPreference.PRIMARY_PREFERRED,
                 **ssl_params)
-            db = conn[db_name]
+            # some commands can only go against the admin DB
+            admindb = cli['admin']
+            db = cli[db_name]
         except Exception:
-            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
+            self.service_check(
+                self.SERVICE_CHECK_NAME,
+                AgentCheck.CRITICAL,
+                tags=service_check_tags)
             raise
 
-        if do_auth:
-            if not db.authenticate(username, password):
-                message = "Mongo: cannot connect with config %s" % server
-                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags, message=message)
-                raise Exception(message)
+        if do_auth and not db.authenticate(username, password):
+            message = "Mongo: cannot connect with config %s" % server
+            self.service_check(
+                self.SERVICE_CHECK_NAME,
+                AgentCheck.CRITICAL,
+                tags=service_check_tags,
+                message=message)
+            raise Exception(message)
 
-        self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
+        self.service_check(
+            self.SERVICE_CHECK_NAME,
+            AgentCheck.OK,
+            tags=service_check_tags)
 
         status = db["$cmd"].find_one({"serverStatus": 1})
         if status['ok'] == 0:
             raise Exception(status['errmsg'].__str__())
 
         status['stats'] = db.command('dbstats')
+        dbstats = {}
+        dbstats[db_name] = {'stats': status['stats']}
 
         # Handle replica data, if any
-        # See http://www.mongodb.org/display/DOCS/Replica+Set+Commands#ReplicaSetCommands-replSetGetStatus
+        # See
+        # http://www.mongodb.org/display/DOCS/Replica+Set+Commands#ReplicaSetCommands-replSetGetStatus
         try:
             data = {}
+            dbnames = []
 
-            replSet = db.command('replSetGetStatus')
+            replSet = admindb.command('replSetGetStatus')
             if replSet:
                 primary = None
                 current = None
+
+                # need a new connection to deal with replica sets
+                setname = replSet.get('set')
+                cli = pymongo.mongo_client.MongoClient(
+                    server,
+                    socketTimeoutMS=timeout,
+                    replicaset=setname,
+                    read_preference=pymongo.ReadPreference.NEAREST,
+                    **ssl_params)
+                db = cli[db_name]
+
+                if do_auth and not db.authenticate(username, password):
+                    message = ("Mongo: cannot connect with config %s" % server)
+                    self.service_check(
+                        self.SERVICE_CHECK_NAME,
+                        AgentCheck.CRITICAL,
+                        tags=service_check_tags,
+                        message=message)
+                    raise Exception(message)
 
                 # find nodes: master and current node (ourself)
                 for member in replSet.get('members'):
@@ -286,9 +323,13 @@ class MongoDb(AgentCheck):
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
-                self.check_last_state(data['state'], clean_server_name, self.agentConfig)
+                self.check_last_state(
+                    data['state'],
+                    clean_server_name,
+                    self.agentConfig)
                 status['replSet'] = data
-        except Exception, e:
+
+        except Exception as e:
             if "OperationFailure" in repr(e) and "replSetGetStatus" in str(e):
                 pass
             else:
@@ -304,19 +345,30 @@ class MongoDb(AgentCheck):
         except KeyError:
             pass
 
+        dbnames = cli.database_names()
+        for db_n in dbnames:
+            db_aux = cli[db_n]
+            dbstats[db_n] = {'stats': db_aux.command('dbstats')}
+
         # Go through the metrics and save the values
         for m in self.METRICS:
             # each metric is of the form: x.y.z with z optional
             # and can be found at status[x][y][z]
             value = status
-            try:
-                for c in m.split("."):
-                    value = value[c]
-            except KeyError:
+
+            if m.startswith('stats'):
                 continue
+            else:
+                try:
+                    for c in m.split("."):
+                        value = value[c]
+                except KeyError:
+                    continue
 
             # value is now status[x][y][z]
-            assert type(value) in (types.IntType, types.LongType, types.FloatType)
+            if not isinstance(value, (int, long, float)):
+                raise TypeError('{0} value is a {1}, it should be an int, a float or a long instead.'
+                                .format(m, type(value)))
 
             # Check if metric is a gauge or rate
             if m in self.GAUGES:
@@ -326,3 +378,25 @@ class MongoDb(AgentCheck):
             if m in self.RATES:
                 m = self.normalize(m.lower(), 'mongodb') + "ps"
                 self.rate(m, value, tags=tags)
+
+        stat_metrics = filter(lambda x: x.startswith('stats.'), self.METRICS)
+        for st, value in dbstats.iteritems():
+            for m in stat_metrics:
+                try:
+                    val = value['stats'][m.split('.')[1]]
+                except KeyError:
+                    continue
+
+                # value is now status[x][y][z]
+                if not isinstance(val, (int, long, float)):
+                    raise TypeError('{0} value is a {1}, it should be an int, a float or a long instead.'
+                                    .format(m, type(val)))
+
+                # Check if metric is a gauge or rate
+                if m in self.GAUGES:
+                    m = self.normalize(m.lower(), 'mongodb')
+                    self.gauge(m, val, tags=tags + ['cluster:db:%s' % st])
+
+                if m in self.RATES:
+                    m = self.normalize(m.lower(), 'mongodb') + "ps"
+                    self.rate(m, val, tags=tags + ['cluster:db:%s' % st])
