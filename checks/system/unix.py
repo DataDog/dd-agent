@@ -504,7 +504,7 @@ class Memory(Check):
         elif sys.platform == 'sunos5':
             try:
                 memData = {}
-                kmem = sp.Popen(["kstat", "-c", "zone_memory_cap", "-p"],
+                kmem = sp.Popen(["kstat", "-m", "memory_cap", "-c", "zone_memory_cap", "-p"],
                                 stdout=sp.PIPE,
                                 close_fds=True).communicate()[0]
 
