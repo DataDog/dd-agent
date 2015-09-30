@@ -188,7 +188,7 @@ class ConsulCheck(AgentCheck):
                 if check["ServiceID"]:
                     tags.append("service-id:{0}".format(check["ServiceID"]))
 
-            self.service_check(self.HEALTH_CHECK, status, tags=tags)
+                self.service_check(self.HEALTH_CHECK, status, tags=tags)
 
         except Exception as e:
             self.service_check(self.CONSUL_CHECK, AgentCheck.CRITICAL,
