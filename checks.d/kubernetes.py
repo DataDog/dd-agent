@@ -142,15 +142,12 @@ class Kubernetes(AgentCheck):
         self.service_check(service_check_name, AgentCheck.OK)
         for subcontainer in metrics:
             tags = []
-            if publish_container_names:
-                name = subcontainer['name']
-                tags.append('container_name:%s' % name)
 
             try:
                 for label_name,label in subcontainer['spec']['labels'].iteritems():
                     tags.append('label.%s:%s' % (label_name, label))
             except KeyError:
-                pass
+                tags.append('container_name:%s' % subcontainer['name'])
 
             stats = subcontainer['stats'][-1]  # take latest
             for metrics_type in ['cpu', 'diskio', 'network']:
