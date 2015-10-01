@@ -32,7 +32,11 @@ init_config:
       server_ids:
           - 68d6a5f3-cc08-4a9f-aafd-150d8ee9e695
           - cfc98054-0b25-4182-a77a-c7f4bf5e574d
-      
+      # Enable this option to list all servers and check each one
+      # Note: this option supersedes `server_ids` above i.e. all server_ids will be monitored regardless of which
+      # ones you enumerated under `server_ids`
+      # check_all_servers: true
+
       #IDs of Neutron networks to monitor
       network_ids:
           - 2f60042a-0d46-4023-905a-aebf23a350ff

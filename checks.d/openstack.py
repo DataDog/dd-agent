@@ -69,6 +69,8 @@ class OpenstackCheck(AgentCheck):
         self._nova_url = None
         self._neutron_url = None
 
+        #Store the tenant id of the datadog user.
+
     def _make_request_with_auth_fallback(self, url, headers=None):
         try:
             resp = requests.get(url, headers=headers)
@@ -125,6 +127,8 @@ class OpenstackCheck(AgentCheck):
         keystone_api_version = self.init_config.get('keystone_api_version', self.DEFAULT_KEYSTONE_API_VERSION)
 
         auth_scope = self._get_auth_scope()
+        project_name = auth_scope['project']['name']
+
         identity = self._get_identity_by_method()
         keystone_server_url = self._get_keystone_server_url()
 
@@ -140,6 +144,12 @@ class OpenstackCheck(AgentCheck):
 
         self._neutron_url = self.get_neutron_url_from_auth_response(resp.json())
         self._auth_token = self.get_auth_token_from_auth_response(resp)
+
+        # Store tenant ID for future use
+        project_url = "{0}/{1}/projects".format(keystone_server_url, self.DEFAULT_KEYSTONE_API_VERSION)
+        headers = {'X-Auth-Token': self._auth_token}
+        resp = requests.get(project_url, headers=headers).json()
+
     ###
 
     ### Network
@@ -323,13 +333,30 @@ class OpenstackCheck(AgentCheck):
         return hyp
 
     def get_server_stats(self):
-        server_ids = self.init_config.get('server_ids', [])
+        if self.init_config.get('check_all_servers', False):
+            server_ids = self.get_all_server_ids()
+        else:
+            server_ids = self.init_config.get('server_ids', [])
+
         if not server_ids:
             self.warning("Your check is not configured to monitor any servers.\n" +
                          "Please list `server_ids` under your init_config in openstack.yaml")
 
         for sid in server_ids:
             self.get_stats_for_single_server(sid)
+
+    def get_all_server_ids(self):
+        url = '{0}/servers'.format(self._nova_url)
+        headers = {'X-Auth-Token': self._auth_token}
+
+        server_ids = []
+        try:
+            resp = self._make_request_with_auth_fallback(url, headers)
+            server_ids = [s['id'] for s in resp.json()['servers']]
+        except Exception as e:
+            self.warning('Unable to get the list of all servers: {0}'.format(str(e)))
+
+        return server_ids
 
     def get_stats_for_single_server(self, server_id):
         def _is_valid_metric(label):
