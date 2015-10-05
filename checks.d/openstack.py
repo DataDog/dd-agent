@@ -39,6 +39,31 @@ NOVA_SERVER_METRICS = [
 
 NOVA_SERVER_INTERFACE_SEGMENTS = ['_rx', '_tx']
 
+PROJECT_METRICS = [
+    "maxImageMeta",
+    "maxPersonality",
+    "maxPersonalitySize",
+    "maxSecurityGroupRules",
+    "maxSecurityGroups",
+    "maxServerMeta",
+    "maxTotalCores",
+    "maxTotalFloatingIps",
+    "maxTotalInstances",
+    "maxTotalKeypairs",
+    "maxTotalRAMSize",
+
+    "totalImageMetaUsed",
+    "totalPersonalityUsed",
+    "totalPersonalitySizeUsed",
+    "totalSecurityGroupRulesUsed",
+    "totalSecurityGroupsUsed",
+    "totalServerMetaUsed",
+    "totalCoresUsed",
+    "totalFloatingIpsUsed",
+    "totalInstancesUsed",
+    "totalKeypairsUsed",
+    "totalRAMUsed"
+]
 
 class OpenstackAuthFailure(Exception):
     pass
@@ -498,6 +523,59 @@ class OpenStackCheck(AgentCheck):
                 if _is_valid_metric(st):
                     self.gauge("openstack.nova.server.{0}".format(st), server_stats[st], tags=tags)
 
+    def get_project_stats(self):
+        if self.init_config.get('check_all_projects', False):
+            projects = self.get_all_projects()
+        else:
+            projects = []
+            for project_id in self.init_config.get('project_ids', []):
+                # Make the format of the data match the results from get_all_projects()
+                projects.append({'id': project_id})
+
+        if not projects:
+            self.warning("Your check is not configured to monitor any Projects.\n" +
+                         "Please list `project_ids` under your init_config")
+
+        for project in projects:
+            try:
+                self.get_stats_for_single_project(project)
+            except Exception as e:
+                self.warning('Unable to get stats for Project {0}: {1}'.format(project['id'], str(e)))
+
+    def get_all_projects(self):
+        keystone_api_version = self.init_config.get('keystone_api_version', self.DEFAULT_KEYSTONE_API_VERSION)
+        endpoint_name = 'tenants' if keystone_api_version == 'v2.0' else 'projects'
+        url = "{0}/{1}/{2}".format(self._get_keystone_server_url(), keystone_api_version, endpoint_name)
+        headers = {'X-Auth-Token': self._auth_token}
+
+        projects = []
+        try:
+            resp = self._make_request_with_auth_fallback(url, headers)
+            project_details = resp.json()
+            for project in project_details[endpoint_name]:
+                projects.append(project)
+        except Exception as e:
+            self.warning('Unable to get the list of all project ids: {0}'.format(str(e)))
+
+        return projects
+
+    def get_stats_for_single_project(self, project):
+        def _is_valid_metric(label):
+            return label in PROJECT_METRICS
+
+        url = '{0}/limits?tenant_id={1}'.format(self._nova_url, project['id'])
+        headers = {'X-Auth-Token': self._auth_token}
+        resp = self._make_request_with_auth_fallback(url, headers)
+
+        server_stats = resp.json()
+        tags = ['project_id:{0}'.format(project['id'])]
+        if 'name' in project:
+            tags.append('project_name:{0}'.format(project['name']))
+
+        for st in server_stats['limits']['absolute']:
+            if _is_valid_metric(st):
+                self.gauge("openstack.nova.limits.{0}".format(st), server_stats['limits']['absolute'][st], tags=tags)
+
     ###
 
     ### Cache util
@@ -547,6 +625,8 @@ class OpenStackCheck(AgentCheck):
 
                 # What about networks? monitor all
                 self.get_network_stats()
+
+                self.get_project_stats()
             except OpenstackAuthFailure:
                 self._auth_required = True
 
