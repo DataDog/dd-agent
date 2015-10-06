@@ -96,12 +96,23 @@ def image_tag_extractor(c, key):
     return None
 
 
+def container_name_extractor(c):
+    # we sort the list to make sure that a docker API update introducing
+    # new names with a single "/" won't make us report dups.
+    names = sorted(c.get('Names', []))
+    for name in names:
+        # the leading "/" is legit, if there's another one it means the name is actually an alias
+        if name.count('/') <= 1:
+            return [str(name).lstrip('/')]
+    return [c.get('Id')[:11]]
+
+
 TAG_EXTRACTORS = {
     "docker_image": lambda c: [c["Image"]],
     "image_name": lambda c: image_tag_extractor(c, 0),
     "image_tag": lambda c: image_tag_extractor(c, 1),
     "container_command": lambda c: [c["Command"]],
-    "container_name": lambda c: [str(c['Names'][0]).lstrip("/")] if c.get("Names") else [c['Id'][:11]],
+    "container_name": container_name_extractor,
 }
 
 CONTAINER = "container"
@@ -274,7 +285,7 @@ class DockerDaemon(AgentCheck):
         containers_by_id = {}
 
         for container in containers:
-            container_name = str(container['Names'][0]).strip('/')
+            container_name = container_name_extractor(container)[0]
 
             container_status_tags = self._get_tags(container, CONTAINER)
 
@@ -381,7 +392,7 @@ class DockerDaemon(AgentCheck):
         for container in containers:
             container_tags = self._get_tags(container, FILTERED)
             if self._are_tags_filtered(container_tags):
-                container_name = TAG_EXTRACTORS["container_name"](container)[0]
+                container_name = container_name_extractor(container)[0]
                 self._filtered_containers.add(container_name)
                 self.log.debug("Container {0} is filtered".format(container["Names"][0]))
 
@@ -405,7 +416,7 @@ class DockerDaemon(AgentCheck):
 
         Requires _filter_containers to run first.
         """
-        container_name = TAG_EXTRACTORS["container_name"](container)[0]
+        container_name = container_name_extractor(container)[0]
         return container_name in self._filtered_containers
 
     def _report_container_size(self, containers_by_id):
@@ -560,7 +571,7 @@ class DockerDaemon(AgentCheck):
                 status[event['status']] += 1
                 container_name = event['id'][:11]
                 if event['id'] in containers_by_id:
-                    container_name = str(containers_by_id[event['id']]['Names'][0]).strip('/')
+                    container_name = container_name_extractor(containers_by_id[event['id']])[0]
 
                 status_change.append([container_name, event['status']])
 
