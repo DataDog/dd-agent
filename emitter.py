@@ -33,6 +33,7 @@ def http_emitter(message, log, agentConfig, endpoint):
     url = agentConfig['dd_url']
 
     log.debug('http_emitter: attempting postback to ' + url)
+    log.debug('Message: ' + message)
 
     # Post back the data
     try:
