@@ -5,6 +5,7 @@ Collects metrics from cAdvisor instance
 import socket
 import struct
 from urlparse import urljoin
+from fnmatch import fnmatch
 
 # 3rd party
 import requests
@@ -20,6 +21,13 @@ DEFAULT_NAMESPACE = 'kubernetes'
 DEFAULT_KUBELET_PORT = 10255
 DEFAULT_MASTER_PORT = 8080
 DEFAULT_PUBLISH_CONTAINER_NAMES = False
+DEFAULT_ENABLED_METRICS = [ 'cpu.*.total',
+                            'diskio.io_service_bytes.stats.total',
+                            'network.*.rx_bytes', 'network.*.tx_bytes',
+                            'memory.usage',
+                            'filesystem.usage',
+                            'task_stats.nr_running'
+                        ]
 
 class Kubernetes(AgentCheck):
     """ Collect metrics and events from kubelet """
@@ -30,7 +38,7 @@ class Kubernetes(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.default_router = self._get_default_router()
         self.log.info('default_router=%s' % self.default_router)
-
+        
     def _retrieve_json(self, url):
         r = requests.get(url)
         r.raise_for_status()
@@ -98,6 +106,8 @@ class Kubernetes(AgentCheck):
         self.metrics_cmd = urljoin(self.metrics_url, DEFAULT_METRICS_CMD)
         self.max_depth = instance.get('max_depth', DEFAULT_MAX_DEPTH)
         self.namespace = instance.get('namespace', DEFAULT_NAMESPACE)
+        enabled_metrics = instance.get('enabled_metrics', DEFAULT_ENABLED_METRICS)
+        self.enabled_metrics = [self.namespace+'.'+x for x in enabled_metrics]
 
         # master health checks
         if instance.get('enable_master_checks', False):
@@ -123,12 +133,14 @@ class Kubernetes(AgentCheck):
 
         type_ = type(dat)
         if type_ is int or type_ is long or type_ is float:
+            if self.enabled_metrics and not any([fnmatch(metric, pat) for pat in self.enabled_metrics]):
+                return
             self.rate(metric, long(dat), tags)
         elif type_ is dict:
             for k,v in dat.iteritems():
                 self._discover_metrics(metric + '.%s' % k.lower(), v, tags, depth + 1)
         elif type_ is list:
-            self._discover_metrics(metric, dat[-1], tags, depth+1)
+            self._discover_metrics(metric, dat[-1], tags, depth + 1)
         else:
             return
 
@@ -150,8 +162,4 @@ class Kubernetes(AgentCheck):
                 tags.append('container_name:%s' % subcontainer['name'])
 
             stats = subcontainer['stats'][-1]  # take latest
-            for metrics_type in ['cpu', 'diskio', 'network']:
-                try:
-                    self._discover_metrics(self.namespace+'.'+metrics_type, stats[metrics_type], tags)
-                except KeyError:
-                    self.log.warning('Unable to retrieve metrics_type=%s' % metrics_type)
+            self._discover_metrics(self.namespace, stats, tags)
