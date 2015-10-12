@@ -39,12 +39,6 @@ class Processes(Check):
                              ' No process metrics will be returned.')
             return
 
-        try:
-            cpu = w.Win32_PerfFormattedData_PerfOS_Processor(name="_Total")[0]
-        except AttributeError:
-            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.'
-                             ' No process metrics will be returned.')
-            return
         if os.ProcessorQueueLength is not None:
             self.save_sample('system.proc.queue_length', os.ProcessorQueueLength)
         if os.Processes is not None:
