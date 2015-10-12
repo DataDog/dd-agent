@@ -1,5 +1,4 @@
 # stdlib
-from functools import wraps
 import logging
 import subprocess
 import tempfile

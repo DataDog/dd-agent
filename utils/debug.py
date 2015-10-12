@@ -50,6 +50,7 @@ def run_check(name, path=None):
     Test custom checks on Windows.
     """
     from config import get_confd_path
+    from util import get_os
 
     # Read the config file
     confd_path = path or os.path.join(get_confd_path(get_os()), '%s.yaml' % name)
