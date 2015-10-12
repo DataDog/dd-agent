@@ -223,10 +223,15 @@ class Network(AgentCheck):
                 proc.close()
 
             tcp_lines = [line for line in lines if line.startswith('Tcp:')]
-            column_names = tcp_lines[0].strip().split()
-            values = tcp_lines[1].strip().split()
+            udp_lines = [line for line in lines if line.startswith('Udp:')]
 
-            tcp_metrics = dict(zip(column_names,values))
+            tcp_column_names = tcp_lines[0].strip().split()
+            tcp_values = tcp_lines[1].strip().split()
+            tcp_metrics = dict(zip(tcp_column_names, tcp_values))
+
+            udp_column_names = udp_lines[0].strip().split()
+            udp_values = udp_lines[1].strip().split()
+            udp_metrics = dict(zip(udp_column_names, udp_values))
 
             # line start indicating what kind of metrics we're looking at
             assert(tcp_metrics['Tcp:'] == 'Tcp:')
@@ -239,6 +244,20 @@ class Network(AgentCheck):
 
             for key, metric in tcp_metrics_name.iteritems():
                 self.rate(metric, self._parse_value(tcp_metrics[key]))
+
+            assert(udp_metrics['Udp:'] == 'Udp:')
+
+            udp_metrics_name = {
+                'InDatagrams': 'system.net.udp.in_datagrams',
+                'NoPorts': 'system.net.udp.no_ports',
+                'InErrors': 'system.net.udp.in_errors',
+                'OutDatagrams': 'system.net.udp.out_datagrams',
+                'RcvbufErrors': 'system.net.udp.rcv_buf_errors',
+                'SndbufErrors': 'system.net.udp.snd_buf_errors'
+            }
+            for key, metric in udp_metrics_name.iteritems():
+                self.rate(metric, self._parse_value(udp_metrics[key]))
+
         except IOError:
             # On Openshift, /proc/net/snmp is only readable by root
             self.log.debug("Unable to read /proc/net/snmp.")
