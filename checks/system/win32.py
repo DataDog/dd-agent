@@ -1,5 +1,6 @@
-# project
+# datadog
 from checks import Check
+from utils.debug import logged
 
 # 3rd party
 try:
@@ -9,6 +10,10 @@ except ImportError:
 
 try:
     import wmi
+
+    # Log DEBUG WMI queries
+    wmi._wmi_namespace.__getattr__ = logged(wmi._wmi_namespace.__getattr__)
+
     w = wmi.WMI()
 except Exception:
     wmi, w = None, None
@@ -19,6 +24,7 @@ class DriveType(object):
     UNKNOWN, NOROOT, REMOVEABLE, LOCAL, NETWORK, CD, RAM = (0, 1, 2, 3, 4, 5, 6)
 B2MB = float(1048576)
 KB2MB = B2KB = float(1024)
+
 
 def should_ignore_disk(name, blacklist_re):
     # blacklist_re is a compiled regex, compilation done at config loading time
