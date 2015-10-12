@@ -4,6 +4,10 @@ import logging
 import subprocess
 import tempfile
 
+# datadog
+from utils.debug import logged
+
+
 log = logging.getLogger(__name__)
 
 
@@ -27,18 +31,4 @@ def get_subprocess_output(command, log):
     return output
 
 
-def log_subprocess(func):
-    """
-    Wrapper around subprocess to log.debug commands.
-    """
-    @wraps(func)
-    def wrapper(*params, **kwargs):
-        fc = "%s(%s)" % (func.__name__, ', '.join(
-            [a.__repr__() for a in params] +
-            ["%s = %s" % (a, b) for a, b in kwargs.items()]
-        ))
-        log.debug("%s called" % fc)
-        return func(*params, **kwargs)
-    return wrapper
-
-subprocess.Popen = log_subprocess(subprocess.Popen)
+subprocess.Popen = logged(subprocess.Popen)
