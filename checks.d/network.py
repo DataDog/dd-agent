@@ -3,11 +3,11 @@ Collects network metrics.
 """
 # stdlib
 import re
-import subprocess
 
 # project
 from checks import AgentCheck
 from utils.platform import Platform
+from utils.subprocess_output import get_subprocess_output
 
 BSD_TCP_METRICS = [
     (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
@@ -122,9 +122,8 @@ class Network(AgentCheck):
 
     def _check_linux(self, instance):
         if self._collect_cx_state:
-            netstat = subprocess.Popen(["netstat", "-n", "-u", "-t", "-a"],
-                                       stdout=subprocess.PIPE,
-                                       close_fds=True).communicate()[0]
+            output, err, rtcode = get_subprocess_output(["netstat", "-n", "-u", "-t", "-a"], self.log)
+            lines = output.splitlines()
             # Active Internet connections (w/o servers)
             # Proto Recv-Q Send-Q Local Address           Foreign Address         State
             # tcp        0      0 46.105.75.4:80          79.220.227.193:2032     SYN_RECV
@@ -135,10 +134,8 @@ class Network(AgentCheck):
             # udp        0      0 0.0.0.0:123             0.0.0.0:*
             # udp6       0      0 :::41458                :::*
 
-            lines = netstat.split("\n")
-
             metrics = dict.fromkeys(self.NETSTAT_GAUGE.values(), 0)
-            for l in lines[2:-1]:
+            for l in lines[2:]:
                 cols = l.split()
                 # 0          1      2               3                           4               5
                 # tcp        0      0 46.105.75.4:143         90.56.111.177:56867     ESTABLISHED
@@ -230,9 +227,8 @@ class Network(AgentCheck):
         if Platform.is_freebsd():
             netstat_flags.append('-W')
 
-        netstat = subprocess.Popen(["netstat"] + netstat_flags,
-                                   stdout=subprocess.PIPE,
-                                   close_fds=True).communicate()[0]
+        output, err, rtcode = get_subprocess_output(["netstat"] + netstat_flags, self.log)
+        lines = output.splitlines()
         # Name  Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
         # lo0   16384 <Link#1>                        318258     0  428252203   318258     0  428252203     0
         # lo0   16384 localhost   fe80:1::1           318258     -  428252203   318258     -  428252203     -
@@ -252,7 +248,6 @@ class Network(AgentCheck):
         # ham0  1404  seneca.loca fe80:6::7879:5ff:    30100     -    6815204    18742     -    8494811     -
         # ham0  1404  2620:9b::54 2620:9b::54d:bff5    30100     -    6815204    18742     -    8494811     -
 
-        lines = netstat.split("\n")
         headers = lines[0].split()
 
         # Given the irregular structure of the table above, better to parse from the end of each line
@@ -296,9 +291,7 @@ class Network(AgentCheck):
                 self._submit_devicemetrics(iface, metrics)
 
 
-        netstat = subprocess.Popen(["netstat", "-s","-p" "tcp"],
-                                   stdout=subprocess.PIPE,
-                                   close_fds=True).communicate()[0]
+        netstat, err, rtcode = get_subprocess_output(["netstat", "-s","-p" "tcp"], self.log)
         #3651535 packets sent
         #        972097 data packets (615753248 bytes)
         #        5009 data packets (2832232 bytes) retransmitted
@@ -323,16 +316,12 @@ class Network(AgentCheck):
     def _check_solaris(self, instance):
         # Can't get bytes sent and received via netstat
         # Default to kstat -p link:0:
-        netstat = subprocess.Popen(["kstat", "-p", "link:0:"],
-                                   stdout=subprocess.PIPE,
-                                   close_fds=True).communicate()[0]
+        netstat, err, rtcode = get_subprocess_output(["kstat", "-p", "link:0:"], self.log)
         metrics_by_interface = self._parse_solaris_netstat(netstat)
         for interface, metrics in metrics_by_interface.iteritems():
             self._submit_devicemetrics(interface, metrics)
 
-        netstat = subprocess.Popen(["netstat", "-s", "-P" "tcp"],
-                                   stdout=subprocess.PIPE,
-                                   close_fds=True).communicate()[0]
+        netstat, err, rtcode = get_subprocess_output(["netstat", "-s", "-P" "tcp"], self.log)
         # TCP: tcpRtoAlgorithm=     4 tcpRtoMin           =   200
         # tcpRtoMax           = 60000 tcpMaxConn          =    -1
         # tcpActiveOpens      =    57 tcpPassiveOpens     =    50

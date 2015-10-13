@@ -121,7 +121,7 @@ class TestCheckDisk(AgentCheckTest):
         self.coverage_report()
 
     @mock.patch('utils.subprocess_output.get_subprocess_output',
-                return_value=Fixtures.read_file('debian-df-Tk'))
+                return_value=(Fixtures.read_file('debian-df-Tk'), "", 0))
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
     def test_no_psutil_debian(self, mock_df_output, mock_statvfs):
         self.run_check({'instances': [{'use_mount': 'no',
@@ -137,7 +137,7 @@ class TestCheckDisk(AgentCheckTest):
         self.coverage_report()
 
     @mock.patch('utils.subprocess_output.get_subprocess_output',
-                return_value=Fixtures.read_file('freebsd-df-Tk'))
+                return_value=(Fixtures.read_file('freebsd-df-Tk'), "", 0))
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
     def test_no_psutil_freebsd(self, mock_df_output, mock_statvfs):
         self.run_check({'instances': [{'use_mount': 'no',
