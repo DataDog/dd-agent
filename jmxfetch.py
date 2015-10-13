@@ -108,7 +108,7 @@ class JMXFetch(object):
         if clean_status_file:
             JMXFiles.clean_status_file()
 
-        self.jmx_checks, self.invalid_checks, self.java_bin_path, self.java_options, self.tools_jar_path = \
+        self.jmx_checks, self.invalid_checks, self.java_bin_path, self.java_options, self.tools_jar_path, self.jboss_cli_client_path = \
             self.get_configuration(self.confd_path, checks_list=checks_list)
 
     def should_run(self):
@@ -143,7 +143,7 @@ class JMXFetch(object):
 
             if len(self.jmx_checks) > 0:
                 return self._start(self.java_bin_path, self.java_options, self.jmx_checks,
-                                   command, reporter, self.tools_jar_path, redirect_std_streams)
+                                   command, reporter, self.tools_jar_path, self.jboss_cli_client_path, redirect_std_streams)
             else:
                 # We're exiting purposefully, so exit with zero (supervisor's expected
                 # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly
@@ -184,6 +184,7 @@ class JMXFetch(object):
         java_bin_path = None
         java_options = None
         tools_jar_path = None
+        jboss_cli_client_path = None
         invalid_checks = {}
 
         for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
@@ -202,7 +203,7 @@ class JMXFetch(object):
                     continue
 
                 try:
-                    is_jmx, check_java_bin_path, check_java_options, check_tools_jar_path = \
+                    is_jmx, check_java_bin_path, check_java_options, check_tools_jar_path, jboss_cli_client_path = \
                         cls._is_jmx_check(check_config, check_name, checks_list)
                     if is_jmx:
                         jmx_checks.append(filename)
@@ -218,9 +219,9 @@ class JMXFetch(object):
                     check_name = check_name.encode('ascii', 'ignore')
                     invalid_checks[check_name] = str(e)
 
-        return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path)
+        return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path, jboss_cli_client_path)
 
-    def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path, redirect_std_streams):
+    def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path, jboss_cli_client_path, redirect_std_streams):
         statsd_port = self.agentConfig.get('dogstatsd_port', "8125")
         if reporter is None:
             reporter = "statsd:%s" % str(statsd_port)
@@ -236,6 +237,9 @@ class JMXFetch(object):
                 classpath = path_to_jmxfetch
             else:
                 classpath = r"%s:%s" % (tools_jar_path, path_to_jmxfetch)
+
+            if jboss_cli_client_path:
+                classpath = r"%s:%s" % (jboss_cli_client_path, classpath)
 
             subprocess_args = [
                 path_to_java,  # Path to the java bin
@@ -319,6 +323,7 @@ class JMXFetch(object):
         is_jmx = False
         is_attach_api = False
         tools_jar_path = init_config.get("tools_jar_path")
+        jboss_cli_client_path = init_config.get("jboss_cli_client_path")
 
         if init_config is None:
             init_config = {}
@@ -407,7 +412,7 @@ class JMXFetch(object):
             else:
                 tools_jar_path = None
 
-        return is_jmx, java_bin_path, java_options, tools_jar_path
+        return is_jmx, java_bin_path, java_options, tools_jar_path, jboss_cli_client_path
 
     def _get_path_to_jmxfetch(self):
         if not Platform.is_windows():

@@ -1,4 +1,5 @@
 init_config:
+  # jboss_cli_client_path: /path/to/jboss-cli-client.jar # To be set to use the JMX Remoting protocol
 
 instances:
   # - host: localhost
