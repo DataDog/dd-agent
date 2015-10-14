@@ -69,6 +69,8 @@ class OpenstackCheck(AgentCheck):
         self._nova_url = None
         self._neutron_url = None
 
+        self._aggregate_list = None
+
         #Store the tenant id of the datadog user.
 
     def _make_request_with_auth_fallback(self, url, headers=None):
@@ -257,6 +259,8 @@ class OpenstackCheck(AgentCheck):
             self.warning("Your check is not configured to monitor any hypervisors.\n" +
                          "Please list `hypervisor_ids` under your init_config")
 
+        self._aggregate_list = self.get_all_aggregate_hypervisors()
+
         stats = {}
         for hyp in hypervisors:
             stats[hyp] = {}
@@ -286,6 +290,26 @@ class OpenstackCheck(AgentCheck):
             self.warning('Unable to get the list of all hypervisors: {0}'.format(str(e)))
 
         return hypervisor_ids
+
+    def get_all_aggregate_hypervisors(self):
+        url = '{0}/os-aggregates'.format(self._nova_url)
+        headers = {'X-Auth-Token': self._auth_token}
+
+        hypervisor_aggregate_map = {}
+        try:
+            resp = self._make_request_with_auth_fallback(url, headers)
+            aggregate_list = resp.json()
+            for v in aggregate_list['aggregates']:
+                for host in v['hosts']:
+                    hypervisor_aggregate_map[host] = {
+                        'aggregate': v['name'],
+                        'availability_zone': v['availability_zone']
+                    }
+
+        except Exception as e:
+            self.warning('Unable to get the list of aggregates: {0}'.format(str(e)))
+
+        return hypervisor_aggregate_map
 
     def get_uptime_for_single_hypervisor(self, hyp_id):
         url = '{0}/os-hypervisors/{1}/uptime'.format(self._nova_url, hyp_id)
@@ -319,6 +343,11 @@ class OpenstackCheck(AgentCheck):
             'hypervisor_id:{0}'.format(hyp['id']),
             'virt_type:{0}'.format(hyp['hypervisor_type'])
         ]
+        if hyp['hypervisor_hostname'] in self._aggregate_list:
+            service_check_tags.append('aggregate:{0}'.format(self._aggregate_list[hyp['hypervisor_hostname']]['aggregate']))
+            # Need to check if there is a value for availability_zone because it is possible to have an aggregate without an AZ
+            if self._aggregate_list[hyp['hypervisor_hostname']]['availability_zone']:
+                service_check_tags.append('availability_zone:{0}'.format(self._aggregate_list[hyp['hypervisor_hostname']]['availability_zone']))
 
         if hyp_state is None:
             self.service_check(self.HYPERVISOR_SERVICE_CHECK_NAME, AgentCheck.UNKNOWN,
@@ -384,6 +413,11 @@ class OpenstackCheck(AgentCheck):
                 'hypervisor_id:{0}'.format(payload['id']),
                 'virt_type:{0}'.format(payload['hypervisor_type'])
             ]
+            if payload['hypervisor_hostname'] in self._aggregate_list:
+                tags.append('aggregate:{0}'.format(self._aggregate_list[payload['hypervisor_hostname']]['aggregate']))
+                # Need to check if there is a value for availability_zone because it is possible to have an aggregate without an AZ
+                if self._aggregate_list[payload['hypervisor_hostname']]['availability_zone']:
+                    tags.append('availability_zone:{0}'.format(self._aggregate_list[payload['hypervisor_hostname']]['availability_zone']))
 
             for label, val in payload.iteritems():
                 if label in NOVA_HYPERVISOR_METRICS:
