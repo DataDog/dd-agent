@@ -153,7 +153,7 @@ class HTTPCheckTest(AgentCheckTest):
         url, username, password, http_response_status_code, timeout,\
             include_content, headers, response_time, content_match,\
             tags, ssl, ssl_expiration,\
-            instance_ca_certs = self.check._load_conf(CONFIG_HTTP_HEADERS['instances'][0])
+            instance_ca_certs, weakciphers = self.check._load_conf(CONFIG_HTTP_HEADERS['instances'][0])
 
         self.assertEqual(headers["X-Auth-Token"], "SOME-AUTH-TOKEN", headers)
         expected_headers = agent_headers(AGENT_CONFIG).get('User-Agent')
