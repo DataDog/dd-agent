@@ -68,8 +68,13 @@ class Agent(Daemon):
         self.collector = None
         self.start_event = start_event
         self.in_developer_mode = in_developer_mode
+        self._agentConfig = {}
+        self._checksd = []
+        self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
+        self.check_frequency = None
 
     def _handle_sigterm(self, signum, frame):
+        """Handles SIGTERM and SIGINT, which gracefully stops the agent."""
         log.debug("Caught sigterm. Stopping run loop.")
         self.run_forever = False
 
@@ -78,8 +83,58 @@ class Agent(Daemon):
         log.debug("Collector is stopped.")
 
     def _handle_sigusr1(self, signum, frame):
+        """Handles SIGUSR1, which signals an exit with an autorestart."""
         self._handle_sigterm(signum, frame)
         self._do_restart()
+
+    def _handle_sigusr2(self, signum, frame):
+        """Handles SIGUSR2, which signals a configuration reload."""
+        log.info("Attempting a configuration reload...")
+        log.info("AGENT.PY SIGUSR2: self.collector: " + str(self.collector))
+        self.reload_configs()
+
+    def reload_configs(self):
+        """Reloads the agent configuration and checksd configurations."""
+
+        # Reload datadog config, find hostname and grab emitters
+        config = get_config(parse_args=True)
+        self._agentConfig = self._set_agent_config_hostname(config)
+        log.info("AGENT.PY SIGUSR2: self._agentConfig has {0} items".format(len(self._agentConfig.keys())))
+        log.info("AGENT.PY: self._agentConfig: " + str(self._agentConfig))
+        if self._agentConfig.get('log_level'):
+            log.info("AGENT.PY SIGUSR2: log_level is SET")
+        else:
+            log.info("AGENT.PY SIGUSR2: Did not find any config called log_level")
+
+        # Gather Agent Info
+        systemStats = get_system_stats()  # Don't forget to add system_stats
+        self._agentConfig['system_stats'] = systemStats
+        hostname = get_hostname(self._agentConfig)
+        emitters = self._get_emitters()
+
+        # Reload checksd configs
+        self._checksd = load_check_directory(self._agentConfig, hostname)
+
+        # Logging
+        num_checks = len(self._checksd['initialized_checks'])
+        if num_checks > 0:
+            log.info("AGENT.PY SIGUSR2: Successfully reloaded {num_checks}".
+                     format(num_checks=num_checks))
+            for che in self._checksd['initialized_checks']:
+                log.info("AGENT.PY SIGUSR2: \t{0}".format(che))
+        else:
+            log.info("AGENT.PY SIGUSR2: No checkd configs found")
+
+        # Restart the Collector to pick up Datadog config changes
+        self.collector.stop()
+        self.collector = Collector(self._agentConfig, emitters, systemStats, hostname)
+
+        # In developer mode, the number of runs to be included in a single collector profile
+        self.collector_profile_interval = self._agentConfig.get('collector_profile_interval',
+                                                                DEFAULT_COLLECTOR_PROFILE_INTERVAL)
+
+        # Configure the watchdog.
+        self.check_frequency = int(self._agentConfig['check_freq'])
 
     @classmethod
     def info(cls, verbose=None):
@@ -98,6 +153,9 @@ class Agent(Daemon):
         # Handle Keyboard Interrupt
         signal.signal(signal.SIGINT, self._handle_sigterm)
 
+        # A SIGUSR2 signals a configuration reload
+        signal.signal(signal.SIGUSR2, self._handle_sigusr2)
+
         # Save the agent start-up stats.
         CollectorStatus().persist()
 
@@ -105,25 +163,25 @@ class Agent(Daemon):
         if not config:
             config = get_config(parse_args=True)
 
-        agentConfig = self._set_agent_config_hostname(config)
-        hostname = get_hostname(agentConfig)
+        self._agentConfig = self._set_agent_config_hostname(config)
+        hostname = get_hostname(self._agentConfig)
         systemStats = get_system_stats()
-        emitters = self._get_emitters(agentConfig)
+        emitters = self._get_emitters()
         # Load the checks.d checks
-        checksd = load_check_directory(agentConfig, hostname)
+        self._checksd = load_check_directory(self._agentConfig, hostname)
 
-        self.collector = Collector(agentConfig, emitters, systemStats, hostname)
+        self.collector = Collector(self._agentConfig, emitters, systemStats, hostname)
 
         # In developer mode, the number of runs to be included in a single collector profile
-        collector_profile_interval = agentConfig.get('collector_profile_interval',
-                                                     DEFAULT_COLLECTOR_PROFILE_INTERVAL)
+        self.collector_profile_interval = self._agentConfig.get('collector_profile_interval',
+                                                                DEFAULT_COLLECTOR_PROFILE_INTERVAL)
 
         # Configure the watchdog.
-        check_frequency = int(agentConfig['check_freq'])
-        watchdog = self._get_watchdog(check_frequency, agentConfig)
+        self.check_frequency = int(self._agentConfig['check_freq'])
+        watchdog = self._get_watchdog(self.check_frequency)
 
         # Initialize the auto-restarter
-        self.restart_interval = int(agentConfig.get('restart_interval', RESTART_INTERVAL))
+        self.restart_interval = int(self._agentConfig.get('restart_interval', RESTART_INTERVAL))
         self.agent_start = time.time()
 
         profiled = False
@@ -131,6 +189,16 @@ class Agent(Daemon):
 
         # Run the main loop.
         while self.run_forever:
+            log.info("AGENT.PY: self._agentConfig has {0} items".format(len(self._agentConfig.keys())))
+            log.info("AGENT.PY: self._agentConfig: " + str(self._agentConfig))
+            if self._agentConfig.get('log_level'):
+                log.info("AGENT.PY: log_level is SET")
+            else:
+                log.info("AGENT.PY: Did not find any config called log_level")
+            log.info("AGENT.PY: self.collector: " + str(self.collector))
+            log.info("AGENT.PY: {0} checks".format(len(self._checksd['initialized_checks'])))
+            for che in self._checksd['initialized_checks']:
+                log.info("\t{0}".format(che))
             # Setup profiling if necessary
             if self.in_developer_mode and not profiled:
                 try:
@@ -141,9 +209,11 @@ class Agent(Daemon):
                     log.warn("Cannot enable profiler: %s" % str(e))
 
             # Do the work.
-            self.collector.run(checksd=checksd, start_event=self.start_event)
+            log.info("AGENT.PY: Starting Collector...")
+            self.collector.run(checksd=self._checksd, start_event=self.start_event)
+            log.info("AGENT.PY: Collector DONE!")
             if profiled:
-                if collector_profiled_runs >= collector_profile_interval:
+                if collector_profiled_runs >= self.collector_profile_interval:
                     try:
                         profiler.disable_profiling()
                         profiled = False
@@ -155,33 +225,33 @@ class Agent(Daemon):
             if self.autorestart and self._should_restart():
                 self._do_restart()
 
-            # Only plan for the next loop if we will continue,
-            # otherwise just exit quickly.
+            # Only plan for next loop if we will continue, otherwise exit quickly.
             if self.run_forever:
                 if watchdog:
                     watchdog.reset()
                 if profiled:
                     collector_profiled_runs += 1
-                time.sleep(check_frequency)
+                log.info("AGENT.PY: Sleeping for {0} seconds".format(self.check_frequency))
+                time.sleep(self.check_frequency)
+
         # Now clean-up.
         try:
             CollectorStatus.remove_latest_status()
         except Exception:
             pass
 
-        # Explicitly kill the process, because it might be running
-        # as a daemon.
+        # Explicitly kill the process, because it might be running as a daemon.
         log.info("Exiting. Bye bye.")
         sys.exit(0)
 
-    def _get_emitters(self, agentConfig):
+    def _get_emitters(self):
         return [http_emitter]
 
-    def _get_watchdog(self, check_freq, agentConfig):
+    def _get_watchdog(self, check_freq):
         watchdog = None
-        if agentConfig.get("watchdog", True):
+        if self._agentConfig.get("watchdog", True):
             watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER,
-                                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
+                                max_mem_mb=self._agentConfig.get('limit_memory_consumption', None))
             watchdog.reset()
         return watchdog
 
@@ -255,6 +325,7 @@ def main():
     if command in START_COMMANDS:
         log.info('Agent version %s' % get_version())
 
+    # MAYBE: Add reload command.. problem is that when called this way, agent.collector is None
     if 'start' == command:
         log.info('Start daemon')
         agent.start()
