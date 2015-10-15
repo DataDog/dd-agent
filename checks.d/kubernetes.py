@@ -22,11 +22,10 @@ DEFAULT_NAMESPACE = 'kubernetes'
 DEFAULT_KUBELET_PORT = 10255
 DEFAULT_MASTER_PORT = 8080
 DEFAULT_PUBLISH_CONTAINER_NAMES = False
-DEFAULT_ENABLED_METRICS = [ 'cpu.*.total',
-                            'diskio.io_service_bytes.stats.total',
-                            'memory.usage',
-                            'filesystem.usage'
-                        ]
+DEFAULT_ENABLED_METRICS = ['cpu.*.total',
+                           'diskio.io_service_bytes.stats.total',
+                           'memory.usage',
+                           'filesystem.usage']
 
 class Kubernetes(AgentCheck):
     """ Collect metrics and events from kubelet """
@@ -58,16 +57,16 @@ class Kubernetes(AgentCheck):
             for line in r.iter_lines():
 
                 # avoid noise; this check is expected to fail since we override the container hostname
-                if line.find('hostname')!=-1:
+                if line.find('hostname') != -1:
                     continue
 
                 matches = re.match('\[(.)\]([^\s]+) (.*)?', line)
-                if not matches or len(matches.groups())<2:
+                if not matches or len(matches.groups()) < 2:
                     continue
-                
+
                 service_check_name = service_check_base + '.' + matches.group(2)
                 status = matches.group(1)
-                if status=='+':
+                if status == '+':
                     self.service_check(service_check_name, AgentCheck.OK)
                 else:
                     self.service_check(service_check_name, AgentCheck.CRITICAL, matches.group(3))
