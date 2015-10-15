@@ -173,7 +173,7 @@ class OpenstackCheck(AgentCheck):
 
     def get_network_stats(self):
         if self.init_config.get('check_all_networks', False):
-            network_ids = self.get_all_network_ids()
+            network_ids = list(set(self.get_all_network_ids()) - set(self.init_config.get('excluded_network_ids', [])))
         else:
             network_ids = self.init_config.get('network_ids', [])
 
@@ -251,7 +251,7 @@ class OpenstackCheck(AgentCheck):
 
     def get_hypervisor_stats(self):
         if self.init_config.get('check_all_hypervisors', False):
-            hypervisors = self.get_all_hypervisor_ids()
+            hypervisors = list(set(self.get_all_hypervisor_ids()) - set(self.init_config.get('excluded_hypervisor_ids', [])))
         else:
             hypervisors = self.init_config.get('hypervisor_ids', [])
 
@@ -363,7 +363,7 @@ class OpenstackCheck(AgentCheck):
 
     def get_server_stats(self):
         if self.init_config.get('check_all_servers', False):
-            server_ids = self.get_all_server_ids()
+            server_ids = list(set(self.get_all_server_ids()) - set(self.init_config.get('excluded_server_ids', [])))
         else:
             server_ids = self.init_config.get('server_ids', [])
 
