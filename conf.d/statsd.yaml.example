@@ -1,0 +1,8 @@
+init_config:
+
+instances:
+  - host: localhost
+    port: 8126
+    # tags:
+    #  - optional_tag1
+    #  - optional_tag2
