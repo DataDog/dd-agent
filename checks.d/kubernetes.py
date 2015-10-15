@@ -6,6 +6,7 @@ import socket
 import struct
 from urlparse import urljoin
 from fnmatch import fnmatch
+import re
 
 # 3rd party
 import requests
@@ -23,10 +24,8 @@ DEFAULT_MASTER_PORT = 8080
 DEFAULT_PUBLISH_CONTAINER_NAMES = False
 DEFAULT_ENABLED_METRICS = [ 'cpu.*.total',
                             'diskio.io_service_bytes.stats.total',
-                            'network.*.rx_bytes', 'network.*.tx_bytes',
                             'memory.usage',
-                            'filesystem.usage',
-                            'task_stats.nr_running'
+                            'filesystem.usage'
                         ]
 
 class Kubernetes(AgentCheck):
@@ -38,11 +37,6 @@ class Kubernetes(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.default_router = self._get_default_router()
         self.log.info('default_router=%s' % self.default_router)
-        
-    def _retrieve_json(self, url):
-        r = requests.get(url)
-        r.raise_for_status()
-        return r.json()
 
     def _get_default_router(self):
         try:
@@ -100,6 +94,7 @@ class Kubernetes(AgentCheck):
         host = instance.get('host', self.default_router)
         if not host:
             raise Exception("Unable to get default router and host parameter is not set")
+
         port = instance.get('port', DEFAULT_CADVISOR_PORT)
         method = instance.get('method', DEFAULT_METHOD)
         self.metrics_url = '%s://%s:%d' % (method, host, port)
@@ -123,10 +118,9 @@ class Kubernetes(AgentCheck):
             self._perform_kubelet_checks(kubelet_url)
 
         # kubelet metrics
-        publish_container_names = instance.get('publish_container_names', DEFAULT_PUBLISH_CONTAINER_NAMES)
-        self._update_metrics(instance, publish_container_names)
+        self._update_metrics(instance)
 
-    def _discover_metrics(self, metric, dat, tags, depth=0):
+    def _publish_raw_metrics(self, metric, dat, tags, depth=0):
         if depth >= self.max_depth:
             self.log.warning('Reached max depth on metric=%s' % metric)
             return
@@ -138,28 +132,58 @@ class Kubernetes(AgentCheck):
             self.rate(metric, long(dat), tags)
         elif type_ is dict:
             for k,v in dat.iteritems():
-                self._discover_metrics(metric + '.%s' % k.lower(), v, tags, depth + 1)
+                self._publish_raw_metrics(metric + '.%s' % k.lower(), v, tags, depth + 1)
         elif type_ is list:
-            self._discover_metrics(metric, dat[-1], tags, depth + 1)
+            self._publish_raw_metrics(metric, dat[-1], tags, depth + 1)
         else:
             return
 
-    def _update_metrics(self, instance, publish_container_names):
+    def _retrieve_json(self, url):
+        r = requests.get(url)
+        r.raise_for_status()
+        return r.json()
+
+    @staticmethod
+    def _shorten_name(name):
+        # shorten docker image id
+        return re.sub("([0-9a-fA-F]{64,})", lambda x: x.group(1)[0:12], name)
+
+    def _publish_calculated_metrics(self, namespace, stats, tags):
+        try:
+            fs = stats['filesystem'][-1]
+            fs_capacity = long(fs['capacity'])
+            fs_usage = long(fs['usage'])
+            self.gauge('filesystem.usage_pct', fs_usage/fs_capacity, tags)
+        except Exception:
+            pass
+
+        try:
+            net = stats['network']
+            self.rate('network_bytes', sum(long(net[x]) for x in ['rx_bytes', 'tx_bytes']), tags)
+            self.rate('network_packets', sum(long(net[x]) for x in ['rx_packets', 'tx_packets']), tags)
+            self.rate('network_errors', sum(long(net[x]) for x in ['rx_errors', 'tx_errors', 'rx_dropped', 'tx_dropped']), tags)
+        except Exception:
+            pass
+
+    def _update_metrics(self, instance):
         metrics = self._retrieve_json(self.metrics_cmd)
         service_check_name = self.namespace + '.metrics_collection'
         if not metrics:
             self.service_check(service_check_name, AgentCheck.CRITICAL, 'No metrics retrieved')
             return
-
         self.service_check(service_check_name, AgentCheck.OK)
+
         for subcontainer in metrics:
             tags = []
 
             try:
                 for label_name,label in subcontainer['spec']['labels'].iteritems():
-                    tags.append('label.%s:%s' % (label_name, label))
+                    label_name = label_name.replace("io.kubernetes.pod.name", "pod_name")
+                    tags.append('%s:%s' % (label_name, label))
             except KeyError:
-                tags.append('container_name:%s' % subcontainer['name'])
+                tags.append('container_name:%s' % self._shorten_name(subcontainer['name']))
 
             stats = subcontainer['stats'][-1]  # take latest
-            self._discover_metrics(self.namespace, stats, tags)
+            if self.enabled_metrics:
+                self._publish_raw_metrics(self.namespace, stats, tags)
+            self._publish_calculated_metrics(self.namespace, stats, tags)
