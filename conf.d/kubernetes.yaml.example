@@ -1,7 +1,9 @@
 init_config:
-  # By default the kubernetes check will assume it's running under docker
-  # and will use the address of the default router.
-  # To override, use the following:
+  # The kubernetes check retrieves metrics from cadvisor running under kubelet.
+  # By default we will assume we're running under docker and will use the address
+  # of the default router to reach the cadvisor api.
+  # 
+  # To override, e.g. in the case of a standalone cadvisor instance, use the following:
   #
   # host: localhost
   # port: 4194 
@@ -15,5 +17,7 @@ init_config:
   # enable_kubelet_checks: true
   # kubelet_port: 10255
   #
-  # Do you want container names as tags?
-  # publish_container_names: false
+  # We can define a whitelist of patterns that permit publishing raw metrics.
+  # enabled_metrics:
+  #   - cpu.*
+  #   - network.*
