@@ -152,15 +152,18 @@ class Kubernetes(AgentCheck):
             fs = stats['filesystem'][-1]
             fs_capacity = long(fs['capacity'])
             fs_usage = long(fs['usage'])
-            self.gauge('filesystem.usage_pct', fs_usage/fs_capacity, tags)
+            self.gauge(namespace+'.filesystem.usage_pct', fs_usage/fs_capacity, tags)
         except Exception:
             pass
 
         try:
             net = stats['network']
-            self.rate('network_bytes', sum(long(net[x]) for x in ['rx_bytes', 'tx_bytes']), tags)
-            self.rate('network_packets', sum(long(net[x]) for x in ['rx_packets', 'tx_packets']), tags)
-            self.rate('network_errors', sum(long(net[x]) for x in ['rx_errors', 'tx_errors', 'rx_dropped', 'tx_dropped']), tags)
+            self.rate(namespace+'.network_bytes',
+                      sum(long(net[x]) for x in ['rx_bytes', 'tx_bytes']), tags)
+            self.rate(namespace+'.network_packets',
+                      sum(long(net[x]) for x in ['rx_packets', 'tx_packets']), tags)
+            self.rate(namespace+'.network_errors',
+                      sum(long(net[x]) for x in ['rx_errors', 'tx_errors', 'rx_dropped', 'tx_dropped']), tags)
         except Exception:
             pass
 
