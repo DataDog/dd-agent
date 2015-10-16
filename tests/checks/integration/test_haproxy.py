@@ -219,6 +219,8 @@ b,FRONTEND,,,1,2,12,11,11,0,0,0,0,,,,,OPEN,,,,,,,,,1,2,0,,,,0,0,0,1,,,,,,,,,,,0,
 b,i-1,0,0,0,1,,1,1,0,,0,,0,0,0,0,UP,1,1,0,0,1,1,30,,1,3,1,,70,,2,0,,1,1,,0,,,,,,,0,,,,0,0,
 b,i-2,0,0,1,1,,1,1,0,,0,,0,0,0,0,UP,1,1,0,0,0,1,0,,1,3,2,,71,,2,0,,1,1,,0,,,,,,,0,,,,0,0,
 b,i-3,0,0,0,1,,1,1,0,,0,,0,0,0,0,UP,1,1,0,0,0,1,0,,1,3,3,,70,,2,0,,1,1,,0,,,,,,,0,,,,0,0,
+b,i-4,0,0,0,1,,1,1,0,,0,,0,0,0,0,DOWN,1,1,0,0,0,1,0,,1,3,3,,70,,2,0,,1,1,,0,,,,,,,0,,,,0,0,
+b,i-5,0,0,0,1,,1,1,0,,0,,0,0,0,0,MAINT,1,1,0,0,0,1,0,,1,3,3,,70,,2,0,,1,1,,0,,,,,,,0,,,,0,0,
 b,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,,,,,,,,,,,0,0,
 """.split('\n')
 
@@ -229,8 +231,18 @@ b,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,
         expected_hosts_statuses = defaultdict(int)
         expected_hosts_statuses[('b', 'OPEN')] = 1
         expected_hosts_statuses[('b', 'UP')] = 3
+        expected_hosts_statuses[('b', 'DOWN')] = 1
+        expected_hosts_statuses[('b', 'MAINT')] = 1
         expected_hosts_statuses[('a', 'OPEN')] = 1
         self.assertEquals(self.check.hosts_statuses, expected_hosts_statuses)
+
+        # backend hosts
+        agg_statuses = self.check._process_backend_hosts_metric(expected_hosts_statuses)
+        expected_agg_statuses = {
+            'a': {'available': 0, 'unavailable': 0},
+            'b': {'available': 3, 'unavailable': 2},
+        }
+        self.assertEquals(expected_agg_statuses, dict(agg_statuses))
 
         # with collect_aggregates_only set to True
         self.check._process_data(data, True, True, collect_status_metrics=True,
@@ -246,6 +258,8 @@ b,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,
         expected_hosts_statuses[('b', 'i-1', 'UP')] = 1
         expected_hosts_statuses[('b', 'i-2', 'UP')] = 1
         expected_hosts_statuses[('b', 'i-3', 'UP')] = 1
+        expected_hosts_statuses[('b', 'i-4', 'DOWN')] = 1
+        expected_hosts_statuses[('b', 'i-5', 'MAINT')] = 1
         self.assertEquals(self.check.hosts_statuses, expected_hosts_statuses)
 
         self.check._process_data(data, True, True, collect_status_metrics=True,

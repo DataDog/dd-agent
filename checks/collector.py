@@ -25,7 +25,6 @@ import modules
 from util import (
     EC2,
     GCE,
-    get_hostname,
     get_os,
     get_uuid,
     Timer,
@@ -751,7 +750,7 @@ class Collector(object):
         except Exception:
             pass
 
-        metadata["hostname"] = get_hostname()
+        metadata["hostname"] = self.hostname
 
         # Add cloud provider aliases
         host_aliases = GCE.get_host_aliases(self.agentConfig)

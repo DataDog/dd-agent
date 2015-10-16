@@ -18,6 +18,7 @@ EVENT_TYPE = 'docker'
 SERVICE_CHECK_NAME = 'docker.service_up'
 SIZE_REFRESH_RATE = 5 # Collect container sizes every 5 iterations of the check
 MAX_CGROUP_LISTING_RETRIES = 3
+CONTAINER_ID_RE = re.compile('[0-9a-f]{64}')
 
 GAUGE = AgentCheck.gauge
 RATE = AgentCheck.rate
@@ -95,12 +96,23 @@ def image_tag_extractor(c, key):
     return None
 
 
+def container_name_extractor(c):
+    # we sort the list to make sure that a docker API update introducing
+    # new names with a single "/" won't make us report dups.
+    names = sorted(c.get('Names', []))
+    for name in names:
+        # the leading "/" is legit, if there's another one it means the name is actually an alias
+        if name.count('/') <= 1:
+            return [str(name).lstrip('/')]
+    return [c.get('Id')[:11]]
+
+
 TAG_EXTRACTORS = {
     "docker_image": lambda c: [c["Image"]],
     "image_name": lambda c: image_tag_extractor(c, 0),
     "image_tag": lambda c: image_tag_extractor(c, 1),
     "container_command": lambda c: [c["Command"]],
-    "container_name": lambda c: [str(c['Names'][0]).lstrip("/")] if c.get("Names") else [c['Id'][:11]],
+    "container_name": container_name_extractor,
 }
 
 CONTAINER = "container"
@@ -273,7 +285,7 @@ class DockerDaemon(AgentCheck):
         containers_by_id = {}
 
         for container in containers:
-            container_name = str(container['Names'][0]).strip('/')
+            container_name = container_name_extractor(container)[0]
 
             container_status_tags = self._get_tags(container, CONTAINER)
 
@@ -359,13 +371,12 @@ class DockerDaemon(AgentCheck):
 
     def refresh_ecs_tags(self):
         ecs_config = self.client.inspect_container('ecs-agent')
-        net_conf = ecs_config['NetworkSettings'].get('Ports', {})
-        net_conf = net_conf.get(net_conf.keys()[0], [])
+        ip = ecs_config.get('NetworkSettings', {}).get('IPAddress')
+        ports = ecs_config.get('NetworkSettings', {}).get('Ports')
+        port = ports.keys()[0].split('/')[0] if ports else None
         ecs_tags = {}
-        if net_conf:
-            net_conf = net_conf[0] if isinstance(net_conf, list) else net_conf
-            ip, port = net_conf.get('HostIp'), net_conf.get('HostPort')
-            tasks = requests.get('http://%s:%s' % (ip, port)).json()
+        if ip and port:
+            tasks = requests.get('http://%s:%s/v1/tasks' % (ip, port)).json()
             for task in tasks.get('Tasks', []):
                 for container in task.get('Containers', []):
                     tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
@@ -381,7 +392,7 @@ class DockerDaemon(AgentCheck):
         for container in containers:
             container_tags = self._get_tags(container, FILTERED)
             if self._are_tags_filtered(container_tags):
-                container_name = TAG_EXTRACTORS["container_name"](container)[0]
+                container_name = container_name_extractor(container)[0]
                 self._filtered_containers.add(container_name)
                 self.log.debug("Container {0} is filtered".format(container["Names"][0]))
 
@@ -405,7 +416,7 @@ class DockerDaemon(AgentCheck):
 
         Requires _filter_containers to run first.
         """
-        container_name = TAG_EXTRACTORS["container_name"](container)[0]
+        container_name = container_name_extractor(container)[0]
         return container_name in self._filtered_containers
 
     def _report_container_size(self, containers_by_id):
@@ -560,7 +571,7 @@ class DockerDaemon(AgentCheck):
                 status[event['status']] += 1
                 container_name = event['id'][:11]
                 if event['id'] in containers_by_id:
-                    container_name = str(containers_by_id[event['id']]['Names'][0]).strip('/')
+                    container_name = container_name_extractor(containers_by_id[event['id']])[0]
 
                 status_change.append([container_name, event['status']])
 
@@ -656,9 +667,16 @@ class DockerDaemon(AgentCheck):
                 continue
 
             try:
-                content = dict((line[1], line[2]) for line in content)
-                if 'docker/' in content.get('cpuacct'):
-                    container_id = content['cpuacct'].split('docker/')[1]
+                for line in content:
+                    if line[1] in ('cpu,cpuacct', 'cpuacct,cpu', 'cpuacct') and 'docker' in line[2]:
+                        cpuacct = line[2]
+                        break
+                else:
+                    continue
+
+                match = CONTAINER_ID_RE.search(cpuacct)
+                if match:
+                    container_id = match.group(0)
                     container_dict[container_id]['_pid'] = folder
                     container_dict[container_id]['_proc_root'] = os.path.join(proc_path, folder)
             except Exception, e:

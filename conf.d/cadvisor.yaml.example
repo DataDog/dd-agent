@@ -1,5 +1,0 @@
-init_config:
-  foo: bar
-
-instances:
-  - foo: bar
