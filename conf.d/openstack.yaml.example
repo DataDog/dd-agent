@@ -58,6 +58,10 @@ init_config:
       # IDs of networks to exclude from monitoring (only significant when `check_all_networks` is enabled)
       # exclude_network_ids:
 
+      # Whether to enable SSL certificate verification for HTTP requests. Defaults to true, you may
+      # need to set to False when using self-signed certs
+      # ssl_verify: true
+
 # No need to change this. No instance-level config
 instances:
     [{}]

@@ -41,6 +41,9 @@ NOVA_SERVER_INTERFACE_SEGMENTS = ['_rx', '_tx']
 class OpenstackAuthFailure(Exception):
     pass
 
+class InstancePowerOffFailure(Exception):
+    pass
+
 class IncompleteConfig(Exception):
     pass
 
@@ -70,17 +73,21 @@ class OpenstackCheck(AgentCheck):
         self._neutron_url = None
 
         self._aggregate_list = None
+        self._ssl_verify = init_config.get("ssl_verify", True)
 
-        #Store the tenant id of the datadog user.
 
-    def _make_request_with_auth_fallback(self, url, headers=None):
+    def _make_request_with_auth_fallback(self, url, headers=None, verify=True):
+        self.log.debug("SSL Certificate Verification set to %s", verify)
         try:
-            resp = requests.get(url, headers=headers)
+            resp = requests.get(url, headers=headers, verify=verify)
             resp.raise_for_status()
         except requests.exceptions.HTTPError:
             if resp.status_code == 401:
                 self.log.info('Need to reauthenticate before next check')
                 raise OpenstackAuthFailure
+            elif resp.status_code == 409:
+                # TODO: What are the other cases where this will happen
+                raise InstancePowerOffFailure
             else:
                 raise
 
@@ -190,7 +197,7 @@ class OpenstackCheck(AgentCheck):
 
         network_ids = []
         try:
-            resp = self._make_request_with_auth_fallback(url, headers)
+            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
             net_details = resp.json()
             for network in net_details['networks']:
                 network_ids.append(network['id'])
@@ -202,7 +209,7 @@ class OpenstackCheck(AgentCheck):
     def get_stats_for_single_network(self, network_id):
         url = '{0}/{1}/networks/{2}'.format(self._neutron_url, self.DEFAULT_NEUTRON_API_VERSION, network_id)
         headers = {'X-Auth-Token': self._auth_token}
-        resp = self._make_request_with_auth_fallback(url, headers)
+        resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
 
         net_details = resp.json()
         service_check_tags = ['network:{0}'.format(network_id)]
@@ -216,9 +223,9 @@ class OpenstackCheck(AgentCheck):
             service_check_tags.append('tenant_id:{0}'.format(tenant_id))
 
         if net_details.get('admin_state_up'):
-            self.service_check(self.NETWORK_SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
-        else:
             self.service_check(self.NETWORK_SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
+        else:
+            self.service_check(self.NETWORK_SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
     ###
 
     def _parse_uptime_string(self, uptime):
@@ -282,7 +289,7 @@ class OpenstackCheck(AgentCheck):
 
         hypervisor_ids = []
         try:
-            resp = self._make_request_with_auth_fallback(url, headers)
+            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
             hv_list = resp.json()
             for hv in hv_list['hypervisors']:
                 hypervisor_ids.append(hv['id'])
@@ -297,7 +304,7 @@ class OpenstackCheck(AgentCheck):
 
         hypervisor_aggregate_map = {}
         try:
-            resp = self._make_request_with_auth_fallback(url, headers)
+            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
             aggregate_list = resp.json()
             for v in aggregate_list['aggregates']:
                 for host in v['hosts']:
@@ -315,14 +322,14 @@ class OpenstackCheck(AgentCheck):
         url = '{0}/os-hypervisors/{1}/uptime'.format(self._nova_url, hyp_id)
         headers = {'X-Auth-Token': self._auth_token}
 
-        resp = self._make_request_with_auth_fallback(url, headers)
+        resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
         uptime = resp.json()['hypervisor']['uptime']
         return self._parse_uptime_string(uptime)
 
     def get_stats_for_single_hypervisor(self, hyp_id):
         url = '{0}/os-hypervisors/{1}'.format(self._nova_url, hyp_id)
         headers = {'X-Auth-Token': self._auth_token}
-        resp = self._make_request_with_auth_fallback(url, headers)
+        resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
         hyp = resp.json()['hypervisor']
 
         hyp_state = hyp.get('state', None)
@@ -380,7 +387,7 @@ class OpenstackCheck(AgentCheck):
 
         server_ids = []
         try:
-            resp = self._make_request_with_auth_fallback(url, headers)
+            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
             server_ids = [s['id'] for s in resp.json()['servers']]
         except Exception as e:
             self.warning('Unable to get the list of all servers: {0}'.format(str(e)))
@@ -393,14 +400,20 @@ class OpenstackCheck(AgentCheck):
 
         url = '{0}/servers/{1}/diagnostics'.format(self._nova_url, server_id)
         headers = {'X-Auth-Token': self._auth_token}
-        resp = self._make_request_with_auth_fallback(url, headers)
+        server_stats = {}
 
-        server_stats = resp.json()
-        tags = ['server:{0}'.format(server_id)]
+        try:
+            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+            server_stats = resp.json()
+        except InstancePowerOffFailure:
+            self.warning("Server %s is powered off and cannot be monitored" % server_id)
+            # TODO: Maybe send an event/service check here?
 
-        for st in server_stats:
-            if _is_valid_metric(st):
-                self.gauge("openstack.nova.server.{0}".format(st), server_stats[st], tags=tags)
+        if server_stats:
+            tags = ['server:{0}'.format(server_id)]
+            for st in server_stats:
+                if _is_valid_metric(st):
+                    self.gauge("openstack.nova.server.{0}".format(st), server_stats[st], tags=tags)
 
     ###
 
