@@ -21,6 +21,7 @@ GAUGES = [
     "connection_structures",
     "threads",
     "pointer_size",
+    "listen_disabled_num",
 
     # Computed metrics
     "get_hit_percent",
