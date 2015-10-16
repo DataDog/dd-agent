@@ -109,11 +109,11 @@ class WeakCiphersPoolManager(urllib3.poolmanager.PoolManager):
             return WeakCiphersHTTPSConnectionPool(host, port, **(self.connection_pool_kw))
         return super(WeakCiphersPoolManager, self)._new_pool(scheme, host, port)
 
+
 class WeakCiphersAdapter(HTTPAdapter):
     """"Transport adapter" that allows us to use TLS_RSA_WITH_RC4_128_MD5."""
 
-    def init_poolmanager(self, connections, maxsize, block=False,
-                            **pool_kwargs):
+    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
         # Rewrite of the
         # requests.adapters.HTTPAdapter.init_poolmanager method
         # to use WeakCiphersPoolManager instead of
