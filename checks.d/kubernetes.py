@@ -24,6 +24,7 @@ DEFAULT_MASTER_PORT = 8080
 DEFAULT_PUBLISH_CONTAINER_NAMES = False
 DEFAULT_ENABLED_METRICS = ['cpu.*.total',
                            'diskio.io_service_bytes.stats.total',
+                           'network.??_packets',
                            'memory.usage',
                            'filesystem.usage']
 
@@ -32,20 +33,20 @@ class Kubernetes(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         if instances is not None and len(instances) > 1:
-            raise Exception("Kubernetes check only supports one configured instance.")
+            raise Exception('Kubernetes check only supports one configured instance.')
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.default_router = self._get_default_router()
         self.log.info('default_router=%s' % self.default_router)
 
     def _get_default_router(self):
         try:
-            with open("/proc/net/route") as f:
+            with open('/proc/net/route') as f:
                 for line in f.readlines():
                     fields = line.strip().split()
                     if fields[1] == '00000000':
-                        return socket.inet_ntoa(struct.pack("<L", int(fields[2], 16)))
+                        return socket.inet_ntoa(struct.pack('<L', int(fields[2], 16)))
         except IOError, e:
-            self.log.error("Unable to open /proc/net/route: %s", e)
+            self.log.error('Unable to open /proc/net/route: %s', e)
 
         return None
 
@@ -92,7 +93,7 @@ class Kubernetes(AgentCheck):
     def check(self, instance):
         host = instance.get('host', self.default_router)
         if not host:
-            raise Exception("Unable to get default router and host parameter is not set")
+            raise Exception('Unable to get default router and host parameter is not set')
 
         port = instance.get('port', DEFAULT_CADVISOR_PORT)
         method = instance.get('method', DEFAULT_METHOD)
@@ -145,7 +146,7 @@ class Kubernetes(AgentCheck):
     @staticmethod
     def _shorten_name(name):
         # shorten docker image id
-        return re.sub("([0-9a-fA-F]{64,})", lambda x: x.group(1)[0:12], name)
+        return re.sub('([0-9a-fA-F]{64,})', lambda x: x.group(1)[0:12], name)
 
     def _publish_calculated_metrics(self, namespace, stats, tags):
         try:
@@ -158,10 +159,6 @@ class Kubernetes(AgentCheck):
 
         try:
             net = stats['network']
-            self.rate(namespace+'.network_bytes',
-                      sum(long(net[x]) for x in ['rx_bytes', 'tx_bytes']), tags)
-            self.rate(namespace+'.network_packets',
-                      sum(long(net[x]) for x in ['rx_packets', 'tx_packets']), tags)
             self.rate(namespace+'.network_errors',
                       sum(long(net[x]) for x in ['rx_errors', 'tx_errors', 'rx_dropped', 'tx_dropped']), tags)
         except Exception:
@@ -169,18 +166,15 @@ class Kubernetes(AgentCheck):
 
     def _update_metrics(self, instance):
         metrics = self._retrieve_json(self.metrics_cmd)
-        service_check_name = self.namespace + '.metrics_collection'
         if not metrics:
-            self.service_check(service_check_name, AgentCheck.CRITICAL, 'No metrics retrieved')
-            return
-        self.service_check(service_check_name, AgentCheck.OK)
+            raise Exception('No metrics retrieved cmd=%s' % self.metrics_cmd)
 
         for subcontainer in metrics:
             tags = []
 
             try:
                 for label_name,label in subcontainer['spec']['labels'].iteritems():
-                    label_name = label_name.replace("io.kubernetes.pod.name", "pod_name")
+                    label_name = label_name.replace('io.kubernetes.pod.name', 'pod_name')
                     tags.append('%s:%s' % (label_name, label))
             except KeyError:
                 tags.append('container_name:%s' % self._shorten_name(subcontainer['name']))
