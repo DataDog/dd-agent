@@ -220,6 +220,9 @@ class DockerDaemon(AgentCheck):
             # Initialization can fail if cgroups are not ready. So we retry if needed
             # https://github.com/DataDog/dd-agent/issues/1896
             self.init()
+            if not self.init_success:
+                # Initialization failed, will try later
+                return
 
         # Report image metrics
         if self.collect_image_stats:
