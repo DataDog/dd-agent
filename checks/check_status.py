@@ -22,7 +22,7 @@ import config
 from config import _is_affirmative, _windows_commondata_path, get_config
 from util import plural
 from utils.jmx import JMXFiles
-from utils.ntp import get_ntp_args
+from utils.ntp import get_ntp_args, set_user_ntp_settings
 from utils.pidfile import PidFile
 from utils.platform import Platform
 from utils.profile import pretty_statistics
@@ -103,6 +103,7 @@ def logger_info():
 
 
 def get_ntp_info():
+    set_user_ntp_settings()
     req_args = get_ntp_args()
     ntp_offset = ntplib.NTPClient().request(**req_args).offset
     if abs(ntp_offset) > NTP_OFFSET_THRESHOLD:

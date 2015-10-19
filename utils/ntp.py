@@ -1,5 +1,9 @@
 # stdlib
+import os
 import random
+
+# project
+from config import check_yaml, get_confd_path
 
 user_ntp_settings = {}
 
@@ -8,8 +12,15 @@ DEFAULT_TIMEOUT = 1 # in seconds
 DEFAULT_PORT = "ntp"
 
 
-def set_user_ntp_settings(instance):
+def set_user_ntp_settings(instance=None):
     global user_ntp_settings
+    if instance is None:
+        try:
+            ntp_check_config = check_yaml(os.path.join(get_confd_path(), 'ntp.yaml'))
+            instance = ntp_check_config['instances'][0]
+        except Exception:
+            instance = {}
+
     user_ntp_settings = instance
 
 def get_ntp_host(subpool=None):
