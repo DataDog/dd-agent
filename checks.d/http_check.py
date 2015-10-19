@@ -5,16 +5,113 @@ import re
 import socket
 import ssl
 import time
+import warnings
 from urlparse import urlparse
 
 # 3rd party
 import requests
 import tornado
 
+from requests.adapters import HTTPAdapter
+from requests.packages import urllib3
+from requests.packages.urllib3.util import ssl_
+
+from requests.packages.urllib3.exceptions import (
+    SecurityWarning,
+)
+from requests.packages.urllib3.packages.ssl_match_hostname import \
+    match_hostname
+
 # project
 from checks.network_checks import EventType, NetworkCheck, Status
 from config import _is_affirmative
 from util import headers as agent_headers
+
+
+class WeakCiphersHTTPSConnection(urllib3.connection.VerifiedHTTPSConnection):
+
+    SUPPORTED_CIPHERS = (
+        'ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:'
+        'ECDH+HIGH:DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:'
+        'RSA+3DES:ECDH+RC4:DH+RC4:RSA+RC4:!aNULL:!eNULL:!EXP:-MD5:RSA+RC4+MD5'
+    )
+
+    def __init__(self, host, port, ciphers=None, **kwargs):
+        self.ciphers = ciphers if ciphers is not None else self.SUPPORTED_CIPHERS
+        super(WeakCiphersHTTPSConnection, self).__init__(host, port, **kwargs)
+
+    def connect(self):
+        # Add certificate verification
+        conn = self._new_conn()
+
+        resolved_cert_reqs = ssl_.resolve_cert_reqs(self.cert_reqs)
+        resolved_ssl_version = ssl_.resolve_ssl_version(self.ssl_version)
+
+        hostname = self.host
+
+        self.sock = conn
+        # Calls self._set_hostport(), so self.host is
+        # self._tunnel_host below.
+        self._tunnel()
+        # Mark this connection as not reusable
+        self.auto_open = 0
+
+        # Override the host with the one we're requesting data from.
+        hostname = self._tunnel_host
+
+        # Wrap socket using verification with the root certs in trusted_root_certs
+        self.sock = ssl_.ssl_wrap_socket(conn, self.key_file, self.cert_file,
+                                        cert_reqs=resolved_cert_reqs,
+                                        ca_certs=self.ca_certs,
+                                        server_hostname=hostname,
+                                        ssl_version=resolved_ssl_version,
+                                        ciphers=self.ciphers)
+
+        if self.assert_fingerprint:
+            ssl_.assert_fingerprint(self.sock.getpeercert(binary_form=True), self.assert_fingerprint)
+        elif resolved_cert_reqs != ssl.CERT_NONE \
+                and self.assert_hostname is not False:
+            cert = self.sock.getpeercert()
+            if not cert.get('subjectAltName', ()):
+                warnings.warn((
+                    'Certificate has no `subjectAltName`, falling back to check for a `commonName` for now. '
+                    'This feature is being removed by major browsers and deprecated by RFC 2818. '
+                    '(See https://github.com/shazow/urllib3/issues/497 for details.)'),
+                    SecurityWarning
+                )
+            match_hostname(cert, self.assert_hostname or hostname)
+
+        self.is_verified = (resolved_cert_reqs == ssl.CERT_REQUIRED
+                            or self.assert_fingerprint is not None)
+
+
+class WeakCiphersHTTPSConnectionPool(urllib3.connectionpool.HTTPSConnectionPool):
+
+    ConnectionCls = WeakCiphersHTTPSConnection
+
+
+class WeakCiphersPoolManager(urllib3.poolmanager.PoolManager):
+
+    def _new_pool(self, scheme, host, port):
+        if scheme == 'https':
+            return WeakCiphersHTTPSConnectionPool(host, port, **(self.connection_pool_kw))
+        return super(WeakCiphersPoolManager, self)._new_pool(scheme, host, port)
+
+
+class WeakCiphersAdapter(HTTPAdapter):
+    """"Transport adapter" that allows us to use TLS_RSA_WITH_RC4_128_MD5."""
+
+    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
+        # Rewrite of the
+        # requests.adapters.HTTPAdapter.init_poolmanager method
+        # to use WeakCiphersPoolManager instead of
+        # urllib3's PoolManager
+        self._pool_connections = connections
+        self._pool_maxsize = maxsize
+        self._pool_block = block
+
+        self.poolmanager = WeakCiphersPoolManager(num_pools=connections,
+                                                  maxsize=maxsize, block=block, strict=True, **pool_kwargs)
 
 
 def get_ca_certs_path():
@@ -61,20 +158,23 @@ class HTTPCheck(NetworkCheck):
         ssl = _is_affirmative(instance.get('disable_ssl_validation', True))
         ssl_expire = _is_affirmative(instance.get('check_certificate_expiration', True))
         instance_ca_certs = instance.get('ca_certs', self.ca_certs)
+        weakcipher = _is_affirmative(instance.get('weakciphers', False))
 
         return url, username, password, http_response_status_code, timeout, include_content,\
-            headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs
+            headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs,\
+            weakcipher
 
     def _check(self, instance):
         addr, username, password, http_response_status_code, timeout, include_content, headers,\
             response_time, content_match, tags, disable_ssl_validation,\
-            ssl_expire, instance_ca_certs = self._load_conf(instance)
+            ssl_expire, instance_ca_certs, weakcipher = self._load_conf(instance)
         start = time.time()
 
         service_checks = []
         try:
+            parsed_uri = urlparse(addr)
             self.log.debug("Connecting to %s" % addr)
-            if disable_ssl_validation and urlparse(addr)[0] == "https":
+            if disable_ssl_validation and parsed_uri.scheme == "https":
                 self.warning("Skipping SSL certificate validation for %s based on configuration"
                              % addr)
 
@@ -82,7 +182,14 @@ class HTTPCheck(NetworkCheck):
             if username is not None and password is not None:
                 auth = (username, password)
 
-            r = requests.get(addr, auth=auth, timeout=timeout, headers=headers,
+            sess = requests.Session()
+            if weakcipher:
+                base_addr = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_uri)
+                sess.mount(base_addr, WeakCiphersAdapter())
+                self.log.debug("Weak Ciphers will be used for {0}. Suppoted Cipherlist: {1}".format(
+                    base_addr, WeakCiphersHTTPSConnection.SUPPORTED_CIPHERS))
+
+            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers,
                              verify=False if disable_ssl_validation else instance_ca_certs)
 
         except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
@@ -156,7 +263,7 @@ class HTTPCheck(NetworkCheck):
                     self.SC_STATUS, Status.UP, "UP"
                 ))
 
-        if ssl_expire and urlparse(addr)[0] == "https":
+        if ssl_expire and parsed_uri.scheme == "https":
             status, msg = self.check_cert_expiration(instance, timeout, instance_ca_certs)
             service_checks.append((
                 self.SC_SSL_CERT, status, msg
