@@ -61,7 +61,7 @@ class Riak(AgentCheck):
         default_timeout = self.init_config.get('default_timeout', 5)
         timeout = float(instance.get('timeout', default_timeout))
         tags = instance.get('tags', [])
-        service_check_tags = ['url:%s' % url]
+        service_check_tags = tags + ['url:%s' % url]
 
         try:
             h = Http(timeout=timeout)
