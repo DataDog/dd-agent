@@ -33,7 +33,7 @@ SNMP_GAUGES = frozenset([
     snmp_type.Integer.__name__,
     snmp_type.Integer32.__name__])
 
-OID_BATCH_SIZE = 10
+DEFAULT_OID_BATCH_SIZE = 10
 
 
 def reply_invalid(oid):
@@ -61,6 +61,9 @@ class SnmpCheck(AgentCheck):
 
         # Create SNMP command generator and aliases
         self.create_command_generator(mibs_path, ignore_nonincreasing_oid)
+
+        # Set OID batch size
+        self.oid_batch_size = int(init_config.get("oid_batch_size", DEFAULT_OID_BATCH_SIZE))
 
     def snmp_logger(self, func):
         """
@@ -184,11 +187,11 @@ class SnmpCheck(AgentCheck):
             error_indication, error_status, error_index, var_binds = self.snmpget(
                 auth_data,
                 transport_target,
-                *(oids[first_oid:first_oid + OID_BATCH_SIZE]),
+                *(oids[first_oid:first_oid + self.oid_batch_size]),
                 lookupValues=lookup_names,
                 lookupNames=lookup_names)
 
-            first_oid = first_oid + OID_BATCH_SIZE
+            first_oid = first_oid + self.oid_batch_size
 
             # Raise on error_indication
             self.raise_on_error_indication(error_indication, instance)
