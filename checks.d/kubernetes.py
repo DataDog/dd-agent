@@ -171,14 +171,21 @@ class Kubernetes(AgentCheck):
 
         for subcontainer in metrics:
             tags = []
-
+            tags.append('container_name:%s' % self._shorten_name(subcontainer['name']))
+            
             try:
                 for label_name,label in subcontainer['spec']['labels'].iteritems():
                     label_name = label_name.replace('io.kubernetes.pod.name', 'pod_name')
                     tags.append('%s:%s' % (label_name, label))
             except KeyError:
-                tags.append('container_name:%s' % self._shorten_name(subcontainer['name']))
+                pass
 
+            try:
+                for alias in subcontainer['aliases']:
+                    tags.append('container_name:%s' % (self._shorten_name(alias)))
+            except KeyError:
+                pass
+                    
             stats = subcontainer['stats'][-1]  # take latest
             if self.enabled_metrics:
                 self._publish_raw_metrics(self.namespace, stats, tags)
