@@ -24,8 +24,9 @@ instances:
   # kubelet_port: 10255
   #
   # We can define a whitelist of patterns that permit publishing raw metrics.
-  # enabled_metrics:
+  # enabled_rates:
   #   - cpu.*
   #   - network.*
-
-
+  #
+  # enabled_gauges:
+  #   - filesystem.*

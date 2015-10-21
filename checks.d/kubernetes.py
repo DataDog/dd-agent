@@ -22,11 +22,14 @@ DEFAULT_NAMESPACE = 'kubernetes'
 DEFAULT_KUBELET_PORT = 10255
 DEFAULT_MASTER_PORT = 8080
 DEFAULT_PUBLISH_CONTAINER_NAMES = False
-DEFAULT_ENABLED_METRICS = ['cpu.*.total',
-                           'diskio.io_service_bytes.stats.total',
-                           'network.??_packets',
-                           'memory.usage',
-                           'filesystem.usage']
+DEFAULT_ENABLED_RATES = [
+    'diskio.io_service_bytes.stats.total',
+    'network.??_bytes',
+    'cpu.*.total']
+
+DEFAULT_ENABLED_GAUGES = [
+    'memory.usage',
+    'filesystem.usage']
 
 class Kubernetes(AgentCheck):
     """ Collect metrics and events from kubelet """
@@ -101,8 +104,10 @@ class Kubernetes(AgentCheck):
         self.metrics_cmd = urljoin(self.metrics_url, DEFAULT_METRICS_CMD)
         self.max_depth = instance.get('max_depth', DEFAULT_MAX_DEPTH)
         self.namespace = instance.get('namespace', DEFAULT_NAMESPACE)
-        enabled_metrics = instance.get('enabled_metrics', DEFAULT_ENABLED_METRICS)
-        self.enabled_metrics = [self.namespace+'.'+x for x in enabled_metrics]
+        enabled_gauges = instance.get('enabled_gauges', DEFAULT_ENABLED_GAUGES)
+        self.enabled_gauges = [self.namespace+'.'+x for x in enabled_gauges]
+        enabled_rates = instance.get('enabled_rates', DEFAULT_ENABLED_RATES)
+        self.enabled_rates = [self.namespace+'.'+x for x in enabled_rates]
 
         # master health checks
         if instance.get('enable_master_checks', False):
@@ -127,9 +132,12 @@ class Kubernetes(AgentCheck):
 
         type_ = type(dat)
         if type_ is int or type_ is long or type_ is float:
-            if self.enabled_metrics and not any([fnmatch(metric, pat) for pat in self.enabled_metrics]):
+            if self.enabled_rates and any([fnmatch(metric, pat) for pat in self.enabled_rates]):
+                self.rate(metric, long(dat), tags)
+            elif self.enabled_gauges and any([fnmatch(metric, pat) for pat in self.enabled_gauges]):
+                self.gauge(metric, long(dat), tags)
+            else:
                 return
-            self.rate(metric, long(dat), tags)
         elif type_ is dict:
             for k,v in dat.iteritems():
                 self._publish_raw_metrics(metric + '.%s' % k.lower(), v, tags, depth + 1)
@@ -172,7 +180,7 @@ class Kubernetes(AgentCheck):
         for subcontainer in metrics:
             tags = []
             tags.append('container_name:%s' % self._shorten_name(subcontainer['name']))
-            
+
             try:
                 for label_name,label in subcontainer['spec']['labels'].iteritems():
                     label_name = label_name.replace('io.kubernetes.pod.name', 'pod_name')
@@ -185,8 +193,7 @@ class Kubernetes(AgentCheck):
                     tags.append('container_name:%s' % (self._shorten_name(alias)))
             except KeyError:
                 pass
-                    
+
             stats = subcontainer['stats'][-1]  # take latest
-            if self.enabled_metrics:
-                self._publish_raw_metrics(self.namespace, stats, tags)
+            self._publish_raw_metrics(self.namespace, stats, tags)
             self._publish_calculated_metrics(self.namespace, stats, tags)
