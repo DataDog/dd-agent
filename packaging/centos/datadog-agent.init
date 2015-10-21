@@ -178,6 +178,9 @@ case "$1" in
             echo "${RED}Warning: Known bug in Linux Kernel 3.18+ causes 'status' to fail.${NC}"
             echo "Calling 'info', instead..."
             service datadog-agent info
+            if [ $? -ne 0 ]; then
+                exit 1
+            fi
         else
             check_status
         fi
