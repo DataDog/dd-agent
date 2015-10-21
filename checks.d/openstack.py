@@ -145,7 +145,8 @@ class OpenstackCheck(AgentCheck):
         auth_url = "{0}/{1}/auth/tokens".format(keystone_server_url, self.DEFAULT_KEYSTONE_API_VERSION)
         headers = {'Content-Type': 'application/json'}
 
-        resp = requests.post(auth_url, headers=headers, data=json.dumps(payload))
+        self.log.debug("SSL Certificate Verification set to %s", self._ssl_verify)
+        resp = requests.post(auth_url, headers=headers, data=json.dumps(payload), verify=self._ssl_verify)
         resp.raise_for_status()
 
         self._nova_url = self.get_nova_url_from_auth_response(resp.json(),
@@ -157,7 +158,8 @@ class OpenstackCheck(AgentCheck):
         # Store tenant ID for future use
         project_url = "{0}/{1}/projects".format(keystone_server_url, self.DEFAULT_KEYSTONE_API_VERSION)
         headers = {'X-Auth-Token': self._auth_token}
-        resp = requests.get(project_url, headers=headers).json()
+        self.log.debug("SSL Certificate Verification set to %s", self._ssl_verify)
+        resp = requests.get(project_url, headers=headers, verify=self._ssl_verify).json()
 
     ###
 
