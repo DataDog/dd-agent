@@ -245,16 +245,27 @@ class OpenstackCheck(AgentCheck):
     def get_nova_url_from_auth_response(self, json_resp, nova_version=None):
         nova_version = nova_version or self.DEFAULT_NOVA_API_VERSION
         catalog = json_resp.get('token', {}).get('catalog', [])
+        self.log.debug("Keystone Service Catalog: %s", catalog)
         nova_match = 'novav21' if nova_version == 'v2.1' else 'nova'
         for entry in catalog:
             if entry['name'] == nova_match:
+                # Collect any endpoints on the public or internal interface
+                valid_endpoints = {}
                 for ep in entry['endpoints']:
-                    if ep.get('interface', '') == 'public':
-                        url = ep.get('url', None)
-                        if url is not None:
-                            return url
-                # Fall back to the 1st one
-                return entry['endpoints'][0].get('url', '')
+                    interface = ep.get('interface','')
+                    if interface in ['public', 'internal']:
+                        valid_endpoints[interface] = ep['url']
+
+                if valid_endpoints:
+                    # Favor public endpoints over internal
+                    return valid_endpoints.get("public",
+                                               valid_endpoints.get("internal"))
+                else:
+                    # (FIXME) Fall back to the 1st available one
+                    self.warning("Nova endpoint on public interface not found. Defaulting to {0}".format(
+                        entry['endpoints'][0].get('url', '')
+                    ))
+                    return entry['endpoints'][0].get('url', '')
         else:
             return None
 
