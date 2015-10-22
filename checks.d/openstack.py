@@ -72,9 +72,16 @@ class OpenstackCheck(AgentCheck):
         self._nova_url = None
         self._neutron_url = None
 
-        self._aggregate_list = None
         self._ssl_verify = init_config.get("ssl_verify", True)
 
+        self._tenant_id = None
+        self._append_tenant_id = init_config.get("append_tenant_id", False)
+
+        ### Cache some stuff between runs for values that change rarely
+        self._aggregate_list = None
+        self._physical_host_list = None
+        self._hypervisor_list = None
+        ###
 
     def _make_request_with_auth_fallback(self, url, headers=None, verify=True):
         self.log.debug("SSL Certificate Verification set to %s", verify)
@@ -95,14 +102,26 @@ class OpenstackCheck(AgentCheck):
 
     ### Check config accessors
     def _get_auth_scope(self):
+        """
+        Expects
+        {'project': {'name': 'my_project', 'domain': 'my_domain} or {'project': {'id': 'my_project_id'}}
+        """
+
         auth_scope = self.init_config.get('auth_scope')
-        if not auth_scope or not auth_scope.get('project') or not auth_scope.get('project').get('name'):
+        if not auth_scope or not auth_scope.get('project'):
             self.warning("Please specify the auth scope via the `auth_scope` variable in your init_config.\n" +
-                         "The auth_scope should look like: {'project': {'name': 'my_project'}}")
+                         "The auth_scope should look like: {'project': {'name': 'my_project'}} or {'project': {'id': 'project_uuid'}")
             raise IncompleteConfig
 
-        if not auth_scope['project'].get('domain', {}).get('id'):
-            auth_scope['project']['domain'] = {'id': 'default'}
+        if auth_scope['project'].get('name'):
+            # We need to add a domain scope to avoid name, clashes. Search for one. If not raise IncompleteConfig
+            if not auth_scope['project'].get('domain', {}).get('id'):
+                raise IncompleteConfig
+        else:
+            if not auth_scope['project'].get('id'):
+                raise IncompleteConfig
+            self._tenant_id = auth_scope['project']['id']
+
         self.log.debug("Auth Scope: %s", auth_scope)
         return auth_scope
 
@@ -136,7 +155,6 @@ class OpenstackCheck(AgentCheck):
         keystone_api_version = self.init_config.get('keystone_api_version', self.DEFAULT_KEYSTONE_API_VERSION)
 
         auth_scope = self._get_auth_scope()
-        project_name = auth_scope['project']['name']
 
         identity = self._get_identity_by_method()
         keystone_server_url = self._get_keystone_server_url()
@@ -247,6 +265,9 @@ class OpenstackCheck(AgentCheck):
         catalog = json_resp.get('token', {}).get('catalog', [])
         self.log.debug("Keystone Service Catalog: %s", catalog)
         nova_match = 'novav21' if nova_version == 'v2.1' else 'nova'
+
+        nova_endpoint = None
+
         for entry in catalog:
             if entry['name'] == nova_match:
                 # Collect any endpoints on the public or internal interface
@@ -258,16 +279,28 @@ class OpenstackCheck(AgentCheck):
 
                 if valid_endpoints:
                     # Favor public endpoints over internal
-                    return valid_endpoints.get("public",
-                                               valid_endpoints.get("internal"))
+                    nova_endpoint = valid_endpoints.get("public",
+                                        valid_endpoints.get("internal"))
+                    break
                 else:
                     # (FIXME) Fall back to the 1st available one
                     self.warning("Nova endpoint on public interface not found. Defaulting to {0}".format(
                         entry['endpoints'][0].get('url', '')
                     ))
-                    return entry['endpoints'][0].get('url', '')
+                    nova_endpoint = entry['endpoints'][0].get('url', '')
+                    break
         else:
+            self.warning("Nova service %s cannot be found in your service catalog", nova_match)
             return None
+
+        if self._append_tenant_id:
+            assert self._tenant_id and self._tenant_id not in nova_endpoint,\
+                """Incorrect use of _append_tenant_id, please inspect service catalog response.
+                   You may need to disable this flag if you're Nova service url contains the tenant_id already"""
+
+            return "{0}/{1}".format(nova_endpoint, self._tenant_id)
+        else:
+            return nova_endpoint
 
     def get_hypervisor_stats(self):
         if self.init_config.get('check_all_hypervisors', False):
