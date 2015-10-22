@@ -156,7 +156,7 @@ class IO(Check):
                     # cols[0] is the device
                     # cols[1:] are the values
                     io[cols[0]] = {}
-                    for i in range(1, len(cols)):
+                    for i in range(2, len(cols)):
                         io[cols[0]][self.xlate(headers[i], "sunos")] = cols[i]
 
             elif sys.platform.startswith("freebsd"):
@@ -300,6 +300,9 @@ class Memory(Check):
                 self.logger.exception('Cannot get memory metrics from /proc/meminfo')
                 return False
 
+            # NOTE: not all of the stats below are present on all systems as
+            # not all kernel versions report all of them.
+            #
             # $ cat /proc/meminfo
             # MemTotal:        7995360 kB
             # MemFree:         1045120 kB
@@ -362,7 +365,9 @@ class Memory(Check):
             try:
                 memData['physTotal'] = int(meminfo.get('MemTotal', 0)) / 1024
                 memData['physFree'] = int(meminfo.get('MemFree', 0)) / 1024
-                memData['physAvailable'] = int(meminfo.get('MemAvailable', 0)) / 1024
+                if 'MemAvailable' in meminfo:
+                    memData['physAvailable'] = int(meminfo.get('MemAvailable', 0)) / 1024
+
                 memData['physBuffers'] = int(meminfo.get('Buffers', 0)) / 1024
                 memData['physCached'] = int(meminfo.get('Cached', 0)) / 1024
                 memData['physShared'] = int(meminfo.get('Shmem', 0)) / 1024
@@ -373,7 +378,8 @@ class Memory(Check):
 
                 if memData['physTotal'] > 0:
                     memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
-                    memData['physPctAvailable'] = float(memData['physAvailable']) / float(memData['physTotal'])
+                    if 'physAvailable' in memData:
+                        memData['physPctAvailable'] = float(memData['physAvailable']) / float(memData['physTotal'])
             except Exception:
                 self.logger.exception('Cannot compute stats from /proc/meminfo')
 
