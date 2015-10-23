@@ -353,9 +353,15 @@ class JMXFetch(object):
 
                 # Support for attach api using a process name regex
                 proc_regex = inst.get('process_name_regex')
+                # Support for a custom jmx URL
+                jmx_url = inst.get('jmx_url')
+                name = inst.get('name')
 
                 if proc_regex is not None:
                     is_attach_api = True
+                elif jmx_url is not None:
+                    if name is None:
+                        raise InvalidJMXConfiguration("A name must be specified when using a jmx_url")
                 else:
                     if host is None:
                         raise InvalidJMXConfiguration("A host must be specified")
