@@ -319,10 +319,6 @@ class Collector(object):
                     'memBuffers': memory.get('physBuffers'),
                     'memShared': memory.get('physShared')
                 }
-                if 'physAvailable' in memory:
-                    memstats['memPhysAvailable'] = memory.get('physAvailable'),
-                if 'physPctAvailable' in memory:
-                    memstats['memPhysPctAvailable'] = memory.get('physPctAvailable'),
                 payload.update(memstats)
 
             ioStats = sys_checks['io'].check(self.agentConfig)
