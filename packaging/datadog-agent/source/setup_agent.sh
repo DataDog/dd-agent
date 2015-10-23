@@ -507,9 +507,9 @@ fi
 # Yay IT WORKED!
 print_green "Success! Your Agent is functioning properly, and will continue to run
 in the foreground. To stop it, simply press CTRL-C. To start it back
-up again in the foreground, run:
+up again in the foreground, run the following command from the $DD_HOME directory:
 
-    $DD_HOME/bin/agent
+    bin/agent
 "
 
 wait $AGENT_PID
