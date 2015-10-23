@@ -190,7 +190,7 @@ class Kubernetes(AgentCheck):
 
             try:
                 for alias in subcontainer['aliases']:
-                    tags.append('container_name:%s' % (self._shorten_name(alias)))
+                    tags.append('container_alias:%s' % (self._shorten_name(alias)))
             except KeyError:
                 pass
 
