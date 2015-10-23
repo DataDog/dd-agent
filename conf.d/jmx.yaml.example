@@ -1,4 +1,7 @@
 init_config:
+  # custom_jar_paths: # Optional, allows specifying custom jars that will be added to the classpath of the agent's JVM
+  #   - /path/to/custom/jarfile.jar
+  #   - /path/to/another/custom/jarfile2.jar
 
 instances:
   # - host: localhost
