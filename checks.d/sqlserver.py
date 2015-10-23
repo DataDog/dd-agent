@@ -88,6 +88,8 @@ class SQLServer(AgentCheck):
                 self.log.exception("Skipping SQL Server instance")
                 continue
 
+        self.close_db_connections()
+
     def _make_metric_list_to_collect(self, instance, custom_metrics):
         """
         Store the list of metrics to collect by instance_key.
@@ -176,10 +178,13 @@ class SQLServer(AgentCheck):
         host, username, password, database = self._get_access_info(instance)
         return '%s:%s:%s:%s' % (host, username, password, database)
 
-    def _conn_string(self, instance):
+    def _conn_string(self, instance=None, conn_key=None):
         ''' Return a connection string to use with adodbapi
         '''
-        host, username, password, database = self._get_access_info(instance)
+        if instance:
+            host, username, password, database = self._get_access_info(instance)
+        elif conn_key:
+            host, username, password, database = conn_key.split(":")
         conn_str = 'Provider=SQLOLEDB;Data Source=%s;Initial Catalog=%s;' \
             % (host, database)
         if username:
@@ -208,13 +213,13 @@ class SQLServer(AgentCheck):
 
         if conn_key not in self.connections:
             try:
-                conn = adodbapi.connect(
-                    self._conn_string(instance),
-                    timeout=int(instance.get('command_timeout',
-                                             self.DEFAULT_COMMAND_TIMEOUT))
-                )
-                self.connections[conn_key] = conn
-                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
+                timeout = int(instance.get('command_timeout',
+                                           self.DEFAULT_COMMAND_TIMEOUT))
+                conn = adodbapi.connect(self._conn_string(instance=instance),
+                                        timeout=timeout)
+                self.connections[conn_key] = {'conn': conn, 'timeout': timeout}
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                                   tags=service_check_tags)
             except Exception:
                 cx = "%s - %s" % (host, database)
                 message = "Unable to connect to SQL Server for instance %s." % cx
@@ -233,7 +238,7 @@ class SQLServer(AgentCheck):
                     self.failed_connections[conn_key] = cxn_failure_exp
                 raise cxn_failure_exp
 
-        conn = self.connections[conn_key]
+        conn = self.connections[conn_key]['conn']
         cursor = conn.cursor()
         return cursor
 
@@ -275,6 +280,7 @@ class SQLServer(AgentCheck):
         """
         Fetch the metrics from the sys.dm_os_performance_counters table
         """
+        self.open_db_connections()
         cursor = self.get_cursor(instance)
 
         custom_tags = instance.get('tags', [])
@@ -288,6 +294,7 @@ class SQLServer(AgentCheck):
                 self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
         self.close_cursor(cursor)
+        self.close_db_connections()
 
     def close_cursor(self, cursor):
         """
@@ -299,6 +306,35 @@ class SQLServer(AgentCheck):
             cursor.close()
         except Exception as e:
             self.log.warning("Could not close adodbapi cursor\n{0}".format(e))
+
+    def close_db_connections(self):
+        """
+        We close the db connections explicitly b/c when we don't they keep
+        locks on the db. This presents as issues such as the SQL Server Agent
+        being unable to stop.
+        """
+        for _, connection in self.connections.iteritems():
+            try:
+                connection['conn'].close()
+            except Exception as e:
+                self.log.warning("Could not close adodbapi db connection\n{0}".format(e))
+
+    def open_db_connections(self):
+        """
+        We open the db connections explicitly, so we can ensure they are open
+        before we use them, and are closable, once we are finished. Open db
+        connections keep locks on the db, presenting issues such as the SQL
+        Server Agent being unable to stop.
+        """
+        for conn_key, connection in self.connections.iteritems():
+            conn = connection['conn']
+            timeout = connection['timeout']
+            conn_dict = {'connection_string': self._conn_string(conn_key=conn_key),
+                         'timeout': timeout}
+            try:
+                conn.connect(conn_dict)
+            except Exception as e:
+                self.log.warning("Could not connect to SQL Server\n{0}".format(e))
 
 
 class SqlServerMetric(object):
