@@ -114,10 +114,16 @@ class OpenStackCheck(AgentCheck):
 
         self._ssl_verify = init_config.get("ssl_verify", True)
 
+        ### Auth parameters
         self._tenant_id = None
+        self._project_name = None
+        self._domain_id = None
+        ###
+
+        # Workaround for appending tenant id to Nova url returned by keystone
         self._append_tenant_id = init_config.get("append_tenant_id", False)
 
-        ### Cache some stuff between runs for values that change rarely
+        ### Cache some things between runs for values that change rarely
         self._aggregate_list = None
         self._physical_host_list = None
         self._hypervisor_list = None
@@ -156,12 +162,17 @@ class OpenStackCheck(AgentCheck):
             raise IncompleteConfig
 
         if auth_scope['project'].get('name'):
-            # We need to add a domain scope to avoid name, clashes. Search for one. If not raise IncompleteConfig
+            # We need to add a domain scope to avoid name clashes. Search for one. If not raise IncompleteConfig
             if not auth_scope['project'].get('domain', {}).get('id'):
                 raise IncompleteConfig
+
+            # store project name and domain id
+            self._project_name = auth_scope['project']['name']
+            self._domain_id = auth_scope['project']['domain']['id']
         else:
             if not auth_scope['project'].get('id'):
                 raise IncompleteConfig
+
             self._tenant_id = auth_scope['project']['id']
 
         self.log.debug("Auth Scope: %s", auth_scope)
@@ -568,7 +579,7 @@ class OpenStackCheck(AgentCheck):
         resp = self._make_request_with_auth_fallback(url, headers)
 
         server_stats = resp.json()
-        tags = ['project_id:{0}'.format(project['id'])]
+        tags = ['tenant_id:{0}'.format(project['id'])]
         if 'name' in project:
             tags.append('project_name:{0}'.format(project['name']))
 
@@ -607,6 +618,8 @@ class OpenStackCheck(AgentCheck):
             try:
                 if self._check_v2:
                     hyp = self.get_local_hypervisor()
+                    project = self.get_local_project()
+
                     aggregate = self.get_aggregates_for_local_host()
 
                     # Restrict monitoring to hyp and servers, don't do anything else
@@ -617,16 +630,15 @@ class OpenStackCheck(AgentCheck):
                         server_tags = host_tags + ['host:%s' % sid]
                         self.get_stats_for_single_server(sid, tags=server_tags)
 
-                    hyp_stats = {}
                     self.get_stats_for_single_hypervisor(hyp, host_tags=host_tags)
+                    self.get_stats_for_single_project({"id": project})
                 else:
                     self.get_hypervisor_stats()
                     self.get_server_stats()
+                    self.get_project_stats()
 
                 # What about networks? monitor all
                 self.get_network_stats()
-
-                self.get_project_stats()
             except OpenstackAuthFailure:
                 self._auth_required = True
 
@@ -641,6 +653,29 @@ class OpenStackCheck(AgentCheck):
         host = self.get_my_hostname()
         hyp = self.get_all_hypervisor_ids(filter_by_host=host)
         return hyp[0]
+
+    def get_local_project(self):
+        if self._tenant_id:
+            return self._tenant_id
+
+        if not (self._project_name and self._domain_id):
+            # sets auth state for future use
+            self._get_auth_scope()
+
+        _filter = "?name={0}&domain_id={1}".format(self._project_name, self._domain_id)
+        url = "{0}/{1}/{2}/{3}".format(self._get_keystone_server_url(), self.DEFAULT_KEYSTONE_API_VERSION, "projects", _filter)
+        headers = {'X-Auth-Token': self._auth_token}
+
+        projects = []
+        try:
+            resp = self._make_request_with_auth_fallback(url, headers)
+            project_details = resp.json()
+            for project in project_details["projects"]:
+                projects.append(project)
+        except Exception as e:
+            self.warning('Unable to get the list of all project ids: {0}'.format(str(e)))
+
+        return projects[0]
 
     def get_my_hostname(self):
         return socket.gethostname()
