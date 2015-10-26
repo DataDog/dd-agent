@@ -13,6 +13,7 @@ import requests
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 
 DEFAULT_METHOD = 'http'
 DEFAULT_CADVISOR_PORT = 4194
@@ -21,7 +22,6 @@ DEFAULT_MAX_DEPTH = 10
 DEFAULT_NAMESPACE = 'kubernetes'
 DEFAULT_KUBELET_PORT = 10255
 DEFAULT_MASTER_PORT = 8080
-DEFAULT_PUBLISH_CONTAINER_NAMES = False
 DEFAULT_USE_HISTOGRAM = True
 DEFAULT_ENABLED_RATES = [
     'diskio.io_service_bytes.stats.total',
@@ -110,7 +110,7 @@ class Kubernetes(AgentCheck):
         enabled_rates = instance.get('enabled_rates', DEFAULT_ENABLED_RATES)
         self.enabled_rates = [self.namespace+'.'+x for x in enabled_rates]
         
-        self.use_histogram = instance.get('use_histogram', DEFAULT_USE_HISTOGRAM)
+        self.use_histogram = _is_affirmative(instance.get('use_histogram', DEFAULT_USE_HISTOGRAM))
         if self.use_histogram:
             self.publish_rate = self.historate
             self.publish_gauge = self.histogram
