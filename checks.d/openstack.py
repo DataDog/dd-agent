@@ -129,7 +129,7 @@ class OpenStackCheck(AgentCheck):
         self._hypervisor_list = None
         ###
 
-        self._check_v2 = init_config.get("check_v2", True)
+        self._local_only = init_config.get("local_only", True)
 
     def _make_request_with_auth_fallback(self, url, headers=None, verify=True):
         self.log.debug("SSL Certificate Verification set to %s", verify)
@@ -271,7 +271,7 @@ class OpenStackCheck(AgentCheck):
         for nid in network_ids:
             self.get_stats_for_single_network(nid)
 
-    def get_all_network_ids(self):
+    def get_all_network_ids(self, filter_by_project=None):
         url = '{0}/{1}/networks'.format(self._neutron_url, self.DEFAULT_NEUTRON_API_VERSION)
         headers = {'X-Auth-Token': self._auth_token}
 
@@ -616,7 +616,10 @@ class OpenStackCheck(AgentCheck):
             self.log.debug("Auth Token: %s", self._auth_token)
 
             try:
-                if self._check_v2:
+                if self._local_only:
+                    # The new default: restrict monitoring to this (host, hypervisor, project)
+                    # and it's guest servers
+
                     hyp = self.get_local_hypervisor()
                     project = self.get_local_project()
 
@@ -631,13 +634,15 @@ class OpenStackCheck(AgentCheck):
                         self.get_stats_for_single_server(sid, tags=server_tags)
 
                     self.get_stats_for_single_hypervisor(hyp, host_tags=host_tags)
-                    self.get_stats_for_single_project({"id": project})
+                    self.get_stats_for_single_project(project)
                 else:
+                    # Legacy behavior: monitor everything reachable
+                    # as enumerated by the user
                     self.get_hypervisor_stats()
                     self.get_server_stats()
                     self.get_project_stats()
 
-                # What about networks? monitor all
+                # For now, monitor all networks
                 self.get_network_stats()
             except OpenstackAuthFailure:
                 self._auth_required = True
@@ -670,8 +675,8 @@ class OpenStackCheck(AgentCheck):
         try:
             resp = self._make_request_with_auth_fallback(url, headers)
             project_details = resp.json()
-            for project in project_details["projects"]:
-                projects.append(project)
+            assert len(project_details["projects"]) == 1, "Non-unique project credentials"
+            return project_details["projects"][0]
         except Exception as e:
             self.warning('Unable to get the list of all project ids: {0}'.format(str(e)))
 
