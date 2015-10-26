@@ -102,9 +102,9 @@ class TestTransaction(unittest.TestCase):
             trManager.append(tr)
 
         # Try to flush them, time it
-        before = datetime.now()
+        before = datetime.utcnow()
         trManager.flush()
-        after = datetime.now()
+        after = datetime.utcnow()
         self.assertTrue((after - before) > 3 * THROTTLING_DELAY - timedelta(microseconds=100000),
                         "before = %s after = %s" % (before, after))
 

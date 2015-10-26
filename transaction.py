@@ -20,7 +20,7 @@ class Transaction(object):
 
         self._id = None
         self._error_count = 0
-        self._next_flush = datetime.now()
+        self._next_flush = datetime.utcnow()
         self._size = None
 
     def get_id(self):
@@ -52,10 +52,10 @@ class Transaction(object):
         if td > max_delay:
             td = max_delay
 
-        newdate = datetime.now() + td
+        newdate = datetime.utcnow() + td
         self._next_flush = newdate.replace(microsecond=0)
 
-    def time_to_flush(self,now = datetime.now()):
+    def time_to_flush(self,now = datetime.utcnow()):
         return self._next_flush < now
 
     def flush(self):
@@ -84,7 +84,7 @@ class TransactionManager(object):
         self._counter = 0
 
         self._trs_to_flush = None # Current transactions being flushed
-        self._last_flush = datetime.now() # Last flush (for throttling)
+        self._last_flush = datetime.utcnow() # Last flush (for throttling)
 
         # Track an initial status message.
         ForwarderStatus().persist()
@@ -138,7 +138,7 @@ class TransactionManager(object):
 
         to_flush = []
         # Do we have something to do ?
-        now = datetime.now()
+        now = datetime.utcnow()
         for tr in self._transactions:
             if tr.time_to_flush(now):
                 to_flush.append(tr)
@@ -175,7 +175,7 @@ class TransactionManager(object):
 
         if len(self._trs_to_flush) > 0:
 
-            td = self._last_flush + self._THROTTLING_DELAY - datetime.now()
+            td = self._last_flush + self._THROTTLING_DELAY - datetime.utcnow()
             # Python 2.7 has this built in, python < 2.7 don't...
             if hasattr(td,'total_seconds'):
                 delay = td.total_seconds()
@@ -184,7 +184,7 @@ class TransactionManager(object):
 
             if delay <= 0:
                 tr = self._trs_to_flush.pop()
-                self._last_flush = datetime.now()
+                self._last_flush = datetime.utcnow()
                 log.debug("Flushing transaction %d" % tr.get_id())
                 try:
                     tr.flush()
