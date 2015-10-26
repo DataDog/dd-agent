@@ -752,6 +752,7 @@ class Collector(object):
             pass
 
         metadata["hostname"] = get_hostname()
+        metadata["timezones"] = time.tzname
 
         # Add cloud provider aliases
         host_aliases = GCE.get_host_aliases(self.agentConfig)
