@@ -332,6 +332,7 @@ class AgentCheck(object):
         self.last_collection_time = defaultdict(int)
         self._instance_metadata = []
         self.svc_metadata = []
+        self.historate_dict = {}
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -428,6 +429,30 @@ class AgentCheck(object):
         :param device_name: (optional) The device name for this metric
         """
         self.aggregator.histogram(metric, value, tags, hostname, device_name)
+
+    def historate(self, metric, value, tags=None, hostname=None, device_name=None):
+        """
+        Computes a rate and sample it as a histogram
+        Sample a histogram value, with optional tags, hostname and device name.
+
+        :param metric: The name of the metric
+        :param value: The value to sample for the histogram
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        context = set(sorted(tags))
+        context.add("host:" + hostname)
+        context.add("device:" + device_name)
+        now = time.time()
+
+        if context in self.historate_dict:
+            prev_value, prev_ts = self.historate_dict[context]
+            rate = float(value - prev_value) / float(now - prev_ts)
+            self.aggregator.histogram(metric, rate, tags, hostname, device_name)
+
+        self.historate_dict[context] = (value, now)
+
 
     def set(self, metric, value, tags=None, hostname=None, device_name=None):
         """
