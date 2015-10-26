@@ -305,7 +305,7 @@ class Collector(object):
             memory = sys_checks['memory'].check(self.agentConfig)
 
             if memory:
-                payload.update({
+                memstats = {
                     'memPhysUsed': memory.get('physUsed'),
                     'memPhysPctUsable': memory.get('physPctUsable'),
                     'memPhysFree': memory.get('physFree'),
@@ -318,7 +318,8 @@ class Collector(object):
                     'memCached': memory.get('physCached'),
                     'memBuffers': memory.get('physBuffers'),
                     'memShared': memory.get('physShared')
-                })
+                }
+                payload.update(memstats)
 
             ioStats = sys_checks['io'].check(self.agentConfig)
             if ioStats:

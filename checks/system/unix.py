@@ -300,9 +300,13 @@ class Memory(Check):
                 self.logger.exception('Cannot get memory metrics from /proc/meminfo')
                 return False
 
+            # NOTE: not all of the stats below are present on all systems as
+            # not all kernel versions report all of them.
+            #
             # $ cat /proc/meminfo
             # MemTotal:        7995360 kB
             # MemFree:         1045120 kB
+            # MemAvailable:    1253920 kB
             # Buffers:          226284 kB
             # Cached:           775516 kB
             # SwapCached:       248868 kB
@@ -364,10 +368,13 @@ class Memory(Check):
                 memData['physBuffers'] = int(meminfo.get('Buffers', 0)) / 1024
                 memData['physCached'] = int(meminfo.get('Cached', 0)) / 1024
                 memData['physShared'] = int(meminfo.get('Shmem', 0)) / 1024
-
                 memData['physUsed'] = memData['physTotal'] - memData['physFree']
-                # Usable is relative since cached and buffers are actually used to speed things up.
-                memData['physUsable'] = memData['physFree'] + memData['physBuffers'] + memData['physCached']
+
+                if 'MemAvailable' in meminfo:
+                    memData['physUsable'] = int(meminfo.get('MemAvailable', 0)) / 1024
+                else:
+                    # Usable is relative since cached and buffers are actually used to speed things up.
+                    memData['physUsable'] = memData['physFree'] + memData['physBuffers'] + memData['physCached']
 
                 if memData['physTotal'] > 0:
                     memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
