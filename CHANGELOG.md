@@ -1,6 +1,20 @@
 Changes
 =======
 
+# 5.5.2 / Unreleased
+### Details
+https://github.com/DataDog/dd-agent/compare/5.5.1...5.5.2
+
+### [WARNING] Datadog Agent not reporting metrics after Daylight Saving Time (DST) ends
+This release fixes a bug on servers that **are configured in local time instead of UTC Time**. If your server's clock is configured to use Daylight Saving Time (DST), the Datadog Agent might stop sending metrics for up to one hour when the Daylight Saving Time ends or until it is restarted after the Daylight Saving Time ends.
+
+We highly recommend to upgrade to this version if your server is configured in local time.
+
+### Changes
+* [BUGFIX] Consul: Send the health state service checks of all nodes. See [#1900][] (Thanks [@jgmchan][])
+* [BUGFIX] Core: Use `utcnow` instead of `now` to avoid the forwarder to run into a locked state. See [#2000][]
+
+
 # 5.5.1 / 09-23-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.5.0...5.5.1
@@ -1622,6 +1636,7 @@ If you use ganglia, you want this version.
 [#23]: https://github.com/DataDog/dd-agent/issues/23
 [#30]: https://github.com/DataDog/dd-agent/issues/30
 [#42]: https://github.com/DataDog/dd-agent/issues/42
+[#48]: https://github.com/DataDog/dd-agent/issues/48
 [#49]: https://github.com/DataDog/dd-agent/issues/49
 [#51]: https://github.com/DataDog/dd-agent/issues/51
 [#55]: https://github.com/DataDog/dd-agent/issues/55
@@ -2063,6 +2078,7 @@ If you use ganglia, you want this version.
 [#1888]: https://github.com/DataDog/dd-agent/issues/1888
 [#1889]: https://github.com/DataDog/dd-agent/issues/1889
 [#1891]: https://github.com/DataDog/dd-agent/issues/1891
+[#1900]: https://github.com/DataDog/dd-agent/issues/1900
 [#1902]: https://github.com/DataDog/dd-agent/issues/1902
 [#1907]: https://github.com/DataDog/dd-agent/issues/1907
 [#1908]: https://github.com/DataDog/dd-agent/issues/1908
@@ -2071,6 +2087,7 @@ If you use ganglia, you want this version.
 [#1932]: https://github.com/DataDog/dd-agent/issues/1932
 [#1940]: https://github.com/DataDog/dd-agent/issues/1940
 [#1943]: https://github.com/DataDog/dd-agent/issues/1943
+[#2000]: https://github.com/DataDog/dd-agent/issues/2000
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@KnownSubset]: https://github.com/KnownSubset
@@ -2107,6 +2124,7 @@ If you use ganglia, you want this version.
 [@ipolishchuk]: https://github.com/ipolishchuk
 [@ive]: https://github.com/ive
 [@jamescrowley]: https://github.com/jamescrowley
+[@jgmchan]: https://github.com/jgmchan
 [@jkoppe]: https://github.com/jkoppe
 [@jonaf]: https://github.com/jonaf
 [@joningle]: https://github.com/joningle
