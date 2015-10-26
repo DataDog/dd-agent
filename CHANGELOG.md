@@ -13,6 +13,7 @@ We highly recommend to upgrade to this version if your server is configured in l
 ### Changes
 * [BUGFIX] Consul: Send the health state service checks of all nodes. See [#1900][] (Thanks [@jgmchan][])
 * [BUGFIX] Core: Use `utcnow` instead of `now` to avoid the forwarder to run into a locked state. See [#2000][]
+* [BUGFIX] Fix `pycurl` dependency issue with Windows Datadog Agent 64-bit MSI Installer.
 
 
 # 5.5.1 / 09-23-2015
