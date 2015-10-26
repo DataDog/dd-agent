@@ -634,7 +634,8 @@ class OpenStackCheck(AgentCheck):
                         self.get_stats_for_single_server(sid, tags=server_tags)
 
                     self.get_stats_for_single_hypervisor(hyp, host_tags=host_tags)
-                    self.get_stats_for_single_project(project)
+                    if project:
+                        self.get_stats_for_single_project(project)
                 else:
                     # Legacy behavior: monitor everything reachable
                     # as enumerated by the user
@@ -659,9 +660,9 @@ class OpenStackCheck(AgentCheck):
         hyp = self.get_all_hypervisor_ids(filter_by_host=host)
         return hyp[0]
 
-    def get_local_project(self):
+    def get_scoped_project(self):
         if self._tenant_id:
-            return self._tenant_id
+            return {"id": self._tenant_id}
 
         if not (self._project_name and self._domain_id):
             # sets auth state for future use
@@ -680,7 +681,7 @@ class OpenStackCheck(AgentCheck):
         except Exception as e:
             self.warning('Unable to get the list of all project ids: {0}'.format(str(e)))
 
-        return projects[0]
+        return None
 
     def get_my_hostname(self):
         return socket.gethostname()
