@@ -22,6 +22,7 @@ DEFAULT_NAMESPACE = 'kubernetes'
 DEFAULT_KUBELET_PORT = 10255
 DEFAULT_MASTER_PORT = 8080
 DEFAULT_PUBLISH_CONTAINER_NAMES = False
+DEFAULT_USE_HISTOGRAM = True
 DEFAULT_ENABLED_RATES = [
     'diskio.io_service_bytes.stats.total',
     'network.??_bytes',
@@ -108,7 +109,15 @@ class Kubernetes(AgentCheck):
         self.enabled_gauges = [self.namespace+'.'+x for x in enabled_gauges]
         enabled_rates = instance.get('enabled_rates', DEFAULT_ENABLED_RATES)
         self.enabled_rates = [self.namespace+'.'+x for x in enabled_rates]
-
+        
+        self.use_histogram = instance.get('use_histogram', DEFAULT_USE_HISTOGRAM)
+        if self.use_histogram:
+            self.publish_rate = self.historate
+            self.publish_gauge = self.histogram
+        else:
+            self.publish_rate = self.rate
+            self.publish_gauge = self.gauge
+            
         # master health checks
         if instance.get('enable_master_checks', False):
             master_port = instance.get('master_port', DEFAULT_MASTER_PORT)
@@ -133,9 +142,9 @@ class Kubernetes(AgentCheck):
         type_ = type(dat)
         if type_ is int or type_ is long or type_ is float:
             if self.enabled_rates and any([fnmatch(metric, pat) for pat in self.enabled_rates]):
-                self.rate(metric, long(dat), tags)
+                self.publish_rate(metric, long(dat), tags)
             elif self.enabled_gauges and any([fnmatch(metric, pat) for pat in self.enabled_gauges]):
-                self.gauge(metric, long(dat), tags)
+                self.publish_gauge(metric, long(dat), tags)
             else:
                 return
         elif type_ is dict:
@@ -179,7 +188,8 @@ class Kubernetes(AgentCheck):
 
         for subcontainer in metrics:
             tags = []
-            tags.append('container_name:%s' % self._shorten_name(subcontainer['name']))
+            if not self.use_histogram:
+                tags.append('container_name:%s' % self._shorten_name(subcontainer['name']))
 
             try:
                 for label_name,label in subcontainer['spec']['labels'].iteritems():
