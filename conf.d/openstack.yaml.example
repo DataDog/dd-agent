@@ -62,6 +62,15 @@ init_config:
       # need to set to False when using self-signed certs
       # ssl_verify: true
 
+      # IDs of Projects (aka Tenants) to monitor
+      # project_ids:
+      #    - 2f60042a0d464023905aaebf23a350ff
+
+      # Enable this option to list all projects (tenants) and check each one
+      # Note: this option supersedes `project_ids` above i.e. all project_ids will be monitored regardless of which
+      # ones you enumerated under `project_ids`
+      # check_all_projects: true
+
 # No need to change this. No instance-level config
 instances:
     [{}]
