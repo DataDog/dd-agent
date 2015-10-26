@@ -441,10 +441,16 @@ class AgentCheck(object):
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
-        context = set(sorted(tags))
-        context.add("host:" + hostname)
-        context.add("device:" + device_name)
+        context = set()
+        if tags is not None:
+            context = set(sorted(tags))
+        if hostname is not None:
+            context.add("host:" + hostname)
+        if device_name is not None:
+            context.add("device:" + device_name)
+        
         now = time.time()
+        context = tuple(context)
 
         if context in self.historate_dict:
             prev_value, prev_ts = self.historate_dict[context]
