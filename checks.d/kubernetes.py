@@ -109,7 +109,7 @@ class Kubernetes(AgentCheck):
         self.enabled_gauges = [self.namespace+'.'+x for x in enabled_gauges]
         enabled_rates = instance.get('enabled_rates', DEFAULT_ENABLED_RATES)
         self.enabled_rates = [self.namespace+'.'+x for x in enabled_rates]
-        
+
         self.use_histogram = instance.get('use_histogram', DEFAULT_USE_HISTOGRAM)
         if self.use_histogram:
             self.publish_rate = self.historate
@@ -117,7 +117,7 @@ class Kubernetes(AgentCheck):
         else:
             self.publish_rate = self.rate
             self.publish_gauge = self.gauge
-            
+
         # master health checks
         if instance.get('enable_master_checks', False):
             master_port = instance.get('master_port', DEFAULT_MASTER_PORT)

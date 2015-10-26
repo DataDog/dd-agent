@@ -22,6 +22,7 @@ CONTAINER_ID_RE = re.compile('[0-9a-f]{64}')
 
 GAUGE = AgentCheck.gauge
 RATE = AgentCheck.rate
+HISTORATE = AgentCheck.historate
 
 CGROUP_METRICS = [
     {
@@ -181,9 +182,16 @@ class DockerDaemon(AgentCheck):
             # Set tagging options
             self.custom_tags = instance.get("tags", [])
             self.collect_labels_as_tags = instance.get("collect_labels_as_tags", [])
+
+            self.use_histogram = _is_affirmative(instance.get('use_histogram', False))
+            performance_tags = instance.get("performance_tags", DEFAULT_PERFORMANCE_TAGS)
+            if self.use_histogram:
+                # We don't want to tag by container name
+                performance_tags = instance.get("performance_tags", DEFAULT_PERFORMANCE_TAGS).remove("container_name")
+
             self.tag_names = {
                 CONTAINER: instance.get("container_tags", DEFAULT_CONTAINER_TAGS),
-                PERFORMANCE: instance.get("performance_tags", DEFAULT_PERFORMANCE_TAGS),
+                PERFORMANCE: performance_tags,
                 IMAGE: instance.get('image_tags', DEFAULT_IMAGE_TAGS)
 
             }
@@ -207,6 +215,7 @@ class DockerDaemon(AgentCheck):
             self.collect_events = _is_affirmative(instance.get('collect_events', True))
             self.collect_image_size = _is_affirmative(instance.get('collect_image_size', False))
             self.collect_ecs_tags = _is_affirmative(instance.get('ecs_tags', True)) and Platform.is_ecs_instance()
+
         except Exception, e:
             self.log.critical(e)
             self.warning("Initialization failed. Will retry at next iteration")
@@ -220,6 +229,9 @@ class DockerDaemon(AgentCheck):
             # Initialization can fail if cgroups are not ready. So we retry if needed
             # https://github.com/DataDog/dd-agent/issues/1896
             self.init()
+            if not self.init_success:
+                # Initialization failed, will try later
+                return
 
         # Report image metrics
         if self.collect_image_stats:
@@ -462,6 +474,8 @@ class DockerDaemon(AgentCheck):
                 if stats:
                     for key, (dd_key, metric_func) in cgroup['metrics'].iteritems():
                         if key in stats:
+                            if metric_func == RATE and self.use_histogram:
+                                metric_func = HISTORATE
                             metric_func(self, dd_key, int(stats[key]), tags=tags)
 
                     # Computed metrics
@@ -471,6 +485,8 @@ class DockerDaemon(AgentCheck):
                             self.log.debug("Couldn't compute {0}, some keys were missing.".format(mname))
                             continue
                         value = fct(*values)
+                        if metric_func == RATE and self.use_histogram:
+                            metric_func = HISTORATE
                         if value is not None:
                             metric_func(self, mname, value, tags=tags)
 
@@ -509,8 +525,12 @@ class DockerDaemon(AgentCheck):
                     interface_name = str(cols[0]).strip()
                     if interface_name == 'eth0':
                         x = cols[1].split()
-                        self.rate("docker.net.bytes_rcvd", long(x[0]), tags)
-                        self.rate("docker.net.bytes_sent", long(x[8]), tags)
+                        if self.use_histogram:
+                            m_func = self.historate
+                        else:
+                            m_func = self.rate
+                        m_func("docker.net.bytes_rcvd", long(x[0]), tags)
+                        m_func("docker.net.bytes_sent", long(x[8]), tags)
                         break
         except Exception, e:
             # It is possible that the container got stopped between the API call and now
