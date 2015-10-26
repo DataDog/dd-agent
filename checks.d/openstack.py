@@ -98,6 +98,7 @@ class OpenStackCheck(AgentCheck):
         self._hypervisor_list = None
         ###
 
+        # FIXME: (aaditya) no check V2, allow "v1" functionality with additional config options
         self._check_v2 = init_config.get("check_v2", True)
 
     def _make_request_with_auth_fallback(self, url, headers=None, verify=True):
@@ -120,14 +121,22 @@ class OpenStackCheck(AgentCheck):
     ### Check config accessors
     def _get_auth_scope(self):
         """
-        Expects
-        {'project': {'name': 'my_project', 'domain': 'my_domain} or {'project': {'id': 'my_project_id'}}
+        Parse authorization scope out of init_config
+
+        To guarantee a uniquely identifiable scope, expects either:
+        {'project': {'name': 'my_project', 'domain': {'id': 'my_domain_id'}}}
+        OR
+        {'project': {'id': 'my_project_id'}}
         """
 
         auth_scope = self.init_config.get('auth_scope')
         if not auth_scope or not auth_scope.get('project'):
-            self.warning("Please specify the auth scope via the `auth_scope` variable in your init_config.\n" +
-                         "The auth_scope should look like: {'project': {'name': 'my_project'}} or {'project': {'id': 'project_uuid'}")
+            self.warning("""Please specify the auth scope via the `auth_scope` variable in your init_config.\n
+                         The auth_scope should look like: \n
+                        {'project': {'name': 'my_project', 'domain': {'id': 'my_domain_id'}}}\n
+                        OR\n
+                        {'project': {'id': 'my_project_id'}}
+                         """)
             raise IncompleteConfig
 
         if auth_scope['project'].get('name'):
@@ -135,23 +144,34 @@ class OpenStackCheck(AgentCheck):
             if not auth_scope['project'].get('domain', {}).get('id'):
                 raise IncompleteConfig
         else:
+            # Assume a unique project id has been given
             if not auth_scope['project'].get('id'):
                 raise IncompleteConfig
             self._tenant_id = auth_scope['project']['id']
 
-        self.log.debug("Auth Scope: %s", auth_scope)
+        self.log.debug("Parsed authorization scope: %s", auth_scope)
         return auth_scope
 
-    def _get_identity_by_method(self):
+    def _get_user_identity(self):
+        """
+        Parse user identity out of init_config
+
+        To guarantee a uniquely identifiable user, expects
+        {"user": {"name": "my_username", "password": "my_password",
+                  "domain": {"id": "my_domain_id"}
+                  }
+        }
+        """
         user = self.init_config.get('user')
-        if not user or not user.get('name') or not user.get('password'):
+        if not user\
+                or not user.get('name')\
+                or not user.get('password')\
+                or not user.get("domain")\
+                or not user.get("domain").get("id"):
             self.warning("Please specify the user via the `user` variable in your init_config.\n" +
                          "This is the user you would use to authenticate with Keystone v3 via password auth.\n" +
-                         "The user should look like: {'password': 'my_password', 'name': 'my_name'}")
+                         "The user should look like: {'password': 'my_password', 'name': 'my_name', 'domain': {'id': 'my_domain_id'}}")
             raise IncompleteConfig
-
-        if not user.get('domain', {}).get('id'):
-            user['domain'] = {'id': 'default'}
 
         identity = {
             "methods": ['password'],
@@ -173,7 +193,7 @@ class OpenStackCheck(AgentCheck):
 
         auth_scope = self._get_auth_scope()
 
-        identity = self._get_identity_by_method()
+        identity = self._get_user_identity()
         keystone_server_url = self._get_keystone_server_url()
 
         payload = {"auth": {"scope": auth_scope, "identity": identity}}

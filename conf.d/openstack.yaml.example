@@ -12,12 +12,16 @@ init_config:
               #domain:
               #    id: default
 
+
+      # User credentials
       # Password is the only auth method supported right now
+      # To guarantee a uniquely identifiable user expects username, password
+      # and user domain id
       user:
           password: my_password
           name: datadog
-          #domain:
-          #    id: default
+          domain:
+               id: default
 
       # IDs of Nova Hypervisors to monitor
       # hypervisor_ids:
