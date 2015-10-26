@@ -23,6 +23,7 @@ DEFAULT_NAMESPACE = 'kubernetes'
 DEFAULT_KUBELET_PORT = 10255
 DEFAULT_MASTER_PORT = 8080
 DEFAULT_USE_HISTOGRAM = True
+DEFAULT_PUBLISH_ALIASES = False
 DEFAULT_ENABLED_RATES = [
     'diskio.io_service_bytes.stats.total',
     'network.??_bytes',
@@ -109,7 +110,7 @@ class Kubernetes(AgentCheck):
         self.enabled_gauges = [self.namespace+'.'+x for x in enabled_gauges]
         enabled_rates = instance.get('enabled_rates', DEFAULT_ENABLED_RATES)
         self.enabled_rates = [self.namespace+'.'+x for x in enabled_rates]
-        
+        self.publish_aliases = _is_affirmative(instance.get('publish_aliases', DEFAULT_PUBLISH_ALIASES))
         self.use_histogram = _is_affirmative(instance.get('use_histogram', DEFAULT_USE_HISTOGRAM))
         if self.use_histogram:
             self.publish_rate = self.historate
@@ -117,7 +118,7 @@ class Kubernetes(AgentCheck):
         else:
             self.publish_rate = self.rate
             self.publish_gauge = self.gauge
-            
+
         # master health checks
         if instance.get('enable_master_checks', False):
             master_port = instance.get('master_port', DEFAULT_MASTER_PORT)
@@ -198,11 +199,12 @@ class Kubernetes(AgentCheck):
             except KeyError:
                 pass
 
-            try:
-                for alias in subcontainer['aliases']:
-                    tags.append('container_alias:%s' % (self._shorten_name(alias)))
-            except KeyError:
-                pass
+            if self.publish_aliases:
+                try:
+                    for alias in subcontainer['aliases']:
+                        tags.append('container_alias:%s' % (self._shorten_name(alias)))
+                except KeyError:
+                    pass
 
             stats = subcontainer['stats'][-1]  # take latest
             self._publish_raw_metrics(self.namespace, stats, tags)
