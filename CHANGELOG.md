@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 5.5.2 / Unreleased
+# 5.5.2 / 10-26-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.5.1...5.5.2
 
