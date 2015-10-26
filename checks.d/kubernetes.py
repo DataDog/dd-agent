@@ -13,6 +13,7 @@ import requests
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 
 DEFAULT_METHOD = 'http'
 DEFAULT_CADVISOR_PORT = 4194
@@ -21,8 +22,8 @@ DEFAULT_MAX_DEPTH = 10
 DEFAULT_NAMESPACE = 'kubernetes'
 DEFAULT_KUBELET_PORT = 10255
 DEFAULT_MASTER_PORT = 8080
-DEFAULT_PUBLISH_CONTAINER_NAMES = False
 DEFAULT_USE_HISTOGRAM = True
+DEFAULT_PUBLISH_ALIASES = False
 DEFAULT_ENABLED_RATES = [
     'diskio.io_service_bytes.stats.total',
     'network.??_bytes',
@@ -110,7 +111,8 @@ class Kubernetes(AgentCheck):
         enabled_rates = instance.get('enabled_rates', DEFAULT_ENABLED_RATES)
         self.enabled_rates = [self.namespace+'.'+x for x in enabled_rates]
 
-        self.use_histogram = instance.get('use_histogram', DEFAULT_USE_HISTOGRAM)
+        self.publish_aliases = _is_affirmative(instance.get('publish_aliases', DEFAULT_PUBLISH_ALIASES))
+        self.use_histogram = _is_affirmative(instance.get('use_histogram', DEFAULT_USE_HISTOGRAM))
         if self.use_histogram:
             self.publish_rate = self.historate
             self.publish_gauge = self.histogram
@@ -170,14 +172,16 @@ class Kubernetes(AgentCheck):
             fs = stats['filesystem'][-1]
             fs_capacity = long(fs['capacity'])
             fs_usage = long(fs['usage'])
-            self.gauge(namespace+'.filesystem.usage_pct', fs_usage/fs_capacity, tags)
+            self.publish_gauge(namespace+'.filesystem.usage_pct', fs_usage/fs_capacity, tags)
         except Exception:
             pass
 
         try:
             net = stats['network']
-            self.rate(namespace+'.network_errors',
-                      sum(long(net[x]) for x in ['rx_errors', 'tx_errors', 'rx_dropped', 'tx_dropped']), tags)
+            self.publish_rate(namespace+'.network_errors',
+                              sum(long(net[x]) for x in ['rx_errors', 'tx_errors',
+                                                         'rx_dropped', 'tx_dropped']),
+                              tags)
         except Exception:
             pass
 
@@ -198,11 +202,12 @@ class Kubernetes(AgentCheck):
             except KeyError:
                 pass
 
-            try:
-                for alias in subcontainer['aliases']:
-                    tags.append('container_alias:%s' % (self._shorten_name(alias)))
-            except KeyError:
-                pass
+            if self.publish_aliases:
+                try:
+                    for alias in subcontainer['aliases']:
+                        tags.append('container_alias:%s' % (self._shorten_name(alias)))
+                except KeyError:
+                    pass
 
             stats = subcontainer['stats'][-1]  # take latest
             self._publish_raw_metrics(self.namespace, stats, tags)
