@@ -388,23 +388,31 @@ class OpenStackCheck(AgentCheck):
                 self.warning('Unable to get stats for hypervisor {0}: {1}'.format(hyp, str(e)))
 
     def get_all_hypervisor_ids(self, filter_by_host=None):
-        url = '{0}/os-hypervisors'.format(self._nova_url)
-        headers = {'X-Auth-Token': self._auth_token}
+        nova_version = self.init_config.get("nova_api_version", self.DEFAULT_NOVA_API_VERSION)
+        if nova_version == "v2.1":
+            url = '{0}/os-hypervisors'.format(self._nova_url)
+            headers = {'X-Auth-Token': self._auth_token}
 
-        hypervisor_ids = []
-        try:
-            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
-            hv_list = resp.json()
-            for hv in hv_list['hypervisors']:
-                if filter_by_host and hv['hypervisor_hostname'] == filter_by_host:
-                    # Assume one-one relationship between hypervisor and host, return the 1st found
-                    return [hv['id']]
+            hypervisor_ids = []
+            try:
+                resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+                hv_list = resp.json()
+                for hv in hv_list['hypervisors']:
+                    if filter_by_host and hv['hypervisor_hostname'] == filter_by_host:
+                        # Assume one-one relationship between hypervisor and host, return the 1st found
+                        return [hv['id']]
 
-                hypervisor_ids.append(hv['id'])
-        except Exception as e:
-            self.warning('Unable to get the list of all hypervisors: {0}'.format(str(e)))
+                    hypervisor_ids.append(hv['id'])
+            except Exception as e:
+                self.warning('Unable to get the list of all hypervisors: {0}'.format(str(e)))
 
-        return hypervisor_ids
+            return hypervisor_ids
+        else:
+            if not self.init_config.get("hypervisor_ids"):
+                self.warning("Nova API v2 requires admin privileges to index hypervisors." +\
+                             "Please specify the hypervisor you wish to monitor under the `hypervisor_ids` section")
+                return []
+            return self.init_config.get("hypervisor_ids")
 
     def get_all_aggregate_hypervisors(self):
         url = '{0}/os-aggregates'.format(self._nova_url)
@@ -631,8 +639,6 @@ class OpenStackCheck(AgentCheck):
                     hyp = self.get_local_hypervisor()
                     project = self.get_scoped_project()
 
-                    aggregate = self.get_aggregates_for_local_host()
-
                     # Restrict monitoring to hyp and servers, don't do anything else
                     servers = self.get_servers_managed_by_hypervisor()
                     host_tags = self._get_tags_for_host()
@@ -641,7 +647,9 @@ class OpenStackCheck(AgentCheck):
                         server_tags = host_tags + ['host:%s' % sid]
                         self.get_stats_for_single_server(sid, tags=server_tags)
 
-                    self.get_stats_for_single_hypervisor(hyp, host_tags=host_tags)
+                    if hyp:
+                        self.get_stats_for_single_hypervisor(hyp, host_tags=host_tags)
+
                     if project:
                         self.get_stats_for_single_project(project)
                 else:
@@ -666,7 +674,10 @@ class OpenStackCheck(AgentCheck):
         # Look up hypervisors available filtered by my hostname
         host = self.get_my_hostname()
         hyp = self.get_all_hypervisor_ids(filter_by_host=host)
-        return hyp[0]
+        if hyp:
+            return hyp[0]
+        else:
+            return None
 
     def get_scoped_project(self):
         """
@@ -680,8 +691,8 @@ class OpenStackCheck(AgentCheck):
             self._get_auth_scope()
 
         filter_params = {
-                "name": self._project_name,
-                "domain_id": self._domain_id
+            "name": self._project_name,
+            "domain_id": self._domain_id
         }
 
 
@@ -702,10 +713,6 @@ class OpenStackCheck(AgentCheck):
     def get_my_hostname(self):
         return socket.gethostname()
 
-    def get_aggregates_for_local_host(self):
-        aggregate_list = self._get_and_set_aggregate_list()
-        return aggregate_list[self.get_my_hostname()]
-
     def get_servers_managed_by_hypervisor(self):
         return self.get_all_server_ids(filter_by_host=self.get_my_hostname())
 
@@ -718,6 +725,8 @@ class OpenStackCheck(AgentCheck):
             # Need to check if there is a value for availability_zone because it is possible to have an aggregate without an AZ
             if self._aggregate_list[hostname]['availability_zone']:
                 tags.append('availability_zone:{0}'.format(self._aggregate_list[hostname]['availability_zone']))
+        else:
+            self.log.info('Unable to find hostname {0} in aggregate list. Assuming this host is unaggregated'.format(hostname))
 
         return tags
     ####
