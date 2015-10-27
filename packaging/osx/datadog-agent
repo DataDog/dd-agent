@@ -4,12 +4,14 @@ DESC="Datadog Agent"
 AGENTPATH="/opt/datadog-agent/agent/agent.py"
 FORWARDERPATH="/opt/datadog-agent/agent/ddagent.py"
 DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
+KILL_PATH="/opt/datadog-agent/embedded/bin/kill"
 AGENTCONF="/opt/datadog-agent/etc/datadog.conf"
 SUPERVISOR_PIDFILE="/opt/datadog-agent/run/datadog-supervisord.pid"
 SUPERVISOR_CONF_FILE="/opt/datadog-agent/etc/supervisor.conf"
 SUPERVISOR_SOCK="/opt/datadog-agent/run/datadog-supervisor.sock"
 SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
+COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
 
 # be sure to remove PY2APP parameters
 unset PYTHONHOME
@@ -95,6 +97,11 @@ case $1 in
         exit $?
         ;;
 
+    reload)
+        $KILL_PATH -HUP `cat $COLLECTOR_PIDFILE`
+        exit $?
+        ;;
+
     info)
         shift # shift to pass the remaining arguments to agent/agent.py info.
               # Currently only agent.py takes additional arguments
@@ -131,7 +138,7 @@ case $1 in
         ;;
 
     *)
-        echo "Usage: $0 {start|stop|restart|info|status|configcheck|check|flare|jmx}"
+        echo "Usage: $0 {start|stop|restart|info|status|reload|configcheck|check|flare|jmx}"
         exit 2
         ;;
 esac
