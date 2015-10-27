@@ -178,16 +178,13 @@ class OpenStackCheck(AgentCheck):
         self.log.debug("Auth Scope: %s", auth_scope)
         return auth_scope
 
-    def _get_identity_by_method(self):
+    def _get_user_identity(self):
         user = self.init_config.get('user')
         if not user or not user.get('name') or not user.get('password'):
             self.warning("Please specify the user via the `user` variable in your init_config.\n" +
                          "This is the user you would use to authenticate with Keystone v3 via password auth.\n" +
-                         "The user should look like: {'password': 'my_password', 'name': 'my_name'}")
+                         "The user should look like: {'password': 'my_password', 'name': 'my_name', 'domain': {'id': 'my_domain_id'}}")
             raise IncompleteConfig
-
-        if not user.get('domain', {}).get('id'):
-            user['domain'] = {'id': 'default'}
 
         identity = {
             "methods": ['password'],
@@ -209,7 +206,7 @@ class OpenStackCheck(AgentCheck):
 
         auth_scope = self._get_auth_scope()
 
-        identity = self._get_identity_by_method()
+        identity = self._get_user_identity()
         keystone_server_url = self._get_keystone_server_url()
 
         payload = {"auth": {"scope": auth_scope, "identity": identity}}
@@ -259,8 +256,9 @@ class OpenStackCheck(AgentCheck):
         return neutron_endpoint
 
     def get_network_stats(self):
-        if self.init_config.get('check_all_networks', False):
-            network_ids = list(set(self.get_all_network_ids()) - set(self.init_config.get('excluded_network_ids', [])))
+        # FIXME: (aaditya) Check all networks defaults to true until we can reliably assign agents to networks to monitor
+        if self.init_config.get('check_all_networks', True):
+            network_ids = list(set(self.get_all_network_ids()) - set(self.init_config.get('exclude_network_ids', [])))
         else:
             network_ids = self.init_config.get('network_ids', [])
 
@@ -409,7 +407,7 @@ class OpenStackCheck(AgentCheck):
             return hypervisor_ids
         else:
             if not self.init_config.get("hypervisor_ids"):
-                self.warning("Nova API v2 requires admin privileges to index hypervisors." +\
+                self.warning("Nova API v2 requires admin privileges to index hypervisors. " +\
                              "Please specify the hypervisor you wish to monitor under the `hypervisor_ids` section")
                 return []
             return self.init_config.get("hypervisor_ids")
@@ -639,8 +637,11 @@ class OpenStackCheck(AgentCheck):
                     hyp = self.get_local_hypervisor()
                     project = self.get_scoped_project()
 
-                    # Restrict monitoring to hyp and servers, don't do anything else
-                    servers = self.get_servers_managed_by_hypervisor()
+                    # Restrict monitoring to hyp and non-excluded servers, don't do anything else
+                    excluded_server_ids = self.init_config.get("exclude_server_ids", [])
+                    servers = list(
+                        set(self.get_servers_managed_by_hypervisor()) - set(excluded_server_ids)
+                    )
                     host_tags = self._get_tags_for_host()
 
                     for sid in servers:
