@@ -187,7 +187,7 @@ class DockerDaemon(AgentCheck):
             performance_tags = instance.get("performance_tags", DEFAULT_PERFORMANCE_TAGS)
             if self.use_histogram:
                 # We don't want to tag by container name
-                performance_tags = instance.get("performance_tags", DEFAULT_PERFORMANCE_TAGS).remove("container_name")
+                performance_tags.remove("container_name")
 
             self.tag_names = {
                 CONTAINER: instance.get("container_tags", DEFAULT_CONTAINER_TAGS),
