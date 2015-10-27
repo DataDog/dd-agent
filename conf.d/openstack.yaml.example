@@ -63,8 +63,8 @@ init_config:
       # ssl_verify: true
 
       #IDs of Projects (aka Tenants) to monitor
-      project_ids:
-          - 2f60042a0d464023905aaebf23a350ff
+      # project_ids:
+      #    - 2f60042a0d464023905aaebf23a350ff
 
       # Enable this option to list all projects (tenants) and check each one
       # Note: this option supersedes `project_ids` above i.e. all project_ids will be monitored regardless of which

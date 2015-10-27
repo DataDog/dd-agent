@@ -496,8 +496,10 @@ class OpenStackCheck(AgentCheck):
             self.warning("Your check is not configured to monitor any servers.\n" +
                          "Please list `server_ids` under your init_config in openstack.yaml")
 
+        host_tags = self._get_tags_for_host()
         for sid in server_ids:
-            self.get_stats_for_single_server(sid)
+            server_tags = host_tags + ["host:%s" % sid]
+            self.get_stats_for_single_server(sid, tags=server_tags)
 
     def get_all_server_ids(self, filter_by_host=None):
         url = '{0}/servers{1}'.format(self._nova_url, "?host=%s" % filter_by_host if filter_by_host else '')
@@ -621,7 +623,7 @@ class OpenStackCheck(AgentCheck):
                     # and it's guest servers
 
                     hyp = self.get_local_hypervisor()
-                    project = self.get_local_project()
+                    project = self.get_scoped_project()
 
                     aggregate = self.get_aggregates_for_local_host()
 
@@ -661,6 +663,9 @@ class OpenStackCheck(AgentCheck):
         return hyp[0]
 
     def get_scoped_project(self):
+        """
+        Returns the project that this instance of the check is scoped to
+        """
         if self._tenant_id:
             return {"id": self._tenant_id}
 
