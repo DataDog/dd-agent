@@ -131,10 +131,10 @@ class OpenStackCheck(AgentCheck):
 
         self._local_only = init_config.get("local_only", True)
 
-    def _make_request_with_auth_fallback(self, url, headers=None, verify=True):
+    def _make_request_with_auth_fallback(self, url, headers=None, verify=True, params=None):
         self.log.debug("SSL Certificate Verification set to %s", verify)
         try:
-            resp = requests.get(url, headers=headers, verify=verify)
+            resp = requests.get(url, headers=headers, verify=verify, params=params)
             resp.raise_for_status()
         except requests.exceptions.HTTPError:
             if resp.status_code == 401:
@@ -502,12 +502,16 @@ class OpenStackCheck(AgentCheck):
             self.get_stats_for_single_server(sid, tags=server_tags)
 
     def get_all_server_ids(self, filter_by_host=None):
-        url = '{0}/servers{1}'.format(self._nova_url, "?host=%s" % filter_by_host if filter_by_host else '')
+        query_params = {}
+        if filter_by_host:
+            query_params["host"] = filter_by_host
+
+        url = '{0}/servers'.format(self._nova_url)
         headers = {'X-Auth-Token': self._auth_token}
 
         server_ids = []
         try:
-            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify, params=query_params)
 
             server_ids = [s['id'] for s in resp.json()['servers']]
         except Exception as e:
@@ -529,6 +533,8 @@ class OpenStackCheck(AgentCheck):
         except InstancePowerOffFailure:
             self.warning("Server %s is powered off and cannot be monitored" % server_id)
             # TODO: Maybe send an event/service check here?
+        except Exception as e:
+            self.warning("Unknown error when monitoring %s : %s" % (server_id, e))
 
         if server_stats:
             tags = tags or []
@@ -576,9 +582,9 @@ class OpenStackCheck(AgentCheck):
         def _is_valid_metric(label):
             return label in PROJECT_METRICS
 
-        url = '{0}/limits?tenant_id={1}'.format(self._nova_url, project['id'])
+        url = '{0}/limits'.format(self._nova_url)
         headers = {'X-Auth-Token': self._auth_token}
-        resp = self._make_request_with_auth_fallback(url, headers)
+        resp = self._make_request_with_auth_fallback(url, headers, params={"tenant_id": project['id']})
 
         server_stats = resp.json()
         tags = ['tenant_id:{0}'.format(project['id'])]
@@ -673,13 +679,18 @@ class OpenStackCheck(AgentCheck):
             # sets auth state for future use
             self._get_auth_scope()
 
-        _filter = "?name={0}&domain_id={1}".format(self._project_name, self._domain_id)
-        url = "{0}/{1}/{2}/{3}".format(self._get_keystone_server_url(), self.DEFAULT_KEYSTONE_API_VERSION, "projects", _filter)
+        filter_params = {
+                "name": self._project_name,
+                "domain_id": self._domain_id
+        }
+
+
+        url = "{0}/{1}/{2}".format(self._get_keystone_server_url(), self.DEFAULT_KEYSTONE_API_VERSION, "projects")
         headers = {'X-Auth-Token': self._auth_token}
 
         projects = []
         try:
-            resp = self._make_request_with_auth_fallback(url, headers)
+            resp = self._make_request_with_auth_fallback(url, headers, params=filter_params)
             project_details = resp.json()
             assert len(project_details["projects"]) == 1, "Non-unique project credentials"
             return project_details["projects"][0]
