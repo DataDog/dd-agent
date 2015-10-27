@@ -7,16 +7,16 @@ from tests.checks.common import AgentCheckTest, Fixtures
 
 def ss_subprocess_mock(*args, **kwargs):
     if args[0][-1] == '-4':
-        return Fixtures.read_file('ss_ipv4')
+        return (Fixtures.read_file('ss_ipv4'), "", 0)
     elif args[0][-1] == '-6':
-        return Fixtures.read_file('ss_ipv6')
+        return (Fixtures.read_file('ss_ipv6'), "", 0)
 
 
 def netstat_subprocess_mock(*args, **kwargs):
     if args[0][0] == 'ss':
         raise OSError
     elif args[0][0] == 'netstat':
-        return Fixtures.read_file('netstat')
+        return (Fixtures.read_file('netstat'), "", 0)
 
 
 class TestCheckNetwork(AgentCheckTest):
