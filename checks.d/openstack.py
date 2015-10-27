@@ -39,6 +39,31 @@ NOVA_SERVER_METRICS = [
 
 NOVA_SERVER_INTERFACE_SEGMENTS = ['_rx', '_tx']
 
+PROJECT_METRICS = [
+    "maxImageMeta",
+    "maxPersonality",
+    "maxPersonalitySize",
+    "maxSecurityGroupRules",
+    "maxSecurityGroups",
+    "maxServerMeta",
+    "maxTotalCores",
+    "maxTotalFloatingIps",
+    "maxTotalInstances",
+    "maxTotalKeypairs",
+    "maxTotalRAMSize",
+
+    "totalImageMetaUsed",
+    "totalPersonalityUsed",
+    "totalPersonalitySizeUsed",
+    "totalSecurityGroupRulesUsed",
+    "totalSecurityGroupsUsed",
+    "totalServerMetaUsed",
+    "totalCoresUsed",
+    "totalFloatingIpsUsed",
+    "totalInstancesUsed",
+    "totalKeypairsUsed",
+    "totalRAMUsed"
+]
 
 class OpenstackAuthFailure(Exception):
     pass
@@ -89,22 +114,27 @@ class OpenStackCheck(AgentCheck):
 
         self._ssl_verify = init_config.get("ssl_verify", True)
 
+        ### Auth parameters
         self._tenant_id = None
+        self._project_name = None
+        self._domain_id = None
+        ###
+
+        # Workaround for appending tenant id to Nova url returned by keystone
         self._append_tenant_id = init_config.get("append_tenant_id", False)
 
-        ### Cache some stuff between runs for values that change rarely
+        ### Cache some things between runs for values that change rarely
         self._aggregate_list = None
         self._physical_host_list = None
         self._hypervisor_list = None
         ###
 
-        # FIXME: (aaditya) no check V2, allow "v1" functionality with additional config options
-        self._check_v2 = init_config.get("check_v2", True)
+        self._local_only = init_config.get("local_only", True)
 
-    def _make_request_with_auth_fallback(self, url, headers=None, verify=True):
+    def _make_request_with_auth_fallback(self, url, headers=None, verify=True, params=None):
         self.log.debug("SSL Certificate Verification set to %s", verify)
         try:
-            resp = requests.get(url, headers=headers, verify=verify)
+            resp = requests.get(url, headers=headers, verify=verify, params=params)
             resp.raise_for_status()
         except requests.exceptions.HTTPError:
             if resp.status_code == 401:
@@ -140,13 +170,18 @@ class OpenStackCheck(AgentCheck):
             raise IncompleteConfig
 
         if auth_scope['project'].get('name'):
-            # We need to add a domain scope to avoid name, clashes. Search for one. If not raise IncompleteConfig
+            # We need to add a domain scope to avoid name clashes. Search for one. If not raise IncompleteConfig
             if not auth_scope['project'].get('domain', {}).get('id'):
                 raise IncompleteConfig
+
+            # store project name and domain id
+            self._project_name = auth_scope['project']['name']
+            self._domain_id = auth_scope['project']['domain']['id']
         else:
             # Assume a unique project id has been given
             if not auth_scope['project'].get('id'):
                 raise IncompleteConfig
+
             self._tenant_id = auth_scope['project']['id']
 
         self.log.debug("Parsed authorization scope: %s", auth_scope)
@@ -243,8 +278,9 @@ class OpenStackCheck(AgentCheck):
         return neutron_endpoint
 
     def get_network_stats(self):
-        if self.init_config.get('check_all_networks', False):
-            network_ids = list(set(self.get_all_network_ids()) - set(self.init_config.get('excluded_network_ids', [])))
+        # FIXME: (aaditya) Check all networks defaults to true until we can reliably assign agents to networks to monitor
+        if self.init_config.get('check_all_networks', True):
+            network_ids = list(set(self.get_all_network_ids()) - set(self.init_config.get('exclude_network_ids', [])))
         else:
             network_ids = self.init_config.get('network_ids', [])
 
@@ -255,7 +291,7 @@ class OpenStackCheck(AgentCheck):
         for nid in network_ids:
             self.get_stats_for_single_network(nid)
 
-    def get_all_network_ids(self):
+    def get_all_network_ids(self, filter_by_project=None):
         url = '{0}/{1}/networks'.format(self._neutron_url, self.DEFAULT_NEUTRON_API_VERSION)
         headers = {'X-Auth-Token': self._auth_token}
 
@@ -372,23 +408,31 @@ class OpenStackCheck(AgentCheck):
                 self.warning('Unable to get stats for hypervisor {0}: {1}'.format(hyp, str(e)))
 
     def get_all_hypervisor_ids(self, filter_by_host=None):
-        url = '{0}/os-hypervisors'.format(self._nova_url)
-        headers = {'X-Auth-Token': self._auth_token}
+        nova_version = self.init_config.get("nova_api_version", self.DEFAULT_NOVA_API_VERSION)
+        if nova_version == "v2.1":
+            url = '{0}/os-hypervisors'.format(self._nova_url)
+            headers = {'X-Auth-Token': self._auth_token}
 
-        hypervisor_ids = []
-        try:
-            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
-            hv_list = resp.json()
-            for hv in hv_list['hypervisors']:
-                if filter_by_host and hv['hypervisor_hostname'] == filter_by_host:
-                    # Assume one-one relationship between hypervisor and host, return the 1st found
-                    return [hv['id']]
+            hypervisor_ids = []
+            try:
+                resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+                hv_list = resp.json()
+                for hv in hv_list['hypervisors']:
+                    if filter_by_host and hv['hypervisor_hostname'] == filter_by_host:
+                        # Assume one-one relationship between hypervisor and host, return the 1st found
+                        return [hv['id']]
 
-                hypervisor_ids.append(hv['id'])
-        except Exception as e:
-            self.warning('Unable to get the list of all hypervisors: {0}'.format(str(e)))
+                    hypervisor_ids.append(hv['id'])
+            except Exception as e:
+                self.warning('Unable to get the list of all hypervisors: {0}'.format(str(e)))
 
-        return hypervisor_ids
+            return hypervisor_ids
+        else:
+            if not self.init_config.get("hypervisor_ids"):
+                self.warning("Nova API v2 requires admin privileges to index hypervisors. " +\
+                             "Please specify the hypervisor you wish to monitor under the `hypervisor_ids` section")
+                return []
+            return self.init_config.get("hypervisor_ids")
 
     def get_all_aggregate_hypervisors(self):
         url = '{0}/os-aggregates'.format(self._nova_url)
@@ -480,16 +524,22 @@ class OpenStackCheck(AgentCheck):
             self.warning("Your check is not configured to monitor any servers.\n" +
                          "Please list `server_ids` under your init_config in openstack.yaml")
 
+        host_tags = self._get_tags_for_host()
         for sid in server_ids:
-            self.get_stats_for_single_server(sid)
+            server_tags = host_tags + ["host:%s" % sid]
+            self.get_stats_for_single_server(sid, tags=server_tags)
 
     def get_all_server_ids(self, filter_by_host=None):
-        url = '{0}/servers{1}'.format(self._nova_url, "?host=%s" % filter_by_host if filter_by_host else '')
+        query_params = {}
+        if filter_by_host:
+            query_params["host"] = filter_by_host
+
+        url = '{0}/servers'.format(self._nova_url)
         headers = {'X-Auth-Token': self._auth_token}
 
         server_ids = []
         try:
-            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify, params=query_params)
 
             server_ids = [s['id'] for s in resp.json()['servers']]
         except Exception as e:
@@ -511,12 +561,67 @@ class OpenStackCheck(AgentCheck):
         except InstancePowerOffFailure:
             self.warning("Server %s is powered off and cannot be monitored" % server_id)
             # TODO: Maybe send an event/service check here?
+        except Exception as e:
+            self.warning("Unknown error when monitoring %s : %s" % (server_id, e))
 
         if server_stats:
             tags = tags or []
             for st in server_stats:
                 if _is_valid_metric(st):
                     self.gauge("openstack.nova.server.{0}".format(st), server_stats[st], tags=tags)
+
+    def get_project_stats(self):
+        if self.init_config.get('check_all_projects', False):
+            projects = self.get_all_projects()
+        else:
+            projects = []
+            for project_id in self.init_config.get('project_ids', []):
+                # Make the format of the data match the results from get_all_projects()
+                projects.append({'id': project_id})
+
+        if not projects:
+            self.warning("Your check is not configured to monitor any Projects.\n" +
+                         "Please list `project_ids` under your init_config")
+
+        for project in projects:
+            try:
+                self.get_stats_for_single_project(project)
+            except Exception as e:
+                self.warning('Unable to get stats for Project {0}: {1}'.format(project['id'], str(e)))
+
+    def get_all_projects(self):
+        keystone_api_version = self.init_config.get('keystone_api_version', self.DEFAULT_KEYSTONE_API_VERSION)
+        endpoint_name = 'tenants' if keystone_api_version == 'v2.0' else 'projects'
+        url = "{0}/{1}/{2}".format(self._get_keystone_server_url(), keystone_api_version, endpoint_name)
+        headers = {'X-Auth-Token': self._auth_token}
+
+        projects = []
+        try:
+            resp = self._make_request_with_auth_fallback(url, headers)
+            project_details = resp.json()
+            for project in project_details[endpoint_name]:
+                projects.append(project)
+        except Exception as e:
+            self.warning('Unable to get the list of all project ids: {0}'.format(str(e)))
+
+        return projects
+
+    def get_stats_for_single_project(self, project):
+        def _is_valid_metric(label):
+            return label in PROJECT_METRICS
+
+        url = '{0}/limits'.format(self._nova_url)
+        headers = {'X-Auth-Token': self._auth_token}
+        resp = self._make_request_with_auth_fallback(url, headers, params={"tenant_id": project['id']})
+
+        server_stats = resp.json()
+        tags = ['tenant_id:{0}'.format(project['id'])]
+        if 'name' in project:
+            tags.append('project_name:{0}'.format(project['name']))
+
+        for st in server_stats['limits']['absolute']:
+            if _is_valid_metric(st):
+                self.gauge("openstack.nova.limits.{0}".format(st), server_stats['limits']['absolute'][st], tags=tags)
 
     ###
 
@@ -547,25 +652,37 @@ class OpenStackCheck(AgentCheck):
             self.log.debug("Auth Token: %s", self._auth_token)
 
             try:
-                if self._check_v2:
-                    hyp = self.get_local_hypervisor()
-                    aggregate = self.get_aggregates_for_local_host()
+                if self._local_only:
+                    # The new default: restrict monitoring to this (host, hypervisor, project)
+                    # and it's guest servers
 
-                    # Restrict monitoring to hyp and servers, don't do anything else
-                    servers = self.get_servers_managed_by_hypervisor()
+                    hyp = self.get_local_hypervisor()
+                    project = self.get_scoped_project()
+
+                    # Restrict monitoring to hyp and non-excluded servers, don't do anything else
+                    excluded_server_ids = self.init_config.get("exclude_server_ids", [])
+                    servers = list(
+                        set(self.get_servers_managed_by_hypervisor()) - set(excluded_server_ids)
+                    )
                     host_tags = self._get_tags_for_host()
 
                     for sid in servers:
                         server_tags = host_tags + ['host:%s' % sid]
                         self.get_stats_for_single_server(sid, tags=server_tags)
 
-                    hyp_stats = {}
-                    self.get_stats_for_single_hypervisor(hyp, host_tags=host_tags)
+                    if hyp:
+                        self.get_stats_for_single_hypervisor(hyp, host_tags=host_tags)
+
+                    if project:
+                        self.get_stats_for_single_project(project)
                 else:
+                    # Legacy behavior: monitor everything reachable
+                    # as enumerated by the user
                     self.get_hypervisor_stats()
                     self.get_server_stats()
+                    self.get_project_stats()
 
-                # What about networks? monitor all
+                # For now, monitor all networks
                 self.get_network_stats()
             except OpenstackAuthFailure:
                 self._auth_required = True
@@ -580,14 +697,44 @@ class OpenStackCheck(AgentCheck):
         # Look up hypervisors available filtered by my hostname
         host = self.get_my_hostname()
         hyp = self.get_all_hypervisor_ids(filter_by_host=host)
-        return hyp[0]
+        if hyp:
+            return hyp[0]
+        else:
+            return None
+
+    def get_scoped_project(self):
+        """
+        Returns the project that this instance of the check is scoped to
+        """
+        if self._tenant_id:
+            return {"id": self._tenant_id}
+
+        if not (self._project_name and self._domain_id):
+            # sets auth state for future use
+            self._get_auth_scope()
+
+        filter_params = {
+            "name": self._project_name,
+            "domain_id": self._domain_id
+        }
+
+
+        url = "{0}/{1}/{2}".format(self._get_keystone_server_url(), self.DEFAULT_KEYSTONE_API_VERSION, "projects")
+        headers = {'X-Auth-Token': self._auth_token}
+
+        projects = []
+        try:
+            resp = self._make_request_with_auth_fallback(url, headers, params=filter_params)
+            project_details = resp.json()
+            assert len(project_details["projects"]) == 1, "Non-unique project credentials"
+            return project_details["projects"][0]
+        except Exception as e:
+            self.warning('Unable to get the list of all project ids: {0}'.format(str(e)))
+
+        return None
 
     def get_my_hostname(self):
         return socket.gethostname()
-
-    def get_aggregates_for_local_host(self):
-        aggregate_list = self._get_and_set_aggregate_list()
-        return aggregate_list[self.get_my_hostname()]
 
     def get_servers_managed_by_hypervisor(self):
         return self.get_all_server_ids(filter_by_host=self.get_my_hostname())
@@ -601,6 +748,8 @@ class OpenStackCheck(AgentCheck):
             # Need to check if there is a value for availability_zone because it is possible to have an aggregate without an AZ
             if self._aggregate_list[hostname]['availability_zone']:
                 tags.append('availability_zone:{0}'.format(self._aggregate_list[hostname]['availability_zone']))
+        else:
+            self.log.info('Unable to find hostname {0} in aggregate list. Assuming this host is unaggregated'.format(hostname))
 
         return tags
     ####
