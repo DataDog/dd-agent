@@ -232,6 +232,14 @@ OPTIONAL_INNODB_VARS = {
     'Innodb_x_lock_spin_waits': ('mysql.innodb.x_lock_spin_waits', RATE),
 }
 
+GALERA_VARS = {
+    'wsrep_cluster_size': ('mysql.galera.wsrep_cluster_size', GAUGE),
+    'wsrep_local_recv_queue_avg': ('mysql.galera.wsrep_local_recv_queue_avg', GAUGE),
+    'wsrep_flow_control_paused': ('mysql.galera.wsrep_flow_control_paused', GAUGE),
+    'wsrep_cert_deps_distance': ('mysql.galera.wsrep_cert_deps_distance', GAUGE),
+    'wsrep_local_send_queue_avg': ('mysql.galera.wsrep_local_send_queue_avg', GAUGE),
+}
+
 
 class MySql(AgentCheck):
     SERVICE_CHECK_NAME = 'mysql.can_connect'
@@ -404,11 +412,11 @@ class MySql(AgentCheck):
             self.log.debug("Collecting Extra Innodb Metrics")
             VARS.update(OPTIONAL_INNODB_VARS)
 
-        self._rate_or_gauge_vars(VARS, results, tags)
-
         if 'galera_cluster' in options and options['galera_cluster']:
-            value = self._collect_scalar('wsrep_cluster_size', results)
-            self.gauge('mysql.galera.wsrep_cluster_size', value, tags=tags)
+            self.log.debug("Collecting Galera Metrics.")
+            VARS.update(GALERA_VARS)
+
+        self._rate_or_gauge_vars(VARS, results, tags)
 
         if 'replication' in options and options['replication']:
             # get slave running form global status page
