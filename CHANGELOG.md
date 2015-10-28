@@ -186,6 +186,7 @@ See [#81](https://github.com/DataDog/jmxfetch/issues/81)
 # 5.5.2 / 10-26-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.5.1...5.5.2
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-5.5.2.msi)|[64-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-5.5.2.amd64.msi)
 
 ### [WARNING] Datadog Agent not reporting metrics after Daylight Saving Time (DST) ends
 This release fixes a bug on servers that **are configured in local time instead of UTC Time**. If your server's clock is configured to use Daylight Saving Time (DST), the Datadog Agent might stop sending metrics for up to one hour when the Daylight Saving Time ends or until it is restarted after the Daylight Saving Time ends.
@@ -201,6 +202,7 @@ We highly recommend to upgrade to this version if your server is configured in l
 # 5.5.1 / 09-23-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.5.0...5.5.1
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-5.5.1.msi)|[64-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-5.5.1.amd64.msi)
 
 ### Changes
 * [BUGFIX] Core: Fix `dd-agent` command-line interface on Linux. See [#49](https://github.com/DataDog/dd-agent-omnibus/pull/51), [#51](https://github.com/DataDog/dd-agent-omnibus/pull/49)
@@ -394,6 +396,7 @@ See [#1908][]
 **Windows Only**
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.4.6...5.4.7
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-5.4.7.msi)
 
 ### Changes
 * [BUGFIX] Fix `adodbapi` dependency issue with Windows MSI Installer. See [#1907][]
@@ -573,6 +576,7 @@ https://github.com/DataDog/dd-agent/compare/5.3.1...5.3.2
 
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.3.0...5.3.1
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-5.3.1.msi)
 
 ### Changes
 * [BUGFIX] JMXFetch: Fix bootloop issue when no JMX integration is set. See [#1561][]
@@ -581,6 +585,7 @@ https://github.com/DataDog/dd-agent/compare/5.3.0...5.3.1
 # 5.3.0 / 04-16-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.2.2...5.3.0
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-5.3.0.msi)
 
 ### New integration(s)
 * PGBouncer: See [#1391][]
@@ -644,6 +649,7 @@ https://github.com/DataDog/dd-agent/compare/5.2.2...5.3.0
 
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.2.2...5.2.3
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-5.2.3.msi)
 
 ### Changes
 * [BUGFIX] Fix vSphere service check
@@ -676,6 +682,7 @@ https://github.com/DataDog/dd-agent/compare/5.2.0...5.2.1
 # 5.2.0 / 02-17-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.1.1...5.2.0
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-5.2.0.msi)|[32-bit (win2003)](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-5.2.0_win2003.msi)
 
 ### New and updated integrations
 * CouchDB
@@ -760,7 +767,7 @@ Starting from this version of the agent, the default endpoint URL `app.datadoghq
 * [BUGFIX] Windows Event Log: Fix a timezone issue. See [#1370][]
 
 # 5.1.1 / 12-09-2014
-#### Details
+### Details
 https://github.com/DataDog/dd-agent/compare/5.1.0...5.1.1
 
 ### Updated integrations
@@ -775,6 +782,9 @@ https://github.com/DataDog/dd-agent/compare/5.1.0...5.1.1
 
 
 # 5.1.0 / 11-24-2014
+### Details
+https://github.com/DataDog/dd-agent/compare/5.0.5...5.1.0
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-5.1.0.MANUAL.msi)
 
 ### Notes
 * Pup is now removed from the Datadog Agent
@@ -833,6 +843,9 @@ https://github.com/DataDog/dd-agent/compare/5.1.0...5.1.1
 * [BUGFIX] Docker: Fix various time-outs and errors. See [#1162][].
 
 # 5.0.5 (Every platform) / 10-31-2014
+### Details
+https://github.com/DataDog/dd-agent/compare/5.0.4...5.0.5
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-5.0.5.582.msi)
 
 This release fixes a bug on servers that are configured in local time instead of UTC Time.
 If your server's clock is configured to use daylight saving time, your server might stop sending metrics for up to one hour when the Daylight Saving Time ends or until the Agent is restarted after the Daylight Saving Time ends.
@@ -840,6 +853,8 @@ If your server's clock is configured to use daylight saving time, your server mi
 We highly recommend to upgrade to this version if your server is configured in local time.
 
 # 5.0.4 (deb package, rpm package) / 10-17-2014
+### Details
+https://github.com/DataDog/dd-agent/compare/5.0.3...5.0.4
 
 This is a security update regarding POODLE (CVE-2014-3566).
 
@@ -848,6 +863,9 @@ The Omnibus package will now bundle OpenSSL 1.0.1j without support of SSLv3 (no-
 This Omnibus package also adds support of the sqlite3 library for Python.
 
 # 5.0.3 (Windows only)
+### Details
+https://github.com/DataDog/dd-agent/compare/5.0.2...5.0.3
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-5.0.3.578.msi)
 
 vSphere check:
 
@@ -857,6 +875,9 @@ vSphere check:
 * [BUGFIX] Fix thread pool crash when one thread would not terminate gracefully
 
 # 5.0.2 (Windows only)
+### Details
+https://github.com/DataDog/dd-agent/compare/5.0.1...5.0.2
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-5.0.2.576.msi)
 
 vSphere check:
 
@@ -865,10 +886,14 @@ vSphere check:
 * [BUGFIX] Ignore duplicate events about VM migrations
 
 # 5.0.1 (Windows only)
+### Details
+https://github.com/DataDog/dd-agent/compare/5.0.0...5.0.1
 
 [FEATURE] Releasing the vSphere check. This is a new integration able to fetch metrics and events from vCenter.
 
 # 5.0.0 / 08-22-2014
+### Details
+https://github.com/DataDog/dd-agent/compare/4.4.0...5.0.0
 
 ### Notes
 
@@ -942,6 +967,9 @@ See this Wiki page https://github.com/DataDog/dd-agent/wiki/Upgrade-to-Agent-5.x
 * [BUGFIX] Report Docker memory page metrics as rates.
 
 # 4.4.0 / 06-24-2014
+### Details
+https://github.com/DataDog/dd-agent/compare/4.3.1...4.4.0
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-4.4.0.msi)
 
 ### Integrations affected
 
@@ -965,6 +993,8 @@ See this Wiki page https://github.com/DataDog/dd-agent/wiki/Upgrade-to-Agent-5.x
 
 
 # 4.3.1 / 06-03-2014
+### Details
+https://github.com/DataDog/dd-agent/compare/4.3.0...4.3.1
 
 **Linux or Source Install only**
 
@@ -978,6 +1008,8 @@ See this Wiki page https://github.com/DataDog/dd-agent/wiki/Upgrade-to-Agent-5.x
 * [BUGFIX] Add HAProxy reporter name in HAProxy event's titles. See [#960][]
 
 # 4.3.0 / 05-22-2014
+### Details
+https://github.com/DataDog/dd-agent/compare/4.2.2...4.3.0
 
 ### Integrations affected
 * MongoDB
@@ -1016,6 +1048,8 @@ See this Wiki page https://github.com/DataDog/dd-agent/wiki/Upgrade-to-Agent-5.x
 * [FEATURE] Network: Add additional metrics for TCP: See [#949][]
 
 # 4.2.2 / 04-25-2014
+### Details
+https://github.com/DataDog/dd-agent/compare/4.2.1...4.2.2
 
 **Windows Only**
 
@@ -1026,6 +1060,8 @@ See this Wiki page https://github.com/DataDog/dd-agent/wiki/Upgrade-to-Agent-5.x
 * [FEATURE] Support Redis check on Windows: See [#917]
 
 # 4.2.1 / 04-09-2014
+### Details
+https://github.com/DataDog/dd-agent/compare/4.2.0...4.2.1
 
 ### Integrations affected
 * ElasticSearch
@@ -1045,6 +1081,8 @@ See this Wiki page https://github.com/DataDog/dd-agent/wiki/Upgrade-to-Agent-5.x
 
 
 # 4.2.0 / 03-25-2014
+### Details
+https://github.com/DataDog/dd-agent/compare/4.1.0...4.2.0
 
 ### Integrations affected
 * Couchbase
