@@ -89,6 +89,17 @@ class WMISampler(object):
         self.current_sample = None
         self.previous_sample = None
 
+    def get_connection(self):
+        """
+        A Getter to retrieve the sampler connection information.
+        """
+        return {
+            'host': self.host,
+            'namespace': self.namespace,
+            'username': self.username,
+            'password': self.password,
+        }
+
     @property
     def formatted_filters(self):
         """

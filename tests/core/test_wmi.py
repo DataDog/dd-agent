@@ -22,7 +22,7 @@ WMISampler = None
 # Check the role of the flags
 
 
-def load_fixture(f, args):
+def load_fixture(f, args=None):
     """
     Build a WMI query result from a file and given parameters.
     """
@@ -55,8 +55,9 @@ def load_fixture(f, args):
         )
 
     # Append extra information
-    property_name, property_value = args
-    properties.append(Mock(Name=property_name, Value=property_value, Qualifiers_=[]))
+    if args:
+        property_name, property_value = args
+        properties.append(Mock(Name=property_name, Value=property_value, Qualifiers_=[]))
 
     return [Mock(Properties_=properties)]
 
@@ -137,6 +138,17 @@ class SWbemServices(object):
         if query == "Select UnknownCounter,MissingProperty,Timestamp_Sys100NS,Frequency_Sys100NS from Win32_PerfRawData_PerfOS_System":  # noqa
             results += load_fixture("win32_perfrawdata_perfos_system_unknown", ("Name", "C:"))
             results += load_fixture("win32_perfrawdata_perfos_system_unknown", ("Name", "D:"))
+
+        if query == "Select IOReadBytesPerSec,IDProcess from Win32_PerfFormattedData_PerfProc_Process WHERE Name = 'chrome'" \
+                or query == "Select IOReadBytesPerSec,UnknownProperty from Win32_PerfFormattedData_PerfProc_Process WHERE Name = 'chrome'":  # noqa
+            results += load_fixture("win32_perfformatteddata_perfproc_process")
+
+        if query == "Select IOReadBytesPerSec,ResultNotMatchingAnyTargetProperty from Win32_PerfFormattedData_PerfProc_Process WHERE Name = 'chrome'":  # noqa
+            results += load_fixture("win32_perfformatteddata_perfproc_process_alt")
+
+        if query == "Select CommandLine from Win32_Process WHERE Handle = '4036'" \
+                or query == "Select UnknownProperty from Win32_Process WHERE Handle = '4036'":
+            results += load_fixture("win32_process")
 
         return results
 
