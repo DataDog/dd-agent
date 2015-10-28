@@ -430,7 +430,7 @@ class AgentCheck(object):
         """
         self.aggregator.histogram(metric, value, tags, hostname, device_name)
 
-    def historate(self, metric, value, tags=None, hostname=None, device_name=None):
+    def historate(self, metric, value, excluding_tags, tags=None, hostname=None, device_name=None):
         """
         Computes a rate and sample it as a histogram
         Sample a histogram value, with optional tags, hostname and device name.
@@ -448,11 +448,17 @@ class AgentCheck(object):
             context.add("host:" + hostname)
         if device_name is not None:
             context.add("device:" + device_name)
-        
+
         now = time.time()
         context = tuple(context)
 
         if context in self.historate_dict:
+            if tags is not None:
+                for tag in list(tags):
+                    for exc_tag in excluding_tags:
+                        if tag.startswith("{0}:".format(exc_tag)):
+                            tags.remove(tag)
+
             prev_value, prev_ts = self.historate_dict[context]
             rate = float(value - prev_value) / float(now - prev_ts)
             self.aggregator.histogram(metric, rate, tags, hostname, device_name)
