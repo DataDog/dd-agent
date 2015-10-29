@@ -6,124 +6,132 @@ import pymongo
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 from util import get_hostname
 
 DEFAULT_TIMEOUT = 30
+GAUGE = AgentCheck.gauge
+RATE = AgentCheck.rate
 
 
 class MongoDb(AgentCheck):
     SERVICE_CHECK_NAME = 'mongodb.can_connect'
     SOURCE_TYPE_NAME = 'mongodb'
 
-    GAUGES = [
-        # L21-23,25,68-74 Deprecated as if V 3.0.0
-        "indexCounters.btree.missRatio",
-        "indexCounters.missRatio",
-        "globalLock.ratio",
-        "globalLock.totalTime",
-        "globalLock.lockTime",
-        "globalLock.currentQueue.total",
-        "globalLock.currentQueue.readers",
-        "globalLock.currentQueue.writers",
-        "globalLock.activeClients.total",
-        "globalLock.activeClients.readers",
-        "globalLock.activeClients.writers",
-        "connections.current",
-        "connections.available",
-        "connections.totalCreated",
-        "mem.bits",
-        "mem.resident",
-        "mem.virtual",
-        "mem.mapped",
-        "mem.mappedWithJournal",
-        "cursors.totalOpen",
-        "cursors.timedOut",
-        "uptime",
+    COMMON_METRICS = {
+        "asserts.msg": RATE,
+        "asserts.regular": RATE,
+        "asserts.rollovers": RATE,
+        "asserts.user": RATE,
+        "asserts.warning": RATE,
+        "connections.available": GAUGE,
+        "connections.current": GAUGE,
+        "connections.totalCreated": GAUGE,
+        "cursors.timedOut": GAUGE,
+        "cursors.totalOpen": GAUGE,
+        "extra_info.heap_usage_bytes": RATE,
+        "extra_info.page_faults": RATE,
+        "globalLock.activeClients.readers": GAUGE,
+        "globalLock.activeClients.total": GAUGE,
+        "globalLock.activeClients.writers": GAUGE,
+        "globalLock.currentQueue.readers": GAUGE,
+        "globalLock.currentQueue.total": GAUGE,
+        "globalLock.currentQueue.writers": GAUGE,
+        "globalLock.totalTime": GAUGE,
+        "mem.bits": GAUGE,
+        "mem.mapped": GAUGE,
+        "mem.mappedWithJournal": GAUGE,
+        "mem.resident": GAUGE,
+        "mem.virtual": GAUGE,
+        "metrics.document.deleted": RATE,
+        "metrics.document.inserted": RATE,
+        "metrics.document.returned": RATE,
+        "metrics.document.updated": RATE,
+        "metrics.getLastError.wtime.num": RATE,
+        "metrics.getLastError.wtime.totalMillis": RATE,
+        "metrics.getLastError.wtimeouts": RATE,
+        "metrics.operation.fastmod": RATE,
+        "metrics.operation.idhack": RATE,
+        "metrics.operation.scanAndOrder": RATE,
+        "metrics.queryExecutor.scanned": RATE,
+        "metrics.record.moves": RATE,
+        "metrics.repl.apply.batches.num": RATE,
+        "metrics.repl.apply.batches.totalMillis": RATE,
+        "metrics.repl.apply.ops": RATE,
+        "metrics.repl.buffer.count": GAUGE,
+        "metrics.repl.buffer.maxSizeBytes": GAUGE,
+        "metrics.repl.buffer.sizeBytes": GAUGE,
+        "metrics.repl.network.bytes": RATE,
+        "metrics.repl.network.getmores.num": RATE,
+        "metrics.repl.network.getmores.totalMillis": RATE,
+        "metrics.repl.network.ops": RATE,
+        "metrics.repl.network.readersCreated": RATE,
+        "metrics.repl.oplog.insert.num": RATE,
+        "metrics.repl.oplog.insert.totalMillis": RATE,
+        "metrics.repl.oplog.insertBytes": RATE,
+        "metrics.repl.preload.indexes.num": RATE,
+        "metrics.repl.preload.indexes.totalMillis": RATE,
+        "metrics.ttl.deletedDocuments": RATE,
+        "metrics.ttl.passes": RATE,
+        "opcounters.command": RATE,
+        "opcounters.delete": RATE,
+        "opcounters.getmore": RATE,
+        "opcounters.insert": RATE,
+        "opcounters.query": RATE,
+        "opcounters.update": RATE,
+        "opcountersRepl.command": RATE,
+        "opcountersRepl.delete": RATE,
+        "opcountersRepl.getmore": RATE,
+        "opcountersRepl.insert": RATE,
+        "opcountersRepl.query": RATE,
+        "opcountersRepl.update": RATE,
+        "replSet.health": GAUGE,
+        "replSet.replicationLag": GAUGE,
+        "replSet.state": GAUGE,
+        "stats.avgObjSize": GAUGE,
+        "stats.collections": GAUGE,
+        "stats.dataSize": GAUGE,
+        "stats.fileSize": GAUGE,
+        "stats.indexes": GAUGE,
+        "stats.indexSize": GAUGE,
+        "stats.nsSizeMB": GAUGE,
+        "stats.numExtents": GAUGE,
+        "stats.objects": GAUGE,
+        "stats.storageSize": GAUGE,
+        "uptime": GAUGE,
+    }
 
+    V2_ONLY_METRICS = {
+        "globalLock.lockTime": GAUGE,
+        "globalLock.ratio": GAUGE,                  # < 2.2
+        "indexCounters.accesses": RATE,
+        "indexCounters.btree.accesses": RATE,       # < 2.4
+        "indexCounters.btree.hits": RATE,           # < 2.4
+        "indexCounters.btree.misses": RATE,         # < 2.4
+        "indexCounters.btree.missRatio": GAUGE,     # < 2.4
+        "indexCounters.hits": RATE,
+        "indexCounters.misses": RATE,
+        "indexCounters.missRatio": GAUGE,
+        "indexCounters.resets": RATE,
+    }
 
-        "stats.collections",
-        "stats.objects",
-        "stats.avgObjSize",
-        "stats.dataSize",
-        "stats.storageSize",
-        "stats.numExtents",
-        "stats.indexes",
-        "stats.indexSize",
-        "stats.fileSize",
-        "stats.nsSizeMB",
-
-
-
-        "replSet.health",
-        "replSet.state",
-        "replSet.replicationLag",
-
-        "metrics.repl.buffer.count",
-        "metrics.repl.buffer.maxSizeBytes",
-        "metrics.repl.buffer.sizeBytes",
-    ]
-
-    RATES = [
-        "indexCounters.btree.accesses",
-        "indexCounters.btree.hits",
-        "indexCounters.btree.misses",
-        "indexCounters.accesses",
-        "indexCounters.hits",
-        "indexCounters.misses",
-        "indexCounters.resets",
-        "extra_info.page_faults",
-        "extra_info.heap_usage_bytes",
-        "opcounters.insert",
-        "opcounters.query",
-        "opcounters.update",
-        "opcounters.delete",
-        "opcounters.getmore",
-        "opcounters.command",
-        "opcountersRepl.insert",
-        "opcountersRepl.query",
-        "opcountersRepl.update",
-        "opcountersRepl.delete",
-        "opcountersRepl.getmore",
-        "opcountersRepl.command",
-        "asserts.regular",
-        "asserts.warning",
-        "asserts.msg",
-        "asserts.user",
-        "asserts.rollovers",
-        "metrics.document.deleted",
-        "metrics.document.inserted",
-        "metrics.document.returned",
-        "metrics.document.updated",
-        "metrics.getLastError.wtime.num",
-        "metrics.getLastError.wtime.totalMillis",
-        "metrics.getLastError.wtimeouts",
-        "metrics.operation.fastmod",
-        "metrics.operation.idhack",
-        "metrics.operation.scanAndOrder",
-        "metrics.queryExecutor.scanned",
-        "metrics.record.moves",
-        "metrics.repl.apply.batches.num",
-        "metrics.repl.apply.batches.totalMillis",
-        "metrics.repl.apply.ops",
-        "metrics.repl.network.bytes",
-        "metrics.repl.network.getmores.num",
-        "metrics.repl.network.getmores.totalMillis",
-        "metrics.repl.network.ops",
-        "metrics.repl.network.readersCreated",
-        "metrics.repl.preload.indexes.num"
-        "metrics.repl.preload.indexes.totalMillis"
-        "metrics.repl.oplog.insert.num",
-        "metrics.repl.oplog.insert.totalMillis",
-        "metrics.repl.oplog.insertBytes",
-        "metrics.ttl.deletedDocuments",
-        "metrics.ttl.passes",
-    ]
-
-    METRICS = GAUGES + RATES
+    TCMALLOC_METRICS = {
+        "tcmalloc.generic.current_allocated_bytes": GAUGE,
+        "tcmalloc.generic.heap_size": GAUGE,
+        "tcmalloc.tcmalloc.aggressive_memory_decommit": GAUGE,
+        "tcmalloc.tcmalloc.central_cache_free_bytes": GAUGE,
+        "tcmalloc.tcmalloc.current_total_thread_cache_bytes": GAUGE,
+        "tcmalloc.tcmalloc.max_total_thread_cache_bytes": GAUGE,
+        "tcmalloc.tcmalloc.pageheap_free_bytes": GAUGE,
+        "tcmalloc.tcmalloc.pageheap_unmapped_bytes": GAUGE,
+        "tcmalloc.tcmalloc.thread_cache_free_bytes": GAUGE,
+        "tcmalloc.tcmalloc.transfer_cache_free_bytes": GAUGE,
+    }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self._last_state_by_server = {}
+        self.metrics_to_collect_by_instance = {}
 
     def get_library_versions(self):
         return {"pymongo": pymongo.version}
@@ -173,6 +181,41 @@ class MongoDb(AgentCheck):
             'host': hostname
         })
 
+    @classmethod
+    def _build_metric_list_to_collect(cls, collect_tcmalloc_metrics=False):
+        """
+        Build the metric list to collect based on the instance preferences.
+        """
+        metrics_to_collect = {}
+
+        # Defaut metrics
+        metrics_to_collect.update(cls.COMMON_METRICS)
+        metrics_to_collect.update(cls.V2_ONLY_METRICS)
+
+        # Optional metrics
+        if collect_tcmalloc_metrics:
+            metrics_to_collect.update(cls.TCMALLOC_METRICS)
+
+        return metrics_to_collect
+
+    def _get_metrics_to_collect(self, instance_key, **instance_preferences):
+        """
+        Return and cache the list of metrics to collect.
+        """
+        if instance_key not in self.metrics_to_collect_by_instance:
+            self.metrics_to_collect_by_instance[instance_key] = \
+                self._build_metric_list_to_collect(**instance_preferences)
+        return self.metrics_to_collect_by_instance[instance_key]
+
+    def _normalize(self, metric_name, submit_method):
+        """
+        Normalize the metric name considering its type.
+        """
+        if submit_method == RATE:
+            return self.normalize(metric_name.lower(), 'mongodb') + "ps"
+
+        return self.normalize(metric_name.lower(), 'mongodb')
+
     def check(self, instance):
         """
         Returns a dictionary that looks a lot like what's sent back by
@@ -187,7 +230,7 @@ class MongoDb(AgentCheck):
             'ssl': instance.get('ssl', None),
             'ssl_keyfile': instance.get('ssl_keyfile', None),
             'ssl_certfile': instance.get('ssl_certfile', None),
-            'ssl_cert_reqs':  instance.get('ssl_cert_reqs', None),
+            'ssl_cert_reqs': instance.get('ssl_cert_reqs', None),
             'ssl_ca_certs': instance.get('ssl_ca_certs', None)
         }
 
@@ -200,10 +243,19 @@ class MongoDb(AgentCheck):
         username = parsed.get('username')
         password = parsed.get('password')
         db_name = parsed.get('database')
-        clean_server_name = server.replace(password, "*"*5) if password is not None else server
+        clean_server_name = server.replace(password, "*" * 5) if password is not None else server
 
         tags = instance.get('tags', [])
         tags.append('server:%s' % clean_server_name)
+
+        # Get the list of metrics to collect
+        collect_tcmalloc_metrics = _is_affirmative(
+            instance.get('collect_tcmalloc_metrics', False)
+        )
+        metrics_to_collect = self._get_metrics_to_collect(
+            server,
+            collect_tcmalloc_metrics=collect_tcmalloc_metrics,
+        )
 
         # de-dupe tags to avoid a memory leak
         tags = list(set(tags))
@@ -261,7 +313,7 @@ class MongoDb(AgentCheck):
             AgentCheck.OK,
             tags=service_check_tags)
 
-        status = db["$cmd"].find_one({"serverStatus": 1})
+        status = db["$cmd"].find_one({"serverStatus": 1, "tcmalloc": collect_tcmalloc_metrics})
         if status['ok'] == 0:
             raise Exception(status['errmsg'].__str__())
 
@@ -271,7 +323,7 @@ class MongoDb(AgentCheck):
 
         # Handle replica data, if any
         # See
-        # http://www.mongodb.org/display/DOCS/Replica+Set+Commands#ReplicaSetCommands-replSetGetStatus
+        # http://www.mongodb.org/display/DOCS/Replica+Set+Commands#ReplicaSetCommands-replSetGetStatus  # noqa
         try:
             data = {}
             dbnames = []
@@ -351,52 +403,48 @@ class MongoDb(AgentCheck):
             dbstats[db_n] = {'stats': db_aux.command('dbstats')}
 
         # Go through the metrics and save the values
-        for m in self.METRICS:
+        for metric_name, submit_method in metrics_to_collect.iteritems():
             # each metric is of the form: x.y.z with z optional
             # and can be found at status[x][y][z]
             value = status
 
-            if m.startswith('stats'):
+            if metric_name.startswith('stats'):
                 continue
             else:
                 try:
-                    for c in m.split("."):
+                    for c in metric_name.split("."):
                         value = value[c]
                 except KeyError:
                     continue
 
             # value is now status[x][y][z]
             if not isinstance(value, (int, long, float)):
-                raise TypeError('{0} value is a {1}, it should be an int, a float or a long instead.'
-                                .format(m, type(value)))
+                raise TypeError(
+                    u"{0} value is a {1}, it should be an int, a float or a long instead."
+                    .format(metric_name, type(value)))
 
-            # Check if metric is a gauge or rate
-            if m in self.GAUGES:
-                m = self.normalize(m.lower(), 'mongodb')
-                self.gauge(m, value, tags=tags)
+            # Submit the metric
+            metric_name = self._normalize(metric_name, submit_method)
+            submit_method(self, metric_name, value, tags=tags)
 
-            if m in self.RATES:
-                m = self.normalize(m.lower(), 'mongodb') + "ps"
-                self.rate(m, value, tags=tags)
-
-        stat_metrics = filter(lambda x: x.startswith('stats.'), self.METRICS)
         for st, value in dbstats.iteritems():
-            for m in stat_metrics:
+            for metric_name, submit_method in metrics_to_collect.iteritems():
+                if not metric_name.startswith('stats.'):
+                    continue
+
                 try:
-                    val = value['stats'][m.split('.')[1]]
+                    val = value['stats'][metric_name.split('.')[1]]
                 except KeyError:
                     continue
 
                 # value is now status[x][y][z]
                 if not isinstance(val, (int, long, float)):
-                    raise TypeError('{0} value is a {1}, it should be an int, a float or a long instead.'
-                                    .format(m, type(val)))
+                    raise TypeError(
+                        u"{0} value is a {1}, it should be an int, a float or a long instead."
+                        .format(metric_name, type(val))
+                    )
 
-                # Check if metric is a gauge or rate
-                if m in self.GAUGES:
-                    m = self.normalize(m.lower(), 'mongodb')
-                    self.gauge(m, val, tags=tags + ['cluster:db:%s' % st])
-
-                if m in self.RATES:
-                    m = self.normalize(m.lower(), 'mongodb') + "ps"
-                    self.rate(m, val, tags=tags + ['cluster:db:%s' % st])
+                # Submit the metric
+                metric_name = self._normalize(metric_name, submit_method)
+                metrics_tags = tags + ['cluster:db:%s' % st]
+                submit_method(self, metric_name, value, tags=metrics_tags)
