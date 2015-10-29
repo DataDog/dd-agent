@@ -1,9 +1,20 @@
+# stdlib
 from datetime import datetime, timedelta
 import json
-import requests
 import socket
 
+# project
 from checks import AgentCheck
+
+# 3p
+import requests
+
+SOURCE_TYPE = 'openstack'
+
+DEFAULT_KEYSTONE_API_VERSION = 'v3'
+DEFAULT_NOVA_API_VERSION = 'v2.1'
+DEFAULT_NEUTRON_API_VERSION = 'v2.0'
+
 
 NOVA_HYPERVISOR_METRICS = [
     'current_workload',
@@ -71,8 +82,236 @@ class OpenstackAuthFailure(Exception):
 class InstancePowerOffFailure(Exception):
     pass
 
-class IncompleteConfig(Exception):
-    pass
+class IncompleteConfig(Exception): pass
+class IncompleteAuthScope(IncompleteConfig): pass
+class IncompleteIdentity(IncompleteConfig): pass
+
+
+class OpenStackProjectScope(object):
+    """
+    Container class for a single project's authorization scope
+    Embeds the auth token to be included with API requests, and refreshes
+    the token on expiry (TODO)
+    """
+    def __init__(self, auth_token, auth_scope, service_catalog):
+        self.auth_token = auth_token
+
+        # Store some identifiers for this project
+        self.project_name = auth_scope["project"].get("name")
+        self.domain_id = auth_scope["project"].get("domain", {}).get("id")
+        self.tenant_id = auth_scope["project"].get("id")
+        self.service_catalog = service_catalog
+
+    @classmethod
+    def from_config(cls, init_config, instance_config):
+        keystone_server_url = init_config.get("keystone_server_url")
+        ssl_verify = init_config.get("ssl_verify", False)
+        nova_api_version = init_config.get("nova_api_version", DEFAULT_NOVA_API_VERSION)
+
+        auth_scope = cls.get_auth_scope(instance_config)
+        identity = cls.get_user_identity(instance_config)
+
+        auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify)
+        auth_token = auth_resp.headers.get('X-Subject-Token')
+
+        service_catalog = KeystoneCatalog.from_auth_response(
+            auth_resp.json(), nova_api_version
+        )
+
+        # (NOTE): aaditya
+        # In some cases, the nova url is returned without the tenant id suffixed
+        # e.g. http://172.0.0.1:8774 rather than http://172.0.0.1:8774/<tenant_id>
+        # It is still unclear when this happens, but for now the user can configure
+        # `append_tenant_id` to manually add this suffix for downstream requests
+        if instance_config.get("append_tenant_id", False):
+            t_id = auth_scope["project"].get("id")
+
+            assert t_id and t_id not in service_catalog.nova_endpoint,\
+                """Incorrect use of append_tenant_id, please inspect the service catalog response of your Identity server.
+                   You may need to disable this flag if your Nova service url contains the tenant_id already"""
+
+            service_catalog.nova_endpoint += "/{0}".format(t_id)
+
+        return cls(auth_token, auth_scope, service_catalog)
+
+    @classmethod
+    def get_auth_scope(cls, instance_config):
+        """
+        Parse authorization scope out of init_config
+
+        To guarantee a uniquely identifiable scope, expects either:
+        {'project': {'name': 'my_project', 'domain': {'id': 'my_domain_id'}}}
+        OR
+        {'project': {'id': 'my_project_id'}}
+        """
+        auth_scope = instance_config.get('auth_scope')
+        if not auth_scope or not auth_scope.get('project'):
+            raise IncompleteAuthScope
+
+            # TODO : move warnings to outer scope
+            # self.warning("""Please specify the auth scope via the `auth_scope` variable in your init_config.\n
+            #              The auth_scope should look like: \n
+            #             {'project': {'name': 'my_project', 'domain': {'id': 'my_domain_id'}}}\n
+            #             OR\n
+            #             {'project': {'id': 'my_project_id'}}
+            #              """)
+            # raise IncompleteConfig
+
+        if auth_scope['project'].get('name'):
+            # We need to add a domain scope to avoid name clashes. Search for one. If not raise IncompleteConfig
+            if not auth_scope['project'].get('domain', {}).get('id'):
+                raise IncompleteAuthScope
+        else:
+            # Assume a unique project id has been given
+            if not auth_scope['project'].get('id'):
+                raise IncompleteAuthScope
+
+        # TODO: Move debug log to outer scope
+        # self.log.debug("Parsed authorization scope: %s", auth_scope)
+        return auth_scope
+
+    @classmethod
+    def get_user_identity(cls, instance_config):
+        """
+        Parse user identity out of init_config
+
+        To guarantee a uniquely identifiable user, expects
+        {"user": {"name": "my_username", "password": "my_password",
+                  "domain": {"id": "my_domain_id"}
+                  }
+        }
+        """
+        user = instance_config.get('user')
+        if not user\
+                or not user.get('name')\
+                or not user.get('password')\
+                or not user.get("domain")\
+                or not user.get("domain").get("id"):
+
+            raise IncompleteIdentity
+            # TODO : move warnings to outer scope
+            # self.warning("Please specify the user via the `user` variable in your init_config.\n" +
+            #              "This is the user you would use to authenticate with Keystone v3 via password auth.\n" +
+            #              "The user should look like: {'password': 'my_password', 'name': 'my_name', 'domain': {'id': 'my_domain_id'}}")
+            # raise IncompleteConfig
+
+        identity = {
+            "methods": ['password'],
+            "password": {"user": user}
+        }
+        # TODO: Move debug log to outer scope
+        # self.log.debug("Identity: %s", identity)
+        return identity
+
+    @classmethod
+    def request_auth_token(cls, auth_scope, identity, keystone_server_url, ssl_verify):
+        payload = {"auth": {"scope": auth_scope, "identity": identity}}
+        auth_url = "{0}/{1}/auth/tokens".format(keystone_server_url, DEFAULT_KEYSTONE_API_VERSION)
+        headers = {'Content-Type': 'application/json'}
+
+        resp = requests.post(auth_url, headers=headers, data=json.dumps(payload), verify=ssl_verify)
+        resp.raise_for_status()
+
+        return resp.headers.get('X-Subject-Token')
+
+
+class KeystoneCatalog(object):
+    """
+    A registry of services, scoped to the project, returned by the identity server
+    Contains parsers for retrieving service endpoints from the server auth response
+    """
+    def __init__(self, nova_endpoint, neutron_endpoint):
+        self.nova_endpoint = nova_endpoint
+        self.neutron_endpoint = neutron_endpoint
+
+    @classmethod
+    def from_auth_response(cls, json_response, nova_api_version):
+        return cls(
+            nova_endpoint=cls.get_nova_endpoint(json_response, nova_api_version),
+            neutron_endpoint=cls.get_neutron_endpoint(json_response)
+        )
+
+        pass
+
+    @classmethod
+    def get_neutron_endpoint(cls, json_resp):
+        """
+        Parse the service catalog returned by the Identity API for an endpoint matching the Neutron service
+        Sends a CRITICAL service check when none are found registered in the Catalog
+        """
+        catalog = json_resp.get('token', {}).get('catalog', [])
+        match = 'neutron'
+
+        neutron_endpoint = None
+        for entry in catalog:
+            if entry['name'] == match:
+                valid_endpoints = {}
+                for ep in entry['endpoints']:
+                    interface = ep.get('interface','')
+                    if interface in ['public', 'internal']:
+                        valid_endpoints[interface] = ep['url']
+
+                if valid_endpoints:
+                    # Favor public endpoints over internal
+                    neutron_endpoint = valid_endpoints.get("public",
+                                        valid_endpoints.get("internal"))
+                    break
+                else:
+                    # (FIXME) Fall back to the 1st available one
+                    # FIXME: move warning to outer scope
+                    # self.warning("Neutron endpoint on public interface not found. Defaulting to {0}".format(
+                    #     entry['endpoints'][0].get('url', '')
+                    # ))
+                    neutron_endpoint = entry['endpoints'][0].get('url', '')
+                    break
+        else:
+            # FIXME: move warning and service check to outer scope
+            # self.warning("Neutron service %s cannot be found in your service catalog", match)
+            # self.service_check("openstack.neutron.api", AgentCheck.CRITICAL)
+            pass
+
+        return neutron_endpoint
+
+    @classmethod
+    def get_nova_endpoint(cls, json_resp, nova_api_version=None):
+        """
+        Parse the service catalog returned by the Identity API for an endpoint matching the Nova service with the requested version
+        Sends a CRITICAL service check when no viable candidates are found in the Catalog
+        """
+        nova_version = nova_api_version or DEFAULT_NOVA_API_VERSION
+        catalog = json_resp.get('token', {}).get('catalog', [])
+
+        # TODO: Get rid of this debug or find a way to store it properly
+        # self.log.debug("Keystone Service Catalog: %s", catalog)
+
+        nova_match = 'novav21' if nova_version == 'v2.1' else 'nova'
+
+        for entry in catalog:
+            if entry['name'] == nova_match:
+                # Collect any endpoints on the public or internal interface
+                valid_endpoints = {}
+                for ep in entry['endpoints']:
+                    interface = ep.get('interface','')
+                    if interface in ['public', 'internal']:
+                        valid_endpoints[interface] = ep['url']
+
+                if valid_endpoints:
+                    # Favor public endpoints over internal
+                    nova_endpoint = valid_endpoints.get("public",
+                                        valid_endpoints.get("internal"))
+                    return nova_endpoint
+                else:
+                    # (FIXME) Fall back to the 1st available one
+                    # This is quite arbitrary and is not guaranteed to work
+                    # FIXME: propagate warning to outer scope
+                    # self.warning("Nova endpoint on public interface not found. Defaulting to {0}".format(
+                    #     entry['endpoints'][0].get('url', '')
+                    # ))
+                    return entry['endpoints'][0].get('url', '')
+        else:
+            # FIXME: propagate warning to outer scope
+            # self.warning("Nova service %s cannot be found in your service catalog", nova_match)
+            return None
 
 
 class OpenStackCheck(AgentCheck):
@@ -93,10 +332,6 @@ class OpenStackCheck(AgentCheck):
     HYPERVISOR_STATE_DOWN = 'down'
     NETWORK_STATE_UP = 'UP'
 
-    DEFAULT_KEYSTONE_API_VERSION = 'v3'
-    DEFAULT_NOVA_API_VERSION = 'v2.1'
-    DEFAULT_NEUTRON_API_VERSION = 'v2.0'
-
     HYPERVISOR_SERVICE_CHECK_NAME = 'openstack.nova.hypervisor.up'
     NETWORK_SERVICE_CHECK_NAME = 'openstack.neutron.network.up'
 
@@ -108,31 +343,24 @@ class OpenStackCheck(AgentCheck):
         # Make sure auth happens at initialization
         self._auth_required = True
 
-        self._auth_token = None
-        self._nova_url = None
-        self._neutron_url = None
-
         self._ssl_verify = init_config.get("ssl_verify", True)
-
-        ### Auth parameters
-        self._tenant_id = None
-        self._project_name = None
-        self._domain_id = None
-        ###
-
-        # Workaround for appending tenant id to Nova url returned by keystone
-        self._append_tenant_id = init_config.get("append_tenant_id", False)
+        self.keystone_server_url = init_config.get("keystone_server_url")
+        if not self.keystone_server_url:
+            raise IncompleteConfig
 
         ### Cache some things between runs for values that change rarely
         self._aggregate_list = None
-        self._physical_host_list = None
-        self._hypervisor_list = None
-        ###
 
         self._local_only = init_config.get("local_only", True)
 
+        # Mapping of Nova-managed servers to tags
+        self.external_host_tags = {}
+
     def _make_request_with_auth_fallback(self, url, headers=None, verify=True, params=None):
-        self.log.debug("SSL Certificate Verification set to %s", verify)
+        """
+        Generic request handler for OpenStack API requests
+        Raises specialized Exceptions for commonly encountered error codes
+        """
         try:
             resp = requests.get(url, headers=headers, verify=verify, params=params)
             resp.raise_for_status()
@@ -148,139 +376,21 @@ class OpenStackCheck(AgentCheck):
 
         return resp
 
-    ### Check config accessors
-    def _get_auth_scope(self):
-        """
-        Parse authorization scope out of init_config
-
-        To guarantee a uniquely identifiable scope, expects either:
-        {'project': {'name': 'my_project', 'domain': {'id': 'my_domain_id'}}}
-        OR
-        {'project': {'id': 'my_project_id'}}
-        """
-
-        auth_scope = self.init_config.get('auth_scope')
-        if not auth_scope or not auth_scope.get('project'):
-            self.warning("""Please specify the auth scope via the `auth_scope` variable in your init_config.\n
-                         The auth_scope should look like: \n
-                        {'project': {'name': 'my_project', 'domain': {'id': 'my_domain_id'}}}\n
-                        OR\n
-                        {'project': {'id': 'my_project_id'}}
-                         """)
-            raise IncompleteConfig
-
-        if auth_scope['project'].get('name'):
-            # We need to add a domain scope to avoid name clashes. Search for one. If not raise IncompleteConfig
-            if not auth_scope['project'].get('domain', {}).get('id'):
-                raise IncompleteConfig
-
-            # store project name and domain id
-            self._project_name = auth_scope['project']['name']
-            self._domain_id = auth_scope['project']['domain']['id']
-        else:
-            # Assume a unique project id has been given
-            if not auth_scope['project'].get('id'):
-                raise IncompleteConfig
-
-            self._tenant_id = auth_scope['project']['id']
-
-        self.log.debug("Parsed authorization scope: %s", auth_scope)
-        return auth_scope
-
-    def _get_user_identity(self):
-        """
-        Parse user identity out of init_config
-
-        To guarantee a uniquely identifiable user, expects
-        {"user": {"name": "my_username", "password": "my_password",
-                  "domain": {"id": "my_domain_id"}
-                  }
-        }
-        """
-        user = self.init_config.get('user')
-        if not user\
-                or not user.get('name')\
-                or not user.get('password')\
-                or not user.get("domain")\
-                or not user.get("domain").get("id"):
-            self.warning("Please specify the user via the `user` variable in your init_config.\n" +
-                         "This is the user you would use to authenticate with Keystone v3 via password auth.\n" +
-                         "The user should look like: {'password': 'my_password', 'name': 'my_name', 'domain': {'id': 'my_domain_id'}}")
-            raise IncompleteConfig
-
-        identity = {
-            "methods": ['password'],
-            "password": {"user": user}
-        }
-        self.log.debug("Identity: %s", identity)
-        return identity
-
-    def _get_keystone_server_url(self):
-        return self.init_config.get('keystone_server_url')
-    ###
-
-    ### Auth
-    def get_auth_token_from_auth_response(self, resp):
-        return resp.headers.get('X-Subject-Token')
-
-    def authenticate(self):
-        keystone_api_version = self.init_config.get('keystone_api_version', self.DEFAULT_KEYSTONE_API_VERSION)
-
-        auth_scope = self._get_auth_scope()
-
-        identity = self._get_user_identity()
-        keystone_server_url = self._get_keystone_server_url()
-
-        payload = {"auth": {"scope": auth_scope, "identity": identity}}
-        auth_url = "{0}/{1}/auth/tokens".format(keystone_server_url, self.DEFAULT_KEYSTONE_API_VERSION)
-        headers = {'Content-Type': 'application/json'}
-
-        self.log.debug("SSL Certificate Verification set to %s", self._ssl_verify)
-        resp = requests.post(auth_url, headers=headers, data=json.dumps(payload), verify=self._ssl_verify)
-        resp.raise_for_status()
-
-        self._nova_url = self.get_nova_url_from_auth_response(resp.json(),
-                                                              nova_version=self.init_config.get('nova_api_version'))
-
-        self._neutron_url = self.get_neutron_url_from_auth_response(resp.json())
-        self._auth_token = self.get_auth_token_from_auth_response(resp)
-    ###
+    def get_auth_token(self, instance):
+        return self.instance_to_scope(instance).auth_token
 
     ### Network
-    def get_neutron_url_from_auth_response(self, json_resp):
-        catalog = json_resp.get('token', {}).get('catalog', [])
-        match = 'neutron'
+    def get_neutron_endpoint(self, instance):
+        return self.instance_to_scope(instance).service_catalog.neutron_endpoint
 
-        neutron_endpoint = None
-        for entry in catalog:
-            if entry['name'] == match:
-                valid_endpoints = {}
-                for ep in entry['endpoints']:
-                    interface = ep.get('interface','')
-                    if interface in ['public', 'internal']:
-                        valid_endpoints[interface] = ep['url']
+    def get_network_stats(self, instance):
+        """
+        Collect stats for all reachable networks
+        """
 
-                if valid_endpoints:
-                    # Favor public endpoints over internal
-                    neutron_endpoint = valid_endpoints.get("public",
-                                        valid_endpoints.get("internal"))
-                    break
-                else:
-                    # (FIXME) Fall back to the 1st available one
-                    self.warning("Neutron endpoint on public interface not found. Defaulting to {0}".format(
-                        entry['endpoints'][0].get('url', '')
-                    ))
-                    neutron_endpoint = entry['endpoints'][0].get('url', '')
-                    break
-        else:
-            self.warning("Nova service %s cannot be found in your service catalog", match)
-
-        return neutron_endpoint
-
-    def get_network_stats(self):
         # FIXME: (aaditya) Check all networks defaults to true until we can reliably assign agents to networks to monitor
         if self.init_config.get('check_all_networks', True):
-            network_ids = list(set(self.get_all_network_ids()) - set(self.init_config.get('exclude_network_ids', [])))
+            network_ids = list(set(self.get_all_network_ids(instance)) - set(self.init_config.get('exclude_network_ids', [])))
         else:
             network_ids = self.init_config.get('network_ids', [])
 
@@ -289,11 +399,11 @@ class OpenStackCheck(AgentCheck):
                          "Please list `network_ids` under your init_config")
 
         for nid in network_ids:
-            self.get_stats_for_single_network(nid)
+            self.get_stats_for_single_network(instance, nid)
 
-    def get_all_network_ids(self, filter_by_project=None):
-        url = '{0}/{1}/networks'.format(self._neutron_url, self.DEFAULT_NEUTRON_API_VERSION)
-        headers = {'X-Auth-Token': self._auth_token}
+    def get_all_network_ids(self, instance):
+        url = '{0}/{1}/networks'.format(self.get_neutron_endpoint(instance), DEFAULT_NEUTRON_API_VERSION)
+        headers = {'X-Auth-Token': self.get_auth_token(instance)}
 
         network_ids = []
         try:
@@ -306,9 +416,9 @@ class OpenStackCheck(AgentCheck):
 
         return network_ids
 
-    def get_stats_for_single_network(self, network_id):
-        url = '{0}/{1}/networks/{2}'.format(self._neutron_url, self.DEFAULT_NEUTRON_API_VERSION, network_id)
-        headers = {'X-Auth-Token': self._auth_token}
+    def get_stats_for_single_network(self, instance, network_id):
+        url = '{0}/{1}/networks/{2}'.format(self.get_neutron_endpoint(instance), DEFAULT_NEUTRON_API_VERSION, network_id)
+        headers = {'X-Auth-Token': self.get_auth_token(instance)}
         resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
 
         net_details = resp.json()
@@ -329,6 +439,9 @@ class OpenStackCheck(AgentCheck):
     ###
 
     ### Compute
+    def get_nova_endpoint(self, instance):
+        return self.instance_to_scope(instance).service_catalog.nova_endpoint
+
     def _parse_uptime_string(self, uptime):
         """ Parse u' 16:53:48 up 1 day, 21:34,  3 users,  load average: 0.04, 0.14, 0.19\n' """
         uptime = uptime.strip()
@@ -339,54 +452,6 @@ class OpenStackCheck(AgentCheck):
             'loads': map(float, load_averages),
             'uptime_sec': uptime_sec
         }
-
-    def get_nova_url_from_auth_response(self, json_resp, nova_version=None):
-        nova_version = nova_version or self.DEFAULT_NOVA_API_VERSION
-        catalog = json_resp.get('token', {}).get('catalog', [])
-        self.log.debug("Keystone Service Catalog: %s", catalog)
-        nova_match = 'novav21' if nova_version == 'v2.1' else 'nova'
-
-        nova_endpoint = None
-
-        for entry in catalog:
-            if entry['name'] == nova_match:
-                # Collect any endpoints on the public or internal interface
-                valid_endpoints = {}
-                for ep in entry['endpoints']:
-                    interface = ep.get('interface','')
-                    if interface in ['public', 'internal']:
-                        valid_endpoints[interface] = ep['url']
-
-                if valid_endpoints:
-                    # Favor public endpoints over internal
-                    nova_endpoint = valid_endpoints.get("public",
-                                        valid_endpoints.get("internal"))
-                    break
-                else:
-                    # (FIXME) Fall back to the 1st available one
-                    self.warning("Nova endpoint on public interface not found. Defaulting to {0}".format(
-                        entry['endpoints'][0].get('url', '')
-                    ))
-                    nova_endpoint = entry['endpoints'][0].get('url', '')
-                    break
-        else:
-            self.warning("Nova service %s cannot be found in your service catalog", nova_match)
-            return None
-
-
-        # (FIXME): aaditya
-        # In some cases, the nova url is returned without the tenant id suffixed
-        # e.g. http://172.0.0.1:8774 rather than http://172.0.0.1:8774/<tenant_id>
-        # It is still unclear when this happens, but for now the user can configure
-        # `append_tenant_id` to manually add this suffix for downstream requests
-        if self._append_tenant_id:
-            assert self._tenant_id and self._tenant_id not in nova_endpoint,\
-                """Incorrect use of _append_tenant_id, please inspect service catalog response.
-                   You may need to disable this flag if you're Nova service url contains the tenant_id already"""
-
-            return "{0}/{1}".format(nova_endpoint, self._tenant_id)
-        else:
-            return nova_endpoint
 
     def get_hypervisor_stats(self):
         if self.init_config.get('check_all_hypervisors', False):
@@ -408,10 +473,10 @@ class OpenStackCheck(AgentCheck):
                 self.warning('Unable to get stats for hypervisor {0}: {1}'.format(hyp, str(e)))
 
     def get_all_hypervisor_ids(self, filter_by_host=None):
-        nova_version = self.init_config.get("nova_api_version", self.DEFAULT_NOVA_API_VERSION)
+        nova_version = self.init_config.get("nova_api_version", DEFAULT_NOVA_API_VERSION)
         if nova_version == "v2.1":
             url = '{0}/os-hypervisors'.format(self._nova_url)
-            headers = {'X-Auth-Token': self._auth_token}
+            headers = {'X-Auth-Token': self.get_auth_token(instance)}
 
             hypervisor_ids = []
             try:
@@ -436,7 +501,7 @@ class OpenStackCheck(AgentCheck):
 
     def get_all_aggregate_hypervisors(self):
         url = '{0}/os-aggregates'.format(self._nova_url)
-        headers = {'X-Auth-Token': self._auth_token}
+        headers = {'X-Auth-Token': self.get_auth_token(instance)}
 
         hypervisor_aggregate_map = {}
         try:
@@ -456,7 +521,7 @@ class OpenStackCheck(AgentCheck):
 
     def get_uptime_for_single_hypervisor(self, hyp_id):
         url = '{0}/os-hypervisors/{1}/uptime'.format(self._nova_url, hyp_id)
-        headers = {'X-Auth-Token': self._auth_token}
+        headers = {'X-Auth-Token': self.get_auth_token(instance)}
 
         resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
         uptime = resp.json()['hypervisor']['uptime']
@@ -464,7 +529,7 @@ class OpenStackCheck(AgentCheck):
 
     def get_stats_for_single_hypervisor(self, hyp_id, host_tags=None):
         url = '{0}/os-hypervisors/{1}'.format(self._nova_url, hyp_id)
-        headers = {'X-Auth-Token': self._auth_token}
+        headers = {'X-Auth-Token': self.get_auth_token(instance)}
         resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
         hyp = resp.json()['hypervisor']
         host_tags = host_tags or []
@@ -535,7 +600,7 @@ class OpenStackCheck(AgentCheck):
             query_params["host"] = filter_by_host
 
         url = '{0}/servers'.format(self._nova_url)
-        headers = {'X-Auth-Token': self._auth_token}
+        headers = {'X-Auth-Token': self.get_auth_token(instance)}
 
         server_ids = []
         try:
@@ -552,7 +617,7 @@ class OpenStackCheck(AgentCheck):
             return label in NOVA_SERVER_METRICS or any(seg in label for seg in NOVA_SERVER_INTERFACE_SEGMENTS)
 
         url = '{0}/servers/{1}/diagnostics'.format(self._nova_url, server_id)
-        headers = {'X-Auth-Token': self._auth_token}
+        headers = {'X-Auth-Token': self.get_auth_token(instance)}
         server_stats = {}
 
         try:
@@ -590,10 +655,10 @@ class OpenStackCheck(AgentCheck):
                 self.warning('Unable to get stats for Project {0}: {1}'.format(project['id'], str(e)))
 
     def get_all_projects(self):
-        keystone_api_version = self.init_config.get('keystone_api_version', self.DEFAULT_KEYSTONE_API_VERSION)
+        keystone_api_version = self.init_config.get('keystone_api_version', DEFAULT_KEYSTONE_API_VERSION)
         endpoint_name = 'tenants' if keystone_api_version == 'v2.0' else 'projects'
-        url = "{0}/{1}/{2}".format(self._get_keystone_server_url(), keystone_api_version, endpoint_name)
-        headers = {'X-Auth-Token': self._auth_token}
+        url = "{0}/{1}/{2}".format(self.keystone_server_url, keystone_api_version, endpoint_name)
+        headers = {'X-Auth-Token': self.get_auth_token(instance)}
 
         projects = []
         try:
@@ -611,7 +676,7 @@ class OpenStackCheck(AgentCheck):
             return label in PROJECT_METRICS
 
         url = '{0}/limits'.format(self._nova_url)
-        headers = {'X-Auth-Token': self._auth_token}
+        headers = {'X-Auth-Token': self.get_auth_token(instance)}
         resp = self._make_request_with_auth_fallback(url, headers, params={"tenant_id": project['id']})
 
         server_stats = resp.json()
@@ -643,44 +708,39 @@ class OpenStackCheck(AgentCheck):
     def check(self, instance):
 
         try:
+            # FIXME: must authenticate on a per-instance basis
             if self._auth_required:
                 self.authenticate()
 
             self.log.debug("Running check with creds: \n")
             self.log.debug("Nova Url: %s", self._nova_url)
-            self.log.debug("Neutron Url: %s", self._neutron_url)
-            self.log.debug("Auth Token: %s", self._auth_token)
+            self.log.debug("Neutron Url: %s", self.get_neutron_endpoint(instance))
+            self.log.debug("Auth Token: %s", self.get_auth_token(instance))
 
             try:
-                if self._local_only:
-                    # The new default: restrict monitoring to this (host, hypervisor, project)
-                    # and it's guest servers
+                # The new default: restrict monitoring to this (host, hypervisor, project)
+                # and it's guest servers
 
-                    hyp = self.get_local_hypervisor()
-                    project = self.get_scoped_project()
+                hyp = self.get_local_hypervisor()
+                project = self.get_scoped_project()
 
-                    # Restrict monitoring to hyp and non-excluded servers, don't do anything else
-                    excluded_server_ids = self.init_config.get("exclude_server_ids", [])
-                    servers = list(
-                        set(self.get_servers_managed_by_hypervisor()) - set(excluded_server_ids)
-                    )
-                    host_tags = self._get_tags_for_host()
+                # Restrict monitoring to hyp and non-excluded servers, don't do anything else
+                excluded_server_ids = self.init_config.get("exclude_server_ids", [])
+                servers = list(
+                    set(self.get_servers_managed_by_hypervisor()) - set(excluded_server_ids)
+                )
+                host_tags = self._get_tags_for_host()
 
-                    for sid in servers:
-                        server_tags = host_tags + ['host:%s' % sid]
-                        self.get_stats_for_single_server(sid, tags=server_tags)
+                for sid in servers:
+                    server_tags = ['server:%s' % sid, "nova_managed_server"]
+                    self.external_host_tags[sid] = host_tags
+                    self.get_stats_for_single_server(sid, tags=server_tags)
 
-                    if hyp:
-                        self.get_stats_for_single_hypervisor(hyp, host_tags=host_tags)
+                if hyp:
+                    self.get_stats_for_single_hypervisor(hyp, host_tags=host_tags)
 
-                    if project:
-                        self.get_stats_for_single_project(project)
-                else:
-                    # Legacy behavior: monitor everything reachable
-                    # as enumerated by the user
-                    self.get_hypervisor_stats()
-                    self.get_server_stats()
-                    self.get_project_stats()
+                if project:
+                    self.get_stats_for_single_project(project)
 
                 # For now, monitor all networks
                 self.get_network_stats()
@@ -694,6 +754,9 @@ class OpenStackCheck(AgentCheck):
 
     #### Local Info accessors
     def get_local_hypervisor(self):
+        """
+        Returns the hypervisor running on this host, and assumes a 1-1 between host and hypervisor
+        """
         # Look up hypervisors available filtered by my hostname
         host = self.get_my_hostname()
         hyp = self.get_all_hypervisor_ids(filter_by_host=host)
@@ -702,25 +765,21 @@ class OpenStackCheck(AgentCheck):
         else:
             return None
 
-    def get_scoped_project(self):
+    def get_scoped_project(self, instance):
         """
         Returns the project that this instance of the check is scoped to
         """
-        if self._tenant_id:
-            return {"id": self._tenant_id}
-
-        if not (self._project_name and self._domain_id):
-            # sets auth state for future use
-            self._get_auth_scope()
+        project_auth_scope = self.instance_to_scope(instance)
+        if project_auth_scope.tenant_id:
+            return {"id": project_auth_scope.tenant_id}
 
         filter_params = {
-            "name": self._project_name,
-            "domain_id": self._domain_id
+            "name": project_auth_scope.project_name,
+            "domain_id": project_auth_scope.domain_id
         }
 
-
-        url = "{0}/{1}/{2}".format(self._get_keystone_server_url(), self.DEFAULT_KEYSTONE_API_VERSION, "projects")
-        headers = {'X-Auth-Token': self._auth_token}
+        url = "{0}/{1}/{2}".format(self.keystone_server_url, DEFAULT_KEYSTONE_API_VERSION, "projects")
+        headers = {'X-Auth-Token': self.get_auth_token(instance)}
 
         projects = []
         try:
@@ -752,4 +811,18 @@ class OpenStackCheck(AgentCheck):
             self.log.info('Unable to find hostname {0} in aggregate list. Assuming this host is unaggregated'.format(hostname))
 
         return tags
-    ####
+
+    ### For attaching tags to hosts that are not the host running the agent
+
+    def get_external_host_tags(self):
+        """ Returns a list of tags for every guest server that is detected by the OpenStack
+        integration.
+        List of pairs (hostname, list_of_tags)
+        """
+        self.log.info("Collecting external_host_tags now")
+        external_host_tags = []
+        for k,v in self.external_host_tags.iteritems():
+            external_host_tags.append((k, {SOURCE_TYPE: v}))
+
+        self.log.debug("Sending external_host_tags: %s", external_host_tags)
+        return external_host_tags
