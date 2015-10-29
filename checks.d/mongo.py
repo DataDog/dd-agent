@@ -191,6 +191,8 @@ class MongoDb(AgentCheck):
             'ssl_ca_certs': instance.get('ssl_ca_certs', None)
         }
 
+        db_stats_only = instance.get('db_stats_only', False)
+
         for key, param in ssl_params.items():
             if param is None:
                 del ssl_params[key]
@@ -261,9 +263,12 @@ class MongoDb(AgentCheck):
             AgentCheck.OK,
             tags=service_check_tags)
 
-        status = db["$cmd"].find_one({"serverStatus": 1})
-        if status['ok'] == 0:
-            raise Exception(status['errmsg'].__str__())
+        if not db_stats_only:
+            status = db["$cmd"].find_one({"serverStatus": 1})
+            if status['ok'] == 0:
+                raise Exception(status['errmsg'].__str__())
+        else:
+            status = {}
 
         status['stats'] = db.command('dbstats')
         dbstats = {}

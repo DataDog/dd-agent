@@ -19,3 +19,7 @@ instances:
     # ssl_certfile: # Path to the certificate file used to identify the local connection against mongod.
     # ssl_cert_reqs: # Specifies whether a certificate is required from the other side of the connection, and whether it will be validated if provided.
     # ssl_ca_certs: #  Path to the ca_certs file
+
+    # Optional parameter that will not call 'serverStatus' on this database. 'serverStatus' should only be called once per server, not database.
+    # If you are monitoring multiple databases, you will want to set this to true for each database that is not the admin database.
+    # db_stats_only: False # (default to False)
