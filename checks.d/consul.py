@@ -142,7 +142,7 @@ class ConsulCheck(AgentCheck):
         return self.consul_request(instance, '/v1/catalog/services')
 
     def get_nodes_with_service(self, instance, service):
-        consul_request_url = '/v1/catalog/service/{0}'.format(service)
+        consul_request_url = '/v1/health/service/{0}'.format(service)
 
         return self.consul_request(instance, consul_request_url)
 
@@ -218,15 +218,56 @@ class ConsulCheck(AgentCheck):
 
             services = self._cull_services_list(services, service_whitelist)
             for service in services:
-                nodes_with_service = self.get_nodes_with_service(instance, service)
                 node_tags = ['consul_service_id:{0}'.format(service)]
 
+                nodes_with_service = self.get_nodes_with_service(instance, service)
+                node_status = {'passing': 0, 'warning': 0, 'critical': 0}
+                nodes_up = []
+                for node in nodes_with_service:
+                    # If there is no Check for the node then Consul considers it up
+                    if 'Checks' not in node:
+                        nodes_up.append(node)
+                        node_status['passing'] += 1
+                    else:
+                        # For backwards compatibility, the consul.catalog.nodes_up count needs to be
+                        # based on the total # of nodes 'running' at part of the service.
+                        # If the serfHealth is critical it means the agent isn't even responding
+                        for check in node['Checks']:
+                            if check['CheckID'] == 'serfHealth' and check['Status'] != 'critical':
+                                nodes_up.append(node)
+                                break
+
+                        # Now loop the Checks again to get the count of the actual health of each
+                        # node in the service.
+                        found_critical = False
+                        found_warning = False
+                        for check in node['Checks']:
+                            if check['Status'] == 'critical':
+                                found_critical = True
+                                break
+                            elif check['Status'] == 'warning':
+                                found_warning = True
+                                # Keep looping in case there is a critical status
+
+                        # Now increment the counter based on what was found in Checks
+                        if found_critical:
+                            node_status['critical'] += 1
+                        elif found_warning:
+                            node_status['warning'] += 1
+                        else:
+                            node_status['passing'] += 1
+
                 self.gauge('{0}.nodes_up'.format(self.CONSUL_CATALOG_CHECK),
-                           len(nodes_with_service),
+                           len(nodes_up),
                            tags=main_tags+node_tags)
 
-                for n in nodes_with_service:
-                    node_id = n.get('Node') or None
+                for status_key in ['passing', 'warning', 'critical']:
+                    self.gauge('{0}.nodes_{1}'.format(self.CONSUL_CATALOG_CHECK, status_key),
+                               node_status[status_key],
+                               tags=main_tags+node_tags)
+
+                for n in nodes_up:
+                    node_id = n.get('Node', {}).get('Node') or None
 
                     if not node_id:
                         continue
