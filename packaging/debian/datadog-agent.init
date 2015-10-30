@@ -44,14 +44,14 @@ check_status() {
 
         supervisor_processes=$($SUPERVISORCTL_PATH -c $SUPERVISOR_FILE status)
 
-        # Number of RUNNING supervisord programs (ignoring dogstatsd and jmxfetch)
+        # Number of RUNNING supervisord programs (ignoring dogstatsd, jmxfetch and go-metro)
         datadog_supervisor_processes=$(echo "$supervisor_processes" |
-                                       grep -Ev 'dogstatsd|jmxfetch' |
+                                       grep -Ev 'dogstatsd|jmxfetch|go-metro' |
                                        grep $NAME |
                                        grep -c RUNNING)
 
-        # Number of expected running supervisord programs (ignoring dogstatsd and jmxfetch)
-        supervisor_config_programs=$(grep -Ev 'dogstatsd|jmxfetch' $SUPERVISOR_FILE |
+        # Number of expected running supervisord programs (ignoring dogstatsd, jmxfetch and go-metro)
+        supervisor_config_programs=$(grep -Ev 'dogstatsd|jmxfetch|go-metro' $SUPERVISOR_FILE |
                                      grep -c '\[program:')
 
         if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
