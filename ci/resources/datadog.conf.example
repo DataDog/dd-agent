@@ -76,6 +76,10 @@ use_mount: no
 # for instance for security reasons
 # exclude_process_args: no
 
+# Modify nice value of agent and ddagent processes on POSIX systems (e.g. between -20 and 19, inclusive)
+# agent_nice_value: 0
+# ddagent_nice_value: 0
+
 # ========================================================================== #
 # DogStatsd configuration                                                    #
 # ========================================================================== #
@@ -100,6 +104,9 @@ use_mount: no
 # as your other statsd server might not be able to handle them.
 # statsd_forward_host: address_of_own_statsd_server
 # statsd_forward_port: 8125
+
+# Modify nice value of dogstatsd process on POSIX systems (e.g. between -20 and 19, inclusive)
+# dogstatsd_nice_value: 0
 
 # ========================================================================== #
 # Service-specific configuration                                             #

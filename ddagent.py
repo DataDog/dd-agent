@@ -56,6 +56,7 @@ from util import (
     json,
     Watchdog,
 )
+from utils.process import renice_pid
 
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)
@@ -524,6 +525,9 @@ class Application(tornado.web.Application):
 
 def init(skip_ssl_validation=False, use_simple_http_client=False):
     agentConfig = get_config(parse_args=False)
+
+    if agentConfig.get('ddagent_nice_value') != 0:
+        renice_pid(os.getpid(), agentConfig.get('ddagent_nice_value'))
 
     port = agentConfig.get('listen_port', 17123)
     if port is None:
