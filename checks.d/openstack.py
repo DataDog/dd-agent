@@ -91,6 +91,17 @@ class IncompleteAuthScope(IncompleteConfig):
 class IncompleteIdentity(IncompleteConfig):
     pass
 
+class MissingEndpoint(Exception):
+    pass
+
+class MissingNovaEndpoint(MissingEndpoint):
+    pass
+
+class MissingNeutronEndpoint(MissingEndpoint):
+    pass
+
+class KeystoneUnreachable(MissingEndpoint):
+    pass
 
 class OpenStackProjectScope(object):
     """
@@ -110,13 +121,20 @@ class OpenStackProjectScope(object):
     @classmethod
     def from_config(cls, init_config, instance_config):
         keystone_server_url = init_config.get("keystone_server_url")
+        if not keystone_server_url:
+            raise IncompleteConfig
+
         ssl_verify = init_config.get("ssl_verify", False)
         nova_api_version = init_config.get("nova_api_version", DEFAULT_NOVA_API_VERSION)
 
         auth_scope = cls.get_auth_scope(instance_config)
         identity = cls.get_user_identity(instance_config)
 
-        auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify)
+        try:
+            auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify)
+        except Exception:
+            raise KeystoneUnreachable
+
         auth_token = auth_resp.headers.get('X-Subject-Token')
 
         service_catalog = KeystoneCatalog.from_auth_response(
@@ -153,15 +171,6 @@ class OpenStackProjectScope(object):
         if not auth_scope or not auth_scope.get('project'):
             raise IncompleteAuthScope
 
-            # TODO : move warnings to outer scope
-            # self.warning("""Please specify the auth scope via the `auth_scope` variable in your init_config.\n
-            #              The auth_scope should look like: \n
-            #             {'project': {'name': 'my_project', 'domain': {'id': 'my_domain_id'}}}\n
-            #             OR\n
-            #             {'project': {'id': 'my_project_id'}}
-            #              """)
-            # raise IncompleteConfig
-
         if auth_scope['project'].get('name'):
             # We need to add a domain scope to avoid name clashes. Search for one. If not raise IncompleteConfig
             if not auth_scope['project'].get('domain', {}).get('id'):
@@ -171,8 +180,6 @@ class OpenStackProjectScope(object):
             if not auth_scope['project'].get('id'):
                 raise IncompleteAuthScope
 
-        # TODO: Move debug log to outer scope
-        # self.log.debug("Parsed authorization scope: %s", auth_scope)
         return auth_scope
 
     @classmethod
@@ -194,18 +201,11 @@ class OpenStackProjectScope(object):
                 or not user.get("domain").get("id"):
 
             raise IncompleteIdentity
-            # TODO : move warnings to outer scope
-            # self.warning("Please specify the user via the `user` variable in your init_config.\n" +
-            #              "This is the user you would use to authenticate with Keystone v3 via password auth.\n" +
-            #              "The user should look like: {'password': 'my_password', 'name': 'my_name', 'domain': {'id': 'my_domain_id'}}")
-            # raise IncompleteConfig
 
         identity = {
             "methods": ['password'],
             "password": {"user": user}
         }
-        # TODO: Move debug log to outer scope
-        # self.log.debug("Identity: %s", identity)
         return identity
 
     @classmethod
@@ -261,19 +261,8 @@ class KeystoneCatalog(object):
                     neutron_endpoint = valid_endpoints.get("public",
                                         valid_endpoints.get("internal"))
                     break
-                else:
-                    # (FIXME) Fall back to the 1st available one
-                    # FIXME: move warning to outer scope
-                    # self.warning("Neutron endpoint on public interface not found. Defaulting to {0}".format(
-                    #     entry['endpoints'][0].get('url', '')
-                    # ))
-                    neutron_endpoint = entry['endpoints'][0].get('url', '')
-                    break
         else:
-            # FIXME: move warning and service check to outer scope
-            # self.warning("Neutron service %s cannot be found in your service catalog", match)
-            # self.service_check("openstack.neutron.api", AgentCheck.CRITICAL)
-            pass
+            raise MissingNeutronEndpoint
 
         return neutron_endpoint
 
@@ -285,9 +274,6 @@ class KeystoneCatalog(object):
         """
         nova_version = nova_api_version or DEFAULT_NOVA_API_VERSION
         catalog = json_resp.get('token', {}).get('catalog', [])
-
-        # TODO: Get rid of this debug or find a way to store it properly
-        # self.log.debug("Keystone Service Catalog: %s", catalog)
 
         nova_match = 'novav21' if nova_version == 'v2.1' else 'nova'
 
@@ -305,18 +291,8 @@ class KeystoneCatalog(object):
                     nova_endpoint = valid_endpoints.get("public",
                                         valid_endpoints.get("internal"))
                     return nova_endpoint
-                else:
-                    # (FIXME) Fall back to the 1st available one
-                    # This is quite arbitrary and is not guaranteed to work
-                    # FIXME: propagate warning to outer scope
-                    # self.warning("Nova endpoint on public interface not found. Defaulting to {0}".format(
-                    #     entry['endpoints'][0].get('url', '')
-                    # ))
-                    return entry['endpoints'][0].get('url', '')
         else:
-            # FIXME: propagate warning to outer scope
-            # self.warning("Nova service %s cannot be found in your service catalog", nova_match)
-            return None
+            raise MissingNovaEndpoint
 
 
 class OpenStackCheck(AgentCheck):
@@ -337,8 +313,14 @@ class OpenStackCheck(AgentCheck):
     HYPERVISOR_STATE_DOWN = 'down'
     NETWORK_STATE_UP = 'UP'
 
-    HYPERVISOR_SERVICE_CHECK_NAME = 'openstack.nova.hypervisor.up'
-    NETWORK_SERVICE_CHECK_NAME = 'openstack.neutron.network.up'
+    NETWORK_API_SC = 'openstack.neutron.api.up'
+    COMPUTE_API_SC = 'openstack.nova.api.up'
+    IDENTITY_API_SC = 'openstack.keystone.api.up'
+
+    # Service checks for individual hypervisors and networks
+    HYPERVISOR_SC = 'openstack.nova.hypervisor.up'
+    NETWORK_SC = 'openstack.neutron.network.up'
+
 
     HYPERVISOR_CACHE_EXPIRY = 120 # seconds
 
@@ -375,7 +357,6 @@ class OpenStackCheck(AgentCheck):
                 self.log.info('Need to reauthenticate before next check')
                 raise OpenStackAuthFailure
             elif resp.status_code == 409:
-                # TODO: What are the other cases where this will happen
                 raise InstancePowerOffFailure
             else:
                 raise
@@ -466,9 +447,9 @@ class OpenStackCheck(AgentCheck):
             service_check_tags.append('tenant_id:{0}'.format(tenant_id))
 
         if net_details.get('admin_state_up'):
-            self.service_check(self.NETWORK_SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
+            self.service_check(self.NETWORK_SC, AgentCheck.OK, tags=service_check_tags)
         else:
-            self.service_check(self.NETWORK_SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
+            self.service_check(self.NETWORK_SC, AgentCheck.CRITICAL, tags=service_check_tags)
     ###
 
     ### Compute
@@ -578,13 +559,13 @@ class OpenStackCheck(AgentCheck):
                 pass
 
         if hyp_state is None:
-            self.service_check(self.HYPERVISOR_SERVICE_CHECK_NAME, AgentCheck.UNKNOWN,
+            self.service_check(self.HYPERVISOR_SC, AgentCheck.UNKNOWN,
                                tags=tags)
         elif hyp_state != self.HYPERVISOR_STATE_UP:
-            self.service_check(self.HYPERVISOR_SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+            self.service_check(self.HYPERVISOR_SC, AgentCheck.CRITICAL,
                                tags=tags)
         else:
-            self.service_check(self.HYPERVISOR_SERVICE_CHECK_NAME, AgentCheck.OK,
+            self.service_check(self.HYPERVISOR_SC, AgentCheck.OK,
                                tags=tags)
 
         for label, val in hyp.iteritems():
@@ -644,7 +625,6 @@ class OpenStackCheck(AgentCheck):
             server_stats = resp.json()
         except InstancePowerOffFailure:
             self.warning("Server %s is powered off and cannot be monitored" % server_id)
-            # TODO: Maybe send an event/service check here?
         except Exception as e:
             self.warning("Unknown error when monitoring %s : %s" % (server_id, e))
 
@@ -703,7 +683,7 @@ class OpenStackCheck(AgentCheck):
             # Store the scope on the object so we don't have to keep passing it around
             self._current_scope = instance_scope
 
-            self.log.debug("Running check with creds: \n")
+            self.log.debug("Running check with credentials: \n")
             self.log.debug("Nova Url: %s", self.get_nova_endpoint())
             self.log.debug("Neutron Url: %s", self.get_neutron_endpoint())
             self.log.debug("Auth Token: %s", self.get_auth_token())
@@ -739,9 +719,42 @@ class OpenStackCheck(AgentCheck):
                 # Delete the scope, we'll populate a new one on the next run for this instance
                 self.delete_scope_for_instance(instance)
 
-        except IncompleteConfig:
-            self.warning("Configuration Incomplete! Check your openstack.yaml file")
-            return
+
+
+        except MissingEndpoint as e:
+            if isinstance(e, MissingNeutronEndpoint):
+                self.warning("The agent could not find a compatible Neutron endpoint in your service catalog!")
+                self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+            elif isinstance(e, MissingNovaEndpoint):
+                self.warning("The agent could not find a compatible Nova endpoint in your service catalog!")
+                self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+            else:
+                self.warning("Missing endpoint in service catalog: %s" % e)
+
+        except KeystoneUnreachable:
+            self.warning("The agent could not contact the specified identity server at %s . Are you sure it is up at that address?" % self.init_config.get("keystone_server_url"))
+            self.service_check(self.IDENTITY_API_SC, AgentCheck.CRITICAL, tags=["server:%s" % self.init_config.get("keystone_server_url")])
+
+        except IncompleteConfig as e:
+            if isinstance(e, IncompleteAuthScope):
+                self.warning("""Please specify the auth scope via the `auth_scope` variable in your init_config.\n
+                             The auth_scope should look like: \n
+                            {'project': {'name': 'my_project', 'domain': {'id': 'my_domain_id'}}}\n
+                            OR\n
+                            {'project': {'id': 'my_project_id'}}
+                             """)
+            elif isinstance(e, IncompleteIdentity):
+                self.warning("Please specify the user via the `user` variable in your init_config.\n" +
+                             "This is the user you would use to authenticate with Keystone v3 via password auth.\n" +
+                             "The user should look like: {'password': 'my_password', 'name': 'my_name', 'domain': {'id': 'my_domain_id'}}")
+            else:
+                self.warning("Configuration Incomplete! Check your openstack.yaml file")
+
+        else:
+            # All is good, send the word up to DD
+            self.service_check(self.NETWORK_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+            self.service_check(self.COMPUTE_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+            self.service_check(self.IDENTITY_API_SC, AgentCheck.OK, tags=["server:%s" % self.init_config.get("keystone_server_url")])
 
 
     #### Local Info accessors
