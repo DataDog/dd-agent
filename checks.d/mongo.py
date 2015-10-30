@@ -6,7 +6,6 @@ import pymongo
 
 # project
 from checks import AgentCheck
-from config import _is_affirmative
 from util import get_hostname
 
 DEFAULT_TIMEOUT = 30
@@ -18,12 +17,16 @@ class MongoDb(AgentCheck):
     SERVICE_CHECK_NAME = 'mongodb.can_connect'
     SOURCE_TYPE_NAME = 'mongodb'
 
-    COMMON_METRICS = {
+    BASE_METRICS = {
         "asserts.msg": RATE,
         "asserts.regular": RATE,
         "asserts.rollovers": RATE,
         "asserts.user": RATE,
         "asserts.warning": RATE,
+        "backgroundFlushing.average_ms": GAUGE,
+        "backgroundFlushing.flushes": RATE,
+        "backgroundFlushing.last_ms": GAUGE,
+        "backgroundFlushing.total_ms": GAUGE,
         "connections.available": GAUGE,
         "connections.current": GAUGE,
         "connections.totalCreated": GAUGE,
@@ -37,12 +40,27 @@ class MongoDb(AgentCheck):
         "globalLock.currentQueue.readers": GAUGE,
         "globalLock.currentQueue.total": GAUGE,
         "globalLock.currentQueue.writers": GAUGE,
+        "globalLock.lockTime": GAUGE,
+        "globalLock.ratio": GAUGE,                  # < 2.2
         "globalLock.totalTime": GAUGE,
+        "indexCounters.accesses": RATE,
+        "indexCounters.btree.accesses": RATE,       # < 2.4
+        "indexCounters.btree.hits": RATE,           # < 2.4
+        "indexCounters.btree.misses": RATE,         # < 2.4
+        "indexCounters.btree.missRatio": GAUGE,     # < 2.4
+        "indexCounters.hits": RATE,
+        "indexCounters.misses": RATE,
+        "indexCounters.missRatio": GAUGE,
+        "indexCounters.resets": RATE,
         "mem.bits": GAUGE,
         "mem.mapped": GAUGE,
         "mem.mappedWithJournal": GAUGE,
         "mem.resident": GAUGE,
         "mem.virtual": GAUGE,
+        "metrics.cursor.open.noTimeout": GAUGE,
+        "metrics.cursor.open.pinned": GAUGE,
+        "metrics.cursor.open.total": GAUGE,
+        "metrics.cursor.timedOut": RATE,
         "metrics.document.deleted": RATE,
         "metrics.document.inserted": RATE,
         "metrics.document.returned": RATE,
@@ -101,91 +119,100 @@ class MongoDb(AgentCheck):
         "uptime": GAUGE,
     }
 
-    V2_ONLY_METRICS = {
-        "globalLock.lockTime": GAUGE,
-        "globalLock.ratio": GAUGE,                  # < 2.2
-        "indexCounters.accesses": RATE,
-        "indexCounters.btree.accesses": RATE,       # < 2.4
-        "indexCounters.btree.hits": RATE,           # < 2.4
-        "indexCounters.btree.misses": RATE,         # < 2.4
-        "indexCounters.btree.missRatio": GAUGE,     # < 2.4
-        "indexCounters.hits": RATE,
-        "indexCounters.misses": RATE,
-        "indexCounters.missRatio": GAUGE,
-        "indexCounters.resets": RATE,
-    }
+    DURABILITY_METRICS = {
+        """
+        Journaling-related operations and performance report.
 
-    V3_ONLY_METRICS = {
-        "locks.Collection.acquireCount.R": GAUGE,
-        "locks.Collection.acquireCount.W": GAUGE,
-        "locks.Collection.acquireWaitCount.R": GAUGE,
-        "locks.Collection.acquireWaitCount.W": GAUGE,
-        "locks.Collection.timeAcquiringMicros.R": GAUGE,
-        "locks.Collection.timeAcquiringMicros.W": GAUGE,
-        "locks.Database.acquireCount.r": GAUGE,
-        "locks.Database.acquireCount.w": GAUGE,
-        "locks.Database.acquireWaitCount.r": GAUGE,
-        "locks.Database.acquireWaitCount.w": GAUGE,
-        "locks.Database.timeAcquiringMicros.r": GAUGE,
-        "locks.Database.timeAcquiringMicros.w": GAUGE,
-        "locks.Global.acquireCount.r": GAUGE,
-        "locks.Global.acquireCount.w": GAUGE,
-        "locks.Global.acquireWaitCount.r": GAUGE,
-        "locks.Global.acquireWaitCount.w": GAUGE,
-        "locks.Global.timeAcquiringMicros.r": GAUGE,
-        "locks.Global.timeAcquiringMicros.w": GAUGE,
-        "locks.Metadata.acquireCount.R": GAUGE,
-        "locks.Metadata.acquireCount.W": GAUGE,
-        "locks.MMAPV1Journal.acquireCount.r": GAUGE,
-        "locks.MMAPV1Journal.acquireCount.w": GAUGE,
-        "locks.MMAPV1Journal.acquireWaitCount.r": GAUGE,
-        "locks.MMAPV1Journal.acquireWaitCount.w": GAUGE,
-        "locks.MMAPV1Journal.timeAcquiringMicros.r": GAUGE,
-        "locks.MMAPV1Journal.timeAcquiringMicros.w": GAUGE,
-        "locks.oplog.acquireCount.R": GAUGE,
-        "locks.oplog.acquireCount.w": GAUGE,
-        "locks.oplog.acquireWaitCount.R": GAUGE,
-        "locks.oplog.acquireWaitCount.w": GAUGE,
-        "locks.oplog.timeAcquiringMicros.R": GAUGE,
-        "locks.oplog.timeAcquiringMicros.w": GAUGE,
-        "backgroundFlushing.average_ms": GAUGE,
-        "backgroundFlushing.flushes": GAUGE,
-        "backgroundFlushing.last_ms": GAUGE,
-        "backgroundFlushing.total_ms": GAUGE,
+        https://docs.mongodb.org/manual/reference/command/serverStatus/#serverStatus.dur
+        """
         "dur.commits": GAUGE,
         "dur.commitsInWriteLock": GAUGE,
         "dur.compression": GAUGE,
         "dur.earlyCommits": GAUGE,
         "dur.journaledMB": GAUGE,
-        "dur.timeMs.commits": GAUGE,
-        "dur.timeMs.commitsInWriteLock": GAUGE,
         "dur.timeMs.dt": GAUGE,
         "dur.timeMs.prepLogBuffer": GAUGE,
         "dur.timeMs.remapPrivateView": GAUGE,
         "dur.timeMs.writeToDataFiles": GAUGE,
         "dur.timeMs.writeToJournal": GAUGE,
         "dur.writeToDataFilesMB": GAUGE,
-        "metrics.commands.count.failed": GAUGE,
+
+        """
+        Required version > 3.0.0.
+        """
+        "dur.timeMs.commits": GAUGE,
+        "dur.timeMs.commitsInWriteLock": GAUGE,
+    }
+
+    COMMANDS_METRICS = {
+        """
+        ServerStatus use of database commands report.
+        Required version > 3.0.0.
+
+        https://docs.mongodb.org/manual/reference/command/serverStatus/#serverStatus.metrics.commands
+        """
+        # >= 3.0
+        "metrics.commands.count.failed": RATE,
         "metrics.commands.count.total": GAUGE,
-        "metrics.commands.createIndexes.failed": GAUGE,
+        "metrics.commands.createIndexes.failed": RATE,
         "metrics.commands.createIndexes.total": GAUGE,
-        "metrics.commands.delete.failed": GAUGE,
+        "metrics.commands.delete.failed": RATE,
         "metrics.commands.delete.total": GAUGE,
-        "metrics.commands.eval.failed": GAUGE,
+        "metrics.commands.eval.failed": RATE,
         "metrics.commands.eval.total": GAUGE,
-        "metrics.commands.findAndModify.failed": GAUGE,
+        "metrics.commands.findAndModify.failed": RATE,
         "metrics.commands.findAndModify.total": GAUGE,
-        "metrics.commands.insert.failed": GAUGE,
+        "metrics.commands.insert.failed": RATE,
         "metrics.commands.insert.total": GAUGE,
-        "metrics.commands.update.failed": GAUGE,
+        "metrics.commands.update.failed": RATE,
         "metrics.commands.update.total": GAUGE,
-        "metrics.cursor.open.noTimeout": GAUGE,
-        "metrics.cursor.open.pinned": GAUGE,
-        "metrics.cursor.open.total": GAUGE,
-        "metrics.cursor.timedOut": GAUGE,
+    }
+
+    LOCKS_METRICS = {
+        """
+        ServerStatus locks report.
+
+        https://docs.mongodb.org/manual/reference/command/serverStatus/#server-status-locks
+        """
+        "locks.Collection.acquireCount.R": RATE,
+        "locks.Collection.acquireCount.W": RATE,
+        "locks.Collection.acquireWaitCount.R": RATE,
+        "locks.Collection.acquireWaitCount.W": RATE,
+        "locks.Collection.timeAcquiringMicros.R": RATE,
+        "locks.Collection.timeAcquiringMicros.W": RATE,
+        "locks.Database.acquireCount.r": RATE,
+        "locks.Database.acquireCount.w": RATE,
+        "locks.Database.acquireWaitCount.r": RATE,
+        "locks.Database.acquireWaitCount.w": RATE,
+        "locks.Database.timeAcquiringMicros.r": RATE,
+        "locks.Database.timeAcquiringMicros.w": RATE,
+        "locks.Global.acquireCount.r": RATE,
+        "locks.Global.acquireCount.w": RATE,
+        "locks.Global.acquireWaitCount.r": RATE,
+        "locks.Global.acquireWaitCount.w": RATE,
+        "locks.Global.timeAcquiringMicros.r": RATE,
+        "locks.Global.timeAcquiringMicros.w": RATE,
+        "locks.Metadata.acquireCount.R": RATE,
+        "locks.Metadata.acquireCount.W": RATE,
+        "locks.MMAPV1Journal.acquireCount.r": RATE,
+        "locks.MMAPV1Journal.acquireCount.w": RATE,
+        "locks.MMAPV1Journal.acquireWaitCount.r": RATE,
+        "locks.MMAPV1Journal.acquireWaitCount.w": RATE,
+        "locks.MMAPV1Journal.timeAcquiringMicros.r": RATE,
+        "locks.MMAPV1Journal.timeAcquiringMicros.w": RATE,
+        "locks.oplog.acquireCount.R": RATE,
+        "locks.oplog.acquireCount.w": RATE,
+        "locks.oplog.acquireWaitCount.R": RATE,
+        "locks.oplog.acquireWaitCount.w": RATE,
+        "locks.oplog.timeAcquiringMicros.R": RATE,
+        "locks.oplog.timeAcquiringMicros.w": RATE,
     }
 
     TCMALLOC_METRICS = {
+        """
+        TCMalloc memory allocator report.
+
+        """
         "tcmalloc.generic.current_allocated_bytes": GAUGE,
         "tcmalloc.generic.heap_size": GAUGE,
         "tcmalloc.tcmalloc.aggressive_memory_decommit": GAUGE,
@@ -196,6 +223,16 @@ class MongoDb(AgentCheck):
         "tcmalloc.tcmalloc.pageheap_unmapped_bytes": GAUGE,
         "tcmalloc.tcmalloc.thread_cache_free_bytes": GAUGE,
         "tcmalloc.tcmalloc.transfer_cache_free_bytes": GAUGE,
+    }
+
+    AVAILABLE_METRICS = {
+        """
+        Associates with the metric list to collect.
+        """
+        'durabilty': DURABILITY_METRICS,
+        'locks': LOCKS_METRICS,
+        'metrics.commands': COMMANDS_METRICS,
+        'tcmalloc': TCMALLOC_METRICS,
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
@@ -251,31 +288,45 @@ class MongoDb(AgentCheck):
             'host': hostname
         })
 
-    @classmethod
-    def _build_metric_list_to_collect(cls, collect_tcmalloc_metrics=False):
+    def _build_metric_list_to_collect(self, additional_metrics):
         """
         Build the metric list to collect based on the instance preferences.
         """
         metrics_to_collect = {}
 
         # Defaut metrics
-        metrics_to_collect.update(cls.COMMON_METRICS)
-        metrics_to_collect.update(cls.V2_ONLY_METRICS)
-        metrics_to_collect.update(cls.V3_ONLY_METRICS)
+        metrics_to_collect.update(self.BASE_METRICS)
 
-        # Optional metrics
-        if collect_tcmalloc_metrics:
-            metrics_to_collect.update(cls.TCMALLOC_METRICS)
+        # Additional metrics metrics
+        for option in additional_metrics:
+            additional_metrics = self.AVAILABLE_METRICS.get(option)
+
+            if not additional_metrics:
+                self.log.warning(
+                    u"Failed to extend the list of metrics to collect:"
+                    " unrecognized {option} option".format(
+                        option=option
+                    )
+                )
+                continue
+
+            self.log.debug(
+                u"Adding `{option}` corresponding metrics to the list"
+                " of metrics to collect.".format(
+                    option=option
+                )
+            )
+            metrics_to_collect.update(additional_metrics)
 
         return metrics_to_collect
 
-    def _get_metrics_to_collect(self, instance_key, **instance_preferences):
+    def _get_metrics_to_collect(self, instance_key, additional_metrics):
         """
         Return and cache the list of metrics to collect.
         """
         if instance_key not in self.metrics_to_collect_by_instance:
             self.metrics_to_collect_by_instance[instance_key] = \
-                self._build_metric_list_to_collect(**instance_preferences)
+                self._build_metric_list_to_collect(additional_metrics)
         return self.metrics_to_collect_by_instance[instance_key]
 
     def _normalize(self, metric_name, submit_method):
@@ -316,16 +367,16 @@ class MongoDb(AgentCheck):
         db_name = parsed.get('database')
         clean_server_name = server.replace(password, "*" * 5) if password is not None else server
 
+        additional_metrics = parsed.get('additional_metrics', [])
+
         tags = instance.get('tags', [])
         tags.append('server:%s' % clean_server_name)
 
         # Get the list of metrics to collect
-        collect_tcmalloc_metrics = _is_affirmative(
-            instance.get('collect_tcmalloc_metrics', False)
-        )
+        collect_tcmalloc_metrics = 'tcmalloc' in additional_metrics
         metrics_to_collect = self._get_metrics_to_collect(
             server,
-            collect_tcmalloc_metrics=collect_tcmalloc_metrics,
+            additional_metrics
         )
 
         # de-dupe tags to avoid a memory leak
