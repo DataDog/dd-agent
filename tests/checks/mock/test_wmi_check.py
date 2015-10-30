@@ -123,9 +123,29 @@ class Mocked_WMI(object):
     Mock WMI methods for test purpose.
     """
     def __init__(self, mocked_wmi_classes):
-        # Make WMI classes callable
         def get_wmi_obj(wmi_obj):
-            return lambda Name=None: [wmi_obj] if not Name or wmi_obj.Name == Name else []
+            """
+            Make `wmi_obj` WMI class callable.
+            """
+            def wmi_class_func(properties, **filters):
+                """
+                Function returned when calling a WMI class.
+
+                `wmi_obj` returns when:
+                    * called without argument (`w.wmi_obj()`)
+                    * called with a filter that match its properties/values (`w.wmi_obj(**f)`)
+                    * contains the list of specificied properties (`w.wmi_obj(properties)`)
+                """
+                no_args = not properties and not filters
+                matches_filter = all(hasattr(wmi_obj, p) and getattr(wmi_obj, p) == v
+                                     for p, v in filters.iteritems())
+                contains_properties = all(hasattr(wmi_obj, p) for p in properties)
+
+                if no_args or matches_filter or contains_properties:
+                    return [wmi_obj]
+                return []
+
+            return wmi_class_func
 
         for wmi_class, wmi_obj in mocked_wmi_classes.iteritems():
             mocked_wmi_classes[wmi_class] = get_wmi_obj(wmi_obj)
