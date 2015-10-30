@@ -107,7 +107,7 @@ class OpenStackProjectScope(object):
     """
     Container class for a single project's authorization scope
     Embeds the auth token to be included with API requests, and refreshes
-    the token on expiry (TODO)
+    the token on expiry
     """
     def __init__(self, auth_token, auth_scope, service_catalog):
         self.auth_token = auth_token
@@ -340,9 +340,6 @@ class OpenStackCheck(AgentCheck):
 
         # Mapping of Nova-managed servers to tags
         self.external_host_tags = {}
-
-        # The hypervisor ID for the host running this check
-        self._hypervisor = None
 
     def _make_request_with_auth_fallback(self, url, headers=None, verify=True, params=None):
         """
@@ -579,21 +576,6 @@ class OpenStackCheck(AgentCheck):
             for i, avg in enumerate([1, 5, 15]):
                 self.gauge('openstack.nova.hypervisor_load.{0}'.format(avg), load_averages[i], tags=tags)
 
-    def get_server_stats(self):
-        if self.init_config.get('check_all_servers', False):
-            server_ids = list(set(self.get_all_server_ids()) - set(self.init_config.get('excluded_server_ids', [])))
-        else:
-            server_ids = self.init_config.get('server_ids', [])
-
-        if not server_ids:
-            self.warning("Your check is not configured to monitor any servers.\n" +
-                         "Please list `server_ids` under your init_config in openstack.yaml")
-
-        host_tags = self._get_tags_for_host()
-        for sid in server_ids:
-            server_tags = host_tags + ["host:%s" % sid]
-            self.get_stats_for_single_server(sid, tags=server_tags)
-
     def get_all_server_ids(self, filter_by_host=None):
         query_params = {}
         if filter_by_host:
@@ -703,12 +685,14 @@ class OpenStackCheck(AgentCheck):
                 host_tags = self._get_tags_for_host()
 
                 for sid in servers:
-                    server_tags = ['server:%s' % sid, "nova_managed_server"]
+                    server_tags = ['server:%s' % sid, "nova_managed_server"] + host_tags
                     self.external_host_tags[sid] = host_tags
                     self.get_stats_for_single_server(sid, tags=server_tags)
 
                 if hyp:
                     self.get_stats_for_single_hypervisor(hyp, host_tags=host_tags)
+                else:
+                    self.warning("Couldn't get hypervisor to monitor for host: %s", self.get_my_hostname())
 
                 if project:
                     self.get_stats_for_single_project(project)
@@ -762,14 +746,11 @@ class OpenStackCheck(AgentCheck):
         """
         Returns the hypervisor running on this host, and assumes a 1-1 between host and hypervisor
         """
-        # TODO Handle hypervisor expiry
-        if not self._hypervisor:
-            # Look up hypervisors available filtered by my hostname
-            host = self.get_my_hostname()
-            hyp = self.get_all_hypervisor_ids(filter_by_host=host)
-            if hyp:
-                self._hypervisor = hyp[0]
-            return self._hypervisor
+        # Look up hypervisors available filtered by my hostname
+        host = self.get_my_hostname()
+        hyp = self.get_all_hypervisor_ids(filter_by_host=host)
+        if hyp:
+            return hyp[0]
 
     def get_scoped_project(self, instance):
         """
