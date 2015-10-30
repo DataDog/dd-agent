@@ -255,7 +255,13 @@ class ConsulCheck(AgentCheck):
                                tags=main_tags+node_tags)
 
                 for n in nodes_up:
-                    node_id = n.get('Node', {}).get('Node') or None
+                    node = n.get('Node') or None
+
+                    if not node:
+                        continue
+
+                    # The node_id is n['Node']['Node']
+                    node_id = node.get('Node') or None
 
                     if not node_id:
                         continue
