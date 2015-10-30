@@ -4,14 +4,59 @@ from types import ListType
 import unittest
 
 # 3p
+from mock import Mock
 from nose.plugins.attrib import attr
 
 # project
-from tests.checks.common import load_check
+from tests.checks.common import AgentCheckTest, load_check
 
 PORT1 = 37017
 PORT2 = 37018
 MAX_WAIT = 150
+
+
+class TestMongoUnit(AgentCheckTest):
+    """
+    Unit tests for MongoDB AgentCheck.
+    """
+    CHECK_NAME = 'mongo'
+
+    MONGODB_CONFIG = {
+        'server': "mongodb://localhost:%s/test" % PORT1
+    }
+
+    def test_build_metric_list(self):
+        """
+        Build the metric list according to the user configuration.
+        Print a warning when an option has no match.
+        """
+        # Initialize check
+        config = {
+            'instances': [self.MONGODB_CONFIG]
+        }
+
+        self.load_check(config)
+        setattr(self.check, "log", Mock())
+        build_metric_list = self.check._build_metric_list_to_collect
+
+        # No option
+        no_additional_metrics = build_metric_list([])
+        self.assertEquals(len(no_additional_metrics), len(self.check.BASE_METRICS))
+
+        # One correct option
+        base_and_tcmalloc_metrics = build_metric_list(['tcmalloc'])
+        self.assertEquals(
+            len(base_and_tcmalloc_metrics),
+            len(self.check.BASE_METRICS) + len(self.check.TCMALLOC_METRICS)
+        )
+
+        # One wrong and correct option
+        base_and_tcmalloc_metrics = build_metric_list(['foobar', 'tcmalloc'])
+        self.assertEquals(
+            len(base_and_tcmalloc_metrics),
+            len(self.check.BASE_METRICS) + len(self.check.TCMALLOC_METRICS)
+        )
+        self.assertEquals(self.check.log.warning.called, 1)
 
 
 @attr(requires='mongo')
