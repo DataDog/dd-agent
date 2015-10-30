@@ -4,6 +4,9 @@ init_config:
       # Where your identity server lives (please omit the trailing slash). Note that the server must support Identity API v3
       keystone_server_url: "https://my-keystone-server.com"
 
+      # The hostname of this machine registered with Nova. Defaults to socket.gethostname()
+      # os_host: my_hostname
+
       # Nova API version to use - this check supports v2 and v2.1 (default)
       # nova_api_version: 'v2.1'
 
@@ -11,6 +14,25 @@ init_config:
       # The auth scope must resolve to 1 of the following structures:
       # {'project': {'name': 'my_project', 'domain': 'my_domain} OR {'project': {'id': 'my_project_id'}}
 
+      # IDs of Nova Hypervisors to monitor
+      # This is only required when nova_api_version is set to `v2` since
+      # indexing hypervsiors is restricted to `admin`s in Compute API v2
+      # With v2.1, the check will intelligently discover the locally running
+      # hypervisor, based on the hypervisor_hostname
+
+      # hypervisor_ids:
+      #    - 1
+
+      # IDs of networks to exclude from monitoring (by default the agent will collect metrics from networks returned by the neutron:get_networks operation)
+      # exclude_network_ids:
+      #    - network_1
+
+      # Whether to enable SSL certificate verification for HTTP requests. Defaults to true, you may
+      # need to set to false when using self-signed certs
+      # ssl_verify: true
+
+instances:
+    - name: instance_1 # A required unique identifier for this instance
       auth_scope:
           project:
               id: my_project_id
@@ -34,33 +56,12 @@ init_config:
           domain:
               id: default
 
-      # IDs of Nova Hypervisors to monitor
-      # This is only required when nova_api_version is set to `v2` since
-      # indexing hypervsiors is restricted to `admin`s in Compute API v2
-      # With v2.1, the check will intelligently discover the locally running
-      # hypervisor, based on the hypervisor_hostname
-
-      # hypervisor_ids:
-      #    - 1
-
-      # Whether to enable SSL certificate verification for HTTP requests. Defaults to true, you may
-      # need to set to False when using self-signed certs
-      # ssl_verify: true
-
       # In some cases, the nova url is returned without the tenant id suffixed
       # e.g. http://172.0.0.1:8774 rather than http://172.0.0.1:8774/<tenant_id>
       # The user can set append_tenant_id` to true manually add this suffix for downstream requests
       # append_tenant_id: false
 
-      # IDs of servers to exclude from monitoring (by default the agent will collect metrics from all guest servers running on the host)
+      # IDs of servers to exclude from monitoring (by default the agent will collect metrics from all guest servers for this project that are running on the host
       # exclude_server_ids:
       #    - server_1
       #    - server_2
-
-      # IDs of networks to exclude from monitoring (by default the agent will collect metrics from networks returned by the neutron:get_networks operation)
-      # exclude_network_ids:
-      #    - network_1
-
-# No need to change this. No instance-level config
-instances:
-    [{}]
