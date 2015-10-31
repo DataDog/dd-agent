@@ -91,7 +91,7 @@ class TestMySql(AgentCheckTest):
         'mysql.myisam.key_writes',
     ]
 
-    #Possibly from SHOW GLOBAL VARIABLES
+    # Possibly from SHOW GLOBAL VARIABLES
     VARIABLES_VARS = [
         'mysql.myisam.key_buffer_bytes_unflushed',
         'mysql.myisam.key_buffer_bytes_used',
@@ -125,7 +125,6 @@ class TestMySql(AgentCheckTest):
         'mysql.innodb.buffer_pool_reads',
         'mysql.innodb.buffer_pool_utilization',
     ]
-
 
     # Calculated from "SHOW MASTER LOGS;"
     BINLOG_VARS = [
@@ -172,10 +171,14 @@ class TestMySql(AgentCheckTest):
         'mysql.performance.sort_rows',
         'mysql.performance.sort_scan',
         'mysql.performance.table_locks_immediate',
-        # 'mysql.performance.table_cache_hits', added in Mysql 5.6.6
-        # 'mysql.performance.table_cache_misses', added in Mysql 5.6.6
         'mysql.performance.threads_cached',
         'mysql.performance.threads_created'
+    ]
+
+    OPTIONAL_STATUS_VARS_5_6_6 = [
+        'mysql.performance.table_cache_hits',
+        'mysql.performance.table_cache_misses',
+
     ]
 
     # Will collect if [FLAG NAME] is True
@@ -267,7 +270,6 @@ class TestMySql(AgentCheckTest):
         'mysql.innodb.x_lock_spin_waits',
     ]
 
-
     def _test_optional_metrics(self, optional_metrics, at_least):
         """
         Check optional metrics - there should be at least `at_least` matches
@@ -299,12 +301,15 @@ class TestMySql(AgentCheckTest):
         # Assert service metadata
         self.assertServiceMetadata(['version'], count=1)
 
-        #test custom query metrics
+        # test custom query metrics
         self.assertMetric('alice.age', value=25)
         self.assertMetric('bob.age', value=20)
 
-        #test optional metrics
-        self._test_optional_metrics((self.OPTIONAL_REPLICATION_METRICS + self.OPTIONAL_INNODB_VARS + self.OPTIONAL_STATUS_VARS), 1)
+        # test optional metrics
+        self._test_optional_metrics((self.OPTIONAL_REPLICATION_METRICS
+                                     + self.OPTIONAL_INNODB_VARS
+                                     + self.OPTIONAL_STATUS_VARS
+                                     + self.OPTIONAL_STATUS_VARS_5_6_6), 1)
 
         # Raises when COVERAGE=true and coverage < 100%
         self.coverage_report()
