@@ -5,6 +5,7 @@ instances:
   # See http://godoc.org/runtime#MemStats for their explanation
 
   - expvar_url: http://localhost:8080/debug/vars
+    # namespace: examplenamespace         # The default metric namespace is 'go_expvar', define your own
     # tags:
     #   - "application_name:myapp"
     #   - "optionaltag2"
