@@ -41,6 +41,20 @@ def get_check_class(name):
     return check_class
 
 
+def load_class(check_name, class_name):
+    """
+    Retrieve a class with the given name among the given check module.
+    """
+    checksd_path = get_checksd_path(get_os())
+    check_module = __import__(check_name)
+    classes = inspect.getmembers(check_module, inspect.isclass)
+    for name, clsmember in classes:
+        if name == class_name:
+            return clsmember
+
+    raise Exception(u"Unable to import class {0} from the check module.".format(class_name))
+
+
 def load_check(name, config, agentConfig):
     checksd_path = get_checksd_path(get_os())
     if checksd_path not in sys.path:
@@ -136,6 +150,12 @@ class AgentCheckTest(unittest.TestCase):
     def load_check(self, config, agent_config=None):
         agent_config = agent_config or self.DEFAULT_AGENT_CONFIG
         self.check = load_check(self.CHECK_NAME, config, agent_config)
+
+    def load_class(self, name):
+        """
+        Retrieve a class with the given name among the check module.
+        """
+        return load_class(self.CHECK_NAME, name)
 
     # Helper function when testing rates
     def run_check_twice(self, config, agent_config=None, mocks=None,
