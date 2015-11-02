@@ -1,4 +1,5 @@
 # stdlib
+import re
 import time
 
 # 3p
@@ -16,6 +17,15 @@ RATE = AgentCheck.rate
 class MongoDb(AgentCheck):
     SERVICE_CHECK_NAME = 'mongodb.can_connect'
     SOURCE_TYPE_NAME = 'mongodb'
+
+    # METRIC LIST DEFINITION
+    #
+    # Format
+    # ------
+    #   metric_name -> (metric_type, alias)
+    # or
+    #   metric_name -> metric_type *
+    # * by default MongoDB metrics are reported under their original metric names
 
     BASE_METRICS = {
         "asserts.msg": RATE,
@@ -119,12 +129,12 @@ class MongoDb(AgentCheck):
         "uptime": GAUGE,
     }
 
-    DURABILITY_METRICS = {
-        """
-        Journaling-related operations and performance report.
+    """
+    Journaling-related operations and performance report.
 
-        https://docs.mongodb.org/manual/reference/command/serverStatus/#serverStatus.dur
-        """
+    https://docs.mongodb.org/manual/reference/command/serverStatus/#serverStatus.dur
+    """
+    DURABILITY_METRICS = {
         "dur.commits": GAUGE,
         "dur.commitsInWriteLock": GAUGE,
         "dur.compression": GAUGE,
@@ -144,13 +154,13 @@ class MongoDb(AgentCheck):
         "dur.timeMs.commitsInWriteLock": GAUGE,
     }
 
-    COMMANDS_METRICS = {
-        """
-        ServerStatus use of database commands report.
-        Required version > 3.0.0.
+    """
+    ServerStatus use of database commands report.
+    Required version > 3.0.0.
 
-        https://docs.mongodb.org/manual/reference/command/serverStatus/#serverStatus.metrics.commands
-        """
+    https://docs.mongodb.org/manual/reference/command/serverStatus/#serverStatus.metrics.commands
+    """
+    COMMANDS_METRICS = {
         # >= 3.0
         "metrics.commands.count.failed": RATE,
         "metrics.commands.count.total": GAUGE,
@@ -209,11 +219,10 @@ class MongoDb(AgentCheck):
         "locks.oplog.timeAcquiringMicros.w": RATE,
     }
 
+    """
+    TCMalloc memory allocator report.
+    """
     TCMALLOC_METRICS = {
-        """
-        TCMalloc memory allocator report.
-
-        """
         "tcmalloc.generic.current_allocated_bytes": GAUGE,
         "tcmalloc.generic.heap_size": GAUGE,
         "tcmalloc.tcmalloc.aggressive_memory_decommit": GAUGE,
@@ -226,14 +235,26 @@ class MongoDb(AgentCheck):
         "tcmalloc.tcmalloc.transfer_cache_free_bytes": GAUGE,
     }
 
+    """
+    Associates with the metric list to collect.
+    """
     AVAILABLE_METRICS = {
-        """
-        Associates with the metric list to collect.
-        """
         'durability': DURABILITY_METRICS,
         'locks': LOCKS_METRICS,
         'metrics.commands': COMMANDS_METRICS,
         'tcmalloc': TCMALLOC_METRICS,
+    }
+
+    """
+    Mapping for case-sensitive metric name suffixes.
+
+    https://docs.mongodb.org/manual/reference/command/serverStatus/#server-status-locks
+    """
+    CASE_SENSITIVE_METRIC_NAME_SUFFIXES = {
+        '\.R\\b': ".shared",
+        '\.r\\b': ".intent_shared",
+        '\.W\\b': ".exclusive",
+        '\.w\\b': ".intent_exclusive",
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
@@ -330,10 +351,34 @@ class MongoDb(AgentCheck):
                 self._build_metric_list_to_collect(additional_metrics)
         return self.metrics_to_collect_by_instance[instance_key]
 
+    def _resolve_metric(self, original_metric_name, metrics_to_collect):
+        """
+        Return the submit method and the metric name to use.
+
+        The metric name is defined as follow:
+        * If available, the normalized metric name alias
+        * (Or) the normalized original metric name
+        """
+
+        submit_method = metrics_to_collect[original_metric_name][0] \
+            if isinstance(metrics_to_collect[original_metric_name], tuple) \
+            else metrics_to_collect[original_metric_name]
+
+        metric_name = metrics_to_collect[original_metric_name][1] \
+            if isinstance(metrics_to_collect[original_metric_name], tuple) \
+            else original_metric_name
+
+        return submit_method, self._normalize(metric_name, submit_method)
+
     def _normalize(self, metric_name, submit_method):
         """
-        Normalize the metric name considering its type.
+        Replace case-sensitive metric name characters and normalize
+        the metric name according to its type.
         """
+        # Handle case-sensitive metric name suffixes
+        for pattern, repl in self.CASE_SENSITIVE_METRIC_NAME_SUFFIXES.iteritems():
+            metric_name = re.compile(pattern).sub(repl, metric_name)
+
         if submit_method == RATE:
             return self.normalize(metric_name.lower(), 'mongodb') + "ps"
 
@@ -526,7 +571,7 @@ class MongoDb(AgentCheck):
             dbstats[db_n] = {'stats': db_aux.command('dbstats')}
 
         # Go through the metrics and save the values
-        for metric_name, submit_method in metrics_to_collect.iteritems():
+        for metric_name in metrics_to_collect:
             # each metric is of the form: x.y.z with z optional
             # and can be found at status[x][y][z]
             value = status
@@ -547,11 +592,11 @@ class MongoDb(AgentCheck):
                     .format(metric_name, type(value)))
 
             # Submit the metric
-            metric_name = self._normalize(metric_name, submit_method)
-            submit_method(self, metric_name, value, tags=tags)
+            submit_method, metric_name_alias = self._resolve_metric(metric_name, metrics_to_collect)
+            submit_method(self, metric_name_alias, value, tags=tags)
 
         for st, value in dbstats.iteritems():
-            for metric_name, submit_method in metrics_to_collect.iteritems():
+            for metric_name in metrics_to_collect:
                 if not metric_name.startswith('stats.'):
                     continue
 
@@ -568,6 +613,7 @@ class MongoDb(AgentCheck):
                     )
 
                 # Submit the metric
-                metric_name = self._normalize(metric_name, submit_method)
+                submit_method, metric_name_alias = \
+                    self._resolve_metric(metric_name, metrics_to_collect)
                 metrics_tags = tags + ['cluster:db:%s' % st]
-                submit_method(self, metric_name, val, tags=metrics_tags)
+                submit_method(self, metric_name_alias, val, tags=metrics_tags)

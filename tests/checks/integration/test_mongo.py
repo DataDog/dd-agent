@@ -1,6 +1,6 @@
 # stdlib
-import time
 from types import ListType
+import time
 import unittest
 
 # 3p
@@ -8,11 +8,15 @@ from mock import Mock
 from nose.plugins.attrib import attr
 
 # project
+from checks import AgentCheck
 from tests.checks.common import AgentCheckTest, load_check
 
 PORT1 = 37017
 PORT2 = 37018
 MAX_WAIT = 150
+
+GAUGE = AgentCheck.gauge
+RATE = AgentCheck.rate
 
 
 class TestMongoUnit(AgentCheckTest):
@@ -57,6 +61,59 @@ class TestMongoUnit(AgentCheckTest):
             len(self.check.BASE_METRICS) + len(self.check.TCMALLOC_METRICS)
         )
         self.assertEquals(self.check.log.warning.called, 1)
+
+    def test_metric_resolution(self):
+        """
+        Resolve metric names and types.
+        """
+        # Initialize check and tests
+        config = {
+            'instances': [self.MONGODB_CONFIG]
+        }
+        collect_metrics = {
+            'foobar': (GAUGE, 'barfoo'),
+            'foo.bar': (RATE, 'bar.foo'),
+            'fOoBaR': GAUGE,
+            'fOo.baR': RATE,
+        }
+        self.load_check(config)
+        resolve_metric = self.check._resolve_metric
+
+        # Assert
+
+        # metric_name -> (metric_type, alias)
+        self.assertEquals((GAUGE, 'mongodb.barfoo'), resolve_metric('foobar', collect_metrics))
+        self.assertEquals((RATE, 'mongodb.bar.foops'), resolve_metric('foo.bar', collect_metrics))
+
+        #  metric_name -> metric_type
+        self.assertEquals((GAUGE, 'mongodb.foobar'), resolve_metric('fOoBaR', collect_metrics))
+        self.assertEquals((RATE, 'mongodb.foo.barps'), resolve_metric('fOo.baR', collect_metrics))
+
+    def test_metric_normalization(self):
+        """
+        Metric names suffixed with `.R`, `.r`, `.W`, `.w` are renamed.
+        """
+        # Initialize check and tests
+        config = {
+            'instances': [self.MONGODB_CONFIG]
+        }
+        collect_metrics = {
+            'foo.bar': GAUGE,
+            'foobar.r': GAUGE,
+            'foobar.R': RATE,
+            'foobar.w': RATE,
+            'foobar.W': GAUGE,
+        }
+        self.load_check(config)
+        resolve_metric = self.check._resolve_metric
+
+        # Assert
+        self.assertEquals((GAUGE, 'mongodb.foo.bar'), resolve_metric('foo.bar', collect_metrics))  # noqa
+
+        self.assertEquals((RATE, 'mongodb.foobar.sharedps'), resolve_metric('foobar.R', collect_metrics))  # noqa
+        self.assertEquals((GAUGE, 'mongodb.foobar.intent_shared'), resolve_metric('foobar.r', collect_metrics))  # noqa
+        self.assertEquals((RATE, 'mongodb.foobar.intent_exclusiveps'), resolve_metric('foobar.w', collect_metrics))  # noqa
+        self.assertEquals((GAUGE, 'mongodb.foobar.exclusive'), resolve_metric('foobar.W', collect_metrics))  # noqa
 
 
 @attr(requires='mongo')
