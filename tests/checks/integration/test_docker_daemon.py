@@ -16,6 +16,8 @@ CONTAINERS_TO_RUN = [
 
 ]
 
+POD_NAME_LABEL = "io.kubernetes.pod.name"
+
 @attr(requires='docker_daemon')
 class TestCheckDockerDaemon(AgentCheckTest):
     CHECK_NAME = 'docker_daemon'
@@ -60,7 +62,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.1']),
             ('docker.image.size', ['image_name:redis', 'image_tag:latest']),
-            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.4', 'image_tag:latest']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.6', 'image_tag:latest']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.0']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.7.11']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.2']),
@@ -69,7 +71,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.0']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7.11']),
-            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.4', 'image_tag:latest']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.6', 'image_tag:latest']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.2']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.3']),
             ('docker.image.virtual_size', ['image_name:redis', 'image_tag:latest']),
@@ -157,9 +159,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.1']),
             ('docker.image.size', ['image_name:redis', 'image_tag:latest']),
-            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:latest', 'image_tag:1.9', 'image_tag:1.9.4']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:latest', 'image_tag:1.9', 'image_tag:1.9.6']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.0']),
-            ('docker.image.size', ['image_name:buildpack-deps', 'image_tag:precise']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.7.11']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.2']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.3']),
@@ -167,8 +168,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.0']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7.11']),
-            ('docker.image.virtual_size', ['image_name:buildpack-deps', 'image_tag:precise']),
-            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:latest', 'image_tag:1.9', 'image_tag:1.9.4']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:latest', 'image_tag:1.9', 'image_tag:1.9.6']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.2']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.3']),
             ('docker.image.virtual_size', ['image_name:redis', 'image_tag:latest']),
@@ -223,9 +223,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.1']),
             ('docker.image.size', ['image_name:redis', 'image_tag:latest']),
-            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:latest', 'image_tag:1.9', 'image_tag:1.9.4']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:latest', 'image_tag:1.9', 'image_tag:1.9.6']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.0']),
-            ('docker.image.size', ['image_name:buildpack-deps', 'image_tag:precise']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.7.11']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.2']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.3']),
@@ -233,8 +232,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.0']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7.11']),
-            ('docker.image.virtual_size', ['image_name:buildpack-deps', 'image_tag:precise']),
-            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:latest', 'image_tag:1.9', 'image_tag:1.9.4']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:latest', 'image_tag:1.9', 'image_tag:1.9.6']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.2']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.3']),
             ('docker.image.virtual_size', ['image_name:redis', 'image_tag:latest']),
@@ -289,13 +287,10 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.cpu.system', ['container_command:/entrypoint.sh redis-server']),
             ('docker.cpu.user', ['container_command:/entrypoint.sh redis-server']),
             ('docker.cpu.user', ["container_command:nginx -g 'daemon off;'"]),
-            ('docker.image.size', ['image_name:<none>', 'image_tag:<none>']),
-            ('docker.image.size', ['image_name:ubuntu', 'image_tag:14.04']),
-            ('docker.image.size', ['image_name:ruby', 'image_tag:2.2']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.1']),
             ('docker.image.size', ['image_name:redis', 'image_tag:latest']),
-            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9.4', 'image_tag:1.9', 'image_tag:latest']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9.6', 'image_tag:1.9', 'image_tag:latest']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.0']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.7.11']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.2']),
@@ -304,7 +299,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.0']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7.11']),
-            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9.4', 'image_tag:1.9', 'image_tag:latest']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9.6', 'image_tag:1.9', 'image_tag:latest']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.2']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.3']),
             ('docker.image.virtual_size', ['image_name:redis', 'image_tag:latest']),
@@ -373,7 +368,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.1']),
             ('docker.image.size', ['image_name:redis', 'image_tag:latest']),
-            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.4', 'image_tag:latest']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.6', 'image_tag:latest']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.0']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.7.11']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.2']),
@@ -382,7 +377,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.0']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7.11']),
-            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.4', 'image_tag:latest']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.6', 'image_tag:latest']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.2']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.3']),
             ('docker.image.virtual_size', ['image_name:redis', 'image_tag:latest']),
@@ -411,6 +406,63 @@ class TestCheckDockerDaemon(AgentCheckTest):
         for mname, tags in expected_metrics:
             self.assertMetric(mname, tags=tags, count=1, at_least=1)
 
+    def test_histogram(self):
+
+        metric_suffix = ["count", "avg", "median", "max", "95percentile"]
+
+        expected_metrics = [
+            ('docker.containers.running', ['docker_image:nginx', 'image_name:nginx']),
+            ('docker.containers.running', ['docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
+            ('docker.containers.stopped', ['docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
+            ('docker.containers.stopped', ['docker_image:nginx', 'image_name:nginx']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.1']),
+            ('docker.image.size', ['image_name:redis', 'image_tag:latest']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.6', 'image_tag:latest']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.0']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1.7.11']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.2']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.3']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.1']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.0']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7.11']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.6', 'image_tag:latest']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.2']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.3']),
+            ('docker.image.virtual_size', ['image_name:redis', 'image_tag:latest']),
+            ('docker.images.available', None),
+            ('docker.images.intermediate', None),
+        ]
+
+        histo_metrics = [
+            ('docker.mem.cache', ['docker_image:nginx', 'image_name:nginx']),
+            ('docker.mem.cache', ['docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
+            ('docker.mem.rss', ['docker_image:nginx', 'image_name:nginx']),
+            ('docker.mem.rss', ['docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
+            ('docker.mem.limit' ,['docker_image:nginx', 'image_name:nginx']),
+            ('docker.mem.in_use' ,['docker_image:nginx', 'image_name:nginx']),
+        ]
+
+        config = {
+            "init_config": {},
+            "instances": [{
+                "url": "unix://var/run/docker.sock",
+                "collect_image_size": True,
+                "collect_images_stats": True,
+                "use_histogram": True,
+            },
+            ],
+        }
+
+        self.run_check(config, force_reload=True)
+        for mname, tags in expected_metrics:
+            self.assertMetric(mname, tags=tags, count=1, at_least=1)
+
+        for mname, tags in histo_metrics:
+            for suffix in metric_suffix:
+                self.assertMetric(mname + "." + suffix, tags=tags, at_least=1)
+
     def test_events(self):
         config = {
             "init_config": {},
@@ -433,7 +485,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.1']),
             ('docker.image.size', ['image_name:redis', 'image_tag:latest']),
-            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.4', 'image_tag:latest']),
+            ('docker.image.size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.6', 'image_tag:latest']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.0']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.7.11']),
             ('docker.image.size', ['image_name:nginx', 'image_tag:1.9.2']),
@@ -442,7 +494,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7', 'image_tag:1.7.12']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.0']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.7.11']),
-            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.4', 'image_tag:latest']),
+            ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1', 'image_tag:1.9', 'image_tag:1.9.6', 'image_tag:latest']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.2']),
             ('docker.image.virtual_size', ['image_name:nginx', 'image_tag:1.9.3']),
             ('docker.image.virtual_size', ['image_name:redis', 'image_tag:latest']),
