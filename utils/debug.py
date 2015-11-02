@@ -2,12 +2,12 @@
 from functools import wraps
 from pprint import pprint
 import inspect
+import logging
 import os
 import sys
 
-# datadog
-from config import get_checksd_path, get_confd_path
-from util import get_os
+
+log = logging.getLogger(__name__)
 
 
 def log_exceptions(logger):
@@ -30,13 +30,29 @@ def log_exceptions(logger):
     return decorator
 
 
+def logged(func):
+    """
+    Add DEBUG logging to a function.
+    """
+    @wraps(func)
+    def wrapper(*params, **kwargs):
+        fc = "%s(%s)" % (func.__name__, ', '.join(
+            [a.__repr__() for a in params] +
+            ["%s = %s" % (a, b) for a, b in kwargs.items()]
+        ))
+        log.debug("%s called" % fc)
+        return func(*params, **kwargs)
+    return wrapper
+
 
 def run_check(name, path=None):
     """
     Test custom checks on Windows.
     """
-    # Read the config file
+    from config import get_confd_path
+    from util import get_os
 
+    # Read the config file
     confd_path = path or os.path.join(get_confd_path(get_os()), '%s.yaml' % name)
 
     try:
@@ -62,6 +78,8 @@ def run_check(name, path=None):
 
 def get_check(name, config_str):
     from checks import AgentCheck
+    from config import get_checksd_path
+    from util import get_os
 
     checksd_path = get_checksd_path(get_os())
     if checksd_path not in sys.path:

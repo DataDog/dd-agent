@@ -1,5 +1,7 @@
-# project
+# datadog
 from checks import Check
+from utils.debug import logged
+from utils.timeout import timeout, TimeoutException
 
 # 3rd party
 try:
@@ -7,8 +9,17 @@ try:
 except ImportError:
     psutil = None
 
+_WMI_TIMEOUT = 10
+
 try:
     import wmi
+    #######################
+    # MONKEY PATCH ALERT: #
+    #######################
+    # * Log debug WMI queries
+    # * Timeout after X seconds (raise TimeoutException)
+    wmi._wmi_namespace.__getattr__ = timeout(_WMI_TIMEOUT)(logged(wmi._wmi_namespace.__getattr__))
+
     w = wmi.WMI()
 except Exception:
     wmi, w = None, None
@@ -19,6 +30,7 @@ class DriveType(object):
     UNKNOWN, NOROOT, REMOVEABLE, LOCAL, NETWORK, CD, RAM = (0, 1, 2, 3, 4, 5, 6)
 B2MB = float(1048576)
 KB2MB = B2KB = float(1024)
+
 
 def should_ignore_disk(name, blacklist_re):
     # blacklist_re is a compiled regex, compilation done at config loading time
@@ -38,13 +50,12 @@ class Processes(Check):
             self.logger.info('Missing Win32_PerfFormattedData_PerfOS_System WMI class.'
                              ' No process metrics will be returned.')
             return
-
-        try:
-            cpu = w.Win32_PerfFormattedData_PerfOS_Processor(name="_Total")[0]
-        except AttributeError:
-            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.'
-                             ' No process metrics will be returned.')
+        except TimeoutException:
+            self.logger.warn("Timeout (after {0} seconds) while querying"
+                             " Win32_PerfFormattedData_PerfOS_System WMI class."
+                             " No process metrics will be returned.".format(_WMI_TIMEOUT))
             return
+
         if os.ProcessorQueueLength is not None:
             self.save_sample('system.proc.queue_length', os.ProcessorQueueLength)
         if os.Processes is not None:
@@ -83,6 +94,11 @@ class Memory(Check):
             os = w.Win32_OperatingSystem()[0]
         except AttributeError:
             self.logger.info('Missing Win32_OperatingSystem. No memory metrics will be returned.')
+            return
+        except TimeoutException:
+            self.logger.warn("Timeout (after {0} seconds) while querying"
+                             " Win32_OperatingSystem WMI class."
+                             " No process metrics will be returned.".format(_WMI_TIMEOUT))
             return
 
         total = 0
@@ -132,6 +148,11 @@ class Cpu(Check):
             self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.'
                              ' No CPU metrics will be returned.')
             return
+        except TimeoutException:
+            self.logger.warn("Timeout (after {0} seconds) while querying"
+                             " Win32_PerfFormattedData_PerfOS_Processor WMI class."
+                             " No process metrics will be returned.".format(_WMI_TIMEOUT))
+            return
 
         cpu_interrupt = self._average_metric(cpu, 'PercentInterruptTime')
         if cpu_interrupt is not None:
@@ -180,6 +201,11 @@ class Network(Check):
             self.logger.info('Missing Win32_PerfFormattedData_Tcpip_NetworkInterface WMI class.'
                              ' No network metrics will be returned')
             return
+        except TimeoutException:
+            self.logger.warn("Timeout (after {0} seconds) while querying"
+                             " Win32_PerfFormattedData_Tcpip_NetworkInterface WMI class."
+                             " No process metrics will be returned.".format(_WMI_TIMEOUT))
+            return
 
         for iface in net:
             name = self.normalize_device_name(iface.name)
@@ -209,6 +235,12 @@ class IO(Check):
             self.logger.info('Missing Win32_PerfFormattedData_PerfDisk_LogicalDiskUnable WMI class.'
                              ' No I/O metrics will be returned.')
             return
+        except TimeoutException:
+            self.logger.warn("Timeout (after {0} seconds) while querying"
+                             " Win32_PerfFormattedData_PerfDisk_LogicalDisk WMI class."
+                             " No process metrics will be returned.".format(_WMI_TIMEOUT))
+            return
+
         blacklist_re = agentConfig.get('device_blacklist_re', None)
         for device in disk:
             name = self.normalize_device_name(device.name)
