@@ -123,6 +123,9 @@ class TestMySql(AgentCheckTest):
         self.assertServiceCheck('mysql.can_connect', status=AgentCheck.OK,
                                 tags=self.SC_TAGS, count=1)
 
+        self.assertServiceCheck('mysql.replication.slave_running', status=AgentCheck.CRITICAL,
+                                tags=self.METRIC_TAGS, count=1)
+
         # Test metrics
         for mname in (self.INNODB_METRICS + self.SYSTEM_METRICS + self.REPLICATION_METRICS +
                       self.KEY_CACHE + self.COMMON_GAUGES + self.COMMON_RATES):
