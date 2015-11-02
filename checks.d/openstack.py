@@ -1,10 +1,12 @@
 # stdlib
 from datetime import datetime, timedelta
-import json
+from urlparse import urljoin
+import simplejson as json
 import socket
 
 # project
 from checks import AgentCheck
+from util import get_hostname
 
 # 3p
 import requests
@@ -123,7 +125,7 @@ class OpenStackProjectScope(object):
     def from_config(cls, init_config, instance_config):
         keystone_server_url = init_config.get("keystone_server_url")
         if not keystone_server_url:
-            raise IncompleteConfig
+            raise IncompleteConfig()
 
         ssl_verify = init_config.get("ssl_verify", False)
         nova_api_version = init_config.get("nova_api_version", DEFAULT_NOVA_API_VERSION)
@@ -134,7 +136,7 @@ class OpenStackProjectScope(object):
         try:
             auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify)
         except Exception:
-            raise KeystoneUnreachable
+            raise KeystoneUnreachable()
 
         auth_token = auth_resp.headers.get('X-Subject-Token')
 
@@ -154,7 +156,7 @@ class OpenStackProjectScope(object):
                 """Incorrect use of append_tenant_id, please inspect the service catalog response of your Identity server.
                    You may need to disable this flag if your Nova service url contains the tenant_id already"""
 
-            service_catalog.nova_endpoint += "/{0}".format(t_id)
+            service_catalog.nova_endpoint = urljoin(service_catalog.nova_endpoint, t_id)
 
         return cls(auth_token, auth_scope, service_catalog)
 
@@ -170,16 +172,16 @@ class OpenStackProjectScope(object):
         """
         auth_scope = instance_config.get('auth_scope')
         if not auth_scope or not auth_scope.get('project'):
-            raise IncompleteAuthScope
+            raise IncompleteAuthScope()
 
         if auth_scope['project'].get('name'):
             # We need to add a domain scope to avoid name clashes. Search for one. If not raise IncompleteConfig
             if not auth_scope['project'].get('domain', {}).get('id'):
-                raise IncompleteAuthScope
+                raise IncompleteAuthScope()
         else:
             # Assume a unique project id has been given
             if not auth_scope['project'].get('id'):
-                raise IncompleteAuthScope
+                raise IncompleteAuthScope()
 
         return auth_scope
 
@@ -201,7 +203,7 @@ class OpenStackProjectScope(object):
                 or not user.get("domain")\
                 or not user.get("domain").get("id"):
 
-            raise IncompleteIdentity
+            raise IncompleteIdentity()
 
         identity = {
             "methods": ['password'],
@@ -212,7 +214,7 @@ class OpenStackProjectScope(object):
     @classmethod
     def request_auth_token(cls, auth_scope, identity, keystone_server_url, ssl_verify):
         payload = {"auth": {"scope": auth_scope, "identity": identity}}
-        auth_url = "{0}/{1}/auth/tokens".format(keystone_server_url, DEFAULT_KEYSTONE_API_VERSION)
+        auth_url = urljoin(keystone_server_url, "{0}/auth/tokens".format(DEFAULT_KEYSTONE_API_VERSION))
         headers = {'Content-Type': 'application/json'}
 
         resp = requests.post(auth_url, headers=headers, data=json.dumps(payload), verify=ssl_verify)
@@ -261,7 +263,7 @@ class KeystoneCatalog(object):
                                         valid_endpoints.get("internal"))
                     break
         else:
-            raise MissingNeutronEndpoint
+            raise MissingNeutronEndpoint()
 
         return neutron_endpoint
 
@@ -291,7 +293,7 @@ class KeystoneCatalog(object):
                                         valid_endpoints.get("internal"))
                     return nova_endpoint
         else:
-            raise MissingNovaEndpoint
+            raise MissingNovaEndpoint()
 
 
 class OpenStackCheck(AgentCheck):
@@ -329,7 +331,7 @@ class OpenStackCheck(AgentCheck):
         self._ssl_verify = init_config.get("ssl_verify", True)
         self.keystone_server_url = init_config.get("keystone_server_url")
         if not self.keystone_server_url:
-            raise IncompleteConfig
+            raise IncompleteConfig()
 
         ### Cache some things between runs for values that change rarely
         self._aggregate_list = None
@@ -355,17 +357,17 @@ class OpenStackCheck(AgentCheck):
                 # Delete the scope, we'll populate a new one on the next run for this instance
                 self.delete_current_scope()
             elif resp.status_code == 409:
-                raise InstancePowerOffFailure
+                raise InstancePowerOffFailure()
             else:
                 raise
 
-        return resp
+        return resp.json()
 
     def _instance_key(self, instance):
         i_key = instance.get('name')
         if not i_key:
             # We need a name to identify this instance
-            raise IncompleteConfig
+            raise IncompleteConfig()
         return i_key
 
     def delete_current_scope(self):
@@ -429,21 +431,18 @@ class OpenStackCheck(AgentCheck):
 
         network_ids = []
         try:
-            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
-            net_details = resp.json()
+            net_details = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
             for network in net_details['networks']:
                 network_ids.append(network['id'])
         except Exception as e:
             self.warning('Unable to get the list of all network ids: {0}'.format(str(e)))
-
         return network_ids
 
     def get_stats_for_single_network(self, network_id):
         url = '{0}/{1}/networks/{2}'.format(self.get_neutron_endpoint(), DEFAULT_NEUTRON_API_VERSION, network_id)
         headers = {'X-Auth-Token': self.get_auth_token()}
-        resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+        net_details = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
 
-        net_details = resp.json()
         service_check_tags = ['network:{0}'.format(network_id)]
 
         network_name = net_details.get('network', {}).get('name')
@@ -488,8 +487,7 @@ class OpenStackCheck(AgentCheck):
 
             hypervisor_ids = []
             try:
-                resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
-                hv_list = resp.json()
+                hv_list = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
                 for hv in hv_list['hypervisors']:
                     if filter_by_host and hv['hypervisor_hostname'] == filter_by_host:
                         # Assume one-one relationship between hypervisor and host, return the 1st found
@@ -513,8 +511,7 @@ class OpenStackCheck(AgentCheck):
 
         hypervisor_aggregate_map = {}
         try:
-            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
-            aggregate_list = resp.json()
+            aggregate_list = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
             for v in aggregate_list['aggregates']:
                 for host in v['hosts']:
                     hypervisor_aggregate_map[host] = {
@@ -532,14 +529,14 @@ class OpenStackCheck(AgentCheck):
         headers = {'X-Auth-Token': self.get_auth_token()}
 
         resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
-        uptime = resp.json()['hypervisor']['uptime']
+        uptime = resp['hypervisor']['uptime']
         return self._parse_uptime_string(uptime)
 
     def get_stats_for_single_hypervisor(self, hyp_id, host_tags=None):
         url = '{0}/os-hypervisors/{1}'.format(self.get_nova_endpoint(), hyp_id)
         headers = {'X-Auth-Token': self.get_auth_token()}
         resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
-        hyp = resp.json()['hypervisor']
+        hyp = resp['hypervisor']
         host_tags = host_tags or []
         tags = [
             'hypervisor:{0}'.format(hyp['hypervisor_hostname']),
@@ -599,7 +596,7 @@ class OpenStackCheck(AgentCheck):
         try:
             resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify, params=query_params)
 
-            server_ids = [s['id'] for s in resp.json()['servers']]
+            server_ids = [s['id'] for s in resp['servers']]
         except Exception as e:
             self.warning('Unable to get the list of all servers: {0}'.format(str(e)))
 
@@ -614,8 +611,7 @@ class OpenStackCheck(AgentCheck):
         server_stats = {}
 
         try:
-            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
-            server_stats = resp.json()
+            server_stats = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
         except InstancePowerOffFailure:
             self.warning("Server %s is powered off and cannot be monitored" % server_id)
         except Exception as e:
@@ -634,9 +630,8 @@ class OpenStackCheck(AgentCheck):
 
         url = '{0}/limits'.format(self.get_nova_endpoint())
         headers = {'X-Auth-Token': self.get_auth_token()}
-        resp = self._make_request_with_auth_fallback(url, headers, params={"tenant_id": project['id']})
+        server_stats = self._make_request_with_auth_fallback(url, headers, params={"tenant_id": project['id']})
 
-        server_stats = resp.json()
         tags = ['tenant_id:{0}'.format(project['id'])]
         if 'name' in project:
             tags.append('project_name:{0}'.format(project['name']))
@@ -776,8 +771,7 @@ class OpenStackCheck(AgentCheck):
 
         projects = []
         try:
-            resp = self._make_request_with_auth_fallback(url, headers, params=filter_params)
-            project_details = resp.json()
+            project_details = self._make_request_with_auth_fallback(url, headers, params=filter_params)
             assert len(project_details["projects"]) == 1, "Non-unique project credentials"
             return project_details["projects"][0]
         except Exception as e:
@@ -791,7 +785,7 @@ class OpenStackCheck(AgentCheck):
         """
         Returns a best guess for the hostname registered with OpenStack for this host
         """
-        return self.init_config.get("os_host") or socket.gethostname()
+        return self.init_config.get("os_host") or get_hostname(self.agentConfig)
 
     def get_servers_managed_by_hypervisor(self):
         return self.get_all_server_ids(filter_by_host=self.get_my_hostname())
