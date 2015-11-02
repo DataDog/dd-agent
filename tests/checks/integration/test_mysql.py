@@ -90,6 +90,14 @@ class TestMySql(AgentCheckTest):
         'mysql.performance.com_delete_multi',
         'mysql.performance.com_replace_select',
         'mysql.performance.qcache_hits',
+        'mysql.performance.qcache_lowmem_prunes',
+        'mysql.performance.handler_commit',
+        'mysql.performance.handler_prepare',
+        'mysql.performance.handler_read_key',
+        'mysql.performance.handler_read_next',
+        'mysql.performance.handler_read_rnd_next',
+        'mysql.performance.handler_update',
+        'mysql.performance.handler_write',
         # 'mysql.innodb.mutex_spin_waits',  MariaDB status
         # 'mysql.innodb.mutex_spin_rounds', MariaDB status
         # 'mysql.innodb.mutex_os_waits',  MariaDB status

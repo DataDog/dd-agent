@@ -37,6 +37,7 @@ STATUS_VARS = {
     'Com_delete_multi': ('mysql.performance.com_delete_multi', RATE),
     'Com_replace_select': ('mysql.performance.com_replace_select', RATE),
     'Qcache_hits': ('mysql.performance.qcache_hits', RATE),
+    'Qcache_lowmem_prunes': ('mysql.performance.qcache_lowmem_prunes', RATE),
     'Innodb_mutex_spin_waits': ('mysql.innodb.mutex_spin_waits', RATE),
     'Innodb_mutex_spin_rounds': ('mysql.innodb.mutex_spin_rounds', RATE),
     'Innodb_mutex_os_waits': ('mysql.innodb.mutex_os_waits', RATE),
@@ -47,6 +48,13 @@ STATUS_VARS = {
     'Innodb_row_lock_time': ('mysql.innodb.row_lock_time', RATE),
     'Innodb_current_row_locks': ('mysql.innodb.current_row_locks', GAUGE),
     'Open_tables': ('mysql.performance.open_tables', GAUGE),
+    'Handler_commit': ('mysql.performance.handler_commit', RATE),
+    'Handler_prepare': ('mysql.performance.handler_prepare', RATE),
+    'Handler_read_key': ('mysql.performance.handler_read_key', RATE),
+    'Handler_read_next': ('mysql.performance.handler_read_next', RATE),
+    'Handler_read_rnd_next': ('mysql.performance.handler_read_rnd_next', RATE),
+    'Handler_update': ('mysql.performance.handler_update', RATE),
+    'Handler_write': ('mysql.performance.handler_write', RATE),
 }
 
 
