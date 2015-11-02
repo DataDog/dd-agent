@@ -237,8 +237,6 @@ class KeystoneCatalog(object):
             neutron_endpoint=cls.get_neutron_endpoint(json_response)
         )
 
-        pass
-
     @classmethod
     def get_neutron_endpoint(cls, json_resp):
         """
@@ -365,7 +363,7 @@ class OpenStackCheck(AgentCheck):
 
     def _instance_key(self, instance):
         i_key = instance.get('name')
-        if i_key is None:
+        if not i_key:
             # We need a name to identify this instance
             raise IncompleteConfig
         return i_key
@@ -627,7 +625,7 @@ class OpenStackCheck(AgentCheck):
             tags = tags or []
             for st in server_stats:
                 if _is_valid_metric(st):
-                    self.gauge("openstack.nova.server.{0}".format(st), server_stats[st], tags=tags)
+                    self.gauge("openstack.nova.server.{0}".format(st), server_stats[st], tags=tags, hostname=server_id)
 
 
     def get_stats_for_single_project(self, project):
@@ -697,7 +695,7 @@ class OpenStackCheck(AgentCheck):
             host_tags = self._get_tags_for_host()
 
             for sid in servers:
-                server_tags = ['server:%s' % sid, "nova_managed_server"] + host_tags
+                server_tags = ["nova_managed_server"]
                 self.external_host_tags[sid] = host_tags
                 self.get_stats_for_single_server(sid, tags=server_tags)
 
@@ -745,6 +743,7 @@ class OpenStackCheck(AgentCheck):
             # All is good, send the word up to DD
             self.service_check(self.NETWORK_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
             self.service_check(self.COMPUTE_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+
             self.service_check(self.IDENTITY_API_SC, AgentCheck.OK, tags=["server:%s" % self.init_config.get("keystone_server_url")])
 
 
