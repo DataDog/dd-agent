@@ -6,6 +6,7 @@ import requests
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 
 QUEUE_URL = "/admin/xml/queues.jsp"
 TOPIC_URL = "/admin/xml/topics.jsp"
@@ -42,27 +43,38 @@ class ActiveMQXML(AgentCheck):
         detailed_queues = instance.get("detailed_queues", [])
         detailed_topics = instance.get("detailed_topics", [])
         detailed_subscribers = instance.get("detailed_subscribers", [])
+        suppress_errors = _is_affirmative(instance.get("suppress_errors", False))
 
         tags = custom_tags + ["url:{0}".format(url)]
 
         self.log.debug("Processing ActiveMQ data for %s" % url)
-        data = self._fetch_data(url, QUEUE_URL, username, password)
-        self._process_data(data, "queue", tags, max_queues, detailed_queues)
+        data = self._fetch_data(url, QUEUE_URL, username, password, suppress_errors)
+        if data:
+            self._process_data(data, "queue", tags, max_queues, detailed_queues)
 
-        data = self._fetch_data(url, TOPIC_URL, username, password)
-        self._process_data(data, "topic", tags, max_topics, detailed_topics)
+        data = self._fetch_data(url, TOPIC_URL, username, password, suppress_errors)
+        if data:
+            self._process_data(data, "topic", tags, max_topics, detailed_topics)
 
-        data = self._fetch_data(url, SUBSCRIBER_URL, username, password)
-        self._process_subscriber_data(data, tags, max_subscribers, detailed_subscribers)
+        data = self._fetch_data(url, SUBSCRIBER_URL, username, password, suppress_errors)
+        if data:
+            self._process_subscriber_data(data, tags, max_subscribers, detailed_subscribers)
 
-    def _fetch_data(self, base_url, xml_url, username, password):
+    def _fetch_data(self, base_url, xml_url, username, password, suppress_errors):
         auth = None
         if username and password:
             auth = (username, password)
         url = "%s%s" % (base_url, xml_url)
         self.log.debug("ActiveMQ Fetching queue data from: %s" % url)
-        r = requests.get(url, auth=auth)
-        r.raise_for_status()
+        try:
+            r = requests.get(url, auth=auth)
+            r.raise_for_status()
+        except requests.exceptions.ConnectionError:
+            if suppress_errors:
+                self.log.warning("ActiveMQ not contactable, but suppressing the error due to configuration.")
+                return False
+            else:
+                raise
         return r.text
 
     def _process_data(self, data, el_type, tags, max_elements, detailed_elements):
