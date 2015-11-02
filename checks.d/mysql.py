@@ -447,10 +447,14 @@ class MySql(AgentCheck):
             if slave_running is not None:
                 if slave_running.lower().strip() == 'on':
                     slave_running = 1
+                    slave_running_status = AgentCheck.OK
                 else:
                     slave_running = 0
-                self.gauge("mysql.replication.slave_running",
-                           slave_running, tags=tags)
+                    slave_running_status = AgentCheck.CRITICAL
+                # deprecated in favor of service_check("mysql.replication.slave_running")
+                self.gauge("mysql.replication.slave_running", slave_running, tags=tags)
+            self.service_check("mysql.replication.slave_running", slave_running_status, tags=tags)
+
             self._collect_dict(
                 GAUGE,
                 {"Seconds_behind_master": "mysql.replication.seconds_behind_master"},
