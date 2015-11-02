@@ -121,15 +121,31 @@ class TestCheckConsul(AgentCheckTest):
 
         return [
             {
-                "Address": _get_random_ip(),
-                "Node": "node-1",
-                "ServiceAddress": "",
-                "ServiceID": service,
-                "ServiceName": service,
-                "ServicePort": 80,
-                "ServiceTags": [
-                    "az-us-east-1a"
-                ]
+                "Checks": [
+                    {
+                        "CheckID": "serfHealth",
+                        "Name": "Serf Health Status",
+                        "Node": "node-1",
+                        "Notes": "",
+                        "Output": "Agent alive and reachable",
+                        "ServiceID": "",
+                        "ServiceName": "",
+                        "Status": "passing"
+                    }
+                ],
+                "Node": {
+                    "Address": _get_random_ip(),
+                    "Node": "node-1"
+                },
+                "Service": {
+                    "Address": "",
+                    "ID": service,
+                    "Port": 80,
+                    "Service": service,
+                    "Tags": [
+                        "az-us-east-1a"
+                    ]
+                }
             }
         ]
 
