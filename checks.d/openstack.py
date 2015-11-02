@@ -103,6 +103,7 @@ class MissingNeutronEndpoint(MissingEndpoint):
 class KeystoneUnreachable(MissingEndpoint):
     pass
 
+
 class OpenStackProjectScope(object):
     """
     Container class for a single project's authorization scope
@@ -352,7 +353,9 @@ class OpenStackCheck(AgentCheck):
         except requests.exceptions.HTTPError:
             if resp.status_code == 401:
                 self.log.info('Need to reauthenticate before next check')
-                raise OpenStackAuthFailure
+
+                # Delete the scope, we'll populate a new one on the next run for this instance
+                self.delete_current_scope()
             elif resp.status_code == 409:
                 raise InstancePowerOffFailure
             else:
@@ -367,16 +370,26 @@ class OpenStackCheck(AgentCheck):
             raise IncompleteConfig
         return i_key
 
+    def delete_current_scope(self):
+        scope_to_delete = self._current_scope
+        for i_key, scope in self.instance_map.iteritems():
+            if scope is scope_to_delete:
+                self.log.debug("Deleting current scope: %s", i_key)
+                del self.instance_map[i_key]
+
     def get_scope_for_instance(self, instance):
         i_key = self._instance_key(instance)
+        self.log.debug("Getting scope for instance %s", i_key)
         return self.instance_map[i_key]
 
     def set_scope_for_instance(self, instance, scope):
         i_key = self._instance_key(instance)
+        self.log.debug("Setting scope for instance %s", i_key)
         self.instance_map[i_key] = scope
 
     def delete_scope_for_instance(self, instance):
         i_key = self._instance_key(instance)
+        self.log.debug("Deleting scope for instance %s", i_key)
         del self.instance_map[i_key]
 
     def get_auth_token(self, instance=None):
@@ -670,40 +683,34 @@ class OpenStackCheck(AgentCheck):
             self.log.debug("Neutron Url: %s", self.get_neutron_endpoint())
             self.log.debug("Auth Token: %s", self.get_auth_token())
 
-            try:
-                # The new default: restrict monitoring to this (host, hypervisor, project)
-                # and it's guest servers
+            # The new default: restrict monitoring to this (host, hypervisor, project)
+            # and it's guest servers
 
-                hyp = self.get_local_hypervisor()
-                project = self.get_scoped_project(instance)
+            hyp = self.get_local_hypervisor()
+            project = self.get_scoped_project(instance)
 
-                # Restrict monitoring to hyp and non-excluded servers, don't do anything else
-                excluded_server_ids = self.init_config.get("exclude_server_ids", [])
-                servers = list(
-                    set(self.get_servers_managed_by_hypervisor()) - set(excluded_server_ids)
-                )
-                host_tags = self._get_tags_for_host()
+            # Restrict monitoring to hyp and non-excluded servers, don't do anything else
+            excluded_server_ids = self.init_config.get("exclude_server_ids", [])
+            servers = list(
+                set(self.get_servers_managed_by_hypervisor()) - set(excluded_server_ids)
+            )
+            host_tags = self._get_tags_for_host()
 
-                for sid in servers:
-                    server_tags = ['server:%s' % sid, "nova_managed_server"] + host_tags
-                    self.external_host_tags[sid] = host_tags
-                    self.get_stats_for_single_server(sid, tags=server_tags)
+            for sid in servers:
+                server_tags = ['server:%s' % sid, "nova_managed_server"] + host_tags
+                self.external_host_tags[sid] = host_tags
+                self.get_stats_for_single_server(sid, tags=server_tags)
 
-                if hyp:
-                    self.get_stats_for_single_hypervisor(hyp, host_tags=host_tags)
-                else:
-                    self.warning("Couldn't get hypervisor to monitor for host: %s", self.get_my_hostname())
+            if hyp:
+                self.get_stats_for_single_hypervisor(hyp, host_tags=host_tags)
+            else:
+                self.warning("Couldn't get hypervisor to monitor for host: %s" % self.get_my_hostname())
 
-                if project:
-                    self.get_stats_for_single_project(project)
+            if project:
+                self.get_stats_for_single_project(project)
 
-                # For now, monitor all networks
-                self.get_network_stats()
-            except OpenStackAuthFailure:
-                # Delete the scope, we'll populate a new one on the next run for this instance
-                self.delete_scope_for_instance(instance)
-
-
+            # For now, monitor all networks
+            self.get_network_stats()
 
         except MissingEndpoint as e:
             if isinstance(e, MissingNeutronEndpoint):
@@ -778,6 +785,8 @@ class OpenStackCheck(AgentCheck):
             self.warning('Unable to get the list of all project ids: {0}'.format(str(e)))
 
         return None
+
+
 
     def get_my_hostname(self):
         """
