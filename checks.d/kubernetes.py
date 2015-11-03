@@ -93,8 +93,8 @@ class Kubernetes(AgentCheck):
 
         except Exception, e:
             self.log.warning('kubelet check failed: %s' % str(e))
-            self.service_check(service_check_base, AgentCheck.CRITICAL, 'Kubelet check failed: %s' % str(e))
-            raise
+            self.service_check(service_check_base, AgentCheck.CRITICAL,
+                message='Kubelet check failed: %s' % str(e))
 
     def _perform_master_checks(self, url):
         try:
@@ -104,12 +104,15 @@ class Kubernetes(AgentCheck):
                 nodename = nodeinfo['name']
                 service_check_name = "{0}.master.{1}.check".format(NAMESPACE, nodename)
                 cond = nodeinfo['status'][-1]['type']
+                minion_name = nodeinfo['metadata']['name']
+                tags = ["minion_name:{0}".format(minion_name)]
                 if cond != 'Ready':
-                    self.service_check(service_check_name, AgentCheck.CRITICAL, cond)
+                    self.service_check(service_check_name, AgentCheck.CRITICAL,
+                        tags=tags, message=cond)
                 else:
-                    self.service_check(service_check_name, AgentCheck.OK)
+                    self.service_check(service_check_name, AgentCheck.OK, tags=tags)
         except Exception, e:
-            self.service_check(service_check_name, AgentCheck.CRITICAL, cond)
+            self.service_check(service_check_name, AgentCheck.CRITICAL, message=str(e))
             self.log.warning('master checks url=%s exception=%s' % (url, str(e)))
             raise
 
@@ -138,7 +141,7 @@ class Kubernetes(AgentCheck):
         if instance.get('enable_master_checks', False):
             master_port = instance.get('master_port', DEFAULT_MASTER_PORT)
             master_host = instance.get('master_host', 'localhost')
-            master_url = '%s://%s:%d/nodes' % (method, host, master_port)
+            master_url = '%s://%s:%d/api/v1/nodes' % (method, host, master_port)
             self._perform_master_checks(master_url)
 
         # kubelet health checks

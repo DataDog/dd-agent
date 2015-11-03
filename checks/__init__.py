@@ -548,7 +548,7 @@ class AgentCheck(object):
         :param hostname: (optional) str, host that generated the service
                           check. Defaults to the host_name of the agent
         :param check_run_id: (optional) int, id used for logging and tracing
-                             purposes. Don't need to be unique. If not
+                             purposes. Doesn't need to be unique. If not
                              specified, one will be generated.
         """
         if hostname is None:
