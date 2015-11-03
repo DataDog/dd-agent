@@ -35,8 +35,7 @@ class TestKubernetes(AgentCheckTest):
         }
 
         # Can't use run_check_twice due to specific metrics
-        with self.assertRaises(Exception):
-            self.run_check(config, mocks=mocks, force_reload=True)
+        self.run_check(config, mocks=mocks, force_reload=True)
         self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL)
         self.coverage_report()
 
