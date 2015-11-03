@@ -2,7 +2,6 @@
 from datetime import datetime, timedelta
 from urlparse import urljoin
 import simplejson as json
-import socket
 
 # project
 from checks import AgentCheck
@@ -17,6 +16,7 @@ DEFAULT_KEYSTONE_API_VERSION = 'v3'
 DEFAULT_NOVA_API_VERSION = 'v2.1'
 DEFAULT_NEUTRON_API_VERSION = 'v2.0'
 
+DEFAULT_API_REQUEST_TIMEOUT = 5 # seconds
 
 NOVA_HYPERVISOR_METRICS = [
     'current_workload',
@@ -217,7 +217,7 @@ class OpenStackProjectScope(object):
         auth_url = urljoin(keystone_server_url, "{0}/auth/tokens".format(DEFAULT_KEYSTONE_API_VERSION))
         headers = {'Content-Type': 'application/json'}
 
-        resp = requests.post(auth_url, headers=headers, data=json.dumps(payload), verify=ssl_verify)
+        resp = requests.post(auth_url, headers=headers, data=json.dumps(payload), verify=ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT)
         resp.raise_for_status()
 
         return resp
@@ -317,7 +317,6 @@ class OpenStackCheck(AgentCheck):
     NETWORK_API_SC = 'openstack.neutron.api.up'
     COMPUTE_API_SC = 'openstack.nova.api.up'
     IDENTITY_API_SC = 'openstack.keystone.api.up'
-    SC_REQUEST_TIMEOUT = 5 # seconds
 
     # Service checks for individual hypervisors and networks
     HYPERVISOR_SC = 'openstack.nova.hypervisor.up'
@@ -349,7 +348,7 @@ class OpenStackCheck(AgentCheck):
         Raises specialized Exceptions for commonly encountered error codes
         """
         try:
-            resp = requests.get(url, headers=headers, verify=verify, params=params)
+            resp = requests.get(url, headers=headers, verify=verify, params=params, timeout=DEFAULT_API_REQUEST_TIMEOUT)
             resp.raise_for_status()
         except requests.exceptions.HTTPError:
             if resp.status_code == 401:
@@ -373,7 +372,7 @@ class OpenStackCheck(AgentCheck):
 
     def delete_current_scope(self):
         scope_to_delete = self._current_scope
-        for i_key, scope in self.instance_map.iteritems():
+        for i_key, scope in self.instance_map.items():
             if scope is scope_to_delete:
                 self.log.debug("Deleting current scope: %s", i_key)
                 del self.instance_map[i_key]
@@ -658,55 +657,60 @@ class OpenStackCheck(AgentCheck):
 
         return self._aggregate_list
     ###
+
     def _send_api_service_checks(self, instance_scope):
         # Nova
         headers = {"X-Auth-Token": instance_scope.auth_token}
 
         try:
-            requests.get(instance_scope.service_catalog.nova_endpoint, headers=headers, verify=self._ssl_verify, timeout=self.SC_REQUEST_TIMEOUT)
+            requests.get(instance_scope.service_catalog.nova_endpoint, headers=headers, verify=self._ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT)
             self.service_check(self.COMPUTE_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
         except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
             self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
 
         # Neutron
         try:
-            requests.get(instance_scope.service_catalog.neutron_endpoint, headers=headers, verify=self._ssl_verify)
+            requests.get(instance_scope.service_catalog.neutron_endpoint, headers=headers, verify=self._ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT)
             self.service_check(self.NETWORK_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
         except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
             self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
 
+    def ensure_auth_scope(self, instance):
+        try:
+            instance_scope = self.get_scope_for_instance(instance)
+        except KeyError:
+
+            # We're missing a project scope for this instance
+            # Let's populate it now
+            try:
+                instance_scope = OpenStackProjectScope.from_config(self.init_config, instance)
+                self.service_check(self.IDENTITY_API_SC, AgentCheck.OK, tags=["server:%s" % self.init_config.get("keystone_server_url")])
+            except KeystoneUnreachable:
+                self.warning("The agent could not contact the specified identity server at %s . Are you sure it is up at that address?" % self.init_config.get("keystone_server_url"))
+                self.service_check(self.IDENTITY_API_SC, AgentCheck.CRITICAL, tags=["server:%s" % self.init_config.get("keystone_server_url")])
+
+                # If Keystone is down/unreachable, we default the Nova and Neutron APIs to UNKNOWN since we cannot access the service catalog
+                self.service_check(self.NETWORK_API_SC, AgentCheck.UNKNOWN, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+                self.service_check(self.COMPUTE_API_SC, AgentCheck.UNKNOWN, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+
+                raise
+
+            except MissingNovaEndpoint:
+                self.warning("The agent could not find a compatible Nova endpoint in your service catalog!")
+                self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+
+            except MissingNeutronEndpoint:
+                self.warning("The agent could not find a compatible Neutron endpoint in your service catalog!")
+                self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+
+            self.set_scope_for_instance(instance, instance_scope)
+
+        return instance_scope
+
     def check(self, instance):
 
         try:
-
-            try:
-                instance_scope = self.get_scope_for_instance(instance)
-            except KeyError:
-
-                # We're missing a project scope for this instance
-                # Let's populate it now
-                try:
-                    instance_scope = OpenStackProjectScope.from_config(self.init_config, instance)
-                    self.service_check(self.IDENTITY_API_SC, AgentCheck.OK, tags=["server:%s" % self.init_config.get("keystone_server_url")])
-                except KeystoneUnreachable:
-                    self.warning("The agent could not contact the specified identity server at %s . Are you sure it is up at that address?" % self.init_config.get("keystone_server_url"))
-                    self.service_check(self.IDENTITY_API_SC, AgentCheck.CRITICAL, tags=["server:%s" % self.init_config.get("keystone_server_url")])
-
-                    # If Keystone is down/unreachable, we default the Nova and Neutron APIs to UNKNOWN since we cannot access the service catalog
-                    self.service_check(self.NETWORK_API_SC, AgentCheck.UNKNOWN, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
-                    self.service_check(self.COMPUTE_API_SC, AgentCheck.UNKNOWN, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
-
-                    raise
-
-                except MissingNovaEndpoint:
-                    self.warning("The agent could not find a compatible Nova endpoint in your service catalog!")
-                    self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
-
-                except MissingNeutronEndpoint:
-                    self.warning("The agent could not find a compatible Neutron endpoint in your service catalog!")
-                    self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
-
-                self.set_scope_for_instance(instance, instance_scope)
+            instance_scope = self.ensure_auth_scope(instance)
 
             self._send_api_service_checks(instance_scope)
             # Store the scope on the object so we don't have to keep passing it around
