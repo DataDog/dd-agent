@@ -113,7 +113,8 @@ class Fixtures(object):
 
     @staticmethod
     def read_file(file_name):
-        return open(Fixtures.file(file_name)).read()
+        with open(Fixtures.file(file_name)) as f:
+            return f.read()
 
 
 class AgentCheckTest(unittest.TestCase):
