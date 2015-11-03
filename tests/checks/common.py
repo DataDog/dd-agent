@@ -41,6 +41,13 @@ def get_check_class(name):
     return check_class
 
 
+def load_check_local_dep(check_name, klass):
+    checksd_path = get_checksd_path(get_os())
+    if checksd_path not in sys.path:
+        sys.path.append(checksd_path)
+    mod = __import__(check_name, fromlist=[klass])
+    return getattr(mod, klass)
+
 def load_check(name, config, agentConfig):
     checksd_path = get_checksd_path(get_os())
     if checksd_path not in sys.path:
@@ -49,6 +56,7 @@ def load_check(name, config, agentConfig):
     check_module = __import__(name)
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
+
     for _, clsmember in classes:
         if clsmember == AgentCheck:
             continue
