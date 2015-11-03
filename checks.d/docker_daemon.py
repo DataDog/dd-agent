@@ -472,13 +472,21 @@ class DockerDaemon(AgentCheck):
     # Performance metrics
 
     def _report_performance_metrics(self, containers_by_id):
+
+        containers_without_proc_root = []
         for container in containers_by_id.itervalues():
             if self._is_container_excluded(container) or not self._is_container_running(container):
                 continue
 
             tags = self._get_tags(container, PERFORMANCE)
             self._report_cgroup_metrics(container, tags)
+            if "_proc_root" not in container:
+                containers_without_proc_root.append(container_name_extractor(container)[0])
+                continue
             self._report_net_metrics(container, tags)
+
+        self.warning("Couldn't find pid directory for container: {0}. They'll be missing network metrics".format(
+            ",".join(containers_without_proc_root)))
 
     def _report_cgroup_metrics(self, container, tags):
         try:
@@ -516,10 +524,6 @@ class DockerDaemon(AgentCheck):
         """Find container network metrics by looking at /proc/$PID/net/dev of the container process."""
         if self._disable_net_metrics:
             self.log.debug("Network metrics are disabled. Skipping")
-            return
-
-        if "_proc_root" not in container:
-            self.warning("Couldn't find pid directory for container: {0}".format(container))
             return
 
         proc_net_file = os.path.join(container['_proc_root'], 'net/dev')
