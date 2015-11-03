@@ -52,31 +52,31 @@ NOVA_SERVER_METRICS = [
 
 NOVA_SERVER_INTERFACE_SEGMENTS = ['_rx', '_tx']
 
-PROJECT_METRICS = [
-    "maxImageMeta",
-    "maxPersonality",
-    "maxPersonalitySize",
-    "maxSecurityGroupRules",
-    "maxSecurityGroups",
-    "maxServerMeta",
-    "maxTotalCores",
-    "maxTotalFloatingIps",
-    "maxTotalInstances",
-    "maxTotalKeypairs",
-    "maxTotalRAMSize",
+PROJECT_METRICS = dict([
+    ("maxImageMeta", "max_image_meta"),
+    ("maxPersonality", "max_personality"),
+    ("maxPersonalitySize", "max_personality_size"),
+    ("maxSecurityGroupRules", "max_security_group_rules"),
+    ("maxSecurityGroups", "max_security_groups"),
+    ("maxServerMeta", "max_server_meta"),
+    ("maxTotalCores", "max_total_cores"),
+    ("maxTotalFloatingIps", "max_total_floating_ips"),
+    ("maxTotalInstances", "max_total_instances"),
+    ("maxTotalKeypairs", "max_total_keypairs"),
+    ("maxTotalRAMSize", "max_total_ram_size"),
 
-    "totalImageMetaUsed",
-    "totalPersonalityUsed",
-    "totalPersonalitySizeUsed",
-    "totalSecurityGroupRulesUsed",
-    "totalSecurityGroupsUsed",
-    "totalServerMetaUsed",
-    "totalCoresUsed",
-    "totalFloatingIpsUsed",
-    "totalInstancesUsed",
-    "totalKeypairsUsed",
-    "totalRAMUsed"
-]
+    ("totalImageMetaUsed", "total_image_meta_used"),
+    ("totalPersonalityUsed", "total_personality_used"),
+    ("totalPersonalitySizeUsed", "total_personality_size_used"),
+    ("totalSecurityGroupRulesUsed", "total_security_group_rules_used"),
+    ("totalSecurityGroupsUsed", "total_security_groups_used"),
+    ("totalServerMetaUsed", "total_server_meta_used"),
+    ("totalCoresUsed", "total_cores_used"),
+    ("totalFloatingIpsUsed", "total_floating_ips_used"),
+    ("totalInstancesUsed", "total_instances_used"),
+    ("totalKeypairsUsed", "total_keypairs_used"),
+    ("totalRAMUsed", "total_ram_used"),
+])
 
 class OpenStackAuthFailure(Exception):
     pass
@@ -621,7 +621,7 @@ class OpenStackCheck(AgentCheck):
             tags = tags or []
             for st in server_stats:
                 if _is_valid_metric(st):
-                    self.gauge("openstack.nova.server.{0}".format(st), server_stats[st], tags=tags, hostname=server_id)
+                    self.gauge("openstack.nova.server.{0}".format(st.replace("-", "_")), server_stats[st], tags=tags, hostname=server_id)
 
 
     def get_stats_for_single_project(self, project):
@@ -638,7 +638,8 @@ class OpenStackCheck(AgentCheck):
 
         for st in server_stats['limits']['absolute']:
             if _is_valid_metric(st):
-                self.gauge("openstack.nova.limits.{0}".format(st), server_stats['limits']['absolute'][st], tags=tags)
+                metric_key = PROJECT_METRICS[st]
+                self.gauge("openstack.nova.limits.{0}".format(metric_key), server_stats['limits']['absolute'][st], tags=tags)
 
     ###
 
