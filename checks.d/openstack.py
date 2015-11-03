@@ -135,7 +135,7 @@ class OpenStackProjectScope(object):
 
         try:
             auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify)
-        except Exception:
+        except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
             raise KeystoneUnreachable()
 
         auth_token = auth_resp.headers.get('X-Subject-Token')

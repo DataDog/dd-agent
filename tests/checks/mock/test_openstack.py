@@ -2,7 +2,7 @@ from time import sleep
 from unittest import TestCase
 from checks import AgentCheck
 from tests.checks.common import AgentCheckTest, load_check, load_check_local_dep
-from mock import MagicMock, patch
+from mock import patch
 
 
 OS_CHECK_NAME = 'openstack'
@@ -154,17 +154,17 @@ MOCK_HTTP_RESPONSE = MockHTTPResponse(response_dict=EXAMPLE_AUTH_RESPONSE, heade
 
 class OSProjectScopeTest(TestCase):
     BAD_AUTH_SCOPES = [
-        { "auth_scope": {} },
-        { "auth_scope": {"project": {}} },
-        { "auth_scope": {"project": {"id": ""}} },
-        { "auth_scope": {"project": {"name": "test"}} },
-        { "auth_scope": {"project": {"name": "test", "domain": {}}} },
-        { "auth_scope": {"project": {"name": "test", "domain": {"id": ""}}} },
+        {"auth_scope": {}},
+        {"auth_scope": {"project": {}}},
+        {"auth_scope": {"project": {"id": ""}}},
+        {"auth_scope": {"project": {"name": "test"}}},
+        {"auth_scope": {"project": {"name": "test", "domain": {}}}},
+        {"auth_scope": {"project": {"name": "test", "domain": {"id": ""}}}},
     ]
 
     GOOD_AUTH_SCOPES = [
-        { "auth_scope": {"project": {"id": "test_project_id"}} },
-        { "auth_scope": {"project": {"name": "test", "domain": {"id": "test_id"}}} },
+        {"auth_scope": {"project": {"id": "test_project_id"}}},
+        {"auth_scope": {"project": {"name": "test", "domain": {"id": "test_id"}}}},
     ]
 
     BAD_USERS = [
@@ -252,8 +252,9 @@ class TestCheckOpenStack(AgentCheckTest):
             "ssl_verify": False,
         },
         "instances": [
-            {"name" : "test_name", "user": {"name": "test_name", "password": "test_pass", "domain": {"id": "test_id"}},
-             "auth_scope": {"project": {"id": "test_project_id"}}
+            {
+                "name" : "test_name", "user": {"name": "test_name", "password": "test_pass", "domain": {"id": "test_id"}},
+                "auth_scope": {"project": {"id": "test_project_id"}}
             }
         ]
     }
@@ -289,7 +290,7 @@ class TestCheckOpenStack(AgentCheckTest):
             self.check.get_scope_for_instance(instance)
 
     def test_parse_uptime_string(self):
-        uptime_parsed = self.check._parse_uptime_string( u' 16:53:48 up 1 day, 21:34,  3 users,  load average: 0.04, 0.14, 0.19\n')
+        uptime_parsed = self.check._parse_uptime_string(u' 16:53:48 up 1 day, 21:34,  3 users,  load average: 0.04, 0.14, 0.19\n')
         self.assertEqual(uptime_parsed.get('loads'), [0.04, 0.14, 0.19])
 
     def test_cache_utils(self):
