@@ -102,7 +102,7 @@ class MissingNovaEndpoint(MissingEndpoint):
 class MissingNeutronEndpoint(MissingEndpoint):
     pass
 
-class KeystoneUnreachable(MissingEndpoint):
+class KeystoneUnreachable(Exception):
     pass
 
 
@@ -656,18 +656,56 @@ class OpenStackCheck(AgentCheck):
 
         return self._aggregate_list
     ###
+    def _send_api_service_checks(self, instance_scope):
+        # Nova
+        headers = {"X-Auth-Token": instance_scope.auth_token}
+        try:
+            requests.get(instance_scope.service_catalog.nova_endpoint, headers=headers, verify=self._ssl_verify)
+            self.service_check(self.COMPUTE_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+        except requests.HTTPError:
+            self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+
+        # Neutron
+        try:
+            requests.get(instance_scope.service_catalog.nova_endpoint, headers=headers, verify=self._ssl_verify)
+            self.service_check(self.NETWORK_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+        except requests.HTTPError: # TODO: more granular error
+            self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
 
     def check(self, instance):
 
         try:
+
             try:
                 instance_scope = self.get_scope_for_instance(instance)
             except KeyError:
+
                 # We're missing a project scope for this instance
                 # Let's populate it now
-                instance_scope = OpenStackProjectScope.from_config(self.init_config, instance)
+                try:
+                    instance_scope = OpenStackProjectScope.from_config(self.init_config, instance)
+                    self.service_check(self.IDENTITY_API_SC, AgentCheck.OK, tags=["server:%s" % self.init_config.get("keystone_server_url")])
+                except KeystoneUnreachable:
+                    self.warning("The agent could not contact the specified identity server at %s . Are you sure it is up at that address?" % self.init_config.get("keystone_server_url"))
+                    self.service_check(self.IDENTITY_API_SC, AgentCheck.CRITICAL, tags=["server:%s" % self.init_config.get("keystone_server_url")])
+
+                    # If Keystone is down/unreachable, we default the Nova and Neutron APIs to UNKNOWN since we cannot access the service catalog
+                    self.service_check(self.NETWORK_API_SC, AgentCheck.UNKNOWN, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+                    self.service_check(self.COMPUTE_API_SC, AgentCheck.UNKNOWN, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+
+                    raise
+
+                except MissingNovaEndpoint:
+                    self.warning("The agent could not find a compatible Nova endpoint in your service catalog!")
+                    self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+
+                except MissingNeutronEndpoint:
+                    self.warning("The agent could not find a compatible Neutron endpoint in your service catalog!")
+                    self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+
                 self.set_scope_for_instance(instance, instance_scope)
 
+            self._send_api_service_checks(instance_scope)
             # Store the scope on the object so we don't have to keep passing it around
             self._current_scope = instance_scope
 
@@ -676,17 +714,18 @@ class OpenStackCheck(AgentCheck):
             self.log.debug("Neutron Url: %s", self.get_neutron_endpoint())
             self.log.debug("Auth Token: %s", self.get_auth_token())
 
-            # The new default: restrict monitoring to this (host, hypervisor, project)
+            # Restrict monitoring to this (host, hypervisor, project)
             # and it's guest servers
 
             hyp = self.get_local_hypervisor()
             project = self.get_scoped_project(instance)
 
-            # Restrict monitoring to hyp and non-excluded servers, don't do anything else
+            # Restrict monitoring to non-excluded servers
             excluded_server_ids = self.init_config.get("exclude_server_ids", [])
             servers = list(
                 set(self.get_servers_managed_by_hypervisor()) - set(excluded_server_ids)
             )
+
             host_tags = self._get_tags_for_host()
 
             for sid in servers:
@@ -705,20 +744,6 @@ class OpenStackCheck(AgentCheck):
             # For now, monitor all networks
             self.get_network_stats()
 
-        except MissingEndpoint as e:
-            if isinstance(e, MissingNeutronEndpoint):
-                self.warning("The agent could not find a compatible Neutron endpoint in your service catalog!")
-                self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
-            elif isinstance(e, MissingNovaEndpoint):
-                self.warning("The agent could not find a compatible Nova endpoint in your service catalog!")
-                self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
-            else:
-                self.warning("Missing endpoint in service catalog: %s" % e)
-
-        except KeystoneUnreachable:
-            self.warning("The agent could not contact the specified identity server at %s . Are you sure it is up at that address?" % self.init_config.get("keystone_server_url"))
-            self.service_check(self.IDENTITY_API_SC, AgentCheck.CRITICAL, tags=["server:%s" % self.init_config.get("keystone_server_url")])
-
         except IncompleteConfig as e:
             if isinstance(e, IncompleteAuthScope):
                 self.warning("""Please specify the auth scope via the `auth_scope` variable in your init_config.\n
@@ -733,13 +758,6 @@ class OpenStackCheck(AgentCheck):
                              "The user should look like: {'password': 'my_password', 'name': 'my_name', 'domain': {'id': 'my_domain_id'}}")
             else:
                 self.warning("Configuration Incomplete! Check your openstack.yaml file")
-
-        else:
-            # All is good, send the word up to DD
-            self.service_check(self.NETWORK_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
-            self.service_check(self.COMPUTE_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
-
-            self.service_check(self.IDENTITY_API_SC, AgentCheck.OK, tags=["server:%s" % self.init_config.get("keystone_server_url")])
 
 
     #### Local Info accessors
