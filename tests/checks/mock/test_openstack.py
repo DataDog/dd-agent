@@ -1,17 +1,17 @@
 from time import sleep
 from unittest import TestCase
 from checks import AgentCheck
-from tests.checks.common import AgentCheckTest, load_check, load_check_local_dep
+from tests.checks.common import AgentCheckTest, load_check, load_class
 from mock import patch
 
 
 OS_CHECK_NAME = 'openstack'
 
-OpenStackProjectScope = load_check_local_dep(OS_CHECK_NAME, "OpenStackProjectScope")
-KeystoneCatalog = load_check_local_dep(OS_CHECK_NAME, "KeystoneCatalog")
-IncompleteConfig = load_check_local_dep(OS_CHECK_NAME, "IncompleteConfig")
-IncompleteAuthScope = load_check_local_dep(OS_CHECK_NAME, "IncompleteAuthScope")
-IncompleteIdentity = load_check_local_dep(OS_CHECK_NAME, "IncompleteIdentity")
+OpenStackProjectScope = load_class(OS_CHECK_NAME, "OpenStackProjectScope")
+KeystoneCatalog = load_class(OS_CHECK_NAME, "KeystoneCatalog")
+IncompleteConfig = load_class(OS_CHECK_NAME, "IncompleteConfig")
+IncompleteAuthScope = load_class(OS_CHECK_NAME, "IncompleteAuthScope")
+IncompleteIdentity = load_class(OS_CHECK_NAME, "IncompleteIdentity")
 
 
 class MockHTTPResponse(object):
