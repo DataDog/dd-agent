@@ -1,7 +1,6 @@
 # stdlib
 from datetime import datetime, timedelta
 from urlparse import urljoin
-import simplejson as json
 
 # project
 from checks import AgentCheck
@@ -9,6 +8,7 @@ from util import get_hostname
 
 # 3p
 import requests
+import simplejson as json
 
 SOURCE_TYPE = 'openstack'
 
