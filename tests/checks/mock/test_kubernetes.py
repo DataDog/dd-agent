@@ -11,6 +11,7 @@ FS = "fs"
 NET = "net"
 NET_ERRORS = "net_errors"
 DISK = "disk"
+DISK_USAGE = "disk_usage"
 
 METRICS = [
     ('kubernetes.memory.usage', MEM),
@@ -20,7 +21,9 @@ METRICS = [
     ('kubernetes.network.tx_bytes', NET),
     ('kubernetes.network.rx_bytes', NET),
     ('kubernetes.network_errors', NET_ERRORS),
-    ('kubernetes.diskio.io_service_bytes.stats.total', DISK)
+    ('kubernetes.diskio.io_service_bytes.stats.total', DISK),
+    ('kubernetes.filesystem.usage_pct', DISK_USAGE),
+    ('kubernetes.filesystem.usage', DISK_USAGE),
 ]
 
 class TestKubernetes(AgentCheckTest):
@@ -37,7 +40,6 @@ class TestKubernetes(AgentCheckTest):
         # Can't use run_check_twice due to specific metrics
         self.run_check(config, mocks=mocks, force_reload=True)
         self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL)
-        self.coverage_report()
 
     def test_metrics(self):
         # To avoid the disparition of some gauges during the second check
@@ -50,6 +52,8 @@ class TestKubernetes(AgentCheckTest):
                 }
             ]
         }
+
+
 
         # Can't use run_check_twice due to specific metrics
         self.run_check_twice(config, mocks=mocks, force_reload=True)
@@ -104,9 +108,9 @@ class TestKubernetes(AgentCheckTest):
         metric_suffix = ["count", "avg", "median", "max", "95percentile"]
 
         expected_tags = [
-            (['pod_name:no_pod'], [MEM, CPU, NET, DISK]),
+            (['pod_name:no_pod'], [MEM, CPU, NET, DISK, DISK_USAGE, NET_ERRORS]),
             (['pod_name:default/propjoe-dhdzk'], [MEM, CPU, FS, NET, NET_ERRORS]),
-            (['pod_name:kube-system/kube-dns-v8-smhcb'], [MEM, CPU, FS, NET, NET_ERRORS]),
+            (['pod_name:kube-system/kube-dns-v8-smhcb'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['pod_name:kube-system/fluentd-cloud-logging-kubernetes-minion-mu4w'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['pod_name:kube-system/kube-dns-v8-smhcb'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['pod_name:default/propjoe-dhdzk'], [MEM, CPU, FS, NET, NET_ERRORS]),
