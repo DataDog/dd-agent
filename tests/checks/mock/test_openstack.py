@@ -1,4 +1,6 @@
+from time import sleep
 from unittest import TestCase
+from checks import AgentCheck
 from tests.checks.common import AgentCheckTest, load_check, load_check_local_dep
 from mock import MagicMock, patch
 
@@ -11,17 +13,144 @@ IncompleteConfig = load_check_local_dep(OS_CHECK_NAME, "IncompleteConfig")
 IncompleteAuthScope = load_check_local_dep(OS_CHECK_NAME, "IncompleteAuthScope")
 IncompleteIdentity = load_check_local_dep(OS_CHECK_NAME, "IncompleteIdentity")
 
-MOCK_EXCLUDE_CONFIG = {
-    'init_config': {
-        "exclude_servers" : ["server_1"],
-        "exclude_physical_hosts": ["host_1"],
-        # "exclude_hypervisors" :?
-        "exclude_aggregates": ["aggregate_1"],
 
-        "check_all_servers": True
-    },
-    'instances': [{}]
+class MockHTTPResponse(object):
+    def __init__(self, response_dict, headers):
+        self.response_dict = response_dict
+        self.headers = headers
+
+    def json(self):
+        return self.response_dict
+
+EXAMPLE_AUTH_RESPONSE = {
+    u'token': {
+        u'methods': [
+            u'password'
+        ],
+        u'roles': [
+            {
+                u'id': u'f20c215f5a4d47b7a6e510bc65485ced',
+                u'name': u'datadog_monitoring'
+            },
+            {
+                u'id': u'9fe2ff9ee4384b1894a90878d3e92bab',
+                u'name': u'_member_'
+            }
+        ],
+        u'expires_at': u'2015-11-02T15: 57: 43.911674Z',
+        u'project': {
+            u'domain': {
+                u'id': u'default',
+                u'name': u'Default'
+            },
+            u'id': u'0850707581fe4d738221a72db0182876',
+            u'name': u'admin'
+        },
+        u'catalog': [
+            {
+                u'endpoints': [
+                    {
+                        u'url': u'http://10.0.2.15:8773/',
+                        u'interface': u'public',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'id': u'541baeb9ab7542609d7ae307a7a9d5f0'
+                    },
+                    {
+                        u'url': u'http: //10.0.2.15:8773/',
+                        u'interface': u'admin',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'id': u'5c648acaea9941659a5dc04fb3b18e49'
+                    },
+                    {
+                        u'url': u'http: //10.0.2.15:8773/',
+                        u'interface': u'internal',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'id': u'cb70e610620542a1804522d365226981'
+                    }
+                ],
+                u'type': u'compute',
+                u'id': u'1398dc02f9b7474eb165106485033b48',
+                u'name': u'nova'
+            },
+            {
+                u'endpoints': [
+                    {
+                        u'url': u'http://10.0.2.15:8774/v2.1/0850707581fe4d738221a72db0182876',
+                        u'interface': u'internal',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'id': u'354e35ed19774e398f80dc2a90d07f4b'
+                    },
+                    {
+                        u'url': u'http://10.0.2.15:8774/v2.1/0850707581fe4d738221a72db0182876',
+                        u'interface': u'public',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'id': u'36e8e2bf24384105b9d56a65b0900172'
+                    },
+                    {
+                        u'url': u'http://10.0.2.15:8774/v2.1/0850707581fe4d738221a72db0182876',
+                        u'interface': u'admin',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'id': u'de93edcbf7f9446286687ec68423c36f'
+                    }
+                ],
+                u'type': u'computev21',
+                u'id': u'2023bd4f451849ba8abeaaf283cdde4f',
+                u'name': u'novav21'
+            },
+            {
+                u'endpoints': [
+                    {
+                        u'url': u'http://10.0.2.15:9292',
+                        u'interface': u'internal',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'id': u'7c1e318d8f7f42029fcb591598df2ef5'
+                    },
+                    {
+                        u'url': u'http://10.0.2.15:9292',
+                        u'interface': u'public',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'id': u'afcc88b1572f48a38bb393305dc2b584'
+                    },
+                    {
+                        u'url': u'http://10.0.2.15:9292',
+                        u'interface': u'admin',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'id': u'd9730dbdc07844d785913219da64a197'
+                    }
+                ],
+                u'type': u'network',
+                u'id': u'21ad241f26194bccb7d2e49ee033d5a2',
+                u'name': u'neutron'
+            },
+
+        ],
+        u'extras': {
+
+        },
+        u'user': {
+            u'domain': {
+                u'id': u'default',
+                u'name': u'Default'
+            },
+            u'id': u'5f10e63fbd6b411186e561dc62a9a675',
+            u'name': u'datadog'
+        },
+        u'audit_ids': [
+            u'OMQQg9g3QmmxRHwKrfWxyQ'
+        ],
+        u'issued_at': u'2015-11-02T14: 57: 43.911697Z'
+    }
 }
+MOCK_HTTP_RESPONSE = MockHTTPResponse(response_dict=EXAMPLE_AUTH_RESPONSE, headers={"X-Subject-Token": "fake_token"})
 
 class OSProjectScopeTest(TestCase):
     BAD_AUTH_SCOPES = [
@@ -78,194 +207,96 @@ class OSProjectScopeTest(TestCase):
             self.assertEqual(parsed_user, {"methods": ["password"], "password": user})
 
     def test_from_config(self):
-        init_config = {"keystone_server_url": ""}
-        instance_config = {}
+        init_config = {"keystone_server_url": "http://10.0.2.15:5000", "nova_api_version": "v2"}
+        bad_instance_config = {}
+
+        good_instance_config = {"user": self.GOOD_USERS[0]["user"], "auth_scope": self.GOOD_AUTH_SCOPES[0]["auth_scope"]}
+
         with self.assertRaises(IncompleteConfig):
-            OpenStackProjectScope.from_config(init_config, instance_config)
+            OpenStackProjectScope.from_config(init_config, bad_instance_config)
+
+        with patch("openstack.OpenStackProjectScope.request_auth_token", return_value=MOCK_HTTP_RESPONSE):
+            append_config = good_instance_config.copy()
+            append_config["append_tenant_id"] = True
+            scope = OpenStackProjectScope.from_config(init_config, append_config)
+            self.assertIsInstance(scope, OpenStackProjectScope)
+
+            self.assertEqual(scope.auth_token, "fake_token")
+            self.assertEqual(scope.tenant_id, "test_project_id")
+
+            # Test that append flag worked
+            self.assertEqual(scope.service_catalog.nova_endpoint, "http://10.0.2.15:8773/test_project_id")
 
 
 class KeyStoneCatalogTest(TestCase):
-    EXAMPLE_AUTH_RESPONSE =  {
-        u'token': {
-            u'methods': [
-                u'password'
-            ],
-            u'roles': [
-                {
-                    u'id': u'f20c215f5a4d47b7a6e510bc65485ced',
-                    u'name': u'datadog_monitoring'
-                },
-                {
-                    u'id': u'9fe2ff9ee4384b1894a90878d3e92bab',
-                    u'name': u'_member_'
-                }
-            ],
-            u'expires_at': u'2015-11-02T15: 57: 43.911674Z',
-            u'project': {
-                u'domain': {
-                    u'id': u'default',
-                    u'name': u'Default'
-                },
-                u'id': u'0850707581fe4d738221a72db0182876',
-                u'name': u'admin'
-            },
-            u'catalog': [
-                {
-                    u'endpoints': [
-                        {
-                            u'url': u'http://10.0.2.15:8773/',
-                            u'interface': u'public',
-                            u'region': u'RegionOne',
-                            u'region_id': u'RegionOne',
-                            u'id': u'541baeb9ab7542609d7ae307a7a9d5f0'
-                        },
-                        {
-                            u'url': u'http: //10.0.2.15:8773/',
-                            u'interface': u'admin',
-                            u'region': u'RegionOne',
-                            u'region_id': u'RegionOne',
-                            u'id': u'5c648acaea9941659a5dc04fb3b18e49'
-                        },
-                        {
-                            u'url': u'http: //10.0.2.15: 8773/',
-                            u'interface': u'internal',
-                            u'region': u'RegionOne',
-                            u'region_id': u'RegionOne',
-                            u'id': u'cb70e610620542a1804522d365226981'
-                        }
-                    ],
-                    u'type': u'ec2',
-                    u'id': u'1398dc02f9b7474eb165106485033b48',
-                    u'name': u'nova'
-                },
-                {
-                    u'endpoints': [
-                        {
-                            u'url': u'http://10.0.2.15:8774/v2.1/0850707581fe4d738221a72db0182876',
-                            u'interface': u'internal',
-                            u'region': u'RegionOne',
-                            u'region_id': u'RegionOne',
-                            u'id': u'354e35ed19774e398f80dc2a90d07f4b'
-                        },
-                        {
-                            u'url': u'http://10.0.2.15:8774/v2.1/0850707581fe4d738221a72db0182876',
-                            u'interface': u'public',
-                            u'region': u'RegionOne',
-                            u'region_id': u'RegionOne',
-                            u'id': u'36e8e2bf24384105b9d56a65b0900172'
-                        },
-                        {
-                            u'url': u'http://10.0.2.15:8774/v2.1/0850707581fe4d738221a72db0182876',
-                            u'interface': u'admin',
-                            u'region': u'RegionOne',
-                            u'region_id': u'RegionOne',
-                            u'id': u'de93edcbf7f9446286687ec68423c36f'
-                        }
-                    ],
-                    u'type': u'computev21',
-                    u'id': u'2023bd4f451849ba8abeaaf283cdde4f',
-                    u'name': u'novav21'
-                },
-                {
-                    u'endpoints': [
-                        {
-                            u'url': u'http://10.0.2.15:9292',
-                            u'interface': u'internal',
-                            u'region': u'RegionOne',
-                            u'region_id': u'RegionOne',
-                            u'id': u'7c1e318d8f7f42029fcb591598df2ef5'
-                        },
-                        {
-                            u'url': u'http://10.0.2.15:9292',
-                            u'interface': u'public',
-                            u'region': u'RegionOne',
-                            u'region_id': u'RegionOne',
-                            u'id': u'afcc88b1572f48a38bb393305dc2b584'
-                        },
-                        {
-                            u'url': u'http://10.0.2.15:9292',
-                            u'interface': u'admin',
-                            u'region': u'RegionOne',
-                            u'region_id': u'RegionOne',
-                            u'id': u'd9730dbdc07844d785913219da64a197'
-                        }
-                    ],
-                    u'type': u'network',
-                    u'id': u'21ad241f26194bccb7d2e49ee033d5a2',
-                    u'name': u'neutron'
-                },
-
-            ],
-            u'extras': {
-
-            },
-            u'user': {
-                u'domain': {
-                    u'id': u'default',
-                    u'name': u'Default'
-                },
-                u'id': u'5f10e63fbd6b411186e561dc62a9a675',
-                u'name': u'datadog'
-            },
-            u'audit_ids': [
-                u'OMQQg9g3QmmxRHwKrfWxyQ'
-            ],
-            u'issued_at': u'2015-11-02T14: 57: 43.911697Z'
-        }
-    }
 
     def test_get_nova_endpoint(self):
-        self.assertEqual(KeystoneCatalog.get_nova_endpoint(self.EXAMPLE_AUTH_RESPONSE), u"http://10.0.2.15:8774/v2.1/0850707581fe4d738221a72db0182876")
-        self.assertEqual(KeystoneCatalog.get_nova_endpoint(self.EXAMPLE_AUTH_RESPONSE, nova_api_version="v2"), u"http://10.0.2.15:8773/")
+        self.assertEqual(KeystoneCatalog.get_nova_endpoint(EXAMPLE_AUTH_RESPONSE), u"http://10.0.2.15:8774/v2.1/0850707581fe4d738221a72db0182876")
+        self.assertEqual(KeystoneCatalog.get_nova_endpoint(EXAMPLE_AUTH_RESPONSE, nova_api_version="v2"), u"http://10.0.2.15:8773/")
 
     def test_get_neutron_endpoint(self):
-        self.assertEqual(KeystoneCatalog.get_neutron_endpoint(self.EXAMPLE_AUTH_RESPONSE), u"http://10.0.2.15:9292")
+        self.assertEqual(KeystoneCatalog.get_neutron_endpoint(EXAMPLE_AUTH_RESPONSE), u"http://10.0.2.15:9292")
 
     def test_from_auth_response(self):
-        catalog = KeystoneCatalog.from_auth_response(self.EXAMPLE_AUTH_RESPONSE, "v2.1")
+        catalog = KeystoneCatalog.from_auth_response(EXAMPLE_AUTH_RESPONSE, "v2.1")
         self.assertIsInstance(catalog, KeystoneCatalog)
         self.assertEqual(catalog.neutron_endpoint, u"http://10.0.2.15:9292")
         self.assertEqual(catalog.nova_endpoint, u"http://10.0.2.15:8774/v2.1/0850707581fe4d738221a72db0182876")
 
+class TestCheckOpenStack(AgentCheckTest):
+    CHECK_NAME = OS_CHECK_NAME
 
-### INCOMPLETE
+    MOCK_CONFIG = {
+        "init_config": {
+            "keystone_server_url": "http://10.0.2.15:5000",
+            "ssl_verify": False,
+        },
+        "instances": [
+            {"name" : "test_name", "user": {"name": "test_name", "password": "test_pass", "domain": {"id": "test_id"}},
+             "auth_scope": {"project": {"id": "test_project_id"}}
+            }
+        ]
+    }
 
+    def setUp(self):
+        self.check = load_check(self.CHECK_NAME, self.MOCK_CONFIG, self.DEFAULT_AGENT_CONFIG)
 
-# class TestCheckOpenStack(AgentCheckTest):
-#     CHECK_NAME = OS_CHECK_NAME
-#
-#     MOCK_CONFIG = {
-#         "keystone_server_url": "",
-#         "ssl_verify": False,
-#
-#         "instances": [
-#             {"name" : "test_name"}
-#         ]
-#     }
-#
-#     def test_get_scope_for_instance(self):
-#         pass
-#         # #check = load_check(self.CHECK_NAME, self.MOCK_CONFIG, self.DEFAULT_AGENT_CONFIG)
-#         # instance = self.MOCK_CONFIG["instance"][0]
-#         #
-#         # with self.assertRaises(KeyError):
-#         #     check.get_scope_for_instance(instance)
-#
-#
-#         # with patch("OpenStackProjectScope.from_config",
-#         #         sassertEqual(self.instance_map["test_name"]
-#
-#
-#     def mock_get_all_servers_by_host(self):
-#
-#         return {
-#             "server_1": {
-#                 "aggregate": "aggregate_2"
-#             },
-#             "server_2": {
-#                 "aggregate": "aggregate_1"
-#             },
-#             "server_3": {
-#                 "aggregate": "aggregate_2"
-#             }
-#         }
+    def test_ensure_auth_scope(self):
+        instance = self.MOCK_CONFIG["instances"][0]
+
+        with self.assertRaises(KeyError):
+            self.check.get_scope_for_instance(instance)
+
+        with patch("openstack.OpenStackProjectScope.request_auth_token", return_value=MOCK_HTTP_RESPONSE):
+            scope = self.check.ensure_auth_scope(instance)
+
+            self.assertEqual(self.check.get_scope_for_instance(instance), scope)
+            self.check._send_api_service_checks(scope)
+
+            self.service_checks = self.check.get_service_checks()
+
+            # Expect OK, since we've mocked an API response
+            self.assertServiceCheck(self.check.IDENTITY_API_SC, status=AgentCheck.OK, count=1)
+
+            # Expect CRITICAL since URLs are non-existent
+            self.assertServiceCheck(self.check.COMPUTE_API_SC, status=AgentCheck.CRITICAL, count=1)
+            self.assertServiceCheck(self.check.NETWORK_API_SC, status=AgentCheck.CRITICAL, count=1)
+
+            self.check._current_scope = scope
+
+        self.check.delete_current_scope()
+        with self.assertRaises(KeyError):
+            self.check.get_scope_for_instance(instance)
+
+    def test_parse_uptime_string(self):
+        uptime_parsed = self.check._parse_uptime_string( u' 16:53:48 up 1 day, 21:34,  3 users,  load average: 0.04, 0.14, 0.19\n')
+        self.assertEqual(uptime_parsed.get('loads'), [0.04, 0.14, 0.19])
+
+    def test_cache_utils(self):
+        self.check.CACHE_TTL["aggregates"] = 1
+        expected_aggregates = {"hyp_1": ["aggregate:staging", "availability_zone:test"]}
+
+        with patch("openstack.OpenStackCheck.get_all_aggregate_hypervisors", return_value=expected_aggregates):
+            self.assertEqual(self.check._get_and_set_aggregate_list(), expected_aggregates)
+            sleep(1.5)
+            self.assertTrue(self.check._is_expired("aggregates"))
