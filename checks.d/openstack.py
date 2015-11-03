@@ -676,6 +676,11 @@ class OpenStackCheck(AgentCheck):
             self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
 
     def ensure_auth_scope(self, instance):
+        """
+        Guarantees a valid auth scope for this instance, and returns it
+
+        Communicates with the identity server and initializes a new scope when one is absent, or has been forcibly removed due to token expiry
+        """
         try:
             instance_scope = self.get_scope_for_instance(instance)
         except KeyError:
