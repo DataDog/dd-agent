@@ -317,6 +317,7 @@ class OpenStackCheck(AgentCheck):
     NETWORK_API_SC = 'openstack.neutron.api.up'
     COMPUTE_API_SC = 'openstack.nova.api.up'
     IDENTITY_API_SC = 'openstack.keystone.api.up'
+    SC_REQUEST_TIMEOUT = 5 # seconds
 
     # Service checks for individual hypervisors and networks
     HYPERVISOR_SC = 'openstack.nova.hypervisor.up'
@@ -660,17 +661,18 @@ class OpenStackCheck(AgentCheck):
     def _send_api_service_checks(self, instance_scope):
         # Nova
         headers = {"X-Auth-Token": instance_scope.auth_token}
+
         try:
-            requests.get(instance_scope.service_catalog.nova_endpoint, headers=headers, verify=self._ssl_verify)
+            requests.get(instance_scope.service_catalog.nova_endpoint, headers=headers, verify=self._ssl_verify, timeout=self.SC_REQUEST_TIMEOUT)
             self.service_check(self.COMPUTE_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
-        except requests.HTTPError:
+        except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
             self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
 
         # Neutron
         try:
-            requests.get(instance_scope.service_catalog.nova_endpoint, headers=headers, verify=self._ssl_verify)
+            requests.get(instance_scope.service_catalog.neutron_endpoint, headers=headers, verify=self._ssl_verify)
             self.service_check(self.NETWORK_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
-        except requests.HTTPError: # TODO: more granular error
+        except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
             self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
 
     def check(self, instance):
