@@ -180,8 +180,7 @@ class OSProjectScopeTest(TestCase):
     ]
 
     def _test_bad_auth_scope(self, scope):
-        with self.assertRaises(IncompleteAuthScope):
-            OpenStackProjectScope.get_auth_scope(scope)
+        self.assertRaises(IncompleteAuthScope, OpenStackProjectScope.get_auth_scope, scope)
 
     def test_get_auth_scope(self):
         for scope in self.BAD_AUTH_SCOPES:
@@ -194,8 +193,7 @@ class OSProjectScopeTest(TestCase):
             self.assertEqual(auth_scope, scope.get("auth_scope"))
 
     def _test_bad_user(self, user):
-        with self.assertRaises(IncompleteIdentity):
-            OpenStackProjectScope.get_user_identity(user)
+        self.assertRaises(IncompleteIdentity, OpenStackProjectScope.get_user_identity, user)
 
 
     def test_get_user_identity(self):
@@ -212,14 +210,13 @@ class OSProjectScopeTest(TestCase):
 
         good_instance_config = {"user": self.GOOD_USERS[0]["user"], "auth_scope": self.GOOD_AUTH_SCOPES[0]["auth_scope"]}
 
-        with self.assertRaises(IncompleteConfig):
-            OpenStackProjectScope.from_config(init_config, bad_instance_config)
+        self.assertRaises(IncompleteConfig, OpenStackProjectScope.from_config, init_config, bad_instance_config)
 
         with patch("openstack.OpenStackProjectScope.request_auth_token", return_value=MOCK_HTTP_RESPONSE):
             append_config = good_instance_config.copy()
             append_config["append_tenant_id"] = True
             scope = OpenStackProjectScope.from_config(init_config, append_config)
-            self.assertIsInstance(scope, OpenStackProjectScope)
+            self.assertTrue(isinstance(scope, OpenStackProjectScope))
 
             self.assertEqual(scope.auth_token, "fake_token")
             self.assertEqual(scope.tenant_id, "test_project_id")
@@ -239,7 +236,7 @@ class KeyStoneCatalogTest(TestCase):
 
     def test_from_auth_response(self):
         catalog = KeystoneCatalog.from_auth_response(EXAMPLE_AUTH_RESPONSE, "v2.1")
-        self.assertIsInstance(catalog, KeystoneCatalog)
+        self.assertTrue(isinstance(catalog, KeystoneCatalog))
         self.assertEqual(catalog.neutron_endpoint, u"http://10.0.2.15:9292")
         self.assertEqual(catalog.nova_endpoint, u"http://10.0.2.15:8774/v2.1/0850707581fe4d738221a72db0182876")
 
@@ -265,8 +262,7 @@ class TestCheckOpenStack(AgentCheckTest):
     def test_ensure_auth_scope(self):
         instance = self.MOCK_CONFIG["instances"][0]
 
-        with self.assertRaises(KeyError):
-            self.check.get_scope_for_instance(instance)
+        self.assertRaises(KeyError, self.check.get_scope_for_instance, instance)
 
         with patch("openstack.OpenStackProjectScope.request_auth_token", return_value=MOCK_HTTP_RESPONSE):
             scope = self.check.ensure_auth_scope(instance)
@@ -286,8 +282,7 @@ class TestCheckOpenStack(AgentCheckTest):
             self.check._current_scope = scope
 
         self.check.delete_current_scope()
-        with self.assertRaises(KeyError):
-            self.check.get_scope_for_instance(instance)
+        self.assertRaises(KeyError, self.check.get_scope_for_instance, instance)
 
     def test_parse_uptime_string(self):
         uptime_parsed = self.check._parse_uptime_string(u' 16:53:48 up 1 day, 21:34,  3 users,  load average: 0.04, 0.14, 0.19\n')
