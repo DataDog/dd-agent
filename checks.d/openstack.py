@@ -135,7 +135,7 @@ class OpenStackProjectScope(object):
 
         try:
             auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify)
-        except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+        except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
             raise KeystoneUnreachable()
 
         auth_token = auth_resp.headers.get('X-Subject-Token')
@@ -559,7 +559,7 @@ class OpenStackCheck(AgentCheck):
                     hyp_state = self.HYPERVISOR_STATE_UP
                 else:
                     hyp_state = self.HYPERVISOR_STATE_DOWN
-            except:
+            except Exception:
                 # This creates the AgentCheck.UNKNOWN state
                 pass
 
@@ -681,6 +681,8 @@ class OpenStackCheck(AgentCheck):
 
         Communicates with the identity server and initializes a new scope when one is absent, or has been forcibly removed due to token expiry
         """
+        instance_scope = None
+
         try:
             instance_scope = self.get_scope_for_instance(instance)
         except KeyError:
@@ -698,8 +700,6 @@ class OpenStackCheck(AgentCheck):
                 self.service_check(self.NETWORK_API_SC, AgentCheck.UNKNOWN, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
                 self.service_check(self.COMPUTE_API_SC, AgentCheck.UNKNOWN, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
 
-                raise
-
             except MissingNovaEndpoint:
                 self.warning("The agent could not find a compatible Nova endpoint in your service catalog!")
                 self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
@@ -707,8 +707,8 @@ class OpenStackCheck(AgentCheck):
             except MissingNeutronEndpoint:
                 self.warning("The agent could not find a compatible Neutron endpoint in your service catalog!")
                 self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
-
-            self.set_scope_for_instance(instance, instance_scope)
+            else:
+                self.set_scope_for_instance(instance, instance_scope)
 
         return instance_scope
 
@@ -716,6 +716,10 @@ class OpenStackCheck(AgentCheck):
 
         try:
             instance_scope = self.ensure_auth_scope(instance)
+
+            if not instance_scope:
+                # Fast fail in the absence of an instance_scope
+                return
 
             self._send_api_service_checks(instance_scope)
             # Store the scope on the object so we don't have to keep passing it around
@@ -799,7 +803,6 @@ class OpenStackCheck(AgentCheck):
         url = "{0}/{1}/{2}".format(self.keystone_server_url, DEFAULT_KEYSTONE_API_VERSION, "projects")
         headers = {'X-Auth-Token': self.get_auth_token(instance)}
 
-        projects = []
         try:
             project_details = self._make_request_with_auth_fallback(url, headers, params=filter_params)
             assert len(project_details["projects"]) == 1, "Non-unique project credentials"
@@ -830,7 +833,7 @@ class OpenStackCheck(AgentCheck):
             if self._aggregate_list[hostname]['availability_zone']:
                 tags.append('availability_zone:{0}'.format(self._aggregate_list[hostname]['availability_zone']))
         else:
-            self.log.info('Unable to find hostname {0} in aggregate list. Assuming this host is unaggregated'.format(hostname))
+            self.log.info('Unable to find hostname %s in aggregate list. Assuming this host is unaggregated', hostname)
 
         return tags
 
