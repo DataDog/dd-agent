@@ -447,4 +447,4 @@ class MongoDb(AgentCheck):
                 # Submit the metric
                 metric_name = self._normalize(metric_name, submit_method)
                 metrics_tags = tags + ['cluster:db:%s' % st]
-                submit_method(self, metric_name, value, tags=metrics_tags)
+                submit_method(self, metric_name, val, tags=metrics_tags)
