@@ -6,6 +6,7 @@ import traceback
 
 # 3p
 import pymysql
+import psutil # permissions issues?
 
 # project
 from checks import AgentCheck
@@ -240,6 +241,11 @@ GALERA_VARS = {
     'wsrep_local_send_queue_avg': ('mysql.galera.wsrep_local_send_queue_avg', GAUGE),
 }
 
+PERFORMANCE_VARS = {
+    'query_run_time_avg' : ('mysql.performance.query_run_time_avg', GAUGE),
+    'perf_digest_95th_percentile_avg_us': ('mysql.performance.digest_95th_percentile.avg_us', GAUGE),
+}
+
 
 class MySql(AgentCheck):
     SERVICE_CHECK_NAME = 'mysql.can_connect'
@@ -260,19 +266,24 @@ class MySql(AgentCheck):
         if (not host or not user) and not defaults_file:
             raise Exception("Mysql host and user are needed.")
 
-        db = self._connect(host, port, mysql_sock, user,
-                           password, defaults_file)
+        try:
+            db = self._connect(host, port, mysql_sock, user,
+                            password, defaults_file)
 
-        # Metadata collection
-        self._collect_metadata(db, host)
+            # Metadata collection
+            self._collect_metadata(db, host)
 
-        # Metric collection
-        self._collect_metrics(host, db, tags, options, queries)
-        if Platform.is_linux():
-            self._collect_system_metrics(host, db, tags)
+            # Metric collection
+            self._collect_metrics(host, db, tags, options, queries)
+            if Platform.is_linux():
+                self._collect_system_metrics(host, db, tags)
 
-        # Close connection
-        db.close()
+        except Exception:
+            raise
+        finally:
+            # Close connection
+            if db.open():
+                db.close()
 
     def _get_config(self, instance):
         host = instance.get('server', '')
@@ -416,6 +427,18 @@ class MySql(AgentCheck):
             self.log.debug("Collecting Galera Metrics.")
             VARS.update(GALERA_VARS)
 
+        if 'extra_performance_metrics' in options and options['extra_performance_metrics']:
+            results['perf_digest_95th_percentile_avg_us'] = self._get_query_exec_time_95th_us(db)
+            VARS.update(PERFORMANCE_VARS)
+
+            # report avg query response time per schema to Datadog
+            schemas = {}
+            schema_perf = self._query_exec_time_per_schema(db)
+            for schema, avg in schema_perf.iteritems():
+                schemas["schema:{0}".format(schema)] = avg
+
+            results['query_run_time_avg'] = schemas
+
         self._rate_or_gauge_vars(VARS, results, tags)
 
         if 'replication' in options and options['replication']:
@@ -451,12 +474,17 @@ class MySql(AgentCheck):
     def _rate_or_gauge_vars(self, variables, dbResults, tags):
         for variable, metric in variables.iteritems():
             metric_name, metric_type = metric
-            value = self._collect_scalar(variable, dbResults)
-            if value is not None:
-                if metric_type == RATE:
-                    self.rate(metric_name, value, tags=tags)
-                elif metric_type == GAUGE:
-                    self.gauge(metric_name, value, tags=tags)
+            # value = self._collect_scalar(variable, dbResults)
+            for tag, value in self._collect_all_scalars(variable, dbResults):
+                metric_tags = tags
+                if tag:
+                    metric_tags.append(tag)
+
+                if value is not None:
+                    if metric_type == RATE:
+                        self.rate(metric_name, value, tags=metric_tags)
+                    elif metric_type == GAUGE:
+                        self.gauge(metric_name, value, tags=metric_tags)
 
     def _version_compatible(self, db, host, compat_version):
         # some patch version numbers contain letters (e.g. 5.0.51a)
@@ -505,6 +533,15 @@ class MySql(AgentCheck):
         self.mysql_version[host] = version
         self.service_metadata('version', ".".join(version))
         return version
+
+    def _collect_all_scalars(self, key, dict):
+        if isinstance(dict[key], dict):
+            for tag, val in dict[key].iteritems():
+                yield tag, self._collect_type(tag, dict[key], float)
+        else:
+            yield None, self._collect_type(key, dict, float)
+
+        return
 
     def _collect_scalar(self, key, dict):
         return self._collect_type(key, dict, float)
@@ -577,26 +614,43 @@ class MySql(AgentCheck):
 
         if pid:
             self.log.debug("pid: %s" % pid)
-            # At last, get mysql cpu data out of procfs
-            try:
-                # See http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
-                # for meaning: we get 13 & 14: utime and stime, in clock ticks and convert
-                # them with the right sysconf value (SC_CLK_TCK)
-                proc_file = open("/proc/%d/stat" % pid)
-                data = proc_file.readline()
-                proc_file.close()
-                fields = data.split(' ')
-                ucpu = fields[13]
-                kcpu = fields[14]
-                clk_tck = os.sysconf(os.sysconf_names["SC_CLK_TCK"])
+            # At last, get mysql cpu data out of psutil or procfs
+            proc = psutil.Process(pid)
 
-                # Convert time to s (number of second of CPU used by mysql)
-                # It's a counter, it will be divided by the period, multiply by 100
-                # to get the percentage of CPU used by mysql over the period
-                self.rate("mysql.performance.user_time",
-                          int((float(ucpu) / float(clk_tck)) * 100), tags=tags)
-                self.rate("mysql.performance.kernel_time",
-                          int((float(kcpu) / float(clk_tck)) * 100), tags=tags)
+            try:
+                ucpu, scpu = None, None
+                if hasattr(proc, 'cpu_times') :
+                    ucpu = proc.cpu_times()[0]
+                    scpu = proc.cpu_times()[1]
+
+                elif Platform.is_linux():
+                    # See http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
+                    # for meaning: we get 13 & 14: utime and stime, in clock ticks and convert
+                    # them with the right sysconf value (SC_CLK_TCK)
+                    clk_tck = os.sysconf(os.sysconf_names["SC_CLK_TCK"])
+                    proc_file = open("/proc/%d/stat" % pid)
+
+                    data = proc_file.readline()
+                    proc_file.close()
+                    fields = data.split(' ')
+                    # Convert time to s (number of second of CPU used by mysql)
+                    # It's a counter, it will be divided by the period, multiply by 100
+                    # to get the percentage of CPU used by mysql over the period
+                    #
+                    # FIX(?) : /proc stats are ticks since boot-up, so
+                    # dividing by clk_tck isn't but a conversation to seconds -
+                    # multiplying * 100 does not convert it into a percentage
+                    # Does reporting as a rate make that make sense?
+                    # ucpu = int((float(fields[13]) / float(clk_tck)) * 100)
+                    # scpu = int((float(fields[14]) / float(clk_tck)) * 100)
+                    ucpu = int((float(fields[13]) / float(clk_tck)))
+                    scpu = int((float(fields[14]) / float(clk_tck)))
+
+                if ucpu and scpu:
+                    self.rate("mysql.performance.user_time", ucpu, tags=tags)
+                    # should really be system_time
+                    self.rate("mysql.performance.kernel_time", scpu, tags=tags)
+
             except Exception:
                 self.warning("Error while reading mysql (pid: %s) procfs data\n%s"
                              % (pid, traceback.format_exc()))
@@ -1013,3 +1067,62 @@ class MySql(AgentCheck):
             results[metric] = str(value)
 
         return results
+
+    def _get_query_exec_time_95th_us(self, db):
+        # Fetches the 95th percentile query execution time and returns the value
+        # in microseconds
+
+        sql_95th_percentile = """SELECT s2.avg_us avg_us,
+                IFNULL(SUM(s1.cnt)/NULLIF((SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest), 0), 0) percentile
+            FROM (SELECT COUNT(*) cnt, ROUND(avg_timer_wait/1000000) AS avg_us
+                    FROM performance_schema.events_statements_summary_by_digest
+                    GROUP BY avg_us) AS s1
+            JOIN (SELECT COUNT(*) cnt, ROUND(avg_timer_wait/1000000) AS avg_us
+                    FROM performance_schema.events_statements_summary_by_digest
+                    GROUP BY avg_us) AS s2
+            ON s1.avg_us <= s2.avg_us
+            GROUP BY s2.avg_us
+            HAVING percentile > 0.95
+            ORDER BY percentile
+            LIMIT 1"""
+
+        cursor = db.cursor()
+        cursor.execute(sql_95th_percentile)
+
+        if cursor.rowcount < 1:
+            raise Exception("Failed to fetch record from the table performance_schema.events_statements_summary_by_digest")
+
+        row = cursor.fetchone()
+        query_exec_time_95th_per = row[0]
+
+        cursor.close()
+        del cursor
+
+        return query_exec_time_95th_per
+
+    def _query_exec_time_per_schema(self, db):
+        # Fetches the avg query execution time per schema and returns the
+        # value in microseconds
+
+        sql_avg_query_run_time = """SELECT schema_name, SUM(count_star) cnt, ROUND(AVG(avg_timer_wait)/1000000) AS avg_us
+            FROM performance_schema.events_statements_summary_by_digest
+            WHERE schema_name IS NOT NULL
+            GROUP BY schema_name"""
+
+        cursor = db.cursor()
+        cursor.execute(sql_avg_query_run_time)
+
+        if cursor.rowcount < 1:
+            raise Exception("Failed to fetch records from the table performance_schema.events_statements_summary_by_digest")
+
+        schema_query_avg_run_time = {}
+        for row in cursor.fetchall():
+            schema_name = str(row[0])
+            avg_us = long(row[2])
+
+            schema_query_avg_run_time[schema_name] = avg_us
+
+        cursor.close()
+        del cursor
+
+        return schema_query_avg_run_time
