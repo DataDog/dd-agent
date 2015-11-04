@@ -215,6 +215,7 @@ class TestElastic(AgentCheckTest):
             'instances': [
                 {'url': url, 'tags': tags},  # One with tags not external
                 {'url': url, 'cluster_stats': True},  # One without tags, external
+                {'url': url, 'cluster_stats': True, 'cluster_hosts_as_tags': True},  # One without tags, external
                 {'url': bad_url},  # One bad url
             ]
         }
@@ -244,33 +245,44 @@ class TestElastic(AgentCheckTest):
             expected_metrics.update(ADDITIONAL_METRICS_PRE_0_90_5)
             expected_metrics.update(JVM_METRICS_PRE_0_90_10)
 
+        # Boolean at the end represents whether or not the context is
+        # reporting "cluster/external" hostas as tags - ie. 'Cluster Stats' : True
+        # and 'cluster_hosts_as_tags' : True
         contexts = [
-            (conf_hostname, default_tags + tags),
-            (socket.gethostname(), default_tags)
+            (conf_hostname, default_tags + tags, False, False),
+            (socket.gethostname(), default_tags, True, False),
+            (socket.gethostname(), default_tags, True, True)
         ]
 
         for m_name, desc in expected_metrics.iteritems():
-            for hostname, m_tags in contexts:
-                if (m_name in CLUSTER_HEALTH_METRICS
-                        and hostname == socket.gethostname()):
+            for hostname, m_tags, external, host_tag in contexts:
+
+                if host_tag:
+                    m_tags = default_tags + ['elasticsearch_host:'+hostname]
+                    hostname = conf_hostname
+                if external and m_name in CLUSTER_HEALTH_METRICS:
                     hostname = conf_hostname
 
                 if desc[0] == "gauge":
-                    self.assertMetric(
-                        m_name, tags=m_tags, count=1, hostname=hostname)
+                    if host_tag:
+                        self.assertMetric(
+                            m_name, tags=m_tags, count=1)
+                    else:
+                        self.assertMetric(
+                            m_name, tags=m_tags, count=1, hostname=hostname)
 
         good_sc_tags = ['host:localhost', 'port:{0}'.format(port)]
         bad_sc_tags = ['host:localhost', 'port:{0}'.format(bad_port)]
 
         self.assertServiceCheckOK('elasticsearch.can_connect',
                                   tags=good_sc_tags,
-                                  count=2)
+                                  count=3)
         self.assertServiceCheckCritical('elasticsearch.can_connect',
                                         tags=bad_sc_tags,
                                         count=1)
 
         # Assert service metadata
-        self.assertServiceMetadata(['version'], count=3)
+        self.assertServiceMetadata(['version'], count=4)
 
         # FIXME: 0.90.13 returns randomly a red status instead of yellow,
         # so we don't do a coverage test for it
@@ -280,7 +292,7 @@ class TestElastic(AgentCheckTest):
             # http://chrissimpson.co.uk/elasticsearch-yellow-cluster-status-explained.html
             self.assertServiceCheckWarning('elasticsearch.cluster_health',
                                            tags=good_sc_tags,
-                                           count=2)
+                                           count=3)
 
             # Assert event
             self.assertEvent('ElasticSearch: foo just reported as yellow', count=1,

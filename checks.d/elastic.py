@@ -20,6 +20,7 @@ ESInstanceConfig = namedtuple(
     'ESInstanceConfig', [
         'pshard_stats',
         'cluster_stats',
+        'cluster_hosts_as_tags',
         'password',
         'service_check_tags',
         'tags',
@@ -229,6 +230,8 @@ class ESCheck(AgentCheck):
         if 'is_external' in instance:
             cluster_stats = _is_affirmative(instance.get('is_external', False))
 
+        cluster_hosts_as_tags = _is_affirmative(instance.get('cluster_hosts_as_tags', False))
+
         # Support URLs that have a path in them from the config, for
         # backwards-compatibility.
         parsed = urlparse.urlparse(url)
@@ -251,6 +254,7 @@ class ESCheck(AgentCheck):
         config = ESInstanceConfig(
             pshard_stats=pshard_stats,
             cluster_stats=cluster_stats,
+            cluster_hosts_as_tags=cluster_hosts_as_tags,
             password=instance.get('password'),
             service_check_tags=service_check_tags,
             tags=tags,
@@ -267,7 +271,7 @@ class ESCheck(AgentCheck):
         # (URLs and metrics) accordingly
         version = self._get_es_version(config)
 
-        health_url, nodes_url, stats_url, pshard_stats_url, pending_tasks_url, stats_metrics, \
+        health_url, stats_url, pshard_stats_url, pending_tasks_url, stats_metrics, \
             pshard_stats_metrics = self._define_params(version, config.cluster_stats)
 
         # Load clusterwise data
@@ -279,7 +283,7 @@ class ESCheck(AgentCheck):
         # Load stats data.
         stats_url = urlparse.urljoin(config.url, stats_url)
         stats_data = self._get_data(stats_url, config)
-        self._process_stats_data(nodes_url, stats_data, stats_metrics, config)
+        self._process_stats_data(stats_data, stats_metrics, config)
 
         # Load the health data.
         health_url = urlparse.urljoin(config.url, health_url)
@@ -326,7 +330,6 @@ class ESCheck(AgentCheck):
         if version >= [0, 90, 10]:
             # ES versions 0.90.10 and above
             health_url = "/_cluster/health?pretty=true"
-            nodes_url = "/_nodes?network=true"
             pending_tasks_url = "/_cluster/pending_tasks?pretty=true"
 
             # For "external" clusters, we want to collect from all nodes.
@@ -338,7 +341,6 @@ class ESCheck(AgentCheck):
             additional_metrics = self.JVM_METRICS_POST_0_90_10
         else:
             health_url = "/_cluster/health?pretty=true"
-            nodes_url = "/_cluster/nodes?network=true"
             pending_tasks_url = None
             if cluster_stats:
                 stats_url = "/_cluster/nodes/stats?all=true"
@@ -367,7 +369,7 @@ class ESCheck(AgentCheck):
 
         pshard_stats_metrics.update(additional_metrics)
 
-        return health_url, nodes_url, stats_url, pshard_stats_url, pending_tasks_url, \
+        return health_url, stats_url, pshard_stats_url, pending_tasks_url, \
             stats_metrics, pshard_stats_metrics
 
     def _get_data(self, url, config, send_sc=True):
@@ -416,8 +418,10 @@ class ESCheck(AgentCheck):
             desc = self.CLUSTER_PENDING_TASKS[metric]
             self._process_metric(node_data, metric, *desc, tags=config.tags)
 
-    def _process_stats_data(self, nodes_url, data, stats_metrics, config):
+    def _process_stats_data(self, data, stats_metrics, config):
         cluster_stats = config.cluster_stats
+        cluster_hosts_as_tags = config.cluster_hosts_as_tags
+
         for node_name in data['nodes']:
             node_data = data['nodes'][node_name]
             # On newer version of ES it's "host" not "hostname"
@@ -427,10 +431,14 @@ class ESCheck(AgentCheck):
             # Override the metric hostname if we're hitting an external cluster
             metric_hostname = node_hostname if cluster_stats else None
 
+            cluster_tags = config.tags
+            if metric_hostname and cluster_hosts_as_tags:
+                cluster_tags.append("elasticsearch_host:"+metric_hostname)
+                metric_hostname = None
+
             for metric, desc in stats_metrics.iteritems():
                 self._process_metric(
-                    node_data, metric, *desc, tags=config.tags,
-                    hostname=metric_hostname)
+                    node_data, metric, *desc, tags=cluster_tags, hostname=metric_hostname)
 
     def _process_pshard_stats_data(self, data, config, pshard_stats_metrics):
         for metric, desc in pshard_stats_metrics.iteritems():
