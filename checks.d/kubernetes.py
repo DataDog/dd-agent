@@ -71,9 +71,9 @@ class Kubernetes(AgentCheck):
 
     def _perform_kubelet_checks(self, url):
         service_check_base = NAMESPACE + '.kubelet.check'
+        is_ok = True
         try:
             r = requests.get(url)
-            r.raise_for_status()
             for line in r.iter_lines():
 
                 # avoid noise; this check is expected to fail since we override the container hostname
@@ -89,12 +89,19 @@ class Kubernetes(AgentCheck):
                 if status == '+':
                     self.service_check(service_check_name, AgentCheck.OK)
                 else:
-                    raise Exception("Kubelet health check failed")
+                    self.service_check(service_check_name, AgentCheck.CRITICAL)
+                    is_ok = False
 
         except Exception, e:
             self.log.warning('kubelet check failed: %s' % str(e))
             self.service_check(service_check_base, AgentCheck.CRITICAL,
                 message='Kubelet check failed: %s' % str(e))
+
+        else:
+            if is_ok:
+                self.service_check(service_check_base, AgentCheck.OK)
+            else:
+                self.service_check(service_check_base, AgentCheck.CRITICAL)
 
     def _perform_master_checks(self, url):
         try:
