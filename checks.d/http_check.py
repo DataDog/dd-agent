@@ -48,16 +48,22 @@ class WeakCiphersHTTPSConnection(urllib3.connection.VerifiedHTTPSConnection):
         resolved_ssl_version = ssl_.resolve_ssl_version(self.ssl_version)
 
         hostname = self.host
+        if getattr(self, '_tunnel_host', None):
+            # _tunnel_host was added in Python 2.6.3
+            # (See:
+            # http://hg.python.org/cpython/rev/0f57b30a152f)
+            #
+            # However this check is still necessary in 2.7.x
 
-        self.sock = conn
-        # Calls self._set_hostport(), so self.host is
-        # self._tunnel_host below.
-        self._tunnel()
-        # Mark this connection as not reusable
-        self.auto_open = 0
+            self.sock = conn
+            # Calls self._set_hostport(), so self.host is
+            # self._tunnel_host below.
+            self._tunnel()
+            # Mark this connection as not reusable
+            self.auto_open = 0
 
-        # Override the host with the one we're requesting data from.
-        hostname = self._tunnel_host
+            # Override the host with the one we're requesting data from.
+            hostname = self._tunnel_host
 
         # Wrap socket using verification with the root certs in trusted_root_certs
         self.sock = ssl_.ssl_wrap_socket(conn, self.key_file, self.cert_file,
