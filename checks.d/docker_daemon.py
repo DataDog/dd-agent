@@ -485,8 +485,9 @@ class DockerDaemon(AgentCheck):
                 continue
             self._report_net_metrics(container, tags)
 
-        self.warning("Couldn't find pid directory for container: {0}. They'll be missing network metrics".format(
-            ",".join(containers_without_proc_root)))
+        if containers_without_proc_root:
+            self.warning("Couldn't find pid directory for container: {0}. They'll be missing network metrics".format(
+                ",".join(containers_without_proc_root)))
 
     def _report_cgroup_metrics(self, container, tags):
         try:
