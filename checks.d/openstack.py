@@ -746,6 +746,9 @@ class OpenStackCheck(AgentCheck):
 
             for sid in servers:
                 server_tags = ["nova_managed_server"]
+                if instance_scope.tenant_id:
+                    server_tags.append("tenant_id:%s" % instance_scope.tenant_id)
+
                 self.external_host_tags[sid] = host_tags
                 self.get_stats_for_single_server(sid, tags=server_tags)
 
@@ -806,6 +809,10 @@ class OpenStackCheck(AgentCheck):
         try:
             project_details = self._make_request_with_auth_fallback(url, headers, params=filter_params)
             assert len(project_details["projects"]) == 1, "Non-unique project credentials"
+
+            # Set the tenant_id so we won't have to fetch it next time
+            project_auth_scope.tenant_id = project_details["projects"][0].get("id")
+
             return project_details["projects"][0]
         except Exception as e:
             self.warning('Unable to get the list of all project ids: {0}'.format(str(e)))
