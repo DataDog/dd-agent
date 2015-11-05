@@ -1,7 +1,25 @@
 Changes
 =======
 
+# 5.6.1 / Unreleased
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.6.0...5.6.1
+
+### Changes
+* [BUGFIX] Consul: Add the main tags to service checks. See [#2015][] (Thanks [@mtougeron][])
+* [BUGFIX] Docker: Remove spurious proc root container warnings. See [#2055][] (Thanks [@oeuftete][])
+* [BUGFIX] Flare: Restore missing JMXFetch information. See [#2062][]
+* [BUGFIX] OpenStack: Fix false-critical on the network service check. See [#2063][]
+* [BUGFIX] Windows: Fix broken subprocess calls. See [#2056][], [#2061][]
+* [BUGFIX] Windows: Restore missing JMXFetch service logs. See [#1852][], [#2065][]
+
+* [OTHER] Upgrade `pymongo` dependency from `2.6.3` to `2.8` on Windows Datadog Agent 32-bit MSI Installer.
+* [OTHER] Allow `supervisor.conf` to select Supervisor user. See [#2064][]
+
 # 5.6.0 / 11-05-2015
+**Linux, Mac OS and Source Install only**
+
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.5.2...5.6.0
 
@@ -2294,12 +2312,20 @@ If you use ganglia, you want this version.
 [#2009]: https://github.com/DataDog/dd-agent/issues/2009
 [#2010]: https://github.com/DataDog/dd-agent/issues/2010
 [#2011]: https://github.com/DataDog/dd-agent/issues/2011
+[#2015]: https://github.com/DataDog/dd-agent/issues/2015
 [#2026]: https://github.com/DataDog/dd-agent/issues/2026
 [#2031]: https://github.com/DataDog/dd-agent/issues/2031
 [#2035]: https://github.com/DataDog/dd-agent/issues/2035
 [#2038]: https://github.com/DataDog/dd-agent/issues/2038
 [#2039]: https://github.com/DataDog/dd-agent/issues/2039
 [#2040]: https://github.com/DataDog/dd-agent/issues/2040
+[#2055]: https://github.com/DataDog/dd-agent/issues/2055
+[#2056]: https://github.com/DataDog/dd-agent/issues/2056
+[#2061]: https://github.com/DataDog/dd-agent/issues/2061
+[#2062]: https://github.com/DataDog/dd-agent/issues/2062
+[#2063]: https://github.com/DataDog/dd-agent/issues/2063
+[#2064]: https://github.com/DataDog/dd-agent/issues/2064
+[#2065]: https://github.com/DataDog/dd-agent/issues/2065
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@KnownSubset]: https://github.com/KnownSubset
@@ -2361,6 +2387,7 @@ If you use ganglia, you want this version.
 [@mutemule]: https://github.com/mutemule
 [@nambrosch]: https://github.com/nambrosch
 [@obi11235]: https://github.com/obi11235
+[@oeuftete]: https://github.com/oeuftete
 [@ordenull]: https://github.com/ordenull
 [@oremj]: https://github.com/oremj
 [@orenmazor]: https://github.com/orenmazor
