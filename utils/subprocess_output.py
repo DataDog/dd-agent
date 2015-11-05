@@ -5,6 +5,9 @@ import logging
 import subprocess
 import tempfile
 
+# project
+from utils.platform import Platform
+
 log = logging.getLogger(__name__)
 
 
@@ -18,9 +21,12 @@ def get_subprocess_output(command, log, shell=False, stdin=None):
     # Use tempfile, allowing a larger amount of memory. The subprocess.Popen
     # docs warn that the data read is buffered in memory. They suggest not to
     # use subprocess.PIPE if the data size is large or unlimited.
-    with nested(tempfile.TemporaryFile('rw'), tempfile.TemporaryFile('rw')) as (stdout_f, stderr_f):
-        proc = subprocess.Popen(command, close_fds=True, shell=shell,
-                                stdin=stdin, stdout=stdout_f,
+    with nested(tempfile.TemporaryFile(), tempfile.TemporaryFile()) as (stdout_f, stderr_f):
+        proc = subprocess.Popen(command,
+                                close_fds=not Platform.is_windows(),  # only set to True when on Unix, for WIN compatibility
+                                shell=shell,
+                                stdin=stdin,
+                                stdout=stdout_f,
                                 stderr=stderr_f)
         proc.wait()
         stderr_f.seek(0)
