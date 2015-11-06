@@ -294,14 +294,17 @@ class JMXFetch(object):
                 # Register SIGINT and SIGTERM signal handlers
                 self.register_signal_handlers()
 
+                # Wait for JMXFetch to return
+                jmx_process.wait()
+
                 if redirect_std_streams:
-                    # Wait for JMXFetch to return, and write out the stdout and stderr of JMXFetch to sys.stdout and sys.stderr
-                    out, err = jmx_process.communicate()
+                    # Write out the stdout and stderr of JMXFetch to sys.stdout and sys.stderr
+                    stderr_f.seek(0)
+                    err = stderr_f.read()
+                    stdout_f.seek(0)
+                    out = stdout_f.read()
                     sys.stdout.write(out)
                     sys.stderr.write(err)
-                else:
-                    # Wait for JMXFetch to return
-                    jmx_process.wait()
 
             return jmx_process.returncode
 
