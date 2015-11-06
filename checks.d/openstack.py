@@ -453,7 +453,7 @@ class OpenStackCheck(AgentCheck):
         if tenant_id is not None:
             service_check_tags.append('tenant_id:{0}'.format(tenant_id))
 
-        if net_details.get('admin_state_up'):
+        if net_details.get('network', {}).get('admin_state_up'):
             self.service_check(self.NETWORK_SC, AgentCheck.OK, tags=service_check_tags)
         else:
             self.service_check(self.NETWORK_SC, AgentCheck.CRITICAL, tags=service_check_tags)
