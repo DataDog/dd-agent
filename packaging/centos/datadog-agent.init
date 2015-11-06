@@ -104,7 +104,7 @@ start() {
     # no need to test for status before daemon,
     # the daemon function does the right thing
     echo -n "Starting Datadog Agent (using supervisord):"
-    daemon --user=$AGENTUSER --pidfile=$SUPERVISOR_PIDFILE $SUPERVISORD_PATH -c $SUPERVISOR_CONF > /dev/null
+    daemon --pidfile=$SUPERVISOR_PIDFILE $SUPERVISORD_PATH -c $SUPERVISOR_CONF > /dev/null
     # check if the agent is running once per second for 10 seconds
     retries=10
     while [ $retries -gt 1 ]; do
