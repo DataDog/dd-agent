@@ -329,9 +329,14 @@ class JMXFetchProcess(multiprocessing.Process):
             self.is_enabled = False
 
     def run(self):
+        from config import initialize_logging
+        initialize_logging('jmxfetch')
         if self.is_enabled:
+            log.debug("Windows Service - Starting JMXFetch")
             JMXFiles.clean_exit_file()
             self.jmx_daemon.run()
+        else:
+            log.info("Windows Service - Not starting JMXFetch: no valid configuration found")
 
     def terminate(self):
         """
