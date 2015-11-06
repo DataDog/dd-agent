@@ -282,7 +282,7 @@ class JMXFetch(object):
             log.info("Running %s" % " ".join(subprocess_args))
 
             # Launch JMXfetch subprocess manually, w/o get_subprocess_output(), since it's a special case
-            with nested(tempfile.TemporaryFile('rw'), tempfile.TemporaryFile('rw')) as (stdout_f, stderr_f):
+            with nested(tempfile.TemporaryFile(), tempfile.TemporaryFile()) as (stdout_f, stderr_f):
                 jmx_process = subprocess.Popen(
                     subprocess_args,
                     close_fds=not redirect_std_streams,  # only set to True when the streams are not redirected, for WIN compatibility
