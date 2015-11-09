@@ -17,6 +17,10 @@ class Sidekiq(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.connections = {}
 
+    def _key(self, instance, name):
+        ns = instance.get('namespace')
+        return "%s:%s" % (ns, name) if ns else name
+
     # Taken from redisdb.py, returns custom tags and redis tags for redis connection.
     def _get_tags(self, custom_tags, instance):
         tags = set(custom_tags or [])
@@ -97,9 +101,9 @@ class Sidekiq(AgentCheck):
         self.gauge('sidekiq.redis.info.latency_ms', latency_ms, tags=tags)
 
         # Check all sidekiq queue lengths
-        for queue in conn.smembers('queues'):
+        for queue in conn.smembers(self._key(instance, 'queues')):
             queue_tags = tags + ['queue:' + queue]
-            self.gauge('sidekiq.queue.length', conn.llen('queue:%s' % queue), tags=queue_tags)
+            self.gauge('sidekiq.queue.length', conn.llen(self._key(instance, 'queue:%s' % queue)), tags=queue_tags)
 
     def check(self, instance):
         if ("host" not in instance or "port" not in instance) and "unix_socket_path" not in instance:
