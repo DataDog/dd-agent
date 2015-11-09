@@ -11,7 +11,6 @@ https://github.com/DataDog/dd-agent/compare/5.6.0...5.6.1
 * [BUGFIX] Docker: Remove spurious proc root container warnings. See [#2055][] (Thanks [@oeuftete][])
 * [BUGFIX] Flare: Restore missing JMXFetch information. See [#2062][]
 * [BUGFIX] OpenStack: Fix false-critical on the network service check. See [#2063][]
-* [BUGFIX] Windows: Fix broken subprocess calls. See [#2056][], [#2061][]
 * [BUGFIX] Windows: Restore missing JMXFetch service logs. See [#1852][], [#2065][]
 
 * [OTHER] Upgrade `pymongo` dependency from `2.6.3` to `2.8` on Windows Datadog Agent 32-bit MSI Installer.
