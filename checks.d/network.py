@@ -223,11 +223,11 @@ class Network(AgentCheck):
         except IOError:
             # On Openshift, /proc/net/snmp is only readable by root
             self.log.debug("Unable to read /proc/net/snmp.")
-        
+
         #SocktStat metrics
         for metric, value in Network._linux_sockstat().items():
             self.gauge(metric, value)
-            
+
 
     def _check_bsd(self, instance):
         netstat_flags = ['-i', '-b']
@@ -337,8 +337,8 @@ class Network(AgentCheck):
             self._submit_devicemetrics(interface, metrics)
 
         netstat = subprocess.Popen(["netstat", "-s","-P" "tcp"],
-                                    stdout=subprocess.PIPE,
-                                    close_fds=True).communicate()[0]
+                                   stdout=subprocess.PIPE,
+                                   close_fds=True).communicate()[0]
         # TCP: tcpRtoAlgorithm=     4 tcpRtoMin           =   200
         # tcpRtoMax           = 60000 tcpMaxConn          =    -1
         # tcpActiveOpens      =    57 tcpPassiveOpens     =    50
@@ -446,7 +446,7 @@ class Network(AgentCheck):
             metrics_by_interface[iface] = metrics
 
         return metrics_by_interface
-    
+
     @staticmethod
     def _linux_sockstat_get_conntrack_max():
         proc_name = '/proc/sys/net/ipv4/ip_conntrack_max'
@@ -459,7 +459,7 @@ class Network(AgentCheck):
             return int(lines)
         except IOError:
             return 0
-        
+
     @staticmethod
     def _linux_sockstat_get_conntrack_count():
         proc_name = '/proc/sys/net/ipv4/netfilter/ip_conntrack_count'
@@ -472,9 +472,9 @@ class Network(AgentCheck):
             return int(lines)
         except IOError:
             return 0
-            
+
     @staticmethod
-    def _linux_sockstat_get_max_orphans():
+    def _linux_sockstat_get_max_orphans(self):
         proc_name = '/proc/sys/net/ipv4/tcp_max_orphans'
         try:
             proc = open(proc_name,'r')
@@ -484,31 +484,31 @@ class Network(AgentCheck):
                 proc.close()
             return int(lines)
         except IOError:
-            self.log.debug("Unable to read %s." %proc_name)
-    
-    @staticmethod        
+            self.log.debug("Unable to read %s." % proc_name)
+
+    @staticmethod
     def _linux_sockstat_get_size_of_page():
         return long(check_output(["/usr/bin/getconf", "PAGESIZE"]))
-    
+
     @staticmethod
-    def _linux_sockstat_get_max_memory():
-        sizeOfPageInBytes = Network._linux_sockstat_get_size_of_page()               
-        tcpMemFilePath = '/proc/sys/net/ipv4/tcp_mem'           
+    def _linux_sockstat_get_max_memory(self):
+        sizeOfPageInBytes = Network._linux_sockstat_get_size_of_page()
+        tcpMemFilePath = '/proc/sys/net/ipv4/tcp_mem'
         try:
             proc = open(tcpMemFilePath,'r')
             try:
                 tcpmem = proc.readlines()
             finally:
                 proc.close()
-            
+
         except IOError:
-            self.log.debug("Unable to read %s." %tcpMemFilePath)
-        tcpmemline = tcpmem[0].split();            
-        maxMemoryInBytes = sizeOfPageInBytes * tcpmemline[2];  
-        return long(maxMemoryInBytes);
-                                     
+            self.log.debug("Unable to read %s." % tcpMemFilePath)
+        tcpmemline = tcpmem[0].split()
+        maxMemoryInBytes = sizeOfPageInBytes * tcpmemline[2]
+        return long(maxMemoryInBytes)
+
     @staticmethod
-    def _linux_sockstat():
+    def _linux_sockstat(self):
         proc_name = '/proc/net/sockstat'
         try:
             proc = open(proc_name,'r')
@@ -528,9 +528,9 @@ class Network(AgentCheck):
                         " memory (?P<ip_frag_mem>\d+)\n")
             match = re.match(reg, lines)
             if not match:
-                self.log.debug("Unable to parse %s." %proc_name)
+                self.log.debug("Unable to parse %s." % proc_name)
                 return
-            
+
             values = []
             values.append(match.group("sockets_used"))
             values.append(match.group("tcp_inuse"))
@@ -548,15 +548,15 @@ class Network(AgentCheck):
             metrics = dict(zip(metric_names,values))
             tcpMem = long(metrics['sockstat.sockets.tcp.alloc']) * Network._linux_sockstat_get_size_of_page()
             metrics['linux.kernel.tcp.memorypercentused'] = (long(tcpMem) / Network._linux_sockstat_get_max_memory()) * 100
-            metrics['linux.kernel.tcp.orphanthresholdpercentage'] = ((long(metrics['sockstat.sockets.tcp.orphan']) *4 )/ Network._linux_sockstat_get_max_orphans()) * 100
+            metrics['linux.kernel.tcp.orphanthresholdpercentage'] = ((long(metrics['sockstat.sockets.tcp.orphan']) * 4) / Network._linux_sockstat_get_max_orphans()) * 100
             metrics['linux.netfilter.conntrack.count'] = Network._linux_sockstat_get_conntrack_count()
             metrics['linux.netfilter.conntrack.max'] = Network._linux_sockstat_get_conntrack_max()
             print metrics
             return metrics
         except IOError:
-            self.log.debug("Unable to read %s." %proc_name)
+            self.log.debug("Unable to read %s." % proc_name)
 
-        
+
 if __name__ == '__main__':
     # For tests porposes
     Network._linux_sockstat()
