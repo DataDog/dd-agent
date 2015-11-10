@@ -95,6 +95,11 @@ class Flare(object):
             r'api_key: *************************\1',
             'api_key'
         ),
+        CredentialPattern(
+            re.compile('^(proxy_user|proxy_password): *.+'),
+            r'\1: ********',
+            'proxy credentials'
+        ),
     ]
     COMMENT_REGEX = re.compile('^ *#.*')
 
