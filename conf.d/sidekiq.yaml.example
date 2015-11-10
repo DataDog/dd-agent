@@ -1,0 +1,24 @@
+init_config:
+
+instances:
+  - host: localhost
+    port: 6379
+
+    # Can be used in lieu of host/port
+    #
+    # unix_socket_path: /var/run/redis/redis.sock # optional, can be used in lieu of host/port
+
+    # Addional connection options
+    #
+    # db: 0
+    # password: mypassword
+    # socket_timeout: 5
+
+    # Optional extra tags added to all sidekiq metrics
+    # tags:
+    #   - optional_tag1
+    #   - optional_tag2
+    #
+
+    # Optional namespace (if sidekiq keys are namespaced in redis)
+    # namespace: sidekiq
