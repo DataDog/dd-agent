@@ -19,23 +19,20 @@ SLAVE_HEALTHY_PORT = 36379
 SLAVE_UNHEALTHY_PORT = 46379
 DEFAULT_PORT = 6379
 MISSING_KEY_TOLERANCE = 0.6
-
+TEST_DB = 14
 
 @attr(requires='sidekiq')
 class TestSidkiq(AgentCheckTest):
     CHECK_NAME = "sidekiq"
 
     def test_sidekiq_default(self):
-        port = NOAUTH_PORT
-        db = 14 # Datadog's test db
-
         instance = {
             'host': 'localhost',
-            'port': port,
-            'db': db
+            'port': NOAUTH_PORT,
+            'db': TEST_DB
         }
 
-        db = redis.Redis(port=port, db=db)
+        db = redis.Redis(port=NOAUTH_PORT, db=TEST_DB)
         db.flushdb()
         self._reset_sidekiq(db)
         db.set('stat:processed', '123')
@@ -54,7 +51,7 @@ class TestSidkiq(AgentCheckTest):
             assert isinstance(m[1], int)    # timestamp
             assert isinstance(m[2], (int, float, long))  # value
             tags = m[3]["tags"]
-            expected_tags = ["redis_host:localhost", "redis_port:%s" % port]
+            expected_tags = ["redis_host:localhost", "redis_port:%s" % NOAUTH_PORT]
             for e in expected_tags:
                 assert e in tags
 
@@ -80,18 +77,41 @@ class TestSidkiq(AgentCheckTest):
         m = self._metric(metrics, 'sidekiq.queue.latency', 'queue:bar')
         assert m, "No sidekiq.queue.latecy metric returned for queue:bar"
 
-    def test_sidekiq_namespace(self):
-        port = NOAUTH_PORT
-        db = 14 # Datadog's test db
-
+    def test_reliable_queueing(self):
         instance = {
             'host': 'localhost',
-            'port': port,
-            'db': db,
+            'port': NOAUTH_PORT,
+            'db': TEST_DB
+        }
+
+        db = redis.Redis(port=NOAUTH_PORT, db=TEST_DB)
+        db.flushdb()
+        self._reset_sidekiq(db)
+        db.set('stat:processed', '123')
+        db.set('stat:failed', '456')
+        db.sadd("queues", "reliable")
+        db.lpush("queue:reliable", self._job())
+        db.lpush("queue:reliable_host1", self._job())
+        db.lpush("queue:reliable_host2", self._job(), self._job())
+
+        r = load_check('sidekiq', {}, {})
+        r.check(instance)
+        metrics = self._sort_metrics(r.get_metrics())
+        assert metrics, "No metrics returned"
+
+        m = self._metric(metrics, 'sidekiq.queue.length', 'queue:reliable')
+        self.assertEquals(1, len(m))
+        self.assertEquals(4, m[0][2]) # Sum of queues for foo (1 + 1 + 2)
+
+    def test_sidekiq_namespace(self):
+        instance = {
+            'host': 'localhost',
+            'port': NOAUTH_PORT,
+            'db': TEST_DB,
             'namespace': 'ns'
         }
 
-        db = redis.Redis(port=port, db=db)
+        db = redis.Redis(port=NOAUTH_PORT, db=TEST_DB)
         db.flushdb()
         self._reset_sidekiq(db, 'ns')
         db.sadd("ns:queues", "foo", "bar")

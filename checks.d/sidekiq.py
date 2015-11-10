@@ -59,28 +59,36 @@ class Stats:
         for queue in queues:
             self.queues[queue] = {'length': 0, 'latency': 0.0}
 
+    # Sum length of all sub queues for each queue
     def _check_queue_lengths(self, queues):
-        pipe = self.conn.pipeline()
-
         for queue in queues:
-            pipe.llen(self.key('queue:%s' % queue))
-        res = pipe.execute()
+            qname = 'queue:%s' % queue
+            subqueues = [self.key(qname)] + self.conn.keys('%s_*' % self.key(qname))
+            pipe = self.conn.pipeline()
 
-        for i in range(len(res)):
-            self.queues[queues[i]]['length'] = res[i]
+            for sq_key in subqueues:
+                pipe.llen(sq_key)
+            res = pipe.execute()
+            self.queues[queue]['length'] = sum([int(x) for x in res])
 
+    # Find max latency of sub queues for each queue
     def _check_queue_latencies(self, queues):
-        pipe = self.conn.pipeline()
 
         for queue in queues:
-            pipe.lrange(self.key('queue:%s' % queue), -1, -1)
-        res = pipe.execute()
+            qname = 'queue:%s' % queue
+            subqueues = [self.key(qname)] + self.conn.keys('%s_*' % self.key(qname))
+            pipe = self.conn.pipeline()
 
-        for i in range(len(res)):
-            entry = res[i]
-            if len(entry) > 0:
-                latency = time.time() - float(json.loads(entry[0])['enqueued_at'])
-                self.queues[queues[i]]['latency'] = latency
+            for sq_key in subqueues:
+                pipe.lrange(sq_key, -1, -1)
+            res = pipe.execute()
+
+            for i in range(len(res)):
+                entry = res[i]
+                if len(entry) > 0:
+                    latency = time.time() - float(json.loads(entry[0])['enqueued_at'])
+                    if latency > self.queues[queue]['latency']:
+                        self.queues[queue]['latency'] = latency
 
     def key(self, name):
         return "%s:%s" % (self.namespace, name) if self.namespace else name
