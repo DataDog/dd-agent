@@ -517,68 +517,71 @@ class VSphereCheck(AgentCheck):
         ### </TEST-INSTRUMENTATION>
         tags_copy = deepcopy(tags)
 
-        if obj_type == 'rootFolder':
-            for datacenter in obj.childEntity:
-                # Skip non-datacenter
-                if not hasattr(datacenter, 'hostFolder'):
-                    continue
-                self.pool.apply_async(
-                    self._cache_morlist_raw_atomic,
-                    args=(i_key, 'datacenter', datacenter, tags_copy, regexes)
-                )
+        try:
+            if obj_type == 'rootFolder':
+                for datacenter in obj.childEntity:
+                    # Skip non-datacenter
+                    if not hasattr(datacenter, 'hostFolder'):
+                        continue
+                    self.pool.apply_async(
+                        self._cache_morlist_raw_atomic,
+                        args=(i_key, 'datacenter', datacenter, tags_copy, regexes)
+                    )
 
-        elif obj_type == 'datacenter':
-            dc_tag = "vsphere_datacenter:%s" % obj.name
-            tags_copy.append(dc_tag)
-            for compute_resource in obj.hostFolder.childEntity:
-                # Skip non-compute resource
-                if not hasattr(compute_resource, 'host'):
-                    continue
-                self.pool.apply_async(
-                    self._cache_morlist_raw_atomic,
-                    args=(i_key, 'compute_resource', compute_resource, tags_copy, regexes)
-                )
+            elif obj_type == 'datacenter':
+                dc_tag = "vsphere_datacenter:%s" % obj.name
+                tags_copy.append(dc_tag)
+                for compute_resource in obj.hostFolder.childEntity:
+                    # Skip non-compute resource
+                    if not hasattr(compute_resource, 'host'):
+                        continue
+                    self.pool.apply_async(
+                        self._cache_morlist_raw_atomic,
+                        args=(i_key, 'compute_resource', compute_resource, tags_copy, regexes)
+                    )
 
-        elif obj_type == 'compute_resource':
-            if obj.__class__ == vim.ClusterComputeResource:
-                cluster_tag = "vsphere_cluster:%s" % obj.name
-                tags_copy.append(cluster_tag)
-            for host in obj.host:
-                # Skip non-host
-                if not hasattr(host, 'vm'):
-                    continue
-                self.pool.apply_async(
-                    self._cache_morlist_raw_atomic,
-                    args=(i_key, 'host', host, tags_copy, regexes)
-                )
+            elif obj_type == 'compute_resource':
+                if obj.__class__ == vim.ClusterComputeResource:
+                    cluster_tag = "vsphere_cluster:%s" % obj.name
+                    tags_copy.append(cluster_tag)
+                for host in obj.host:
+                    # Skip non-host
+                    if not hasattr(host, 'vm'):
+                        continue
+                    self.pool.apply_async(
+                        self._cache_morlist_raw_atomic,
+                        args=(i_key, 'host', host, tags_copy, regexes)
+                    )
 
-        elif obj_type == 'host':
-            if regexes and regexes.get('host_include') is not None:
-                match = re.search(regexes['host_include'], obj.name)
-                if not match:
-                    self.log.debug(u"Filtered out VM {0} because of host_include_only_regex".format(obj.name))
-                    return
-            watched_mor = dict(mor_type='host', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:host'])
-            self.morlist_raw[i_key].append(watched_mor)
+            elif obj_type == 'host':
+                if regexes and regexes.get('host_include') is not None:
+                    match = re.search(regexes['host_include'], obj.name)
+                    if not match:
+                        self.log.debug(u"Filtered out VM {0} because of host_include_only_regex".format(obj.name))
+                        return
+                watched_mor = dict(mor_type='host', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:host'])
+                self.morlist_raw[i_key].append(watched_mor)
 
-            host_tag = "vsphere_host:%s" % obj.name
-            tags_copy.append(host_tag)
-            for vm in obj.vm:
-                if vm.runtime.powerState != 'poweredOn':
-                    continue
-                self.pool.apply_async(
-                    self._cache_morlist_raw_atomic,
-                    args=(i_key, 'vm', vm, tags_copy, regexes)
-                )
+                host_tag = "vsphere_host:%s" % obj.name
+                tags_copy.append(host_tag)
+                for vm in obj.vm:
+                    if vm.runtime.powerState != 'poweredOn':
+                        continue
+                    self.pool.apply_async(
+                        self._cache_morlist_raw_atomic,
+                        args=(i_key, 'vm', vm, tags_copy, regexes)
+                    )
 
-        elif obj_type == 'vm':
-            if regexes and regexes.get('vm_include') is not None:
-                match = re.search(regexes['vm_include'], obj.name)
-                if not match:
-                    self.log.debug(u"Filtered out VM {0} because of vm_include_only_regex".format(obj.name))
-                    return
-            watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:vm'])
-            self.morlist_raw[i_key].append(watched_mor)
+            elif obj_type == 'vm':
+                    if regexes and regexes.get('vm_include') is not None:
+                        match = re.search(regexes['vm_include'], obj.name)
+                        if not match:
+                            self.log.debug(u"Filtered out VM {0} because of vm_include_only_regex".format(obj.name))
+                            return
+                    watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:vm'])
+                    self.morlist_raw[i_key].append(watched_mor)
+        except Exception as e:
+            self.log.warning("Unable to cache object {0}:{1}".format(obj_type, obj.name))
 
         ### <TEST-INSTRUMENTATION>
         self.histogram('datadog.agent.vsphere.morlist_raw_atomic.time', t.total())
