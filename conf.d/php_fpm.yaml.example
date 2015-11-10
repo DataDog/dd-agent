@@ -1,21 +1,29 @@
 init_config:
 
 instances:
-  - # Get metrics from your FPM pool with this URL
-    status_url: http://localhost/status
-    # Get a reliable service check of your FPM pool with that one
-    ping_url: http://localhost/ping
+  - #   Talk to the PHP process using FCGI or HTTP protocol
+    #
+    monitoring_type: fcgi
+
+    # If You use http method, you should configured your fastcgi passthru (nginx/apache) to
+    # catch these URLs and redirect them through the FPM pool target
+    # you want to monitor (FPM `listen` directive in the config, usually
+    # a UNIX socket or TCP socket) use can the the status_url
+    #monitoring_type: http
+
+    #   PS: Set server to "unix" if you are using Unix Sockets -
+    server: 127.0.0.1
+    #port: 80
+    port: 9000
+    status_location: /status
+    #ping_location: /ping
+
     # Set the expected reply to the ping.
     ping_reply: pong
     # These 2 URLs should follow the options from your FPM pool
     # See http://php.net/manual/en/install.fpm.configuration.php
     #   * pm.status_path
     #   * ping.path
-    # You should configure your fastcgi passthru (nginx/apache) to
-    # catch these URLs and redirect them through the FPM pool target
-    # you want to monitor (FPM `listen` directive in the config, usually
-    # a UNIX socket or TCP socket.
-    #
     # Use this if you have basic authentication on these pages
     # user: bits
     # password: D4T4D0G
@@ -24,3 +32,5 @@ instances:
     # By default metrics and service check will be tagged by pool and host
     # tags:
     #   - instance:foo
+tags:
+  - type:php
