@@ -3,12 +3,88 @@ Sidekiq checks
 '''
 # stdlib
 import time
+import json
 
 # 3rd party
 import redis
 
 # project
 from checks import AgentCheck
+
+class Stats:
+    def __init__(self, conn, namespace):
+        self.conn = conn
+        self.namespace = namespace
+        self._check_stats()
+
+    def _check_stats(self):
+        # Check sidekiq stats
+        pipe = self.conn.pipeline()
+        pipe.get(self.key('stat:processed'))
+        pipe.get(self.key('stat:failed'))
+        pipe.zcard(self.key('schedule'))
+        pipe.zcard(self.key('retry'))
+        pipe.zcard(self.key('dead'))
+        pipe.scard(self.key('processes'))
+        pipe.smembers(self.key('processes'))
+        pipe.smembers(self.key('queues'))
+        res = pipe.execute()
+
+        self.processed = int(res[0])
+        self.failed = int(res[1])
+        self.scheduled_size = res[2]
+        self.retry_size = res[3]
+        self.dead_size = res[4]
+        self.processes_size = res[5]
+
+        procs = res[6]
+        queues = list(res[7])
+
+        self._check_processes(procs)
+        self._init_queue_stats(queues)
+        self._check_queue_lengths(queues)
+        self._check_queue_latencies(queues)
+
+    def _check_processes(self, procs):
+        pipe = self.conn.pipeline()
+
+        for proc in procs:
+            pipe.hget(self.key(proc), 'busy')
+        res = pipe.execute()
+
+        self.workers_size = sum([int(x) for x in res])
+
+    def _init_queue_stats(self, queues):
+        self.queues = {}
+        for queue in queues:
+            self.queues[queue] = {'length': 0, 'latency': 0.0}
+
+    def _check_queue_lengths(self, queues):
+        pipe = self.conn.pipeline()
+
+        for queue in queues:
+            pipe.llen(self.key('queue:%s' % queue))
+        res = pipe.execute()
+
+        for i in range(len(res)):
+            self.queues[queues[i]]['length'] = res[i]
+
+    def _check_queue_latencies(self, queues):
+        pipe = self.conn.pipeline()
+
+        for queue in queues:
+            pipe.lrange(self.key('queue:%s' % queue), -1, -1)
+        res = pipe.execute()
+
+        for i in range(len(res)):
+            entry = res[i]
+            if len(entry) > 0:
+                latency = time.time() - float(json.loads(entry[0])['enqueued_at'])
+                self.queues[queues[i]]['latency'] = latency
+
+    def key(self, name):
+        return "%s:%s" % (self.namespace, name) if self.namespace else name
+
 
 class Sidekiq(AgentCheck):
     SOURCE_TYPE_NAME = 'sidekiq'
@@ -100,10 +176,22 @@ class Sidekiq(AgentCheck):
         latency_ms = round((time.time() - start) * 1000, 2)
         self.gauge('sidekiq.redis.info.latency_ms', latency_ms, tags=tags)
 
-        # Check all sidekiq queue lengths
-        for queue in conn.smembers(self._key(instance, 'queues')):
+        stats = Stats(conn, instance.get('namespace'))
+
+        # Check global sidekiq stats
+        self.gauge('sidekiq.processed', stats.processed, tags=tags)
+        self.gauge('sidekiq.failed', stats.failed, tags=tags)
+        self.gauge('sidekiq.scheduled_size', stats.scheduled_size, tags=tags)
+        self.gauge('sidekiq.retry_size', stats.retry_size, tags=tags)
+        self.gauge('sidekiq.dead_size', stats.dead_size, tags=tags)
+        self.gauge('sidekiq.processes_size', stats.processes_size, tags=tags)
+        self.gauge('sidekiq.workers_size', stats.workers_size, tags=tags)
+
+        # Check queue stats
+        for queue, stat in stats.queues.iteritems():
             queue_tags = tags + ['queue:' + queue]
-            self.gauge('sidekiq.queue.length', conn.llen(self._key(instance, 'queue:%s' % queue)), tags=queue_tags)
+            self.gauge('sidekiq.queue.length', stat['length'], tags=queue_tags)
+            self.gauge('sidekiq.queue.latency', stat['latency'], tags=queue_tags)
 
     def check(self, instance):
         if ("host" not in instance or "port" not in instance) and "unix_socket_path" not in instance:
