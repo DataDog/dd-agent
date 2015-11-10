@@ -572,6 +572,7 @@ class VSphereCheck(AgentCheck):
                         args=(i_key, 'vm', vm, tags_copy, regexes)
                     )
 
+            """
             elif obj_type == 'vm':
                 if regexes and regexes.get('vm_include') is not None:
                     match = re.search(regexes['vm_include'], obj.name)
@@ -580,6 +581,7 @@ class VSphereCheck(AgentCheck):
                         return
                 watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:vm'])
                 self.morlist_raw[i_key].append(watched_mor)
+            """
         except Exception as e:
             self.log.warning("Unable to cache object {0}:{1} - {2}".format(obj_type, obj.name, e))
 
