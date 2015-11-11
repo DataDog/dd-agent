@@ -4,11 +4,11 @@ source $dd_base/venv/bin/activate
 
 case "$1" in
 	start)
-		cd $dd_base && $dd_base/venv/bin/supervisord -n -c $dd_base/supervisord/supervisord.conf
+		cd $dd_base && $dd_base/venv/bin/supervisord -n -c $dd_base/agent/supervisor.conf
 		;;
 
 	stop)
-		cd $dd_base && $dd_base/venv/bin/supervisorctl  -c $dd_base/supervisord/supervisord.conf shutdown
+		cd $dd_base && $dd_base/venv/bin/supervisorctl  -c $dd_base/agent/supervisor.conf shutdown
 		;;
 
 	*)
