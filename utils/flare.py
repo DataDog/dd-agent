@@ -75,6 +75,7 @@ class Flare(object):
 
     DATADOG_SUPPORT_URL = '/support/flare'
     PASSWORD_REGEX = re.compile('( *(\w|_)*pass(word)?:).+')
+    URI_REGEX = re.compile('(.*\ [A-Za-z0-9]+)\:\/\/([A-Za-z0-9]+)\:(.+)\@')
     COMMENT_REGEX = re.compile('^ *#.*')
     APIKEY_REGEX = re.compile('^api_key: *\w+(\w{5})$')
     REPLACE_APIKEY = r'api_key: *************************\1'
@@ -362,6 +363,10 @@ class Flare(object):
                     if self.PASSWORD_REGEX.match(line):
                         line = re.sub(self.PASSWORD_REGEX, r'\1 ********', line)
                         password_found = ' - this file contains a password which '\
+                                         'has been removed in the version collected'
+                    if self.URI_REGEX.match(line):
+                        line = re.sub(self.URI_REGEX, r'\1://\2:********@', line)
+                        password_found = ' - this file contains a password in a uri which '\
                                          'has been removed in the version collected'
                     if not self.COMMENT_REGEX.match(line):
                         temp_file.write(line)

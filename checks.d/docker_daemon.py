@@ -19,9 +19,16 @@ SERVICE_CHECK_NAME = 'docker.service_up'
 SIZE_REFRESH_RATE = 5 # Collect container sizes every 5 iterations of the check
 MAX_CGROUP_LISTING_RETRIES = 3
 CONTAINER_ID_RE = re.compile('[0-9a-f]{64}')
+POD_NAME_LABEL = "io.kubernetes.pod.name"
 
 GAUGE = AgentCheck.gauge
 RATE = AgentCheck.rate
+HISTORATE = AgentCheck.generate_historate_func(["container_name"])
+HISTO = AgentCheck.generate_histogram_func(["container_name"])
+FUNC_MAP = {
+    GAUGE: {True: HISTO, False: GAUGE},
+    RATE: {True: HISTORATE, False: RATE}
+}
 
 CGROUP_METRICS = [
     {
@@ -159,6 +166,8 @@ class DockerDaemon(AgentCheck):
         self.init_success = False
         self.init()
 
+    def is_k8s(self):
+        return self.is_check_enabled("kubernetes")
 
     def init(self):
         try:
@@ -181,9 +190,15 @@ class DockerDaemon(AgentCheck):
             # Set tagging options
             self.custom_tags = instance.get("tags", [])
             self.collect_labels_as_tags = instance.get("collect_labels_as_tags", [])
+            if self.is_k8s():
+                self.collect_labels_as_tags.append("io.kubernetes.pod.name")
+
+            self.use_histogram = _is_affirmative(instance.get('use_histogram', False))
+            performance_tags = instance.get("performance_tags", DEFAULT_PERFORMANCE_TAGS)
+
             self.tag_names = {
                 CONTAINER: instance.get("container_tags", DEFAULT_CONTAINER_TAGS),
-                PERFORMANCE: instance.get("performance_tags", DEFAULT_PERFORMANCE_TAGS),
+                PERFORMANCE: performance_tags,
                 IMAGE: instance.get('image_tags', DEFAULT_IMAGE_TAGS)
 
             }
@@ -207,6 +222,9 @@ class DockerDaemon(AgentCheck):
             self.collect_events = _is_affirmative(instance.get('collect_events', True))
             self.collect_image_size = _is_affirmative(instance.get('collect_image_size', False))
             self.collect_ecs_tags = _is_affirmative(instance.get('ecs_tags', True)) and Platform.is_ecs_instance()
+
+            self.ecs_tags = {}
+
         except Exception, e:
             self.log.critical(e)
             self.warning("Initialization failed. Will retry at next iteration")
@@ -332,10 +350,14 @@ class DockerDaemon(AgentCheck):
                 for k in self.collect_labels_as_tags:
                     if k in labels:
                         v = labels[k]
+                        if k == POD_NAME_LABEL and self.is_k8s():
+                            k = "pod_name"
                         if not v:
                             tags.append(k)
                         else:
                             tags.append("%s:%s" % (k,v))
+                    if k == POD_NAME_LABEL and self.is_k8s() and k not in labels:
+                        tags.append("pod_name:no_pod")
 
             # Get entity specific tags
             if tag_type is not None:
@@ -429,13 +451,14 @@ class DockerDaemon(AgentCheck):
                 continue
 
             tags = self._get_tags(container, PERFORMANCE)
-
+            m_func = FUNC_MAP[GAUGE][self.use_histogram]
             if "SizeRw" in container:
-                self.gauge('docker.container.size_rw', container['SizeRw'],
+
+                m_func(self, 'docker.container.size_rw', container['SizeRw'],
                     tags=tags)
             if "SizeRootFs" in container:
-                self.gauge(
-                    'docker.container.size_rootfs', container['SizeRootFs'],
+                m_func(
+                    self, 'docker.container.size_rootfs', container['SizeRootFs'],
                     tags=tags)
 
     def _report_image_size(self, images):
@@ -449,13 +472,22 @@ class DockerDaemon(AgentCheck):
     # Performance metrics
 
     def _report_performance_metrics(self, containers_by_id):
+
+        containers_without_proc_root = []
         for container in containers_by_id.itervalues():
             if self._is_container_excluded(container) or not self._is_container_running(container):
                 continue
 
             tags = self._get_tags(container, PERFORMANCE)
             self._report_cgroup_metrics(container, tags)
+            if "_proc_root" not in container:
+                containers_without_proc_root.append(container_name_extractor(container)[0])
+                continue
             self._report_net_metrics(container, tags)
+
+        if containers_without_proc_root:
+            self.warning("Couldn't find pid directory for container: {0}. They'll be missing network metrics".format(
+                ",".join(containers_without_proc_root)))
 
     def _report_cgroup_metrics(self, container, tags):
         try:
@@ -464,6 +496,7 @@ class DockerDaemon(AgentCheck):
                 stats = self._parse_cgroup_file(stat_file)
                 if stats:
                     for key, (dd_key, metric_func) in cgroup['metrics'].iteritems():
+                        metric_func = FUNC_MAP[metric_func][self.use_histogram]
                         if key in stats:
                             metric_func(self, dd_key, int(stats[key]), tags=tags)
 
@@ -474,10 +507,9 @@ class DockerDaemon(AgentCheck):
                             self.log.debug("Couldn't compute {0}, some keys were missing.".format(mname))
                             continue
                         value = fct(*values)
+                        metric_func = FUNC_MAP[metric_func][self.use_histogram]
                         if value is not None:
                             metric_func(self, mname, value, tags=tags)
-
-
 
         except MountException as ex:
             if self.cgroup_listing_retries > MAX_CGROUP_LISTING_RETRIES:
@@ -495,10 +527,6 @@ class DockerDaemon(AgentCheck):
             self.log.debug("Network metrics are disabled. Skipping")
             return
 
-        if "_proc_root" not in container:
-            self.warning("Couldn't find pid directory for container: {0}".format(container))
-            return
-
         proc_net_file = os.path.join(container['_proc_root'], 'net/dev')
         try:
             with open(proc_net_file, 'r') as fp:
@@ -512,8 +540,9 @@ class DockerDaemon(AgentCheck):
                     interface_name = str(cols[0]).strip()
                     if interface_name == 'eth0':
                         x = cols[1].split()
-                        self.rate("docker.net.bytes_rcvd", long(x[0]), tags)
-                        self.rate("docker.net.bytes_sent", long(x[8]), tags)
+                        m_func = FUNC_MAP[RATE][self.use_histogram]
+                        m_func(self, "docker.net.bytes_rcvd", long(x[0]), tags)
+                        m_func(self, "docker.net.bytes_sent", long(x[8]), tags)
                         break
         except Exception, e:
             # It is possible that the container got stopped between the API call and now
@@ -569,6 +598,7 @@ class DockerDaemon(AgentCheck):
             max_timestamp = 0
             status = defaultdict(int)
             status_change = []
+            container_names = set()
             for event in event_group:
                 max_timestamp = max(max_timestamp, int(event['time']))
                 status[event['status']] += 1
@@ -576,6 +606,7 @@ class DockerDaemon(AgentCheck):
                 if event['id'] in containers_by_id:
                     container_name = container_name_extractor(containers_by_id[event['id']])[0]
 
+                container_names.add(container_name)
                 status_change.append([container_name, event['status']])
 
             status_text = ", ".join(["%d %s" % (count, st) for st, count in status.iteritems()])
@@ -600,6 +631,7 @@ class DockerDaemon(AgentCheck):
                 'msg_text': msg_body,
                 'source_type_name': EVENT_TYPE,
                 'event_object': 'docker:%s' % image_name,
+                'tags': ['container_name:%s' % c_name for c_name in container_names]
             })
 
         return events

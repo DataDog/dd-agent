@@ -3,18 +3,20 @@ if __name__ == '__main__':
     from config import initialize_logging  # noqa
     initialize_logging('jmxfetch')
 
-# std
+# stdlib
+from contextlib import nested
 import glob
 import logging
 import os
 import signal
 import sys
+import tempfile
 import time
 
-# 3rd party
+# 3p
 import yaml
 
-# datadog
+# project
 from config import (
     DEFAULT_CHECK_FREQUENCY,
     get_confd_path,
@@ -279,26 +281,30 @@ class JMXFetch(object):
 
             log.info("Running %s" % " ".join(subprocess_args))
 
-            # Launch JMXfetch subprocess
-            jmx_process = subprocess.Popen(
-                subprocess_args,
-                close_fds=not redirect_std_streams,  # set to True instead of False when the streams are redirected for WIN compatibility
-                stdout=subprocess.PIPE if redirect_std_streams else None,
-                stderr=subprocess.PIPE if redirect_std_streams else None
-            )
-            self.jmx_process = jmx_process
+            # Launch JMXfetch subprocess manually, w/o get_subprocess_output(), since it's a special case
+            with nested(tempfile.TemporaryFile(), tempfile.TemporaryFile()) as (stdout_f, stderr_f):
+                jmx_process = subprocess.Popen(
+                    subprocess_args,
+                    close_fds=not redirect_std_streams,  # only set to True when the streams are not redirected, for WIN compatibility
+                    stdout=stdout_f if redirect_std_streams else None,
+                    stderr=stderr_f if redirect_std_streams else None
+                )
+                self.jmx_process = jmx_process
 
-            # Register SIGINT and SIGTERM signal handlers
-            self.register_signal_handlers()
+                # Register SIGINT and SIGTERM signal handlers
+                self.register_signal_handlers()
 
-            if redirect_std_streams:
-                # Wait for JMXFetch to return, and write out the stdout and stderr of JMXFetch to sys.stdout and sys.stderr
-                out, err = jmx_process.communicate()
-                sys.stdout.write(out)
-                sys.stderr.write(err)
-            else:
                 # Wait for JMXFetch to return
                 jmx_process.wait()
+
+                if redirect_std_streams:
+                    # Write out the stdout and stderr of JMXFetch to sys.stdout and sys.stderr
+                    stderr_f.seek(0)
+                    err = stderr_f.read()
+                    stdout_f.seek(0)
+                    out = stdout_f.read()
+                    sys.stdout.write(out)
+                    sys.stderr.write(err)
 
             return jmx_process.returncode
 
