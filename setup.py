@@ -73,6 +73,9 @@ if sys.platform == 'win32':
         'pysnmp.entity.rfc3413.oneliner.*',
         'pyVim.*',
         'pyVmomi.*',
+        'paramiko',
+        'Crypto',
+        'winrandom',
         'uptime',
 
         # agent
