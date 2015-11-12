@@ -48,12 +48,19 @@ class Apache(AgentCheck):
         parsed_url = urlparse.urlparse(url)
         apache_host = parsed_url.hostname
         apache_port = parsed_url.port or 80
+        timeout = 60.
         service_check_name = 'apache.can_connect'
         service_check_tags = ['host:%s' % apache_host, 'port:%s' % apache_port]
         try:
-            r = requests.get(url, auth=auth, headers=headers(self.agentConfig))
+            r = requests.get(url, auth=auth, headers=headers(self.agentConfig), timeout=timeout)
             r.raise_for_status()
 
+        except requests.exceptions.Timeout as e:
+            self.log.info("Request on {0} timed out after {1} seconds".format(url, timeout))
+            self.log.info(e)
+            self.service_check(service_check_name, AgentCheck.WARNING,
+                               tags=service_check_tags)
+            raise
         except Exception:
             self.service_check(service_check_name, AgentCheck.CRITICAL,
                                tags=service_check_tags)
