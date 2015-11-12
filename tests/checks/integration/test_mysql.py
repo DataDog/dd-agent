@@ -3,6 +3,7 @@ from nose.plugins.attrib import attr
 
 # project
 from checks import AgentCheck
+from utils.platform import Platform
 from tests.checks.common import AgentCheckTest
 
 
@@ -11,7 +12,7 @@ class TestMySql(AgentCheckTest):
     CHECK_NAME = 'mysql'
 
     METRIC_TAGS = ['tag1', 'tag2']
-    SC_TAGS = ['host:localhost', 'port:0']
+    SC_TAGS = ['server:localhost', 'port:0']
 
     MYSQL_CONFIG = [{
         'server': 'localhost',
@@ -20,7 +21,9 @@ class TestMySql(AgentCheckTest):
         'options': {
             'replication': True,
             'extra_status_metrics': True,
-            'extra_innodb_metrics': True
+            'extra_innodb_metrics': True,
+            'extra_performance_metrics': True,
+            'schema_size_metrics': True,
         },
         'tags': METRIC_TAGS,
         'queries': [
@@ -85,6 +88,8 @@ class TestMySql(AgentCheckTest):
         'mysql.performance.threads_connected',
         'mysql.performance.threads_running',
         # MyISAM Metrics
+        'mysql.myisam.key_buffer_bytes_unflushed',
+        'mysql.myisam.key_buffer_bytes_used',
         'mysql.myisam.key_read_requests',
         'mysql.myisam.key_reads',
         'mysql.myisam.key_write_requests',
@@ -93,16 +98,12 @@ class TestMySql(AgentCheckTest):
 
     # Possibly from SHOW GLOBAL VARIABLES
     VARIABLES_VARS = [
-        'mysql.myisam.key_buffer_bytes_unflushed',
-        'mysql.myisam.key_buffer_bytes_used',
         'mysql.myisam.key_buffer_size',
         'mysql.performance.key_cache_utilization',
         'mysql.net.max_connections_available',
         'mysql.performance.qcache_size',
         'mysql.performance.table_open_cache',
         'mysql.performance.thread_cache_size'
-
-
     ]
 
     INNODB_VARS = [
@@ -116,7 +117,7 @@ class TestMySql(AgentCheckTest):
         'mysql.innodb.row_lock_waits',
         'mysql.innodb.row_lock_time',
         'mysql.innodb.row_lock_current_waits',
-        # 'mysql.innodb.current_row_locks',  MariaDB status
+        # 'mysql.innodb.current_row_locks', MariaDB status
         'mysql.innodb.buffer_pool_dirty',
         'mysql.innodb.buffer_pool_free',
         'mysql.innodb.buffer_pool_used',
@@ -128,12 +129,13 @@ class TestMySql(AgentCheckTest):
 
     # Calculated from "SHOW MASTER LOGS;"
     BINLOG_VARS = [
-        # 'mysql.binlog.disk_use',  Only collected if log_bin is true
+        # 'mysql.binlog.disk_use', Only collected if log_bin is true
     ]
 
     SYSTEM_METRICS = [
         'mysql.performance.user_time',
         'mysql.performance.kernel_time',
+        'mysql.performance.cpu_time',
     ]
 
     OPTIONAL_REPLICATION_METRICS = [
@@ -270,6 +272,15 @@ class TestMySql(AgentCheckTest):
         'mysql.innodb.x_lock_spin_waits',
     ]
 
+    PERFORMANCE_VARS = [
+        'mysql.performance.query_run_time.avg',
+        'mysql.performance.digest_95th_percentile.avg_us',
+    ]
+
+    SCHEMA_VARS = [
+        'mysql.info.schema.size'
+    ]
+
     def _test_optional_metrics(self, optional_metrics, at_least):
         """
         Check optional metrics - there should be at least `at_least` matches
@@ -293,13 +304,28 @@ class TestMySql(AgentCheckTest):
         self.assertServiceCheck('mysql.can_connect', status=AgentCheck.OK,
                                 tags=self.SC_TAGS, count=1)
 
+        # Travis MySQL not running replication - FIX in flavored test.
         self.assertServiceCheck('mysql.replication.slave_running', status=AgentCheck.CRITICAL,
                                 tags=self.METRIC_TAGS, count=1)
 
         # Test metrics
         for mname in (self.STATUS_VARS + self.VARIABLES_VARS + self.INNODB_VARS
-                      + self.BINLOG_VARS + self.SYSTEM_METRICS):
-            self.assertMetric(mname, tags=self.METRIC_TAGS, count=1)
+                      + self.BINLOG_VARS + self.SYSTEM_METRICS + self.PERFORMANCE_VARS
+                      + self.SCHEMA_VARS):
+            # These two are currently not guaranteed outside of a Linux
+            # environment.
+            if mname == 'mysql.performance.user_time' and not Platform.is_linux():
+                continue
+            if mname == 'mysql.performance.kernel_time' and not Platform.is_linux():
+                continue
+            if mname == 'mysql.performance.cpu_time' and Platform.is_windows():
+                continue
+
+            if mname == 'mysql.performance.query_run_time.avg' or mname == 'mysql.info.schema.size':
+                self.assertMetric(mname, tags=self.METRIC_TAGS+['schema:testdb'], count=1)
+            else:
+                self.assertMetric(mname, tags=self.METRIC_TAGS, count=1)
+
 
         # Assert service metadata
         self.assertServiceMetadata(['version'], count=1)

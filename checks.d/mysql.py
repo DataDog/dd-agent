@@ -16,6 +16,8 @@ from utils.subprocess_output import get_subprocess_output
 GAUGE = "gauge"
 RATE = "rate"
 
+VER_5_7 = (5, 7, 0)
+
 # Vars found in "SHOW STATUS;"
 STATUS_VARS = {
     # Command Metrics
@@ -242,19 +244,30 @@ GALERA_VARS = {
 }
 
 PERFORMANCE_VARS = {
-    'query_run_time_avg' : ('mysql.performance.query_run_time_avg', GAUGE),
+    'query_run_time_avg' : ('mysql.performance.query_run_time.avg', GAUGE),
     'perf_digest_95th_percentile_avg_us': ('mysql.performance.digest_95th_percentile.avg_us', GAUGE),
 }
 
+SCHEMA_VARS = {
+    'information_schema_size': ('mysql.info.schema.size', GAUGE),
+}
+
+REPLICA_VARS = {
+    'Seconds_Behind_Master': ('mysql.replication.seconds_behind_master', GAUGE),
+}
 
 class MySql(AgentCheck):
     SERVICE_CHECK_NAME = 'mysql.can_connect'
+    SLAVE_SERVICE_CHECK_NAME = 'mysql.replication.slave_running'
     MAX_CUSTOM_QUERIES = 20
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.mysql_version = {}
         self.greater_502 = {}
+        self.host = None
+        self.port = None
+        self.mysql_sock = None
 
     def get_library_versions(self):
         return {"pymysql": pymysql.__version__}
@@ -266,42 +279,43 @@ class MySql(AgentCheck):
         if (not host or not user) and not defaults_file:
             raise Exception("Mysql host and user are needed.")
 
-        try:
-            db = self._connect(host, port, mysql_sock, user,
-                            password, defaults_file)
+        db = self._connect(host, port, mysql_sock, user,
+                        password, defaults_file)
 
+        try:
             # Metadata collection
             self._collect_metadata(db, host)
 
             # Metric collection
             self._collect_metrics(host, db, tags, options, queries)
-            if Platform.is_linux():
+            if not Platform.is_windows():
                 self._collect_system_metrics(host, db, tags)
 
-        except Exception:
-            raise
+        except Exception as e:
+            self.log.debug("[MySQL] Error fetching MySQL metrics: {0}".format(str(e)))
+            raise e
         finally:
             # Close connection
-            if db.open():
+            if db is not None and db.open:
                 db.close()
 
     def _get_config(self, instance):
-        host = instance.get('server', '')
+        self.host = instance.get('server', '')
+        self.port = int(instance.get('port', 0))
+        self.mysql_sock = instance.get('sock', '')
         user = instance.get('user', '')
-        port = int(instance.get('port', 0))
         password = instance.get('pass', '')
-        mysql_sock = instance.get('sock', '')
         defaults_file = instance.get('defaults_file', '')
         tags = instance.get('tags', None)
         options = instance.get('options', {})
         queries = instance.get('queries', [])
 
-        return host, port, user, password, mysql_sock, defaults_file, tags, options, queries
+        return self.host, self.port, user, password, self.mysql_sock, defaults_file, tags, options, queries
 
     def _connect(self, host, port, mysql_sock, user, password, defaults_file):
         service_check_tags = [
-            'host:%s' % host,
-            'port:%s' % port
+            'server:{0}'.format(host),
+            'port:{0}'.format(port)
         ]
 
         try:
@@ -314,7 +328,7 @@ class MySql(AgentCheck):
                     passwd=password
                 )
                 service_check_tags = [
-                    'host:%s' % mysql_sock,
+                    'server:{0}'.format(mysql_sock),
                     'port:unix_socket'
                 ]
             elif port:
@@ -341,6 +355,9 @@ class MySql(AgentCheck):
         return db
 
     def _collect_metrics(self, host, db, tags, options, queries):
+
+        # Get aggregate of all VARS we want to collect
+        VARS = STATUS_VARS
 
         # collect results from db
         results = self._get_stats_from_status(db)
@@ -385,6 +402,10 @@ class MySql(AgentCheck):
                 results[
                     'Innodb_buffer_pool_bytes_used'] = innodb_buffer_pool_pages_used * innodb_page_size
 
+            if 'extra_innodb_metrics' in options and options['extra_innodb_metrics']:
+                self.log.debug("Collecting Extra Innodb Metrics")
+                VARS.update(OPTIONAL_INNODB_VARS)
+
         # Binary log statistics
         binlog_enabled = self._collect_string('log_bin', results)
         if binlog_enabled is not None and binlog_enabled.lower().strip() == 'on':
@@ -406,8 +427,6 @@ class MySql(AgentCheck):
             'Key_blocks_not_flushed', results) * key_cache_block_size
         results['Key_cache_utilization'] = key_cache_utilization
 
-        # Get aggregate of all VARS we want to collect
-        VARS = STATUS_VARS
         VARS.update(VARIABLES_VARS)
         VARS.update(INNODB_VARS)
         VARS.update(BINLOG_VARS)
@@ -419,30 +438,39 @@ class MySql(AgentCheck):
             if self._version_compatible(db, host, "5.6.6"):
                 VARS.update(OPTIONAL_STATUS_VARS_5_6_6)
 
-        if 'extra_innodb_metrics' in options and options['extra_innodb_metrics']:
-            self.log.debug("Collecting Extra Innodb Metrics")
-            VARS.update(OPTIONAL_INNODB_VARS)
-
         if 'galera_cluster' in options and options['galera_cluster']:
+            # already in result-set after 'SHOW STATUS' just add vars to collect
             self.log.debug("Collecting Galera Metrics.")
             VARS.update(GALERA_VARS)
 
-        if 'extra_performance_metrics' in options and options['extra_performance_metrics']:
-            results['perf_digest_95th_percentile_avg_us'] = self._get_query_exec_time_95th_us(db)
-            VARS.update(PERFORMANCE_VARS)
+        if 'extra_performance_metrics' in options and options['extra_performance_metrics'] and \
+                self._version_compatible(db, host, "5.6.0"):
 
             # report avg query response time per schema to Datadog
             schemas = {}
-            schema_perf = self._query_exec_time_per_schema(db)
-            for schema, avg in schema_perf.iteritems():
-                schemas["schema:{0}".format(schema)] = avg
+            try:
+                results['perf_digest_95th_percentile_avg_us'] = self._get_query_exec_time_95th_us(db)
+                results['query_run_time_avg'] = self._query_exec_time_per_schema(db)
+                VARS.update(PERFORMANCE_VARS)
+            except Exception as e:
+                self.log.debug("Performance metrics unavailable at this time: {0}".format(e))
 
-            results['query_run_time_avg'] = schemas
-
-        self._rate_or_gauge_vars(VARS, results, tags)
+        if 'schema_size_metrics' in options and options['schema_size_metrics']:
+            # report avg query response time per schema to Datadog
+            schemas = {}
+            try:
+                results['information_schema_size'] = self._query_size_per_schema(db)
+                VARS.update(SCHEMA_VARS)
+            except Exception as e:
+                self.log.debug("Schema size metrics unavailable at this time: {0}".format(e))
 
         if 'replication' in options and options['replication']:
+            # Get replica stats
+            results.update(self._get_replica_stats(db))
+            VARS.update(REPLICA_VARS)
+
             # get slave running form global status page
+            slave_running_status = AgentCheck.UNKNOWN
             slave_running = self._collect_string('Slave_running', results)
             if slave_running is not None:
                 if slave_running.lower().strip() == 'on':
@@ -452,14 +480,35 @@ class MySql(AgentCheck):
                     slave_running = 0
                     slave_running_status = AgentCheck.CRITICAL
                 # deprecated in favor of service_check("mysql.replication.slave_running")
-                self.gauge("mysql.replication.slave_running", slave_running, tags=tags)
-            self.service_check("mysql.replication.slave_running", slave_running_status, tags=tags)
+                self.gauge(self.SLAVE_SERVICE_CHECK_NAME, slave_running, tags=tags)
+            else:
+                # MySQL 5.7.x might not have 'Slave_running'. See: https://bugs.mysql.com/bug.php?id=78544
+                # look at replica vars collected at the top of if-block
+                ver = self._get_version(db, host)
+                if (ver[0], ver[1], ver[2]) >= VER_5_7:
+                    slave_io_running = self._collect_string('Slave_IO_Running', results)
+                    slave_sql_running = self._collect_string('Slave_SQL_Running', results)
+                    if slave_io_running:
+                        slave_io_running = (slave_io_running.lower.strip() == "yes")
+                    if slave_sql_running:
+                        slave_sql_running = (slave_sql_running.lower.strip() == "yes")
 
-            self._collect_dict(
-                GAUGE,
-                {"Seconds_behind_master": "mysql.replication.seconds_behind_master"},
-                "SHOW SLAVE STATUS", db, tags=tags
-            )
+                    if not (slave_io_running is None and slave_sql_running is None):
+                        if slave_io_running and slave_sql_running:
+                            slave_running = 1
+                            slave_running_status = AgentCheck.OK
+                        elif not slave_io_running and not slave_sql_running:
+                            slave_running = 0
+                            slave_running_status = AgentCheck.CRITICAL
+                        else:
+                            # not everything is running smoothly
+                            slave_running = 1
+                            slave_running_status = AgentCheck.WARNING
+
+            self.service_check(self.SLAVE_SERVICE_CHECK_NAME, slave_running_status, tags=tags)
+
+
+        self._rate_or_gauge_vars(VARS, results, tags)
 
         # Collect custom query metrics
         # Max of 20 queries allowed
@@ -478,12 +527,10 @@ class MySql(AgentCheck):
     def _rate_or_gauge_vars(self, variables, dbResults, tags):
         for variable, metric in variables.iteritems():
             metric_name, metric_type = metric
-            # value = self._collect_scalar(variable, dbResults)
             for tag, value in self._collect_all_scalars(variable, dbResults):
-                metric_tags = tags
+                metric_tags = list(tags)
                 if tag:
                     metric_tags.append(tag)
-
                 if value is not None:
                     if metric_type == RATE:
                         self.rate(metric_name, value, tags=metric_tags)
@@ -518,8 +565,14 @@ class MySql(AgentCheck):
         return compatible
 
     def _get_version(self, db, host):
-        if host in self.mysql_version:
-            version = self.mysql_version[host]
+        hostkey = host
+        if self.mysql_sock:
+            hostkey = "{0}:{1}".format(hostkey, self.mysql_sock)
+        elif self.port:
+            hostkey = "{0}:{1}".format(hostkey, self.port)
+
+        if hostkey in self.mysql_version:
+            version = self.mysql_version[hostkey]
             self.service_metadata('version', ".".join(version))
             return version
 
@@ -534,18 +587,19 @@ class MySql(AgentCheck):
         # http://dev.mysql.com/doc/refman/4.1/en/information-functions.html#function_version
         version = result[0].split('-')
         version = version[0].split('.')
-        self.mysql_version[host] = version
+        self.mysql_version[hostkey] = version
         self.service_metadata('version', ".".join(version))
         return version
 
-    def _collect_all_scalars(self, key, dict):
-        if isinstance(dict[key], dict):
-            for tag, val in dict[key].iteritems():
-                yield tag, self._collect_type(tag, dict[key], float)
+    def _collect_all_scalars(self, key, dictionary):
+        if (key not in dictionary) or (dictionary[key] is None):
+            yield None, None
+        elif isinstance(dictionary[key], dict):
+            for tag, _ in dictionary[key].iteritems():
+                yield tag, self._collect_type(tag, dictionary[key], float)
         else:
-            yield None, self._collect_type(key, dict, float)
+            yield None, self._collect_type(key, dictionary, float)
 
-        return
 
     def _collect_scalar(self, key, dict):
         return self._collect_type(key, dict, float)
@@ -622,7 +676,7 @@ class MySql(AgentCheck):
             proc = psutil.Process(pid)
 
             try:
-                ucpu, scpu = None, None
+                ucpu, scpu, tcpu = None, None, None
                 if hasattr(proc, 'cpu_times') :
                     ucpu = proc.cpu_times()[0]
                     scpu = proc.cpu_times()[1]
@@ -650,10 +704,16 @@ class MySql(AgentCheck):
                     ucpu = int((float(fields[13]) / float(clk_tck)))
                     scpu = int((float(fields[14]) / float(clk_tck)))
 
+                elif Platform.is_windows() is not True:
+                    tcpu, _ = self._get_cpumem_from_ps(pid)
+
                 if ucpu and scpu:
                     self.rate("mysql.performance.user_time", ucpu, tags=tags)
                     # should really be system_time
                     self.rate("mysql.performance.kernel_time", scpu, tags=tags)
+                    self.rate("mysql.performance.cpu_time", ucpu+scpu, tags=tags)
+                elif tcpu:
+                    self.rate("mysql.performance.cpu_time", tcpu, tags=tags)
 
             except Exception:
                 self.warning("Error while reading mysql (pid: %s) procfs data\n%s"
@@ -695,6 +755,23 @@ class MySql(AgentCheck):
                 self.log.exception("Error while fetching mysql pid from ps")
 
         return pid
+
+    def _get_cpumem_from_ps(self, pid):
+        cpu = None
+        mem = None
+        try:
+            if not Platform.is_windows():
+                ps, _, _ = get_subprocess_output(['ps', '-p{0}'.format(pid), '-o', '%cpu,%mem'], self.log)
+                pslines = ps.strip().splitlines()
+                # First line is header, second line is mysql pid
+                if len(pslines) == 2:
+                    fields = pslines[1].split()
+                    cpu = int(fields[0])
+                    mem = int(fields[1])
+        except Exception:
+            self.log.exception("Error while fetching cpu and memory usage from ps.")
+
+        return cpu, mem
 
     def _get_stats_from_status(self, db):
         cursor = db.cursor()
@@ -740,6 +817,17 @@ class MySql(AgentCheck):
         del cursor
 
         return return_val
+
+    def _get_replica_stats(self, db):
+        cursor = db.cursor()
+        cursor.execute(
+            "SHOW SLAVE STATUS;")
+
+        replica_results = dict(cursor.fetchall())
+        cursor.close()
+        del cursor
+
+        return replica_results
 
     def _get_stats_from_innodb_status(self, db):
         # There are a number of important InnoDB metrics that are reported in
@@ -839,6 +927,8 @@ class MySql(AgentCheck):
             row = re.split(" +", line)
             row = [item.strip(',') for item in row]
             row = [item.strip(';') for item in row]
+            row = [item.strip('[') for item in row]
+            row = [item.strip(']') for item in row]
 
             # SEMAPHORES
             if line.find('Mutex spin waits') == 0:
@@ -920,13 +1010,30 @@ class MySql(AgentCheck):
                 results['Innodb_os_file_fsyncs'] = long(row[8])
             elif line.find('Pending normal aio reads:') == 0:
                 # Pending normal aio reads: 0, aio writes: 0,
-                results['Innodb_pending_normal_aio_reads'] = long(row[4])
-                results['Innodb_pending_normal_aio_writes'] = long(row[7])
+                # or Pending normal aio reads: [0, 0, 0, 0] , aio writes: [0, 0, 0, 0] ,
+                # or Pending normal aio reads: 0 [0, 0, 0, 0] , aio writes: 0 [0, 0, 0, 0] ,
+                if len(row) == 16:
+                    results['Innodb_pending_normal_aio_reads'] = (long(row[4]) + long(row[5]) +
+                                                                  long(row[6]) + long(row[7]))
+                    results['Innodb_pending_normal_aio_writes'] = (long(row[11]) + long(row[12]) +
+                                                                  long(row[13]) + long(row[14]))
+                elif len(row) == 18:
+                    results['Innodb_pending_normal_aio_reads'] = long(row[4])
+                    results['Innodb_pending_normal_aio_writes'] = long(row[12])
+                else:
+                    results['Innodb_pending_normal_aio_reads'] = long(row[4])
+                    results['Innodb_pending_normal_aio_writes'] = long(row[7])
             elif line.find('ibuf aio reads') == 0:
                 #  ibuf aio reads: 0, log i/o's: 0, sync i/o's: 0
-                results['Innodb_pending_ibuf_aio_reads'] = long(row[3])
-                results['Innodb_pending_aio_log_ios'] = long(row[6])
-                results['Innodb_pending_aio_sync_ios'] = long(row[9])
+                #  or ibuf aio reads:, log i/o's:, sync i/o's:
+                if len(row) == 10:
+                    results['Innodb_pending_ibuf_aio_reads'] = long(row[3])
+                    results['Innodb_pending_aio_log_ios'] = long(row[6])
+                    results['Innodb_pending_aio_sync_ios'] = long(row[9])
+                elif len(row) == 7:
+                    results['Innodb_pending_ibuf_aio_reads'] = 0
+                    results['Innodb_pending_aio_log_ios'] = 0
+                    results['Innodb_pending_aio_sync_ios'] = 0
             elif line.find('Pending flushes (fsync)') == 0:
                 # Pending flushes (fsync) log: 0; buffer pool: 0
                 results['Innodb_pending_log_flushes'] = long(row[4])
@@ -1124,9 +1231,40 @@ class MySql(AgentCheck):
             schema_name = str(row[0])
             avg_us = long(row[2])
 
-            schema_query_avg_run_time[schema_name] = avg_us
+            # set the tag as the dictionary key
+            schema_query_avg_run_time["schema:{0}".format(schema_name)] = avg_us
 
         cursor.close()
         del cursor
 
         return schema_query_avg_run_time
+
+    def _query_size_per_schema(self, db):
+        # Fetches the avg query execution time per schema and returns the
+        # value in microseconds
+
+        sql_query_schema_size = """
+        SELECT   table_schema,
+                 SUM(data_length+index_length)/1024/1024 AS total_mb
+                 FROM     information_schema.tables
+                 GROUP BY table_schema;
+        """
+
+        cursor = db.cursor()
+        cursor.execute(sql_query_schema_size)
+
+        if cursor.rowcount < 1:
+            raise Exception("Failed to fetch records from the information schema 'tables' table.")
+
+        schema_size = {}
+        for row in cursor.fetchall():
+            schema_name = str(row[0])
+            size = long(row[1])
+
+            # set the tag as the dictionary key
+            schema_size["schema:{0}".format(schema_name)] = size
+
+        cursor.close()
+        del cursor
+
+        return schema_size

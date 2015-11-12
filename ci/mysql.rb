@@ -16,6 +16,8 @@ namespace :ci do
       sh %(mysql -e "GRANT SELECT ON testdb.users TO 'dog'@'localhost';" -uroot)
       sh %(mysql -e "INSERT INTO testdb.users (name,age) VALUES('Alice',25);" -uroot)
       sh %(mysql -e "INSERT INTO testdb.users (name,age) VALUES('Bob',20);" -uroot)
+      sh %(mysql -e "GRANT SELECT ON performance_schema.* TO 'dog'@'localhost';" -uroot)
+      sh %(mysql -e "USE testdb; SELECT * FROM users ORDER BY name;" -uroot)
     end
 
     task script: ['ci:common:script'] do
