@@ -4,6 +4,7 @@ Sidekiq checks
 # stdlib
 import time
 import json
+import re
 
 # 3rd party
 import redis
@@ -37,13 +38,12 @@ class Stats:
         self.dead_size = res[4]
         self.processes_size = res[5]
 
-        procs = res[6]
+        procs = list(res[6])
         queues = list(res[7])
 
         self._check_processes(procs)
         self._init_queue_stats(queues)
-        self._check_queue_lengths(queues)
-        self._check_queue_latencies(queues)
+        self._check_queue_stats(queues)
 
     def _check_processes(self, procs):
         pipe = self.conn.pipeline()
@@ -55,40 +55,44 @@ class Stats:
         self.workers_size = sum([int(x) for x in res])
 
     def _init_queue_stats(self, queues):
-        self.queues = {}
+        self.queue_stats = {}
         for queue in queues:
-            self.queues[queue] = {'length': 0, 'latency': 0.0}
+            self.queue_stats[queue] = {'length': 0, 'latency': 0.0}
 
-    # Sum length of all sub queues for each queue
-    def _check_queue_lengths(self, queues):
-        for queue in queues:
-            qname = 'queue:%s' % queue
-            subqueues = [self.key(qname)] + self.conn.keys('%s_*' % self.key(qname))
-            pipe = self.conn.pipeline()
+    def _check_queue_stats(self, queues):
+        # Select all queue keys (with reliable fetch, every worker has their
+        # own sub queue per queue)
+        queues_and_subqueues = self.conn.keys(self.key('queue:*'))
+        pipe = self.conn.pipeline()
+        for qkey in queues_and_subqueues:
+            pipe.llen(qkey) # Get length of queue
+            pipe.lrange(qkey, -1, -1) # Get last entry in queue
+        res = pipe.execute()
 
-            for sq_key in subqueues:
-                pipe.llen(sq_key)
-            res = pipe.execute()
-            self.queues[queue]['length'] = sum([int(x) for x in res])
+        # Move stats into a dict for easy lookup
+        lengths = {}
+        latencies = {}
+        now = time.time()
+        for i in range(len(queues_and_subqueues)):
+            llen_idx = i * 2
+            lrange_idx = llen_idx + 1
 
-    # Find max latency of sub queues for each queue
-    def _check_queue_latencies(self, queues):
+            lengths[queues_and_subqueues[i]] = int(res[llen_idx])
 
-        for queue in queues:
-            qname = 'queue:%s' % queue
-            subqueues = [self.key(qname)] + self.conn.keys('%s_*' % self.key(qname))
-            pipe = self.conn.pipeline()
+            entries = res[lrange_idx]
+            if len(entries) > 0:
+                latency = now - float(json.loads(entries[0])['enqueued_at'])
+            else:
+                latency = 0.0
+            latencies[queues_and_subqueues[i]] = latency
 
-            for sq_key in subqueues:
-                pipe.lrange(sq_key, -1, -1)
-            res = pipe.execute()
-
-            for i in range(len(res)):
-                entry = res[i]
-                if len(entry) > 0:
-                    latency = time.time() - float(json.loads(entry[0])['enqueued_at'])
-                    if latency > self.queues[queue]['latency']:
-                        self.queues[queue]['latency'] = latency
+        # Roll up stats from sub queues into their parent queues
+        for q in queues:
+            pattern = self.key('queue:%s(|_.+)?' % q)
+            sub_queues = [x for x in queues_and_subqueues if re.match(pattern, x)]
+            if len(sub_queues) > 0:
+                self.queue_stats[q]['length'] = sum([lengths[x] for x in sub_queues])
+                self.queue_stats[q]['latency'] = max([latencies[x] for x in sub_queues])
 
     def key(self, name):
         return "%s:%s" % (self.namespace, name) if self.namespace else name
@@ -196,7 +200,7 @@ class Sidekiq(AgentCheck):
         self.gauge('sidekiq.workers_size', stats.workers_size, tags=tags)
 
         # Check queue stats
-        for queue, stat in stats.queues.iteritems():
+        for queue, stat in stats.queue_stats.iteritems():
             queue_tags = tags + ['queue:' + queue]
             self.gauge('sidekiq.queue.length', stat['length'], tags=queue_tags)
             self.gauge('sidekiq.queue.latency', stat['latency'], tags=queue_tags)
