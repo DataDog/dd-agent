@@ -103,15 +103,17 @@ def image_tag_extractor(c, key):
     return None
 
 
-def container_name_extractor(c):
+def container_name_extractor(co):
     # we sort the list to make sure that a docker API update introducing
     # new names with a single "/" won't make us report dups.
-    names = sorted(c.get('Names', []))
-    for name in names:
-        # the leading "/" is legit, if there's another one it means the name is actually an alias
-        if name.count('/') <= 1:
-            return [str(name).lstrip('/')]
-    return [c.get('Id')[:11]]
+    names = co.get('Names', [])
+    if names is not None:
+        names = sorted(names)
+        for name in names:
+            # the leading "/" is legit, if there's another one it means the name is actually an alias
+            if name.count('/') <= 1:
+                return [str(name).lstrip('/')]
+    return [co.get('Id')[:11]]
 
 
 TAG_EXTRACTORS = {
