@@ -1,8 +1,8 @@
 init_config:
       # All directives prefixed with a '#' sign are optional and will default to sane values when omitted
 
-      # Where your identity server lives (please omit the trailing slash). Note that the server must support Identity API v3
-      keystone_server_url: "https://my-keystone-server.com:<port>"
+      # Where your identity server lives. Note that the server must support Identity API v3
+      keystone_server_url: "https://my-keystone-server.com:<port>/"
 
       # The hostname of this machine registered with Nova. Defaults to socket.gethostname()
       # os_host: my_hostname
