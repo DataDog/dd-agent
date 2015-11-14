@@ -508,7 +508,7 @@ class DockerDaemon(AgentCheck):
 
         if containers_without_proc_root:
             message = "Couldn't find pid directory for container: {0}. They'll be missing network metrics".format(
-                    ",".join(containers_without_proc_root))
+                ",".join(containers_without_proc_root))
             if not self.is_k8s():
                 self.warning(message)
             else:
