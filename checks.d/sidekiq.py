@@ -3,8 +3,6 @@ Sidekiq checks
 '''
 # stdlib
 import time
-import json
-import re
 
 # 3rd party
 import redis
@@ -16,83 +14,133 @@ class Stats:
     def __init__(self, conn, namespace):
         self.conn = conn
         self.namespace = namespace
+        self._script = self._register_script()
         self._check_stats()
 
-    def _check_stats(self):
-        # Check sidekiq stats
-        pipe = self.conn.pipeline()
-        pipe.get(self.key('stat:processed'))
-        pipe.get(self.key('stat:failed'))
-        pipe.zcard(self.key('schedule'))
-        pipe.zcard(self.key('retry'))
-        pipe.zcard(self.key('dead'))
-        pipe.scard(self.key('processes'))
-        pipe.smembers(self.key('processes'))
-        pipe.smembers(self.key('queues'))
-        res = pipe.execute()
+    # This script collects all the sidekiq related stats in one go.
+    # KEYS[1] = 'stat:processed'
+    # KEYS[2] = 'stat:failed'
+    # KEYS[3] = 'schedule'
+    # KEYS[4] = 'retry'
+    # KEYS[5] = 'dead'
+    # KEYS[6] = 'processes'
+    # KEYS[7] = 'queues'
+    # KEYS[8] = 'queue:*'
+    #
+    # Returns an array of results. The array follows the following format:
+    # [
+    #   processed,
+    #   failed,
+    #   scheduled_size,
+    #   retry_size,
+    #   dead_size,
+    #   processes_size,
+    #   workers_size,
+    #   number_of_queues,
+    #   queue name 1,
+    #   queue name 2,
+    #   ...,
+    #   queue name n,
+    #   queue length 1,
+    #   queue length 2,
+    #   ...,
+    #   queue length n,
+    #   queue latency 1,
+    #   queue latency 2,
+    #   ...,
+    #   queue latency n
+    # ]
+    #
+    def _register_script(self):
+        s = """
+        local processed = redis.call("GET", KEYS[1])
+        local failed = redis.call("GET", KEYS[2])
+        local scheduled_size = redis.call("GET", KEYS[3])
+        local retry_size = redis.call("GET", KEYS[4])
+        local dead_size = redis.call("GET", KEYS[5])
+        local processes_size = redis.call("SCARD", KEYS[6])
+        local processes = redis.call("SMEMBERS", KEYS[6])
 
+        local workers_size = 0
+        for i, pkey in ipairs(processes) do
+          workers_size = workers_size + tonumber(redis.call("HGET", pkey, "busy"))
+        end
+
+        local queues = redis.call("SMEMBERS", KEYS[7])
+        local all_queues = redis.call("KEYS", KEYS[8])
+        local all_queue_lengths = {}
+        local all_queue_latencies = {}
+        for i, qkey in ipairs(all_queues) do
+            all_queue_lengths[qkey] = tonumber(redis.call("LLEN", qkey))
+            local last = redis.call("LRANGE", qkey, -1, -1)[0]
+            if not last == nil then
+                all_queue_latencies[qkey] = tonumber(cjson.decode(last)["enqueued_at"])
+            else
+                all_queue_latencies[qkey] = 0.0
+            end
+        end
+
+        local queue_lengths = {}
+        local queue_latencies = {}
+        for i, qname in ipairs(queues) do
+            queue_lengths[qname] = 0
+            queue_latencies[qname] = 0
+
+            local pattern1 = "queue:" .. qname .. "$"
+            local pattern2 = "queue:" .. qname .. "_.+"
+            for j, sqname in ipairs(all_queues) do
+                if not (string.match(sqname, pattern1) == nil and string.match(sqname, pattern2) == nil) then
+                    queue_lengths[qname] = queue_lengths[qname] + all_queue_lengths[sqname]
+                    if all_queue_latencies[sqname] > queue_latencies[qname] then
+                      queue_latencies[qname] = all_queue_latencies[sqname]
+                    end
+                end
+            end
+        end
+
+        local offset = 8
+        local result = {processed,failed,scheduled_size,retry_size,dead_size,processes_size,workers_size}
+        local n = table.getn(queues)
+        result[offset] = n
+        for i, q in ipairs(queues) do
+            result[offset + i] = q
+            result[offset + i + n] = queue_lengths[q]
+            result[offset + i + n + n] = queue_latencies[q]
+        end
+        return result
+        """
+        return self.conn.register_script(s)
+
+    def _run_script(self):
+        return self._script(keys=[
+                            self.key('stat:processed'),
+                            self.key('stat:failed'),
+                            self.key('schedule'),
+                            self.key('retry'),
+                            self.key('dead'),
+                            self.key('processes'),
+                            self.key('queues'),
+                            self.key('queue:*')])
+
+    def _check_stats(self):
+        res = self._run_script()
         self.processed = int(res[0])
         self.failed = int(res[1])
         self.scheduled_size = res[2]
         self.retry_size = res[3]
         self.dead_size = res[4]
         self.processes_size = res[5]
+        self.workers_size = res[6]
+        num_queues = res[7]
 
-        procs = list(res[6])
-        queues = list(res[7])
-
-        self._check_processes(procs)
-        self._init_queue_stats(queues)
-        self._check_queue_stats(queues)
-
-    def _check_processes(self, procs):
-        pipe = self.conn.pipeline()
-
-        for proc in procs:
-            pipe.hget(self.key(proc), 'busy')
-        res = pipe.execute()
-
-        self.workers_size = sum([int(x) for x in res])
-
-    def _init_queue_stats(self, queues):
+        offset = 8
         self.queue_stats = {}
-        for queue in queues:
-            self.queue_stats[queue] = {'length': 0, 'latency': 0.0}
-
-    def _check_queue_stats(self, queues):
-        # Select all queue keys (with reliable fetch, every worker has their
-        # own sub queue per queue)
-        queues_and_subqueues = self.conn.keys(self.key('queue:*'))
-        pipe = self.conn.pipeline()
-        for qkey in queues_and_subqueues:
-            pipe.llen(qkey) # Get length of queue
-            pipe.lrange(qkey, -1, -1) # Get last entry in queue
-        res = pipe.execute()
-
-        # Move stats into a dict for easy lookup
-        lengths = {}
-        latencies = {}
-        now = time.time()
-        for i in range(len(queues_and_subqueues)):
-            llen_idx = i * 2
-            lrange_idx = llen_idx + 1
-
-            lengths[queues_and_subqueues[i]] = int(res[llen_idx])
-
-            entries = res[lrange_idx]
-            if len(entries) > 0:
-                latency = now - float(json.loads(entries[0])['enqueued_at'])
-            else:
-                latency = 0.0
-            latencies[queues_and_subqueues[i]] = latency
-
-        # Roll up stats from sub queues into their parent queues
-        for q in queues:
-            pattern = self.key('queue:%s(|_.+)?' % q)
-            sub_queues = [x for x in queues_and_subqueues if re.match(pattern, x)]
-            if len(sub_queues) > 0:
-                self.queue_stats[q]['length'] = sum([lengths[x] for x in sub_queues])
-                self.queue_stats[q]['latency'] = max([latencies[x] for x in sub_queues])
+        for i in range(num_queues):
+            qname = res[offset + i]
+            self.queue_stats[qname] = {
+                'length': res[offset + i + num_queues],
+                'latency': res[offset + i + num_queues + num_queues]
+            }
 
     def key(self, name):
         return "%s:%s" % (self.namespace, name) if self.namespace else name
