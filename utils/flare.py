@@ -137,7 +137,7 @@ class Flare(object):
         self._add_file_tar(self._permissions_file.name, 'permissions.log',
                            log_permissions=False)
 
-        log.info("Saving all files to {0}".format(self._tar_path))
+        log.info("Saving all files to {0}".format(self.tar_path))
         self._tar.close()
 
     # Upload the tar file
@@ -150,7 +150,7 @@ class Flare(object):
         if not email:
             email = self._ask_for_email()
 
-        log.info("Uploading {0} to Datadog Support".format(self._tar_path))
+        log.info("Uploading {0} to Datadog Support".format(self.tar_path))
         url = self._url
         if self._case_id:
             url = '{0}/{1}'.format(self._url, str(self._case_id))
@@ -161,7 +161,7 @@ class Flare(object):
                 'hostname': self._hostname,
                 'email': email
             },
-            'files': {'flare_file': open(self._tar_path, 'rb')},
+            'files': {'flare_file': open(self.tar_path, 'rb')},
             'timeout': self.TIMEOUT
         }
         if Platform.is_windows():
@@ -178,14 +178,14 @@ class Flare(object):
     # Start by creating the tar file which will contain everything
     def _init_tarfile(self):
         # Default temp path
-        self._tar_path = os.path.join(
+        self.tar_path = os.path.join(
             tempfile.gettempdir(),
             self.COMPRESSED_FILE.format(strftime("%Y-%m-%d-%H-%M-%S"))
         )
 
-        if os.path.exists(self._tar_path):
-            os.remove(self._tar_path)
-        self._tar = tarfile.open(self._tar_path, 'w:bz2')
+        if os.path.exists(self.tar_path):
+            os.remove(self.tar_path)
+        self._tar = tarfile.open(self.tar_path, 'w:bz2')
 
     # Create a file to log permissions on collected files and write header line
     def _init_permissions_file(self):
@@ -504,17 +504,17 @@ class Flare(object):
 
     # Check if the file is not too big before upload
     def _check_size(self):
-        if os.path.getsize(self._tar_path) > self.MAX_UPLOAD_SIZE:
+        if os.path.getsize(self.tar_path) > self.MAX_UPLOAD_SIZE:
             log.info("{0} won't be uploaded, its size is too important.\n"
-                     "You can send it directly to support by mail.")
+                     "You can send it directly to support by email.")
             sys.exit(1)
 
     # Function to ask for confirmation before upload
     def _ask_for_confirmation(self):
-        print '{0} is going to be uploaded to Datadog.'.format(self._tar_path)
+        print '{0} is going to be uploaded to Datadog.'.format(self.tar_path)
         choice = raw_input('Do you want to continue [Y/n]? ')
         if choice.strip().lower() not in ['yes', 'y', '']:
-            print 'Aborting (you can still use {0})'.format(self._tar_path)
+            print 'Aborting (you can still use {0})'.format(self.tar_path)
             sys.exit(1)
 
     # Ask for email if needed
