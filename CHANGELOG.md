@@ -1,6 +1,17 @@
 Changes
 =======
 
+# 5.6.2 / Unreleased
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.6.1...5.6.2
+
+### Changes
+* [FEATURE] Docker/Kubernetes: Collect Kubernetes labels as tags. See [#2075][], [#2082][]
+* [FEATURE] HTTPCheck: Option to support -RSA, RC4, MD5- weak SSL/TLS ciphers. See [#1975][], [#2048][]
+
+* [BUGFIX] Core: Improve detection of agent process from PID to avoid false positives. See [#2005][]
+
 # 5.6.1 / 11-09-2015
 
 ### Details
@@ -120,7 +131,7 @@ The issue is addressed. As a result, please note that metrics related to false p
 
 
 
-For more information, please get in touch with support@datadoghq.com
+For more information, please get in touch with support(at)datadoghq(dot)com
 
 See [#81](https://github.com/DataDog/jmxfetch/issues/81)
 
@@ -2308,6 +2319,7 @@ If you use ganglia, you want this version.
 [#1996]: https://github.com/DataDog/dd-agent/issues/1996
 [#1997]: https://github.com/DataDog/dd-agent/issues/1997
 [#2000]: https://github.com/DataDog/dd-agent/issues/2000
+[#2005]: https://github.com/DataDog/dd-agent/issues/2005
 [#2009]: https://github.com/DataDog/dd-agent/issues/2009
 [#2010]: https://github.com/DataDog/dd-agent/issues/2010
 [#2011]: https://github.com/DataDog/dd-agent/issues/2011
@@ -2318,6 +2330,7 @@ If you use ganglia, you want this version.
 [#2038]: https://github.com/DataDog/dd-agent/issues/2038
 [#2039]: https://github.com/DataDog/dd-agent/issues/2039
 [#2040]: https://github.com/DataDog/dd-agent/issues/2040
+[#2048]: https://github.com/DataDog/dd-agent/issues/2048
 [#2055]: https://github.com/DataDog/dd-agent/issues/2055
 [#2056]: https://github.com/DataDog/dd-agent/issues/2056
 [#2061]: https://github.com/DataDog/dd-agent/issues/2061
@@ -2325,6 +2338,8 @@ If you use ganglia, you want this version.
 [#2063]: https://github.com/DataDog/dd-agent/issues/2063
 [#2064]: https://github.com/DataDog/dd-agent/issues/2064
 [#2065]: https://github.com/DataDog/dd-agent/issues/2065
+[#2075]: https://github.com/DataDog/dd-agent/issues/2075
+[#2082]: https://github.com/DataDog/dd-agent/issues/2082
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@KnownSubset]: https://github.com/KnownSubset
