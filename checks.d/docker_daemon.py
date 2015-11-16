@@ -191,9 +191,7 @@ class DockerDaemon(AgentCheck):
             # Set tagging options
             self.custom_tags = instance.get("tags", [])
             self.collect_labels_as_tags = instance.get("collect_labels_as_tags", [])
-            if self.is_k8s():
-                self.collect_labels_as_tags.append("io.kubernetes.pod.name")
-                self.kube_labels = {}
+            self.kube_labels = {}
 
             self.use_histogram = _is_affirmative(instance.get('use_histogram', False))
             performance_tags = instance.get("performance_tags", DEFAULT_PERFORMANCE_TAGS)
@@ -346,6 +344,11 @@ class DockerDaemon(AgentCheck):
         """Generate the tags for a given entity (container or image) according to a list of tag names."""
         # Start with custom tags
         tags = list(self.custom_tags)
+
+        # Collect pod names as tags on kubernetes
+        if self.is_k8s() and POD_NAME_LABEL not in self.collect_labels_as_tags:
+            self.collect_labels_as_tags.append(POD_NAME_LABEL)
+
         if entity is not None:
             pod_name = None
 
@@ -508,7 +511,7 @@ class DockerDaemon(AgentCheck):
 
         if containers_without_proc_root:
             message = "Couldn't find pid directory for container: {0}. They'll be missing network metrics".format(
-                    ",".join(containers_without_proc_root))
+                ",".join(containers_without_proc_root))
             if not self.is_k8s():
                 self.warning(message)
             else:
