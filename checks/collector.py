@@ -173,10 +173,6 @@ class Collector(object):
                 'start': time.time(),
                 'interval': int(agentConfig.get('agent_checks_interval', 10 * 60))
             },
-            'dd_check_tags': {
-                'start': time.time(),
-                'interval': int(agentConfig.get('dd_check_tags_interval', 10 * 60))
-            },
         }
         socket.setdefaulttimeout(15)
         self.run_count = 0
@@ -666,6 +662,17 @@ class Collector(object):
             if host_tags:
                 payload['host-tags']['system'] = host_tags
 
+            # If required by the user, let's create the dd_check:xxx host tags
+            if self.agentConfig['create_dd_check_tags']:
+                app_tags_list = [DD_CHECK_TAG.format(c.name) for c in self.initialized_checks_d]
+                app_tags_list.extend([DD_CHECK_TAG.format(cname) for cname
+                                      in JMXFiles.get_jmx_appnames()])
+
+                if 'system' not in payload['host-tags']:
+                    payload['host-tags']['system'] = []
+
+                payload['host-tags']['system'].extend(app_tags_list)
+
             GCE_tags = GCE.get_tags(self.agentConfig)
             if GCE_tags is not None:
                 payload['host-tags'][GCE.SOURCE_TYPE_NAME] = GCE_tags
@@ -719,18 +726,6 @@ class Collector(object):
                     )
             payload['agent_checks'] = agent_checks
             payload['meta'] = self.hostname_metadata_cache  # add hostname metadata
-
-        # If required by the user, let's create the dd_check:xxx host tags
-        if self.agentConfig['create_dd_check_tags'] and \
-                self._should_send_additional_data('dd_check_tags'):
-            app_tags_list = [DD_CHECK_TAG.format(c.name) for c in self.initialized_checks_d]
-            app_tags_list.extend([DD_CHECK_TAG.format(cname) for cname
-                                  in JMXFiles.get_jmx_appnames()])
-
-            if 'system' not in payload['host-tags']:
-                payload['host-tags']['system'] = []
-
-            payload['host-tags']['system'].extend(app_tags_list)
 
     def _get_hostname_metadata(self):
         """
