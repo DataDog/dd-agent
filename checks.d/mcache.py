@@ -46,6 +46,8 @@ from checks import AgentCheck
 #                            use for storage.
 # threads           32u      Number of worker threads requested.
 #                            (see doc/threads.txt)
+# listen_disabled_num 32u    How many times the server has reached maxconns
+#                            (see https://code.google.com/p/memcached/wiki/Timeouts)
 #     >>> mc.get_stats()
 # [('127.0.0.1:11211 (1)', {'pid': '2301', 'total_items': '2',
 # 'uptime': '80', 'listen_disabled_num': '0', 'version': '1.2.8',
@@ -96,7 +98,8 @@ class Memcache(AgentCheck):
         "cas_misses",
         "cas_hits",
         "cas_badval",
-        "total_connections"
+        "total_connections",
+        "listen_disabled_num"
     ]
 
     SERVICE_CHECK = 'memcache.can_connect'

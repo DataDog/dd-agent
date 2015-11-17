@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="5.5.0"
+tag="5.6.1"
 
 PIP_VERSION="6.0.6"
 
@@ -260,6 +260,7 @@ print_done
 printf "Configuring datadog.conf file......" | tee -a $logfile
 if [ $apikey ]; then
     sed "s/api_key:.*/api_key: $apikey/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf 2>> $logfile
+    chmod 640 $dd_base/agent/datadog.conf
 else
   printf "No api key set. Assuming there is already a configuration file present." | tee -a $logfile
 fi

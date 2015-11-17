@@ -111,6 +111,9 @@ if [ $OS = "RedHat" ]; then
     fi
     $sudo_cmd yum -y --disablerepo='*' --enablerepo='datadog' install datadog-agent
 elif [ $OS = "Debian" ]; then
+    printf "\033[34m\n* Installing apt-transport-https\n\033[0m\n"
+    $sudo_cmd apt-get update
+    $sudo_cmd apt-get install -y apt-transport-https
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
     $sudo_cmd sh -c "echo 'deb http://apt.datadoghq.com/ stable main' > /etc/apt/sources.list.d/datadog.list"
     $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
@@ -147,6 +150,8 @@ if [ -e /etc/dd-agent/datadog.conf ]; then
 else
     printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
     $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
+    $sudo_cmd chown dd-agent:root /etc/dd-agent/datadog.conf
+    $sudo_cmd chmod 640 /etc/dd-agent/datadog.conf
 fi
 
 restart_cmd="$sudo_cmd /etc/init.d/datadog-agent restart"

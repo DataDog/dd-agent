@@ -54,7 +54,7 @@ CONFIG = {
 CONFIG_SSL_ONLY = {
     'instances': [{
         'name': 'good_cert',
-        'url': 'https://github.com',
+        'url': 'https://github.com:443',
         'timeout': 1,
         'check_certificate_expiration': True,
         'days_warning': 14
@@ -153,7 +153,7 @@ class HTTPCheckTest(AgentCheckTest):
         url, username, password, http_response_status_code, timeout,\
             include_content, headers, response_time, content_match,\
             tags, ssl, ssl_expiration,\
-            instance_ca_certs = self.check._load_conf(CONFIG_HTTP_HEADERS['instances'][0])
+            instance_ca_certs, weakciphers = self.check._load_conf(CONFIG_HTTP_HEADERS['instances'][0])
 
         self.assertEqual(headers["X-Auth-Token"], "SOME-AUTH-TOKEN", headers)
         expected_headers = agent_headers(AGENT_CONFIG).get('User-Agent')
@@ -195,7 +195,7 @@ class HTTPCheckTest(AgentCheckTest):
         self.run_check(CONFIG_SSL_ONLY)
         # Overrides self.service_checks attribute when values are available
         self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 6)
-        tags = ['url:https://github.com', 'instance:good_cert']
+        tags = ['url:https://github.com:443', 'instance:good_cert']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
         self.assertServiceCheckOK("http.ssl_cert", tags=tags)
 

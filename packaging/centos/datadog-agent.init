@@ -25,6 +25,7 @@
 AGENTPATH="/opt/datadog-agent/agent/agent.py"
 AGENTCONF="/etc/dd-agent/datadog.conf"
 DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
+KILL_PATH="/opt/datadog-agent/embedded/bin/kill"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
 PROG="datadog-agent"
@@ -35,6 +36,7 @@ SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"
 SUPERVISOR_SOCK="/opt/datadog-agent/run/datadog-supervisor.sock"
 SUPERVISOR_PIDFILE="/opt/datadog-agent/run/datadog-supervisord.pid"
+COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
 
 # Source function library.
 . /etc/rc.d/init.d/functions
@@ -150,6 +152,11 @@ info() {
     exit $(($FORWARDER_RETURN+$COLLECTOR_RETURN+DOGSTATSD_RETURN))
 }
 
+reload() {
+    $KILL_PATH -HUP `cat $COLLECTOR_PIDFILE`
+    exit $?
+}
+
 configcheck() {
     su $AGENTUSER -c "$AGENTPATH configcheck"
     exit $?
@@ -160,12 +167,15 @@ case "$1" in
     start)
         start
         ;;
+
     stop)
         stop
         ;;
+
     restart)
         restart
         ;;
+
     status)
         # Note: sh does not support arrays
         # Check for kernel version 3.18+ - overlayfs has known bug affecting unix domain sockets
@@ -178,13 +188,22 @@ case "$1" in
             echo "${RED}Warning: Known bug in Linux Kernel 3.18+ causes 'status' to fail.${NC}"
             echo "Calling 'info', instead..."
             service datadog-agent info
+            if [ $? -ne 0 ]; then
+                exit 1
+            fi
         else
             check_status
         fi
         ;;
+
     info)
         info "$@"
         ;;
+
+    reload)
+        reload
+        ;;
+
     configcheck)
         configcheck
         ;;
@@ -206,7 +225,7 @@ case "$1" in
         ;;
 
     *)
-        echo "Usage: $0 {start|stop|restart|info|status|configcheck|configtest|jmx}"
+        echo "Usage: $0 {start|stop|restart|info|status|reload|configcheck|configtest|jmx}"
         exit 2
 esac
 exit $?

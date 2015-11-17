@@ -51,7 +51,8 @@ class Riak(AgentCheck):
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         for k in ["mean", "median", "95", "99", "100"]:
-            [self.keys.append(m + "_" + k) for m in self.stat_keys]
+            for m in self.stat_keys:
+                self.keys.append(m + "_" + k)
 
         self.prev_coord_redirs_total = -1
 
@@ -60,7 +61,7 @@ class Riak(AgentCheck):
         default_timeout = self.init_config.get('default_timeout', 5)
         timeout = float(instance.get('timeout', default_timeout))
         tags = instance.get('tags', [])
-        service_check_tags = ['url:%s' % url]
+        service_check_tags = tags + ['url:%s' % url]
 
         try:
             h = Http(timeout=timeout)
@@ -81,7 +82,9 @@ class Riak(AgentCheck):
         self.service_check(
             self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
 
-        [self.gauge("riak." + k, stats[k], tags=tags) for k in self.keys if k in stats]
+        for k in self.keys:
+            if k in stats:
+                self.gauge("riak." + k, stats[k], tags=tags)
 
         coord_redirs_total = stats["coord_redirs_total"]
         if self.prev_coord_redirs_total > -1:

@@ -1,6 +1,7 @@
 instances:
   - host: localhost
     port: 7199
+    cassandra_aliasing: true
   #   user: username
   #   password: password
   #   process_name_regex: .*process_name.* # Instead of specifying a host, and port. The agent can connect using the attach api.

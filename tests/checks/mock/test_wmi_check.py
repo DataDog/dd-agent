@@ -1,146 +1,12 @@
+# 3p
+from mock import Mock
+
 # project
 from tests.checks.common import AgentCheckTest
+from tests.core.test_wmi import TestCommonWMI
 
 
-Win32_OperatingSystem_attr = {
-    'BootDevice': "\\Device\\HarddiskVolume1",
-    'BuildNumber': "9600",
-    'BuildType': "Multiprocessor Free",
-    'Caption': "Microsoft Windows Server 2012 R2 Standard Evaluation",
-    'CodeSet': "1252",
-    'CountryCode': "1",
-    'CreationClassName': "Win32_OperatingSystem",
-    'CSCreationClassName': "Win32_ComputerSystem",
-    'CSName': "WIN-7022K3K6GF8",
-    'CurrentTimeZone': -420,
-    'DataExecutionPrevention_32BitApplications': True,
-    'DataExecutionPrevention_Available': True,
-    'DataExecutionPrevention_Drivers': True,
-    'DataExecutionPrevention_SupportPolicy': 3,
-    'Debug': False,
-    'Description': "",
-    'Distributed': False,
-    'EncryptionLevel': 256,
-    'ForegroundApplicationBoost': 2,
-    'FreePhysicalMemory': "3238796",
-    'FreeSpaceInPagingFiles': "720896",
-    'FreeVirtualMemory': "3936028",
-    'InstallDate': "20140729152415.000000-420",
-    'LastBootUpTime': "20150331151024.957920-420",
-    'LocalDateTime': "20150331152210.670000-420",
-    'Locale': "0409",
-    'Manufacturer': "Microsoft Corporation",
-    'MaxNumberOfProcesses': 4294967295,
-    'MaxProcessMemorySize': "137438953344",
-    'MUILanguages': "en-US",
-    'Name': "Microsoft Windows Server 2012 R2 Standard Evaluation"
-            "|C:\\Windows|\\Device\\Harddisk0\\Partition2",
-    'NumberOfProcesses': 60,
-    'NumberOfUsers': 2,
-    'OperatingSystemSKU': 79,
-    'Organization': "",
-    'OSArchitecture': "64-bit",
-    'OSLanguage': 1033,
-    'OSProductSuite': 272,
-    'OSType': 18,
-    'PortableOperatingSystem': False,
-    'Primary': True,
-    'ProductType': 3,
-    'RegisteredUser': "Windows User",
-    'SerialNumber': "00252-10000-00000-AA228",
-    'ServicePackMajorVersion': 0,
-    'ServicePackMinorVersion': 0,
-    'SizeStoredInPagingFiles': "720896",
-    'Status': "OK",
-    'SuiteMask': 272,
-    'SystemDevice': "\\Device\\HarddiskVolume2",
-    'SystemDirectory': "C:\\Windows\\system32",
-    'SystemDrive': "C:",
-    'TotalVirtualMemorySize': "4914744",
-    'TotalVisibleMemorySize': "4193848",
-    'Version': "6.3.9600",
-    'WindowsDirectory': "C:\\Windows",
-}
-
-Win32_PerfFormattedData_PerfProc_Process_attr = {
-    'CreatingProcessID': 2976,
-    'ElapsedTime': "2673",
-    'HandleCount': 461,
-    'IDProcess': 4036,
-    'IODataBytesPersec': "219808",
-    'IODataOperationsPersec': "1049",
-    'IOOtherBytesPersec': "0",
-    'IOOtherOperationsPersec': "1699",
-    'IOReadBytesPerSec': "20455",
-    'IOReadOperationsPersec': "505",
-    'IOWriteBytesPersec': "199353",
-    'IOWriteOperationsPersec': "544",
-    'Name': "chrome",
-    'PageFaultsPersec': 3,
-    'PageFileBytes': "98619392",
-    'PageFileBytesPeak': "98619392",
-    'PercentPrivilegedTime': "12",
-    'PercentProcessorTime': "18",
-    'PercentUserTime': "6",
-    'PoolNonpagedBytes': 28128,
-    'PoolPagedBytes': 325216,
-    'PriorityBase': 8,
-    'PrivateBytes': "98619392",
-    'ThreadCount': 9,
-    'VirtualBytes': "303472640",
-    'VirtualBytesPeak': "304521216",
-    'WorkingSet': "112803840",
-    'WorkingSetPeak': "112803840",
-    'WorkingSetPrivate': "82731008",
-}
-
-Win32_Process_attr = {
-    'CommandLine': "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe\"",
-    'Handle': "3264"
-}
-
-
-class Mocked_Win32_Service(object):
-    """
-    Generate Mocked Win32 Service from given attributes
-    """
-    def __init__(self, wmi_conn_args=None, **entries):
-        self._wmi_conn_args = wmi_conn_args
-        self.__dict__.update(entries)
-
-    def get_conn_args(self):
-        return self._wmi_conn_args
-
-    def query(self, q):
-        if q == "SELECT CommandLine FROM Win32_Process WHERE Handle = 4036":
-            return [Mocked_Win32_Service(**Win32_Process_attr)]
-        else:
-            return []
-
-
-class Mocked_WMI(object):
-    """
-    Mock WMI methods for test purpose.
-    """
-    def __init__(self, mocked_wmi_classes):
-        # Make WMI classes callable
-        def get_wmi_obj(wmi_obj):
-            return lambda Name=None: [wmi_obj] if not Name or wmi_obj.Name == Name else []
-
-        for wmi_class, wmi_obj in mocked_wmi_classes.iteritems():
-            mocked_wmi_classes[wmi_class] = get_wmi_obj(wmi_obj)
-
-        self._mocked_classes = mocked_wmi_classes
-
-    def WMI(self, *args, **kwargs):
-        """
-        Return a mock WMI object with a mock class.
-        """
-        wmi_conn_args = (args, kwargs)
-        return Mocked_Win32_Service(wmi_conn_args, **self._mocked_classes)
-
-
-class WMITestCase(AgentCheckTest):
+class WMITestCase(AgentCheckTest, TestCommonWMI):
     CHECK_NAME = 'wmi_check'
 
     WMI_CONNECTION_CONFIG = {
@@ -149,120 +15,309 @@ class WMITestCase(AgentCheckTest):
         'username': "datadog",
         'password': "datadog",
         'class': "Win32_OperatingSystem",
-        'metrics': []
-    }
-
-    CONFIG = {
-        'class': "Win32_OperatingSystem",
         'metrics': [["NumberOfProcesses", "system.proc.count", "gauge"],
-                    ["NumberOfUsers", "system.users.count", "gauge"]],
-        'constant_tags': ["mytag"]
+                    ["NumberOfUsers", "system.users.count", "gauge"]]
     }
 
-    FILTER_CONFIG = {
-        'class': "Win32_PerfFormattedData_PerfProc_Process",
-        'metrics': [["ThreadCount", "my_app.threads.count", "gauge"],
-                    ["VirtualBytes", "my_app.mem.virtual", "gauge"]],
-        'filters': [{'Name': "chrome"}],
+    WMI_CONFIG = {
+        'class': "Win32_PerfFormattedData_PerfDisk_LogicalDisk",
+        'metrics': [["AvgDiskBytesPerWrite", "winsys.disk.avgdiskbytesperwrite", "gauge"],
+                    ["FreeMegabytes", "winsys.disk.freemegabytes", "gauge"]],
+        'tag_by': "Name",
+        'constant_tags': ["foobar"],
+    }
+
+    WMI_MISSING_PROP_CONFIG = {
+        'class': "Win32_PerfRawData_PerfOS_System",
+        'metrics': [["UnknownCounter", "winsys.unknowncounter", "gauge"],
+                    ["MissingProperty", "this.will.not.be.reported", "gauge"]],
         'tag_by': "Name"
     }
 
-    TAG_QUERY_CONFIG = {
+    WMI_CONFIG_NO_TAG_BY = {
+        'class': "Win32_PerfFormattedData_PerfDisk_LogicalDisk",
+        'metrics': [["AvgDiskBytesPerWrite", "winsys.disk.avgdiskbytesperwrite", "gauge"],
+                    ["FreeMegabytes", "winsys.disk.freemegabytes", "gauge"]],
+    }
+
+    WMI_CONFIG_FILTERS = {
+        'class': "Win32_PerfFormattedData_PerfDisk_LogicalDisk",
+        'metrics': [["AvgDiskBytesPerWrite", "winsys.disk.avgdiskbytesperwrite", "gauge"],
+                    ["FreeMegabytes", "winsys.disk.freemegabytes", "gauge"]],
+        'filters': [{'Name': "_Total"}],
+    }
+
+    WMI_TAG_QUERY_CONFIG_TEMPLATE = {
         'class': "Win32_PerfFormattedData_PerfProc_Process",
         'metrics': [["IOReadBytesPerSec", "proc.io.bytes_read", "gauge"]],
         'filters': [{'Name': "chrome"}],
-        'tag_queries': [["IDProcess", "Win32_Process", "Handle", "CommandLine"]]
     }
 
-    def setUp(self):
-        # Mocking `wmi` Python package
-        import sys
-        sys.modules['wmi'] = Mocked_WMI(
-            {
-                'Win32_OperatingSystem': Mocked_Win32_Service(**Win32_OperatingSystem_attr),
-                'Win32_PerfFormattedData_PerfProc_Process':
-                    Mocked_Win32_Service(**Win32_PerfFormattedData_PerfProc_Process_attr),
-            })
+    @classmethod
+    def _make_wmi_tag_query_config(cls, tag_queries):
+        """
+        Helper to create a WMI configuration on
+        `Win32_PerfFormattedData_PerfProc_Process.IOReadBytesPerSec` with the given
+        `tag_queries` parameter.
+        """
+        wmi_tag_query_config = {}
+        wmi_tag_query_config.update(cls.WMI_TAG_QUERY_CONFIG_TEMPLATE)
 
-    def assertWMIConnWith(self, wmi_instance, param):
-        """
-        Helper, assert that the WMI connection was established with the right parameter and value.
-        """
-        wmi_conn_args, wmi_conn_kwargs = wmi_instance.get_conn_args()
-        if isinstance(param, tuple):
-            key, value = param
-            self.assertIn(key, wmi_conn_kwargs)
-            self.assertEquals(wmi_conn_kwargs[key], value)
-        else:
-            self.assertIn(param, wmi_conn_args)
+        queries = tag_queries if all(isinstance(elem, list) for elem in tag_queries) \
+            else [tag_queries]
 
-    def test_wmi_conn(self):
+        wmi_tag_query_config['tag_queries'] = queries
+
+        return wmi_tag_query_config
+
+    def _get_wmi_sampler(self):
         """
-        Establish a WMI connection to the specificied host/namespace, with the right credentials.
+        Helper to easily retrieve, if exists and unique, the WMISampler created
+        by the configuration.
+
+        Fails when multiple samplers are avaiable.
+        """
+        self.assertTrue(
+            self.check.wmi_samplers,
+            u"Unable to retrieve the WMISampler: no sampler was found"
+        )
+        self.assertEquals(
+            len(self.check.wmi_samplers), 1,
+            u"Unable to retrieve the WMISampler: expected a unique, but multiple were found"
+        )
+
+        return self.check.wmi_samplers.itervalues().next()
+
+    def test_wmi_connection(self):
+        """
+        Establish a WMI connection to the specified host/namespace, with the right credentials.
         """
         # Run check
         config = {
             'instances': [self.WMI_CONNECTION_CONFIG]
         }
-
         self.run_check(config)
 
-        # WMI connection is cached
-        self.assertIn('myhost:datadog:some/namespace:datadog', self.check.wmi_conns)
+        # A WMISampler is cached
+        self.assertIn("myhost:some/namespace:Win32_OperatingSystem", self.check.wmi_samplers)
+        wmi_sampler = self.check.wmi_samplers["myhost:some/namespace:Win32_OperatingSystem"]
 
-        # `host`, `namespace, and credentials are passed to `wmi.WMI` method
-        wmi_instance = self.check.wmi_conns['myhost:datadog:some/namespace:datadog']
-        self.assertWMIConnWith(wmi_instance, "myhost")
-        self.assertWMIConnWith(wmi_instance, ('namespace', "some/namespace"))
-        self.assertWMIConnWith(wmi_instance, ('user', "datadog"))
-        self.assertWMIConnWith(wmi_instance, ('password', "datadog"))
+        # Connection was established with the right parameters
+        self.assertWMIConnWith(wmi_sampler, "myhost")
+        self.assertWMIConnWith(wmi_sampler, "some/namespace")
+
+    def test_wmi_sampler_initialization(self):
+        """
+        An instance creates its corresponding WMISampler.
+        """
+        # Run check
+        config = {
+            'instances': [self.WMI_CONFIG_FILTERS]
+        }
+        self.run_check(config)
+
+        # Retrieve the sampler
+        wmi_sampler = self._get_wmi_sampler()
+
+        # Assert the sampler
+        self.assertEquals(wmi_sampler.class_name, "Win32_PerfFormattedData_PerfDisk_LogicalDisk")
+        self.assertEquals(wmi_sampler.property_names, ["AvgDiskBytesPerWrite", "FreeMegabytes"])
+        self.assertEquals(wmi_sampler.filters, [{'Name': "_Total"}])
+
+    def test_wmi_properties(self):
+        """
+        Compute a (metric name, metric type) by WMI property map and a property list.
+        """
+        # Set up the check
+        config = {
+            'instances': [self.WMI_CONNECTION_CONFIG]
+        }
+        self.run_check(config)
+
+        # WMI props are cached
+        self.assertIn("myhost:some/namespace:Win32_OperatingSystem", self.check.wmi_props)
+        metric_name_and_type_by_property, properties = \
+            self.check.wmi_props["myhost:some/namespace:Win32_OperatingSystem"]
+
+        # Assess
+        self.assertEquals(
+            metric_name_and_type_by_property,
+            {
+                'numberofprocesses': ("system.proc.count", "gauge"),
+                'numberofusers': ("system.users.count", "gauge")
+            }
+        )
+        self.assertEquals(properties, ["NumberOfProcesses", "NumberOfUsers"])
+
+    def test_metric_extraction(self):
+        """
+        Extract metrics from WMI query results.
+        """
+        # Set up the check
+        config = {
+            'instances': [self.WMI_CONFIG]
+        }
+        self.run_check(config)
+
+        # Retrieve the sampler
+        wmi_sampler = self._get_wmi_sampler()
+
+        # Extract metrics
+        metrics = self.check._extract_metrics(wmi_sampler, "name", [], ["foobar"])
+
+        # Assess
+        WMIMetric = self.load_class("WMIMetric")
+        expected_metrics = [
+            WMIMetric("freemegabytes", 19742, ["foobar", "name:c:"]),
+            WMIMetric("avgdiskbytesperwrite", 1536, ["foobar", "name:c:"]),
+            WMIMetric("freemegabytes", 19742, ["foobar", "name:d:"]),
+            WMIMetric("avgdiskbytesperwrite", 1536, ["foobar", "name:d:"]),
+        ]
+        self.assertEquals(metrics, expected_metrics)
+
+    def test_missing_property(self):
+        """
+        Do not raise on missing properties, but print a warning.
+        """
+        # Set up the check
+        config = {
+            'instances': [self.WMI_MISSING_PROP_CONFIG]
+        }
+        logger = Mock()
+
+        self.run_check(config, mocks={'log': logger})
+        self.assertTrue(logger.warning.called)
+
+    def test_mandatory_tag_by(self):
+        """
+        Exception is raised when the result returned by the WMI query contains multiple rows
+        but no `tag_by` value was given.
+        """
+        # Valid configuration
+        config = {
+            'instances': [self.WMI_CONFIG]
+        }
+        self.run_check(config)
+
+        # Invalid
+        MissingTagBy = self.load_class("MissingTagBy")
+        config = {
+            'instances': [self.WMI_CONFIG_NO_TAG_BY]
+        }
+        self.assertRaises(MissingTagBy, self.run_check, config, force_reload=True)
+
+    def test_query_tag_properties(self):
+        """
+        WMISampler's property list contains `metrics` and `tag_queries` ones.
+        """
+        # Set up the check
+        tag_queries = ["IDProcess", "Win32_Process", "Handle", "CommandLine"]
+        config = {
+            'instances': [self._make_wmi_tag_query_config(tag_queries)]
+        }
+        self.run_check(config)
+
+        # WMI props are cached
+        self.assertIn(
+            "localhost:root\\cimv2:Win32_PerfFormattedData_PerfProc_Process",
+            self.check.wmi_props
+        )
+        _, properties = \
+            self.check.wmi_props["localhost:root\\cimv2:Win32_PerfFormattedData_PerfProc_Process"]
+
+        self.assertEquals(properties, ["IOReadBytesPerSec", "IDProcess"])
+
+    def test_query_tags(self):
+        """
+        Tag extracted metrics with `tag_queries` queries.
+        """
+        # Set up the check
+        tag_queries = ["IDProcess", "Win32_Process", "Handle", "CommandLine"]
+        config = {
+            'instances': [self._make_wmi_tag_query_config(tag_queries)]
+        }
+        self.run_check(config)
+
+        # Retrieve the sampler
+        wmi_sampler = self._get_wmi_sampler()
+
+        # Extract metrics
+        metrics = self.check._extract_metrics(
+            wmi_sampler, "name",
+            tag_queries=[tag_queries], constant_tags=["foobar"]
+        )
+
+        # Assess
+        WMIMetric = self.load_class("WMIMetric")
+        expected_metrics = [
+            WMIMetric("ioreadbytespersec", 20455, tags=['foobar', 'commandline:c:\\'
+                      'programfiles(x86)\\google\\chrome\\application\\chrome.exe']),
+            WMIMetric('idprocess', 4036, tags=['foobar', 'commandline:c:\\'
+                      'programfiles(x86)\\google\\chrome\\application\\chrome.exe']),
+        ]
+        self.assertEquals(metrics, expected_metrics)
+
+    def test_query_tags_failures(self):
+        """
+        Check different `tag_queries` failure scenarios.
+        """
+        # Mock the logger so it can be traced
+        logger = Mock()
+
+        # Raise when user `tag_queries` input has a wrong format
+        tag_queries = ["IDProcess", "MakesNoSense"]
+        config = {
+            'instances': [self._make_wmi_tag_query_config(tag_queries)]
+        }
+
+        self.assertRaises(IndexError, self.run_check, config, mocks={'log': logger})
+        self.assertEquals(logger.error.call_count, 1)
+
+        # Raise when user `link_source_property` is not a class's property
+        tag_queries = ["UnknownProperty", "Win32_Process", "Handle", "CommandLine"]
+        config = {
+            'instances': [self._make_wmi_tag_query_config(tag_queries)]
+        }
+        self.assertRaises(
+            TypeError, self.run_check, config,
+            force_reload=True, mocks={'log': logger}
+        )
+        self.assertEquals(logger.error.call_count, 2)
+
+        # Raise when user `target property` is not a target class's property
+        tag_queries = ["IDProcess", "Win32_Process", "Handle", "UnknownProperty"]
+        config = {
+            'instances': [self._make_wmi_tag_query_config(tag_queries)]
+        }
+        self.assertRaises(
+            TypeError, self.run_check, config,
+            force_reload=True, mocks={'log': logger}
+        )
+        self.assertEquals(logger.error.call_count, 3)
+
+        # Do not raise on result returned, print a warning and continue
+        tag_queries = [
+            "ResultNotMatchingAnyTargetProperty", "Win32_Process", "Handle", "CommandLine"
+        ]
+        config = {
+            'instances': [self._make_wmi_tag_query_config(tag_queries)]
+        }
+
+        self.run_check(config, force_reload=True, mocks={'log': logger})
+        self.assertTrue(logger.warning.called)
 
     def test_check(self):
         """
-        Collect WMI metrics + `constant_tags`.
+        Assess check coverage.
         """
-        # Run check
+        # Run the check
         config = {
-            'instances': [self.CONFIG]
-        }
-
-        self.run_check(config)
-
-        # Test metrics
-        for _, mname, _ in self.CONFIG['metrics']:
-            self.assertMetric(mname, tags=self.CONFIG['constant_tags'], count=1)
-
-        self.coverage_report()
-
-    def test_filter_and_tagging(self):
-        """
-        Test `filters` and `tag_by` parameters
-        """
-        # Run check
-        config = {
-            'instances': [self.FILTER_CONFIG]
+            'instances': [self.WMI_CONFIG]
         }
         self.run_check(config)
 
-        # Test metrics
-        for _, mname, _ in self.FILTER_CONFIG['metrics']:
-            self.assertMetric(mname, tags=["name:chrome"], count=1)
-
-        self.coverage_report()
-
-    def test_tag_queries(self):
-        """
-        Test `tag_queries` parameter
-        """
-        # Run check
-        config = {
-            'instances': [self.TAG_QUERY_CONFIG]
-        }
-        self.run_check(config)
-
-        # Test metrics
-        for _, mname, _ in self.TAG_QUERY_CONFIG['metrics']:
-            self.assertMetric(mname, tags=['commandline:c:\\program_files_(x86)\\google'
-                                           '\\chrome\\application\\chrome.exe"'], count=1)
+        for _, mname, _ in self.WMI_CONFIG['metrics']:
+            self.assertMetric(mname, tags=["foobar", "name:c:"], count=1)
+            self.assertMetric(mname, tags=["foobar", "name:d:"], count=1)
 
         self.coverage_report()
