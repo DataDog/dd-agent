@@ -70,7 +70,7 @@ instances:
     #
     # ca_certs: /etc/ssl/certs/ca-certificates.crt
 
-    # The (optional) ssl_expire will instruct the check
+    # The (optional) check_certificate_expiration will instruct the check
     # to create a service check that checks the expiration of the
     # ssl certificate. Allow for a warning to occur when x days are
     # left in the certificate.
