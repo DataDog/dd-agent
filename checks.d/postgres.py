@@ -261,11 +261,23 @@ SELECT relname,
             'self_time' : ('postgresql.function.self_time', RATE),
         },
         'query': """
-SELECT schemaname,
-       funcname,
-       %s
-  FROM pg_stat_user_functions
-        """,
+WITH overloaded_funcs AS (
+ SELECT funcname
+   FROM pg_stat_user_functions s
+  GROUP BY s.funcname
+ HAVING COUNT(*) > 1
+)
+SELECT s.schemaname,
+       CASE WHEN o.funcname is null THEN p.proname
+            else p.proname || '_' || array_to_string(p.proargnames, '_')
+        END funcname,
+        %s
+  FROM pg_proc p
+  JOIN pg_stat_user_functions s
+    ON p.oid = s.funcid
+  LEFT join overloaded_funcs o
+    ON o.funcname = s.funcname;
+""",
         'relation': False
     }
 
