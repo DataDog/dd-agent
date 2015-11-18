@@ -250,7 +250,7 @@ class HTTPCheck(NetworkCheck):
             # Check content matching is set
             if content_match:
                 content = r.content
-                if re.search(content_match, content):
+                if re.search(content_match, content, re.UNICODE):
                     self.log.debug("%s is found in return content" % content_match)
                     service_checks.append((
                         self.SC_STATUS, Status.UP, "UP"
@@ -322,12 +322,12 @@ class HTTPCheck(NetworkCheck):
                 if len(content) > 200:
                     content = content[:197] + '...'
 
-                msg = "%d %s\n\n%s" % (code, reason, content)
+                msg = u"%d %s\n\n%s" % (code, reason, content)
                 msg = msg.rstrip()
 
             title = "[Alert] %s reported that %s is down" % (self.hostname, name)
             alert_type = "error"
-            msg = "%s %s %s reported that %s (%s) failed %s time(s) within %s last attempt(s)."\
+            msg = u"%s %s %s reported that %s (%s) failed %s time(s) within %s last attempt(s)."\
                 " Last error: %s" % (notify_message, custom_message, self.hostname,
                                      name, url, nb_failures, nb_tries, msg)
             event_type = EventType.DOWN
@@ -335,7 +335,7 @@ class HTTPCheck(NetworkCheck):
         else:  # Status is UP
             title = "[Recovered] %s reported that %s is up" % (self.hostname, name)
             alert_type = "success"
-            msg = "%s %s %s reported that %s (%s) recovered" \
+            msg = u"%s %s %s reported that %s (%s) recovered" \
                 % (notify_message, custom_message, self.hostname, name, url)
             event_type = EventType.UP
 
@@ -367,7 +367,7 @@ class HTTPCheck(NetworkCheck):
                 if len(content) > 200:
                     content = content[:197] + '...'
 
-                msg = "%d %s\n\n%s" % (code, reason, content)
+                msg = u"%d %s\n\n%s" % (code, reason, content)
                 msg = msg.rstrip()
 
         self.service_check(sc_name,
