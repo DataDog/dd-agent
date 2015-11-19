@@ -340,7 +340,11 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         path = os.path.dirname(path)
 
         config_path = get_config_path(cfg_path, os_name=get_os())
-        config = ConfigParser.ConfigParser()
+
+        # Take into account interpolation of enviroment variables that begins with "DATADOG_".
+        env_vars = dict((k, v) for k, v in os.environ.iteritems() if k.startswith('DATADOG_'))
+
+        config = ConfigParser.ConfigParser(env_vars)
         config.readfp(skip_leading_wsp(open(config_path)))
 
         # bulk import
