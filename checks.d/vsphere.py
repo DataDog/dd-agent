@@ -577,6 +577,7 @@ class VSphereCheck(AgentCheck):
                         args=(i_key, 'vm', vm, tags_copy, regexes)
                     )
 
+            #datastore is a leaf
             elif obj_type == 'datastore':
                 if regexes and regexes.get('host_include') is not None:
                     match = re.search(regexes['host_include'], obj.name)
@@ -586,7 +587,7 @@ class VSphereCheck(AgentCheck):
                 watched_mor = dict(mor_type='datastore', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:datastore'])
                 self.morlist_raw[i_key].append(watched_mor)
 
-            """
+            #vm is a leaf
             elif obj_type == 'vm':
                 if regexes and regexes.get('vm_include') is not None:
                     match = re.search(regexes['vm_include'], obj.name)
@@ -595,7 +596,7 @@ class VSphereCheck(AgentCheck):
                         return
                 watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:vm'])
                 self.morlist_raw[i_key].append(watched_mor)
-            """
+
         except Exception as e:
             self.log.warning("Unable to cache object {0}:{1} - {2}".format(obj_type, obj.name, e))
 
