@@ -552,6 +552,11 @@ class VSphereCheck(AgentCheck):
                         self._cache_morlist_raw_atomic,
                         args=(i_key, 'host', host, tags_copy, regexes)
                     )
+                for ds in obj.datastore:
+                    self.pool.apply_async(
+                        self._cache_morlist_raw_atomic,
+                        args=(i_key, 'datastore', ds, tags_copy, regexes)
+                    )
 
             elif obj_type == 'host':
                 if regexes and regexes.get('host_include') is not None:
@@ -571,6 +576,15 @@ class VSphereCheck(AgentCheck):
                         self._cache_morlist_raw_atomic,
                         args=(i_key, 'vm', vm, tags_copy, regexes)
                     )
+
+            elif obj_type == 'datastore':
+                if regexes and regexes.get('host_include') is not None:
+                    match = re.search(regexes['host_include'], obj.name)
+                    if not match:
+                        self.log.debug(u"Filtered out VM {0} because of host_include_only_regex".format(obj.name))
+                        return
+                watched_mor = dict(mor_type='datastore', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:datastore'])
+                self.morlist_raw[i_key].append(watched_mor)
 
             """
             elif obj_type == 'vm':
