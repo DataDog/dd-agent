@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # stdlibb
 import time
 
@@ -47,6 +49,12 @@ CONFIG = {
         'timeout': 1,
         'check_certificate_expiration': False,
         'content_match': '(thereisnosuchword|github)'
+    }, {
+        'name': 'cnt_match_unicode',
+        'url': 'http://www.inter-locale.com/whitepaper/learn/learn-to-test.html',
+        'timeout': 1,
+        'check_certificate_expiration': False,
+        'content_match': 'ぶびばぱぴ'
     }
     ]
 }
@@ -181,7 +189,6 @@ class HTTPCheckTest(AgentCheckTest):
 
         # HTTP connection error
         tags = ['url:https://thereisnosuchlink.com', 'instance:conn_error']
-
         self.assertServiceCheckCritical("http.can_connect", tags=tags)
 
         # Wrong HTTP response status code
@@ -199,6 +206,9 @@ class HTTPCheckTest(AgentCheckTest):
         self.assertServiceCheckCritical("http.can_connect", tags=tags)
         self.assertServiceCheckOK("http.can_connect", tags=tags, count=0)
         tags = ['url:https://github.com', 'instance:cnt_match']
+        self.assertServiceCheckOK("http.can_connect", tags=tags)
+        tags = ['url:http://www.inter-locale.com/whitepaper/learn/learn-to-test.html',
+                'instance:cnt_match_unicode']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
 
         self.coverage_report()

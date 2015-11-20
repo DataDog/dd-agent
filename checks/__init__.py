@@ -554,7 +554,7 @@ class AgentCheck(object):
         if hostname is None:
             hostname = self.hostname
         if message is not None:
-            message = str(message)
+            message = unicode(message) # ascii converts to unicode but not viceversa
         self.service_checks.append(
             create_service_check(check_name, status, tags, timestamp,
                                  hostname, check_run_id, message)
@@ -570,7 +570,7 @@ class AgentCheck(object):
         :param value: metadata value
         :type value: string
         """
-        self._instance_metadata.append((meta_name, str(value)))
+        self._instance_metadata.append((meta_name, unicode(value)))
 
     def has_events(self):
         """
