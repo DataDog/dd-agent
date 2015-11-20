@@ -1,11 +1,13 @@
 # stdlib
+from collections import namedtuple
 import time
-import socket
+
 # 3p
 import paramiko
-from collections import namedtuple
+
 # project
 from checks import AgentCheck
+
 
 class CheckSSH(AgentCheck):
 
@@ -20,15 +22,15 @@ class CheckSSH(AgentCheck):
     ]
 
     Config = namedtuple('Config', [
-                'host',
-                'port',
-                'username',
-                'password',
-                'private_key_file',
-                'sftp_check',
-                'add_missing_keys',
-            ]
-            )
+        'host',
+        'port',
+        'username',
+        'password',
+        'private_key_file',
+        'sftp_check',
+        'add_missing_keys',
+    ])
+
     def _load_conf(self, instance):
         params = []
         for option, required, default, expected_type in self.OPTIONS:
@@ -45,9 +47,10 @@ class CheckSSH(AgentCheck):
 
     def check(self, instance):
         conf = self._load_conf(instance)
+        tags = ["instance:{0}-{1}".format(conf.host, conf.port)]
 
         try:
-            private_key = paramiko.RSAKey.from_private_key_file (conf.private_key_file)
+            private_key = paramiko.RSAKey.from_private_key_file(conf.private_key_file)
         except Exception:
             self.warning("Private key could not be found")
             private_key = None
@@ -60,16 +63,20 @@ class CheckSSH(AgentCheck):
         exception_message = None
         #Service Availability to check status of SSH
         try:
-            client.connect(conf.host, port=conf.port, username=conf.username, password=conf.password, pkey=private_key)
-            self.service_check('ssh.can_connect', AgentCheck.OK, message=exception_message)
+            client.connect(conf.host, port=conf.port, username=conf.username,
+                password=conf.password, pkey=private_key)
+            self.service_check('ssh.can_connect', AgentCheck.OK,  tags=tags,
+                message=exception_message)
 
         except Exception as e:
             exception_message = str(e)
             status = AgentCheck.CRITICAL
-            self.service_check('ssh.can_connect', status, message=exception_message)
+            self.service_check('ssh.can_connect', status, tags=tags,
+                message=exception_message)
             if conf.sftp_check:
-                self.service_check('sftp.can_connect', status, message=exception_message)
-            raise Exception (e)
+                self.service_check('sftp.can_connect', status, tags=tags,
+                    message=exception_message)
+            raise
 
         #Service Availability to check status of SFTP
         if conf.sftp_check:
@@ -81,7 +88,7 @@ class CheckSSH(AgentCheck):
                 status = AgentCheck.OK
                 end_time = time.time()
                 time_taken = end_time - start_time
-                self.gauge('sftp.response_time', time_taken)
+                self.gauge('sftp.response_time', time_taken, tags=tags)
 
             except Exception as e:
                 exception_message = str(e)
@@ -90,4 +97,5 @@ class CheckSSH(AgentCheck):
             if exception_message is None:
                 exception_message = "No errors occured"
 
-            self.service_check('sftp.can_connect', status, message=exception_message)
+            self.service_check('sftp.can_connect', status, tags=tags,
+                message=exception_message)

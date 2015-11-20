@@ -31,11 +31,11 @@ class Timeout(Exception):
 
 class BernardCheck(object):
     RE_NAGIOS_PERFDATA = re.compile(r"".join([
-            r"'?(?P<label>[^=']+)'?=",
-            r"(?P<value>[-0-9.]+)",
-            r"(?P<unit>s|us|ms|%|B|KB|MB|GB|TB|c)?",
-            r"(;[^;]*;[^;]*;[^;]*;[^;]*;)?", # warn, crit, min, max
-        ]))
+        r"'?(?P<label>[^=']+)'?=",
+        r"(?P<value>[-0-9.]+)",
+        r"(?P<unit>s|us|ms|%|B|KB|MB|GB|TB|c)?",
+        r"(;[^;]*;[^;]*;[^;]*;[^;]*;)?", # warn, crit, min, max
+    ]))
 
     def __init__(self, check, config, dogstatsd, args=[]):
         self.check = check
@@ -124,12 +124,12 @@ class BernardCheck(object):
 
     def _commit_result(self, status, state, message, execution_date, execution_time):
         self.result_container.append(CheckResult(
-                status=status,
-                state=state,
-                message=message,
-                execution_date=execution_date,
-                execution_time=execution_time
-            ))
+            status=status,
+            state=state,
+            message=message,
+            execution_date=execution_date,
+            execution_time=execution_time
+        ))
 
         if len(self.result_container) > self.container_size:
             del self.result_container[0]

@@ -1,17 +1,18 @@
 # stdlib
-import os
-import sys
-import traceback
-import re
-import time
 from datetime import datetime
-from itertools import groupby # >= python 2.4
+import glob
+from itertools import groupby
+import os
+import re
+import sys
+import time
+import traceback
 
 # project
-import modules
 from checks import LaconicFilter
-from checks.utils import TailFile
+import modules
 from util import windows_friendly_colon_split
+from utils.tailfile import TailFile
 
 if hasattr('some string', 'partition'):
     def partition(s, sep):
@@ -24,45 +25,25 @@ else:
         else:
             return s[0:pos], sep, s[pos + len(sep):]
 
+
 def point_sorter(p):
     # Sort and group by timestamp, metric name, host_name, device_name
     return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None))
 
+
 class EventDefaults(object):
-    EVENT_TYPE   = 'dogstream_event'
+    EVENT_TYPE = 'dogstream_event'
     EVENT_OBJECT = 'dogstream_event:default'
+
 
 class Dogstreams(object):
     @classmethod
     def init(cls, logger, config):
         dogstreams_config = config.get('dogstreams', None)
-        dogstreams = []
         if dogstreams_config:
-            # Expecting dogstreams config value to look like:
-            #   <dogstream value>, <dog stream value>, ...
-            # Where <dogstream value> looks like:
-            #   <log path>
-            # or
-            #   <log path>:<module>:<parser function>
-
-            # Create a Dogstream object for each <dogstream value>
-            for config_item in dogstreams_config.split(','):
-                try:
-                    config_item = config_item.strip()
-                    parts = windows_friendly_colon_split(config_item)
-                    if len(parts) == 1:
-                        dogstreams.append(Dogstream.init(logger, log_path=parts[0]))
-                    elif len(parts) == 2:
-                        logger.warn("Invalid dogstream: %s" % ':'.join(parts))
-                    elif len(parts) >= 3:
-                        dogstreams.append(Dogstream.init(
-                            logger,
-                            log_path=parts[0],
-                            parser_spec=':'.join(parts[1:3]),
-                            parser_args=parts[3:],
-                            config=config))
-                except Exception:
-                    logger.exception("Cannot build dogstream")
+            dogstreams = cls._instantiate_dogstreams(logger, config, dogstreams_config)
+        else:
+            dogstreams = []
 
         logger.info("Dogstream parsers: %s" % repr(dogstreams))
 
@@ -71,6 +52,52 @@ class Dogstreams(object):
     def __init__(self, logger, dogstreams):
         self.logger = logger
         self.dogstreams = dogstreams
+
+    @classmethod
+    def _instantiate_dogstreams(cls, logger, config, dogstreams_config):
+        """
+        Expecting dogstreams config value to look like:
+           <dogstream value>, <dog stream value>, ...
+        Where <dogstream value> looks like:
+           <log path>
+        or
+           <log path>:<module>:<parser function>
+        """
+        dogstreams = []
+        # Create a Dogstream object for each <dogstream value>
+        for config_item in dogstreams_config.split(','):
+            try:
+                config_item = config_item.strip()
+                parts = windows_friendly_colon_split(config_item)
+
+                if len(parts) == 2:
+                    logger.warn("Invalid dogstream: %s" % ':'.join(parts))
+                    continue
+
+                log_path = cls._get_dogstream_log_paths(parts[0]) if len(parts) else []
+                parser_spec = ':'.join(parts[1:3]) if len(parts) >= 3 else None
+                parser_args = parts[3:] if len(parts) >= 3 else None
+
+                for path in log_path:
+                    dogstreams.append(Dogstream.init(
+                        logger,
+                        log_path=path,
+                        parser_spec=parser_spec,
+                        parser_args=parser_args,
+                        config=config))
+            except Exception:
+                logger.exception("Cannot build dogstream")
+
+        return dogstreams
+
+    @classmethod
+    def _get_dogstream_log_paths(cls, path):
+        """
+        Paths may include wildcard *'s and ?'s.
+        """
+        if '*' not in path:
+            return [path]
+        return glob.glob(path)
 
     def check(self, agentConfig, move_end=True):
         if not self.dogstreams:
@@ -158,7 +185,8 @@ class Dogstream(object):
             # read until the end of file
             try:
                 self._gen.next()
-                self.logger.debug("Done dogstream check for file %s, found %s metric points" % (self.log_path, len(self._values)))
+                self.logger.debug("Done dogstream check for file {0}".format(self.log_path))
+                self.logger.debug("Found {0} metric points".format(len(self._values)))
             except StopIteration, e:
                 self.logger.exception(e)
                 self.logger.warn("Can't tail %s file" % self.log_path)
@@ -166,6 +194,7 @@ class Dogstream(object):
             check_output = self._aggregate(self._values)
             if self._events:
                 check_output.update({"dogstreamEvents": self._events})
+                self.logger.debug("Found {0} events".format(len(self._events)))
             return check_output
         else:
             return {}
@@ -310,13 +339,15 @@ class Dogstream(object):
         else:
             return {}
 
+
 # Allow a smooth uninstall of previous version
-class RollupLP: pass
+class RollupLP:
+    pass
 
 
 class DdForwarder(object):
 
-    QUEUE_SIZE  = "queue_size"
+    QUEUE_SIZE = "queue_size"
     QUEUE_COUNT = "queue_count"
 
     RE_QUEUE_STAT = re.compile(r"\[.*\] Queue size: at (.*), (\d+) transaction\(s\), (\d+) KB")
@@ -331,7 +362,7 @@ class DdForwarder(object):
 
     def _add_metric(self, name, value, ts):
 
-        if self.metrics.has_key(name):
+        if name in self.metrics:
             self.metrics[name].append((ts, value))
         else:
             self.metrics[name] = [(ts, value)]
@@ -367,7 +398,7 @@ class DdForwarder(object):
                 self.logger.exception(e)
                 self.logger.warn("Can't tail %s file" % self.log_path)
 
-            return { 'ddforwarder': self.metrics }
+            return {'ddforwarder': self.metrics}
         else:
             self.logger.debug("Can't tail datadog forwarder log file: %s" % self.log_path)
             return {}

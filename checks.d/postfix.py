@@ -3,6 +3,7 @@ import os
 
 # project
 from checks import AgentCheck
+from utils.subprocess_output import get_subprocess_output
 
 class PostfixCheck(AgentCheck):
     """This check provides metrics on the number of messages in a given postfix queue
@@ -55,15 +56,14 @@ class PostfixCheck(AgentCheck):
                 # can dd-agent user run sudo?
                 test_sudo = os.system('setsid sudo -l < /dev/null')
                 if test_sudo == 0:
-                    count = os.popen('sudo find %s -type f | wc -l' % queue_path)
-                    count = count.readlines()[0].strip()
+                    output, _, _ = get_subprocess_output(['sudo', 'find', queue_path, '-type', 'f'], self.log)
+                    count = len(output.splitlines())
                 else:
                     raise Exception('The dd-agent user does not have sudo access')
 
             # emit an individually tagged metric
-            self.gauge('postfix.queue.size', count, tags=tags + ['queue:%s' % queue, 'instance:%s' %  os.path.basename(directory)])
+            self.gauge('postfix.queue.size', count, tags=tags + ['queue:%s' % queue, 'instance:%s' % os.path.basename(directory)])
 
             # these can be retrieved in a single graph statement
             # for example:
             #     sum:postfix.queue.size{instance:postfix-2,queue:incoming,host:hostname.domain.tld}
-

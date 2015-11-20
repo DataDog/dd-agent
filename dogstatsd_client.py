@@ -110,7 +110,7 @@ class DogStatsd(object):
                 self.timing(metric, time() - start, tags=tags, sample_rate=sample_rate)
                 return result
             wrapped.__name__ = func.__name__
-            wrapped.__doc__  = func.__doc__
+            wrapped.__doc__ = func.__doc__
             wrapped.__dict__.update(func.__dict__)
             return wrapped
         return wrapper

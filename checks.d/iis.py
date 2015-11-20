@@ -1,11 +1,12 @@
 '''
 Check the performance counters from IIS
 '''
+# 3rd party
+import wmi
+
 # project
 from checks import AgentCheck
 
-# 3rd party
-import wmi
 
 class IIS(AgentCheck):
     METRICS = [
@@ -43,8 +44,8 @@ class IIS(AgentCheck):
     ]
     SERVICE_CHECK = "iis.site_up"
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.wmi_conns = {}
 
     def _get_wmi_conn(self, host, user, password):
@@ -84,17 +85,23 @@ class IIS(AgentCheck):
                 tags = instance_tags
 
             status = AgentCheck.CRITICAL if iis_site.ServiceUptime == 0 else AgentCheck.OK
-            self.service_check("iis.site_up", status, tags = ['site:%s' % iis_site.Name])
+            self.service_check("iis.site_up", status, tags=['site:%s' % iis_site.Name])
             expected_sites.remove(iis_site.Name)
 
             for metric, mtype, wmi_val in self.METRICS:
                 if not hasattr(iis_site, wmi_val):
-                    if wmi_val == 'TotalBytesTransferred' and hasattr(iis_site, 'TotalBytesTransfered'):
-                        # Windows 2008 sp2 reports it as TotalbytesTransfered instead of TotalBytesTransferred (single r)
+                    if wmi_val == 'TotalBytesTransferred' and hasattr(iis_site,
+                                                                      'TotalBytesTransfered'):
+                        # Windows 2008 sp2 reports it as TotalbytesTransfered
+                        # instead of TotalBytesTransferred (single r)
                         wmi_val = 'TotalBytesTransfered'
+                    elif wmi_val == 'TotalConnectionAttemptsAllInstances' \
+                            and hasattr(iis_site, 'TotalConnectionAttemptsallinstances'):
+                        wmi_val = 'TotalConnectionAttemptsallinstances'
                     else:
-                        self.warning('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
-                            % (metric, wmi_val))
+                        self.warning("Unable to fetch metric %s. Missing %s in "
+                                     "Win32_PerfFormattedData_W3SVC_WebService"
+                                     % (metric, wmi_val))
                         continue
 
                 # Submit the metric value with the correct type
@@ -103,4 +110,5 @@ class IIS(AgentCheck):
                 metric_func(metric, value, tags=tags)
 
         for remaining_site in expected_sites:
-            self.service_check("iis.site_up", AgentCheck.CRITICAL, tags =['site:%s' % remaining_site])
+            self.service_check("iis.site_up", AgentCheck.CRITICAL,
+                               tags=['site:%s' % remaining_site])

@@ -3,7 +3,10 @@ from datetime import datetime
 
 MAX_TITLE_LEN = 100
 
-class ParseError(Exception): pass
+
+class ParseError(Exception):
+    pass
+
 
 def parse_date(date_val, date_format=None):
     if date_format:
@@ -19,6 +22,5 @@ def parse_date(date_val, date_format=None):
                 pass
         else:
             raise ParseError(date_val)
-
 
     return calendar.timegm(dt.timetuple())

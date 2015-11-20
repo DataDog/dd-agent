@@ -1,4 +1,7 @@
 init_config:
 
 instances:
-#  - url: http://127.0.0.1:8098/stats
+  - url: http://127.0.0.1:8098/stats
+    # tags:
+    #  - optional_tag1
+    #  - optional_tag2

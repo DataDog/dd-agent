@@ -1,27 +1,81 @@
 # stdlib
-import socket
-import subprocess
-import sys
+from collections import defaultdict, namedtuple
 import time
 import urlparse
-import urllib2
-import time
+
+# 3p
+import requests
 
 # project
 from checks import AgentCheck
-from checks.utils import add_basic_auth
+from config import _is_affirmative
 from util import headers
 
-# 3rd party
-import simplejson as json
 
-class NodeNotFound(Exception): pass
+class NodeNotFound(Exception):
+    pass
 
-class ElasticSearch(AgentCheck):
+
+ESInstanceConfig = namedtuple(
+    'ESInstanceConfig', [
+        'pshard_stats',
+        'cluster_stats',
+        'password',
+        'service_check_tags',
+        'tags',
+        'timeout',
+        'url',
+        'username',
+    ])
+
+
+class ESCheck(AgentCheck):
     SERVICE_CHECK_CONNECT_NAME = 'elasticsearch.can_connect'
     SERVICE_CHECK_CLUSTER_STATUS = 'elasticsearch.cluster_health'
-    
-    METRICS = { # Metrics that are common to all Elasticsearch versions
+
+    DEFAULT_TIMEOUT = 5
+
+    # Clusterwise metrics, pre aggregated on ES, compatible with all ES versions
+    PRIMARY_SHARD_METRICS = {
+        "elasticsearch.primaries.docs.count": ("gauge", "_all.primaries.docs.count"),
+        "elasticsearch.primaries.docs.deleted": ("gauge", "_all.primaries.docs.deleted"),
+        "elasticsearch.primaries.store.size": ("gauge", "_all.primaries.store.size_in_bytes"),
+        "elasticsearch.primaries.indexing.index.total": ("gauge", "_all.primaries.indexing.index_total"),
+        "elasticsearch.primaries.indexing.index.time": ("gauge", "_all.primaries.indexing.index_time_in_millis", lambda v: float(v)/1000),
+        "elasticsearch.primaries.indexing.index.current": ("gauge", "_all.primaries.indexing.index_current"),
+        "elasticsearch.primaries.indexing.delete.total": ("gauge", "_all.primaries.indexing.delete_total"),
+        "elasticsearch.primaries.indexing.delete.time": ("gauge", "_all.primaries.indexing.delete_time_in_millis", lambda v: float(v)/1000),
+        "elasticsearch.primaries.indexing.delete.current": ("gauge", "_all.primaries.indexing.delete_current"),
+        "elasticsearch.primaries.get.total": ("gauge", "_all.primaries.get.total"),
+        "elasticsearch.primaries.get.time": ("gauge", "_all.primaries.get.time_in_millis", lambda v: float(v)/1000),
+        "elasticsearch.primaries.get.current": ("gauge", "_all.primaries.get.current"),
+        "elasticsearch.primaries.get.exists.total": ("gauge", "_all.primaries.get.exists_total"),
+        "elasticsearch.primaries.get.exists.time": ("gauge", "_all.primaries.get.exists_time_in_millis", lambda v: float(v)/1000),
+        "elasticsearch.primaries.get.missing.total": ("gauge", "_all.primaries.get.missing_total"),
+        "elasticsearch.primaries.get.missing.time": ("gauge", "_all.primaries.get.missing_time_in_millis", lambda v: float(v)/1000),
+        "elasticsearch.primaries.search.query.total": ("gauge", "_all.primaries.search.query_total"),
+        "elasticsearch.primaries.search.query.time": ("gauge", "_all.primaries.search.query_time_in_millis", lambda v: float(v)/1000),
+        "elasticsearch.primaries.search.query.current": ("gauge", "_all.primaries.search.query_current"),
+        "elasticsearch.primaries.search.fetch.total": ("gauge", "_all.primaries.search.fetch_total"),
+        "elasticsearch.primaries.search.fetch.time": ("gauge", "_all.primaries.search.fetch_time_in_millis", lambda v: float(v)/1000),
+        "elasticsearch.primaries.search.fetch.current": ("gauge", "_all.primaries.search.fetch_current")
+    }
+
+    PRIMARY_SHARD_METRICS_POST_1_0 = {
+        "elasticsearch.primaries.merges.current": ("gauge", "_all.primaries.merges.current"),
+        "elasticsearch.primaries.merges.current.docs": ("gauge", "_all.primaries.merges.current_docs"),
+        "elasticsearch.primaries.merges.current.size": ("gauge", "_all.primaries.merges.current_size_in_bytes"),
+        "elasticsearch.primaries.merges.total": ("gauge", "_all.primaries.merges.total"),
+        "elasticsearch.primaries.merges.total.time": ("gauge", "_all.primaries.merges.total_time_in_millis", lambda v: float(v)/1000),
+        "elasticsearch.primaries.merges.total.docs": ("gauge", "_all.primaries.merges.total_docs"),
+        "elasticsearch.primaries.merges.total.size": ("gauge", "_all.primaries.merges.total_size_in_bytes"),
+        "elasticsearch.primaries.refresh.total": ("gauge", "_all.primaries.refresh.total"),
+        "elasticsearch.primaries.refresh.total.time": ("gauge", "_all.primaries.refresh.total_time_in_millis", lambda v: float(v)/1000),
+        "elasticsearch.primaries.flush.total": ("gauge", "_all.primaries.flush.total"),
+        "elasticsearch.primaries.flush.total.time": ("gauge", "_all.primaries.flush.total_time_in_millis", lambda v: float(v)/1000)
+    }
+
+    STATS_METRICS = {  # Metrics that are common to all Elasticsearch versions
         "elasticsearch.docs.count": ("gauge", "indices.docs.count"),
         "elasticsearch.docs.deleted": ("gauge", "indices.docs.deleted"),
         "elasticsearch.store.size": ("gauge", "indices.store.size_in_bytes"),
@@ -98,10 +152,48 @@ class ElasticSearch(AgentCheck):
         "elasticsearch.http.total_opened": ("gauge", "http.total_opened"),
         "jvm.mem.heap_committed": ("gauge", "jvm.mem.heap_committed_in_bytes"),
         "jvm.mem.heap_used": ("gauge", "jvm.mem.heap_used_in_bytes"),
+        "jvm.mem.heap_in_use": ("gauge", "jvm.mem.heap_used_percent"),
+        "jvm.mem.heap_max": ("gauge", "jvm.mem.heap_max_in_bytes"),
         "jvm.mem.non_heap_committed": ("gauge", "jvm.mem.non_heap_committed_in_bytes"),
         "jvm.mem.non_heap_used": ("gauge", "jvm.mem.non_heap_used_in_bytes"),
         "jvm.threads.count": ("gauge", "jvm.threads.count"),
         "jvm.threads.peak_count": ("gauge", "jvm.threads.peak_count"),
+    }
+
+    JVM_METRICS_POST_0_90_10 = {
+        "jvm.gc.collectors.young.count": ("gauge", "jvm.gc.collectors.young.collection_count"),
+        "jvm.gc.collectors.young.collection_time": ("gauge", "jvm.gc.collectors.young.collection_time_in_millis", lambda v: float(v)/1000),
+        "jvm.gc.collectors.old.count": ("gauge", "jvm.gc.collectors.old.collection_count"),
+        "jvm.gc.collectors.old.collection_time": ("gauge", "jvm.gc.collectors.old.collection_time_in_millis", lambda v: float(v)/1000)
+    }
+
+    JVM_METRICS_PRE_0_90_10 = {
+        "jvm.gc.concurrent_mark_sweep.count": ("gauge", "jvm.gc.collectors.ConcurrentMarkSweep.collection_count"),
+        "jvm.gc.concurrent_mark_sweep.collection_time": ("gauge", "jvm.gc.collectors.ConcurrentMarkSweep.collection_time_in_millis", lambda v: float(v)/1000),
+        "jvm.gc.par_new.count": ("gauge", "jvm.gc.collectors.ParNew.collection_count"),
+        "jvm.gc.par_new.collection_time": ("gauge", "jvm.gc.collectors.ParNew.collection_time_in_millis", lambda v: float(v)/1000),
+        "jvm.gc.collection_count": ("gauge", "jvm.gc.collection_count"),
+        "jvm.gc.collection_time": ("gauge", "jvm.gc.collection_time_in_millis", lambda v: float(v)/1000),
+    }
+
+    ADDITIONAL_METRICS_POST_0_90_5 = {
+        "elasticsearch.search.fetch.open_contexts": ("gauge", "indices.search.open_contexts"),
+        "elasticsearch.cache.filter.evictions": ("gauge", "indices.filter_cache.evictions"),
+        "elasticsearch.cache.filter.size": ("gauge", "indices.filter_cache.memory_size_in_bytes"),
+        "elasticsearch.id_cache.size": ("gauge", "indices.id_cache.memory_size_in_bytes"),
+        "elasticsearch.fielddata.size": ("gauge", "indices.fielddata.memory_size_in_bytes"),
+        "elasticsearch.fielddata.evictions": ("gauge", "indices.fielddata.evictions"),
+    }
+
+    ADDITIONAL_METRICS_PRE_0_90_5 = {
+        "elasticsearch.cache.field.evictions": ("gauge", "indices.cache.field_evictions"),
+        "elasticsearch.cache.field.size": ("gauge", "indices.cache.field_size_in_bytes"),
+        "elasticsearch.cache.filter.count": ("gauge", "indices.cache.filter_count"),
+        "elasticsearch.cache.filter.evictions": ("gauge", "indices.cache.filter_evictions"),
+        "elasticsearch.cache.filter.size": ("gauge", "indices.cache.filter_size_in_bytes"),
+    }
+
+    CLUSTER_HEALTH_METRICS = {
         "elasticsearch.number_of_nodes": ("gauge", "number_of_nodes"),
         "elasticsearch.number_of_data_nodes": ("gauge", "number_of_data_nodes"),
         "elasticsearch.active_primary_shards": ("gauge", "active_primary_shards"),
@@ -109,36 +201,39 @@ class ElasticSearch(AgentCheck):
         "elasticsearch.relocating_shards": ("gauge", "relocating_shards"),
         "elasticsearch.initializing_shards": ("gauge", "initializing_shards"),
         "elasticsearch.unassigned_shards": ("gauge", "unassigned_shards"),
-        "elasticsearch.cluster_status": ("gauge", "status", lambda v: {"red":0,"yellow":1,"green":2}.get(v, -1)),
+        "elasticsearch.cluster_status": ("gauge", "status", lambda v: {"red": 0, "yellow": 1, "green": 2}.get(v, -1)),
+    }
+
+    CLUSTER_PENDING_TASKS = {
+        "elasticsearch.pending_tasks_total": ("gauge", "pending_task_total"),
+        "elasticsearch.pending_tasks_priority_high": ("gauge", "pending_tasks_priority_high"),
+        "elasticsearch.pending_tasks_priority_urgent": ("gauge", "pending_tasks_priority_urgent")
     }
 
     SOURCE_TYPE_NAME = 'elasticsearch'
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # Host status needs to persist across all checks
         self.cluster_status = {}
 
-    def check(self, instance):
-        config_url = instance.get('url')
-        added_tags = instance.get('tags')
-        is_external = instance.get('is_external', False)
-        if config_url is None:
-            raise Exception("An url must be specified")
+    def get_instance_config(self, instance):
+        url = instance.get('url')
+        if url is None:
+            raise Exception("An url must be specified in the instance")
 
-        # Load basic authentication configuration, if available.
-        username, password = instance.get('username'), instance.get('password')
-        if username and password:
-            auth = (username, password)
-        else:
-            auth = None
+        pshard_stats = _is_affirmative(instance.get('pshard_stats', False))
+
+        cluster_stats = _is_affirmative(instance.get('cluster_stats', False))
+        if 'is_external' in instance:
+            cluster_stats = _is_affirmative(instance.get('is_external', False))
 
         # Support URLs that have a path in them from the config, for
         # backwards-compatibility.
-        parsed = urlparse.urlparse(config_url)
+        parsed = urlparse.urlparse(url)
         if parsed[2] != "":
-            config_url = "%s://%s" % (parsed[0], parsed[1])
+            url = "%s://%s" % (parsed[0], parsed[1])
         port = parsed.port
         host = parsed.hostname
         service_check_tags = [
@@ -146,203 +241,203 @@ class ElasticSearch(AgentCheck):
             'port:%s' % port
         ]
 
-        # Tag by URL so we can differentiate the metrics from multiple instances
-        tags = ['url:%s' % config_url]
-        if added_tags is not None:
-            for tag in added_tags:
-                tags.append(tag)
+        # Tag by URL so we can differentiate the metrics
+        # from multiple instances
+        tags = ['url:%s' % url]
+        tags.extend(instance.get('tags', []))
 
-        # Check ES version for this instance and define parameters (URLs and metrics) accordingly
-        version = self._get_es_version(config_url, auth)
-        self._define_params(version)
+        timeout = instance.get('timeout') or self.DEFAULT_TIMEOUT
+
+        config = ESInstanceConfig(
+            pshard_stats=pshard_stats,
+            cluster_stats=cluster_stats,
+            password=instance.get('password'),
+            service_check_tags=service_check_tags,
+            tags=tags,
+            timeout=timeout,
+            url=url,
+            username=instance.get('username')
+        )
+        return config
+
+    def check(self, instance):
+        config = self.get_instance_config(instance)
+
+        # Check ES version for this instance and define parameters
+        # (URLs and metrics) accordingly
+        version = self._get_es_version(config)
+
+        health_url, nodes_url, stats_url, pshard_stats_url, pending_tasks_url, stats_metrics, \
+            pshard_stats_metrics = self._define_params(version, config.cluster_stats)
+
+        # Load clusterwise data
+        if config.pshard_stats:
+            pshard_stats_url = urlparse.urljoin(config.url, pshard_stats_url)
+            pshard_stats_data = self._get_data(pshard_stats_url, config)
+            self._process_pshard_stats_data(pshard_stats_data, config, pshard_stats_metrics)
 
         # Load stats data.
-        url = urlparse.urljoin(config_url, self.STATS_URL)
-        stats_data = self._get_data(url, auth, send_service_check=True, service_check_tags=service_check_tags)
-        self._process_stats_data(config_url, stats_data, auth, tags=tags,
-                                 is_external=is_external)
+        stats_url = urlparse.urljoin(config.url, stats_url)
+        stats_data = self._get_data(stats_url, config)
+        self._process_stats_data(nodes_url, stats_data, stats_metrics, config)
 
         # Load the health data.
-        url = urlparse.urljoin(config_url, self.HEALTH_URL)
-        health_data = self._get_data(url, auth, send_service_check=True, service_check_tags=service_check_tags)
-        self._process_health_data(config_url, health_data, tags=tags, service_check_tags=service_check_tags)
-        self.service_check(self.SERVICE_CHECK_CONNECT_NAME, AgentCheck.OK, tags=service_check_tags)
+        health_url = urlparse.urljoin(config.url, health_url)
+        health_data = self._get_data(health_url, config)
+        self._process_health_data(health_data, config)
 
-    def _get_es_version(self, config_url, auth=None):
-        """ Get the running version of Elastic Search.
+        # Load the pending_tasks data.
+        pending_tasks_url = urlparse.urljoin(config.url, pending_tasks_url)
+        pending_tasks_data = self._get_data(pending_tasks_url, config)
+        self._process_pending_tasks_data(pending_tasks_data, config)
+
+        # If we're here we did not have any ES conn issues
+        self.service_check(
+            self.SERVICE_CHECK_CONNECT_NAME,
+            AgentCheck.OK,
+            tags=config.service_check_tags
+        )
+
+    def _get_es_version(self, config):
+        """ Get the running version of elasticsearch.
         """
         try:
-            data = self._get_data(config_url, auth)
+            data = self._get_data(config.url, config, send_sc=False)
             version = map(int, data['version']['number'].split('.')[0:3])
         except Exception, e:
-            self.warning("Error while trying to get Elasticsearch version from %s %s" % (config_url, str(e)))
-            version = [0, 0, 0]
+            self.warning(
+                "Error while trying to get Elasticsearch version "
+                "from %s %s"
+                % (config.url, str(e))
+            )
+            version = [1, 0, 0]
 
+        self.service_metadata('version', version)
         self.log.debug("Elasticsearch version is %s" % version)
         return version
 
-    def _define_params(self, version):
+    def _define_params(self, version, cluster_stats):
         """ Define the set of URLs and METRICS to use depending on the
             running ES version.
         """
-        if version >= [0,90,10]:
+
+        pshard_stats_url = "/_stats"
+
+        if version >= [0, 90, 10]:
             # ES versions 0.90.10 and above
-            self.HEALTH_URL = "/_cluster/health?pretty=true"
-            self.STATS_URL = "/_nodes/stats?all=true"
-            self.NODES_URL = "/_nodes?network=true"
+            health_url = "/_cluster/health?pretty=true"
+            nodes_url = "/_nodes?network=true"
+            pending_tasks_url = "/_cluster/pending_tasks?pretty=true"
 
-            additional_metrics = {
-                "jvm.gc.collectors.young.count": ("gauge", "jvm.gc.collectors.young.collection_count"),
-                "jvm.gc.collectors.young.collection_time": ("gauge", "jvm.gc.collectors.young.collection_time_in_millis", lambda v: float(v)/1000),
-                "jvm.gc.collectors.old.count": ("gauge", "jvm.gc.collectors.old.collection_count"),
-                "jvm.gc.collectors.old.collection_time": ("gauge", "jvm.gc.collectors.old.collection_time_in_millis", lambda v: float(v)/1000)
-            }
+            # For "external" clusters, we want to collect from all nodes.
+            if cluster_stats:
+                stats_url = "/_nodes/stats?all=true"
+            else:
+                stats_url = "/_nodes/_local/stats?all=true"
+
+            additional_metrics = self.JVM_METRICS_POST_0_90_10
         else:
-            self.HEALTH_URL = "/_cluster/health?pretty=true"
-            self.STATS_URL = "/_cluster/nodes/stats?all=true"
-            self.NODES_URL = "/_cluster/nodes?network=true"
+            health_url = "/_cluster/health?pretty=true"
+            nodes_url = "/_cluster/nodes?network=true"
+            pending_tasks_url = None
+            if cluster_stats:
+                stats_url = "/_cluster/nodes/stats?all=true"
+            else:
+                stats_url = "/_cluster/nodes/_local/stats?all=true"
 
-            additional_metrics = {
-                "jvm.gc.concurrent_mark_sweep.count": ("gauge", "jvm.gc.collectors.ConcurrentMarkSweep.collection_count"),
-                "jvm.gc.concurrent_mark_sweep.collection_time": ("gauge", "jvm.gc.collectors.ConcurrentMarkSweep.collection_time_in_millis", lambda v: float(v)/1000),
-                "jvm.gc.par_new.count": ("gauge", "jvm.gc.collectors.ParNew.collection_count"),
-                "jvm.gc.par_new.collection_time": ("gauge", "jvm.gc.collectors.ParNew.collection_time_in_millis", lambda v: float(v)/1000),
-                "jvm.gc.collection_count": ("gauge", "jvm.gc.collection_count"),
-                "jvm.gc.collection_time": ("gauge", "jvm.gc.collection_time_in_millis", lambda v: float(v)/1000),
-            }
+            additional_metrics = self.JVM_METRICS_PRE_0_90_10
 
-        self.METRICS.update(additional_metrics)
+        stats_metrics = dict(self.STATS_METRICS)
+        stats_metrics.update(additional_metrics)
 
-        if version >= [0,90,5]:
+        if version >= [0, 90, 5]:
             # ES versions 0.90.5 and above
-            additional_metrics = {
-                "elasticsearch.search.fetch.open_contexts": ("gauge", "indices.search.open_contexts"),
-                "elasticsearch.cache.filter.evictions": ("gauge", "indices.filter_cache.evictions"),
-                "elasticsearch.cache.filter.size": ("gauge", "indices.filter_cache.memory_size_in_bytes"),
-                "elasticsearch.id_cache.size": ("gauge","indices.id_cache.memory_size_in_bytes"),
-                "elasticsearch.fielddata.size": ("gauge","indices.fielddata.memory_size_in_bytes"),
-                "elasticsearch.fielddata.evictions": ("gauge","indices.fielddata.evictions"),
-            }
+            additional_metrics = self.ADDITIONAL_METRICS_POST_0_90_5
         else:
             # ES version 0.90.4 and below
-            additional_metrics = {
-                "elasticsearch.cache.field.evictions": ("gauge", "indices.cache.field_evictions"),
-                "elasticsearch.cache.field.size": ("gauge", "indices.cache.field_size_in_bytes"),
-                "elasticsearch.cache.filter.count": ("gauge", "indices.cache.filter_count"),
-                "elasticsearch.cache.filter.evictions": ("gauge", "indices.cache.filter_evictions"),
-                "elasticsearch.cache.filter.size": ("gauge", "indices.cache.filter_size_in_bytes"),
-            }
+            additional_metrics = self.ADDITIONAL_METRICS_PRE_0_90_5
 
-        self.METRICS.update(additional_metrics)
+        stats_metrics.update(additional_metrics)
 
-    def _get_data(self, url, auth=None, send_service_check=False, service_check_tags=None):
+        # Version specific stats metrics about the primary shards
+        pshard_stats_metrics = dict(self.PRIMARY_SHARD_METRICS)
+
+        if version >= [1, 0, 0]:
+            additional_metrics = self.PRIMARY_SHARD_METRICS_POST_1_0
+
+        pshard_stats_metrics.update(additional_metrics)
+
+        return health_url, nodes_url, stats_url, pshard_stats_url, pending_tasks_url, \
+            stats_metrics, pshard_stats_metrics
+
+    def _get_data(self, url, config, send_sc=True):
         """ Hit a given URL and return the parsed json
-            `auth` is a tuple of (username, password) or None
         """
-        req = urllib2.Request(url, None, headers(self.agentConfig))
-        if auth:
-            add_basic_auth(req, *auth)
+        # Load basic authentication configuration, if available.
+        if config.username and config.password:
+            auth = (config.username, config.password)
+        else:
+            auth = None
+
         try:
-            request = urllib2.urlopen(req)
-        except urllib2.URLError as e:
-            if send_service_check:
-                self.service_check(self.SERVICE_CHECK_CONNECT_NAME, AgentCheck.CRITICAL,
-                tags=service_check_tags, message=e.reason)
-            raise
+            resp = requests.get(
+                url,
+                timeout=config.timeout,
+                headers=headers(self.agentConfig),
+                auth=auth
+            )
+            resp.raise_for_status()
         except Exception as e:
-            if send_service_check:
-                self.service_check(self.SERVICE_CHECK_CONNECT_NAME, AgentCheck.CRITICAL,
-                tags=service_check_tags, message=str(e))
+            if send_sc:
+                self.service_check(
+                    self.SERVICE_CHECK_CONNECT_NAME,
+                    AgentCheck.CRITICAL,
+                    message="Error {0} when hitting {1}".format(e, url),
+                    tags=config.service_check_tags
+                )
             raise
 
-        response = request.read()
-        return json.loads(response)
+        return resp.json()
 
-    def _process_stats_data(self, config_url, data, auth, tags=None, is_external=False):
+    def _process_pending_tasks_data(self, data, config):
+        p_tasks = defaultdict(int)
+
+        for task in data.get('tasks', []):
+            p_tasks[task.get('priority')] += 1
+
+        node_data = {
+            'pending_task_total':               sum(p_tasks.values()),
+            'pending_tasks_priority_high':      p_tasks['high'],
+            'pending_tasks_priority_urgent':    p_tasks['urgent'],
+        }
+
+        for metric in self.CLUSTER_PENDING_TASKS:
+            # metric description
+            desc = self.CLUSTER_PENDING_TASKS[metric]
+            self._process_metric(node_data, metric, *desc, tags=config.tags)
+
+    def _process_stats_data(self, nodes_url, data, stats_metrics, config):
+        cluster_stats = config.cluster_stats
         for node_name in data['nodes']:
             node_data = data['nodes'][node_name]
             # On newer version of ES it's "host" not "hostname"
-            node_hostname = node_data.get('hostname', node_data.get('host', None))
-            should_process = is_external or self.should_process_node(config_url,
-                                                node_name, node_hostname, auth)
-            if should_process:
-                for metric in self.METRICS:
-                    desc = self.METRICS[metric]
-                    self._process_metric(node_data, metric, *desc, tags=tags)
+            node_hostname = node_data.get(
+                'hostname', node_data.get('host', None))
 
-    def should_process_node(self, config_url, node_name, node_hostname, auth):
-        """ The node stats API will return stats for every node so we
-            want to filter out nodes that we don't care about.
-        """
-        if node_hostname is not None:
-            # For ES >= 0.19
-            hostnames = (
-                self.hostname.decode('utf-8'),
-                socket.gethostname().decode('utf-8'),
-                socket.getfqdn().decode('utf-8')
-            )
-            if node_hostname.decode('utf-8') in hostnames:
-                return True
-        else:
-            # ES < 0.19
-            # Fetch interface address from ifconfig or ip addr and check
-            # against the primary IP from ES
-            try:
-                nodes_url = urlparse.urljoin(config_url, self.NODES_URL)
-                primary_addr = self._get_primary_addr(nodes_url, node_name, auth)
-            except NodeNotFound:
-                # Skip any nodes that aren't found
-                return False
-            if self._host_matches_node(primary_addr):
-                return True
+            # Override the metric hostname if we're hitting an external cluster
+            metric_hostname = node_hostname if cluster_stats else None
 
-    def _get_primary_addr(self, url, node_name, auth):
-        """ Returns a list of primary interface addresses as seen by ES.
-            Used in ES < 0.19
-        """
-        req = urllib2.Request(url, None, headers(self.agentConfig))
-        # Load basic authentication configuration, if available.
-        if auth:
-            add_basic_auth(req, *auth)
-        request = urllib2.urlopen(req)
-        response = request.read()
-        data = json.loads(response)
+            for metric, desc in stats_metrics.iteritems():
+                self._process_metric(
+                    node_data, metric, *desc, tags=config.tags,
+                    hostname=metric_hostname)
 
-        if node_name in data['nodes']:
-            node = data['nodes'][node_name]
-            if 'network' in node\
-            and 'primary_interface' in node['network']\
-            and 'address' in node['network']['primary_interface']:
-                return node['network']['primary_interface']['address']
+    def _process_pshard_stats_data(self, data, config, pshard_stats_metrics):
+        for metric, desc in pshard_stats_metrics.iteritems():
+            self._process_metric(data, metric, *desc, tags=config.tags)
 
-        raise NodeNotFound()
-
-    def _host_matches_node(self, primary_addrs):
-        """ For < 0.19, check if the current host matches the IP given in the
-            cluster nodes check `/_cluster/nodes`. Uses `ip addr` on Linux and
-            `ifconfig` on Mac
-        """
-        if sys.platform == 'darwin':
-            ifaces = subprocess.Popen(['ifconfig'], stdout=subprocess.PIPE)
-        else:
-            ifaces = subprocess.Popen(['ip', 'addr'], stdout=subprocess.PIPE)
-        grepper = subprocess.Popen(['grep', 'inet'], stdin=ifaces.stdout,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        ifaces.stdout.close()
-        out, err = grepper.communicate()
-
-        # Capture the list of interface IPs
-        ips = []
-        for iface in out.split("\n"):
-            iface = iface.strip()
-            if iface:
-                ips.append( iface.split(' ')[1].split('/')[0] )
-
-        # Check the interface addresses against the primary address
-        return primary_addrs in ips
-
-    def _process_metric(self, data, metric, xtype, path, xform=None, tags=None):
+    def _process_metric(self, data, metric, xtype, path, xform=None,
+                        tags=None, hostname=None):
         """data: dictionary containing all the stats
         metric: datadog metric
         path: corresponding path in data, flattened, e.g. thread_pool.bulk.queue
@@ -358,58 +453,61 @@ class ElasticSearch(AgentCheck):
                 break
 
         if value is not None:
-            if xform: value = xform(value)
+            if xform:
+                value = xform(value)
             if xtype == "gauge":
-                self.gauge(metric, value, tags=tags)
+                self.gauge(metric, value, tags=tags, hostname=hostname)
             else:
-                self.rate(metric, value, tags=tags)
+                self.rate(metric, value, tags=tags, hostname=hostname)
         else:
             self._metric_not_found(metric, path)
 
-    def _process_health_data(self, config_url, data, tags=None, service_check_tags=None):
-        if self.cluster_status.get(config_url, None) is None:
-            self.cluster_status[config_url] = data['status']
+    def _process_health_data(self, data, config):
+        if self.cluster_status.get(config.url) is None:
+            self.cluster_status[config.url] = data['status']
             if data['status'] in ["yellow", "red"]:
-                event = self._create_event(data['status'])
+                event = self._create_event(data['status'], tags=config.tags)
                 self.event(event)
 
-        if data['status'] != self.cluster_status.get(config_url):
-            self.cluster_status[config_url] = data['status']
-            event = self._create_event(data['status'])
+        if data['status'] != self.cluster_status.get(config.url):
+            self.cluster_status[config.url] = data['status']
+            event = self._create_event(data['status'], tags=config.tags)
             self.event(event)
 
-        for metric in self.METRICS:
-            # metric description
-            desc = self.METRICS[metric]
-            self._process_metric(data, metric, *desc, tags=tags)
+        for metric, desc in self.CLUSTER_HEALTH_METRICS.iteritems():
+            self._process_metric(data, metric, *desc, tags=config.tags)
 
         # Process the service check
         cluster_status = data['status']
         if cluster_status == 'green':
             status = AgentCheck.OK
-            tag = "OK"
+            data['tag'] = "OK"
         elif cluster_status == 'yellow':
             status = AgentCheck.WARNING
-            tag = "WARN"
+            data['tag'] = "WARN"
         else:
             status = AgentCheck.CRITICAL
-            tag = "ALERT"
-        
-        msg = "{0} on cluster \"{1}\" | active_shards={2} | initializing_shards={3} | relocating_shards={4} | unassigned_shards={5} | timed_out={6}" \
-                    .format(tag, data["cluster_name"],
-                                 data["active_shards"],
-                                 data["initializing_shards"],
-                                 data["relocating_shards"],
-                                 data["unassigned_shards"],
-                                 data["timed_out"])
+            data['tag'] = "ALERT"
 
-        self.service_check(self.SERVICE_CHECK_CLUSTER_STATUS, status, message=msg, tags=service_check_tags)
+        msg = "{tag} on cluster \"{cluster_name}\" "\
+              "| active_shards={active_shards} "\
+              "| initializing_shards={initializing_shards} "\
+              "| relocating_shards={relocating_shards} "\
+              "| unassigned_shards={unassigned_shards} "\
+              "| timed_out={timed_out}" \
+              .format(**data)
 
+        self.service_check(
+            self.SERVICE_CHECK_CLUSTER_STATUS,
+            status,
+            message=msg,
+            tags=config.service_check_tags
+        )
 
     def _metric_not_found(self, metric, path):
         self.log.debug("Metric not found: %s -> %s", path, metric)
 
-    def _create_event(self, status):
+    def _create_event(self, status, tags=None):
         hostname = self.hostname.decode('utf-8')
         if status == "red":
             alert_type = "error"
@@ -426,14 +524,14 @@ class ElasticSearch(AgentCheck):
 
         msg = "ElasticSearch: %s just reported as %s" % (hostname, status)
 
-        return { 'timestamp': int(time.time()),
-                 'event_type': 'elasticsearch',
-                 'host': hostname,
-                 'msg_text':msg,
-                 'msg_title': msg_title,
-                 "alert_type": alert_type,
-                 "source_type_name": "elasticsearch",
-                 "event_object": hostname
-            }
-
-
+        return {
+            'timestamp': int(time.time()),
+            'event_type': 'elasticsearch',
+            'host': hostname,
+            'msg_text': msg,
+            'msg_title': msg_title,
+            'alert_type': alert_type,
+            'source_type_name': "elasticsearch",
+            'event_object': hostname,
+            'tags': tags
+        }

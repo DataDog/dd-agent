@@ -1,7 +1,9 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="5.1.0"
+tag="5.5.2"
+
+PIP_VERSION="6.0.6"
 
 #######################
 # Define some helpers #
@@ -226,17 +228,18 @@ $dl_cmd $dd_base/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap
 $dd_base/venv/bin/python $dd_base/ez_setup.py >> $logfile 2>&1
 $dl_cmd $dd_base/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py >> $logfile 2>&1
 $dd_base/venv/bin/python $dd_base/get-pip.py >> $logfile 2>&1
+$dd_base/venv/bin/pip install pip==$PIP_VERSION >> $logfile 2>&1
 print_done
 
 # install dependencies
 printf "Installing requirements using pip....." | tee -a $logfile
-$dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/source-requirements.txt  >> $logfile 2>&1
+$dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/requirements.txt  >> $logfile 2>&1
 $dd_base/venv/bin/pip install -r $dd_base/requirements.txt >> $logfile 2>&1
 rm $dd_base/requirements.txt
 print_done
 
 printf "Trying to install optional dependencies using pip....." | tee -a $logfile
-$dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/source-optional-requirements.txt  >> $logfile 2>&1
+$dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/requirements-opt.txt  >> $logfile 2>&1
 while read DEPENDENCY
 do
     ($dd_base/venv/bin/pip install $DEPENDENCY || printf "Cannot install $DEPENDENCY. There is probably no Compiler on the system.") >> $logfile 2>&1
@@ -257,6 +260,7 @@ print_done
 printf "Configuring datadog.conf file......" | tee -a $logfile
 if [ $apikey ]; then
     sed "s/api_key:.*/api_key: $apikey/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf 2>> $logfile
+    chmod 640 $dd_base/agent/datadog.conf
 else
   printf "No api key set. Assuming there is already a configuration file present." | tee -a $logfile
 fi
@@ -288,6 +292,7 @@ printf "Setting up supervisor....." | tee -a $logfile
 mkdir -p $dd_base/supervisord/logs >> $logfile 2>&1
 $dd_base/venv/bin/pip install supervisor==3.0b2 >> $logfile 2>&1
 cp $dd_base/agent/packaging/datadog-agent/source/supervisord.conf $dd_base/supervisord/supervisord.conf >> $logfile 2>&1
+mkdir -p $dd_base/run
 print_done
 
 if [ "$unamestr" = "Darwin" ]; then

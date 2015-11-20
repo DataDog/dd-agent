@@ -1,14 +1,14 @@
 #!/opt/datadog-agent/embedded/bin/python
 
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging('bernard')
+from config import initialize_logging
+initialize_logging('bernard')
 
-import os; os.umask(022)
+import os
+os.umask(022)
 
 # Core modules
 import logging
-import os
-import os.path
 import signal
 import sys
 import time
@@ -184,8 +184,13 @@ def main():
         if autorestart:
             # Set-up the supervisor callbacks and fork it.
             logging.info('Running Bernard with auto-restart ON')
-            def child_func(): bernard.run()
-            def parent_func(): bernard.start_event = False
+
+            def child_func():
+                bernard.run()
+
+            def parent_func():
+                bernard.start_event = False
+
             AgentSupervisor.start(parent_func, child_func)
         else:
             # Run in the standard foreground.
@@ -204,4 +209,3 @@ if __name__ == '__main__':
         except Exception:
             pass
         raise
-

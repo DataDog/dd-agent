@@ -3,7 +3,7 @@ import logging
 import os
 import time
 logger = logging.getLogger()
-from scheduler import Scheduler, Notifier
+from scheduler import Scheduler
 from checks.bernard_check import BernardCheck, R, S
 from dogstatsd_client import DogStatsd
 
@@ -163,7 +163,7 @@ class FakeDogstatsd(DogStatsd):
             'value': value,
             'tags': tags,
             'sample_rate': sample_rate,
-            })
+        })
 
     def event(self, title, text, alert_type=None, aggregation_key=None, source_type_name=None, date_happened=None, priority=None, tags=None, hostname=None):
         self.events.append({
@@ -176,7 +176,7 @@ class FakeDogstatsd(DogStatsd):
             'priority': priority,
             'tags': tags,
             'hostname': hostname,
-            })
+        })
 
     def flush(self):
         self.metrics = []

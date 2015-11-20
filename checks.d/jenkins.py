@@ -1,14 +1,14 @@
 # stdlib
+from collections import defaultdict
+from glob import glob
 import os
 import time
-from collections import defaultdict
-from datetime import datetime
-from glob import glob
 from xml.etree.ElementTree import ElementTree
 
 # project
-from util import get_hostname
 from checks import AgentCheck
+from util import get_hostname
+
 
 class Skip(Exception):
     """
@@ -27,7 +27,14 @@ class Jenkins(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.high_watermarks = {}
 
-    def _extract_timestamp(self, dir_name):
+    def _timestamp_from_build_file(self, dir_name, tree):
+        timestamp = tree.find('timestamp')
+        if timestamp is None or not timestamp.text:
+            raise Skip('the timestamp cannot be found', dir_name)
+        else:
+            return int(timestamp.text) / 1000.0
+
+    def _timestamp_from_dirname(self, dir_name):
         if not os.path.isdir(dir_name):
             raise Skip('its not a build directory', dir_name)
 
@@ -37,12 +44,15 @@ class Jenkins(AgentCheck):
             time_tuple = time.strptime(date_str, self.datetime_format)
             return time.mktime(time_tuple)
         except ValueError:
-            raise Exception("Error with build directory name, not a parsable date: %s" % (dir_name))
+            return None
 
-    def _get_build_metadata(self, dir_name):
+    def _get_build_metadata(self, dir_name, watermark):
         if os.path.exists(os.path.join(dir_name, 'jenkins_build.tar.gz')):
             raise Skip('the build has already been archived', dir_name)
-
+        timestamp = self._timestamp_from_dirname(dir_name)
+        # This is not the latest build
+        if timestamp is not None and timestamp <= watermark:
+            return None
         # Read the build.xml metadata file that Jenkins generates
         build_metadata = os.path.join(dir_name, 'build.xml')
 
@@ -52,11 +62,19 @@ class Jenkins(AgentCheck):
         else:
             tree = ElementTree()
             tree.parse(build_metadata)
-
+            if timestamp is None:
+                try:
+                    timestamp = self._timestamp_from_build_file(dir_name, tree)
+                    # This is not the latest build
+                    if timestamp <= watermark:
+                        return None
+                except ValueError:
+                    return None
             keys = ['result', 'number', 'duration']
 
             kv_pairs = ((k, tree.find(k)) for k in keys)
             d = dict([(k, v.text) for k, v in kv_pairs if v is not None])
+            d['timestamp'] = timestamp
 
             try:
                 d['branch'] = tree.find('actions')\
@@ -75,43 +93,41 @@ class Jenkins(AgentCheck):
 
     def _get_build_results(self, instance_key, job_dir):
         job_name = os.path.basename(job_dir)
-
         try:
             dirs = glob(os.path.join(job_dir, 'builds', '*_*'))
+            # Before Jenkins v1.597 the build folders were named with a timestamp (eg: 2015-03-10_19-59-29)
+            # Starting from Jenkins v1.597 they are named after the build ID (1, 2, 3...)
+            # So we need try both format when trying to find the latest build and parsing build.xml
+            if len(dirs) == 0:
+                dirs = glob(os.path.join(job_dir, 'builds', '[0-9]*'))
             if len(dirs) > 0:
-                dirs = sorted(dirs, reverse=True)
+                # versions of Jenkins > 1.597 need to be sorted by build number (integer)
+                try:
+                    dirs = sorted(dirs, key=lambda x: int(x.split('/')[-1]), reverse=True)
+                except ValueError:
+                    dirs = sorted(dirs, reverse=True)
                 # We try to get the last valid build
-                for index in xrange(0, len(dirs) - 1):
-                    dir_name = dirs[index]
+                for dir_name in dirs:
+                    watermark = self.high_watermarks[instance_key][job_name]
                     try:
-                        timestamp = self._extract_timestamp(dir_name)
-                    except Skip:
-                        continue
-
-                    # Check if it's a new build
-                    if timestamp > self.high_watermarks[instance_key][job_name]:
-                        # If we can't get build metadata, we try the previous one
-                        try:
-                            build_metadata = self._get_build_metadata(dir_name)
-                        except Exception:
-                            continue
-
-                        # If the metadata does not include the results, then
-                        # the build is still running so do not process it yet.
-                        build_result = build_metadata.get('result', None)
+                        build_metadata = self._get_build_metadata(dir_name, watermark)
+                    except Exception:
+                        build_metadata = None
+                    if build_metadata is not None:
+                        build_result = build_metadata.get('result')
                         if build_result is None:
                             break
 
                         output = {
                             'job_name':     job_name,
-                            'timestamp':    timestamp,
                             'event_type':   'build result'
                         }
 
                         output.update(build_metadata)
-                        self.high_watermarks[instance_key][job_name] = timestamp
+                        if 'number' not in output:
+                            output['number'] = dir_name.split('/')[-1]
+                        self.high_watermarks[instance_key][job_name] = output.get('timestamp')
                         self.log.debug("Processing %s results '%s'" % (job_name, output))
-
                         yield output
 
                     # If it not a new build, stop here
@@ -131,7 +147,7 @@ class Jenkins(AgentCheck):
             self.high_watermarks[instance.get('name')] = defaultdict(lambda: 0)
             self.check(instance, create_event=False)
 
-        jenkins_home = instance.get('jenkins_home', None)
+        jenkins_home = instance.get('jenkins_home')
 
         if not jenkins_home:
             raise Exception("No jenkins_home directory set in the config file")
@@ -164,4 +180,3 @@ class Jenkins(AgentCheck):
                         self.increment('jenkins.job.success', tags=tags)
                     else:
                         self.increment('jenkins.job.failure', tags=tags)
-

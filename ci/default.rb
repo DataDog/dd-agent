@@ -1,22 +1,78 @@
 require './ci/common'
 
 namespace :ci do
-  namespace :default do
-    task :before_install => ['ci:common:before_install'] do
-      apt_update
+  namespace :default do |flavor|
+    task before_install: ['ci:common:before_install']
+
+    task :coverage do
+      ci_dir = File.dirname(__FILE__)
+      checks_dir = File.join(ci_dir, '..', 'checks.d')
+      tests_checks_dir = File.join(ci_dir, '..', 'tests', 'checks')
+      mock_dir = File.join(tests_checks_dir, 'mock')
+      integration_dir = File.join(tests_checks_dir, 'integration')
+      untested = []
+      mocked = []
+      perfects = []
+      Dir.glob(File.join(checks_dir, '*.py')).each do |check|
+        check_name = /((\w|_)+).py$/.match(check)[1]
+        if File.exist?(File.join(integration_dir, "test_#{check_name}.py"))
+          perfects.push(check_name)
+        elsif File.exist?(File.join(mock_dir, "test_#{check_name}.py"))
+          mocked.push(check_name)
+        else
+          untested.push(check_name)
+        end
+      end
+      total_checks = (untested + mocked + perfects).length
+      unless untested.empty?
+        puts "Untested checks (#{untested.length}/#{total_checks})".red
+        puts '-----------------------'.red
+        untested.each { |check_name| puts check_name.red }
+        puts ''
+      end
+      unless mocked.empty?
+        puts "Mocked tests (#{mocked.length}/#{total_checks})".yellow
+        puts '--------------------'.yellow
+        mocked.each { |check_name| puts check_name.yellow }
+      end
     end
 
-    task :install => ['ci:common:install'] do
-      sh %Q{sudo apt-get install sysstat -qq}
+    task install: ['ci:common:install']
+
+    task before_script: ['ci:common:before_script']
+
+    task lint: ['rubocop'] do
+      sh %(flake8)
     end
 
-    task :before_script => ['ci:common:before_script']
-
-    task :script => ['ci:common:script'] do
-      sh "find . -name '*.py' | xargs --max-procs=0 -n 1 pylint --rcfile=./.pylintrc"
-      Rake::Task['ci:common:run_tests'].invoke('default')
+    task script: ['ci:common:script', :coverage, :lint] do
+      Rake::Task['ci:common:run_tests'].invoke(['default'])
     end
 
-    task :execute => [:before_install, :install, :before_script, :script]
+    task before_cache: ['ci:common:before_cache']
+
+    task cache: ['ci:common:cache']
+
+    task cleanup: ['ci:common:cleanup']
+
+    task :execute do
+      exception = nil
+      begin
+        %w(before_install install before_script
+           script).each do |t|
+          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
+        end
+      rescue => e
+        exception = e
+        puts "Failed task: #{e.class} #{e.message}".red
+      end
+      if ENV['SKIP_CLEANUP']
+        puts 'Skipping cleanup, disposable environments are great'.yellow
+      else
+        puts 'Cleaning up'
+        Rake::Task["#{flavor.scope.path}:cleanup"].invoke
+      end
+      fail exception if exception
+    end
   end
 end

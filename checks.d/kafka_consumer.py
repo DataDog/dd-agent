@@ -1,19 +1,29 @@
 # stdlib
 from collections import defaultdict
-import random
 
-# project
-from checks import AgentCheck
-
-# 3rd party
+# 3p
 from kafka.client import KafkaClient
 from kafka.common import OffsetRequest
 from kazoo.client import KazooClient
 from kazoo.exceptions import NoNodeError
 
+# project
+from checks import AgentCheck
+
+DEFAULT_KAFKA_TIMEOUT = 5
+DEFAULT_ZK_TIMEOUT = 5
+
+
 class KafkaCheck(AgentCheck):
 
     SOURCE_TYPE_NAME = 'kafka'
+
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances=instances)
+        self.zk_timeout = int(
+            init_config.get('zk_timeout', DEFAULT_ZK_TIMEOUT))
+        self.kafka_timeout = int(
+            init_config.get('kafka_timeout', DEFAULT_KAFKA_TIMEOUT))
 
     def check(self, instance):
         consumer_groups = self.read_config(instance, 'consumer_groups',
@@ -26,7 +36,7 @@ class KafkaCheck(AgentCheck):
         zk_path_tmpl = zk_prefix + '/consumers/%s/offsets/%s/%s'
 
         # Connect to Zookeeper
-        zk_conn = KazooClient(zk_connect_str)
+        zk_conn = KazooClient(zk_connect_str, timeout=self.zk_timeout)
         zk_conn.start()
 
         try:
@@ -56,7 +66,7 @@ class KafkaCheck(AgentCheck):
                 self.log.exception('Error cleaning up Zookeeper connection')
 
         # Connect to Kafka
-        kafka_conn = KafkaClient(kafka_host_ports)
+        kafka_conn = KafkaClient(kafka_host_ports, timeout=self.kafka_timeout)
 
         try:
             # Query Kafka for the broker offsets

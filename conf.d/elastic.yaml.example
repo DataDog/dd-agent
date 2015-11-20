@@ -1,22 +1,33 @@
 init_config:
 
 instances:
-    # The URL where elasticsearch accepts HTTP requests. This will be used to
-    # fetch statistics from the nodes and information about the cluster health.
-    #
-    # If you're using basic authentication with a 3rd party library, for example
-    # elasticsearch-http-basic, you will need to specify a value for username
-    # and password for every instance that requires authentication.
-    #
-    # If your cluster is hosted externally (i.e., you're not pointing to localhost)
-    # you will need to set `is_external` to true otherwise the check will compare
-    # the local hostname against hostnames of the Elasticsearch nodes and only
-    # submit metrics if they match.
-    #
-    #-  url: http://localhost:9200
-    #   username: username
-    #   password: password
-    #   is_external: false
-    #   tags:
-    #     - 'tag1:key1'
-    #     - 'tag2:key2'
+  # The URL where elasticsearch accepts HTTP requests. This will be used to
+  # fetch statistics from the nodes and information about the cluster health.
+  #
+  # If you're using basic authentication with a 3rd party library, for example
+  # elasticsearch-http-basic, you will need to specify a value for username
+  # and password for every instance that requires authentication.
+  #
+  # If your cluster is hosted externally (i.e., you're not pointing to localhost)
+  # you will need to set `cluster_stats` to true otherwise the check will only
+  # submit metrics of the local node.
+  # DEPRECATION:
+  # This parameter was also called `is_external` and you can still use it but it
+  # will be removed in version 6.
+  #
+  # If you enable the "pshard_stats" flag, statistics over primary shards
+  # will be collected by the check and sent to the backend with the
+  # 'elasticsearch.primary' prefix. It is particularly useful if you want to
+  # get certain metrics without taking replicas into account. For instance,
+  # 'elasticsearch.primaries.docs.count` will give you the total number of
+  # documents in your indexes WITHOUT counting duplicates due to the existence
+  # of replica shards in your ES cluster
+  #
+  - url: http://localhost:9200
+    # username: username
+    # password: password
+    # cluster_stats: false
+    # pshard_stats: false
+    # tags:
+    #   - 'tag1:key1'
+    #   - 'tag2:key2'

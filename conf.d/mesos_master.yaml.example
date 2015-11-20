@@ -1,0 +1,5 @@
+init_config:
+  default_timeout: 10
+
+instances:
+  - url: "http://localhost:5050"

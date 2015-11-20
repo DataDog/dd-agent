@@ -12,6 +12,7 @@ from collections import defaultdict
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'docker'
 
@@ -64,6 +65,9 @@ NEW_TAGS_MAP = {
 
 DEFAULT_SOCKET_TIMEOUT = 5
 
+class DockerJSONDecodeError(Exception):
+    """ Raised when there is trouble parsing the API response sent by Docker Remote API """
+    pass
 
 class UnixHTTPConnection(httplib.HTTPConnection):
     """Class used in conjuction with UnixSocketHandler to make urllib2
@@ -108,8 +112,8 @@ class UnixSocketHandler(urllib2.AbstractHTTPHandler):
 class Docker(AgentCheck):
     """Collect metrics and events from Docker API and cgroups"""
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # Initialize a HTTP opener with Unix socket support
         socket_timeout = int(init_config.get('socket_timeout', 0)) or DEFAULT_SOCKET_TIMEOUT
@@ -127,17 +131,20 @@ class Docker(AgentCheck):
 
     def check(self, instance):
         # Report image metrics
-        self._count_images(instance)
+        self.warning('Using the "docker" check is deprecated and will be removed'
+        ' in a future version of the agent. Please use the "docker_daemon" one instead')
+        if _is_affirmative(instance.get('collect_images_stats', True)):
+            self._count_images(instance)
 
         # Get the list of containers and the index of their names
         containers, ids_to_names = self._get_and_count_containers(instance)
 
         # Report container metrics from cgroups
-        self._report_containers_metrics(containers, instance)
+        skipped_container_ids = self._report_containers_metrics(containers, instance)
 
         # Send events from Docker API
-        if instance.get('collect_events', True):
-            self._process_events(instance, ids_to_names)
+        if _is_affirmative(instance.get('collect_events', True)):
+            self._process_events(instance, ids_to_names, skipped_container_ids)
 
 
     # Containers
@@ -156,7 +163,7 @@ class Docker(AgentCheck):
 
     def _get_and_count_containers(self, instance):
         tags = instance.get("tags", [])
-        with_size = instance.get('collect_container_size', False)
+        with_size = _is_affirmative(instance.get('collect_container_size', False))
 
         service_check_name = 'docker.service_up'
         try:
@@ -164,9 +171,9 @@ class Docker(AgentCheck):
             all_containers = self._get_containers(instance, get_all=True)
         except (socket.timeout, urllib2.URLError), e:
             self.service_check(service_check_name, AgentCheck.CRITICAL,
-                message="Unable to list Docker containers: {0}".format(e), tags=tags)
+                message="Unable to list Docker containers: {0}".format(e))
             raise Exception("Failed to collect the list of containers. Exception: {0}".format(e))
-        self.service_check(service_check_name, AgentCheck.OK, tags=tags)
+        self.service_check(service_check_name, AgentCheck.OK)
 
         running_containers_ids = set([container['Id'] for container in running_containers])
 
@@ -184,27 +191,49 @@ class Docker(AgentCheck):
         # The index of the names is used to generate and format events
         ids_to_names = {}
         for container in all_containers:
-            ids_to_names[container['Id']] = container['Names'][0].lstrip("/")
+            ids_to_names[container['Id']] = self._get_container_name(container)
 
         return running_containers, ids_to_names
 
-    def _is_container_included(self, instance, tags):
-        def _is_tag_included(tag):
-            for exclude_rule in instance.get("exclude") or []:
-                if re.match(exclude_rule, tag):
-                    for include_rule in instance.get("include") or []:
-                        if re.match(include_rule, tag):
-                            return True
-                    return False
+    def _get_container_name(self, container):
+        # Use either the first container name or the container ID to name the container in our events
+        if container.get('Names', []):
+            return container['Names'][0].lstrip("/")
+        return container['Id'][:11]
+
+    def _prepare_filters(self, instance):
+        # The reasoning is to check exclude first, so we can skip if there is no exclude
+        if not instance.get("exclude"):
+            return False
+
+        # Compile regex
+        instance["exclude_patterns"] = [re.compile(rule) for rule in instance.get("exclude", [])]
+        instance["include_patterns"] = [re.compile(rule) for rule in instance.get("include", [])]
+
+        return True
+
+    def _is_container_excluded(self, instance, tags):
+        if self._tags_match_patterns(tags, instance.get("exclude_patterns")):
+            if self._tags_match_patterns(tags, instance.get("include_patterns")):
+                return False
             return True
-        for tag in tags:
-            if _is_tag_included(tag):
-                return True
+        return False
+
+    def _tags_match_patterns(self, tags, filters):
+        for rule in filters:
+            for tag in tags:
+                if re.match(rule, tag):
+                    return True
         return False
 
     def _report_containers_metrics(self, containers, instance):
-        collect_uncommon_metrics = instance.get("collect_all_metrics", False)
+        skipped_container_ids = []
+        collect_uncommon_metrics = _is_affirmative(instance.get("collect_all_metrics", False))
         tags = instance.get("tags", [])
+
+        # Pre-compile regex to include/exclude containers
+        use_filters = self._prepare_filters(instance)
+
         for container in containers:
             container_tags = list(tags)
             for name in container["Names"]:
@@ -215,7 +244,8 @@ class Docker(AgentCheck):
                     container_tags.append(tag)
 
             # Check if the container is included/excluded via its tags
-            if not self._is_container_included(instance, container_tags):
+            if use_filters and self._is_container_excluded(instance, container_tags):
+                skipped_container_ids.append(container['Id'])
                 continue
 
             for key, (dd_key, metric_type) in DOCKER_METRICS.iteritems():
@@ -228,9 +258,12 @@ class Docker(AgentCheck):
                     for key, (dd_key, metric_type, common_metric) in cgroup['metrics'].iteritems():
                         if key in stats and (common_metric or collect_uncommon_metrics):
                             getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
+        if use_filters:
+            self.log.debug("List of excluded containers: {0}".format(skipped_container_ids))
+
+        return skipped_container_ids
 
     def _make_tag(self, key, value, instance):
-
         tag_name = key.lower()
         if tag_name == "command" and not instance.get("tag_by_command", False):
             return None
@@ -246,19 +279,24 @@ class Docker(AgentCheck):
 
     # Events
 
-    def _process_events(self, instance, ids_to_names):
+    def _process_events(self, instance, ids_to_names, skipped_container_ids):
         try:
             api_events = self._get_events(instance)
-            aggregated_events = self._pre_aggregate_events(api_events)
+            aggregated_events = self._pre_aggregate_events(api_events, skipped_container_ids)
             events = self._format_events(aggregated_events, ids_to_names)
             self._report_events(events)
         except (socket.timeout, urllib2.URLError):
             self.warning('Timeout during socket connection. Events will be missing.')
 
-    def _pre_aggregate_events(self, api_events):
+    def _pre_aggregate_events(self, api_events, skipped_container_ids):
         # Aggregate events, one per image. Put newer events first.
         events = defaultdict(list)
         for event in api_events:
+            # Skip events related to filtered containers
+            if event['id'] in skipped_container_ids:
+                self.log.debug("Excluded event: container {0} status changed to {1}".format(
+                    event['id'], event['status']))
+                continue
             # Known bug: from may be missing
             if 'from' in event:
                 events[event['from']].insert(0, event)
@@ -322,14 +360,21 @@ class Docker(AgentCheck):
     def _get_events(self, instance):
         """Get the list of events """
         now = int(time.time())
-        result = self._get_json("%s/events" % instance["url"], params={
-                "until": now,
-                "since": self._last_event_collection_ts[instance["url"]] or now - 60,
-            }, multi=True)
-        self._last_event_collection_ts[instance["url"]] = now
-        if type(result) == dict:
-            result = [result]
-        return result
+        try:
+            result = self._get_json(
+                "%s/events" % instance["url"],
+                params={
+                    "until": now,
+                    "since": self._last_event_collection_ts[instance["url"]] or now - 60,
+                },
+                multi=True
+            )
+            self._last_event_collection_ts[instance["url"]] = now
+            if type(result) == dict:
+                result = [result]
+            return result
+        except DockerJSONDecodeError:
+            return []
 
     def _get_json(self, uri, params=None, multi=False):
         """Utility method to get and parse JSON streams."""
@@ -346,14 +391,19 @@ class Docker(AgentCheck):
             raise
 
         response = request.read()
+        response = response.replace('\n', '') # Some Docker API versions occassionally send newlines in responses
+        self.log.debug('Docker API response: %s', response)
         if multi and "}{" in response: # docker api sometimes returns juxtaposed json dictionaries
             response = "[{0}]".format(response.replace("}{", "},{"))
 
         if not response:
             return []
 
-        return json.loads(response)
-
+        try:
+            return json.loads(response)
+        except Exception as e:
+            self.log.error('Failed to parse Docker API response: %s', response)
+            raise DockerJSONDecodeError
 
     # Cgroups
 
@@ -380,19 +430,17 @@ class Docker(AgentCheck):
             self._cgroup_filename_pattern = self._find_cgroup_filename_pattern()
 
         return self._cgroup_filename_pattern % (dict(
-                    mountpoint=self._mountpoints[cgroup],
-                    id=container_id,
-                    file=filename,
-                ))
+            mountpoint=self._mountpoints[cgroup],
+            id=container_id,
+            file=filename,
+        ))
 
     def _find_cgroup(self, hierarchy, docker_root):
         """Finds the mount point for a specified cgroup hierarchy. Works with
         old style and new style mounts."""
-        try:
-            fp = open(os.path.join(docker_root, "/proc/mounts"))
+        with open(os.path.join(docker_root, "/proc/mounts"), 'r') as fp:
             mounts = map(lambda x: x.split(), fp.read().splitlines())
-        finally:
-            fp.close()
+
         cgroup_mounts = filter(lambda x: x[2] == "cgroup", mounts)
         if len(cgroup_mounts) == 0:
             raise Exception("Can't find mounted cgroups. If you run the Agent inside a container,"
@@ -400,20 +448,24 @@ class Docker(AgentCheck):
         # Old cgroup style
         if len(cgroup_mounts) == 1:
             return os.path.join(docker_root, cgroup_mounts[0][1])
+
+        candidate = None
         for _, mountpoint, _, opts, _, _ in cgroup_mounts:
             if hierarchy in opts:
-                return os.path.join(docker_root, mountpoint)
+                if mountpoint.startswith("/host/"):
+                    return os.path.join(docker_root, mountpoint)
+                candidate = mountpoint
+        if candidate is not None:
+            return os.path.join(docker_root, candidate)
+        raise Exception("Can't find mounted %s cgroups." % hierarchy)
+
 
     def _parse_cgroup_file(self, stat_file):
         """Parses a cgroup pseudo file for key/values."""
-        fp = None
         self.log.debug("Opening cgroup file: %s" % stat_file)
         try:
-            fp = open(stat_file)
-            return dict(map(lambda x: x.split(), fp.read().splitlines()))
+            with open(stat_file, 'r') as fp:
+                return dict(map(lambda x: x.split(), fp.read().splitlines()))
         except IOError:
             # It is possible that the container got stopped between the API call and now
             self.log.info("Can't open %s. Metrics for this container are skipped." % stat_file)
-        finally:
-            if fp is not None:
-                fp.close()

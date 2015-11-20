@@ -1,16 +1,16 @@
 # stdlib
+import array
+from collections import defaultdict
+import fcntl
+import itertools
 import os
 import struct
-import array
-import itertools
-import fcntl
-from collections import defaultdict
-
-# project
-from checks import AgentCheck
 
 # 3rd party
 import psutil
+
+# project
+from checks import AgentCheck
 
 MIXED = "mixed"
 DATA = "data"
@@ -23,7 +23,7 @@ RAID10 = "raid10"
 DUP = "dup"
 UNKNOWN = "unknown"
 
-FLAGS_MAPPER =defaultdict(lambda:  (SINGLE, UNKNOWN),{
+FLAGS_MAPPER = defaultdict(lambda:  (SINGLE, UNKNOWN),{
     1: (SINGLE, DATA),
     2: (SINGLE, SYSTEM),
     4: (SINGLE, METADATA),
@@ -49,11 +49,13 @@ FLAGS_MAPPER =defaultdict(lambda:  (SINGLE, UNKNOWN),{
 
 BTRFS_IOC_SPACE_INFO = 0xc0109414
 
-TWO_LONGS_STRUCT = struct.Struct("=2Q") # 2 Longs
-THREE_LONGS_STRUCT= struct.Struct("=3Q") # 3 Longs
+TWO_LONGS_STRUCT = struct.Struct("=2Q")  # 2 Longs
+THREE_LONGS_STRUCT = struct.Struct("=3Q")  # 3 Longs
+
 
 def sized_array(count):
     return array.array("B", itertools.repeat(0, count))
+
 
 class FileDescriptor(object):
 
@@ -71,6 +73,7 @@ class FileDescriptor(object):
 
     def open(self, dir):
         return self.fd
+
 
 class BTRFS(AgentCheck):
 
@@ -93,11 +96,10 @@ class BTRFS(AgentCheck):
             # Allocate it
             buffer_size = (TWO_LONGS_STRUCT.size
                         + total_spaces * THREE_LONGS_STRUCT.size)
-            
+
             data = sized_array(buffer_size)
             TWO_LONGS_STRUCT.pack_into(data, 0, total_spaces, 0)
             fcntl.ioctl(fd, BTRFS_IOC_SPACE_INFO, data)
-
 
         _, total_spaces = TWO_LONGS_STRUCT.unpack_from(ret, 0)
         for offset in xrange(TWO_LONGS_STRUCT.size,
@@ -114,8 +116,8 @@ class BTRFS(AgentCheck):
         btrfs_devices = {}
         excluded_devices = instance.get('excluded_devices', [])
         for p in psutil.disk_partitions():
-            if p.fstype == 'btrfs' and p.device not in btrfs_devices\
-             and p.device not in excluded_devices:
+            if (p.fstype == 'btrfs' and p.device not in btrfs_devices
+                    and p.device not in excluded_devices):
                 btrfs_devices[p.device] = p.mountpoint
 
         if len(btrfs_devices) == 0:
@@ -123,14 +125,14 @@ class BTRFS(AgentCheck):
 
         for device, mountpoint in btrfs_devices.iteritems():
             for flags, total_bytes, used_bytes in self.get_usage(mountpoint):
-                replication_type, usage_type  = FLAGS_MAPPER[flags]
+                replication_type, usage_type = FLAGS_MAPPER[flags]
                 tags = [
                     'usage_type:{0}'.format(usage_type),
                     'replication_type:{0}'.format(replication_type),
                 ]
 
                 free = total_bytes - used_bytes
-                usage = float(free) / float(total_bytes)
+                usage = float(used_bytes) / float(total_bytes)
 
                 self.gauge('system.disk.btrfs.total', total_bytes, tags=tags, device_name=device)
                 self.gauge('system.disk.btrfs.used', used_bytes, tags=tags, device_name=device)
