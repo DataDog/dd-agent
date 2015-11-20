@@ -215,15 +215,6 @@ class IO(Check):
             return False
 
 
-class System(Check):
-    def check(self, agentConfig):
-        if Platform.is_linux():
-            with open("/proc/uptime", "r") as f:
-                uptime_seconds = float(f.readline().split()[0])
-            return {"system.uptime": uptime_seconds}
-        return {}
-
-
 class Load(Check):
 
     def check(self, agentConfig):
