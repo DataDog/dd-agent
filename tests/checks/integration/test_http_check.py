@@ -57,19 +57,29 @@ CONFIG_SSL_ONLY = {
         'url': 'https://github.com:443',
         'timeout': 1,
         'check_certificate_expiration': True,
-        'days_warning': 14
+        'days_warning': 14,
+        'days_critical': 7
     }, {
         'name': 'cert_exp_soon',
         'url': 'https://google.com',
         'timeout': 1,
         'check_certificate_expiration': True,
-        'days_warning': 9999
+        'days_warning': 9999,
+        'days_critical': 7
+    }, {
+        'name': 'cert_critical',
+        'url': 'https://google.com',
+        'timeout': 1,
+        'check_certificate_expiration': True,
+        'days_warning': 9999,
+        'days_critical': 9999
     }, {
         'name': 'conn_error',
         'url': 'https://thereisnosuchlink.com',
         'timeout': 1,
         'check_certificate_expiration': True,
-        'days_warning': 14
+        'days_warning': 14,
+        'days_critical': 7
     }
     ]
 }
@@ -80,7 +90,8 @@ CONFIG_EXPIRED_SSL = {
         'url': 'https://github.com',
         'timeout': 1,
         'check_certificate_expiration': True,
-        'days_warning': 14
+        'days_warning': 14,
+        'days_critical': 7
     },
     ]
 }
@@ -91,7 +102,8 @@ CONFIG_UNORMALIZED_INSTANCE_NAME = {
         'url': 'https://github.com',
         'timeout': 1,
         'check_certificate_expiration': True,
-        'days_warning': 14
+        'days_warning': 14,
+        'days_critical': 7
     },
     ]
 }
@@ -202,6 +214,10 @@ class HTTPCheckTest(AgentCheckTest):
         tags = ['url:https://google.com', 'instance:cert_exp_soon']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
         self.assertServiceCheckWarning("http.ssl_cert", tags=tags)
+
+        tags = ['url:https://google.com', 'instance:cert_critical']
+        self.assertServiceCheckOK("http.can_connect", tags=tags)
+        self.assertServiceCheckCritical("http.ssl_cert", tags=tags)
 
         tags = ['url:https://thereisnosuchlink.com', 'instance:conn_error']
         self.assertServiceCheckCritical("http.can_connect", tags=tags)
