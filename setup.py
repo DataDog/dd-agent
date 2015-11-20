@@ -5,6 +5,7 @@ import sys
 
 # 3p
 from setuptools import find_packages, setup
+from requests.certs import where
 
 # project
 from config import get_version
@@ -116,7 +117,8 @@ if sys.platform == 'win32':
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
             ('jmxfetch', [r'checks\libs\%s' % JMX_FETCH_JAR_NAME]),
-            ('gohai', [r'gohai\gohai.exe'])
+            ('gohai', [r'gohai\gohai.exe']),
+            ('', [where()]),  # CA certificates bundled with `requests`
         ],
     }
 
