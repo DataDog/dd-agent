@@ -73,6 +73,7 @@ if sys.platform == 'win32':
         'pysnmp.entity.rfc3413.oneliner.*',
         'pyVim.*',
         'pyVmomi.*',
+        'uptime',
 
         # agent
         'checks.network_checks',
