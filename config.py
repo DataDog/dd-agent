@@ -620,6 +620,26 @@ def set_win32_cert_path():
     log.info("Windows certificate path: %s" % crt_path)
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
+
+def set_win32_requests_ca_bundle_path():
+    """In order to allow `requests` to validate SSL requests with the packaged .exe on Windows,
+    we need to override the default certificate location which is based on the location of the
+    requests or certifi libraries.
+
+    We override the path directly in requests.adapters so that the override works even when the
+    `requests` lib has already been imported
+    """
+    import requests.adapters
+    if hasattr(sys, 'frozen'):
+        # we're frozen - from py2exe
+        prog_path = os.path.dirname(sys.executable)
+        ca_bundle_path = os.path.join(prog_path, 'cacert.pem')
+        requests.adapters.DEFAULT_CA_BUNDLE_PATH = ca_bundle_path
+
+    log.info("Default CA bundle path of the requests library: {0}"
+             .format(requests.adapters.DEFAULT_CA_BUNDLE_PATH))
+
+
 def get_confd_path(osname=None):
     if not osname:
         osname = get_os()
