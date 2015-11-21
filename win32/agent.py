@@ -22,6 +22,7 @@ from config import (
     load_check_directory,
     PathNotFound,
     set_win32_cert_path,
+    set_win32_requests_ca_bundle_path,
 )
 from ddagent import Application
 import dogstatsd
@@ -198,6 +199,7 @@ class DDAgent(multiprocessing.Process):
         from config import initialize_logging
         initialize_logging('windows_collector')
         log.debug("Windows Service - Starting collector")
+        set_win32_requests_ca_bundle_path()
         emitters = self.get_emitters()
         systemStats = get_system_stats()
         self.collector = Collector(self.config, emitters, systemStats, self.hostname)
