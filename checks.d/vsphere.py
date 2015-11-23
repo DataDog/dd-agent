@@ -527,6 +527,12 @@ class VSphereCheck(AgentCheck):
                         self._cache_morlist_raw_atomic,
                         args=(i_key, 'datacenter', datacenter, tags_copy, regexes)
                     )
+                for ds in obj.datastore:
+                    self.log.debug("job_atomic: Adding host datastore")
+                    self.pool.apply_async(
+                        self._cache_morlist_raw_atomic,
+                        args=(i_key, 'datastore', ds, tags_copy, regexes)
+                    )
 
             elif obj_type == 'datacenter':
                 dc_tag = "vsphere_datacenter:%s" % obj.name
