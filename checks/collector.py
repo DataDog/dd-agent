@@ -34,6 +34,9 @@ from utils.jmx import JMXFiles
 from utils.platform import Platform
 from utils.subprocess_output import get_subprocess_output
 
+#3p
+import timeout_decorator
+
 log = logging.getLogger(__name__)
 
 
@@ -422,7 +425,8 @@ class Collector(object):
                 # Save the status of the check.
                 metric_count = len(current_check_metrics)
                 event_count = len(current_check_events)
-
+            except timeout_decorator.TimeoutError:
+                log.exception("Timeout running check %s" % check.name)
             except Exception:
                 log.exception("Error running check %s" % check.name)
 

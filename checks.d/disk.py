@@ -7,6 +7,7 @@ try:
     import psutil
 except ImportError:
     psutil = None
+import timeout_error
 
 # project
 from checks import AgentCheck
@@ -15,6 +16,7 @@ from util import Platform
 from utils.subprocess_output import get_subprocess_output
 
 
+DISK_CHECK_TIMEOUT = 30 # seconds
 class Disk(AgentCheck):
     """ Collects metrics about the machine's disks. """
     # -T for filesystem info
@@ -30,6 +32,7 @@ class Disk(AgentCheck):
         # Get the configuration once for all
         self._load_conf(instances[0])
 
+    @timeout_decorator.timeout(DISK_CHECK_TIMEOUT)
     def check(self, instance):
         """Get disk space/inode stats"""
         # Windows and Mac will always have psutil
