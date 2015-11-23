@@ -539,6 +539,12 @@ class VSphereCheck(AgentCheck):
                         self._cache_morlist_raw_atomic,
                         args=(i_key, 'compute_resource', compute_resource, tags_copy, regexes)
                     )
+                for ds in obj.datastore:
+                    self.log.debug("job_atomic: Adding datacenter datastore")
+                    self.pool.apply_async(
+                        self._cache_morlist_raw_atomic,
+                        args=(i_key, 'datastore', ds, tags_copy, regexes)
+                    )
 
             elif obj_type == 'compute_resource':
                 if obj.__class__ == vim.ClusterComputeResource:
@@ -553,6 +559,7 @@ class VSphereCheck(AgentCheck):
                         args=(i_key, 'host', host, tags_copy, regexes)
                     )
                 for ds in obj.datastore:
+                    self.log.debug("job_atomic: Adding compute resource datastore")
                     self.pool.apply_async(
                         self._cache_morlist_raw_atomic,
                         args=(i_key, 'datastore', ds, tags_copy, regexes)
@@ -576,13 +583,19 @@ class VSphereCheck(AgentCheck):
                         self._cache_morlist_raw_atomic,
                         args=(i_key, 'vm', vm, tags_copy, regexes)
                     )
+                for ds in obj.datastore:
+                    self.log.debug("job_atomic: Adding host datastore")
+                    self.pool.apply_async(
+                        self._cache_morlist_raw_atomic,
+                        args=(i_key, 'datastore', ds, tags_copy, regexes)
+                    )
 
             #datastore is a leaf
             elif obj_type == 'datastore':
                 if regexes and regexes.get('host_include') is not None:
                     match = re.search(regexes['host_include'], obj.name)
                     if not match:
-                        self.log.debug(u"Filtered out VM {0} because of host_include_only_regex".format(obj.name))
+                        self.log.debug(u"Filtered out Datastore {0} because of host_include_only_regex".format(obj.name))
                         return
                 watched_mor = dict(mor_type='datastore', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:datastore'])
                 self.morlist_raw[i_key].append(watched_mor)
