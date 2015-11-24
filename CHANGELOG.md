@@ -2,6 +2,7 @@ Changes
 =======
 
 # 5.6.2 / 11-16-2015
+**Linux, Mac OS and Source Install only**
 
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.6.1...5.6.2
@@ -16,6 +17,8 @@ https://github.com/DataDog/dd-agent/compare/5.6.1...5.6.2
 
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.6.0...5.6.1
+
+Windows Installer: [32-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-5.6.1.msi) | [64-bit](https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-5.6.1.amd64.msi)
 
 ### Changes
 * [BUGFIX] Consul: Add the main tags to service checks. See [#2015][] (Thanks [@mtougeron][])
