@@ -67,7 +67,11 @@ class ActiveMQXML(AgentCheck):
 
     def _process_data(self, data, el_type, tags, max_elements, detailed_elements):
         root = ElementTree.fromstring(data)
-        elements = [e for e in root.findall(el_type) if e.get("name")]
+        # if list provided in config, only send those metrics
+        if detailed_elements:
+            elements = [e for e in root.findall(el_type) if e.get('name') in detailed_elements]
+        else:
+            elements = [e for e in root.findall(el_type) if e.get('name')]
         count = len(elements)
 
         if count > max_elements:
@@ -77,8 +81,6 @@ class ActiveMQXML(AgentCheck):
                              " to list the {0} you want to monitor.".format(el_type,
                                                                             count,
                                                                             max_elements))
-            else:
-                elements = [e for e in elements if e in detailed_elements]
 
         for el in elements[:max_elements]:
             name = el.get("name")
@@ -97,7 +99,12 @@ class ActiveMQXML(AgentCheck):
 
     def _process_subscriber_data(self, data, tags, max_subscribers, detailed_subscribers):
         root = ElementTree.fromstring(data)
-        subscribers = [s for s in root.findall("subscriber") if s.get("clientId")]
+        # if subscribers list provided in config, only send those metrics
+        if detailed_subscribers:
+            subscribers = [s for s in root.findall("subscriber") if s.get("clientId") in detailed_subscribers]
+        else:
+            subscribers = [s for s in root.findall("subscriber") if s.get("clientId")]
+
         count = len(subscribers)
         if count > max_subscribers:
             if not detailed_subscribers:
@@ -105,8 +112,6 @@ class ActiveMQXML(AgentCheck):
                              "Please use the detailed_subscribers parameter "
                              "to list the {0} you want to monitor.".format(count,
                                                                            max_subscribers))
-            else:
-                subscribers = [s for s in subscribers if s in detailed_subscribers]
 
         for subscriber in subscribers[:max_subscribers]:
             clientId = subscriber.get("clientId")

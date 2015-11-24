@@ -19,3 +19,7 @@ instances:
     # ssl_certfile: # Path to the certificate file used to identify the local connection against mongod.
     # ssl_cert_reqs: # Specifies whether a certificate is required from the other side of the connection, and whether it will be validated if provided.
     # ssl_ca_certs: #  Path to the ca_certs file
+    #
+    # The (optional) collect_tcmalloc_metrics parameter will instruct
+    # the check to collect TCMalloc memory allocator metrics (default to False).
+    # collect_tcmalloc_metrics: False

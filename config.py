@@ -1,3 +1,4 @@
+# stdlib
 import ConfigParser
 from cStringIO import StringIO
 import glob
@@ -17,17 +18,17 @@ import sys
 import traceback
 from urlparse import urlparse
 
-# 3rd party
+# 3p
 import yaml
 
 # project
 from util import get_os, yLoader
 from utils.platform import Platform
 from utils.proxy import get_proxy
-from utils.subprocess_output import subprocess
+from utils.subprocess_output import get_subprocess_output
 
 # CONSTANTS
-AGENT_VERSION = "5.6.0"
+AGENT_VERSION = "5.7.0"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
 MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
@@ -571,15 +572,16 @@ def get_system_stats():
     platf = sys.platform
 
     if Platform.is_linux(platf):
-        grep = subprocess.Popen(['grep', 'model name', '/proc/cpuinfo'], stdout=subprocess.PIPE, close_fds=True)
-        wc = subprocess.Popen(['wc', '-l'], stdin=grep.stdout, stdout=subprocess.PIPE, close_fds=True)
-        systemStats['cpuCores'] = int(wc.communicate()[0])
+        output, _, _ = get_subprocess_output(['grep', 'model name', '/proc/cpuinfo'], log)
+        systemStats['cpuCores'] = len(output.splitlines())
 
     if Platform.is_darwin(platf):
-        systemStats['cpuCores'] = int(subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1])
+        output, _, _ = get_subprocess_output(['sysctl', 'hw.ncpu'], log)
+        systemStats['cpuCores'] = int(output.split(': ')[1])
 
     if Platform.is_freebsd(platf):
-        systemStats['cpuCores'] = int(subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1])
+        output, _, _ = get_subprocess_output(['sysctl', 'hw.ncpu'], log)
+        systemStats['cpuCores'] = int(output.split(': ')[1])
 
     if Platform.is_linux(platf):
         systemStats['nixV'] = platform.dist()
@@ -617,6 +619,26 @@ def set_win32_cert_path():
     import tornado.simple_httpclient
     log.info("Windows certificate path: %s" % crt_path)
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
+
+
+def set_win32_requests_ca_bundle_path():
+    """In order to allow `requests` to validate SSL requests with the packaged .exe on Windows,
+    we need to override the default certificate location which is based on the location of the
+    requests or certifi libraries.
+
+    We override the path directly in requests.adapters so that the override works even when the
+    `requests` lib has already been imported
+    """
+    import requests.adapters
+    if hasattr(sys, 'frozen'):
+        # we're frozen - from py2exe
+        prog_path = os.path.dirname(sys.executable)
+        ca_bundle_path = os.path.join(prog_path, 'cacert.pem')
+        requests.adapters.DEFAULT_CA_BUNDLE_PATH = ca_bundle_path
+
+    log.info("Default CA bundle path of the requests library: {0}"
+             .format(requests.adapters.DEFAULT_CA_BUNDLE_PATH))
+
 
 def get_confd_path(osname=None):
     if not osname:

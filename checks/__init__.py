@@ -296,6 +296,12 @@ class AgentCheck(object):
 
     DEFAULT_MIN_COLLECTION_INTERVAL = 0
 
+    _enabled_checks = []
+
+    @classmethod
+    def is_check_enabled(cls, name):
+        return name in cls._enabled_checks
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         """
         Initialize a new check.
@@ -307,6 +313,9 @@ class AgentCheck(object):
         """
         from aggregator import MetricsAggregator
 
+        self._enabled_checks.append(name)
+        self._enabled_checks = list(set(self._enabled_checks))
+
         self.name = name
         self.init_config = init_config or {}
         self.agentConfig = agentConfig
@@ -315,7 +324,6 @@ class AgentCheck(object):
 
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
-
         self.aggregator = MetricsAggregator(
             self.hostname,
             formatter=agent_formatter,
@@ -332,6 +340,7 @@ class AgentCheck(object):
         self.last_collection_time = defaultdict(int)
         self._instance_metadata = []
         self.svc_metadata = []
+        self.historate_dict = {}
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -429,6 +438,67 @@ class AgentCheck(object):
         """
         self.aggregator.histogram(metric, value, tags, hostname, device_name)
 
+    @classmethod
+    def generate_historate_func(cls, excluding_tags):
+        def fct(self, metric, value, tags=None, hostname=None, device_name=None):
+            cls.historate(self, metric, value, excluding_tags,
+                tags=tags, hostname=hostname, device_name=device_name)
+
+        return fct
+
+    @classmethod
+    def generate_histogram_func(cls, excluding_tags):
+        def fct(self, metric, value, tags=None, hostname=None, device_name=None):
+            tags = list(tags) # Use a copy of the list to avoid removing tags from originial
+            for tag in list(tags):
+                for exc_tag in excluding_tags:
+                    if tag.startswith(exc_tag + ":"):
+                        tags.remove(tag)
+
+            cls.histogram(self, metric, value, tags=tags, hostname=hostname,
+                device_name=device_name)
+
+        return fct
+
+    def historate(self, metric, value, excluding_tags, tags=None, hostname=None, device_name=None):
+        """
+        Function to create a histogram metric for "rate" like metrics.
+        Warning this doesn't use the harmonic mean, beware of what it means when using it.
+
+        :param metric: The name of the metric
+        :param value: The value to sample for the histogram
+        :param excluding_tags: A list of tags that will be removed when computing the histogram
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+
+        tags = list(tags) # Use a copy of the list to avoid removing tags from originial
+        context = [metric]
+        if tags is not None:
+            context.append("-".join(sorted(tags)))
+        if hostname is not None:
+            context.append("host:" + hostname)
+        if device_name is not None:
+            context.append("device:" + device_name)
+
+        now = time.time()
+        context = tuple(context)
+
+        if context in self.historate_dict:
+            if tags is not None:
+                for tag in list(tags):
+                    for exc_tag in excluding_tags:
+                        if tag.startswith("{0}:".format(exc_tag)):
+                            tags.remove(tag)
+
+            prev_value, prev_ts = self.historate_dict[context]
+            rate = float(value - prev_value) / float(now - prev_ts)
+            self.aggregator.histogram(metric, rate, tags, hostname, device_name)
+
+        self.historate_dict[context] = (value, now)
+
+
     def set(self, metric, value, tags=None, hostname=None, device_name=None):
         """
         Sample a set value, with optional tags, hostname and device name.
@@ -478,13 +548,13 @@ class AgentCheck(object):
         :param hostname: (optional) str, host that generated the service
                           check. Defaults to the host_name of the agent
         :param check_run_id: (optional) int, id used for logging and tracing
-                             purposes. Don't need to be unique. If not
+                             purposes. Doesn't need to be unique. If not
                              specified, one will be generated.
         """
         if hostname is None:
             hostname = self.hostname
         if message is not None:
-            message = str(message)
+            message = unicode(message) # ascii converts to unicode but not viceversa
         self.service_checks.append(
             create_service_check(check_name, status, tags, timestamp,
                                  hostname, check_run_id, message)
@@ -500,7 +570,7 @@ class AgentCheck(object):
         :param value: metadata value
         :type value: string
         """
-        self._instance_metadata.append((meta_name, str(value)))
+        self._instance_metadata.append((meta_name, unicode(value)))
 
     def has_events(self):
         """
@@ -574,7 +644,10 @@ class AgentCheck(object):
         """ Add a warning message that will be printed in the info page
         :param warning_message: String. Warning message to be displayed
         """
-        self.warnings.append(str(warning_message))
+        warning_message = str(warning_message)
+
+        self.log.warning(warning_message)
+        self.warnings.append(warning_message)
 
     def get_library_info(self):
         if self.library_versions is not None:

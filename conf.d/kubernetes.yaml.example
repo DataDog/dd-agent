@@ -1,0 +1,35 @@
+init_config:
+  #    tags:
+  #      - optional_tag1
+  #      - optional_tag2
+
+instances:
+  # The kubernetes check retrieves metrics from cadvisor running under kubelet.
+  # By default we will assume we're running under docker and will use the address
+  # of the default router to reach the cadvisor api.
+  # 
+  # To override, e.g. in the case of a standalone cadvisor instance, use the following:
+  #
+  # host: localhost
+  # port: 4194 
+  # method: http
+ - port: 4194
+
+  # use_histogram controls whether we send detailed metrics, i.e. one per container. 
+  # When false, we send detailed metrics corresponding to individual containers, tagging by container id
+  # to keep them unique.
+  # When true, we aggregate data based on container image.
+  #
+   use_histogram: True
+  #
+  # Kubelet checks
+  # enable_kubelet_checks: true
+  # kubelet_port: 10255
+  #
+  # We can define a whitelist of patterns that permit publishing raw metrics.
+  # enabled_rates:
+  #   - cpu.*
+  #   - network.*
+  #
+  # enabled_gauges:
+  #   - filesystem.*

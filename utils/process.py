@@ -1,5 +1,6 @@
 # stdlib
 import errno
+import inspect
 import os
 
 # 3p
@@ -9,7 +10,34 @@ except ImportError:
     psutil = None
 
 # project
-from util import Platform
+from utils.platform import Platform
+
+
+def is_my_process(pid):
+    """
+    Check if the pid in the pid given corresponds to a running process
+    and if psutil is available, check if it's process corresponding to
+    the current executable
+    """
+    pid_existence = pid_exists(pid)
+
+    if not psutil or not pid_existence:
+        return pid_existence
+
+    if Platform.is_windows():
+        # We can't check anything else on Windows
+        return True
+    else:
+        try:
+            command = psutil.Process(pid).cmdline() or []
+        except psutil.Error:
+            # If we can't communicate with the process,
+            # it's not an agent one
+            return False
+        # Check that the second arg contains (agent|dogstatsd).py
+        # see http://stackoverflow.com/a/2345265
+        exec_name = os.path.basename(inspect.stack()[-1][1]).lower()
+        return len(command) > 1 and exec_name in command[1].lower()
 
 
 def pid_exists(pid):

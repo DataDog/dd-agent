@@ -201,7 +201,7 @@ class Agent(Daemon):
                     watchdog.reset()
                 if profiled:
                     collector_profiled_runs += 1
-                log.info("Sleeping for {0} seconds".format(self.check_frequency))
+                log.debug("Sleeping for {0} seconds".format(self.check_frequency))
                 time.sleep(self.check_frequency)
 
         # Now clean-up.
