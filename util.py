@@ -347,16 +347,26 @@ class EC2(object):
             pass
 
         try:
+            extra_tags = {}
             iam_role = urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials/").read().strip()
             iam_params = json.loads(urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials/" + unicode(iam_role)).read().strip())
             instance_identity = json.loads(urllib2.urlopen(EC2.INSTANCE_IDENTITY_URL).read().strip())
+
             region = instance_identity['region']
+            extra_tags['region'] = region
+
+            zone = urllib2.urlopen(EC2.METADATA_URL_BASE + "/placement/availability-zone").read().strip()
+            extra_tags['availability-zone'] = zone
+
+            instance_type = urllib2.urlopen(EC2.METADATA_URL_BASE + "/instance-type").read().strip()
+            extra_tags['instance-type'] = instance_type
 
             import boto.ec2
             connection = boto.ec2.connect_to_region(region, aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
             tag_object = connection.get_all_tags({'resource-id': EC2.metadata['instance-id']})
 
             EC2_tags = [u"%s:%s" % (tag.name, tag.value) for tag in tag_object]
+            EC2_tags += [u"%s:%s" % (key, value) for key, value in extra_tags.iteritems()]
 
         except Exception:
             log.exception("Problem retrieving custom EC2 tags")
