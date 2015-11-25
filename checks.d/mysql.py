@@ -127,6 +127,8 @@ OPTIONAL_STATUS_VARS = {
     'Handler_update': ('mysql.performance.handler_update', RATE),
     'Handler_write': ('mysql.performance.handler_write', RATE),
     'Opened_tables': ('mysql.performance.opened_tables', RATE),
+    'Qcache_total_blocks': ('mysql.performance.qcache_total_blocks', GAUGE),
+    'Qcache_free_blocks': ('mysql.performance.qcache_free_blocks', GAUGE),
     'Qcache_free_memory': ('mysql.performance.qcache_free_memory', GAUGE),
     'Qcache_not_cached': ('mysql.performance.qcache_not_cached', RATE),
     'Qcache_queries_in_cache': ('mysql.performance.qcache_queries_in_cache', GAUGE),

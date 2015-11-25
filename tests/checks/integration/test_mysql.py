@@ -160,6 +160,8 @@ class TestMySql(AgentCheckTest):
         'mysql.performance.handler_update',
         'mysql.performance.handler_write',
         'mysql.performance.opened_tables',
+        'mysql.performance.qcache_total_blocks',
+        'mysql.performance.qcache_free_blocks',
         'mysql.performance.qcache_free_memory',
         'mysql.performance.qcache_not_cached',
         'mysql.performance.qcache_queries_in_cache',
