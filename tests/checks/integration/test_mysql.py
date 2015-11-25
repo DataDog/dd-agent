@@ -71,6 +71,10 @@ class TestMySql(AgentCheckTest):
         'mysql.performance.threads_running',
         # 'mysql.innodb.current_row_locks',  MariaDB status
         'mysql.performance.open_tables',
+        'mysql.performance.qcache_free_blocks',
+        'mysql.performance.qcache_free_memory',
+        'mysql.performance.qcache_queries_in_cache',
+        'mysql.performance.qcache_total_blocks',
     ]
 
     COMMON_RATES = [
@@ -90,6 +94,9 @@ class TestMySql(AgentCheckTest):
         'mysql.performance.com_delete_multi',
         'mysql.performance.com_replace_select',
         'mysql.performance.qcache_hits',
+        'mysql.performance.qcache_inserts',
+        'mysql.performance.qcache_lowmem_prunes',
+        'mysql.performance.qcache_not_cached',
         # 'mysql.innodb.mutex_spin_waits',  MariaDB status
         # 'mysql.innodb.mutex_spin_rounds', MariaDB status
         # 'mysql.innodb.mutex_os_waits',  MariaDB status
@@ -99,7 +106,7 @@ class TestMySql(AgentCheckTest):
         'mysql.innodb.row_lock_waits',
         'mysql.innodb.row_lock_time',
     ]
-
+    
     def _test_optional_metrics(self, optional_metrics, at_least):
         """
         Check optional metrics - there should be at least `at_least` matches
