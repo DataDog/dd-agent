@@ -106,7 +106,7 @@ class TestMySql(AgentCheckTest):
         'mysql.innodb.row_lock_waits',
         'mysql.innodb.row_lock_time',
     ]
-    
+
     def _test_optional_metrics(self, optional_metrics, at_least):
         """
         Check optional metrics - there should be at least `at_least` matches
