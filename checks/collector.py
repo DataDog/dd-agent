@@ -361,18 +361,21 @@ class Collector(object):
         if not Platform.is_windows():
             has_resource = False
             for resources_check in self._resources_checks:
-                resources_check.check()
-                snaps = resources_check.pop_snapshots()
-                if snaps:
-                    has_resource = True
-                    res_value = {
-                        'snaps': snaps,
-                        'format_version': resources_check.get_format_version()
-                    }
-                    res_format = resources_check.describe_format_if_needed()
-                    if res_format is not None:
-                        res_value['format_description'] = res_format
-                    payload['resources'][resources_check.RESOURCE_KEY] = res_value
+                try:
+                    resources_check.check()
+                    snaps = resources_check.pop_snapshots()
+                    if snaps:
+                        has_resource = True
+                        res_value = {
+                            'snaps': snaps,
+                            'format_version': resources_check.get_format_version()
+                        }
+                        res_format = resources_check.describe_format_if_needed()
+                        if res_format is not None:
+                            res_value['format_description'] = res_format
+                        payload['resources'][resources_check.RESOURCE_KEY] = res_value
+                except Exception:
+                    log.exception("Error running resource check %s" % resources_check.RESOURCE_KEY)
 
             if has_resource:
                 payload['resources']['meta'] = {
