@@ -1,0 +1,18 @@
+init_config:
+    # This provides the prefix to use when invoking `svstat`.
+    path: "/etc/service"
+
+instances:
+    # The instances here will provide a list of services which this integration
+    # should check with `svstatus`. Note that you'll need to verify that the
+    # dd-agent can execute `svstatus`! You may need to make an entry in your
+    # sudoers file for this:
+    # `dd-agent ALL=(ALL) NOPASSWD: /usr/bin/svstat`
+    # Checks in the form of `daemontools.$SERVICE.is_running` will be created
+    # as well as a `daemontools.service.uptime` gauge with a tag for the
+    # `$SERVICE`.
+    #
+    # - service: "consul"
+    #   tags: ["foo","bar:baz"]
+    # - service: "someotherservice"
+    #   tags: ["foo","bar:baz"]
