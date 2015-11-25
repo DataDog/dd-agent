@@ -31,7 +31,7 @@ BATCH_MORLIST_SIZE = 50
 
 # Time after which we reap the jobs that clog the queue
 # TODO: use it
-JOB_TIMEOUT = 10
+JOB_TIMEOUT = 20
 
 EXCLUDE_FILTERS = {
     'AlarmStatusChangedEvent': [r'Gray'],
@@ -527,12 +527,6 @@ class VSphereCheck(AgentCheck):
                         self._cache_morlist_raw_atomic,
                         args=(i_key, 'datacenter', datacenter, tags_copy, regexes)
                     )
-                for ds in obj.datastore:
-                    self.log.debug("job_atomic: Adding host datastore")
-                    self.pool.apply_async(
-                        self._cache_morlist_raw_atomic,
-                        args=(i_key, 'datastore', ds, tags_copy, regexes)
-                    )
 
             elif obj_type == 'datacenter':
                 dc_tag = "vsphere_datacenter:%s" % obj.name
@@ -544,12 +538,6 @@ class VSphereCheck(AgentCheck):
                     self.pool.apply_async(
                         self._cache_morlist_raw_atomic,
                         args=(i_key, 'compute_resource', compute_resource, tags_copy, regexes)
-                    )
-                for ds in obj.datastore:
-                    self.log.debug("job_atomic: Adding datacenter datastore")
-                    self.pool.apply_async(
-                        self._cache_morlist_raw_atomic,
-                        args=(i_key, 'datastore', ds, tags_copy, regexes)
                     )
 
             elif obj_type == 'compute_resource':
@@ -564,6 +552,10 @@ class VSphereCheck(AgentCheck):
                         self._cache_morlist_raw_atomic,
                         args=(i_key, 'host', host, tags_copy, regexes)
                     )
+
+                # as per:
+                # https://github.com/vmware/pyvmomi/blob/master/docs/vim/ComputeResource.rst
+                # all datastores in thie compute_resource hosts should be considered.
                 for ds in obj.datastore:
                     self.log.debug("job_atomic: Adding compute resource datastore")
                     self.pool.apply_async(
@@ -588,12 +580,6 @@ class VSphereCheck(AgentCheck):
                     self.pool.apply_async(
                         self._cache_morlist_raw_atomic,
                         args=(i_key, 'vm', vm, tags_copy, regexes)
-                    )
-                for ds in obj.datastore:
-                    self.log.debug("job_atomic: Adding host datastore")
-                    self.pool.apply_async(
-                        self._cache_morlist_raw_atomic,
-                        args=(i_key, 'datastore', ds, tags_copy, regexes)
                     )
 
             #datastore is a leaf
@@ -670,8 +656,16 @@ class VSphereCheck(AgentCheck):
             " for MOR {0} (type={1})".format(mor['mor'], mor['mor_type'])
         )
 
+        summary = perfManager.QueryPerfProviderSummary(mor['mor'])
+        # for realtime counters use the refresh rate
+        if hasattr(summary, 'refreshRate') and summary.refreshRate:
+            interval = summary.refreshRate
+        # otherwise the historical stats sampling period
+        else:
+            interval = perfManager.historicalInterval.samplingPeriod
+
         available_metrics = perfManager.QueryAvailablePerfMetric(
-            mor['mor'], intervalId=REAL_TIME_INTERVAL)
+            mor['mor'], intervalId=interval)
 
         mor['metrics'] = self._compute_needed_metrics(instance, available_metrics)
         mor_name = str(mor['mor'])
