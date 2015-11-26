@@ -63,13 +63,14 @@ class Gauge(Metric):
         # This is a known oversight of the protocol
         try:
             if len(str(value)) > 0 and str(value)[0] in ('+'):
-                if self.value is None: self.value = 0
+                if self.value is None:
+                    self.value = 0
                 self.value += float(value)
             else:
                 self.value = float(value)
         except ValueError:
             log.warn("Cannot parse gauge value: %s" % value)
- 
+
         self.last_sample_time = time()
         self.timestamp = timestamp
 

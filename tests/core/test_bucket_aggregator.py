@@ -451,7 +451,7 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         stats.submit_packets('my.gauge.delta:-11|g')
         self.sleep_for_interval_length(ag_interval)
         # == -11 and not -1
-        
+
         metrics = self.sort_metrics(stats.flush())
         nt.assert_equals(len(metrics), 1)
         first = metrics[0]
