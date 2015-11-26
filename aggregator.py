@@ -57,13 +57,16 @@ class Gauge(Metric):
         self.timestamp = time()
 
     def sample(self, value, sample_rate, timestamp=None):
-        # Parse optional leading + or - which means gauge delta
+        # Parse optional leading +which means gauge delta
+        # Note that we deviate from the statsd implementation by allowing negative values
+        # for gauges, rather than treating -N as a negative delta
+        # This is a known oversight of the protocol
         try:
-            if str(value)[0] in ('+', '-'):
+            if len(str(value)) > 0 and str(value)[0] in ('+'):
                 if self.value is None: self.value = 0
-                self.value += int(value)
+                self.value += float(value)
             else:
-                self.value = value
+                self.value = float(value)
         except ValueError:
             log.warn("Cannot parse gauge value: %s" % value)
  

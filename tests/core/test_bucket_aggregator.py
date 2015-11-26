@@ -438,6 +438,7 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         # == 10
 
         # Ensure that gauges roll up correctly.
+        self.sleep_for_interval_length(ag_interval)
         metrics = self.sort_metrics(stats.flush())
         nt.assert_equals(len(metrics), 1)
         first = metrics[0]
@@ -446,16 +447,17 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         nt.assert_equals(first['points'][0][1], 10)
         nt.assert_equals(first['host'], 'myhost')
 
-        self.sleep_for_interval_length(ag_interval)
+        self.wait_for_bucket_boundary(ag_interval)
         stats.submit_packets('my.gauge.delta:-11|g')
-        # == 0
+        self.sleep_for_interval_length(ag_interval)
+        # == -11 and not -1
         
         metrics = self.sort_metrics(stats.flush())
         nt.assert_equals(len(metrics), 1)
         first = metrics[0]
 
         nt.assert_equals(first['metric'], 'my.gauge.delta')
-        nt.assert_equals(first['points'][0][1], -1)
+        nt.assert_equals(first['points'][0][1], -11)
         nt.assert_equals(first['host'], 'myhost')
 
     def test_sets(self):
