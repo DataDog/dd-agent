@@ -143,6 +143,12 @@ class HTTPCheck(NetworkCheck):
 
     def __init__(self, name, init_config, agentConfig, instances):
         self.ca_certs = init_config.get('ca_certs', get_ca_certs_path())
+        self.proxy_host = agentConfig.get('proxy_host','')
+        self.proxy_port = agentConfig.get('proxy_port','')
+        self.proxies = {}
+        if self.proxy_host and self.proxy_port:
+            self.proxies['http'] = "http://{0}:{1}".format(self.proxy_host, self.proxy_port)
+            self.proxies['https'] = "https://{0}:{1}".format(self.proxy_host, self.proxy_port)
         NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
 
     def _load_conf(self, instance):
@@ -195,7 +201,7 @@ class HTTPCheck(NetworkCheck):
                 self.log.debug("Weak Ciphers will be used for {0}. Suppoted Cipherlist: {1}".format(
                     base_addr, WeakCiphersHTTPSConnection.SUPPORTED_CIPHERS))
 
-            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers,
+            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers, proxies = self.proxies,
                              verify=False if disable_ssl_validation else instance_ca_certs)
 
         except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
