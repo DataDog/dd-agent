@@ -727,6 +727,11 @@ class DockerDaemon(AgentCheck):
                 path = os.path.join(proc_path, folder, 'cgroup')
                 with open(path, 'r') as f:
                     content = [line.strip().split(':') for line in f.readlines()]
+            except IOError, e:
+                #  Issue #2074
+                self.log.debug("Cannot read %s, "
+                               "process likely raced to finish : %s" %
+                               (path, str(e)))
             except Exception, e:
                 self.warning("Cannot read %s : %s" % (path, str(e)))
                 continue
