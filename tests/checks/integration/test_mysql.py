@@ -126,7 +126,7 @@ class TestMySql(AgentCheckTest):
                                 tags=self.SC_TAGS, count=1)
 
         # Test metrics
-        for mname in (self.INNODB_METRICS + self.SYSTEM_METRICS + self.REPLICATION_METRICS +
+        for mname in (self.INNODB_METRICS + self.SYSTEM_METRICS + 
                       self.KEY_CACHE + self.COMMON_GAUGES + self.COMMON_RATES):
             self.assertMetric(mname, tags=self.METRIC_TAGS, count=1)
 

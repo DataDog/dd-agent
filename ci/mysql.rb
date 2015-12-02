@@ -62,7 +62,6 @@ namespace :ci do
       sh %(#{mysql_rootdir}/bin/mysql -e "GRANT SELECT ON performance_schema.* TO 'dog'@'localhost';" -uroot --socket=#{mysql_rootdir}/data/mysql.sock)
       # generate some performance metrics....
       sh %(#{mysql_rootdir}/bin/mysql -e "USE testdb; SELECT * FROM users ORDER BY name;" -uroot --socket=#{mysql_rootdir}/data/mysql.sock)
-      sh %(#{mysql_rootdir}/bin/mysql -e "SHOW /*!50000 ENGINE*/ INNODB STATUS;" -uroot --socket=#{mysql_rootdir}/data/mysql.sock)
     end
 
     task script: ['ci:common:script'] do
