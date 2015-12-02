@@ -11,12 +11,13 @@ class TestMySql(AgentCheckTest):
     CHECK_NAME = 'mysql'
 
     METRIC_TAGS = ['tag1', 'tag2']
-    SC_TAGS = ['host:localhost', 'port:0']
+    SC_TAGS = ['host:localhost', 'port:3308']
 
     MYSQL_CONFIG = [{
         'server': 'localhost',
         'user': 'dog',
         'pass': 'dog',
+        'port': 3308,
         'options': {'replication': True},
         'tags': METRIC_TAGS,
         'queries': [
@@ -39,6 +40,7 @@ class TestMySql(AgentCheckTest):
         'server': 'localhost',
         'user': 'unknown',
         'pass': 'dog',
+        'port': 3308,
     }]
 
     # Available by default on MySQL > 5.5
