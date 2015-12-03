@@ -235,13 +235,15 @@ class ProcessCheck(AgentCheck):
         exact_match = _is_affirmative(instance.get('exact_match', True))
         search_string = instance.get('search_string', None)
         ignore_ad = _is_affirmative(instance.get('ignore_denied_access', True))
+        pid = instance.get('pid')
 
-        if not isinstance(search_string, list):
+        if not isinstance(search_string, list) and pid is None:
             raise KeyError('"search_string" parameter should be a list')
 
         # FIXME 6.x remove me
-        if "All" in search_string:
-            self.warning('Deprecated: Having "All" in your search_string will'
+        if pid is None:
+            if "All" in search_string:
+                self.warning('Deprecated: Having "All" in your search_string will'
                          'greatly reduce the performance of the check and '
                          'will be removed in a future version of the agent.')
 
@@ -249,14 +251,18 @@ class ProcessCheck(AgentCheck):
             raise KeyError('The "name" of process groups is mandatory')
 
         if search_string is None:
-            raise KeyError('The "search_string" is mandatory')
+            if pid is not None:
+                pids = [psutil.Process(pid)]
+            else:
+                raise ValueError('The "search_string" or "pid" options are required for process identification')
 
-        pids = self.find_pids(
-            name,
-            search_string,
-            exact_match,
-            ignore_ad=ignore_ad
-        )
+        if pid is None:
+            pids = self.find_pids(
+                name,
+                search_string,
+                exact_match,
+                ignore_ad=ignore_ad
+            )
 
         proc_state = self.get_process_state(name, pids)
 

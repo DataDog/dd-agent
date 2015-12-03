@@ -45,3 +45,7 @@ instances:
 
   - name: nodeserver
     search_string: ['node server.js']
+
+  - name: pid_process
+    pid: 1278 
+    # Do not use search_string when searching by pid or multiple processes will be grabbed
