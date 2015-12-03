@@ -3,10 +3,11 @@ because it requires psutil to function properly
 """
 
 # stdlib
+import contextlib
 import os
 
 # 3p
-from mock import patch
+from mock import patch, MagicMock
 import psutil
 
 # project
@@ -321,3 +322,109 @@ class ProcessCheckTest(AgentCheckTest):
         # Run the check a second time and check that `cpu_pct` is there
         self.run_check(config)
         self.assertMetric('system.processes.cpu.pct', count=1, tags=expected_tags)
+
+    def test_relocated_procfs(self):
+        from utils.platform import Platform
+        import tempfile
+        import shutil
+        import uuid
+
+        already_linux = Platform.is_linux()
+        unique_process_name = str(uuid.uuid4())
+        my_procfs = tempfile.mkdtemp()
+
+        def _fake_procfs(arg, root=my_procfs):
+            for key, val in arg.iteritems():
+                path = os.path.join(root, key)
+                if isinstance(val, dict):
+                    os.mkdir(path)
+                    _fake_procfs(val, path)
+                else:
+                    with open(path, "w") as f:
+                        f.write(str(val))
+        _fake_procfs({
+            '1': {
+                'status': (
+                    "Name:\t%s\n"
+                ) % unique_process_name,
+                'stat': ('1 (%s) S 0 1 1 ' + ' 0' * 46) % unique_process_name,
+                'cmdline': unique_process_name,
+
+            },
+            'stat': (
+                "cpu  13034 0 18596 380856797 2013 2 2962 0 0 0\n"
+                "btime 1448632481\n"
+            ),
+        })
+
+        config = {
+            'init_config': {
+                'procfs_path': my_procfs
+            },
+            'instances': [{
+                'name': 'moved_procfs',
+                'search_string': [unique_process_name],
+                'exact_match': False,
+                'ignored_denied_access': True,
+                'thresholds': {'warning': [1, 10], 'critical': [1, 100]},
+            }]
+        }
+
+        version = int(psutil.__version__.replace(".", ""))
+        try:
+            def import_mock(name, i_globals={}, i_locals={}, fromlist=[], level=-1, orig_import=__import__):
+                # _psutil_linux and _psutil_posix are the C bindings; use a mock for those
+                if name in ('_psutil_linux', '_psutil_posix') or level >= 1 and ('_psutil_linux' in fromlist or '_psutil_posix' in fromlist):
+                    m = MagicMock()
+                    # the import system will ask us for our own name
+                    m._psutil_linux = m
+                    m._psutil_posix = m
+                    # there's a version safety check in psutil/__init__.py; this skips it
+                    m.version = version
+                    return m
+                return orig_import(name, i_globals, i_locals, fromlist, level)
+
+            orig_open = open
+
+            def open_mock(name, *args):
+                from mock import MagicMock
+
+                # Work around issue addressed here: https://github.com/giampaolo/psutil/pull/715
+                # TODO: Remove open_mock if the patch lands
+                # We can't use patch here because 1) we're reloading psutil, and 2) the problem is happening during the import.
+                # NB: The values generated here are mostly ignored, and will correctly be overwritten once we set PROCFS_PATH
+                if name == '/proc/stat':
+                    handle = MagicMock(spec=file)
+                    handle.write.return_value = None
+                    handle.__enter__.return_value = handle
+                    handle.readline.return_value = 'cpu  13002 0 18504 377363817 1986 2 2960 0 0 0'
+                    return handle
+                return orig_open(name, *args)
+
+            # contextlib.nested is deprecated in favor of with MGR1, MGR2, ... etc, but we have too many mocks to fit on one line and apparently \ line
+            # continuation is not flake8 compliant, even when semantically required (as here). Patch is unlikely to throw errors that are suppressed, so
+            # the main downside of contextlib is avoided.
+            with contextlib.nested(patch('sys.platform', 'linux'),
+                                   patch('socket.AF_PACKET', create=True),
+                                   patch('__builtin__.__import__', side_effect=import_mock),
+                                   patch('__builtin__.open', side_effect=open_mock)):
+                if not already_linux:
+                    # Reloading psutil fails on linux, but we only need to do so if we didn't start out on a linux platform
+                    reload(psutil)
+                assert Platform.is_linux()
+
+                self.run_check(config)
+        finally:
+            shutil.rmtree(my_procfs)
+            if not already_linux:
+                # restore the original psutil that doesn't have our mocks
+                reload(psutil)
+            else:
+                psutil.PROCFS_PATH = '/proc'
+
+        expected_tags = self.generate_expected_tags(config['instances'][0])
+        self.assertServiceCheckOK('process.up', count=1, tags=['process:moved_procfs'])
+
+        self.assertMetric('system.processes.number', at_least=1, tags=expected_tags)
+
+        self.coverage_report()

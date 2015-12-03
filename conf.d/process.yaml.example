@@ -3,6 +3,9 @@ init_config:
   # except if it detects a change before. You might want to set it
   # low if you want to alert on process service checks.
   # pid_cache_duration: 120
+  #
+  # used to override the default procfs path, e.g. for docker containers with the outside fs mounted at /host/proc
+  # procfs_path: /proc
 
 instances:
 # The `system.processes.cpu.pct` metric sent by this check is only accurate for processes that live
