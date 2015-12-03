@@ -47,11 +47,13 @@ class SupervisordCheck(AgentCheck):
 
     def check(self, instance):
         server_name = instance.get('name')
+        custom_tags = instance.get('tags')
 
         if not server_name or not server_name.strip():
             raise Exception("Supervisor server name not specified in yaml configuration.")
 
         server_service_check_tags = ['%s:%s' % (SERVER_TAG, server_name)]
+
         supe = self._connect(instance)
         count_by_status = defaultdict(int)
 
@@ -77,7 +79,7 @@ class SupervisordCheck(AgentCheck):
                       ' has the right permissions.' % sock
 
             self.service_check(SERVER_SERVICE_CHECK, AgentCheck.CRITICAL,
-                               tags=server_service_check_tags,
+                               tags=server_service_check_tags.extend(custom_tags),
                                message=msg)
 
             raise Exception(msg)
@@ -90,13 +92,13 @@ class SupervisordCheck(AgentCheck):
                     "%s %s " % (server_name, e.errcode, e.errmsg)
 
             self.service_check(SERVER_SERVICE_CHECK, AgentCheck.CRITICAL,
-                               tags=server_service_check_tags,
+                               tags=server_service_check_tags.extend(custom_tags),
                                message=msg)
             raise Exception(msg)
 
         # If we're here, we were able to connect to the server
         self.service_check(SERVER_SERVICE_CHECK, AgentCheck.OK,
-                           tags=server_service_check_tags)
+                           tags=server_service_check_tags.extend(custom_tags))
 
         # Filter monitored processes on configuration directives
         proc_regex = instance.get('proc_regex', [])
@@ -125,7 +127,7 @@ class SupervisordCheck(AgentCheck):
         # Report service checks and uptime for each process
         for proc in monitored_processes:
             proc_name = proc['name']
-            tags = ['%s:%s' % (SERVER_TAG, server_name),
+            proc_tags = ['%s:%s' % (SERVER_TAG, server_name),
                     '%s:%s' % (PROCESS_TAG, proc_name)]
 
             # Report Service Check
@@ -133,16 +135,16 @@ class SupervisordCheck(AgentCheck):
             msg = self._build_message(proc)
             count_by_status[status] += 1
             self.service_check(PROCESS_SERVICE_CHECK,
-                               status, tags=tags, message=msg)
+                               status, tags=proc_tags.extend(custom_tags), message=msg)
             # Report Uptime
             uptime = self._extract_uptime(proc)
-            self.gauge('supervisord.process.uptime', uptime, tags=tags)
+            self.gauge('supervisord.process.uptime', uptime, tags=proc_tags.extend(custom_tags))
 
         # Report counts by status
         tags = ['%s:%s' % (SERVER_TAG, server_name)]
         for status in PROCESS_STATUS:
             self.gauge('supervisord.process.count', count_by_status[status],
-                       tags=tags + ['status:%s' % PROCESS_STATUS[status]])
+                       tags=tags.extend(custom_tags) + ['status:%s' % PROCESS_STATUS[status]])
 
     @staticmethod
     def _connect(instance):
