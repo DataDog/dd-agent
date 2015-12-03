@@ -11,6 +11,7 @@ end
 
 namespace :ci do
   namespace :mysql do |flavor|
+    @ld_path="#{mysql_rootdir}/ld_deps/"
     task before_install: ['ci:common:before_install']
 
     task install: ['ci:common:install'] do
@@ -27,9 +28,17 @@ namespace :ci do
              https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-#{mysql_version}-#{target}-x86_64.tar.gz)
 
              #https://s3.amazonaws.com/dd-agent-tarball-mirror/#{pg_version}.tar.gz)
-        sh %(mkdir -p #{mysql_rootdir})
+        sh %(mkdir -p #{mysql_rootdir}/ld_deps)
         sh %(tar zxf $VOLATILE_DIR/mysql-#{mysql_version}.tar.gz\
                -C #{mysql_rootdir} --strip-components=1)
+        if target.include? "linux"
+            libaio_url = `apt-cache show libaio1 | grep "Filename:" | cut -f 2 -d " "`
+            sh %(curl -s -L\
+                 -o $VOLATILE_DIR/libaio.deb \
+                 http://archive.ubuntu.com/ubuntu/#{libaio_url})
+            sh %(dpkg-deb -x $VOLATILE_DIR/libaio.deb #{mysql_rootdir}/ld_deps)
+            @ld_path = @ld_path + "lib/x86_64-linux-gnu/"
+        end
       end
     end
 
@@ -38,12 +47,12 @@ namespace :ci do
       # use another port?
       sh %(mkdir -p #{mysql_rootdir}/data)
       sh %(mkdir -p #{mysql_rootdir}/data_replica)
-      sh %(#{mysql_rootdir}/bin/mysqld --no-defaults --initialize-insecure --basedir=#{mysql_rootdir} --datadir=#{mysql_rootdir}/data --log-error=#{mysql_rootdir}/data/mysql.err --socket=#{mysql_rootdir}/data/mysql.sock --pid-file=#{mysql_rootdir}/data/mysqld_safe.pid --performance-schema)
-      sh %(#{mysql_rootdir}/bin/mysqld --no-defaults --initialize-insecure --basedir=#{mysql_rootdir} --datadir=#{mysql_rootdir}/data_replica --log-error=#{mysql_rootdir}/data_replica/mysql.err --socket=#{mysql_rootdir}/data_replica/mysql.sock --pid-file=#{mysql_rootdir}/data_replica/mysqld_safe.pid --performance-schema)
+      sh %(LD_LIBRARY_PATH=#{@ld_path} #{mysql_rootdir}/bin/mysqld --no-defaults --initialize-insecure --basedir=#{mysql_rootdir} --datadir=#{mysql_rootdir}/data --log-error=#{mysql_rootdir}/data/mysql.err --socket=#{mysql_rootdir}/data/mysql.sock --pid-file=#{mysql_rootdir}/data/mysqld_safe.pid --performance-schema)
+      sh %(LD_LIBRARY_PATH=#{@ld_path} #{mysql_rootdir}/bin/mysqld --no-defaults --initialize-insecure --basedir=#{mysql_rootdir} --datadir=#{mysql_rootdir}/data_replica --log-error=#{mysql_rootdir}/data_replica/mysql.err --socket=#{mysql_rootdir}/data_replica/mysql.sock --pid-file=#{mysql_rootdir}/data_replica/mysqld_safe.pid --performance-schema)
       # let the init process complete
       sleep_for 2
-      sh %(#{mysql_rootdir}/bin/mysqld --no-defaults --basedir=#{mysql_rootdir} --datadir=#{mysql_rootdir}/data --plugin-dir=#{mysql_rootdir}/lib/plugin --log-error=#{mysql_rootdir}/data/mysql.err --socket=#{mysql_rootdir}/data/mysql.sock --pid-file=#{mysql_rootdir}/data/mysqld_safe.pid --port=3308 --log-bin=mysql-bin --server-id=1 --performance-schema --daemonize >/dev/null 2>&1)
-      sh %(#{mysql_rootdir}/bin/mysqld --no-defaults --basedir=#{mysql_rootdir} --datadir=#{mysql_rootdir}/data_replica --plugin-dir=#{mysql_rootdir}/lib/plugin --log-error=#{mysql_rootdir}/data_replica/mysql.err --socket=#{mysql_rootdir}/data_replica/mysql.sock --pid-file=#{mysql_rootdir}/data_replica/mysqld_safe.pid --port=3310 --server-id=2 --performance-schema --daemonize >/dev/null 2>&1)
+      sh %(LD_LIBRARY_PATH=#{@ld_path} #{mysql_rootdir}/bin/mysqld --no-defaults --basedir=#{mysql_rootdir} --datadir=#{mysql_rootdir}/data --plugin-dir=#{mysql_rootdir}/lib/plugin --log-error=#{mysql_rootdir}/data/mysql.err --socket=#{mysql_rootdir}/data/mysql.sock --pid-file=#{mysql_rootdir}/data/mysqld_safe.pid --port=3308 --log-bin=mysql-bin --server-id=1 --performance-schema --daemonize >/dev/null 2>&1)
+      sh %(LD_LIBRARY_PATH=#{@ld_path} #{mysql_rootdir}/bin/mysqld --no-defaults --basedir=#{mysql_rootdir} --datadir=#{mysql_rootdir}/data_replica --plugin-dir=#{mysql_rootdir}/lib/plugin --log-error=#{mysql_rootdir}/data_replica/mysql.err --socket=#{mysql_rootdir}/data_replica/mysql.sock --pid-file=#{mysql_rootdir}/data_replica/mysqld_safe.pid --port=3310 --server-id=2 --performance-schema --daemonize >/dev/null 2>&1)
       Wait.for 33_08, 10
       Wait.for 33_10, 10
       # set-up replication
