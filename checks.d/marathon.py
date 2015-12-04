@@ -17,7 +17,7 @@ class Marathon(AgentCheck):
         'backoffFactor',
         'backoffSeconds',
         'cpus',
-        'dist',
+        'disk',
         'instances',
         'mem',
         'taskRateLimit',
