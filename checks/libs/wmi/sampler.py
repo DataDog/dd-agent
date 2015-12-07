@@ -51,6 +51,8 @@ class CaseInsensitiveDict(dict):
 class WMISampler(object):
     """
     WMI Sampler.
+    - inclusive applies to the filters. An inclusive filter will OR filter
+    elements, a non-inclusive will AND the WHERE clause.
     """
     # Shared resources
     _wmi_locators = {}
