@@ -6,7 +6,7 @@ import time
 import unittest
 
 # 3rd
-from mock import Mock
+from mock import Mock, patch
 
 # project
 from tests.checks.common import Fixtures
@@ -159,6 +159,18 @@ class SWbemServices(object):
                 or query == "Select UnknownProperty from Win32_Process WHERE Handle = '4036'":
             results += load_fixture("win32_process")
 
+        if query == ("Select ServiceUptime,TotalBytesSent,TotalBytesReceived,TotalBytesTransferred,CurrentConnections,TotalFilesSent,TotalFilesReceived,"
+                     "TotalConnectionAttemptsAllInstances,TotalGetRequests,TotalPostRequests,TotalHeadRequests,TotalPutRequests,TotalDeleteRequests,"
+                     "TotalOptionsRequests,TotalTraceRequests,TotalNotFoundErrors,TotalLockedErrors,TotalAnonymousUsers,TotalNonAnonymousUsers,TotalCGIRequests,"
+                     "TotalISAPIExtensionRequests from Win32_PerfFormattedData_W3SVC_WebService WHERE Name = 'Failing site' OR Name = 'Default Web Site'"):
+            results += load_fixture("win32_perfformatteddata_w3svc_webservice", ("Name", "Default Web Site"))
+        if query == ("Select Name,State from Win32_Service WHERE Name = 'WSService' OR Name = 'WinHttpAutoProxySvc'"):
+            results += load_fixture("win32_service_up", ("Name", "WinHttpAutoProxySvc"))
+            results += load_fixture("win32_service_down", ("Name", "WSService"))
+        if query == ("Select Message,SourceName,TimeGenerated,Type,User,InsertionStrings,EventCode from Win32_NTLogEvent WHERE ( SourceName = 'MSSQLSERVER' ) "
+                     "AND ( Type = 'Warning' OR Type = 'Error' ) AND TimeGenerated >= '20151224113047.000000-480'"):
+            results += load_fixture("win32_ntlogevent")
+
         return results
 
     ExecQuery.call_count = _exec_query_call_count
@@ -190,6 +202,14 @@ class Dispatch(object):
 
     ConnectServer.call_count = _connect_call_count
 
+def to_time(wmi_ts):
+    "Just return any time struct"
+    return (2015, 12, 24, 11, 30, 47, 0, 0)
+
+def from_time(year=0, month=0, day=0, hours=0, minutes=0,
+            seconds=0, microseconds=0, timezone=0):
+    "Just return any WMI date"
+    return "20151224113047.000000-480"
 
 class TestCommonWMI(unittest.TestCase):
     """
@@ -199,12 +219,14 @@ class TestCommonWMI(unittest.TestCase):
         """
         Mock WMI related Python packages, so it can be tested on any environment.
         """
-        import sys
         global WMISampler
 
-        sys.modules['pywintypes'] = Mock()
-        sys.modules['win32com'] = Mock()
-        sys.modules['win32com.client'] = Mock(Dispatch=Dispatch)
+        self.patcher = patch.dict('sys.modules',{
+            'pywintypes': Mock(),
+            'win32com': Mock(),
+            'win32com.client': Mock(Dispatch=Dispatch),
+        })
+        self.patcher.start()
 
         from checks.libs.wmi import sampler
         WMISampler = partial(sampler.WMISampler, log)
@@ -361,6 +383,54 @@ class TestUnitWMISampler(TestCommonWMI):
 
         self.assertEquals("", format_filter(no_filters))
         self.assertEquals(" WHERE Id = 'SomeId' AND Name = 'SomeName'",
+                          format_filter(filters))
+
+    def test_wql_filtering_inclusive(self):
+        """
+        Format the filters to a comprehensive and inclusive WQL `WHERE` clause.
+        """
+        from checks.libs.wmi import sampler
+        format_filter = sampler.WMISampler._format_filter
+
+        # Check `_format_filter` logic
+        filters = [{'Name': "SomeName"}, {'Id': "SomeId"}]
+        self.assertEquals(" WHERE Id = 'SomeId' OR Name = 'SomeName'",
+                          format_filter(filters, True))
+
+    def test_wql_filtering_list(self):
+        """
+        Format the filters to a comprehensive WQL `WHERE` clause from a property list.
+        """
+        from checks.libs.wmi import sampler
+        format_filter = sampler.WMISampler._format_filter
+
+        # Check `_format_filter` logic
+        filters = [{'Name': ["Foo", "Bar"]}, {'Id': "SomeId"}]
+        self.assertEquals(" WHERE Id = 'SomeId' AND ( Name = 'Bar' OR Name = 'Foo' )",
+                          format_filter(filters))
+
+    def test_wql_filtering_list_op(self):
+        """
+        Format the filters to a comprehensive WQL `WHERE` clause with a propery operator.
+        """
+        from checks.libs.wmi import sampler
+        format_filter = sampler.WMISampler._format_filter
+
+        # Check `_format_filter` logic
+        filters = [{'Name': ["Foo", "Bar"]}, {'Id': ('>=', "SomeId")}]
+        self.assertEquals(" WHERE Id >= 'SomeId' AND ( Name = 'Bar' OR Name = 'Foo' )",
+                          format_filter(filters))
+
+    def test_wql_filtering_list_op_adv(self):
+        """
+        Format the filters to a comprehensive WQL `WHERE` clause w/ mixed list containing regular and operator modified properties.
+        """
+        from checks.libs.wmi import sampler
+        format_filter = sampler.WMISampler._format_filter
+
+        # Check `_format_filter` logic
+        filters = [{'Name': [('LIKE', "Foo%"), "Bar"]}, {'Id': ('>=', "SomeId")}]
+        self.assertEquals(" WHERE Id >= 'SomeId' AND ( Name = 'Bar' OR Name LIKE 'Foo%' )",
                           format_filter(filters))
 
     def test_wmi_query(self):

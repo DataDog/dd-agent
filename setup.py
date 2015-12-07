@@ -52,7 +52,6 @@ if sys.platform == 'win32':
     # Modules to force-include in the exe
     include_modules = [
         # 3p
-        'wmi',
         'win32service',
         'win32serviceutil',
         'win32event',
@@ -80,6 +79,7 @@ if sys.platform == 'win32':
 
         # agent
         'checks.network_checks',
+        'checks.wmi_check',
         'checks.libs.vmware.*',
         'httplib2',
 
