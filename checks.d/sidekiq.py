@@ -25,7 +25,6 @@ class Stats:
     # KEYS[5] = 'dead'
     # KEYS[6] = 'processes'
     # KEYS[7] = 'queues'
-    # KEYS[8] = 'queue:*'
     #
     # Returns an array of results. The array follows the following format:
     # [
@@ -55,46 +54,31 @@ class Stats:
         s = """
         local processed = redis.call("GET", KEYS[1])
         local failed = redis.call("GET", KEYS[2])
-        local scheduled_size = redis.call("GET", KEYS[3])
-        local retry_size = redis.call("GET", KEYS[4])
-        local dead_size = redis.call("GET", KEYS[5])
+        local scheduled_size = redis.call("ZCARD", KEYS[3])
+        local retry_size = redis.call("ZCARD", KEYS[4])
+        local dead_size = redis.call("ZCARD", KEYS[5])
         local processes_size = redis.call("SCARD", KEYS[6])
         local processes = redis.call("SMEMBERS", KEYS[6])
 
         local workers_size = 0
         for i, pkey in ipairs(processes) do
-          workers_size = workers_size + tonumber(redis.call("HGET", pkey, "busy"))
+            nspkey = ARGV[1] == "None" and pkey or (ARGV[1] .. ":" .. pkey)
+            workers_size = workers_size + tonumber(redis.call("HGET", nspkey, "busy"))
         end
 
         local queues = redis.call("SMEMBERS", KEYS[7])
-        local all_queues = redis.call("KEYS", KEYS[8])
-        local all_queue_lengths = {}
-        local all_queue_latencies = {}
-        for i, qkey in ipairs(all_queues) do
-            all_queue_lengths[qkey] = tonumber(redis.call("LLEN", qkey))
-            local last = redis.call("LRANGE", qkey, -1, -1)[0]
-            if not last == nil then
-                all_queue_latencies[qkey] = tonumber(cjson.decode(last)["enqueued_at"])
-            else
-                all_queue_latencies[qkey] = 0.0
-            end
-        end
-
         local queue_lengths = {}
         local queue_latencies = {}
-        for i, qname in ipairs(queues) do
-            queue_lengths[qname] = 0
-            queue_latencies[qname] = 0
+        for i, qkey in ipairs(queues) do
+            local nsqkey = "queue:" .. qkey
+            nsqkey = ARGV[1] == "None" and nsqkey or (ARGV[1] .. ":" .. nsqkey)
 
-            local pattern1 = "queue:" .. qname .. "$"
-            local pattern2 = "queue:" .. qname .. "_.+"
-            for j, sqname in ipairs(all_queues) do
-                if not (string.match(sqname, pattern1) == nil and string.match(sqname, pattern2) == nil) then
-                    queue_lengths[qname] = queue_lengths[qname] + all_queue_lengths[sqname]
-                    if all_queue_latencies[sqname] > queue_latencies[qname] then
-                      queue_latencies[qname] = all_queue_latencies[sqname]
-                    end
-                end
+            queue_lengths[qkey] = redis.call("LLEN", nsqkey)
+            local last = redis.call("LRANGE", nsqkey, -1, -1)[0]
+            if not last == nil then
+                queue_latencies[qkey] = tonumber(cjson.decode(last)["enqueued_at"])
+            else
+                queue_latencies[qkey] = 0.0
             end
         end
 
@@ -119,8 +103,10 @@ class Stats:
                             self.key('retry'),
                             self.key('dead'),
                             self.key('processes'),
-                            self.key('queues'),
-                            self.key('queue:*')])
+                            self.key('queues')],
+                            args=[
+                                self.namespace,
+                            ])
 
     def _check_stats(self):
         res = self._run_script()

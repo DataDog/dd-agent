@@ -72,36 +72,10 @@ class TestSidkiq(AgentCheckTest):
 
         # Assert queue latency metrics exist
         m = self._metric(metrics, 'sidekiq.queue.latency', 'queue:foo')
-        assert m, "No sidekiq.queue.latecy metric returned for queue:foo"
+        assert m, "No sidekiq.queue.latency metric returned for queue:foo"
 
         m = self._metric(metrics, 'sidekiq.queue.latency', 'queue:bar')
-        assert m, "No sidekiq.queue.latecy metric returned for queue:bar"
-
-    def test_reliable_queueing(self):
-        instance = {
-            'host': 'localhost',
-            'port': NOAUTH_PORT,
-            'db': TEST_DB
-        }
-
-        db = redis.Redis(port=NOAUTH_PORT, db=TEST_DB)
-        db.flushdb()
-        self._reset_sidekiq(db)
-        db.set('stat:processed', '123')
-        db.set('stat:failed', '456')
-        db.sadd("queues", "reliable")
-        db.lpush("queue:reliable", self._job())
-        db.lpush("queue:reliable_host1", self._job())
-        db.lpush("queue:reliable_host2", self._job(), self._job())
-
-        r = load_check('sidekiq', {}, {})
-        r.check(instance)
-        metrics = self._sort_metrics(r.get_metrics())
-        assert metrics, "No metrics returned"
-
-        m = self._metric(metrics, 'sidekiq.queue.length', 'queue:reliable')
-        self.assertEquals(1, len(m))
-        self.assertEquals(4, m[0][2]) # Sum of queues for foo (1 + 1 + 2)
+        assert m, "No sidekiq.queue.latency metric returned for queue:bar"
 
     def test_sidekiq_namespace(self):
         instance = {
