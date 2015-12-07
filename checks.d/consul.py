@@ -187,6 +187,7 @@ class ConsulCheck(AgentCheck):
                                               self.init_config.get('catalog_checks'))
 
         try:
+            # Make service checks from health checks for all services in catalog
             health_state = self.consul_request(instance, '/v1/health/state/any')
 
             for check in health_state:
@@ -198,7 +199,7 @@ class ConsulCheck(AgentCheck):
                 if check["ServiceName"]:
                     tags.append("service:{0}".format(check["ServiceName"]))
                 if check["ServiceID"]:
-                    tags.append("service-id:{0}".format(check["ServiceID"]))
+                    tags.append("consul_service_id:{0}".format(check["ServiceID"]))
 
                 self.service_check(self.HEALTH_CHECK, status, tags=main_tags+tags)
 
@@ -210,38 +211,61 @@ class ConsulCheck(AgentCheck):
                                tags=service_check_tags)
 
         if perform_catalog_checks:
-            services = self.get_services_in_cluster(instance)
-            nodes_to_services = defaultdict(list)
+            # Collect node by service, and service by node counts for a whitelist of services
 
+            services = self.get_services_in_cluster(instance)
             service_whitelist = instance.get('service_whitelist',
                                              self.init_config.get('service_whitelist', []))
 
             services = self._cull_services_list(services, service_whitelist)
+
+            # {node_id: {"up: 0, "passing": 0, "warning": 0, "critical": 0}
+            nodes_to_service_status = defaultdict(lambda: defaultdict(int))
+
             for service in services:
-                node_tags = ['consul_service_id:{0}'.format(service)]
+                # For every service in the cluster,
+                # Gauge the following:
+                # `consul.catalog.nodes_up` : # of Nodes registered with that service
+                # `consul.catalog.nodes_passing` : # of Nodes with service status `passing` from those registered
+                # `consul.catalog.nodes_warning` : # of Nodes with service status `warning` from those registered
+                # `consul.catalog.nodes_critical` : # of Nodes with service status `critical` from those registered
+
+                service_tags = ['consul_service_id:{0}'.format(service)]
 
                 nodes_with_service = self.get_nodes_with_service(instance, service)
-                node_status = {'passing': 0, 'warning': 0, 'critical': 0}
-                nodes_up = []
-                for node in nodes_with_service:
-                    # If there is no Check for the node then Consul considers it up
-                    if 'Checks' not in node:
-                        nodes_up.append(node)
-                        node_status['passing'] += 1
-                    else:
-                        # For backwards compatibility, the consul.catalog.nodes_up count needs to be
-                        # based on the total # of nodes 'running' at part of the service.
-                        # If the serfHealth is critical it means the agent isn't even responding
-                        for check in node['Checks']:
-                            if check['CheckID'] == 'serfHealth' and check['Status'] != 'critical':
-                                nodes_up.append(node)
-                                break
 
-                        # Now loop the Checks again to get the count of the actual health of each
-                        # node in the service.
+                # {'up': 0, 'passing': 0, 'warning': 0, 'critical': 0}
+                node_status = defaultdict(int)
+
+                for node in nodes_with_service:
+                    # The node_id is n['Node']['Node']
+                    node_id = node.get('Node', {}).get("Node")
+
+                    # An additional service is registered on this node. Bump up the counter
+                    nodes_to_service_status[node_id]["up"] += 1
+
+                    # If there is no Check for the node then Consul and dd-agent consider it up
+                    if 'Checks' not in node:
+                        node_status['passing'] += 1
+                        node_status['up'] += 1
+                    else:
                         found_critical = False
                         found_warning = False
+                        found_serf_health = False
+
                         for check in node['Checks']:
+                            if check['CheckID'] == 'serfHealth':
+                                found_serf_health = True
+
+                                # For backwards compatibility, the "up" node_status is computed
+                                # based on the total # of nodes 'running' as part of the service.
+
+                                # If the serfHealth is `critical` it means the Consul agent isn't even responding,
+                                # and we don't register the node as `up`
+                                if check['Status'] != 'critical':
+                                    node_status["up"] += 1
+                                    continue
+
                             if check['Status'] == 'critical':
                                 found_critical = True
                                 break
@@ -249,39 +273,45 @@ class ConsulCheck(AgentCheck):
                                 found_warning = True
                                 # Keep looping in case there is a critical status
 
-                        # Now increment the counter based on what was found in Checks
+                        # Increment the counters based on what was found in Checks
+                        # `critical` checks override `warning`s, and if neither are found, register the node as `passing`
                         if found_critical:
                             node_status['critical'] += 1
+                            nodes_to_service_status[node_id]["critical"] += 1
                         elif found_warning:
                             node_status['warning'] += 1
+                            nodes_to_service_status[node_id]["warning"] += 1
                         else:
+                            if not found_serf_health:
+                                # We have not found a serfHealth check for this node, which is unexpected
+                                # If we get here assume this node's status is "up", since we register it as 'passing'
+                                node_status['up'] += 1
+
                             node_status['passing'] += 1
+                            nodes_to_service_status[node_id]["passing"] += 1
 
-                self.gauge('{0}.nodes_up'.format(self.CONSUL_CATALOG_CHECK),
-                           len(nodes_up),
-                           tags=main_tags+node_tags)
+                for status_key, status_value in node_status.items():
+                    self.gauge(
+                        '{0}.nodes_{1}'.format(self.CONSUL_CATALOG_CHECK, status_key),
+                        status_value,
+                        tags=main_tags+service_tags
+                    )
 
-                for status_key in ['passing', 'warning', 'critical']:
-                    self.gauge('{0}.nodes_{1}'.format(self.CONSUL_CATALOG_CHECK, status_key),
-                               node_status[status_key],
-                               tags=main_tags+node_tags)
+            for node, service_status in nodes_to_service_status.iteritems():
+                # For every node discovered for whitelisted services, gauge the following:
+                # `consul.catalog.services_up` : Total services registered on node
+                # `consul.catalog.services_passing` : Total passing services on node
+                # `consul.catalog.services_warning` : Total warning services on node
+                # `consul.catalog.services_critical` : Total critical services on node
 
-                for n in nodes_up:
-                    node = n.get('Node') or None
-
-                    if not node:
-                        continue
-
-                    # The node_id is n['Node']['Node']
-                    node_id = node.get('Node') or None
-
-                    if not node_id:
-                        continue
-
-                    nodes_to_services[node_id].append(service)
-
-            for node, services in nodes_to_services.iteritems():
-                tags = ['consul_node_id:{0}'.format(node)]
+                node_tags = ['consul_node_id:{0}'.format(node)]
                 self.gauge('{0}.services_up'.format(self.CONSUL_CATALOG_CHECK),
                            len(services),
-                           tags=main_tags+tags)
+                           tags=main_tags+node_tags)
+
+                for status_key, status_value in service_status.items():
+                    self.gauge(
+                        '{0}.services_{1}'.format(self.CONSUL_CATALOG_CHECK, status_key),
+                        status_value,
+                        tags=main_tags+node_tags
+                    )
