@@ -32,7 +32,7 @@ instances:
       # The default settings query up to 50 services. So if you have more than
       # this many in your Consul service catalog, you will want to fill in the
       # whitelist
-      service_whitelist:
-        - zookeeper
-        - gunicorn
-        - redis
+      # service_whitelist:
+      #   - zookeeper
+      #   - gunicorn
+      #   - redis
