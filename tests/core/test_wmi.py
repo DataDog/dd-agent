@@ -162,13 +162,13 @@ class SWbemServices(object):
         if query == ("Select ServiceUptime,TotalBytesSent,TotalBytesReceived,TotalBytesTransferred,CurrentConnections,TotalFilesSent,TotalFilesReceived,"
                      "TotalConnectionAttemptsAllInstances,TotalGetRequests,TotalPostRequests,TotalHeadRequests,TotalPutRequests,TotalDeleteRequests,"
                      "TotalOptionsRequests,TotalTraceRequests,TotalNotFoundErrors,TotalLockedErrors,TotalAnonymousUsers,TotalNonAnonymousUsers,TotalCGIRequests,"
-                     "TotalISAPIExtensionRequests from Win32_PerfFormattedData_W3SVC_WebService WHERE ( Name = 'Failing site' ) OR ( Name = 'Default Web Site' )"):
+                     "TotalISAPIExtensionRequests from Win32_PerfFormattedData_W3SVC_WebService WHERE Name = 'Failing site' OR Name = 'Default Web Site'"):
             results += load_fixture("win32_perfformatteddata_w3svc_webservice", ("Name", "Default Web Site"))
-        if query == ("Select Name,State from Win32_Service WHERE ( Name = 'WSService' ) OR ( Name = 'WinHttpAutoProxySvc' )"):
+        if query == ("Select Name,State from Win32_Service WHERE Name = 'WSService' OR Name = 'WinHttpAutoProxySvc'"):
             results += load_fixture("win32_service_up", ("Name", "WinHttpAutoProxySvc"))
             results += load_fixture("win32_service_down", ("Name", "WSService"))
-        if query == ("Select Message,SourceName,TimeGenerated,Type,User,InsertionStrings,EventCode from Win32_NTLogEvent WHERE ( ( SourceName = 'MSSQLSERVER' ) "
-                     "AND ( Type = 'Error' OR Type = 'Warning' ) AND TimeGenerated >= '20151224113047.000000-480' )"):
+        if query == ("Select Message,SourceName,TimeGenerated,Type,User,InsertionStrings,EventCode from Win32_NTLogEvent WHERE ( SourceName = 'MSSQLSERVER' ) "
+                     "AND ( Type = 'Warning' OR Type = 'Error' ) AND TimeGenerated >= '20151224113047.000000-480'"):
             results += load_fixture("win32_ntlogevent")
 
         return results
@@ -480,18 +480,6 @@ class TestUnitWMISampler(TestCommonWMI):
         self.assertEquals(" WHERE ( SourceName = 'MSSQL' AND User = 'luser' )",
                           format_filter(filters))
 
-    def test_wql_filtering_inclusive(self):
-        """
-        Format the filters to a comprehensive and inclusive WQL `WHERE` clause.
-        """
-        from checks.libs.wmi import sampler
-        format_filter = sampler.WMISampler._format_filter
-
-        # Check `_format_filter` logic
-        filters = [{'Name': "SomeName"}, {'Id': "SomeId"}]
-        self.assertEquals(" WHERE ( Id = 'SomeId' ) OR ( Name = 'SomeName' )",
-                          format_filter(filters, True))
-
     def test_wql_filtering_op_adv(self):
         """
         Format the filters to a comprehensive WQL `WHERE` clause w/ mixed filter containing regular and operator modified properties.
@@ -502,6 +490,54 @@ class TestUnitWMISampler(TestCommonWMI):
         # Check `_format_filter` logic
         filters = [{'Name': "Foo%"}, {'Name': "Bar*", 'Id': ('>=', "SomeId")}, {'Name': "Zulu"}]
         self.assertEquals(" WHERE ( Name = 'Zulu' ) OR ( Name LIKE 'Bar*' AND Id >= 'SomeId' ) OR ( Name LIKE 'Foo%' )",
+                          format_filter(filters))
+
+    def test_wql_filtering_inclusive(self):
+        """
+        Format the filters to a comprehensive and inclusive WQL `WHERE` clause.
+        """
+        from checks.libs.wmi import sampler
+        format_filter = sampler.WMISampler._format_filter
+
+        # Check `_format_filter` logic
+        filters = [{'Name': "SomeName"}, {'Id': "SomeId"}]
+        self.assertEquals(" WHERE Id = 'SomeId' OR Name = 'SomeName'",
+                          format_filter(filters, True))
+
+    def test_wql_filtering_list(self):
+        """
+        Format the filters to a comprehensive WQL `WHERE` clause from a property list.
+        """
+        from checks.libs.wmi import sampler
+        format_filter = sampler.WMISampler._format_filter
+
+        # Check `_format_filter` logic
+        filters = [{'Name': ["Foo", "Bar"]}, {'Id': "SomeId"}]
+        self.assertEquals(" WHERE Id = 'SomeId' AND ( Name = 'Bar' OR Name = 'Foo' )",
+                          format_filter(filters))
+
+    def test_wql_filtering_list_op(self):
+        """
+        Format the filters to a comprehensive WQL `WHERE` clause with a propery operator.
+        """
+        from checks.libs.wmi import sampler
+        format_filter = sampler.WMISampler._format_filter
+
+        # Check `_format_filter` logic
+        filters = [{'Name': ["Foo", "Bar"]}, {'Id': ('>=', "SomeId")}]
+        self.assertEquals(" WHERE Id >= 'SomeId' AND ( Name = 'Bar' OR Name = 'Foo' )",
+                          format_filter(filters))
+
+    def test_wql_filtering_list_op_adv(self):
+        """
+        Format the filters to a comprehensive WQL `WHERE` clause w/ mixed list containing regular and operator modified properties.
+        """
+        from checks.libs.wmi import sampler
+        format_filter = sampler.WMISampler._format_filter
+
+        # Check `_format_filter` logic
+        filters = [{'Name': [('LIKE', "Foo%"), "Bar"]}, {'Id': ('>=', "SomeId")}]
+        self.assertEquals(" WHERE Id >= 'SomeId' AND ( Name = 'Bar' OR Name LIKE 'Foo%' )",
                           format_filter(filters))
 
     def test_wmi_query(self):
