@@ -23,6 +23,7 @@ class ConsulCheck(AgentCheck):
     MAX_SERVICES = 50 # cap on distinct Consul ServiceIDs to interrogate
 
     STATUS_SC = {
+        'up': AgentCheck.OK,
         'passing': AgentCheck.OK,
         'warning': AgentCheck.WARNING,
         'critical': AgentCheck.CRITICAL,
@@ -278,7 +279,8 @@ class ConsulCheck(AgentCheck):
                             node_status['passing'] += 1
                             nodes_to_service_status[node_id]["passing"] += 1
 
-                for status_key, status_value in node_status.items():
+                for status_key in self.STATUS_SC:
+                    status_value = node_status[status_key]
                     self.gauge(
                         '{0}.nodes_{1}'.format(self.CONSUL_CATALOG_CHECK, status_key),
                         status_value,
@@ -297,7 +299,8 @@ class ConsulCheck(AgentCheck):
                            len(services),
                            tags=main_tags+node_tags)
 
-                for status_key, status_value in service_status.items():
+                for status_key in self.STATUS_SC:
+                    status_value = service_status[status_key]
                     self.gauge(
                         '{0}.services_{1}'.format(self.CONSUL_CATALOG_CHECK, status_key),
                         status_value,
