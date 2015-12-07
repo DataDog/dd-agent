@@ -63,12 +63,7 @@ COMPRESS_THRESHOLD = 1024
 
 
 def serialize_metrics(metrics):
-    log.debug(metrics)
-    try:
-        serialized = json.dumps({"series": metrics})
-    except UnicodeDecodeError as e:
-        log.debug(e)
-        serialized = json.dumps({"series": unicode(metrics, errors='ignore')})
+    serialized = json.dumps({"series": metrics}, ensure_ascii=False)
     if len(serialized) > COMPRESS_THRESHOLD:
         headers = {'Content-Type': 'application/json',
                    'Content-Encoding': 'deflate'}
