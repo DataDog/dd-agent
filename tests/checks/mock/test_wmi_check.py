@@ -99,8 +99,8 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         self.run_check(config)
 
         # A WMISampler is cached
-        self.assertIn("myhost:some/namespace:Win32_OperatingSystem", self.check.wmi_samplers)
-        wmi_sampler = self.check.wmi_samplers["myhost:some/namespace:Win32_OperatingSystem"]
+        self.assertInPartial("myhost:some/namespace:Win32_OperatingSystem", self.check.wmi_samplers)
+        wmi_sampler = self.getProp(self.check.wmi_samplers, "myhost:some/namespace:Win32_OperatingSystem")
 
         # Connection was established with the right parameters
         self.assertWMIConn(wmi_sampler, "myhost")
@@ -135,9 +135,9 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         self.run_check(config)
 
         # WMI props are cached
-        self.assertIn("myhost:some/namespace:Win32_OperatingSystem", self.check.wmi_props)
+        self.assertInPartial("myhost:some/namespace:Win32_OperatingSystem", self.check.wmi_props)
         metric_name_and_type_by_property, properties = \
-            self.check.wmi_props["myhost:some/namespace:Win32_OperatingSystem"]
+            self.getProp(self.check.wmi_props, "myhost:some/namespace:Win32_OperatingSystem")
 
         # Assess
         self.assertEquals(
@@ -153,6 +153,9 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         """
         Extract metrics from WMI query results.
         """
+        # local import to avoid pulling in pywintypes ahead of time.
+        from checks.wmi_check import WMIMetric # noqa
+
         # Set up the check
         config = {
             'instances': [self.WMI_CONFIG]
@@ -166,7 +169,6 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         metrics = self.check._extract_metrics(wmi_sampler, "name", [], ["foobar"])
 
         # Assess
-        WMIMetric = self.load_class("WMIMetric")
         expected_metrics = [
             WMIMetric("freemegabytes", 19742, ["foobar", "name:c:"]),
             WMIMetric("avgdiskbytesperwrite", 1536, ["foobar", "name:c:"]),
@@ -202,8 +204,9 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         # Increase WMI queries' runtime
         SWbemServices._exec_query_run_time = 0.5
 
-        # Patch WMISampler to decrease timeout tolerancy
-        WMISampler = self.load_class("WMISampler")
+        # Patch WMISampler to decrease timeout tolerance
+        from checks.libs.wmi.sampler import WMISampler
+
         wmi_constructor = WMISampler.__init__
         WMISampler.__init__ = __patched_init__
 
@@ -222,6 +225,9 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         Exception is raised when the result returned by the WMI query contains multiple rows
         but no `tag_by` value was given.
         """
+        # local import to avoid pulling in pywintypes ahead of time.
+        from checks.wmi_check import MissingTagBy # noqa
+
         # Valid configuration
         config = {
             'instances': [self.WMI_CONFIG]
@@ -229,10 +235,10 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         self.run_check(config)
 
         # Invalid
-        MissingTagBy = self.load_class("MissingTagBy")
         config = {
             'instances': [self.WMI_CONFIG_NO_TAG_BY]
         }
+
         self.assertRaises(MissingTagBy, self.run_check, config, force_reload=True)
 
     def test_query_tag_properties(self):
@@ -247,12 +253,12 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         self.run_check(config)
 
         # WMI props are cached
-        self.assertIn(
+        self.assertInPartial(
             "localhost:root\\cimv2:Win32_PerfFormattedData_PerfProc_Process",
             self.check.wmi_props
         )
         _, properties = \
-            self.check.wmi_props["localhost:root\\cimv2:Win32_PerfFormattedData_PerfProc_Process"]
+            self.getProp(self.check.wmi_props, "localhost:root\\cimv2:Win32_PerfFormattedData_PerfProc_Process")
 
         self.assertEquals(properties, ["IOReadBytesPerSec", "IDProcess"])
 
@@ -260,6 +266,9 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         """
         Tag extracted metrics with `tag_queries` queries.
         """
+        # local import to avoid pulling in pywintypes ahead of time.
+        from checks.wmi_check import WMIMetric # noqa
+
         # Set up the check
         tag_queries = ["IDProcess", "Win32_Process", "Handle", "CommandLine"]
         config = {
@@ -277,7 +286,6 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         )
 
         # Assess
-        WMIMetric = self.load_class("WMIMetric")
         expected_metrics = [
             WMIMetric("ioreadbytespersec", 20455, tags=['foobar', 'commandline:c:\\'
                       'programfiles(x86)\\google\\chrome\\application\\chrome.exe']),

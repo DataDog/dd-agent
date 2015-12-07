@@ -19,7 +19,6 @@ Credits to @TheCloudlessSky (https://github.com/TheCloudlessSky)
 """
 
 # stdlib
-from collections import defaultdict
 from contextlib import contextmanager
 from copy import deepcopy
 from itertools import izip
@@ -27,6 +26,7 @@ import pywintypes
 
 # 3p
 from win32com.client import Dispatch
+import pythoncom
 
 # project
 from checks.libs.wmi.counter_type import get_calculator, get_raw, UndefinedCalculator
@@ -53,10 +53,10 @@ class WMISampler(object):
     """
     # Shared resources
     _wmi_locators = {}
-    _wmi_connections = defaultdict(list)
+    _wmi_last_connections = {}
 
     def __init__(self, logger, class_name, property_names, filters="", host="localhost",
-                 namespace="root\\cimv2", username="", password="", timeout_duration=10):
+                 namespace="root\\cimv2", username="", password="", and_props=[], timeout_duration=10):
         self.logger = logger
 
         # Connection information
@@ -87,6 +87,7 @@ class WMISampler(object):
         self.class_name = class_name
         self.property_names = property_names
         self.filters = filters
+        self._and_props = and_props
         self._formatted_filters = None
         self.property_counter_types = None
         self._timeout_duration = timeout_duration
@@ -129,7 +130,7 @@ class WMISampler(object):
         """
         if not self._formatted_filters:
             filters = deepcopy(self.filters)
-            self._formatted_filters = self._format_filter(filters)
+            self._formatted_filters = self._format_filter(filters, self._and_props)
         return self._formatted_filters
 
     def sample(self):
@@ -264,64 +265,104 @@ class WMISampler(object):
 
         Release, i.e. mark as available at exit.
         """
-        connection = None
+        self.logger.debug(
+            u"Connecting to WMI server "
+            u"(host={host}, namespace={namespace}, username={username}).".format(
+                host=self.host,
+                namespace=self.namespace,
+                username=self.username
+            )
+        )
 
-        # Fetch an existing connection or create a new one
-        available_connections = self._wmi_connections[self.connection_key]
-
-        if available_connections:
-            self.logger.debug(
-                u"Using cached connection "
-                u"(host={host}, namespace={namespace}, username={username}).".format(
-                    host=self.host,
-                    namespace=self.namespace,
-                    username=self.username
-                )
-            )
-            connection = available_connections.pop()
-        else:
-            self.logger.debug(
-                u"Connecting to WMI server "
-                u"(host={host}, namespace={namespace}, username={username}).".format(
-                    host=self.host,
-                    namespace=self.namespace,
-                    username=self.username
-                )
-            )
-            locator = Dispatch("WbemScripting.SWbemLocator")
-            connection = locator.ConnectServer(
-                self.host, self.namespace,
-                self.username, self.password
-            )
+        pythoncom.CoInitialize()
+        locator = Dispatch("WbemScripting.SWbemLocator")
+        connection = locator.ConnectServer(
+            self.host, self.namespace,
+            self.username, self.password
+        )
 
         # Yield the connection
         yield connection
+        self._wmi_last_connections[self.connection_key] = connection
 
-        # Release it
-        self._wmi_connections[self.connection_key].append(connection)
+    def get_last_connection(self):
+        return self._wmi_last_connections.get(self.connection_key, None)
 
     @staticmethod
-    def _format_filter(filters):
+    def _format_filter(filters, and_props=[]):
         """
         Transform filters to a comprehensive WQL `WHERE` clause.
+
+        Builds filter from a filter list.
+        - filters: expects a list of dicts, typically:
+                - [{'Property': value},...] or
+                - [{'Property': (comparison_op, value)},...]
+
+                NOTE: If we just provide a value we defailt to '=' comparison operator.
+                Otherwise, specify the operator in a tuple as above: (comp_op, value)
+                If we detect a wildcard character such as '*' or '%' we will override
+                the operator to use LIKE
         """
         def build_where_clause(fltr):
-            """
-            Recursively build `WHERE` clause.
-            """
             f = fltr.pop()
-            prop, value = f.popitem()
+            wql = ""
+            while f:
+                prop, value = f.popitem()
+
+                if isinstance(value, tuple):
+                    oper = value[0]
+                    value = value[1]
+                elif isinstance(value, basestring) and '%' in value:
+                    oper = 'LIKE'
+                else:
+                    oper = '='
+
+                if isinstance(value, list):
+                    if not len(value):
+                        continue
+
+                    internal_filter = map(lambda x:
+                                          (prop, x) if isinstance(x, tuple)
+                                          else (prop, ('LIKE', x)) if '%' in x
+                                          else (prop, (oper, x)), value)
+
+                    bool_op = ' OR '
+                    for p in and_props:
+                        if p.lower() in prop.lower():
+                            bool_op = ' AND '
+                            break
+
+                    clause = bool_op.join(['{0} {1} \'{2}\''.format(k, v[0], v[1]) if isinstance(v,tuple)
+                                          else '{0} = \'{1}\''.format(k,v)
+                                          for k,v in internal_filter])
+
+                    if bool_op.strip() == 'OR':
+                        wql += "( {clause} )".format(
+                            clause=clause)
+                    else:
+                        wql += "{clause}".format(
+                            clause=clause)
+
+                else:
+                    wql += "{property} {cmp} '{constant}'".format(
+                        property=prop,
+                        cmp=oper,
+                        constant=value)
+                if f:
+                    wql += " AND "
+
+            # empty list skipped
+            if wql.endswith(" AND "):
+                wql = wql[:-5]
 
             if len(fltr) == 0:
-                return "{property} = '{constant}'".format(
-                    property=prop,
-                    constant=value
-                )
-            return "{property} = '{constant}' AND {more}".format(
-                property=prop,
-                constant=value,
+                return "( {clause} )".format(clause=wql)
+
+            return "( {clause} ) OR {more}".format(
+                clause=wql,
                 more=build_where_clause(fltr)
             )
+
 
         if not filters:
             return ""
@@ -436,7 +477,8 @@ class WMISampler(object):
 
                 try:
                     item[wmi_property.Name] = float(wmi_property.Value)
-                except ValueError:
+                except (TypeError, ValueError):
                     item[wmi_property.Name] = wmi_property.Value
+
             results.append(item)
         return results
