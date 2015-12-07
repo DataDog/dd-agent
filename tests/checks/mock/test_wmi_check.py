@@ -153,6 +153,9 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         """
         Extract metrics from WMI query results.
         """
+        # local import to avoid pulling in pywintypes ahead of time.
+        from checks.wmi_check import WMIMetric # noqa
+
         # Set up the check
         config = {
             'instances': [self.WMI_CONFIG]
@@ -166,7 +169,6 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         metrics = self.check._extract_metrics(wmi_sampler, "name", [], ["foobar"])
 
         # Assess
-        WMIMetric = self.load_class("WMIMetric")
         expected_metrics = [
             WMIMetric("freemegabytes", 19742, ["foobar", "name:c:"]),
             WMIMetric("avgdiskbytesperwrite", 1536, ["foobar", "name:c:"]),
@@ -222,6 +224,9 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         Exception is raised when the result returned by the WMI query contains multiple rows
         but no `tag_by` value was given.
         """
+        # local import to avoid pulling in pywintypes ahead of time.
+        from checks.wmi_check import MissingTagBy # noqa
+
         # Valid configuration
         config = {
             'instances': [self.WMI_CONFIG]
@@ -229,10 +234,10 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         self.run_check(config)
 
         # Invalid
-        MissingTagBy = self.load_class("MissingTagBy")
         config = {
             'instances': [self.WMI_CONFIG_NO_TAG_BY]
         }
+
         self.assertRaises(MissingTagBy, self.run_check, config, force_reload=True)
 
     def test_query_tag_properties(self):
@@ -260,6 +265,9 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         """
         Tag extracted metrics with `tag_queries` queries.
         """
+        # local import to avoid pulling in pywintypes ahead of time.
+        from checks.wmi_check import WMIMetric # noqa
+
         # Set up the check
         tag_queries = ["IDProcess", "Win32_Process", "Handle", "CommandLine"]
         config = {
@@ -277,7 +285,6 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         )
 
         # Assess
-        WMIMetric = self.load_class("WMIMetric")
         expected_metrics = [
             WMIMetric("ioreadbytespersec", 20455, tags=['foobar', 'commandline:c:\\'
                       'programfiles(x86)\\google\\chrome\\application\\chrome.exe']),

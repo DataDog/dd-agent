@@ -14,6 +14,7 @@ import time
 import timeit
 import traceback
 from types import ListType, TupleType
+import unicodedata
 
 # 3p
 try:
@@ -827,12 +828,17 @@ class AgentCheck(object):
         :param fix_case A boolean, indicating whether to make sure that
                         the metric name returned is in underscore_case
         """
+        if isinstance(metric, unicode):
+            metric_name = unicodedata.normalize('NFKD', metric).encode('ascii','ignore')
+        else:
+            metric_name = metric
+
         if fix_case:
-            name = self.convert_to_underscore_separated(metric)
+            name = self.convert_to_underscore_separated(metric_name)
             if prefix is not None:
                 prefix = self.convert_to_underscore_separated(prefix)
         else:
-            name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", metric)
+            name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", metric_name)
         # Eliminate multiple _
         name = re.sub(r"__+", "_", name)
         # Don't start/end with _
