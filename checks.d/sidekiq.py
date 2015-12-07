@@ -105,8 +105,7 @@ class Stats:
                             self.key('processes'),
                             self.key('queues')],
                             args=[
-                                self.namespace,
-                            ])
+                                self.namespace])
 
     def _check_stats(self):
         res = self._run_script()
