@@ -62,7 +62,7 @@ class Stats:
 
         local workers_size = 0
         for i, pkey in ipairs(processes) do
-            nspkey = ARGV[1] == "None" and pkey or (ARGV[1] .. ":" .. pkey)
+            local nspkey = ARGV[1] == "None" and pkey or (ARGV[1] .. ":" .. pkey)
             workers_size = workers_size + tonumber(redis.call("HGET", nspkey, "busy"))
         end
 
