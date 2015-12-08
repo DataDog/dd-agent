@@ -28,7 +28,7 @@ from utils.proxy import get_proxy
 from utils.subprocess_output import get_subprocess_output
 
 # CONSTANTS
-AGENT_VERSION = "5.6.2"
+AGENT_VERSION = "5.6.3"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
 MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
