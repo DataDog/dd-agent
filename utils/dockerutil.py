@@ -5,6 +5,7 @@ import os
 from docker import Client
 from docker import tls
 
+
 class MountException(Exception):
     pass
 
@@ -14,13 +15,16 @@ DEFAULT_VERSION = 'auto'
 
 _docker_client_settings = {"version": DEFAULT_VERSION}
 
+
 def get_docker_settings():
     global _docker_client_settings
     return _docker_client_settings
 
+
 def reset_docker_settings():
     global _docker_client_settings
     _docker_client_settings = {"version": DEFAULT_VERSION}
+
 
 def set_docker_settings(init_config, instance):
     global _docker_client_settings
@@ -44,8 +48,10 @@ def set_docker_settings(init_config, instance):
         tls_config = tls.TLSConfig(client_cert=client_cert, verify=verify)
         _docker_client_settings["tls"] = tls_config
 
+
 def get_client():
     return Client(**_docker_client_settings)
+
 
 def find_cgroup(hierarchy, docker_root):
         """Find the mount point for a specified cgroup hierarchy.
@@ -74,6 +80,7 @@ def find_cgroup(hierarchy, docker_root):
             return os.path.join(docker_root, candidate)
         raise Exception("Can't find mounted %s cgroups." % hierarchy)
 
+
 def find_cgroup_filename_pattern(mountpoints, container_id):
     # We try with different cgroups so that it works even if only one is properly working
     for mountpoint in mountpoints.itervalues():
@@ -95,3 +102,39 @@ def find_cgroup_filename_pattern(mountpoints, container_id):
             return os.path.join('%(mountpoint)s/system/docker/%(id)s/%(file)s')
 
     raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
+
+
+def image_tag_extractor(entity, key):
+    if "Image" in entity:
+        split = entity["Image"].split(":")
+        if len(split) <= key:
+            return None
+        elif len(split) > 2:
+            # if the repo is in the image name and has the form 'docker.clearbit:5000'
+            # the split will be like [repo_url, repo_port/image_name, image_tag]. Let's avoid that
+            split = [':'.join(split[:-1]), split[-1]]
+        return [split[key]]
+    if "RepoTags" in entity:
+        splits = [el.split(":") for el in entity["RepoTags"]]
+        tags = set()
+        for split in splits:
+            if len(split) > 2:
+                split = [':'.join(split[:-1]), split[-1]]
+            if len(split) > key:
+                tags.add(split[key])
+        if len(tags) > 0:
+            return list(tags)
+    return None
+
+
+def container_name_extractor(co):
+    names = co.get('Names', [])
+    if names is not None:
+        # we sort the list to make sure that a docker API update introducing
+        # new names with a single "/" won't make us report dups.
+        names = sorted(names)
+        for name in names:
+            # the leading "/" is legit, if there's another one it means the name is actually an alias
+            if name.count('/') <= 1:
+                return [str(name).lstrip('/')]
+    return co.get('Id')[:11]
