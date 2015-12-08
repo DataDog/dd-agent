@@ -62,8 +62,29 @@ EVENT_CHUNK_SIZE = 50
 COMPRESS_THRESHOLD = 1024
 
 
+def unicode_metrics(metrics):
+    for i, metric in enumerate(metrics):
+        for key, value in metric.items():
+            if isinstance(value, basestring):
+                metric[key] = unicode(value, errors='replace')
+            elif isinstance(value, tuple):
+                value_list = list(value)
+                for j, value_element in enumerate(value_list):
+                    if isinstance(value_element, basestring):
+                        value_list[j] = unicode(value_element, errors='replace')
+                metric[key] = tuple(value_list)
+        metrics[i] = metric
+
+    return metrics
+
+
 def serialize_metrics(metrics):
-    serialized = json.dumps({"series": metrics}, ensure_ascii=False)
+    try:
+        serialized = json.dumps({"series": metrics})
+    except UnicodeDecodeError as e:
+        log.debug(e)
+        log.debug(metrics)
+        serialized = json.dumps({"series": unicode_metrics(metrics)})
     if len(serialized) > COMPRESS_THRESHOLD:
         headers = {'Content-Type': 'application/json',
                    'Content-Encoding': 'deflate'}
