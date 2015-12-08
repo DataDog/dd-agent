@@ -308,6 +308,13 @@ class DockerDaemon(AgentCheck):
         containers_by_id = {}
 
         for container in containers:
+
+            # Docker may report 'Dead' containers with None vs an empty list, skip them
+            # as they are dead anyways.
+            # https://github.com/docker/docker/issues/16706
+            if container['Names'] == None:
+                continue
+
             container_name = container_name_extractor(container)[0]
 
             container_status_tags = self._get_tags(container, CONTAINER)
