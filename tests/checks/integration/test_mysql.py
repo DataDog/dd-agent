@@ -308,10 +308,17 @@ class TestMySql(AgentCheckTest):
         self.assertServiceCheck('mysql.replication.slave_running', status=AgentCheck.CRITICAL,
                                 tags=self.METRIC_TAGS, count=1)
 
+        ver = map(lambda x: int(x), self.service_metadata[0]['version'].split("."))
+        ver = tuple(ver)
+
+        testable_metrics = (self.STATUS_VARS + self.VARIABLES_VARS + self.INNODB_VARS
+                      + self.BINLOG_VARS + self.SYSTEM_METRICS + self.SCHEMA_VARS)
+
+        if ver >= (5, 6, 0):
+            testable_metrics.extend(self.PERFORMANCE_VARS)
+
         # Test metrics
-        for mname in (self.STATUS_VARS + self.VARIABLES_VARS + self.INNODB_VARS
-                      + self.BINLOG_VARS + self.SYSTEM_METRICS + self.PERFORMANCE_VARS
-                      + self.SCHEMA_VARS):
+        for mname in testable_metrics:
             # These two are currently not guaranteed outside of a Linux
             # environment.
             if mname == 'mysql.performance.user_time' and not Platform.is_linux():
@@ -321,8 +328,12 @@ class TestMySql(AgentCheckTest):
             if mname == 'mysql.performance.cpu_time' and Platform.is_windows():
                 continue
 
-            if mname == 'mysql.performance.query_run_time.avg' or mname == 'mysql.info.schema.size':
+            if mname == 'mysql.performance.query_run_time.avg':
                 self.assertMetric(mname, tags=self.METRIC_TAGS+['schema:testdb'], count=1)
+            elif mname == 'mysql.info.schema.size':
+                self.assertMetric(mname, tags=self.METRIC_TAGS+['schema:testdb'], count=1)
+                self.assertMetric(mname, tags=self.METRIC_TAGS+['schema:information_schema'], count=1)
+                self.assertMetric(mname, tags=self.METRIC_TAGS+['schema:performance_schema'], count=1)
             else:
                 self.assertMetric(mname, tags=self.METRIC_TAGS, count=1)
 
