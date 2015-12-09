@@ -86,3 +86,15 @@ def pid_exists(pid):
             raise err
     else:
         return True
+
+def renice_pid(pid, value):
+    if not psutil:
+        # Ignore renice operation if psutil does not exist (which it always should, I think)
+        return
+
+    if Platform.is_windows():
+        # Not Supported.
+        return
+
+    p = psutil.Process(pid)
+    return p.nice(value=value)

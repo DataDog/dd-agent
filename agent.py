@@ -42,6 +42,7 @@ from util import (
 from utils.flare import configcheck, Flare
 from utils.jmx import jmx_command
 from utils.pidfile import PidFile
+from utils.process import renice_pid
 from utils.profile import AgentProfiler
 
 # Constants
@@ -256,6 +257,10 @@ def main():
     autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
     in_developer_mode = agentConfig.get('developer_mode')
+
+    if agentConfig.get('agent_nice_value') != 0:
+        renice_pid(os.getpid(), agentConfig.get('agent_nice_value'))
+
     COMMANDS_AGENT = [
         'start',
         'stop',

@@ -38,6 +38,7 @@ from config import get_config, get_version
 from daemon import AgentSupervisor, Daemon
 from util import chunks, get_hostname, get_uuid, plural
 from utils.pidfile import PidFile
+from utils.process import renice_pid
 
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")
@@ -362,6 +363,9 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     """Configure the server and the reporting thread.
     """
     c = get_config(parse_args=False, cfg_path=config_path)
+
+    if c.get('dogstatsd_nice_value') != 0:
+        renice_pid(os.getpid(), c.get('dogstatsd_nice_value'))
 
     if (not c['use_dogstatsd'] and
             (args and args[0] in ['start', 'restart'] or not args)):

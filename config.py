@@ -540,6 +540,18 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option("Main", "gce_updated_hostname"):
             agentConfig["gce_updated_hostname"] = _is_affirmative(config.get("Main", "gce_updated_hostname"))
 
+        agentConfig["agent_nice_value"] = 0
+        if config.has_option("Main", "agent_nice_value"):
+            agentConfig["agent_nice_value"] = int(config.get("Main", "agent_nice_value"))
+
+        agentConfig["ddagent_nice_value"] = 0
+        if config.has_option("Main", "ddagent_nice_value"):
+            agentConfig["ddagent_nice_value"] = int(config.get("Main", "ddagent_nice_value"))
+
+        agentConfig["dogstatsd_nice_value"] = 0
+        if config.has_option("Main", "dogstatsd_nice_value"):
+            agentConfig["dogstatsd_nice_value"] = int(config.get("Main", "dogstatsd_nice_value"))
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
