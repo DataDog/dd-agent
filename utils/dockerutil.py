@@ -89,6 +89,7 @@ def find_cgroup_filename_pattern(mountpoints, container_id):
         stat_file_path_coreos = os.path.join(mountpoint, "system.slice")
         stat_file_path_kubernetes = os.path.join(mountpoint, container_id)
         stat_file_path_kubernetes_docker = os.path.join(mountpoint, "system", "docker", container_id)
+        stat_file_path_docker_daemon = os.path.join(mountpoint, "docker-daemon", "docker", container_id)
 
         if os.path.exists(stat_file_path_lxc):
             return os.path.join('%(mountpoint)s/lxc/%(id)s/%(file)s')
@@ -100,6 +101,9 @@ def find_cgroup_filename_pattern(mountpoints, container_id):
             return os.path.join('%(mountpoint)s/%(id)s/%(file)s')
         elif os.path.exists(stat_file_path_kubernetes_docker):
             return os.path.join('%(mountpoint)s/system/docker/%(id)s/%(file)s')
+        elif os.path.exists(stat_file_path_docker_daemon):
+            return os.path.join('%(mountpoint)s/docker-daemon/docker/%(id)s/%(file)s')
+
 
     raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
