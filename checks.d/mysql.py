@@ -6,7 +6,11 @@ import traceback
 
 # 3p
 import pymysql
-import psutil # permissions issues?
+try:
+    import psutil # permissions issues?
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 
 # project
 from checks import AgentCheck
@@ -666,11 +670,14 @@ class MySql(AgentCheck):
             pid = self._get_server_pid(db)
 
         if pid:
-            self.log.debug("pid: %s" % pid)
+            self.log.debug("System metrics for mysql w\ pid: %s" % pid)
             # At last, get mysql cpu data out of psutil or procfs
-            proc = psutil.Process(pid)
 
             try:
+                proc = None
+                if PSUTIL_AVAILABLE:
+                    proc = psutil.Process(pid)
+
                 ucpu, scpu, tcpu = None, None, None
                 if hasattr(proc, 'cpu_times') :
                     ucpu = proc.cpu_times()[0]
