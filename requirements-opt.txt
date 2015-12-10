@@ -20,7 +20,7 @@ pysnmp==4.2.5
 # checks.d/tokumx.py
 # Require a compiler
 # TODO: our checks are not compatible with 3.x
-pymongo==2.8
+pymongo==3.2
 
 # checks.d/kafka_consumer.py
 # Requires a compiler because zope.interface is a dep
