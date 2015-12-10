@@ -265,9 +265,6 @@ class MySql(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.mysql_version = {}
         self.greater_502 = {}
-        self.host = None
-        self.port = None
-        self.mysql_sock = None
 
     def get_library_versions(self):
         return {"pymysql": pymysql.__version__}
@@ -288,11 +285,9 @@ class MySql(AgentCheck):
 
             # Metric collection
             self._collect_metrics(host, db, tags, options, queries)
-            if not Platform.is_windows():
-                self._collect_system_metrics(host, db, tags)
+            self._collect_system_metrics(host, db, tags)
 
         except Exception as e:
-            self.log.debug("[MySQL] Error fetching MySQL metrics: {0}".format(str(e)))
             raise e
         finally:
             # Close connection
@@ -357,7 +352,7 @@ class MySql(AgentCheck):
     def _collect_metrics(self, host, db, tags, options, queries):
 
         # Get aggregate of all VARS we want to collect
-        VARS = STATUS_VARS
+        metrics = STATUS_VARS
 
         # collect results from db
         results = self._get_stats_from_status(db)
@@ -404,7 +399,7 @@ class MySql(AgentCheck):
 
             if 'extra_innodb_metrics' in options and options['extra_innodb_metrics']:
                 self.log.debug("Collecting Extra Innodb Metrics")
-                VARS.update(OPTIONAL_INNODB_VARS)
+                metrics.update(OPTIONAL_INNODB_VARS)
 
         # Binary log statistics
         binlog_enabled = self._collect_string('log_bin', results)
@@ -427,21 +422,21 @@ class MySql(AgentCheck):
             'Key_blocks_not_flushed', results) * key_cache_block_size
         results['Key_cache_utilization'] = key_cache_utilization
 
-        VARS.update(VARIABLES_VARS)
-        VARS.update(INNODB_VARS)
-        VARS.update(BINLOG_VARS)
+        metrics.update(VARIABLES_VARS)
+        metrics.update(INNODB_VARS)
+        metrics.update(BINLOG_VARS)
 
         if 'extra_status_metrics' in options and options['extra_status_metrics']:
             self.log.debug("Collecting Extra Status Metrics")
-            VARS.update(OPTIONAL_STATUS_VARS)
+            metrics.update(OPTIONAL_STATUS_VARS)
 
             if self._version_compatible(db, host, "5.6.6"):
-                VARS.update(OPTIONAL_STATUS_VARS_5_6_6)
+                metrics.update(OPTIONAL_STATUS_VARS_5_6_6)
 
         if 'galera_cluster' in options and options['galera_cluster']:
             # already in result-set after 'SHOW STATUS' just add vars to collect
             self.log.debug("Collecting Galera Metrics.")
-            VARS.update(GALERA_VARS)
+            metrics.update(GALERA_VARS)
 
         if 'extra_performance_metrics' in options and options['extra_performance_metrics'] and \
                 self._version_compatible(db, host, "5.6.0"):
@@ -451,7 +446,7 @@ class MySql(AgentCheck):
             try:
                 results['perf_digest_95th_percentile_avg_us'] = self._get_query_exec_time_95th_us(db)
                 results['query_run_time_avg'] = self._query_exec_time_per_schema(db)
-                VARS.update(PERFORMANCE_VARS)
+                metrics.update(PERFORMANCE_VARS)
             except Exception as e:
                 self.log.debug("Performance metrics unavailable at this time: {0}".format(e))
 
@@ -460,14 +455,14 @@ class MySql(AgentCheck):
             schemas = {}
             try:
                 results['information_schema_size'] = self._query_size_per_schema(db)
-                VARS.update(SCHEMA_VARS)
+                metrics.update(SCHEMA_VARS)
             except Exception as e:
                 self.log.debug("Schema size metrics unavailable at this time: {0}".format(e))
 
         if 'replication' in options and options['replication']:
             # Get replica stats
             results.update(self._get_replica_stats(db))
-            VARS.update(REPLICA_VARS)
+            metrics.update(REPLICA_VARS)
 
             # get slave running form global status page
             slave_running_status = AgentCheck.UNKNOWN
@@ -508,7 +503,7 @@ class MySql(AgentCheck):
             self.service_check(self.SLAVE_SERVICE_CHECK_NAME, slave_running_status, tags=tags)
 
 
-        self._rate_or_gauge_vars(VARS, results, tags)
+        self._rate_or_gauge_vars(metrics, results, tags)
 
         # Collect custom query metrics
         # Max of 20 queries allowed
