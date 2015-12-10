@@ -4,3 +4,4 @@ init_config:
   #      - optional_tag2
 
 instances:
+  - test: no

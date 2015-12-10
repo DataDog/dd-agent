@@ -30,7 +30,9 @@ class Ceph(AgentCheck):
             try:
                 res = self._run_command("ceph %s -f json 2>/dev/null" % cmd)
             except Exception, e:
-                self.log.warning('Unable to parse data from cmd=%s' % cmd)
+                self.log.warning('Unable to parse data from cmd=%s: %s' % (cmd, str(e)))
+                continue
+            
             name = cmd.replace(' ', '_')
             raw[name] = res
 
