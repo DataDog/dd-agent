@@ -3,7 +3,7 @@
 set -e
 logfile=ddagent-install.log
 dmg_file=/tmp/datadog-agent.dmg
-dmg_url="https://s3.amazonaws.com/dd-agent/datadog-agent-5.4.2.dmg"
+dmg_url="https://s3.amazonaws.com/dd-agent/datadogagent.dmg"
 
 # Root user detection
 if [ $(echo "$UID") = "0" ]; then
@@ -45,15 +45,16 @@ if [ ! $apikey ]; then
 fi
 
 # Install the agent
-printf "\033[34m\n* Downloading and installing datadog-agent\n\033[0m"
+printf "\033[34m\n* Downloading datadog-agent\n\033[0m"
 rm -f $dmg_file
 curl $dmg_url > $dmg_file
-if [ "$sudo_cmd" = "sudo" ]; then
-    printf "\033[34m\n  Your password is needed to install and configure the agent \n\033[0m"
-fi
+printf "\033[34m\n* Installing datadog-agent, you might be asked for your sudo password...\n\033[0m"
 $sudo_cmd hdiutil detach "/Volumes/datadog_agent" >/dev/null 2>&1 || true
+printf "\033[34m\n    - Mounting the DMG installer...\n\033[0m"
 $sudo_cmd hdiutil attach "$dmg_file" -mountpoint "/Volumes/datadog_agent" >/dev/null
+printf "\033[34m\n    - Unpacking and copying files (this usually takes about a minute) ...\n\033[0m"
 cd / && $sudo_cmd /usr/sbin/installer -pkg `find "/Volumes/datadog_agent" -name \*.pkg 2>/dev/null` -target / >/dev/null
+printf "\033[34m\n    - Unmounting the DMG installer ...\n\033[0m"
 $sudo_cmd hdiutil detach "/Volumes/datadog_agent" >/dev/null
 
 # Set the configuration
@@ -61,6 +62,7 @@ if egrep 'api_key:( APIKEY)?$' "/opt/datadog-agent/etc/datadog.conf" > /dev/null
     printf "\033[34m\n* Adding your API key to the Agent configuration: datadog.conf\n\033[0m\n"
     $sudo_cmd sh -c "sed -i '' 's/api_key:.*/api_key: $apikey/' \"/opt/datadog-agent/etc/datadog.conf\""
     $sudo_cmd chown $real_user:admin "/opt/datadog-agent/etc/datadog.conf"
+    $sudo_cmd chmod 640 /opt/datadog-agent/etc/datadog.conf
     printf "\033[34m* Restarting the Agent...\n\033[0m\n"
     $cmd_real_user "/opt/datadog-agent/bin/datadog-agent" restart >/dev/null
 else

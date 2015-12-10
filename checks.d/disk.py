@@ -12,7 +12,7 @@ except ImportError:
 from checks import AgentCheck
 from config import _is_affirmative
 from util import Platform
-import utils.subprocess_output
+from utils.subprocess_output import get_subprocess_output
 
 
 class Disk(AgentCheck):
@@ -176,9 +176,7 @@ class Disk(AgentCheck):
 
     # no psutil, let's use df
     def collect_metrics_manually(self):
-        df_out = utils.subprocess_output.get_subprocess_output(
-            self.DF_COMMAND + ['-k'], self.log
-        )
+        df_out, _, _ = get_subprocess_output(self.DF_COMMAND + ['-k'], self.log)
         self.log.debug(df_out)
         for device in self._list_devices(df_out):
             self.log.debug("Passed: {0}".format(device))

@@ -22,6 +22,7 @@ from config import (
     load_check_directory,
     PathNotFound,
     set_win32_cert_path,
+    set_win32_requests_ca_bundle_path,
 )
 from ddagent import Application
 import dogstatsd
@@ -198,6 +199,7 @@ class DDAgent(multiprocessing.Process):
         from config import initialize_logging
         initialize_logging('windows_collector')
         log.debug("Windows Service - Starting collector")
+        set_win32_requests_ca_bundle_path()
         emitters = self.get_emitters()
         systemStats = get_system_stats()
         self.collector = Collector(self.config, emitters, systemStats, self.hostname)
@@ -329,9 +331,14 @@ class JMXFetchProcess(multiprocessing.Process):
             self.is_enabled = False
 
     def run(self):
+        from config import initialize_logging
+        initialize_logging('jmxfetch')
         if self.is_enabled:
+            log.debug("Windows Service - Starting JMXFetch")
             JMXFiles.clean_exit_file()
             self.jmx_daemon.run()
+        else:
+            log.info("Windows Service - Not starting JMXFetch: no valid configuration found")
 
     def terminate(self):
         """

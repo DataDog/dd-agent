@@ -163,19 +163,14 @@ class AgentTransaction(Transaction):
 
     @classmethod
     def set_endpoints(cls):
+        """
+        Set Datadog endpoint if an API key exists.
+        """
+        if not cls._application._agentConfig.get('api_key'):
+            log.warning(u"No API key was found. Aborting endpoint setting.")
+            return
 
-        # Only send data to Datadog if an API KEY exists
-        # i.e. user is also Datadog user
-        try:
-            is_dd_user = 'api_key' in cls._application._agentConfig\
-                and 'use_dd' in cls._application._agentConfig\
-                and cls._application._agentConfig['use_dd']\
-                and cls._application._agentConfig.get('api_key')
-            if is_dd_user:
-                log.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
-                cls._endpoints.append(DD_ENDPOINT)
-        except Exception:
-            log.info("Not a Datadog user")
+        cls._endpoints.append(DD_ENDPOINT)
 
     def __init__(self, data, headers, msg_type=""):
         self._data = data
