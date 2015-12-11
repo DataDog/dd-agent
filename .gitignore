@@ -34,3 +34,4 @@ embedded/*
 .cache
 dump.rdb
 tests/core/fixtures/flare/dd*
+.python-version
