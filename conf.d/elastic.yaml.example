@@ -15,6 +15,14 @@ instances:
   # This parameter was also called `is_external` and you can still use it but it
   # will be removed in version 6.
   #
+  # The `report_cluter_hosts_tags` flags will add the hostnames when reporting
+  # clustered metrics as tags. The tags will have the form 'elastic_search:<hostname>'
+  # in Datadog. This parameter is enabled by default, it has no effect if `cluster_stats`
+  # remains disabled.
+  # LEGACY:
+  # If the `cluster_hosts_as_tags` parameter is ommited we will default to the
+  # legacy behavior that will report the elastic search clusters as hosts, not tags.
+  #
   # If you enable the "pshard_stats" flag, statistics over primary shards
   # will be collected by the check and sent to the backend with the
   # 'elasticsearch.primary' prefix. It is particularly useful if you want to
@@ -27,6 +35,7 @@ instances:
     # username: username
     # password: password
     # cluster_stats: false
+     cluster_hosts_as_tags: true
     # pshard_stats: false
     # tags:
     #   - 'tag1:key1'
