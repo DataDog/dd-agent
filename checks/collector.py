@@ -29,7 +29,7 @@ from util import (
     get_uuid,
     Timer,
 )
-from utils.debug import log_exceptions
+from utils.logger import log_exceptions
 from utils.jmx import JMXFiles
 from utils.platform import Platform
 from utils.subprocess_output import get_subprocess_output
