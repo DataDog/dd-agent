@@ -7,6 +7,7 @@ from pysnmp.entity.rfc3413.oneliner import cmdgen
 import pysnmp.proto.rfc1902 as snmp_type
 from pysnmp.smi import builder
 from pysnmp.smi.exval import noSuchInstance, noSuchObject
+from gevent.pool import Pool
 
 # project
 from checks import AgentCheck
@@ -181,17 +182,18 @@ class SnmpCheck(AgentCheck):
         all_binds = []
         results = defaultdict(dict)
 
-        while first_oid < len(oids):
+        pool_size = 10 # pool-size must be custom
+        pool = Pool(pool_size)
+        greenlets = []
 
+        def _snmp_walker(oid, batch_size):
             # Start with snmpget command
             error_indication, error_status, error_index, var_binds = self.snmpget(
                 auth_data,
                 transport_target,
-                *(oids[first_oid:first_oid + self.oid_batch_size]),
+                *(oids[oid:oid + batch_size]),
                 lookupValues=lookup_names,
                 lookupNames=lookup_names)
-
-            first_oid = first_oid + self.oid_batch_size
 
             # Raise on error_indication
             self.raise_on_error_indication(error_indication, instance)
@@ -230,6 +232,13 @@ class SnmpCheck(AgentCheck):
                     complete_results.extend(table_row)
 
             all_binds.extend(complete_results)
+
+        while first_oid < len(oids):
+            greenlet = pool.spawn(_snmp_walker, first_oid, self.oid_batch_size)
+            greenlets.append(greenlet)
+            first_oid += self.oid_batch_size
+
+        pool.join()
 
         for result_oid, value in all_binds:
             if lookup_names:
