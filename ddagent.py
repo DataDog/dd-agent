@@ -56,6 +56,8 @@ from util import (
     json,
     Watchdog,
 )
+from utils.logger import log_no_api_key
+
 
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)
@@ -200,10 +202,14 @@ class AgentTransaction(Transaction):
             return "{0}/intake/{1}?api_key={2}".format(endpoint_base_url, self._msg_type, api_key)
         return "{0}/intake/{1}".format(endpoint_base_url, self._msg_type)
 
+    @log_no_api_key(log)
     def flush(self):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
-            log.debug("Sending %s to endpoint %s at %s" % (self._type, endpoint, url))
+            log.debug(
+                u"Sending %s to endpoint %s at %s",
+                self._type, endpoint, url
+            )
 
             # Getting proxy settings
             proxy_settings = self._application._agentConfig.get('proxy_settings', None)
@@ -400,6 +406,7 @@ class Application(tornado.web.Application):
             self._watchdog = Watchdog(watchdog_timeout,
                                       max_mem_mb=agentConfig.get('limit_memory_consumption', None))
 
+    @log_no_api_key(log)
     def log_request(self, handler):
         """ Override the tornado logging method.
         If everything goes well, log level is DEBUG.
@@ -410,9 +417,13 @@ class Application(tornado.web.Application):
             log_method = log.warning
         else:
             log_method = log.error
+
         request_time = 1000.0 * handler.request.request_time()
-        log_method("%d %s %.2fms", handler.get_status(),
-                   handler._request_summary(), request_time)
+        log_method(
+            u"%d %s %.2fms",
+            handler.get_status(),
+            handler._request_summary(), request_time
+        )
 
     def appendMetric(self, prefix, name, host, device, ts, value):
 
