@@ -239,6 +239,14 @@ class SnmpCheck(AgentCheck):
             first_oid += self.oid_batch_size
 
         pool.join()
+        try:
+            for g in greenlets:
+                g.get()
+        except Exception as e:
+            if len(all_binds) == 0:
+                raise e
+            self.log.warning("Exception in greenlet, but some results available, "
+                           "continuing. Exception: {0}".format(results))
 
         for result_oid, value in all_binds:
             if lookup_names:
