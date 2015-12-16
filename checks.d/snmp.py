@@ -34,6 +34,8 @@ SNMP_GAUGES = frozenset([
     snmp_type.Integer.__name__,
     snmp_type.Integer32.__name__])
 
+DEFAULT_POOL_SIZE = 10
+MAX_POOL_SIZE = 20
 DEFAULT_OID_BATCH_SIZE = 10
 
 
@@ -65,6 +67,9 @@ class SnmpCheck(AgentCheck):
 
         # Set OID batch size
         self.oid_batch_size = int(init_config.get("oid_batch_size", DEFAULT_OID_BATCH_SIZE))
+        self.pool_size = int(init_config.get("pool_size", DEFAULT_POOL_SIZE))
+        if self.pool_size > MAX_POOL_SIZE:
+            self.pool_size = MAX_POOL_SIZE
 
     def snmp_logger(self, func):
         """
@@ -182,8 +187,7 @@ class SnmpCheck(AgentCheck):
         all_binds = []
         results = defaultdict(dict)
 
-        pool_size = 10 # pool-size must be custom
-        pool = Pool(pool_size)
+        pool = Pool(self.pool_size)
         greenlets = []
 
         def _snmp_walker(oid, batch_size):
