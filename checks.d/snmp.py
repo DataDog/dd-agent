@@ -1,3 +1,6 @@
+from gevent import monkey; monkey.patch_all()
+from gevent.pool import Pool
+
 # std
 from collections import defaultdict
 from functools import wraps
@@ -9,6 +12,7 @@ from pysnmp.smi import builder
 from pysnmp.smi.exval import noSuchInstance, noSuchObject
 
 # project
+from checks.network_checks import NetworkCheck
 from checks import AgentCheck
 from config import _is_affirmative
 
@@ -33,6 +37,8 @@ SNMP_GAUGES = frozenset([
     snmp_type.Integer.__name__,
     snmp_type.Integer32.__name__])
 
+DEFAULT_POOL_SIZE = 10
+MAX_POOL_SIZE = 20
 DEFAULT_OID_BATCH_SIZE = 10
 
 
@@ -41,15 +47,19 @@ def reply_invalid(oid):
         noSuchObject.isSameTypeWith(oid)
 
 
-class SnmpCheck(AgentCheck):
+class SnmpCheck(NetworkCheck):
 
     cmd_generator = None
     # pysnmp default values
     DEFAULT_RETRIES = 5
     DEFAULT_TIMEOUT = 1
+    SC_STATUS = 'snmp.can_check'
 
     def __init__(self, name, init_config, agentConfig, instances=None):
-        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+        for instance in instances:
+            if 'name' not in instance:
+                instance['name'] = instance['ip_address']
+        NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # Load Custom MIB directory
         mibs_path = None
@@ -64,6 +74,9 @@ class SnmpCheck(AgentCheck):
 
         # Set OID batch size
         self.oid_batch_size = int(init_config.get("oid_batch_size", DEFAULT_OID_BATCH_SIZE))
+        self.pool_size = int(init_config.get("pool_size", DEFAULT_POOL_SIZE))
+        if self.pool_size > MAX_POOL_SIZE:
+            self.pool_size = MAX_POOL_SIZE
 
     def snmp_logger(self, func):
         """
@@ -181,17 +194,17 @@ class SnmpCheck(AgentCheck):
         all_binds = []
         results = defaultdict(dict)
 
-        while first_oid < len(oids):
+        pool = Pool(self.pool_size)
+        greenlets = []
 
+        def _snmp_walker(oid, batch_size):
             # Start with snmpget command
             error_indication, error_status, error_index, var_binds = self.snmpget(
                 auth_data,
                 transport_target,
-                *(oids[first_oid:first_oid + self.oid_batch_size]),
+                *(oids[oid:oid + batch_size]),
                 lookupValues=lookup_names,
                 lookupNames=lookup_names)
-
-            first_oid = first_oid + self.oid_batch_size
 
             # Raise on error_indication
             self.raise_on_error_indication(error_indication, instance)
@@ -231,6 +244,21 @@ class SnmpCheck(AgentCheck):
 
             all_binds.extend(complete_results)
 
+        while first_oid < len(oids):
+            greenlet = pool.spawn(_snmp_walker, first_oid, self.oid_batch_size)
+            greenlets.append(greenlet)
+            first_oid += self.oid_batch_size
+
+        pool.join()
+        try:
+            for g in greenlets:
+                g.get()
+        except Exception as e:
+            if len(all_binds) == 0:
+                raise e
+            self.log.warning("Exception in greenlet, but some results available, "
+                           "continuing. Exception: {0}".format(results))
+
         for result_oid, value in all_binds:
             if lookup_names:
                 _, metric, indexes = result_oid.getMibSymbol()
@@ -242,7 +270,7 @@ class SnmpCheck(AgentCheck):
         self.log.debug("Raw results: {0}".format(results))
         return results
 
-    def check(self, instance):
+    def _check(self, instance):
         '''
         Perform two series of SNMP requests, one for all that have MIB asociated
         and should be looked up and one for those specified by oids
@@ -253,6 +281,12 @@ class SnmpCheck(AgentCheck):
         raw_oids = []
         timeout = int(instance.get('timeout', self.DEFAULT_TIMEOUT))
         retries = int(instance.get('retries', self.DEFAULT_RETRIES))
+
+        pool = Pool(self.pool_size)
+        greenlets = []
+
+        def _check_table():
+            pass
 
         # Check the metrics completely defined
         for metric in instance.get('metrics', []):
@@ -284,13 +318,22 @@ class SnmpCheck(AgentCheck):
             raise
         finally:
             # Report service checks
-            service_check_name = "snmp.can_check"
             tags = ["snmp_device:%s" % ip_address]
             if "service_check_error" in instance:
-                self.service_check(service_check_name, AgentCheck.CRITICAL, tags=tags,
-                                   message=instance["service_check_error"])
-            else:
-                self.service_check(service_check_name, AgentCheck.OK, tags=tags)
+                return [(self.SC_STATUS, AgentCheck.CRITICAL, instance["service_check_error"])]
+
+            return [(self.SC_STATUS, AgentCheck.OK, None)]
+
+    def report_as_service_check(self, sc_name, status, instance, msg=None):
+        sc_tags = ['snmp_device:{0}'.format(instance["ip_address"])]
+        custom_tags = instance.get('tags', [])
+        tags = sc_tags + custom_tags
+
+        self.service_check(sc_name,
+                           NetworkCheck.STATUS_TO_SERVICE_CHECK[status],
+                           tags=tags,
+                           message=msg
+                           )
 
     def report_raw_metrics(self, instance, results):
         '''
