@@ -1,3 +1,6 @@
+from gevent import monkey; monkey.patch_all()
+from gevent.pool import Pool
+
 # std
 from collections import defaultdict
 from functools import wraps
@@ -7,7 +10,6 @@ from pysnmp.entity.rfc3413.oneliner import cmdgen
 import pysnmp.proto.rfc1902 as snmp_type
 from pysnmp.smi import builder
 from pysnmp.smi.exval import noSuchInstance, noSuchObject
-from gevent.pool import Pool
 
 # project
 from checks import AgentCheck
@@ -274,6 +276,12 @@ class SnmpCheck(AgentCheck):
         raw_oids = []
         timeout = int(instance.get('timeout', self.DEFAULT_TIMEOUT))
         retries = int(instance.get('retries', self.DEFAULT_RETRIES))
+
+        pool = Pool(self.pool_size)
+        greenlets = []
+
+        def _check_table():
+            pass
 
         # Check the metrics completely defined
         for metric in instance.get('metrics', []):
