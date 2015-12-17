@@ -12,6 +12,7 @@ from pysnmp.smi import builder
 from pysnmp.smi.exval import noSuchInstance, noSuchObject
 
 # project
+from checks.network_checks import NetworkCheck
 from checks import AgentCheck
 from config import _is_affirmative
 
@@ -46,15 +47,19 @@ def reply_invalid(oid):
         noSuchObject.isSameTypeWith(oid)
 
 
-class SnmpCheck(AgentCheck):
+class SnmpCheck(NetworkCheck):
 
     cmd_generator = None
     # pysnmp default values
     DEFAULT_RETRIES = 5
     DEFAULT_TIMEOUT = 1
+    SC_STATUS = 'snmp.can_check'
 
     def __init__(self, name, init_config, agentConfig, instances=None):
-        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+        for instance in instances:
+            if 'name' not in instance:
+                instance['name'] = instance['ip_address']
+        NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # Load Custom MIB directory
         mibs_path = None
@@ -265,7 +270,7 @@ class SnmpCheck(AgentCheck):
         self.log.debug("Raw results: {0}".format(results))
         return results
 
-    def check(self, instance):
+    def _check(self, instance):
         '''
         Perform two series of SNMP requests, one for all that have MIB asociated
         and should be looked up and one for those specified by oids
@@ -313,13 +318,22 @@ class SnmpCheck(AgentCheck):
             raise
         finally:
             # Report service checks
-            service_check_name = "snmp.can_check"
             tags = ["snmp_device:%s" % ip_address]
             if "service_check_error" in instance:
-                self.service_check(service_check_name, AgentCheck.CRITICAL, tags=tags,
-                                   message=instance["service_check_error"])
-            else:
-                self.service_check(service_check_name, AgentCheck.OK, tags=tags)
+                return [(self.SC_STATUS, AgentCheck.CRITICAL, instance["service_check_error"])]
+
+            return [(self.SC_STATUS, AgentCheck.OK, None)]
+
+    def report_as_service_check(self, sc_name, status, instance, msg=None):
+        sc_tags = ['snmp_device:{0}'.format(instance["ip_address"])]
+        custom_tags = instance.get('tags', [])
+        tags = sc_tags + custom_tags
+
+        self.service_check(sc_name,
+                           NetworkCheck.STATUS_TO_SERVICE_CHECK[status],
+                           tags=tags,
+                           message=msg
+                           )
 
     def report_raw_metrics(self, instance, results):
         '''
