@@ -1,4 +1,5 @@
 import copy
+import time
 
 # 3rd party
 from nose.plugins.attrib import attr
@@ -12,10 +13,13 @@ from tests.checks.common import AgentCheckTest
 # This setup should normally be handled by the .travis.yml file, look there if
 # you want to see how to run these tests locally
 
+RESULTS_TIMEOUT = 10
+
 
 @attr(requires='snmpd')
 class SNMPTestCase(AgentCheckTest):
     CHECK_NAME = 'snmp'
+    CHECK_TAGS = ['snmp_device:localhost']
 
     SNMP_CONF = {
         'ip_address': "localhost",
@@ -26,13 +30,15 @@ class SNMPTestCase(AgentCheckTest):
     MIBS_FOLDER = {
         'init_config': {
             'mibs_folder': "/etc/mibs"
-        }
+        },
+        'instances' : [SNMP_CONF]
     }
 
     IGNORE_NONINCREASING_OID = {
         'init_config': {
             'ignore_nonincreasing_oid': True
-        }
+        },
+        'instances' : [SNMP_CONF]
     }
 
     SUPPORTED_METRIC_TYPES = [
@@ -107,19 +113,58 @@ class SNMPTestCase(AgentCheckTest):
         }
     ]
 
-    CHECK_TAGS = ['snmp_device:localhost']
+    def run_check(self, config, agent_config=None, mocks=None, force_reload=False):
+        if force_reload and self.check:
+            self.check.stop()
+        super(SNMPTestCase, self).run_check(config, agent_config, mocks, force_reload)
+
+    def tearDown(self):
+        if self.check:
+            self.check.stop()
 
     @classmethod
     def generate_instance_config(cls, metrics):
         instance_config = copy.copy(cls.SNMP_CONF)
         instance_config['metrics'] = metrics
+        instance_config['name'] = "localhost"
         return instance_config
+
+    def wait_for_async(self, method, attribute, count):
+        """
+        Loop on `self.check.method` until `self.check.attribute >= count`.
+
+        Raise after
+        """
+        i = 0
+        while i < RESULTS_TIMEOUT:
+            self.check._process_results()
+            if len(getattr(self.check, attribute)) >= count:
+                return getattr(self.check, method)()
+            time.sleep(1)
+            i += 1
+        raise Exception("Didn't get the right count of service checks in time, {0}/{1} in {2}s: {3}"
+                        .format(len(getattr(self.check, attribute)), count, i,
+                                getattr(self.check, attribute)))
+
+    def wait_for_async_attrib(self, attribute):
+        """
+        Raise after
+        """
+        i = 0
+        while i < RESULTS_TIMEOUT:
+            if getattr(self.check, attribute):
+                return
+            time.sleep(1)
+            i += 1
+        raise Exception("Attribute not created in time.")
+
 
     def test_command_generator(self):
         """
         Command generator's parameters should match init_config
         """
-        self.run_check(self.MIBS_FOLDER)
+        self.run_check_twice(self.MIBS_FOLDER)
+        self.wait_for_async_attrib('cmd_generator')
 
         # Test command generator MIB source
         mib_folders = self.check.cmd_generator.snmpEngine.msgAndPduDsp\
@@ -131,7 +176,10 @@ class SNMPTestCase(AgentCheckTest):
 
         # Test command generator `ignoreNonIncreasingOid` parameter
         self.run_check(self.IGNORE_NONINCREASING_OID, force_reload=True)
+        self.wait_for_async_attrib('cmd_generator')
         self.assertTrue(self.check.cmd_generator.ignoreNonIncreasingOid)
+
+        self.coverage_report()
 
     def test_type_support(self):
         """
@@ -142,6 +190,11 @@ class SNMPTestCase(AgentCheckTest):
                 self.SUPPORTED_METRIC_TYPES + self.UNSUPPORTED_METRICS)]
         }
         self.run_check_twice(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+        self.run_check(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+
+        self.coverage_report()
 
         # Test metrics
         for metric in self.SUPPORTED_METRIC_TYPES:
@@ -169,16 +222,20 @@ class SNMPTestCase(AgentCheckTest):
         config = {
             'instances': [self.generate_instance_config(self.PLAY_WITH_GET_NEXT_METRICS)]
         }
+        self.run_check_twice(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+
+        # Test service check
+        self.assertServiceCheck("snmp.can_check", status=AgentCheck.OK,
+                                tags=self.CHECK_TAGS, count=1)
+
         self.run_check(config)
+        time.sleep(1)
 
         # Test metrics
         for metric in self.PLAY_WITH_GET_NEXT_METRICS:
             metric_name = "snmp." + metric['name']
             self.assertMetric(metric_name, tags=self.CHECK_TAGS, count=1)
-
-        # Test service check
-        self.assertServiceCheck("snmp.can_check", status=AgentCheck.OK,
-                                tags=self.CHECK_TAGS, count=1)
 
         self.coverage_report()
 
@@ -190,6 +247,9 @@ class SNMPTestCase(AgentCheckTest):
             'instances': [self.generate_instance_config(self.SCALAR_OBJECTS)]
         }
         self.run_check_twice(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+        self.run_check(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
 
         # Test metrics
         for metric in self.SCALAR_OBJECTS:
@@ -210,6 +270,9 @@ class SNMPTestCase(AgentCheckTest):
             'instances': [self.generate_instance_config(self.TABULAR_OBJECTS)]
         }
         self.run_check_twice(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+        self.run_check(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
 
         # Test metrics
         for symbol in self.TABULAR_OBJECTS[0]['symbols']:
@@ -234,7 +297,10 @@ class SNMPTestCase(AgentCheckTest):
         config = {
             'instances': [self.generate_instance_config(self.INVALID_METRICS)]
         }
-        self.assertRaises(Exception, self.run_check, config)
+        self.run_check(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+
+        # no exception raised as it's thrown in thread: self.assertRaises(Exception, self.run_check, config)
 
         # # Test service check
         self.assertServiceCheck("snmp.can_check", status=AgentCheck.CRITICAL,
@@ -253,8 +319,10 @@ class SNMPTestCase(AgentCheckTest):
         config = {
             'instances': [instance]
         }
+        self.run_check(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
 
-        self.assertRaises(Exception, self.run_check, config)
+        # no exception raised as it's thrown in thread: self.assertRaises(Exception, self.run_check, config)
 
         # Test service check
         self.assertServiceCheck("snmp.can_check", status=AgentCheck.CRITICAL,
