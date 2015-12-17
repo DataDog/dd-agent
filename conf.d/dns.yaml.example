@@ -1,0 +1,10 @@
+init_config:
+    default_timeout: 5
+
+instances:
+    -   hostname: www.google.com
+
+    -   hostname: www.yahoo.com
+        timeout: 8
+
+    -   hostname: www.ubuntu.com
