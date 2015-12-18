@@ -1,4 +1,6 @@
 # stdlib
+import os
+from distutils.version import LooseVersion
 from nose.plugins.attrib import attr
 
 # project
@@ -48,19 +50,19 @@ class ZooKeeperTestCase(AgentCheckTest):
     ]
 
     MNTR_METRICS = [
-        'zookeeper.packets.sent',
-        'zookeeper.approximate.data.size',
-        'zookeeper.num.alive.connections',
-        'zookeeper.open.file.descriptor.count',
-        'zookeeper.avg.latency',
-        'zookeeper.znode.count',
-        'zookeeper.outstanding.requests',
-        'zookeeper.min.latency',
-        'zookeeper.ephemerals.count',
-        'zookeeper.watch.count',
-        'zookeeper.max.file.descriptor.count',
-        'zookeeper.packets.received',
-        'zookeeper.max.latency',
+        'zookeeper.packets_sent',
+        'zookeeper.approximate_data_size',
+        'zookeeper.num_alive_connections',
+        'zookeeper.open_file_descriptor_count',
+        'zookeeper.avg_latency',
+        'zookeeper.znode_count',
+        'zookeeper.outstanding_requests',
+        'zookeeper.min_latency',
+        'zookeeper.ephemerals_count',
+        'zookeeper.watch_count',
+        'zookeeper.max_file_descriptor_count',
+        'zookeeper.packets_received',
+        'zookeeper.max_latency',
     ]
 
     STATUS_TYPES = [
@@ -86,20 +88,19 @@ class ZooKeeperTestCase(AgentCheckTest):
         for mname in self.STAT_METRICS:
             self.assertMetric(mname, tags=["mode:standalone", "mytag"], count=1)
 
-        for mname in self.MNTR_METRICS:
-            self.assertMetric(mname, tags=["mode:standalone", "mytag"], count=1)
+        zk_version = os.environ.get("FLAVOR_VERSION")
+
+        if zk_version and LooseVersion(zk_version) > LooseVersion("3.4.0"):
+            for mname in self.MNTR_METRICS:
+                self.assertMetric(mname, tags=["mode:standalone", "mytag"], count=1)
 
         # Test service checks
         self.assertServiceCheck("zookeeper.ruok", status=AgentCheck.OK)
         self.assertServiceCheck("zookeeper.mode", status=AgentCheck.OK)
 
         expected_mode = self.CONFIG['expected_mode']
-        for t in self.STATUS_TYPES:
-            expected_value = 0
-            if t == expected_mode:
-                expected_value = 1
-            mname = "zookeeper.instances." + t
-            self.assertMetric(mname, value=expected_value, count=1)
+        mname = "zookeeper.instances." + expected_mode
+        self.assertMetric(mname, value=1, count=1)
 
         self.coverage_report()
 
@@ -134,9 +135,5 @@ class ZooKeeperTestCase(AgentCheckTest):
         self.assertMetric("zookeeper.instances", tags=["mode:down"], count=1)
 
         expected_mode = self.CONNECTION_FAILURE_CONFIG['expected_mode']
-        for t in self.STATUS_TYPES:
-            expected_value = 0
-            if t == expected_mode:
-                expected_value = 1
-            mname = "zookeeper.instances." + t
-            self.assertMetric(mname, value=expected_value, count=1)
+        mname = "zookeeper.instances." + expected_mode
+        self.assertMetric(mname, value=1, count=1)
