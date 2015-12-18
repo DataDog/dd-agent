@@ -302,6 +302,27 @@ class MongoDb(AgentCheck):
         'wiredtiger': WIREDTIGER_METRICS,
     }
 
+    DBTOP = [
+        "commands.count",
+        "commands.time",
+        "getmore.count",
+        "getmore.time",
+        "insert.count",
+        "insert.time",
+        "queries.count",
+        "queries.time",
+        "readLock.count",
+        "readLock.time",
+        "remove.count",
+        "remove.time",
+        "total.count",
+        "total.time",
+        "update.count",
+        "update.time",
+        "writeLock.count",
+        "writeLock.time",
+    ]
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self._last_state_by_server = {}
@@ -662,3 +683,39 @@ class MongoDb(AgentCheck):
                     self._resolve_metric(metric_name, metrics_to_collect)
                 metrics_tags = tags + ['cluster:db:%s' % st]
                 submit_method(self, metric_name_alias, val, tags=metrics_tags)
+
+        # Report the usage metrics for dbs/collections
+        try:
+            dbtop = db.command('top')
+            for ns, ns_metrics in dbtop['totals'].iteritems():
+                if "." not in ns:
+                    continue
+
+                # configure tags for db name and collection name
+                dbname, collname = ns.split(".", 1)
+                ns_tags = tags + ["db:%s" % dbname, "collection:%s" % collname]
+
+                # iterate over DBTOP metrics
+                for m in self.DBTOP:
+                    # each metric is of the form: x.y.z with z optional
+                    # and can be found at ns_metrics[x][y][z]
+                    value = ns_metrics
+                    try:
+                        for c in m.split("."):
+                            value = value[c]
+                    except Exception:
+                        continue
+
+                    # value is now status[x][y][z]
+                    if not isinstance(val, (int, long, float)):
+                        raise TypeError(
+                            u"{0} value is a {1}, it should be an int, a float or a long instead."
+                            .format(metric_name, type(val))
+                        )
+
+                    # prepend these metrics to namespace them
+                    m = "usage." + m
+                    m = self.normalize(m.lower(), 'mongodb')
+                    self.gauge(m, value, tags=ns_tags)
+        except Exception, e:
+            self.log.warning('Failed to record `top` metrics %s' % str(e))
