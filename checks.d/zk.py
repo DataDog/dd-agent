@@ -106,7 +106,7 @@ class ZookeeperCheck(AgentCheck):
         cx_args = (host, port, timeout)
         sc_tags = ["host:{0}".format(host), "port:{0}".format(port)]
         hostname = get_hostname(self.agentConfig)
-        report_instance_mode = instance.get("report_instance_mode", False)
+        report_instance_mode = instance.get("report_instance_mode", True)
 
         zk_version = None # parse_stat will parse and set version string
 
