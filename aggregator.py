@@ -462,6 +462,8 @@ class Aggregator(object):
 
             # Submit the metric
             raw_value = value_and_metadata[0]
+            log.debug("name: {0}".format(name))
+            log.debug("raw_value: {0}".format(raw_value))
             metric_type = value_and_metadata[1]
 
             if metric_type in self.ALLOW_STRINGS:
@@ -601,6 +603,7 @@ class Aggregator(object):
                 self.service_check(**service_check)
             else:
                 self.count += 1
+                log.debug("Here is the packet: {0}".format(packet))
                 parsed_packets = self.parse_metric_packet(packet)
                 for name, value, mtype, tags, sample_rate in parsed_packets:
                     hostname, device_name, tags = self._extract_magic_tags(tags)

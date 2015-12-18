@@ -296,6 +296,7 @@ class Server(object):
                 ready = select_select(sock, [], [], timeout)
                 if ready[0]:
                     message = socket_recv(buffer_size)
+                    log.debug("Here is the message: {0}".format(message))
                     aggregator_submit(message)
 
                     if should_forward:
