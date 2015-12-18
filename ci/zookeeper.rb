@@ -1,7 +1,7 @@
 require './ci/common'
 
 def zk_version
-  ENV['FLAVOR_VERSION'] || '3.4.6'
+  ENV['FLAVOR_VERSION'] || '3.4.7'
 end
 
 def zk_rootdir
