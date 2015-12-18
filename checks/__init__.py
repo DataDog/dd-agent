@@ -33,7 +33,7 @@ if Platform.is_windows():
 log = logging.getLogger(__name__)
 
 # Default methods run when collecting info about the agent in developer mode
-DEFAULT_PSUTIL_METHODS = ['get_memory_info', 'get_io_counters']
+DEFAULT_PSUTIL_METHODS = ['memory_info', 'io_counters']
 
 AGENT_METRICS_CHECK_NAME = 'agent_metrics'
 
