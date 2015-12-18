@@ -190,6 +190,7 @@ class DockerDaemon(AgentCheck):
 
             # Other options
             self.collect_image_stats = _is_affirmative(instance.get('collect_images_stats', False))
+            self.collect_daemon_stats = _is_affirmative(instance.get('collect_daemon_stats', False))
             self.collect_container_size = _is_affirmative(instance.get('collect_container_size', False))
             self.collect_events = _is_affirmative(instance.get('collect_events', True))
             self.collect_image_size = _is_affirmative(instance.get('collect_image_size', False))
@@ -212,6 +213,9 @@ class DockerDaemon(AgentCheck):
             if not self.init_success:
                 # Initialization failed, will try later
                 return
+
+        if self.collect_daemon_stats:
+            self._report_daemon_stats()
 
         # Report image metrics
         if self.collect_image_stats:
@@ -490,6 +494,78 @@ class DockerDaemon(AgentCheck):
                 # On kubernetes, this is kind of expected. Network metrics will be collected by the kubernetes integration anyway
                 self.log.debug(message)
 
+    def _get_daemon_info(self):
+        return self.client.info()
+
+    def _storage_driver_stats(self):
+        info_data = self._get_daemon_info()
+        stats = {}
+        stats['data.total'] = 0.0
+        stats['data.free'] = 0.0
+        stats['data.used'] = 0.0
+        stats['data.in_use'] = 0.0
+        stats['metadata.total'] = 0.0
+        stats['metadata.free'] = 0.0
+        stats['metadata.used'] = 0.0
+        stats['metadata.in_use'] = 0.0
+        if info_data and 'DriverStatus' in info_data:
+            for driver_metric in info_data['DriverStatus']:
+                if len(driver_metric) == 2:
+                    metric_name = driver_metric[0]
+                    metric_value = driver_metric[1]
+                    if metric_name and metric_value and 'Space' in metric_name:
+                        prefix = 'data'
+                        if 'Metadata' in metric_name:
+                            prefix = 'metadata'
+
+                        size_in_bytes = self._convert_to_bytes(metric_value)
+                        if size_in_bytes is not None:
+                            if 'Space Used' in metric_name:
+                                stats["%s.used" % prefix] += size_in_bytes
+                            elif 'Space Available' in metric_name:
+                                stats["%s.free" % prefix] += size_in_bytes
+                            elif 'Space Total' in metric_name:
+                                stats["%s.total" % prefix] += size_in_bytes
+            self._calculate_driver_stats_in_use('data', stats)
+            self._calculate_driver_stats_in_use('metadata', stats)
+        return stats
+
+
+    def _calculate_driver_stats_in_use(self, prefix, stats):
+        free = stats.get("%s.free" % prefix, 0.0)
+        used = stats.get("%s.used" % prefix, 0.0)
+        total = stats.get("%s.total" % prefix, 0.0)
+        if used > 0.0 and total > 0.0:
+            stats["%s.in_use" % prefix] = used / total
+        elif free > 0.0 and total > 0.0:
+            stats["%s.in_use" % prefix] = 1.0 - (free / total)
+
+    def _convert_to_bytes(self, metric_value):
+        size_in_bytes = None
+        size_parts = metric_value.split(' ')
+        if len(size_parts) == 2:
+            size = size_parts[0]
+            units = size_parts[1]
+            if units:
+                units = units.upper()
+                if units == 'GB':
+                    size_in_bytes = float(size) * 1e+9
+                elif units == 'MB':
+                    size_in_bytes = float(size) * 1e+6
+                elif units == 'KB':
+                    size_in_bytes = float(size) * 1e+3
+        return size_in_bytes
+
+    def _report_daemon_stats(self):
+        try:
+            tags = self._get_tags()
+            stats = self._storage_driver_stats()
+            if stats:
+                for key, value in stats.iteritems():
+                    self.gauge("docker.info.%s" % key, value, tags=list(tags))
+        except Exception, e:
+            # It's not an important metric, keep going if it fails
+            self.warning("Failed to get Docker daemon stats. Exception: {0}".format(e))
 
     def _report_cgroup_metrics(self, container, tags):
         try:

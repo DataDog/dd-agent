@@ -52,7 +52,6 @@ def set_docker_settings(init_config, instance):
 def get_client():
     return Client(**_docker_client_settings)
 
-
 def find_cgroup(hierarchy, docker_root):
         """Find the mount point for a specified cgroup hierarchy.
 
