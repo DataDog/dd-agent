@@ -117,6 +117,7 @@ OPTIONAL_STATUS_VARS = {
     'Binlog_cache_use': ('mysql.binlog.cache_use', GAUGE),
     'Handler_commit': ('mysql.performance.handler_commit', RATE),
     'Handler_delete': ('mysql.performance.handler_delete', RATE),
+    'Handler_prepare': ('mysql.performance.handler_prepare', RATE),
     'Handler_read_first': ('mysql.performance.handler_read_first', RATE),
     'Handler_read_key': ('mysql.performance.handler_read_key', RATE),
     'Handler_read_next': ('mysql.performance.handler_read_next', RATE),

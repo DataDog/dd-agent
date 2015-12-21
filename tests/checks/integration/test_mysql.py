@@ -150,6 +150,7 @@ class TestMySql(AgentCheckTest):
         'mysql.binlog.cache_use',
         'mysql.performance.handler_commit',
         'mysql.performance.handler_delete',
+        'mysql.performance.handler_prepare',
         'mysql.performance.handler_read_first',
         'mysql.performance.handler_read_key',
         'mysql.performance.handler_read_next',
