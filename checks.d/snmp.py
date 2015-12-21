@@ -61,11 +61,14 @@ class SnmpCheck(NetworkCheck):
 
         # Load Custom MIB directory
         self.mibs_path = None
-        ignore_nonincreasing_oid = False
+        self.ignore_nonincreasing_oid = False
         if init_config is not None:
             self.mibs_path = init_config.get("mibs_folder")
             self.ignore_nonincreasing_oid = _is_affirmative(
                 init_config.get("ignore_nonincreasing_oid", False))
+
+        # Create SNMP command generator and aliases
+        self.create_command_generator(self.mibs_path, self.ignore_nonincreasing_oid)
 
         NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
 
@@ -238,7 +241,7 @@ class SnmpCheck(NetworkCheck):
                     message = "{0} for instance {1}".format(error_status.prettyPrint(),
                                                             instance["ip_address"])
                     instance["service_check_error"] = message
-                    self.log.warning(message)
+                    self.warning(message)
 
                 for table_row in var_binds_table:
                     complete_results.extend(table_row)
@@ -269,9 +272,6 @@ class SnmpCheck(NetworkCheck):
         table_oids = []
         raw_oids = []
 
-        # Create SNMP command generator and aliases
-        self.create_command_generator(self.mibs_path, self.ignore_nonincreasing_oid)
-
         # Check the metrics completely defined
         for metric in metrics:
             if 'MIB' in metric:
@@ -299,7 +299,8 @@ class SnmpCheck(NetworkCheck):
         except Exception as e:
             if "service_check_error" not in instance:
                 instance["service_check_error"] = "Fail to collect metrics: {0}".format(e)
-            raise
+            self.warning(instance["service_check_error"])
+            return [(self.SC_STATUS, Status.CRITICAL, instance["service_check_error"])]
         finally:
             # Report service checks
             tags = ["snmp_device:%s" % ip_address]
@@ -333,7 +334,6 @@ class SnmpCheck(NetworkCheck):
                 for oid in results:
                     if oid.startswith(queried_oid):
                         value = results[oid]
-                        self.log.warning("Found matching oid: {0} - {1}".format(oid, value))
                         break
                 else:
                     self.log.warning("No matching results found for oid %s",
