@@ -12,8 +12,10 @@ from checks import AgentCheck
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'rabbitmq'
 QUEUE_TYPE = 'queues'
+EXCHANGE_TYPE = 'exchanges'
 NODE_TYPE = 'nodes'
 MAX_DETAILED_QUEUES = 200
+MAX_DETAILED_EXCHANGES = 200
 MAX_DETAILED_NODES = 100
 # Post an event in the stream when the number of queues or nodes to
 # collect is above 90% of the limit:
@@ -51,6 +53,18 @@ QUEUE_ATTRIBUTES = [
     ('message_stats/redeliver_details/rate', 'messages.redeliver.rate', float),
 ]
 
+EXCHANGE_ATTRIBUTES = [
+    # Path, Name, Operation
+
+    ('message_stats/publish_in', 'messages.publish_in.count', float),
+    ('message_stats/publish_in_details/rate', 'messages.publish_in.rate', float),
+
+    ('message_stats/publish_out', 'messages.publish_out.count', float),
+    ('message_stats/publish_out_details/rate', 'messages.publish_out.rate', float),
+
+]
+
+
 NODE_ATTRIBUTES = [
     ('fd_used', 'fd_used', float),
     ('mem_used', 'mem_used', float),
@@ -61,6 +75,7 @@ NODE_ATTRIBUTES = [
 
 ATTRIBUTES = {
     QUEUE_TYPE: QUEUE_ATTRIBUTES,
+    EXCHANGE_TYPE: EXCHANGE_ATTRIBUTES,
     NODE_TYPE: NODE_ATTRIBUTES,
 }
 
@@ -71,6 +86,11 @@ TAGS_MAP = {
                 'vhost': 'vhost',
                 'policy': 'policy',
     },
+    EXCHANGE_TYPE: {
+        'node': 'node',
+                'name': 'exchange',
+                'vhost': 'vhost',
+    },
     NODE_TYPE: {
         'name': 'node',
     }
@@ -78,6 +98,7 @@ TAGS_MAP = {
 
 METRIC_SUFFIX = {
     QUEUE_TYPE: "queue",
+    EXCHANGE_TYPE: "exchange",
     NODE_TYPE: "node",
 }
 
@@ -107,6 +128,7 @@ class RabbitMQ(AgentCheck):
         # Limit of queues/nodes to collect metrics from
         max_detailed = {
             QUEUE_TYPE: int(instance.get('max_detailed_queues', MAX_DETAILED_QUEUES)),
+            EXCHANGE_TYPE: int(instance.get('max_detailed_exchanges', MAX_DETAILED_EXCHANGES)),
             NODE_TYPE: int(instance.get('max_detailed_nodes', MAX_DETAILED_NODES)),
         }
 
@@ -115,6 +137,10 @@ class RabbitMQ(AgentCheck):
             QUEUE_TYPE: {
                 'explicit': instance.get('queues', []),
                 'regexes': instance.get('queues_regexes', []),
+            },
+            EXCHANGE_TYPE: {
+                'explicit': instance.get('exchanges', []),
+                'regexes': instance.get('exchanges_regexes', []),
             },
             NODE_TYPE: {
                 'explicit': instance.get('nodes', []),
@@ -138,6 +164,8 @@ class RabbitMQ(AgentCheck):
         # Generate metrics from the status API.
         self.get_stats(instance, base_url, QUEUE_TYPE, max_detailed[
                        QUEUE_TYPE], specified[QUEUE_TYPE], auth=auth)
+        self.get_stats(instance, base_url, EXCHANGE_TYPE, max_detailed[
+                       EXCHANGE_TYPE], specified[EXCHANGE_TYPE], auth=auth)
         self.get_stats(instance, base_url, NODE_TYPE, max_detailed[
                        NODE_TYPE], specified[NODE_TYPE], auth=auth)
 
@@ -206,8 +234,8 @@ class RabbitMQ(AgentCheck):
                 if match_found:
                     continue
 
-                # Absolute names work only for queues
-                if object_type != QUEUE_TYPE:
+                # Absolute names don't work for nodes
+                if object_type == NODE_TYPE:
                     continue
                 absolute_name = '%s/%s' % (data_line.get("vhost"), name)
                 if absolute_name in explicit_filters:
