@@ -3,8 +3,6 @@ Collects metrics from cAdvisor instance
 """
 # stdlib
 import numbers
-import socket
-import struct
 from fnmatch import fnmatch
 import re
 
@@ -52,18 +50,6 @@ class Kubernetes(AgentCheck):
             raise Exception('Kubernetes check only supports one configured instance.')
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.kube_settings = set_kube_settings(instances[0])
-
-    def _get_default_router(self):
-        try:
-            with open('/proc/net/route') as f:
-                for line in f.readlines():
-                    fields = line.strip().split()
-                    if fields[1] == '00000000':
-                        return socket.inet_ntoa(struct.pack('<L', int(fields[2], 16)))
-        except IOError, e:
-            self.log.error('Unable to open /proc/net/route: %s', e)
-
-        return None
 
     def _perform_kubelet_checks(self, url):
         service_check_base = NAMESPACE + '.kubelet.check'
