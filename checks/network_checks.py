@@ -18,6 +18,7 @@ FAILURE = "FAILURE"
 class Status:
     DOWN = "DOWN"
     WARNING = "WARNING"
+    CRITICAL = "CRITICAL"
     UP = "UP"
 
 
@@ -33,7 +34,8 @@ class NetworkCheck(AgentCheck):
     STATUS_TO_SERVICE_CHECK = {
         Status.UP  : AgentCheck.OK,
         Status.WARNING : AgentCheck.WARNING,
-        Status.DOWN : AgentCheck.CRITICAL
+        Status.CRITICAL : AgentCheck.CRITICAL,
+        Status.DOWN : AgentCheck.CRITICAL,
     }
 
     """

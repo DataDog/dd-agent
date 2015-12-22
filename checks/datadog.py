@@ -185,7 +185,8 @@ class Dogstream(object):
             # read until the end of file
             try:
                 self._gen.next()
-                self.logger.debug("Done dogstream check for file %s, found %s metric points" % (self.log_path, len(self._values)))
+                self.logger.debug("Done dogstream check for file {0}".format(self.log_path))
+                self.logger.debug("Found {0} metric points".format(len(self._values)))
             except StopIteration, e:
                 self.logger.exception(e)
                 self.logger.warn("Can't tail %s file" % self.log_path)
@@ -193,6 +194,7 @@ class Dogstream(object):
             check_output = self._aggregate(self._values)
             if self._events:
                 check_output.update({"dogstreamEvents": self._events})
+                self.logger.debug("Found {0} events".format(len(self._events)))
             return check_output
         else:
             return {}

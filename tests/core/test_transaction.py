@@ -157,9 +157,9 @@ class TestTransaction(unittest.TestCase):
         MetricTransaction.set_application(app)
         MetricTransaction.set_endpoints()
 
-        transaction = MetricTransaction(None, {}, "msgtype")
+        transaction = MetricTransaction(None, {}, "")
         endpoints = [transaction.get_url(e) for e in transaction._endpoints]
-        expected = ['https://{0}-app.agent.datadoghq.com/intake/msgtype?api_key={1}'.format(
+        expected = ['https://{0}-app.agent.datadoghq.com/intake/?api_key={1}'.format(
             get_version().replace(".", "-"), api_key)]
         self.assertEqual(endpoints, expected, (endpoints, expected))
 

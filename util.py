@@ -25,13 +25,14 @@ except ImportError:
     from yaml import Loader as yLoader  # noqa, imported from here elsewhere
     from yaml import Dumper as yDumper  # noqa, imported from here elsewhere
 
+# project
 # These classes are now in utils/, they are just here for compatibility reasons,
 # if a user actually uses them in a custom check
 # If you're this user, please use utils.pidfile or utils.platform instead
 # FIXME: remove them at a point (6.x)
 from utils.pidfile import PidFile  # noqa, see ^^^
 from utils.platform import Platform
-from utils.subprocess_output import subprocess
+from utils.subprocess_output import get_subprocess_output
 
 
 VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")
@@ -194,9 +195,8 @@ def get_hostname(config=None):
         def _get_hostname_unix():
             try:
                 # try fqdn
-                p = subprocess.Popen(['/bin/hostname', '-f'], stdout=subprocess.PIPE)
-                out, err = p.communicate()
-                if p.returncode == 0:
+                out, _, rtcode = get_subprocess_output(['/bin/hostname', '-f'], log)
+                if rtcode == 0:
                     return out.strip()
             except Exception:
                 return None
@@ -233,7 +233,8 @@ class GCE(object):
     TIMEOUT = 0.1 # second
     SOURCE_TYPE_NAME = 'google cloud platform'
     metadata = None
-    EXCLUDED_ATTRIBUTES = ["sshKeys", "user-data", "cli-cert", "ipsec-cert", "ssl-cert"]
+    EXCLUDED_ATTRIBUTES = ["kube-env", "startup-script", "sshKeys", "user-data",
+    "cli-cert", "ipsec-cert", "ssl-cert"]
 
 
     @staticmethod

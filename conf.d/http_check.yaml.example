@@ -70,15 +70,17 @@ instances:
     #
     # ca_certs: /etc/ssl/certs/ca-certificates.crt
 
-    # The (optional) ssl_expire will instruct the check
+    # The (optional) check_certificate_expiration will instruct the check
     # to create a service check that checks the expiration of the
     # ssl certificate. Allow for a warning to occur when x days are
-    # left in the certificate.
+    # left in the certificate, and alternatively raise a critical
+    # warning if the certificate is y days from the expiration date.
     # The SSL certificate will always be validated for this additional
     # service check regardless of the value of disable_ssl_validation
     #
     # check_certificate_expiration: true
     # days_warning: 14
+    # days_critical: 7
 
     # The (optional) headers parameter allows you to send extra headers
     # with the request. This is useful for explicitly specifying the host

@@ -133,7 +133,7 @@ SELECT mode,
         'query': """
 SELECT relname,schemaname,%s
   FROM pg_stat_user_tables
- WHERE relname = ANY(%s)""",
+ WHERE relname = ANY(array[%s])""",
         'relation': True,
     }
 
@@ -154,7 +154,7 @@ SELECT relname,
        indexrelname,
        %s
   FROM pg_stat_user_indexes
- WHERE relname = ANY(%s)""",
+ WHERE relname = ANY(array[%s])""",
         'relation': True,
     }
 
@@ -177,7 +177,7 @@ LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)
 WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
   nspname !~ '^pg_toast' AND
   relkind IN ('r') AND
-  relname = ANY(%s)"""
+  relname = ANY(array[%s])"""
     }
 
     COUNT_METRICS = {
@@ -246,7 +246,7 @@ SELECT relname,
        schemaname,
        %s
   FROM pg_statio_user_tables
- WHERE relname = ANY(%s)""",
+ WHERE relname = ANY(array[%s])""",
         'relation': True,
     }
 
@@ -437,10 +437,10 @@ SELECT relname,
                 try:
                     # if this is a relation-specific query, we need to list all relations last
                     if scope['relation'] and len(relations) > 0:
-                        relnames = relations_config.keys()
+                        relnames = ', '.join("'{0}'".format(w) for w in relations_config.iterkeys())
                         query = scope['query'] % (", ".join(cols), "%s")  # Keep the last %s intact
                         self.log.debug("Running query: %s with relations: %s" % (query, relnames))
-                        cursor.execute(query, (relnames, ))
+                        cursor.execute(query % (relnames))
                     else:
                         query = scope['query'] % (", ".join(cols))
                         self.log.debug("Running query: %s" % query)

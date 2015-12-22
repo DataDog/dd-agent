@@ -48,16 +48,22 @@ class WeakCiphersHTTPSConnection(urllib3.connection.VerifiedHTTPSConnection):
         resolved_ssl_version = ssl_.resolve_ssl_version(self.ssl_version)
 
         hostname = self.host
+        if getattr(self, '_tunnel_host', None):
+            # _tunnel_host was added in Python 2.6.3
+            # (See:
+            # http://hg.python.org/cpython/rev/0f57b30a152f)
+            #
+            # However this check is still necessary in 2.7.x
 
-        self.sock = conn
-        # Calls self._set_hostport(), so self.host is
-        # self._tunnel_host below.
-        self._tunnel()
-        # Mark this connection as not reusable
-        self.auto_open = 0
+            self.sock = conn
+            # Calls self._set_hostport(), so self.host is
+            # self._tunnel_host below.
+            self._tunnel()
+            # Mark this connection as not reusable
+            self.auto_open = 0
 
-        # Override the host with the one we're requesting data from.
-        hostname = self._tunnel_host
+            # Override the host with the one we're requesting data from.
+            hostname = self._tunnel_host
 
         # Wrap socket using verification with the root certs in trusted_root_certs
         self.sock = ssl_.ssl_wrap_socket(conn, self.key_file, self.cert_file,
@@ -244,7 +250,7 @@ class HTTPCheck(NetworkCheck):
             # Check content matching is set
             if content_match:
                 content = r.content
-                if re.search(content_match, content):
+                if re.search(content_match, content, re.UNICODE):
                     self.log.debug("%s is found in return content" % content_match)
                     service_checks.append((
                         self.SC_STATUS, Status.UP, "UP"
@@ -316,12 +322,12 @@ class HTTPCheck(NetworkCheck):
                 if len(content) > 200:
                     content = content[:197] + '...'
 
-                msg = "%d %s\n\n%s" % (code, reason, content)
+                msg = u"%d %s\n\n%s" % (code, reason, content)
                 msg = msg.rstrip()
 
             title = "[Alert] %s reported that %s is down" % (self.hostname, name)
             alert_type = "error"
-            msg = "%s %s %s reported that %s (%s) failed %s time(s) within %s last attempt(s)."\
+            msg = u"%s %s %s reported that %s (%s) failed %s time(s) within %s last attempt(s)."\
                 " Last error: %s" % (notify_message, custom_message, self.hostname,
                                      name, url, nb_failures, nb_tries, msg)
             event_type = EventType.DOWN
@@ -329,7 +335,7 @@ class HTTPCheck(NetworkCheck):
         else:  # Status is UP
             title = "[Recovered] %s reported that %s is up" % (self.hostname, name)
             alert_type = "success"
-            msg = "%s %s %s reported that %s (%s) recovered" \
+            msg = u"%s %s %s reported that %s (%s) recovered" \
                 % (notify_message, custom_message, self.hostname, name, url)
             event_type = EventType.UP
 
@@ -361,7 +367,7 @@ class HTTPCheck(NetworkCheck):
                 if len(content) > 200:
                     content = content[:197] + '...'
 
-                msg = "%d %s\n\n%s" % (code, reason, content)
+                msg = u"%d %s\n\n%s" % (code, reason, content)
                 msg = msg.rstrip()
 
         self.service_check(sc_name,
@@ -372,6 +378,7 @@ class HTTPCheck(NetworkCheck):
 
     def check_cert_expiration(self, instance, timeout, instance_ca_certs):
         warning_days = int(instance.get('days_warning', 14))
+        critical_days = int(instance.get('days_critical', 7))
         url = instance.get('url')
 
         o = urlparse(url)
@@ -395,6 +402,10 @@ class HTTPCheck(NetworkCheck):
 
         if days_left.days < 0:
             return Status.DOWN, "Expired by {0} days".format(days_left.days)
+
+        elif days_left.days < critical_days:
+            return Status.CRITICAL, "This cert TTL is critical: only {0} days before it expires"\
+                .format(days_left.days)
 
         elif days_left.days < warning_days:
             return Status.WARNING, "This cert is almost expired, only {0} days left"\

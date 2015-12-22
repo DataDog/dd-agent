@@ -775,18 +775,19 @@ def windows_flare():
     f.collect()
     email, ok = QInputDialog.getText(
         None, "Your email",
-        "Logs and configuration files have been collected"
+        "Logs and configuration files have been collected."
         " Please enter your email address:"
     )
     if not ok:
-        info_popup("Flare cancelled")
+        info_popup("Flare cancelled. You can still use {0}".format(f.tar_path))
         return
     try:
         case_id = f.upload(email=str(email))
         info_popup("Your logs were successfully uploaded. For future reference,"
                    " your internal case id is {0}".format(case_id))
     except Exception, e:
-        warning_popup('The upload failed:\n{0}'.format(str(e)))
+        warning_popup('The upload failed. Please send the following file by email'
+                      ' to support: {0}\n\n{1}'.format(f.tar_path, str(e)))
     finally:
         return
 
