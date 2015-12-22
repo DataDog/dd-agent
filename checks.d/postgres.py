@@ -250,6 +250,37 @@ SELECT relname,
         'relation': True,
     }
 
+    FUNCTION_METRICS = {
+        'descriptors': [
+            ('schemaname', 'schema'),
+            ('funcname', 'function'),
+        ],
+        'metrics': {
+            'calls'     : ('postgresql.function.calls', RATE),
+            'total_time': ('postgresql.function.total_time', RATE),
+            'self_time' : ('postgresql.function.self_time', RATE),
+        },
+        'query': """
+WITH overloaded_funcs AS (
+ SELECT funcname
+   FROM pg_stat_user_functions s
+  GROUP BY s.funcname
+ HAVING COUNT(*) > 1
+)
+SELECT s.schemaname,
+       CASE WHEN o.funcname is null THEN p.proname
+            else p.proname || '_' || array_to_string(p.proargnames, '_')
+        END funcname,
+        %s
+  FROM pg_proc p
+  JOIN pg_stat_user_functions s
+    ON p.oid = s.funcid
+  LEFT join overloaded_funcs o
+    ON o.funcname = s.funcname;
+""",
+        'relation': False
+    }
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.dbs = {}
@@ -377,7 +408,7 @@ SELECT relname,
                 self.log.warn('Failed to parse config element=%s, check syntax' % str(element))
         return config
 
-    def _collect_stats(self, key, db, instance_tags, relations, custom_metrics):
+    def _collect_stats(self, key, db, instance_tags, relations, custom_metrics, function_metrics):
         """Query pg_stat_* for various metrics
         If relations is not an empty list, gather per-relation metrics
         on top of that.
@@ -389,6 +420,9 @@ SELECT relname,
             self.LOCK_METRICS,
             self.COUNT_METRICS,
         ]
+
+        if function_metrics:
+            metric_scope.append(self.FUNCTION_METRICS)
 
         # These are added only once per PG server, thus the test
         db_instance_metrics = self._get_instance_metrics(key, db)
@@ -594,6 +628,7 @@ SELECT relname,
         dbname = instance.get('dbname', None)
         relations = instance.get('relations', [])
         ssl = _is_affirmative(instance.get('ssl', False))
+        function_metrics = _is_affirmative(instance.get('collect_function_metrics', False))
 
         if relations and not dbname:
             self.warning('"dbname" parameter must be set when using the "relations" parameter.')
@@ -626,11 +661,11 @@ SELECT relname,
             db = self.get_connection(key, host, port, user, password, dbname, ssl)
             version = self._get_version(key, db)
             self.log.debug("Running check against version %s" % version)
-            self._collect_stats(key, db, tags, relations, custom_metrics)
+            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, ssl, use_cached=False)
-            self._collect_stats(key, db, tags, relations, custom_metrics)
+            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics)
 
         if db is not None:
             service_check_tags = self._get_service_check_tags(host, port, dbname)
