@@ -313,7 +313,7 @@ class MongoDb(AgentCheck):
             AgentCheck.OK,
             tags=service_check_tags)
 
-        status = db["$cmd"].find_one({"serverStatus": 1, "tcmalloc": collect_tcmalloc_metrics})
+        status = db.command('serverStatus', tcmalloc=collect_tcmalloc_metrics)
         if status['ok'] == 0:
             raise Exception(status['errmsg'].__str__())
 
