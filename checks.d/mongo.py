@@ -26,7 +26,9 @@ class MongoDb(AgentCheck):
     # or
     #   metric_name -> metric_type *
     # * by default MongoDB metrics are reported under their original metric names
-
+    """
+    Core metrics collected by default.
+    """
     BASE_METRICS = {
         "asserts.msg": RATE,
         "asserts.regular": RATE,
@@ -81,6 +83,7 @@ class MongoDb(AgentCheck):
         "metrics.operation.fastmod": RATE,
         "metrics.operation.idhack": RATE,
         "metrics.operation.scanAndOrder": RATE,
+        "metrics.operation.writeConflicts": RATE,
         "metrics.queryExecutor.scanned": RATE,
         "metrics.record.moves": RATE,
         "metrics.repl.apply.batches.num": RATE,
@@ -97,10 +100,18 @@ class MongoDb(AgentCheck):
         "metrics.repl.oplog.insert.num": RATE,
         "metrics.repl.oplog.insert.totalMillis": RATE,
         "metrics.repl.oplog.insertBytes": RATE,
+        "metrics.repl.preload.docs.num": RATE,
+        "metrics.repl.preload.docs.totalMillis": RATE,
         "metrics.repl.preload.indexes.num": RATE,
         "metrics.repl.preload.indexes.totalMillis": RATE,
+        "metrics.repl.storage.freelist.search.bucketExhausted": RATE,
+        "metrics.repl.storage.freelist.search.requests": RATE,
+        "metrics.repl.storage.freelist.search.scanned": RATE,
         "metrics.ttl.deletedDocuments": RATE,
         "metrics.ttl.passes": RATE,
+        "network.bytesIn": RATE,
+        "network.bytesOut": RATE,
+        "network.numRequests": RATE,
         "opcounters.command": RATE,
         "opcounters.delete": RATE,
         "opcounters.getmore": RATE,
@@ -147,9 +158,7 @@ class MongoDb(AgentCheck):
         "dur.timeMs.writeToJournal": GAUGE,
         "dur.writeToDataFilesMB": GAUGE,
 
-        """
-        Required version > 3.0.0.
-        """
+        # Required version > 3.0.0
         "dur.timeMs.commits": GAUGE,
         "dur.timeMs.commitsInWriteLock": GAUGE,
     }
@@ -161,7 +170,7 @@ class MongoDb(AgentCheck):
     https://docs.mongodb.org/manual/reference/command/serverStatus/#serverStatus.metrics.commands
     """
     COMMANDS_METRICS = {
-        # >= 3.0
+        # Required version >
         "metrics.commands.count.failed": RATE,
         "metrics.commands.count.total": GAUGE,
         "metrics.commands.createIndexes.failed": RATE,
@@ -186,23 +195,37 @@ class MongoDb(AgentCheck):
     """
     LOCKS_METRICS = {
         "locks.Collection.acquireCount.R": RATE,
+        "locks.Collection.acquireCount.r": RATE,
         "locks.Collection.acquireCount.W": RATE,
+        "locks.Collection.acquireCount.w": RATE,
         "locks.Collection.acquireWaitCount.R": RATE,
         "locks.Collection.acquireWaitCount.W": RATE,
         "locks.Collection.timeAcquiringMicros.R": RATE,
         "locks.Collection.timeAcquiringMicros.W": RATE,
         "locks.Database.acquireCount.r": RATE,
+        "locks.Database.acquireCount.R": RATE,
         "locks.Database.acquireCount.w": RATE,
+        "locks.Database.acquireCount.W": RATE,
         "locks.Database.acquireWaitCount.r": RATE,
+        "locks.Database.acquireWaitCount.R": RATE,
         "locks.Database.acquireWaitCount.w": RATE,
+        "locks.Database.acquireWaitCount.W": RATE,
         "locks.Database.timeAcquiringMicros.r": RATE,
+        "locks.Database.timeAcquiringMicros.R": RATE,
         "locks.Database.timeAcquiringMicros.w": RATE,
+        "locks.Database.timeAcquiringMicros.W": RATE,
         "locks.Global.acquireCount.r": RATE,
+        "locks.Global.acquireCount.R": RATE,
         "locks.Global.acquireCount.w": RATE,
+        "locks.Global.acquireCount.W": RATE,
         "locks.Global.acquireWaitCount.r": RATE,
+        "locks.Global.acquireWaitCount.R": RATE,
         "locks.Global.acquireWaitCount.w": RATE,
+        "locks.Global.acquireWaitCount.W": RATE,
         "locks.Global.timeAcquiringMicros.r": RATE,
+        "locks.Global.timeAcquiringMicros.R": RATE,
         "locks.Global.timeAcquiringMicros.w": RATE,
+        "locks.Global.timeAcquiringMicros.W": RATE,
         "locks.Metadata.acquireCount.R": RATE,
         "locks.Metadata.acquireCount.W": RATE,
         "locks.MMAPV1Journal.acquireCount.r": RATE,
