@@ -1,6 +1,4 @@
 init_config:
-    # This provides the prefix to use when invoking `svstat`.
-    path: "/etc/service"
 
 instances:
     # The instances here will provide a list of services which this integration
@@ -13,6 +11,8 @@ instances:
     # `$SERVICE`.
     #
     # - service: "consul"
+    #   path: "/etc/service"
     #   tags: ["foo","bar:baz"]
     # - service: "someotherservice"
+    #   path: "/etc/service"
     #   tags: ["foo","bar:baz"]
