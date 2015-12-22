@@ -49,6 +49,14 @@ STATUS_VARS = {
     'Open_tables': ('mysql.performance.open_tables', GAUGE),
 }
 
+GALERA_VARS = {
+    'wsrep_cluster_size': ('mysql.galera.wsrep_cluster_size', GAUGE),
+    'wsrep_local_recv_queue_avg': ('mysql.galera.wsrep_local_recv_queue_avg', GAUGE),
+    'wsrep_flow_control_paused': ('mysql.galera.wsrep_flow_control_paused', GAUGE),
+    'wsrep_cert_deps_distance': ('mysql.galera.wsrep_cert_deps_distance', GAUGE),
+    'wsrep_local_send_queue_avg': ('mysql.galera.wsrep_local_send_queue_avg', GAUGE),
+}
+
 
 class MySql(AgentCheck):
     SERVICE_CHECK_NAME = 'mysql.can_connect'
@@ -181,8 +189,7 @@ class MySql(AgentCheck):
                            innodb_buffer_pool_pages_utilization, tags=tags)
 
         if 'galera_cluster' in options and options['galera_cluster']:
-            value = self._collect_scalar('wsrep_cluster_size', status_results)
-            self.gauge('mysql.galera.wsrep_cluster_size', value, tags=tags)
+            self._rate_or_gauge_statuses(GALERA_VARS, status_results, tags)
 
         if 'replication' in options and options['replication']:
             # get slave running form global status page
