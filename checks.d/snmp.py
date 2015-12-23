@@ -303,6 +303,7 @@ class SnmpCheck(AgentCheck):
         tags = instance.get("tags", [])
         tags = tags + ["snmp_device:" + instance.get('ip_address')]
         for metric in instance.get('metrics', []):
+            forced_type = metric.get('forced_type')
             if 'OID' in metric:
                 queried_oid = metric['OID']
                 for oid in results:
@@ -314,7 +315,7 @@ class SnmpCheck(AgentCheck):
                                      queried_oid)
                     continue
                 name = metric.get('name', 'unnamed_metric')
-                self.submit_metric(name, value, tags)
+                self.submit_metric(name, value, forced_type, tags)
 
     def report_table_metrics(self, instance, results):
         '''
@@ -327,6 +328,7 @@ class SnmpCheck(AgentCheck):
         tags = tags + ["snmp_device:"+instance.get('ip_address')]
 
         for metric in instance.get('metrics', []):
+            forced_type = metric.get('forced_type')
             if 'table' in metric:
                 index_based_tags = []
                 column_based_tags = []
@@ -344,7 +346,7 @@ class SnmpCheck(AgentCheck):
                         metric_tags = tags + self.get_index_tags(index, results,
                                                                  index_based_tags,
                                                                  column_based_tags)
-                        self.submit_metric(value_to_collect, val, metric_tags)
+                        self.submit_metric(value_to_collect, val, forced_type, metric_tags)
 
             elif 'symbol' in metric:
                 name = metric['symbol']
@@ -353,7 +355,7 @@ class SnmpCheck(AgentCheck):
                     self.log.warning("Several rows corresponding while the metric is supposed to be a scalar")
                     continue
                 val = result[0][1]
-                self.submit_metric(name, val, tags)
+                self.submit_metric(name, val, forced_type, tags)
             elif 'OID' in metric:
                 pass # This one is already handled by the other batch of requests
             else:
@@ -395,7 +397,7 @@ class SnmpCheck(AgentCheck):
             tags.append("{0}:{1}".format(tag_group, tag_value))
         return tags
 
-    def submit_metric(self, name, snmp_value, tags=[]):
+    def submit_metric(self, name, snmp_value, forced_type, tags=[]):
         '''
         Convert the values reported as pysnmp-Managed Objects to values and
         report them to the aggregator
@@ -406,6 +408,16 @@ class SnmpCheck(AgentCheck):
             return
 
         metric_name = self.normalize(name, prefix="snmp")
+
+        if forced_type:
+            if forced_type.lower() == "gauge":
+                value = int(snmp_value)
+                self.gauge(metric_name, value, tags)
+                return
+            if forced_type.lower() == "counter":
+                value = int(snmp_value)
+                self.rate(metric_name, value, tags)
+                return
 
         # Ugly hack but couldn't find a cleaner way
         # Proper way would be to use the ASN1 method isSameTypeWith but it
