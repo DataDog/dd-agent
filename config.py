@@ -64,6 +64,8 @@ LEGACY_DATADOG_URLS = [
     "app.datad0g.com",
 ]
 
+# Environment variables that may be interpolated in the datadog configuration file.
+DATADOG_ENV_VARS = dict((k, v) for k, v in os.environ.iteritems() if k.startswith('DATADOG_'))
 
 class PathNotFound(Exception):
     pass
@@ -340,11 +342,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         path = os.path.dirname(path)
 
         config_path = get_config_path(cfg_path, os_name=get_os())
-
-        # Take into account interpolation of enviroment variables that begins with "DATADOG_".
-        env_vars = dict((k, v) for k, v in os.environ.iteritems() if k.startswith('DATADOG_'))
-
-        config = ConfigParser.ConfigParser(env_vars)
+        config = ConfigParser.ConfigParser(DATADOG_ENV_VARS)
         config.readfp(skip_leading_wsp(open(config_path)))
 
         # bulk import
@@ -928,7 +926,7 @@ def get_logging_config(cfg_path=None):
         logging_config['log_to_syslog'] = True
 
     config_path = get_config_path(cfg_path, os_name=system_os)
-    config = ConfigParser.ConfigParser()
+    config = ConfigParser.ConfigParser(DATADOG_ENV_VARS)
     config.readfp(skip_leading_wsp(open(config_path)))
 
     if config.has_section('handlers') or config.has_section('loggers') or config.has_section('formatters'):
