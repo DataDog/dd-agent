@@ -53,29 +53,36 @@ class WMICheck(AgentCheck):
         # WMI instance
         wmi_class = instance.get('class')
         metrics = instance.get('metrics')
-        filters = instance.get('filters')
+        filters = instance.get('filters', [{}])
         tag_by = instance.get('tag_by', "").lower()
         tag_queries = instance.get('tag_queries', [])
         constant_tags = instance.get('constant_tags')
 
-        # Create or retrieve an existing WMISampler
-        instance_key = self._get_instance_key(host, namespace, wmi_class)
+        # we need one sampler per element of filters
+        for f in filters:
+            # Create or retrieve an existing WMISampler
+            sampler_key = self._get_sampler_key(host, namespace, wmi_class, f)
 
-        metric_name_and_type_by_property, properties = \
-            self._get_wmi_properties(instance_key, metrics, tag_queries)
+            sampler_filters = []
+            if f:
+                # make the filters comply with wmi_sampler filters' format
+                sampler_filters = [{prop: value} for prop, value in f.iteritems()]
 
-        wmi_sampler = self._get_wmi_sampler(
-            instance_key,
-            wmi_class, properties,
-            filters=filters,
-            host=host, namespace=namespace,
-            username=username, password=password
-        )
+            metric_name_and_type_by_property, properties = \
+                self._get_wmi_properties(sampler_key, metrics, tag_queries)
 
-        # Sample, extract & submit metrics
-        wmi_sampler.sample()
-        metrics = self._extract_metrics(wmi_sampler, tag_by, tag_queries, constant_tags)
-        self._submit_metrics(metrics, metric_name_and_type_by_property)
+            wmi_sampler = self._get_wmi_sampler(
+                sampler_key,
+                wmi_class, properties,
+                filters=sampler_filters,
+                host=host, namespace=namespace,
+                username=username, password=password
+            )
+
+            # Sample, extract & submit metrics
+            wmi_sampler.sample()
+            fetched_metrics = self._extract_metrics(wmi_sampler, tag_by, tag_queries, constant_tags)
+            self._submit_metrics(fetched_metrics, metric_name_and_type_by_property)
 
     def _format_tag_query(self, sampler, wmi_obj, tag_query):
         """
@@ -252,34 +259,36 @@ class WMICheck(AgentCheck):
 
             func(metric_name, metric.value, metric.tags)
 
-    def _get_instance_key(self, host, namespace, wmi_class):
+    def _get_sampler_key(self, host, namespace, wmi_class, f):
         """
         Return an index key for a given instance. Usefull for caching.
         """
-        return "{host}:{namespace}:{wmi_class}".format(
-            host=host, namespace=namespace, wmi_class=wmi_class,
+        # transform the filter into a list of tuples and sort by property name
+        ordered_filter = sorted(f.items(), key=lambda f_elem: f_elem[0])
+        return "{host}:{namespace}:{wmi_class}:{filter}".format(
+            host=host, namespace=namespace, wmi_class=wmi_class, filter=ordered_filter
         )
 
-    def _get_wmi_sampler(self, instance_key, wmi_class, properties, **kwargs):
+    def _get_wmi_sampler(self, sampler_key, wmi_class, properties, **kwargs):
         """
         Create and cache a WMISampler for the given (class, properties)
         """
-        if instance_key not in self.wmi_samplers:
+        if sampler_key not in self.wmi_samplers:
             wmi_sampler = WMISampler(self.log, wmi_class, properties, **kwargs)
-            self.wmi_samplers[instance_key] = wmi_sampler
+            self.wmi_samplers[sampler_key] = wmi_sampler
 
-        return self.wmi_samplers[instance_key]
+        return self.wmi_samplers[sampler_key]
 
-    def _get_wmi_properties(self, instance_key, metrics, tag_queries):
+    def _get_wmi_properties(self, sampler_key, metrics, tag_queries):
         """
         Create and cache a (metric name, metric type) by WMI property map and a property list.
         """
-        if instance_key not in self.wmi_props:
+        if sampler_key not in self.wmi_props:
             metric_name_by_property = dict(
                 (wmi_property.lower(), (metric_name, metric_type))
                 for wmi_property, metric_name, metric_type in metrics
             )
             properties = map(lambda x: x[0], metrics + tag_queries)
-            self.wmi_props[instance_key] = (metric_name_by_property, properties)
+            self.wmi_props[sampler_key] = (metric_name_by_property, properties)
 
-        return self.wmi_props[instance_key]
+        return self.wmi_props[sampler_key]

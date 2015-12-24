@@ -99,8 +99,8 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         self.run_check(config)
 
         # A WMISampler is cached
-        self.assertIn("myhost:some/namespace:Win32_OperatingSystem", self.check.wmi_samplers)
-        wmi_sampler = self.check.wmi_samplers["myhost:some/namespace:Win32_OperatingSystem"]
+        self.assertIn("myhost:some/namespace:Win32_OperatingSystem:[]", self.check.wmi_samplers)
+        wmi_sampler = self.check.wmi_samplers["myhost:some/namespace:Win32_OperatingSystem:[]"]
 
         # Connection was established with the right parameters
         self.assertWMIConnWith(wmi_sampler, "myhost")
@@ -135,9 +135,9 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         self.run_check(config)
 
         # WMI props are cached
-        self.assertIn("myhost:some/namespace:Win32_OperatingSystem", self.check.wmi_props)
+        self.assertIn("myhost:some/namespace:Win32_OperatingSystem:[]", self.check.wmi_props)
         metric_name_and_type_by_property, properties = \
-            self.check.wmi_props["myhost:some/namespace:Win32_OperatingSystem"]
+            self.check.wmi_props["myhost:some/namespace:Win32_OperatingSystem:[]"]
 
         # Assess
         self.assertEquals(
@@ -219,11 +219,11 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
 
         # WMI props are cached
         self.assertIn(
-            "localhost:root\\cimv2:Win32_PerfFormattedData_PerfProc_Process",
+            "localhost:root\\cimv2:Win32_PerfFormattedData_PerfProc_Process:[('Name', 'chrome')]",
             self.check.wmi_props
         )
         _, properties = \
-            self.check.wmi_props["localhost:root\\cimv2:Win32_PerfFormattedData_PerfProc_Process"]
+            self.check.wmi_props["localhost:root\\cimv2:Win32_PerfFormattedData_PerfProc_Process:[('Name', 'chrome')]"]
 
         self.assertEquals(properties, ["IOReadBytesPerSec", "IDProcess"])
 
