@@ -66,11 +66,8 @@ zk_max_file_descriptor_count    4096
 `mntr` tested with ZooKeeper 3.4.5
 '''
 # stdlib
-<<<<<<< HEAD
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from distutils.version import LooseVersion
-=======
->>>>>>> a58add0... [zk] :heavy_plus_sign: `zookeeper.bytes_received/sent*` rates
 from StringIO import StringIO
 import re
 import socket
