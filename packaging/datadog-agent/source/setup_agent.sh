@@ -11,9 +11,9 @@ set -u
 DEFAULT_AGENT_VERSION="5.6.3"
 # Pin pip version, in the past there was some buggy releases and get-pip.py
 # always pulls the latest version
-PIP_VERSION="6.0.8"
+PIP_VERSION="6.1.1"
 VIRTUALENV_VERSION="1.11.6"
-SUPERVISOR_VERSION="3.0b2"
+SUPERVISOR_VERSION="3.1.3"
 
 #######################################################################
 # OVERRIDABLE VARIABLES:
