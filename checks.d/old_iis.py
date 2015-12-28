@@ -85,7 +85,7 @@ class IIS(AgentCheck):
                 tags = instance_tags
 
             status = AgentCheck.CRITICAL if iis_site.ServiceUptime == 0 else AgentCheck.OK
-            self.service_check("iis.site_up", status, tags=['site:%s' % iis_site.Name])
+            self.service_check("old.iis.site_up", status, tags=['site:%s' % iis_site.Name])
             expected_sites.remove(iis_site.Name)
 
             for metric, mtype, wmi_val in self.METRICS:
