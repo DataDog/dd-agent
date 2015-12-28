@@ -8,8 +8,8 @@ from checks.system.unix import (
     IO,
     Load,
     Memory,
-    System,
 )
+from checks.system.common import System
 from config import get_system_stats
 from tests.checks.common import get_check
 from utils.platform import Platform
@@ -118,7 +118,7 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
 
         self.assertEqual(
             results["disk0"],
-            {'system.io.bytes_per_s': float(0.02 * 10**6),}
+            {'system.io.bytes_per_s': float(0.02 * 2**20),}
         )
         self.assertEqual(
             results["disk1"],

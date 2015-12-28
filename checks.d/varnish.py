@@ -1,11 +1,11 @@
 # stdlib
 from collections import defaultdict
 import re
-import subprocess
 import xml.parsers.expat # python 2.4 compatible
 
 # project
 from checks import AgentCheck
+from utils.subprocess_output import get_subprocess_output
 
 
 class BackendStatus(object):
@@ -88,7 +88,7 @@ class Varnish(AgentCheck):
         else:
             tags += [u'varnish_name:default']
 
-        output = self._get_varnishstat_output(cmd)
+        output, _, _ = get_subprocess_output(cmd, self.log)
 
         self._parse_varnishstat(output, use_xml, tags)
 
@@ -97,24 +97,13 @@ class Varnish(AgentCheck):
         if varnishadm_path:
             secretfile_path = instance.get('secretfile', '/etc/varnish/secret')
             cmd = ['sudo', varnishadm_path, '-S', secretfile_path, 'debug.health']
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-            output, _ = proc.communicate()
+            output, _, _ = get_subprocess_output(cmd, self.log)
             if output:
                 self._parse_varnishadm(output)
 
-    def _get_varnishstat_output(self, cmd):
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
-        output, error = proc.communicate()
-        if error and len(error) > 0:
-            self.log.error(error)
-        return output
-
     def _get_version_info(self, varnishstat_path):
         # Get the varnish version from varnishstat
-        output, error = subprocess.Popen([varnishstat_path, "-V"],
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE).communicate()
+        output, error, _ = get_subprocess_output([varnishstat_path, "-V"], self.log)
 
         # Assumptions regarding varnish's version
         use_xml = True

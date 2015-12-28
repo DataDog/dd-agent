@@ -1,17 +1,119 @@
 # stdlib
-import time
 from types import ListType
+import time
 import unittest
 
 # 3p
+from mock import Mock
 from nose.plugins.attrib import attr
 
 # project
-from tests.checks.common import load_check
+from checks import AgentCheck
+from tests.checks.common import AgentCheckTest, load_check
 
 PORT1 = 37017
 PORT2 = 37018
 MAX_WAIT = 150
+
+GAUGE = AgentCheck.gauge
+RATE = AgentCheck.rate
+
+
+class TestMongoUnit(AgentCheckTest):
+    """
+    Unit tests for MongoDB AgentCheck.
+    """
+    CHECK_NAME = 'mongo'
+
+    MONGODB_CONFIG = {
+        'server': "mongodb://localhost:%s/test" % PORT1
+    }
+
+    def test_build_metric_list(self):
+        """
+        Build the metric list according to the user configuration.
+        Print a warning when an option has no match.
+        """
+        # Initialize check
+        config = {
+            'instances': [self.MONGODB_CONFIG]
+        }
+
+        self.load_check(config)
+        setattr(self.check, "log", Mock())
+        build_metric_list = self.check._build_metric_list_to_collect
+
+        # No option
+        no_additional_metrics = build_metric_list([])
+        self.assertEquals(len(no_additional_metrics), len(self.check.BASE_METRICS))
+
+        # One correct option
+        base_and_tcmalloc_metrics = build_metric_list(['tcmalloc'])
+        self.assertEquals(
+            len(base_and_tcmalloc_metrics),
+            len(self.check.BASE_METRICS) + len(self.check.TCMALLOC_METRICS)
+        )
+
+        # One wrong and correct option
+        base_and_tcmalloc_metrics = build_metric_list(['foobar', 'tcmalloc'])
+        self.assertEquals(
+            len(base_and_tcmalloc_metrics),
+            len(self.check.BASE_METRICS) + len(self.check.TCMALLOC_METRICS)
+        )
+        self.assertEquals(self.check.log.warning.called, 1)
+
+    def test_metric_resolution(self):
+        """
+        Resolve metric names and types.
+        """
+        # Initialize check and tests
+        config = {
+            'instances': [self.MONGODB_CONFIG]
+        }
+        collect_metrics = {
+            'foobar': (GAUGE, 'barfoo'),
+            'foo.bar': (RATE, 'bar.foo'),
+            'fOoBaR': GAUGE,
+            'fOo.baR': RATE,
+        }
+        self.load_check(config)
+        resolve_metric = self.check._resolve_metric
+
+        # Assert
+
+        # metric_name -> (metric_type, alias)
+        self.assertEquals((GAUGE, 'mongodb.barfoo'), resolve_metric('foobar', collect_metrics))
+        self.assertEquals((RATE, 'mongodb.bar.foops'), resolve_metric('foo.bar', collect_metrics))
+
+        #  metric_name -> metric_type
+        self.assertEquals((GAUGE, 'mongodb.foobar'), resolve_metric('fOoBaR', collect_metrics))
+        self.assertEquals((RATE, 'mongodb.foo.barps'), resolve_metric('fOo.baR', collect_metrics))
+
+    def test_metric_normalization(self):
+        """
+        Metric names suffixed with `.R`, `.r`, `.W`, `.w` are renamed.
+        """
+        # Initialize check and tests
+        config = {
+            'instances': [self.MONGODB_CONFIG]
+        }
+        collect_metrics = {
+            'foo.bar': GAUGE,
+            'foobar.r': GAUGE,
+            'foobar.R': RATE,
+            'foobar.w': RATE,
+            'foobar.W': GAUGE,
+        }
+        self.load_check(config)
+        resolve_metric = self.check._resolve_metric
+
+        # Assert
+        self.assertEquals((GAUGE, 'mongodb.foo.bar'), resolve_metric('foo.bar', collect_metrics))  # noqa
+
+        self.assertEquals((RATE, 'mongodb.foobar.sharedps'), resolve_metric('foobar.R', collect_metrics))  # noqa
+        self.assertEquals((GAUGE, 'mongodb.foobar.intent_shared'), resolve_metric('foobar.r', collect_metrics))  # noqa
+        self.assertEquals((RATE, 'mongodb.foobar.intent_exclusiveps'), resolve_metric('foobar.w', collect_metrics))  # noqa
+        self.assertEquals((GAUGE, 'mongodb.foobar.exclusive'), resolve_metric('foobar.W', collect_metrics))  # noqa
 
 
 @attr(requires='mongo')
@@ -35,8 +137,10 @@ class TestMongo(unittest.TestCase):
 
         # Run the check against our running server
         self.check.check(self.config['instances'][0])
+
         # Sleep for 1 second so the rate interval >=1
         time.sleep(1)
+
         # Run the check again so we get the rates
         self.check.check(self.config['instances'][0])
 

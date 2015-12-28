@@ -5,7 +5,9 @@ import random
 import time
 
 # 3p
+from distutils.version import StrictVersion
 from nose.plugins.attrib import attr
+from nose.plugins.skip import SkipTest
 import redis
 
 # project
@@ -20,7 +22,7 @@ AUTH_PORT = 26379
 SLAVE_HEALTHY_PORT = 36379
 SLAVE_UNHEALTHY_PORT = 46379
 DEFAULT_PORT = 6379
-MISSING_KEY_TOLERANCE = 0.5
+MISSING_KEY_TOLERANCE = 0.6
 
 
 @attr(requires='redis')
@@ -305,6 +307,50 @@ class TestRedis(AgentCheckTest):
         # payload, as specified in the above agent configuration
         self.assertMetric("redis.slowlog.micros.count", tags=["command:SORT",
             "redis_host:localhost", "redis_port:{0}".format(port)], value=1.0)
+
+    def test_redis_command_stats(self):
+        port = NOAUTH_PORT
+
+        instance = {
+            'host': 'localhost',
+            'port': port,
+            'command_stats': True
+        }
+
+        db = redis.Redis(port=port, db=14)  # Datadog's test db
+
+        r = load_check('redisdb', {}, {})
+        r.check(instance)
+
+        version = db.info().get('redis_version')
+        if StrictVersion(version) < StrictVersion('2.6.0'):
+            raise SkipTest("Command stats only works with Redis >= 2.6.0")
+
+        metrics = self._sort_metrics(r.get_metrics())
+        assert metrics, "No metrics returned"
+        command_stat_metrics = ['redis.command.calls', 'redis.command.usec', 'redis.command.usec_per_call']
+        command_metrics = [m for m in metrics if m[0] in command_stat_metrics]
+
+        # Assert we have values, timestamps and tags for each metric.
+        for m in command_metrics:
+            assert isinstance(m[1], int)    # timestamp
+            assert isinstance(m[2], (int, float, long))  # value
+            tags = m[3]["tags"]
+            expected_tags = ["redis_host:localhost", "redis_port:%s" % port]
+            for e in expected_tags:
+                assert e in tags
+
+        # Check the command stats for INFO, since we know we've called it
+        info_metrics = self._sort_metrics(
+            [m for m in command_metrics if "command:info" in m[3]["tags"]])
+        # There should be one value for each metric for the info command
+        self.assertEquals(2, len(info_metrics))
+
+        self.assertEquals('redis.command.calls', info_metrics[0][0])
+        assert info_metrics[0][2] > 0, "Number of INFO calls should be >0"
+
+        self.assertEquals('redis.command.usec_per_call', info_metrics[1][0])
+        assert info_metrics[1][2] > 0, "Usec per INFO call should be >0"
 
     def _sort_metrics(self, metrics):
         def sort_by(m):

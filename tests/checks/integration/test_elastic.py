@@ -263,8 +263,11 @@ class TestElastic(AgentCheckTest):
         bad_sc_tags = ['host:localhost', 'port:{0}'.format(bad_port)]
 
         self.assertServiceCheckOK('elasticsearch.can_connect',
+                                  tags=good_sc_tags + tags,
+                                  count=1)
+        self.assertServiceCheckOK('elasticsearch.can_connect',
                                   tags=good_sc_tags,
-                                  count=2)
+                                  count=1)
         self.assertServiceCheckCritical('elasticsearch.can_connect',
                                         tags=bad_sc_tags,
                                         count=1)
@@ -279,9 +282,11 @@ class TestElastic(AgentCheckTest):
             # Warning because elasticsearch status should be yellow, according to
             # http://chrissimpson.co.uk/elasticsearch-yellow-cluster-status-explained.html
             self.assertServiceCheckWarning('elasticsearch.cluster_health',
+                                           tags=good_sc_tags + tags,
+                                           count=1)
+            self.assertServiceCheckWarning('elasticsearch.cluster_health',
                                            tags=good_sc_tags,
-                                           count=2)
-
+                                           count=1)
             # Assert event
             self.assertEvent('ElasticSearch: foo just reported as yellow', count=1,
                              tags=default_tags+tags, msg_title='foo is yellow',
@@ -307,7 +312,7 @@ class TestElastic(AgentCheckTest):
         self.assertEquals(c.url, "http://foo.bar")
         self.assertEquals(c.tags, ["url:http://foo.bar", "a", "b:c"])
         self.assertEquals(c.timeout, check.DEFAULT_TIMEOUT)
-        self.assertEquals(c.service_check_tags, ["host:foo.bar", "port:None"])
+        self.assertEquals(c.service_check_tags, ["host:foo.bar", "port:None", "a", "b:c"])
 
         instance = {
             "url": "http://192.168.42.42:12999",
@@ -342,7 +347,7 @@ class TestElastic(AgentCheckTest):
         )
         self.assertServiceCheckWarning(
             'elasticsearch.cluster_health',
-            tags=['host:localhost', 'port:9200'],
+            tags=['host:localhost', 'port:9200'] + dummy_tags,
             count=1
         )
 
@@ -360,7 +365,7 @@ class TestElastic(AgentCheckTest):
         )
         self.assertServiceCheckOK(
             'elasticsearch.cluster_health',
-            tags=['host:localhost', 'port:9200'],
+            tags=['host:localhost', 'port:9200'] + dummy_tags,
             count=1
         )
 

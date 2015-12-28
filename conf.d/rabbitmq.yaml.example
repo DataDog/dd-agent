@@ -7,10 +7,10 @@ instances:
   - rabbitmq_api_url: http://localhost:15672/api/
     rabbitmq_user: guest
     rabbitmq_pass: guest
-    # If you have less than 3 nodes, you don't have to set the nodes parameters
-    # All nodes metrics will be collected
-    # If you have more than 3 nodes: you can set 3 node names. Metrics will be collected
-    # for these nodes. For the other nodes, aggregate will be calculated.
+    # Use the `nodes` or `nodes_regexes` parameters to specify the nodes you'd like to
+    # collect metrics on (up to 100 nodes).
+    # If you have less than 100 nodes, you don't have to set this parameter,
+    # the metrics will be collected on all the nodes by default.
     #
     # nodes:
     #   - rabbit@localhost
@@ -18,12 +18,11 @@ instances:
     # nodes_regexes:
     #   - bla.*
 
-    # If you have less than 5 queues, you don't have to set the queues parameters
-    # All queues metrics will be collected
-    # If you have more than 5 queues: you can set 5 queue names. Metrics will be collected
-    # for these queues. For the other queues, aggregate will be calculated.
+    # Use the `queues` or `queues_regexes` parameters to specify the queues you'd like to
+    # collect metrics on (up to 200 queues).
+    # If you have less than 200 queues, you don't have to set this parameter,
+    # the metrics will be collected on all the queues by default.
     # If you have set up vhosts, set the queue names as `vhost_name/queue_name`.
-    # Warning: aggregate are calculated on the 100 first queues/nodes.
     #
     # queues:
     #   - queue1
