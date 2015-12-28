@@ -44,7 +44,8 @@ RATES = [
     "cas_misses",
     "cas_hits",
     "cas_badval",
-    "total_connections"
+    "total_connections",
+    "listen_disabled_num"
 ]
 
 SERVICE_CHECK = 'memcache.can_connect'

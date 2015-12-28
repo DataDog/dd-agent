@@ -39,3 +39,6 @@ instances:
     # set the value here.
     # Warning: It may impact the performance of your redis instance
     # slowlog-max-len: 128
+
+    # Collect INFO COMMANDSTATS output as metrics.
+    # command_stats: False

@@ -3,18 +3,20 @@ if __name__ == '__main__':
     from config import initialize_logging  # noqa
     initialize_logging('jmxfetch')
 
-# std
+# stdlib
+from contextlib import nested
 import glob
 import logging
 import os
 import signal
 import sys
+import tempfile
 import time
 
-# 3rd party
+# 3p
 import yaml
 
-# datadog
+# project
 from config import (
     DEFAULT_CHECK_FREQUENCY,
     get_confd_path,
@@ -108,7 +110,8 @@ class JMXFetch(object):
         if clean_status_file:
             JMXFiles.clean_status_file()
 
-        self.jmx_checks, self.invalid_checks, self.java_bin_path, self.java_options, self.tools_jar_path = \
+        self.jmx_checks, self.invalid_checks, self.java_bin_path, self.java_options, \
+            self.tools_jar_path, self.custom_jar_paths = \
             self.get_configuration(self.confd_path, checks_list=checks_list)
 
     def should_run(self):
@@ -143,7 +146,7 @@ class JMXFetch(object):
 
             if len(self.jmx_checks) > 0:
                 return self._start(self.java_bin_path, self.java_options, self.jmx_checks,
-                                   command, reporter, self.tools_jar_path, redirect_std_streams)
+                                   command, reporter, self.tools_jar_path, self.custom_jar_paths, redirect_std_streams)
             else:
                 # We're exiting purposefully, so exit with zero (supervisor's expected
                 # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly
@@ -184,6 +187,7 @@ class JMXFetch(object):
         java_bin_path = None
         java_options = None
         tools_jar_path = None
+        custom_jar_paths = []
         invalid_checks = {}
 
         for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
@@ -202,7 +206,7 @@ class JMXFetch(object):
                     continue
 
                 try:
-                    is_jmx, check_java_bin_path, check_java_options, check_tools_jar_path = \
+                    is_jmx, check_java_bin_path, check_java_options, check_tools_jar_path, check_custom_jar_paths = \
                         cls._is_jmx_check(check_config, check_name, checks_list)
                     if is_jmx:
                         jmx_checks.append(filename)
@@ -212,15 +216,17 @@ class JMXFetch(object):
                             java_options = check_java_options
                         if tools_jar_path is None and check_tools_jar_path is not None:
                             tools_jar_path = check_tools_jar_path
+                        if check_custom_jar_paths:
+                            custom_jar_paths.extend(check_custom_jar_paths)
                 except InvalidJMXConfiguration, e:
                     log.error("%s check does not have a valid JMX configuration: %s" % (check_name, e))
                     # Make sure check_name is a string - Fix issues with Windows
                     check_name = check_name.encode('ascii', 'ignore')
                     invalid_checks[check_name] = str(e)
 
-        return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path)
+        return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path, custom_jar_paths)
 
-    def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path, redirect_std_streams):
+    def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path, custom_jar_paths, redirect_std_streams):
         statsd_port = self.agentConfig.get('dogstatsd_port', "8125")
         if reporter is None:
             reporter = "statsd:%s" % str(statsd_port)
@@ -232,10 +238,11 @@ class JMXFetch(object):
             path_to_jmxfetch = self._get_path_to_jmxfetch()
             path_to_status_file = JMXFiles.get_status_file_path()
 
-            if tools_jar_path is None:
-                classpath = path_to_jmxfetch
-            else:
-                classpath = r"%s:%s" % (tools_jar_path, path_to_jmxfetch)
+            classpath = path_to_jmxfetch
+            if tools_jar_path is not None:
+                classpath = r"%s:%s" % (tools_jar_path, classpath)
+            if custom_jar_paths:
+                classpath = r"%s:%s" % (':'.join(custom_jar_paths), classpath)
 
             subprocess_args = [
                 path_to_java,  # Path to the java bin
@@ -274,26 +281,30 @@ class JMXFetch(object):
 
             log.info("Running %s" % " ".join(subprocess_args))
 
-            # Launch JMXfetch subprocess
-            jmx_process = subprocess.Popen(
-                subprocess_args,
-                close_fds=not redirect_std_streams,  # set to True instead of False when the streams are redirected for WIN compatibility
-                stdout=subprocess.PIPE if redirect_std_streams else None,
-                stderr=subprocess.PIPE if redirect_std_streams else None
-            )
-            self.jmx_process = jmx_process
+            # Launch JMXfetch subprocess manually, w/o get_subprocess_output(), since it's a special case
+            with nested(tempfile.TemporaryFile(), tempfile.TemporaryFile()) as (stdout_f, stderr_f):
+                jmx_process = subprocess.Popen(
+                    subprocess_args,
+                    close_fds=not redirect_std_streams,  # only set to True when the streams are not redirected, for WIN compatibility
+                    stdout=stdout_f if redirect_std_streams else None,
+                    stderr=stderr_f if redirect_std_streams else None
+                )
+                self.jmx_process = jmx_process
 
-            # Register SIGINT and SIGTERM signal handlers
-            self.register_signal_handlers()
+                # Register SIGINT and SIGTERM signal handlers
+                self.register_signal_handlers()
 
-            if redirect_std_streams:
-                # Wait for JMXFetch to return, and write out the stdout and stderr of JMXFetch to sys.stdout and sys.stderr
-                out, err = jmx_process.communicate()
-                sys.stdout.write(out)
-                sys.stderr.write(err)
-            else:
                 # Wait for JMXFetch to return
                 jmx_process.wait()
+
+                if redirect_std_streams:
+                    # Write out the stdout and stderr of JMXFetch to sys.stdout and sys.stderr
+                    stderr_f.seek(0)
+                    err = stderr_f.read()
+                    stdout_f.seek(0)
+                    out = stdout_f.read()
+                    sys.stdout.write(out)
+                    sys.stderr.write(err)
 
             return jmx_process.returncode
 
@@ -319,6 +330,7 @@ class JMXFetch(object):
         is_jmx = False
         is_attach_api = False
         tools_jar_path = init_config.get("tools_jar_path")
+        custom_jar_paths = init_config.get("custom_jar_paths")
 
         if init_config is None:
             init_config = {}
@@ -347,9 +359,15 @@ class JMXFetch(object):
 
                 # Support for attach api using a process name regex
                 proc_regex = inst.get('process_name_regex')
+                # Support for a custom jmx URL
+                jmx_url = inst.get('jmx_url')
+                name = inst.get('name')
 
                 if proc_regex is not None:
                     is_attach_api = True
+                elif jmx_url is not None:
+                    if name is None:
+                        raise InvalidJMXConfiguration("A name must be specified when using a jmx_url")
                 else:
                     if host is None:
                         raise InvalidJMXConfiguration("A host must be specified")
@@ -407,7 +425,14 @@ class JMXFetch(object):
             else:
                 tools_jar_path = None
 
-        return is_jmx, java_bin_path, java_options, tools_jar_path
+            if custom_jar_paths:
+                if isinstance(custom_jar_paths, basestring):
+                    custom_jar_paths = [custom_jar_paths]
+                for custom_jar_path in custom_jar_paths:
+                    if not os.path.isfile(custom_jar_path):
+                        raise InvalidJMXConfiguration("Unable to find custom jar at %s" % custom_jar_path)
+
+        return is_jmx, java_bin_path, java_options, tools_jar_path, custom_jar_paths
 
     def _get_path_to_jmxfetch(self):
         if not Platform.is_windows():

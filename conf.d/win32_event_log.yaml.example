@@ -1,4 +1,7 @@
 init_config:
+    # The (optional) tag_event_id setting will add an event id tag to each
+    # event sent from this check. Defaults to false.
+    # tag_event_id: false
 
 instances:
   # Each Event Log instance lets you define the type of events you want to
