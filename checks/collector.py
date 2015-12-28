@@ -6,6 +6,9 @@ import socket
 import sys
 import time
 
+# 3p
+from datadog import statsd
+
 # project
 from checks import AGENT_METRICS_CHECK_NAME, AgentCheck, create_service_check
 from checks.check_status import (
@@ -15,13 +18,12 @@ from checks.check_status import (
     STATUS_ERROR,
     STATUS_OK,
 )
-from checks.datadog import DdForwarder, Dogstreams
-from checks.ganglia import Ganglia
 from config import get_system_stats, get_version
 from resources.processes import Processes as ResProcesses
 import checks.system.unix as u
 import checks.system.win32 as w32
 import checks.system.common as common
+import checks.system.win32_old as w32_old
 import modules
 from util import (
     EC2,
@@ -202,10 +204,18 @@ class Collector(object):
             'system': common.System(log)
         }
 
-        # Old-style metric checks
-        self._ganglia = Ganglia(log)
-        self._dogstream = Dogstreams.init(log, self.agentConfig)
-        self._ddforwarder = DdForwarder(log, self.agentConfig)
+        self._win32_old_system_checks = {
+            'io': w32_old.IO(log),
+            'proc': w32_old.Processes(log),
+            'memory': w32_old.Memory(log),
+            'network': w32_old.Network(log),
+            'cpu': w32_old.Cpu(log)
+        }
+
+        # # Old-style metric checks
+        # self._ganglia = Ganglia(log)
+        # self._dogstream = Dogstreams.init(log, self.agentConfig)
+        # self._ddforwarder = DdForwarder(log, self.agentConfig)
 
         # Agent performance metrics check
         self._agent_metrics = None
@@ -284,11 +294,21 @@ class Collector(object):
         if Platform.is_windows():
             # Win32 system checks
             try:
-                metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['cpu'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['network'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['io'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['proc'].check(self.agentConfig))
+                # New system metrics
+                with statsd.timed('system.collector.run_time', tags=["version:5.7.x"], use_ms=True):
+                    metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
+                    metrics.extend(self._win32_system_checks['cpu'].check(self.agentConfig))
+                    metrics.extend(self._win32_system_checks['network'].check(self.agentConfig))
+                    metrics.extend(self._win32_system_checks['io'].check(self.agentConfig))
+                    metrics.extend(self._win32_system_checks['proc'].check(self.agentConfig))
+
+                # Old system metrics
+                with statsd.timed('system.collector.run_time', tags=["version:5.6.x"], use_ms=True):
+                    metrics.extend(self._win32_old_system_checks['memory'].check(self.agentConfig))
+                    metrics.extend(self._win32_old_system_checks['cpu'].check(self.agentConfig))
+                    metrics.extend(self._win32_old_system_checks['network'].check(self.agentConfig))
+                    metrics.extend(self._win32_old_system_checks['io'].check(self.agentConfig))
+                    metrics.extend(self._win32_old_system_checks['proc'].check(self.agentConfig))
             except Exception:
                 log.exception('Unable to fetch Windows system metrics.')
         else:
@@ -334,29 +354,29 @@ class Collector(object):
             if cpuStats:
                 payload.update(cpuStats)
 
-        # Run old-style checks
-        gangliaData = self._ganglia.check(self.agentConfig)
-        dogstreamData = self._dogstream.check(self.agentConfig)
-        ddforwarderData = self._ddforwarder.check(self.agentConfig)
+        # # Run old-style checks
+        # gangliaData = self._ganglia.check(self.agentConfig)
+        # dogstreamData = self._dogstream.check(self.agentConfig)
+        # ddforwarderData = self._ddforwarder.check(self.agentConfig)
 
-        if gangliaData is not False and gangliaData is not None:
-            payload['ganglia'] = gangliaData
+        # if gangliaData is not False and gangliaData is not None:
+        #     payload['ganglia'] = gangliaData
 
-        # dogstream
-        if dogstreamData:
-            dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
-            if dogstreamEvents:
-                if 'dogstream' in payload['events']:
-                    events['dogstream'].extend(dogstreamEvents)
-                else:
-                    events['dogstream'] = dogstreamEvents
-                del dogstreamData['dogstreamEvents']
+        # # dogstream
+        # if dogstreamData:
+        #     dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
+        #     if dogstreamEvents:
+        #         if 'dogstream' in payload['events']:
+        #             events['dogstream'].extend(dogstreamEvents)
+        #         else:
+        #             events['dogstream'] = dogstreamEvents
+        #         del dogstreamData['dogstreamEvents']
 
-            payload.update(dogstreamData)
+        #     payload.update(dogstreamData)
 
-        # metrics about the forwarder
-        if ddforwarderData:
-            payload['datadog'] = ddforwarderData
+        # # metrics about the forwarder
+        # if ddforwarderData:
+        #     payload['datadog'] = ddforwarderData
 
         # Resources checks
         if not Platform.is_windows():
@@ -405,7 +425,8 @@ class Collector(object):
 
             try:
                 # Run the check.
-                instance_statuses = check.run()
+                with statsd.timed('check.collector.run_time', tags=[check.name], use_ms=True):
+                    instance_statuses = check.run()
 
                 # Collect the metrics and events.
                 current_check_metrics = check.get_metrics()
