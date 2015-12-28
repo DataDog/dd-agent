@@ -201,7 +201,7 @@ class LogEvent(object):
         return tags_list
 
     def _msg_title(self, event):
-        return '%s/%s' % (event.Logfile, event.SourceName)
+        return '[OLD] %s/%s' % (event.Logfile, event.SourceName)
 
     def _msg_text(self, event):
         msg_text = ""
@@ -226,4 +226,4 @@ class LogEvent(object):
         return 'info'
 
     def _aggregation_key(self, event):
-        return event.SourceName
+        return "old." + event.SourceName

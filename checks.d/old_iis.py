@@ -107,8 +107,9 @@ class IIS(AgentCheck):
                 # Submit the metric value with the correct type
                 value = float(getattr(iis_site, wmi_val))
                 metric_func = getattr(self, mtype)
+                metric = "old." + metric
                 metric_func(metric, value, tags=tags)
 
         for remaining_site in expected_sites:
-            self.service_check("iis.site_up", AgentCheck.CRITICAL,
+            self.service_check("old.iis.site_up", AgentCheck.CRITICAL,
                                tags=['site:%s' % remaining_site])
