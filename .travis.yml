@@ -85,7 +85,8 @@ env:
     - TRAVIS_FLAVOR=tomcat # JMX testing machine / need the other ones before
     - TRAVIS_FLAVOR=varnish FLAVOR_VERSION=3.0.7
     - TRAVIS_FLAVOR=varnish FLAVOR_VERSION=4.0.3
-    - TRAVIS_FLAVOR=zookeeper
+    - TRAVIS_FLAVOR=zookeeper FLAVOR_VERSION=3.4.7
+    - TRAVIS_FLAVOR=zookeeper FLAVOR_VERSION=3.3.6
 
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"

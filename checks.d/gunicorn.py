@@ -68,7 +68,7 @@ class GUnicornCheck(AgentCheck):
         for proc in worker_procs:
             # cpu time is the sum of user + system time.
             try:
-                cpu_time_by_pid[proc.pid] = sum(proc.get_cpu_times())
+                cpu_time_by_pid[proc.pid] = sum(proc.cpu_times())
             except psutil.NoSuchProcess:
                 self.warning('Process %s disappeared while scanning' % proc.name)
                 continue
@@ -83,7 +83,7 @@ class GUnicornCheck(AgentCheck):
                 # The process is not running anymore, we didn't collect initial cpu times
                 continue
             try:
-                cpu_time = sum(proc.get_cpu_times())
+                cpu_time = sum(proc.cpu_times())
             except Exception:
                 # couldn't collect cpu time. assume it's dead.
                 self.log.debug("Couldn't collect cpu time for %s" % proc)

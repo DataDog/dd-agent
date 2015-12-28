@@ -1,10 +1,10 @@
 # stdlib
+import logging
 import os
 
 # 3rd party
 from docker import Client
 from docker import tls
-
 
 class MountException(Exception):
     pass
@@ -12,9 +12,13 @@ class MountException(Exception):
 # Default docker client settings
 DEFAULT_TIMEOUT = 5
 DEFAULT_VERSION = 'auto'
+CHECK_NAME = 'docker_daemon'
 
+log = logging.getLogger(__name__)
 _docker_client_settings = {"version": DEFAULT_VERSION}
 
+def is_dockerized():
+    return os.environ.get("DOCKER_DD_AGENT") == "yes"
 
 def get_docker_settings():
     global _docker_client_settings
@@ -89,6 +93,7 @@ def find_cgroup_filename_pattern(mountpoints, container_id):
         stat_file_path_coreos = os.path.join(mountpoint, "system.slice")
         stat_file_path_kubernetes = os.path.join(mountpoint, container_id)
         stat_file_path_kubernetes_docker = os.path.join(mountpoint, "system", "docker", container_id)
+        stat_file_path_docker_daemon = os.path.join(mountpoint, "docker-daemon", "docker", container_id)
 
         if os.path.exists(stat_file_path_lxc):
             return os.path.join('%(mountpoint)s/lxc/%(id)s/%(file)s')
@@ -100,6 +105,9 @@ def find_cgroup_filename_pattern(mountpoints, container_id):
             return os.path.join('%(mountpoint)s/%(id)s/%(file)s')
         elif os.path.exists(stat_file_path_kubernetes_docker):
             return os.path.join('%(mountpoint)s/system/docker/%(id)s/%(file)s')
+        elif os.path.exists(stat_file_path_docker_daemon):
+            return os.path.join('%(mountpoint)s/docker-daemon/docker/%(id)s/%(file)s')
+
 
     raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
@@ -138,3 +146,34 @@ def container_name_extractor(co):
             if name.count('/') <= 1:
                 return [str(name).lstrip('/')]
     return co.get('Id')[:11]
+
+
+def get_hostname():
+    """Return the `Name` param from `docker info` to use as the hostname"""
+    from config import get_confd_path, check_yaml, PathNotFound
+
+    confd_path = ''
+
+    try:
+        confd_path = get_confd_path()
+    except PathNotFound:
+        log.error("Couldn't find the check configuration folder, not using the docker hostname.")
+        return None
+
+    conf_path = os.path.join(confd_path, '%s.yaml' % CHECK_NAME)
+    if not os.path.exists(conf_path):
+        default_conf_path = os.path.join(confd_path, '%s.yaml.default' % CHECK_NAME)
+        if not os.path.exists(default_conf_path):
+            log.error("Couldn't find any configuration file for the docker check."
+                      " Not using the docker hostname.")
+            return None
+        else:
+            conf_path = default_conf_path
+
+    check_config = check_yaml(conf_path)
+    init_config, instances = check_config.get('init_config', {}), check_config['instances']
+    init_config = {} if init_config is None else init_config
+    if len(instances) > 0:
+        set_docker_settings(init_config, instances[0])
+        return get_client().info().get("Name")
+    return None

@@ -9,7 +9,7 @@ pycurl==7.19.5.1
 # checks.d/gunicorn.py
 # checks.d/btrfs.py
 # checks.d/system_core.py
-psutil==2.1.1
+psutil==3.3.0
 
 # checks.d/snmp.py
 # Require a compiler because pycrypto is a dep
@@ -20,7 +20,7 @@ pysnmp==4.2.5
 # checks.d/tokumx.py
 # Require a compiler
 # TODO: our checks are not compatible with 3.x
-pymongo==2.8
+pymongo==3.2
 
 # checks.d/kafka_consumer.py
 # Requires a compiler because zope.interface is a dep
