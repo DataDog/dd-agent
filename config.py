@@ -1035,9 +1035,11 @@ def initialize_logging(logger_name):
                     sys_log_addr = (logging_config['syslog_host'], logging_config['syslog_port'])
                 else:
                     sys_log_addr = "/dev/log"
-                    # Special-case macs
-                    if sys.platform == 'darwin':
+                    # Special-case BSDs
+                    if Platform.is_darwin():
                         sys_log_addr = "/var/run/syslog"
+                    elif Platform.is_freebsd():
+                        sys_log_addr = "/var/run/log"
 
                 handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
                 handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
