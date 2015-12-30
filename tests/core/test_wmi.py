@@ -148,27 +148,27 @@ class SWbemServices(object):
             results += load_fixture("win32_perfrawdata_perfos_system_unknown", ("Name", "C:"))
             results += load_fixture("win32_perfrawdata_perfos_system_unknown", ("Name", "D:"))
 
-        if query == "Select IOReadBytesPerSec,IDProcess from Win32_PerfFormattedData_PerfProc_Process WHERE Name = 'chrome'" \
-                or query == "Select IOReadBytesPerSec,UnknownProperty from Win32_PerfFormattedData_PerfProc_Process WHERE Name = 'chrome'":  # noqa
+        if query == "Select IOReadBytesPerSec,IDProcess from Win32_PerfFormattedData_PerfProc_Process WHERE ( Name = 'chrome' )" \
+                or query == "Select IOReadBytesPerSec,UnknownProperty from Win32_PerfFormattedData_PerfProc_Process WHERE ( Name = 'chrome' )":  # noqa
             results += load_fixture("win32_perfformatteddata_perfproc_process")
 
-        if query == "Select IOReadBytesPerSec,ResultNotMatchingAnyTargetProperty from Win32_PerfFormattedData_PerfProc_Process WHERE Name = 'chrome'":  # noqa
+        if query == "Select IOReadBytesPerSec,ResultNotMatchingAnyTargetProperty from Win32_PerfFormattedData_PerfProc_Process WHERE ( Name = 'chrome' )":  # noqa
             results += load_fixture("win32_perfformatteddata_perfproc_process_alt")
 
-        if query == "Select CommandLine from Win32_Process WHERE Handle = '4036'" \
-                or query == "Select UnknownProperty from Win32_Process WHERE Handle = '4036'":
+        if query == "Select CommandLine from Win32_Process WHERE ( Handle = '4036' )" \
+                or query == "Select UnknownProperty from Win32_Process WHERE ( Handle = '4036' )":
             results += load_fixture("win32_process")
 
         if query == ("Select ServiceUptime,TotalBytesSent,TotalBytesReceived,TotalBytesTransferred,CurrentConnections,TotalFilesSent,TotalFilesReceived,"
                      "TotalConnectionAttemptsAllInstances,TotalGetRequests,TotalPostRequests,TotalHeadRequests,TotalPutRequests,TotalDeleteRequests,"
                      "TotalOptionsRequests,TotalTraceRequests,TotalNotFoundErrors,TotalLockedErrors,TotalAnonymousUsers,TotalNonAnonymousUsers,TotalCGIRequests,"
-                     "TotalISAPIExtensionRequests from Win32_PerfFormattedData_W3SVC_WebService WHERE Name = 'Failing site' OR Name = 'Default Web Site'"):
+                     "TotalISAPIExtensionRequests from Win32_PerfFormattedData_W3SVC_WebService WHERE ( Name = 'Failing site' ) OR ( Name = 'Default Web Site' )"):
             results += load_fixture("win32_perfformatteddata_w3svc_webservice", ("Name", "Default Web Site"))
-        if query == ("Select Name,State from Win32_Service WHERE Name = 'WSService' OR Name = 'WinHttpAutoProxySvc'"):
+        if query == ("Select Name,State from Win32_Service WHERE ( Name = 'WSService' ) OR ( Name = 'WinHttpAutoProxySvc' )"):
             results += load_fixture("win32_service_up", ("Name", "WinHttpAutoProxySvc"))
             results += load_fixture("win32_service_down", ("Name", "WSService"))
-        if query == ("Select Message,SourceName,TimeGenerated,Type,User,InsertionStrings,EventCode from Win32_NTLogEvent WHERE ( SourceName = 'MSSQLSERVER' ) "
-                     "AND ( Type = 'Warning' OR Type = 'Error' ) AND TimeGenerated >= '20151224113047.000000-480'"):
+        if query == ("Select Message,SourceName,TimeGenerated,Type,User,InsertionStrings,EventCode from Win32_NTLogEvent WHERE ( ( SourceName = 'MSSQLSERVER' ) "
+                     "AND ( Type = 'Error' OR Type = 'Warning' ) AND TimeGenerated >= '20151224113047.000000-480' )"):
             results += load_fixture("win32_ntlogevent")
 
         return results
@@ -379,10 +379,95 @@ class TestUnitWMISampler(TestCommonWMI):
 
         # Check `_format_filter` logic
         no_filters = []
-        filters = [{'Name': "SomeName"}, {'Id': "SomeId"}]
+        filters = [{'Name': "SomeName", 'Id': "SomeId"}]
 
         self.assertEquals("", format_filter(no_filters))
-        self.assertEquals(" WHERE Id = 'SomeId' AND Name = 'SomeName'",
+        self.assertEquals(" WHERE ( Name = 'SomeName' AND Id = 'SomeId' )",
+                          format_filter(filters))
+
+    def test_wql_multiquery_filtering(self):
+        """
+        Format the filters with multiple properties per instance to a comprehensive WQL `WHERE` clause.
+        """
+        from checks.libs.wmi import sampler
+        format_filter = sampler.WMISampler._format_filter
+
+        # Check `_format_filter` logic
+        no_filters = []
+        filters = [{'Name': "SomeName", 'Property1': "foo"}, {'Name': "OtherName", 'Property1': "bar"}]
+
+        self.assertEquals("", format_filter(no_filters))
+        self.assertEquals(" WHERE ( Property1 = 'bar' AND Name = 'OtherName' ) OR"
+                          " ( Property1 = 'foo' AND Name = 'SomeName' )",
+                          format_filter(filters))
+
+    def test_wql_eventlog_filtering(self):
+        """
+        Format filters with the eventlog expected form to a comprehensive WQL `WHERE` clause.
+        """
+
+        from checks.libs.wmi import sampler
+        from datetime import datetime
+        from checks.wmi_check import from_time
+        format_filter = sampler.WMISampler._format_filter
+
+        filters = []
+        query = {}
+        and_props = ['mEssage']
+        message_filters = ["-foo", "%bar%", "%zen%"]
+        event_codes = [302, 404, 501]
+        last_ts = datetime(2016, 1, 1, 15, 8, 24, 78915)
+        query['TimeGenerated'] = ('>=', from_time(last_ts))
+        query['Type'] = ('=', 'footype')
+        query['User'] = ('=', 'luser')
+        query['SourceName'] = ('=', 'MSSQL')
+        query['LogFile'] = ('=', 'thelogfile')
+
+        for code in event_codes:
+            if 'EventCode' in query:
+                query['EventCode'] += [('=', code)]
+            else:
+                query['EventCode'] = [('=', code)]
+
+        for filt in message_filters:
+            if filt[0] == '-':
+                if 'NOT Message' in query:
+                    query['NOT Message'] += [('LIKE', filt[1:])]
+                else:
+                    query['NOT Message'] = [('LIKE', filt[1:])]
+            else:
+                if 'Message' in query:
+                    query['Message'] += [('LIKE', filt)]
+                else :
+                    query['Message'] = [('LIKE', filt)]
+
+        filters.append(query)
+
+        self.assertEquals(" WHERE ( NOT Message LIKE 'foo' AND ( EventCode = '302' OR EventCode = '404' OR EventCode = '501' ) "
+                          "AND SourceName = 'MSSQL' AND TimeGenerated >= '2016-01-01 15:08:24.078915**********.******+' "
+                          "AND User = 'luser' AND Message LIKE '%bar%' AND Message LIKE '%zen%' AND LogFile = 'thelogfile' "
+                          "AND Type = 'footype' )",
+                          format_filter(filters, and_props))
+
+    def test_wql_empty_list(self):
+        """
+        Format filters to a comprehensive WQL `WHERE` clause skipping empty lists.
+        """
+
+        from checks.libs.wmi import sampler
+        format_filter = sampler.WMISampler._format_filter
+
+        filters = []
+        query = {}
+        query['User'] = ('=', 'luser')
+        query['SourceName'] = ('=', 'MSSQL')
+        query['EventCode'] = []
+        query['SomethingEmpty'] = []
+        query['MoreNothing'] = []
+
+        filters.append(query)
+
+        self.assertEquals(" WHERE ( SourceName = 'MSSQL' AND User = 'luser' )",
                           format_filter(filters))
 
     def test_wql_filtering_inclusive(self):
@@ -394,43 +479,19 @@ class TestUnitWMISampler(TestCommonWMI):
 
         # Check `_format_filter` logic
         filters = [{'Name': "SomeName"}, {'Id': "SomeId"}]
-        self.assertEquals(" WHERE Id = 'SomeId' OR Name = 'SomeName'",
+        self.assertEquals(" WHERE ( Id = 'SomeId' ) OR ( Name = 'SomeName' )",
                           format_filter(filters, True))
 
-    def test_wql_filtering_list(self):
+    def test_wql_filtering_op_adv(self):
         """
-        Format the filters to a comprehensive WQL `WHERE` clause from a property list.
-        """
-        from checks.libs.wmi import sampler
-        format_filter = sampler.WMISampler._format_filter
-
-        # Check `_format_filter` logic
-        filters = [{'Name': ["Foo", "Bar"]}, {'Id': "SomeId"}]
-        self.assertEquals(" WHERE Id = 'SomeId' AND ( Name = 'Bar' OR Name = 'Foo' )",
-                          format_filter(filters))
-
-    def test_wql_filtering_list_op(self):
-        """
-        Format the filters to a comprehensive WQL `WHERE` clause with a propery operator.
+        Format the filters to a comprehensive WQL `WHERE` clause w/ mixed filter containing regular and operator modified properties.
         """
         from checks.libs.wmi import sampler
         format_filter = sampler.WMISampler._format_filter
 
         # Check `_format_filter` logic
-        filters = [{'Name': ["Foo", "Bar"]}, {'Id': ('>=', "SomeId")}]
-        self.assertEquals(" WHERE Id >= 'SomeId' AND ( Name = 'Bar' OR Name = 'Foo' )",
-                          format_filter(filters))
-
-    def test_wql_filtering_list_op_adv(self):
-        """
-        Format the filters to a comprehensive WQL `WHERE` clause w/ mixed list containing regular and operator modified properties.
-        """
-        from checks.libs.wmi import sampler
-        format_filter = sampler.WMISampler._format_filter
-
-        # Check `_format_filter` logic
-        filters = [{'Name': [('LIKE', "Foo%"), "Bar"]}, {'Id': ('>=', "SomeId")}]
-        self.assertEquals(" WHERE Id >= 'SomeId' AND ( Name = 'Bar' OR Name LIKE 'Foo%' )",
+        filters = [{'Name': "Foo%"}, {'Name': "Bar*", 'Id': ('>=', "SomeId")}, {'Name': "Zulu"}]
+        self.assertEquals(" WHERE ( Name = 'Zulu' ) OR ( Name LIKE 'Bar*' AND Id >= 'SomeId' ) OR ( Name LIKE 'Foo%' )",
                           format_filter(filters))
 
     def test_wmi_query(self):
@@ -458,20 +519,20 @@ class TestUnitWMISampler(TestCommonWMI):
             wmi_sampler,
             "Select AvgDiskBytesPerWrite,FreeMegabytes"
             " from Win32_PerfFormattedData_PerfDisk_LogicalDisk"
-            " WHERE Name = 'C:'"
+            " WHERE ( Name = 'C:' )"
         )
 
         # Multiple filters
         wmi_sampler = WMISampler("Win32_PerfFormattedData_PerfDisk_LogicalDisk",
                                  ["AvgDiskBytesPerWrite", "FreeMegabytes"],
-                                 filters=[{'Name': "C:"}, {'Id': "123"}])
+                                 filters=[{'Name': "C:", 'Id': "123"}])
         wmi_sampler.sample()
 
         self.assertWMIQuery(
             wmi_sampler,
             "Select AvgDiskBytesPerWrite,FreeMegabytes"
             " from Win32_PerfFormattedData_PerfDisk_LogicalDisk"
-            " WHERE Id = '123' AND Name = 'C:'"
+            " WHERE ( Name = 'C:' AND Id = '123' )"
         )
 
     def test_wmi_parser(self):

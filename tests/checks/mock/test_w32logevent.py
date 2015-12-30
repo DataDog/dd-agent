@@ -6,7 +6,7 @@ from mock import patch
 
 def to_time(wmi_ts):
     "Just return any time struct"
-    return (2015, 12, 24, 11, 30, 47, 0, 0)
+    return (2100, 12, 24, 11, 30, 47, 0, 0)
 
 def from_time(year=0, month=0, day=0, hours=0, minutes=0,
             seconds=0, microseconds=0, timezone=0):

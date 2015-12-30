@@ -41,7 +41,7 @@ class Win32EventLogWMI(WinWMICheck):
         user = instance.get('user')
         source_name = instance.get('source_name')
         log_file = instance.get('log_file')
-        event_id = instance.get('event_id')
+        event_id = instance.get('event_id', [])
         message_filters = instance.get('message_filters', [])
 
         instance_key = self._get_instance_key(host, self.NAMESPACE, self.CLASS)
@@ -51,26 +51,32 @@ class Win32EventLogWMI(WinWMICheck):
             self.last_ts[instance_key] = datetime.utcnow()
             return
 
+        query = {}
         filters = []
         last_ts = self.last_ts[instance_key]
-        filters += [{'TimeGenerated': ('>=', self._dt_to_wmi(last_ts))}]
+        query['TimeGenerated'] = ('>=', self._dt_to_wmi(last_ts))
         if ltype:
-            filters += [{'Type': ('=', ltype)}]
+            query['Type'] = ('=', ltype)
         if user:
-            filters += [{'User': ('=', user)}]
-        if event_id:
-            filters += [{'EventCode': ('=', event_id)}]
+            query['User'] = ('=', user)
         if source_name:
-            filters += [{'SourceName': ('=', source_name)}]
+            query['SourceName'] = ('=', source_name)
         if log_file:
-            filters += [{'LogFile': ('=', log_file)}]
+            query['LogFile'] = ('=', log_file)
+        if event_id:
+            query['EventCode'] = []
+            for code in event_id:
+                query['EventCode'] += ('=', event_id)
+        if message_filters:
+            query['NOT Message'] = []
+            query['Message'] = []
+            for filt in message_filters:
+                if filt[0] == '-':
+                    query['NOT Message'] += [('LIKE', filt[1:])]
+                else:
+                    query['Message'] += [('LIKE', filt)]
 
-        for filt in message_filters:
-            is_not = False
-            if filt[0] == '-':
-                filters += [{'NOT Message': ('LIKE', filt[1:])}]
-            else:
-                filters += [{'Message': ('LIKE', filt)}]
+        filters.append(query)
 
 
         wmi_sampler = self._get_wmi_sampler(
@@ -79,7 +85,7 @@ class Win32EventLogWMI(WinWMICheck):
             filters=filters,
             host=host, namespace=self.NAMESPACE,
             username=username, password=password,
-            inclusive=False
+            and_props=['Message']
         )
 
         wmi_sampler.sample()
