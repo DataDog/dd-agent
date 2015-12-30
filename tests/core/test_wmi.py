@@ -162,13 +162,13 @@ class SWbemServices(object):
         if query == ("Select ServiceUptime,TotalBytesSent,TotalBytesReceived,TotalBytesTransferred,CurrentConnections,TotalFilesSent,TotalFilesReceived,"
                      "TotalConnectionAttemptsAllInstances,TotalGetRequests,TotalPostRequests,TotalHeadRequests,TotalPutRequests,TotalDeleteRequests,"
                      "TotalOptionsRequests,TotalTraceRequests,TotalNotFoundErrors,TotalLockedErrors,TotalAnonymousUsers,TotalNonAnonymousUsers,TotalCGIRequests,"
-                     "TotalISAPIExtensionRequests from Win32_PerfFormattedData_W3SVC_WebService WHERE Name = 'Failing site' OR Name = 'Default Web Site'"):
+                     "TotalISAPIExtensionRequests from Win32_PerfFormattedData_W3SVC_WebService WHERE ( Name = 'Failing site' ) OR ( Name = 'Default Web Site' )"):
             results += load_fixture("win32_perfformatteddata_w3svc_webservice", ("Name", "Default Web Site"))
-        if query == ("Select Name,State from Win32_Service WHERE Name = 'WSService' OR Name = 'WinHttpAutoProxySvc'"):
+        if query == ("Select Name,State from Win32_Service WHERE ( Name = 'WSService' ) OR ( Name = 'WinHttpAutoProxySvc' )"):
             results += load_fixture("win32_service_up", ("Name", "WinHttpAutoProxySvc"))
             results += load_fixture("win32_service_down", ("Name", "WSService"))
-        if query == ("Select Message,SourceName,TimeGenerated,Type,User,InsertionStrings,EventCode from Win32_NTLogEvent WHERE ( SourceName = 'MSSQLSERVER' ) "
-                     "AND ( Type = 'Warning' OR Type = 'Error' ) AND TimeGenerated >= '20151224113047.000000-480'"):
+        if query == ("Select Message,SourceName,TimeGenerated,Type,User,InsertionStrings,EventCode from Win32_NTLogEvent WHERE ( ( SourceName = 'MSSQLSERVER' ) "
+                     "AND ( Type = 'Error' OR Type = 'Warning' ) AND TimeGenerated >= '20151224113047.000000-480' )"):
             results += load_fixture("win32_ntlogevent")
 
         return results
@@ -401,64 +401,6 @@ class TestUnitWMISampler(TestCommonWMI):
                           " ( Property1 = 'foo' AND Name = 'SomeName' )",
                           format_filter(filters))
 
-    def test_wql_eventlog_filtering(self):
-        """
-        Format filters with the eventlog expected form to a comprehensive WQL `WHERE` clause.
-        """
-
-        from checks.libs.wmi import sampler
-        from datetime import datetime
-        from checks.wmi_check import from_time
-        format_filter = sampler.WMISampler._format_filter
-
-        filters = []
-        query = {}
-        and_props = ['mEssage']
-        ltypes = ["Error", "Warning"]
-        source_names = ["MSSQLSERVER", "IIS"]
-        log_files = ["System", "Security"]
-        event_codes = [302, 404, 501]
-        message_filters = ["-foo", "%bar%", "%zen%"]
-        last_ts = datetime(2016, 1, 1, 15, 8, 24, 78915)
-
-        query['TimeGenerated'] = ('>=', from_time(last_ts))
-        query['Type'] = ('=', 'footype')
-        query['User'] = ('=', 'luser')
-        query['SourceName'] = ('=', 'MSSQL')
-        query['LogFile'] = ('=', 'thelogfile')
-
-        query['Type'] = []
-        for ltype in ltypes:
-            query['Type'].append(('=', ltype))
-
-        query['SourceName'] = []
-        for source_name in source_names:
-            query['SourceName'].append(('=', source_name))
-
-        query['LogFile'] = []
-        for log_file in log_files:
-            query['LogFile'].append(('=', log_file))
-
-        query['EventCode'] = []
-        for code in event_codes:
-            query['EventCode'].append(('=', code))
-
-        query['NOT Message'] = []
-        query['Message'] = []
-        for filt in message_filters:
-            if filt[0] == '-':
-                query['NOT Message'].append(('LIKE', filt[1:]))
-            else:
-                query['Message'].append(('LIKE', filt))
-
-        filters.append(query)
-
-        self.assertEquals(" WHERE ( NOT Message LIKE 'foo' AND ( EventCode = '302' OR EventCode = '404' OR EventCode = '501' ) "
-                          "AND ( SourceName = 'MSSQLSERVER' OR SourceName = 'IIS' ) AND TimeGenerated >= '2016-01-01 15:08:24.078915**********.******+' "
-                          "AND User = 'luser' AND Message LIKE '%bar%' AND Message LIKE '%zen%' AND ( LogFile = 'System' OR LogFile = 'Security' ) "
-                          "AND ( Type = 'Error' OR Type = 'Warning' ) )",
-                          format_filter(filters, and_props))
-
     def test_wql_empty_list(self):
         """
         Format filters to a comprehensive WQL `WHERE` clause skipping empty lists.
@@ -492,6 +434,54 @@ class TestUnitWMISampler(TestCommonWMI):
         self.assertEquals(" WHERE ( Name = 'Zulu' ) OR ( Name LIKE 'Bar*' AND Id >= 'SomeId' ) OR ( Name LIKE 'Foo%' )",
                           format_filter(filters))
 
+    def test_wql_eventlog_filtering(self):
+        """
+        Format filters with the eventlog expected form to a comprehensive WQL `WHERE` clause.
+        """
+
+        from checks.libs.wmi import sampler
+        from datetime import datetime
+        from checks.wmi_check import from_time
+        format_filter = sampler.WMISampler._format_filter
+
+        filters = []
+        query = {}
+        and_props = ['mEssage']
+        message_filters = ["-foo", "%bar%", "%zen%"]
+        event_codes = [302, 404, 501]
+        last_ts = datetime(2016, 1, 1, 15, 8, 24, 78915)
+        query['TimeGenerated'] = ('>=', from_time(last_ts))
+        query['Type'] = ('=', 'footype')
+        query['User'] = ('=', 'luser')
+        query['SourceName'] = ('=', 'MSSQL')
+        query['LogFile'] = ('=', 'thelogfile')
+
+        for code in event_codes:
+            if 'EventCode' in query:
+                query['EventCode'] += [('=', code)]
+            else:
+                query['EventCode'] = [('=', code)]
+
+        for filt in message_filters:
+            if filt[0] == '-':
+                if 'NOT Message' in query:
+                    query['NOT Message'] += [('LIKE', filt[1:])]
+                else:
+                    query['NOT Message'] = [('LIKE', filt[1:])]
+            else:
+                if 'Message' in query:
+                    query['Message'] += [('LIKE', filt)]
+                else :
+                    query['Message'] = [('LIKE', filt)]
+
+        filters.append(query)
+
+        self.assertEquals(" WHERE ( NOT Message LIKE 'foo' AND ( EventCode = '302' OR EventCode = '404' OR EventCode = '501' ) "
+                          "AND SourceName = 'MSSQL' AND TimeGenerated >= '2016-01-01 15:08:24.078915**********.******+' "
+                          "AND User = 'luser' AND Message LIKE '%bar%' AND Message LIKE '%zen%' AND LogFile = 'thelogfile' "
+                          "AND Type = 'footype' )",
+                          format_filter(filters, and_props))
+
     def test_wql_filtering_inclusive(self):
         """
         Format the filters to a comprehensive and inclusive WQL `WHERE` clause.
@@ -501,44 +491,8 @@ class TestUnitWMISampler(TestCommonWMI):
 
         # Check `_format_filter` logic
         filters = [{'Name': "SomeName"}, {'Id': "SomeId"}]
-        self.assertEquals(" WHERE Id = 'SomeId' OR Name = 'SomeName'",
+        self.assertEquals(" WHERE ( Id = 'SomeId' ) OR ( Name = 'SomeName' )",
                           format_filter(filters, True))
-
-    def test_wql_filtering_list(self):
-        """
-        Format the filters to a comprehensive WQL `WHERE` clause from a property list.
-        """
-        from checks.libs.wmi import sampler
-        format_filter = sampler.WMISampler._format_filter
-
-        # Check `_format_filter` logic
-        filters = [{'Name': ["Foo", "Bar"]}, {'Id': "SomeId"}]
-        self.assertEquals(" WHERE Id = 'SomeId' AND ( Name = 'Bar' OR Name = 'Foo' )",
-                          format_filter(filters))
-
-    def test_wql_filtering_list_op(self):
-        """
-        Format the filters to a comprehensive WQL `WHERE` clause with a propery operator.
-        """
-        from checks.libs.wmi import sampler
-        format_filter = sampler.WMISampler._format_filter
-
-        # Check `_format_filter` logic
-        filters = [{'Name': ["Foo", "Bar"]}, {'Id': ('>=', "SomeId")}]
-        self.assertEquals(" WHERE Id >= 'SomeId' AND ( Name = 'Bar' OR Name = 'Foo' )",
-                          format_filter(filters))
-
-    def test_wql_filtering_list_op_adv(self):
-        """
-        Format the filters to a comprehensive WQL `WHERE` clause w/ mixed list containing regular and operator modified properties.
-        """
-        from checks.libs.wmi import sampler
-        format_filter = sampler.WMISampler._format_filter
-
-        # Check `_format_filter` logic
-        filters = [{'Name': [('LIKE', "Foo%"), "Bar"]}, {'Id': ('>=', "SomeId")}]
-        self.assertEquals(" WHERE Id >= 'SomeId' AND ( Name = 'Bar' OR Name LIKE 'Foo%' )",
-                          format_filter(filters))
 
     def test_wmi_query(self):
         """
