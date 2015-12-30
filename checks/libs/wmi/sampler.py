@@ -50,15 +50,13 @@ class CaseInsensitiveDict(dict):
 class WMISampler(object):
     """
     WMI Sampler.
-    - inclusive applies to the filters. An inclusive filter will OR filter
-    elements, a non-inclusive will AND the WHERE clause.
     """
     # Shared resources
     _wmi_locators = {}
     _wmi_connections = defaultdict(list)
 
     def __init__(self, logger, class_name, property_names, filters="", host="localhost",
-                 namespace="root\\cimv2", username="", password="", inclusive=False, timeout_duration=10):
+                 namespace="root\\cimv2", username="", password="", and_props=[], timeout_duration=10):
         self.logger = logger
 
         # Connection information
@@ -89,7 +87,7 @@ class WMISampler(object):
         self.class_name = class_name
         self.property_names = property_names
         self.filters = filters
-        self.inclusive_filter = inclusive
+        self._and_props = and_props
         self._formatted_filters = None
         self.property_counter_types = None
         self._timeout_duration = timeout_duration
@@ -132,7 +130,7 @@ class WMISampler(object):
         """
         if not self._formatted_filters:
             filters = deepcopy(self.filters)
-            self._formatted_filters = self._format_filter(filters, self.inclusive_filter)
+            self._formatted_filters = self._format_filter(filters, self._and_props)
         return self._formatted_filters
 
     def sample(self):
@@ -304,7 +302,7 @@ class WMISampler(object):
         self._wmi_connections[self.connection_key].append(connection)
 
     @staticmethod
-    def _format_filter(filters, inclusive=False):
+    def _format_filter(filters, and_props=[]):
         """
         Transform filters to a comprehensive WQL `WHERE` clause.
 
@@ -315,73 +313,74 @@ class WMISampler(object):
 
                 NOTE: If we just provide a value we defailt to '=' comparison operator.
                 Otherwise, specify the operator in a tuple as above: (comp_op, value)
-
-                The filters also support lists/tuples as property 'values' to filter.
-                When such a list is provided, we OR filter for all such property values:
-                - [{'Property': [value1, value2, value3]},...] or
-                - [{'Property': [(cmp_op, value1), (cmp_op, value2)]},...] or
-
-        Normally the filter is expected to be exclusive, such that all filter conditions
-        should be met - therefore we AND all filters. If you'd like to OR, then set
-        inclusive to True.
+                If we detect a wildcard character such as '*' or '%' we will override
+                the operator to use LIKE
         """
-        def build_where_clause(fltr, inclusive):
-            """
-            Recursively build `WHERE` clause.
-            """
+        def build_where_clause(fltr):
             f = fltr.pop()
-            prop, value = f.popitem()
-            if isinstance(value, tuple):
-                oper = value[0]
-                value = value[1]
-            else:
-                oper = '='
+            wql = ""
+            while f:
+                prop, value = f.popitem()
 
-            if len(fltr) == 0:
-                if isinstance(value, list):
-                    internal_filter = map(lambda x:
-                                          {prop: x} if isinstance(x, tuple)
-                                          else {prop: (oper, x)}, value)
-                    return "( {clause} )".format(clause=build_where_clause(internal_filter, inclusive=True))
+                if isinstance(value, tuple):
+                    oper = value[0]
+                    value = value[1]
+                elif isinstance(value, basestring) and ('*' in value or '%' in value):
+                    oper = 'LIKE'
                 else:
-                    return "{property} {cmp} '{constant}'".format(
+                    oper = '='
+
+                if isinstance(value, list):
+                    if not len(value):
+                        continue
+
+                    internal_filter = map(lambda x:
+                                          (prop, x) if isinstance(x, tuple)
+                                          else (prop, ('LIKE', x)) if ('*' in x or '%' in x)
+                                          else (prop, (oper, x)), value)
+
+                    bool_op = ' OR '
+                    for p in and_props:
+                        if p.lower() in prop.lower():
+                            bool_op = ' AND '
+                            break
+
+                    clause = bool_op.join(['{0} {1} \'{2}\''.format(k, v[0], v[1]) if isinstance(v,tuple)
+                                          else '{0} = \'{1}\''.format(k,v)
+                                          for k,v in internal_filter])
+
+                    if bool_op.strip() == 'OR':
+                        wql += "( {clause} )".format(
+                            clause=clause)
+                    else:
+                        wql += "{clause}".format(
+                            clause=clause)
+
+                else:
+                    wql += "{property} {cmp} '{constant}'".format(
                         property=prop,
                         cmp=oper,
-                        constant=value
-                    )
+                        constant=value)
+                if f:
+                    wql += " AND "
 
-            if isinstance(value, list):
-                internal_filter = map(lambda x: {prop: (oper, x)}, value)
-                if inclusive:
-                    return "( {clause} ) OR {more}".format(
-                        clause=build_where_clause(internal_filter, inclusive=True),
-                        more=build_where_clause(fltr, inclusive)
-                    )
+            # empty list skipped
+            if wql.endswith(" AND "):
+                wql = wql[:-5]
 
-                return "( {clause} ) AND {more}".format(
-                    clause=build_where_clause(internal_filter, inclusive=True),
-                    more=build_where_clause(fltr, inclusive)
-                )
+            if len(fltr) == 0:
+                    return "( {clause} )".format(clause=wql)
 
-            if inclusive:
-                return "{property} {cmp} '{constant}' OR {more}".format(
-                    property=prop,
-                    cmp=oper,
-                    constant=value,
-                    more=build_where_clause(fltr, inclusive)
-                )
-
-            return "{property} {cmp} '{constant}' AND {more}".format(
-                property=prop,
-                cmp=oper,
-                constant=value,
-                more=build_where_clause(fltr, inclusive)
+            return "( {clause} ) OR {more}".format(
+                clause=wql,
+                more=build_where_clause(fltr)
             )
+
 
         if not filters:
             return ""
 
-        return " WHERE {clause}".format(clause=build_where_clause(filters, inclusive))
+        return " WHERE {clause}".format(clause=build_where_clause(filters))
 
     def _query(self):
         """
@@ -491,7 +490,7 @@ class WMISampler(object):
 
                 try:
                     item[wmi_property.Name] = float(wmi_property.Value)
-                except (TypeError, ValueError) as e:
+                except (TypeError, ValueError):
                     item[wmi_property.Name] = wmi_property.Value
 
             results.append(item)

@@ -41,8 +41,7 @@ class WindowsService(WinWMICheck):
             self.CLASS, properties,
             filters=filters,
             host=host, namespace=self.NAMESPACE,
-            username=user, password=password,
-            inclusive=True
+            username=user, password=password
         )
 
         # Sample, extract & submit metrics
