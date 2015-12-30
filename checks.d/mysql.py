@@ -288,14 +288,14 @@ class MySql(AgentCheck):
         return {"pymysql": pymysql.__version__}
 
     def check(self, instance):
-        host, port, user, password, mysql_sock, defaults_file, tags, options, queries = \
+        host, port, user, password, mysql_sock, defaults_file, tags, options, queries, ssl = \
             self._get_config(instance)
 
         if (not host or not user) and not defaults_file:
             raise Exception("Mysql host and user are needed.")
 
         db = self._connect(host, port, mysql_sock, user,
-                        password, defaults_file)
+                        password, defaults_file, ssl)
 
         try:
             # Metadata collection
@@ -322,10 +322,12 @@ class MySql(AgentCheck):
         tags = instance.get('tags', None)
         options = instance.get('options', {})
         queries = instance.get('queries', [])
+        ssl = instance.get('ssl', {})
 
-        return self.host, self.port, user, password, self.mysql_sock, defaults_file, tags, options, queries
+        return (self.host, self.port, user, password, self.mysql_sock,
+                defaults_file, tags, options, queries, ssl)
 
-    def _connect(self, host, port, mysql_sock, user, password, defaults_file):
+    def _connect(self, host, port, mysql_sock, user, password, defaults_file, ssl):
         service_check_tags = [
             'server:{0}'.format(host),
             'port:{0}'.format(port)
@@ -333,7 +335,10 @@ class MySql(AgentCheck):
 
         try:
             if defaults_file != '':
-                db = pymysql.connect(read_default_file=defaults_file)
+                if ssl:
+                    db = pymysql.connect(read_default_file=defaults_file, ssl=dict(ssl))
+                else:
+                    db = pymysql.connect(read_default_file=defaults_file)
             elif mysql_sock != '':
                 db = pymysql.connect(
                     unix_socket=mysql_sock,
@@ -344,12 +349,27 @@ class MySql(AgentCheck):
                     'server:{0}'.format(mysql_sock),
                     'port:unix_socket'
                 ]
+            elif port and ssl:
+                db = pymysql.connect(
+                    host=host,
+                    port=port,
+                    user=user,
+                    passwd=password,
+                    ssl=dict(ssl)
+                )
             elif port:
                 db = pymysql.connect(
                     host=host,
                     port=port,
                     user=user,
                     passwd=password
+                )
+            elif ssl:
+                db = pymysql.connect(
+                    host=host,
+                    user=user,
+                    passwd=password,
+                    ssl=dict(ssl)
                 )
             else:
                 db = pymysql.connect(
