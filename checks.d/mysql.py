@@ -95,7 +95,7 @@ class MySql(AgentCheck):
         tags = instance.get('tags', None)
         options = instance.get('options', {})
         queries = instance.get('queries', [])
-        ssl = instance.get('ssl', {}) 
+        ssl = instance.get('ssl', {})
         return host, port, user, password, mysql_sock, defaults_file, tags, options, queries, ssl
 
     def _connect(self, host, port, mysql_sock, user, password, defaults_file, ssl):
@@ -117,6 +117,14 @@ class MySql(AgentCheck):
                     'host:%s' % mysql_sock,
                     'port:unix_socket'
                 ]
+            elif port and ssl:
+                db = pymysql.connect(
+                    host=host,
+                    port=port,
+                    user=user,
+                    passwd=password,
+                    ssl=dict(ssl)
+                )
             elif port:
                 db = pymysql.connect(
                     host=host,
@@ -124,12 +132,13 @@ class MySql(AgentCheck):
                     user=user,
                     passwd=password
                 )
-            elif ssl: 
-                db = pymysql.connect( 
-                host=host, 
-                user=user, 
-                passwd=password, 
-                ssl=dict(ssl)
+            elif ssl:
+                db = pymysql.connect(
+                    host=host,
+                    user=user,
+                    passwd=password,
+                    ssl=dict(ssl)
+                )
             else:
                 db = pymysql.connect(
                     host=host,
