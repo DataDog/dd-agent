@@ -106,7 +106,10 @@ class MySql(AgentCheck):
 
         try:
             if defaults_file != '':
-                db = pymysql.connect(read_default_file=defaults_file)
+                if ssl:
+                    db = pymysql.connect(read_default_file=defaults_file, ssl=dict(ssl))
+                else:
+                    db = pymysql.connect(read_default_file=defaults_file)
             elif mysql_sock != '':
                 db = pymysql.connect(
                     unix_socket=mysql_sock,
