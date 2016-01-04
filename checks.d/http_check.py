@@ -26,6 +26,7 @@ from requests.packages.urllib3.packages.ssl_match_hostname import \
 from checks.network_checks import EventType, NetworkCheck, Status
 from config import _is_affirmative
 from util import headers as agent_headers
+from utils.proxy import get_proxy
 
 
 class WeakCiphersHTTPSConnection(urllib3.connection.VerifiedHTTPSConnection):
@@ -143,6 +144,23 @@ class HTTPCheck(NetworkCheck):
 
     def __init__(self, name, init_config, agentConfig, instances):
         self.ca_certs = init_config.get('ca_certs', get_ca_certs_path())
+        proxy_settings = get_proxy(agentConfig)
+        if not proxy_settings:
+            self.proxies = None
+        else:
+            uri = "{host}:{port}".format(
+                host=proxy_settings['host'],
+                port=proxy_settings['port'])
+            if proxy_settings['user'] and proxy_settings['password']:
+                uri = "{user}:{password}@{uri}".format(
+                    user=proxy_settings['user'],
+                    password=proxy_settings['password'],
+                    uri=uri)
+            self.proxies = {
+                'http': "http://{uri}".format(uri=uri),
+                'https': "https://{uri}".format(uri=uri)
+            }
+
         NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
 
     def _load_conf(self, instance):
@@ -195,7 +213,7 @@ class HTTPCheck(NetworkCheck):
                 self.log.debug("Weak Ciphers will be used for {0}. Suppoted Cipherlist: {1}".format(
                     base_addr, WeakCiphersHTTPSConnection.SUPPORTED_CIPHERS))
 
-            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers,
+            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers, proxies = self.proxies,
                              verify=False if disable_ssl_validation else instance_ca_certs)
 
         except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
