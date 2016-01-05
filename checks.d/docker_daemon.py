@@ -441,7 +441,6 @@ class DockerDaemon(AgentCheck):
         return container_name in self._filtered_containers
 
     def _report_container_size(self, containers_by_id):
-        container_list_with_size = None
         for container in containers_by_id.itervalues():
             if self._is_container_excluded(container):
                 continue

@@ -94,9 +94,8 @@ class PseudoAgent(object):
     def busy_run(self):
         w = Watchdog(5)
         w.reset()
-        x = 0
         while True:
-            x = random()
+            random()
 
     def hanging_net(self):
         w = Watchdog(5)

@@ -310,7 +310,7 @@ class WMISampler(object):
             raw_results = self._get_connection().ExecQuery(wql, "WQL", query_flags)
             results = self._parse_results(raw_results, includes_qualifiers=includes_qualifiers)
 
-        except pywintypes.com_error as ex:
+        except pywintypes.com_error:
             self.logger.warning(u"Failed to execute WMI query (%s)", wql, exc_info=True)
             results = []
 

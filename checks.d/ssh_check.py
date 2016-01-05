@@ -84,7 +84,7 @@ class CheckSSH(AgentCheck):
                 sftp = client.open_sftp()
                 #Check response time of SFTP
                 start_time = time.time()
-                result = sftp.listdir('.')
+                sftp.listdir('.')
                 status = AgentCheck.OK
                 end_time = time.time()
                 time_taken = end_time - start_time

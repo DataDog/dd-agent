@@ -272,7 +272,7 @@ class TestUnitWMISampler(TestCommonWMI):
             username="datadog",
             password="password"
         )
-        wmi_conn = wmi_sampler._get_connection()
+        wmi_sampler._get_connection()
 
         # WMI connection is cached
         self.assertIn('myhost:some/namespace:datadog', wmi_sampler._wmi_connections)

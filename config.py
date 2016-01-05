@@ -137,7 +137,7 @@ def _windows_commondata_path():
                                 wintypes.DWORD, wintypes.LPCWSTR]
 
     path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
-    result = _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
+    _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
     return path_buf.value
 
 
@@ -348,7 +348,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig[option] = config.get('Main', option)
 
         # Store developer mode setting in the agentConfig
-        in_developer_mode = None
         if config.has_option('Main', 'developer_mode'):
             agentConfig['developer_mode'] = _is_affirmative(config.get('Main', 'developer_mode'))
 
@@ -722,9 +721,7 @@ def get_ssl_certificate(osname, filename):
     return None
 
 def check_yaml(conf_path):
-    f = open(conf_path)
-    check_name = os.path.basename(conf_path).split('.')[0]
-    try:
+    with open(conf_path) as f:
         check_config = yaml.load(f.read(), Loader=yLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
         assert 'instances' in check_config, "No 'instances' section found"
@@ -741,9 +738,6 @@ def check_yaml(conf_path):
             raise Exception('You need to have at least one instance defined in the YAML file for this check')
         else:
             return check_config
-    finally:
-        f.close()
-
 
 def load_check_directory(agentConfig, hostname):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to

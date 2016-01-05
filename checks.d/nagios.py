@@ -326,7 +326,6 @@ class NagiosPerfDataTailer(NagiosTailer):
 
     def _parse_line(self, line):
         matched = self.line_pattern.match(line)
-        output = []
         if matched:
             self.log.debug("Matching line found %s" % line)
             data = matched.groupdict()
