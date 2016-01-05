@@ -718,6 +718,9 @@ class DockerDaemon(AgentCheck):
                 match = CONTAINER_ID_RE.search(cpuacct)
                 if match:
                     container_id = match.group(0)
+                    if container_id not in container_dict:
+                        self.log.debug("Container %s not in container_dict, it's likely excluded", container_id)
+                        continue
                     container_dict[container_id]['_pid'] = folder
                     container_dict[container_id]['_proc_root'] = os.path.join(proc_path, folder)
             except Exception, e:
