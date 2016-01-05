@@ -74,7 +74,7 @@ class TestCacti(unittest.TestCase):
         # Check once more to make sure last_ts ignores None vals when calculating
         # where to start from
         check.check(instances[0])
-        results3 = check.get_metrics()
+        check.get_metrics()
         last_ts2 = check.last_ts[rrd_dir + '/localhost_hdd_free_10.rrd.AVERAGE']
 
         self.assertEquals(last_ts1, last_ts2)

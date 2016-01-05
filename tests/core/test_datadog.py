@@ -187,21 +187,6 @@ class TestDogstream(TailTestCase):
         actual_output = self.dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
 
-    def test_dogstream_ancient_function_plugin(self):
-        """Ensure that pre-stateful plugins still work"""
-        log_data = [
-            'test.metric.simple 1000000000 1 metric_type=gauge',
-            'test.metric.simple 1100000000 1 metric_type=gauge'
-        ]
-        expected_output = {
-            "dogstream": [
-                ('test.metric.simple', 1000000000, 1, self.gauge),
-                ('test.metric.simple', 1100000000, 1, self.gauge)]
-        }
-        self._write_log(log_data)
-        plugdog = Dogstreams.init(self.logger, {'dogstreams': '{0}:{1}:parse_ancient_function_plugin'.format(self.log_file.name, __name__)})
-        actual_output = plugdog.check(self.config, move_end=False)
-
     def test_dogstream_log_path_globbing(self):
         """Make sure that globbed dogstream logfile matching works."""
         # Create a tmpfile to serve as a prefix for the other temporary

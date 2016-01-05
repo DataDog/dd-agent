@@ -224,7 +224,7 @@ def get_hostname(config=None):
     if hostname is None:
         try:
             socket_hostname = socket.gethostname()
-        except socket.error, e:
+        except socket.error:
             socket_hostname = None
         if socket_hostname and is_valid_hostname(socket_hostname):
             hostname = socket_hostname

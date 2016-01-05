@@ -106,7 +106,7 @@ class Redis(AgentCheck):
                     except ValueError:
                         return v
             return default
-        except Exception, e:
+        except Exception:
             self.log.exception("Cannot parse dictionary string: %s" % string)
             return default
 
@@ -169,11 +169,11 @@ class Redis(AgentCheck):
             status = AgentCheck.OK
             self.service_check('redis.can_connect', status, tags=tags_to_add)
             self._collect_metadata(info)
-        except ValueError, e:
+        except ValueError:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
             raise
-        except Exception, e:
+        except Exception:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
             raise

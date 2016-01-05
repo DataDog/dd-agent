@@ -2,9 +2,6 @@
 
 Collects metrics from mesos slave node.
 """
-# stdlib
-from hashlib import md5
-
 # 3rd party
 import requests
 
@@ -89,8 +86,6 @@ class MesosSlave(AgentCheck):
         self.cluster_name = None
 
     def _get_json(self, url, timeout):
-        # Use a hash of the URL as an aggregation key
-        aggregation_key = md5(url).hexdigest()
         tags = ["url:%s" % url]
         msg = None
         status = None
