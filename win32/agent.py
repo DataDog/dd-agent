@@ -39,6 +39,7 @@ SERVICE_SLEEP_INTERVAL = 1
 MAX_FAILED_HEARTBEATS = 8  # runs of collector
 DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
+
 class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "DatadogAgent"
     _svc_display_name_ = "Datadog Agent"
@@ -181,16 +182,22 @@ class ProcessWatchDog(object):
         if self._process.is_alive():
             self._process.terminate()
 
-        self._process = self._process.__class__(self._process.config, self._process.hostname)
+        # Recreate a new process
+        self._process = self._process.__class__(
+            self._process.config, self._process.hostname,
+            **self._process.options
+        )
+
         self._process.start()
 
 
 class DDAgent(multiprocessing.Process):
-    def __init__(self, agentConfig, hostname, heartbeat=None):
+    def __init__(self, agentConfig, hostname, **options):
         multiprocessing.Process.__init__(self, name='ddagent')
         self.config = agentConfig
         self.hostname = hostname
-        self._heartbeat = heartbeat
+        self.options = options
+        self._heartbeat = options.get('heartbeat')
         # FIXME: `running` flag should be handled by the service
         self.running = True
         self.is_enabled = True
@@ -261,11 +268,12 @@ class DDAgent(multiprocessing.Process):
 
 
 class DDForwarder(multiprocessing.Process):
-    def __init__(self, agentConfig, hostname):
+    def __init__(self, agentConfig, hostname, **options):
         multiprocessing.Process.__init__(self, name='ddforwarder')
         self.config = agentConfig
         self.is_enabled = True
         self.hostname = hostname
+        self.options = options
 
     def run(self):
         from config import initialize_logging
@@ -290,11 +298,12 @@ class DDForwarder(multiprocessing.Process):
 
 
 class DogstatsdProcess(multiprocessing.Process):
-    def __init__(self, agentConfig, hostname):
+    def __init__(self, agentConfig, hostname, **options):
         multiprocessing.Process.__init__(self, name='dogstatsd')
         self.config = agentConfig
         self.is_enabled = self.config.get('use_dogstatsd', True)
         self.hostname = hostname
+        self.options = options
 
     def run(self):
         from config import initialize_logging
@@ -316,10 +325,11 @@ class DogstatsdProcess(multiprocessing.Process):
 
 
 class JMXFetchProcess(multiprocessing.Process):
-    def __init__(self, agentConfig, hostname):
+    def __init__(self, agentConfig, hostname, **options):
         multiprocessing.Process.__init__(self, name='jmxfetch')
         self.config = agentConfig
         self.hostname = hostname
+        self.options = options
 
         try:
             confd_path = get_confd_path()
