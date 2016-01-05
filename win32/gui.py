@@ -115,7 +115,6 @@ log = logging.getLogger(__name__)
 EXCLUDED_WINDOWS_CHECKS = [
     'btrfs',
     'cacti',
-    'directory',
     'docker',
     'gearmand',
     'gunicorn',
