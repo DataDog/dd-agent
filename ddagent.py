@@ -359,7 +359,7 @@ class ApiInputHandler(tornado.web.RequestHandler):
 
         if msg is not None:
             # Setup a transaction for this message
-            tr = APIMetricTransaction(msg, headers)
+            APIMetricTransaction(msg, headers)
         else:
             raise tornado.web.HTTPError(500)
 

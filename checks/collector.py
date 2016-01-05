@@ -220,7 +220,7 @@ class Collector(object):
                 self._metrics_checks.append(modules.load(module_spec, 'Check')(log))
                 log.info("Registered custom check %s" % module_spec)
                 log.warning("Old format custom checks are deprecated. They should be moved to the checks.d interface as old custom checks will be removed in a next version")
-            except Exception, e:
+            except Exception:
                 log.exception('Unable to load custom check module %s' % module_spec)
 
         # Resource Checks
@@ -532,7 +532,6 @@ class Collector(object):
         metric_count = 0
         event_count = 0
         service_check_count = 0
-        check_start_time = time.time()
         check_stats = None
 
         try:
