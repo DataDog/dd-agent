@@ -222,6 +222,14 @@ def get_config_path(cfg_path=None, os_name=None):
     if cfg_path is not None and os.path.exists(cfg_path):
         return cfg_path
 
+    # Check if there's a config stored in the current agent directory
+    try:
+        path = os.path.realpath(__file__)
+        path = os.path.dirname(path)
+        return _config_path(path)
+    except PathNotFound, e:
+        pass
+
     if os_name is None:
         os_name = get_os()
 
@@ -237,14 +245,6 @@ def get_config_path(cfg_path=None, os_name=None):
     except PathNotFound, e:
         if len(e.args) > 0:
             bad_path = e.args[0]
-
-    # Check if there's a config stored in the current agent directory
-    try:
-        path = os.path.realpath(__file__)
-        path = os.path.dirname(path)
-        return _config_path(path)
-    except PathNotFound, e:
-        pass
 
     # If all searches fail, exit the agent with an error
     sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
@@ -640,6 +640,12 @@ def set_win32_requests_ca_bundle_path():
 
 
 def get_confd_path(osname=None):
+    try:
+        cur_path = os.path.dirname(os.path.realpath(__file__))
+        return _confd_path(cur_path)
+    except PathNotFound, e:
+        pass
+
     if not osname:
         osname = get_os()
     bad_path = ''
@@ -653,12 +659,6 @@ def get_confd_path(osname=None):
     except PathNotFound, e:
         if len(e.args) > 0:
             bad_path = e.args[0]
-
-    try:
-        cur_path = os.path.dirname(os.path.realpath(__file__))
-        return _confd_path(cur_path)
-    except PathNotFound, e:
-        pass
 
     raise PathNotFound(bad_path)
 
