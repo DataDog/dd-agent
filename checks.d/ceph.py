@@ -8,14 +8,17 @@ import json
 
 # project
 from checks import AgentCheck
+from util import get_hostname
 
 NAMESPACE = "ceph"
+CEPH_CMD = "/usr/bin/ceph"
 
 class Ceph(AgentCheck):
     """ Collect metrics and events from ceph """
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+        self.hostname = get_hostname(agentConfig)
 
     def _run_command(self, cmd):
         fd = os.popen(cmd)
@@ -28,7 +31,7 @@ class Ceph(AgentCheck):
         for cmd in ( 'mon_status', 'status', 'df detail', 'osd pool stats', 'osd perf', 'pg dump',
                      'pg ls', 'pg dump_json all' ):
             try:
-                res = self._run_command("ceph %s -f json 2>/dev/null" % cmd)
+                res = self._run_command("%s %s -f json 2>/dev/null" % (CEPH_CMD, cmd))
             except Exception, e:
                 self.log.warning('Unable to parse data from cmd=%s: %s' % (cmd, str(e)))
                 continue
@@ -38,14 +41,30 @@ class Ceph(AgentCheck):
 
         return raw
 
-    def _extract_tags(self, raw):
+    def _extract_tags(self, raw, instance):
         tags = []
         if 'mon_status' in raw:
             tags.append(NAMESPACE + '_fsid:%s' % raw['mon_status']['monmap']['fsid'])
             tags.append(NAMESPACE + '_mon_state:%s' % raw['mon_status']['state'])
+        name = instance.get('name')
+        if name:
+            tags.append(NAMESPACE + '_name:%s' % name)
+        
         self.tags = tags
         
     def _extract_metrics(self, raw):
+        if 'status' in raw:
+            osdstatus = raw['status']['osdmap']['osdmap']
+            self.gauge(NAMESPACE + '.num_osds', osdstatus['num_osds'], self.tags)
+            self.gauge(NAMESPACE + '.num_in_osds', osdstatus['num_in_osds'], self.tags)
+            self.gauge(NAMESPACE + '.num_up_osds', osdstatus['num_up_osds'], self.tags)
+
+            pgstatus = raw['status']['pgmap']
+            self.gauge(NAMESPACE + '.num_pgs', pgstatus['num_pgs'], self.tags)
+            for pgstate in pgstatus['pgs_by_state']:
+                s_name = pgstate['state_name'].replace("+", "_")
+                self.gauge(NAMESPACE + '.pgstate.' + s_name, pgstate['count'], self.tags)
+        
         if 'mon_status' in raw:
             num_mons = len(raw['mon_status']['monmap']['mons'])
             self.gauge(NAMESPACE + '.num_mons', num_mons, self.tags)
@@ -83,10 +102,10 @@ class Ceph(AgentCheck):
 
     def check(self, instance):
         raw = self._collect_raw()
-        self._extract_tags(raw)
-        if instance.get('enable_metrics', True):
+        self._extract_tags(raw, instance)
+        if instance.get('publish_metrics', True):
             self._extract_metrics(raw)
-        if instance.get('enable_service_checks', True):
+        if instance.get('publish_service_checks', True):
             self._perform_service_checks(raw)
 
         
