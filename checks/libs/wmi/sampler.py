@@ -28,6 +28,7 @@ from win32com.client import Dispatch
 
 # project
 from checks.libs.wmi.counter_type import get_calculator, get_raw, UndefinedCalculator
+from utils.timeout import timeout, TimeoutException
 
 
 class CaseInsensitiveDict(dict):
@@ -48,11 +49,12 @@ class WMISampler(object):
     """
     WMI Sampler.
     """
+    # Shared resources
     _wmi_locators = {}
     _wmi_connections = {}
 
     def __init__(self, logger, class_name, property_names, filters="", host="localhost",
-                 namespace="root\\cimv2", username="", password=""):
+                 namespace="root\\cimv2", username="", password="", timeout_duration=10):
         self.logger = logger
 
         # Connection information
@@ -63,10 +65,11 @@ class WMISampler(object):
 
         self.is_raw_perf_class = "_PERFRAWDATA_" in class_name.upper()
 
-        # WMI class, properties, filters and counter types
-        # Include required properties for making calculations with raw
-        # performance counters:
-        # https://msdn.microsoft.com/en-us/library/aa394299(v=vs.85).aspx
+        # Sampler settings
+        #   WMI class, properties, filters and counter types
+        #   Include required properties for making calculations with raw
+        #   performance counters:
+        #   https://msdn.microsoft.com/en-us/library/aa394299(v=vs.85).aspx
         if self.is_raw_perf_class:
             property_names.extend([
                 "Timestamp_Sys100NS",
@@ -84,10 +87,15 @@ class WMISampler(object):
         self.filters = filters
         self._formatted_filters = None
         self.property_counter_types = None
+        self._timeout_duration = timeout_duration
+        self._query = timeout(timeout_duration)(self._query)
 
         # Samples
         self.current_sample = None
         self.previous_sample = None
+
+        # Sampling state
+        self._sampling = False
 
     def get_connection(self):
         """
@@ -114,25 +122,43 @@ class WMISampler(object):
         """
         Compute new samples.
         """
-        if self.is_raw_perf_class and not self.previous_sample:
-            self.logger.debug(u"Querying for initial sample for raw performance counter.")
+        self._sampling = True
+
+        try:
+            if self.is_raw_perf_class and not self.previous_sample:
+                self.logger.debug(u"Querying for initial sample for raw performance counter.")
+                self.current_sample = self._query()
+
+            self.previous_sample = self.current_sample
             self.current_sample = self._query()
-        self.previous_sample = self.current_sample
-
-        self.current_sample = self._query()
-
-        self.logger.debug(u"Sample: {0}".format(self.current_sample))
+        except TimeoutException:
+            self.logger.warning(
+                u"Query timeout after {timeout}s".format(
+                    timeout=self._timeout_duration
+                )
+            )
+        else:
+            self._sampling = False
+            self.logger.debug(u"Sample: {0}".format(self.current_sample))
 
     def __len__(self):
         """
         Return the number of WMI Objects in the current sample.
         """
+        # No data is returned while sampling
+        if self._sampling:
+            return 0
+
         return len(self.current_sample)
 
     def __iter__(self):
         """
         Iterate on the current sample's WMI Objects and format the property values.
         """
+        # No data is returned while sampling
+        if self._sampling:
+            return
+
         if self.is_raw_perf_class:
             # Format required
             for previous_wmi_object, current_wmi_object in \
@@ -282,7 +308,7 @@ class WMISampler(object):
         """
         Query WMI using WMI Query Language (WQL) & parse the results.
 
-        Returns: List of WMI objects
+        Returns: List of WMI objects or `TimeoutException`.
         """
         formated_property_names = ",".join(self.property_names)
         wql = "Select {property_names} from {class_name}{filters}".format(
