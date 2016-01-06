@@ -1,6 +1,7 @@
 # stdlib
 from functools import partial
 import logging
+import time
 import unittest
 
 # 3rd
@@ -85,7 +86,9 @@ class SWbemServices(object):
     SWbemServices a.k.a. (mocked) WMI connection.
     Save connection parameters so it can be tested.
     """
+    # `ExecQuery` metadata
     _exec_query_call_count = Counter()
+    _exec_query_run_time = 0
 
     def __init__(self, wmi_conn_args):
         super(SWbemServices, self).__init__()
@@ -119,9 +122,18 @@ class SWbemServices(object):
         return self._last_wmi_flags
 
     def ExecQuery(self, query, query_language, flags):
-        SWbemServices._exec_query_call_count += 1
+        """
+        Mocked `SWbemServices.ExecQuery` method.
+        """
+        # Comply with `ExecQuery` metadata
+        self._exec_query_call_count += 1
+        time.sleep(self._exec_query_run_time)
+
+        # Save last passed parameters
         self._last_wmi_query = query
         self._last_wmi_flags = flags
+
+        # Mock a result
         results = []
 
         if query == "Select AvgDiskBytesPerWrite,FreeMegabytes from Win32_PerfFormattedData_PerfDisk_LogicalDisk":  # noqa
@@ -396,6 +408,39 @@ class TestUnitWMISampler(TestCommonWMI):
         # Using an accessor
         for index in xrange(0, 2):
             self.assertWMIObject(wmi_sampler[index], ["AvgDiskBytesPerWrite", "FreeMegabytes", "name"])
+
+    def test_wmi_sampler_timeout(self):
+        """
+        Gracefully handle WMI queries' timeouts.
+        """
+        from checks.libs.wmi.sampler import WMISampler
+        logger = Mock()
+
+        # Create a sampler that timeouts
+        wmi_sampler = WMISampler(logger, "Win32_PerfFormattedData_PerfDisk_LogicalDisk",
+                                 ["AvgDiskBytesPerWrite", "FreeMegabytes"],
+                                 timeout_duration=0.5)
+        SWbemServices._exec_query_run_time = 0.5
+
+        # Gracefully timeout with a warning message but no exception
+        wmi_sampler.sample()
+        self.assertTrue(wmi_sampler._sampling)
+        self.assertTrue(logger.warning.called)
+
+        # Show no data
+        self.assertEquals(len(wmi_sampler), 0)
+        self.assertEquals(sum(1 for _ in wmi_sampler), 0)
+
+        # Recover from timeout at next iteration
+        wmi_sampler.sample()
+        self.assertFalse(wmi_sampler._sampling)
+
+        # The existing query was retrieved
+        self.assertEquals(SWbemServices.ExecQuery.call_count, 1, SWbemServices.ExecQuery.call_count)
+
+        # Data is populated
+        self.assertEquals(len(wmi_sampler), 2)
+        self.assertEquals(sum(1 for _ in wmi_sampler), 2)
 
     def test_raw_perf_properties(self):
         """
