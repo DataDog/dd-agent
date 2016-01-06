@@ -355,6 +355,8 @@ class Memory(Check):
                 memData['physBuffers'] = int(meminfo.get('Buffers', 0)) / 1024
                 memData['physCached'] = int(meminfo.get('Cached', 0)) / 1024
                 memData['physShared'] = int(meminfo.get('Shmem', 0)) / 1024
+                memData['physSlab'] = int(meminfo.get('Slab', 0)) / 1024
+                memData['physPageTables'] = int(meminfo.get('PageTables', 0)) / 1024
                 memData['physUsed'] = memData['physTotal'] - memData['physFree']
 
                 if 'MemAvailable' in meminfo:
@@ -373,6 +375,7 @@ class Memory(Check):
             try:
                 memData['swapTotal'] = int(meminfo.get('SwapTotal', 0)) / 1024
                 memData['swapFree'] = int(meminfo.get('SwapFree', 0)) / 1024
+                memData['swapCached'] = int(meminfo.get('SwapCached', 0)) / 1024
 
                 memData['swapUsed'] = memData['swapTotal'] - memData['swapFree']
 
