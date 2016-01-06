@@ -6,6 +6,7 @@ from Queue import Empty, Queue
 import re
 import time
 import traceback
+import ssl
 
 # 3p
 from pyVim import connect
@@ -430,6 +431,13 @@ class VSphereCheck(AgentCheck):
         ]
 
         if i_key not in self.server_instances:
+            if (instance.get('strict_ssl') is False):
+                try:
+                    _create_unverified_https_context = ssl._create_unverified_context
+                except AttributeError:
+                    pass
+                else:
+                    ssl._create_default_https_context = _create_unverified_https_context
             try:
                 server_instance = connect.SmartConnect(
                     host=instance.get('host'),

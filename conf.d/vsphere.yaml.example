@@ -19,6 +19,9 @@ instances:
     username: datadog-readonly@vsphere.local
     password: mypassword
 
+    # Enable or disable strict checking of SSL certificates of vCenter server
+    # strict_ssl: true
+
     # Use a regex like this if you want only the check
     # to fetch metrics for these ESXi hosts and the VMs
     # running on it
