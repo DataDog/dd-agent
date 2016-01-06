@@ -137,7 +137,7 @@ def _windows_commondata_path():
                                 wintypes.DWORD, wintypes.LPCWSTR]
 
     path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
-    result = _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
+    _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
     return path_buf.value
 
 
@@ -222,6 +222,14 @@ def get_config_path(cfg_path=None, os_name=None):
     if cfg_path is not None and os.path.exists(cfg_path):
         return cfg_path
 
+    # Check if there's a config stored in the current agent directory
+    try:
+        path = os.path.realpath(__file__)
+        path = os.path.dirname(path)
+        return _config_path(path)
+    except PathNotFound, e:
+        pass
+
     if os_name is None:
         os_name = get_os()
 
@@ -237,14 +245,6 @@ def get_config_path(cfg_path=None, os_name=None):
     except PathNotFound, e:
         if len(e.args) > 0:
             bad_path = e.args[0]
-
-    # Check if there's a config stored in the current agent directory
-    try:
-        path = os.path.realpath(__file__)
-        path = os.path.dirname(path)
-        return _config_path(path)
-    except PathNotFound, e:
-        pass
 
     # If all searches fail, exit the agent with an error
     sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
@@ -348,7 +348,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig[option] = config.get('Main', option)
 
         # Store developer mode setting in the agentConfig
-        in_developer_mode = None
         if config.has_option('Main', 'developer_mode'):
             agentConfig['developer_mode'] = _is_affirmative(config.get('Main', 'developer_mode'))
 
@@ -641,6 +640,12 @@ def set_win32_requests_ca_bundle_path():
 
 
 def get_confd_path(osname=None):
+    try:
+        cur_path = os.path.dirname(os.path.realpath(__file__))
+        return _confd_path(cur_path)
+    except PathNotFound, e:
+        pass
+
     if not osname:
         osname = get_os()
     bad_path = ''
@@ -654,12 +659,6 @@ def get_confd_path(osname=None):
     except PathNotFound, e:
         if len(e.args) > 0:
             bad_path = e.args[0]
-
-    try:
-        cur_path = os.path.dirname(os.path.realpath(__file__))
-        return _confd_path(cur_path)
-    except PathNotFound, e:
-        pass
 
     raise PathNotFound(bad_path)
 
@@ -722,9 +721,7 @@ def get_ssl_certificate(osname, filename):
     return None
 
 def check_yaml(conf_path):
-    f = open(conf_path)
-    check_name = os.path.basename(conf_path).split('.')[0]
-    try:
+    with open(conf_path) as f:
         check_config = yaml.load(f.read(), Loader=yLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
         assert 'instances' in check_config, "No 'instances' section found"
@@ -741,9 +738,6 @@ def check_yaml(conf_path):
             raise Exception('You need to have at least one instance defined in the YAML file for this check')
         else:
             return check_config
-    finally:
-        f.close()
-
 
 def load_check_directory(agentConfig, hostname):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
@@ -1035,9 +1029,11 @@ def initialize_logging(logger_name):
                     sys_log_addr = (logging_config['syslog_host'], logging_config['syslog_port'])
                 else:
                     sys_log_addr = "/dev/log"
-                    # Special-case macs
-                    if sys.platform == 'darwin':
+                    # Special-case BSDs
+                    if Platform.is_darwin():
                         sys_log_addr = "/var/run/syslog"
+                    elif Platform.is_freebsd():
+                        sys_log_addr = "/var/run/log"
 
                 handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
                 handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))

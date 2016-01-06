@@ -36,8 +36,6 @@ class AgentSupervisor(object):
             `child_func` is a function that should be run by the forked child
             that will auto-restart with the RESTART_EXIT_STATUS.
         '''
-        exit_code = cls.RESTART_EXIT_STATUS
-
         # Allow the child process to die on SIGTERM
         signal.signal(signal.SIGTERM, cls._handle_sigterm)
 
@@ -56,7 +54,6 @@ class AgentSupervisor(object):
                         if (cpid, status) != (0, 0):
                             break
                         time.sleep(1)
-                    exit_code = status >> 8
                     if parent_func is not None:
                         parent_func()
 
@@ -294,7 +291,7 @@ class Daemon(object):
             fp.write(str(pid))
             fp.close()
             os.chmod(self.pidfile, 0644)
-        except Exception, e:
+        except Exception:
             msg = "Unable to write pidfile: %s" % self.pidfile
             log.exception(msg)
             sys.stderr.write(msg + "\n")

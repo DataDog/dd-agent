@@ -1,15 +1,15 @@
 init_config:
     process_metrics:
-        - name: get_memory_info
+        - name: memory_info
           type: gauge
           active: yes
-        - name: get_io_counters
+        - name: io_counters
           type: rate
           active: yes
-        - name: get_num_threads
+        - name: num_threads
           type: gauge
           active: yes
-        - name: get_connections
+        - name: connections
           type: gauge
           active: no
 

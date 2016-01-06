@@ -441,7 +441,6 @@ class DockerDaemon(AgentCheck):
         return container_name in self._filtered_containers
 
     def _report_container_size(self, containers_by_id):
-        container_list_with_size = None
         for container in containers_by_id.itervalues():
             if self._is_container_excluded(container):
                 continue
@@ -699,6 +698,11 @@ class DockerDaemon(AgentCheck):
                 path = os.path.join(proc_path, folder, 'cgroup')
                 with open(path, 'r') as f:
                     content = [line.strip().split(':') for line in f.readlines()]
+            except IOError, e:
+                #  Issue #2074
+                self.log.debug("Cannot read %s, "
+                               "process likely raced to finish : %s" %
+                               (path, str(e)))
             except Exception, e:
                 self.warning("Cannot read %s : %s" % (path, str(e)))
                 continue
@@ -714,6 +718,9 @@ class DockerDaemon(AgentCheck):
                 match = CONTAINER_ID_RE.search(cpuacct)
                 if match:
                     container_id = match.group(0)
+                    if container_id not in container_dict:
+                        self.log.debug("Container %s not in container_dict, it's likely excluded", container_id)
+                        continue
                     container_dict[container_id]['_pid'] = folder
                     container_dict[container_id]['_proc_root'] = os.path.join(proc_path, folder)
             except Exception, e:

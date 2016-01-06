@@ -52,6 +52,9 @@ class StatsCheck(AgentCheck):
         timers = len(self._send_command(host, port, "timers", tags).getvalue().splitlines()) - 1
         self.gauge("statsd.timers.count", timers, tags=tags)
 
+        # Send the final service check status
+        self.service_check(SERVICE_CHECK_NAME, AgentCheck.OK, tags)
+
     def _send_command(self, host, port, command, tags):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

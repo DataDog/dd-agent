@@ -60,14 +60,14 @@ class GraphiteConnection(object):
         """
 
         try:
-            components = metric.split('.')
+            components = metric.split('.') # NOQA
 
             host = self.hostname
             metric = metric
             device = "N/A"
 
             return metric, host, device
-        except Exception, e:
+        except Exception:
             log.exception("Unparsable metric: %s" % metric)
             return None, None, None
 

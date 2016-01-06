@@ -101,7 +101,7 @@ use_mount: no
 # use_dogstatsd: yes
 
 # DogStatsd is a small server that aggregates your custom app metrics. For
-# usage information, check out http://api.datadoghq.com
+# usage information, check out http://docs.datadoghq.com/guides/dogstatsd/
 
 #  Make sure your client is sending to the same port.
 # dogstatsd_port : 8125

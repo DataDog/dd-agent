@@ -21,6 +21,7 @@ from config import get_system_stats, get_version
 from resources.processes import Processes as ResProcesses
 import checks.system.unix as u
 import checks.system.win32 as w32
+import checks.system.common as common
 import modules
 from util import (
     EC2,
@@ -188,7 +189,7 @@ class Collector(object):
             'memory': u.Memory(log),
             'processes': u.Processes(log),
             'cpu': u.Cpu(log),
-            'system': u.System(log)
+            'system': common.System(log)
         }
 
         # Win32 System `Checks
@@ -197,7 +198,8 @@ class Collector(object):
             'proc': w32.Processes(log),
             'memory': w32.Memory(log),
             'network': w32.Network(log),
-            'cpu': w32.Cpu(log)
+            'cpu': w32.Cpu(log),
+            'system': common.System(log)
         }
 
         # Old-style metric checks
@@ -218,7 +220,7 @@ class Collector(object):
                 self._metrics_checks.append(modules.load(module_spec, 'Check')(log))
                 log.info("Registered custom check %s" % module_spec)
                 log.warning("Old format custom checks are deprecated. They should be moved to the checks.d interface as old custom checks will be removed in a next version")
-            except Exception, e:
+            except Exception:
                 log.exception('Unable to load custom check module %s' % module_spec)
 
         # Resource Checks
@@ -530,7 +532,6 @@ class Collector(object):
         metric_count = 0
         event_count = 0
         service_check_count = 0
-        check_start_time = time.time()
         check_stats = None
 
         try:

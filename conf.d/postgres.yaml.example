@@ -48,3 +48,7 @@ instances:
 #         pending_events: [postgresql.londiste_pending_events, GAUGE]
 #      query: SELECT consumer_name, %s from pgq.get_consumer_info() where consumer_name !~ 'watermark$';
 #      relation: false
+
+#    Collect metrics regarding PL/pgSQL functions from pg_stat_user_functions
+#    collect_function_metrics: False
+#

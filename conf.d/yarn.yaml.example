@@ -1,0 +1,4 @@
+init_config:
+
+instances:
+    -   resourcemanager_uri: http://localhost:8088

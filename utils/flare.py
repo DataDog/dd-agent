@@ -564,7 +564,6 @@ class Flare(object):
         # Then raise potential 500 and 404
         self._resp.raise_for_status()
         try:
-            json_resp = self._resp.json()
             self._case_id = self._resp.json()['case_id']
         # Failed parsing
         except ValueError:

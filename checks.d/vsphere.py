@@ -287,7 +287,7 @@ def atomic_method(method):
     def wrapper(*args, **kwargs):
         try:
             method(*args, **kwargs)
-        except Exception as e:
+        except Exception:
             args[0].exceptionq.put("A worker thread crashed:\n" + traceback.format_exc())
     return wrapper
 
