@@ -1,7 +1,7 @@
 # project
 from checks import AgentCheck
 from utils.subprocess_output import get_subprocess_output
-from collections import Counter
+from collections import defaultdict
 
 PROCESS_STATES = {
     'D': 'uninterruptible',
@@ -23,9 +23,9 @@ class MoreUnixCheck(AgentCheck):
     def check(self, instance):
         tags = instance.get('tags', [])
 
-        state_counts = Counter()
+        state_counts = defaultdict(int)
 
-        prio_counts = Counter()
+        prio_counts = defaultdic(int)
 
         with open('/proc/sys/fs/inode-nr', 'r') as inode_info:
             inode_stats = inode_info.readline().split()
