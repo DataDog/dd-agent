@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from hashlib import md5
 from Queue import Empty, Queue
 import re
+import ssl
 import time
 import traceback
 
@@ -429,12 +430,31 @@ class VSphereCheck(AgentCheck):
             'vcenter_host:{0}'.format(instance.get('host')),
         ]
 
+        # Check for ssl configs and generate an appropriate ssl context object
+        ssl_verify = instance.get('ssl_verify', True)
+        ssl_capath = instance.get('ssl_capath', None)
+        if not ssl_verify:
+            context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            context.verify_mode = ssl.CERT_NONE
+        elif ssl_capath:
+            context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            context.verify_mode = ssl.CERT_REQUIRED
+            context.load_verify_locations(capath=ssl_capath)
+
+        # If both configs are used, log a message explaining the default
+        if not ssl_verify and ssl_capath:
+            self.log.debug("Your configuration is incorrectly attempting to "
+                           "specify both a CA path, and to disable SSL "
+                           "verification. You cannot do both. Proceeding with "
+                           "disabling ssl verification.")
+
         if i_key not in self.server_instances:
             try:
                 server_instance = connect.SmartConnect(
-                    host=instance.get('host'),
-                    user=instance.get('username'),
-                    pwd=instance.get('password')
+                    host = instance.get('host'),
+                    user = instance.get('username'),
+                    pwd = instance.get('password'),
+                    sslContext = context if not ssl_verify or ssl_capath else None
                 )
             except Exception as e:
                 err_msg = "Connection to %s failed: %s" % (instance.get('host'), e)
