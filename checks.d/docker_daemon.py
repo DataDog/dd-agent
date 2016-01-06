@@ -599,15 +599,17 @@ class DockerDaemon(AgentCheck):
             max_timestamp = 0
             status = defaultdict(int)
             status_change = []
-            container_names = set()
+            container_tags = set()
             for event in event_group:
                 max_timestamp = max(max_timestamp, int(event['time']))
                 status[event['status']] += 1
                 container_name = event['id'][:11]
                 if event['id'] in containers_by_id:
-                    container_name = container_name_extractor(containers_by_id[event['id']])[0]
+                    cont = containers_by_id[event['id']]
+                    container_name = container_name_extractor(cont)[0]
+                    container_tags.update(self._get_tags(cont, PERFORMANCE))
+                    container_tags.add('container_name:%s' % container_name)
 
-                container_names.add(container_name)
                 status_change.append([container_name, event['status']])
 
             status_text = ", ".join(["%d %s" % (count, st) for st, count in status.iteritems()])
@@ -632,7 +634,7 @@ class DockerDaemon(AgentCheck):
                 'msg_text': msg_body,
                 'source_type_name': EVENT_TYPE,
                 'event_object': 'docker:%s' % image_name,
-                'tags': ['container_name:%s' % c_name for c_name in container_names]
+                'tags': list(container_tags)
             })
 
         return events
