@@ -25,7 +25,7 @@ class MoreUnixCheck(AgentCheck):
 
         state_counts = defaultdict(int)
 
-        prio_counts = defaultdic(int)
+        prio_counts = defaultdict(int)
 
         with open('/proc/sys/fs/inode-nr', 'r') as inode_info:
             inode_stats = inode_info.readline().split()
