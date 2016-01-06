@@ -137,6 +137,7 @@ namespace :ci do
                            "--cache-dir #{ENV['PIP_CACHE']}",
                            "#{ENV['VOLATILE_DIR']}/ci.log")
       sh %(pip install\
+           --upgrade\
            -r requirements-test.txt\
            --cache-dir #{ENV['PIP_CACHE']}\
             2>&1 >> #{ENV['VOLATILE_DIR']}/ci.log)
