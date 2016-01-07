@@ -28,10 +28,12 @@ instances:
     # * `locks` - Locks
     # * `metrics.commands` - Use of database commands
     # * `tcmalloc` -  TCMalloc memory allocator
+    # * `top` - Usage statistics for each collection
     # * `wiredtiger` - WiredTiger storage engine
     # additional_metrics:
     #   - durability
     #   - locks
     #   - metrics.commands
     #   - tcmalloc
+    #   - top
     #   - wiredtiger

@@ -43,22 +43,25 @@ class TestMongoUnit(AgentCheckTest):
         setattr(self.check, "log", Mock())
         build_metric_list = self.check._build_metric_list_to_collect
 
+        # Default metric list
+        DEFAULT_METRICS = self.check.BASE_METRICS
+
         # No option
         no_additional_metrics = build_metric_list([])
-        self.assertEquals(len(no_additional_metrics), len(self.check.BASE_METRICS))
+        self.assertEquals(len(no_additional_metrics), len(DEFAULT_METRICS))
 
         # One correct option
-        base_and_tcmalloc_metrics = build_metric_list(['tcmalloc'])
+        default_and_tcmalloc_metrics = build_metric_list(['tcmalloc'])
         self.assertEquals(
-            len(base_and_tcmalloc_metrics),
-            len(self.check.BASE_METRICS) + len(self.check.TCMALLOC_METRICS)
+            len(default_and_tcmalloc_metrics),
+            len(DEFAULT_METRICS) + len(self.check.TCMALLOC_METRICS)
         )
 
         # One wrong and correct option
-        base_and_tcmalloc_metrics = build_metric_list(['foobar', 'tcmalloc'])
+        default_and_tcmalloc_metrics = build_metric_list(['foobar', 'top'])
         self.assertEquals(
-            len(base_and_tcmalloc_metrics),
-            len(self.check.BASE_METRICS) + len(self.check.TCMALLOC_METRICS)
+            len(default_and_tcmalloc_metrics),
+            len(DEFAULT_METRICS) + len(self.check.TOP_METRICS)
         )
         self.assertEquals(self.check.log.warning.called, 1)
 
@@ -70,7 +73,7 @@ class TestMongoUnit(AgentCheckTest):
         config = {
             'instances': [self.MONGODB_CONFIG]
         }
-        collect_metrics = {
+        metrics_to_collect = {
             'foobar': (GAUGE, 'barfoo'),
             'foo.bar': (RATE, 'bar.foo'),
             'fOoBaR': GAUGE,
@@ -81,13 +84,15 @@ class TestMongoUnit(AgentCheckTest):
 
         # Assert
 
-        # metric_name -> (metric_type, alias)
-        self.assertEquals((GAUGE, 'mongodb.barfoo'), resolve_metric('foobar', collect_metrics))
-        self.assertEquals((RATE, 'mongodb.bar.foops'), resolve_metric('foo.bar', collect_metrics))
+        # Priority to aliases when defined
+        self.assertEquals((GAUGE, 'mongodb.barfoo'), resolve_metric('foobar', metrics_to_collect))
+        self.assertEquals((RATE, 'mongodb.bar.foops'), resolve_metric('foo.bar', metrics_to_collect))  # noqa
+        self.assertEquals((GAUGE, 'mongodb.qux.barfoo'), resolve_metric('foobar', metrics_to_collect, prefix="qux"))  # noqa
 
-        #  metric_name -> metric_type
-        self.assertEquals((GAUGE, 'mongodb.foobar'), resolve_metric('fOoBaR', collect_metrics))
-        self.assertEquals((RATE, 'mongodb.foo.barps'), resolve_metric('fOo.baR', collect_metrics))
+        #  Resolve an alias when not defined
+        self.assertEquals((GAUGE, 'mongodb.foobar'), resolve_metric('fOoBaR', metrics_to_collect))
+        self.assertEquals((RATE, 'mongodb.foo.barps'), resolve_metric('fOo.baR', metrics_to_collect))  # noqa
+        self.assertEquals((GAUGE, 'mongodb.qux.foobar'), resolve_metric('fOoBaR', metrics_to_collect, prefix="qux"))  # noqa
 
     def test_metric_normalization(self):
         """
@@ -97,7 +102,7 @@ class TestMongoUnit(AgentCheckTest):
         config = {
             'instances': [self.MONGODB_CONFIG]
         }
-        collect_metrics = {
+        metrics_to_collect = {
             'foo.bar': GAUGE,
             'foobar.r': GAUGE,
             'foobar.R': RATE,
@@ -108,12 +113,12 @@ class TestMongoUnit(AgentCheckTest):
         resolve_metric = self.check._resolve_metric
 
         # Assert
-        self.assertEquals((GAUGE, 'mongodb.foo.bar'), resolve_metric('foo.bar', collect_metrics))  # noqa
+        self.assertEquals((GAUGE, 'mongodb.foo.bar'), resolve_metric('foo.bar', metrics_to_collect))  # noqa
 
-        self.assertEquals((RATE, 'mongodb.foobar.sharedps'), resolve_metric('foobar.R', collect_metrics))  # noqa
-        self.assertEquals((GAUGE, 'mongodb.foobar.intent_shared'), resolve_metric('foobar.r', collect_metrics))  # noqa
-        self.assertEquals((RATE, 'mongodb.foobar.intent_exclusiveps'), resolve_metric('foobar.w', collect_metrics))  # noqa
-        self.assertEquals((GAUGE, 'mongodb.foobar.exclusive'), resolve_metric('foobar.W', collect_metrics))  # noqa
+        self.assertEquals((RATE, 'mongodb.foobar.sharedps'), resolve_metric('foobar.R', metrics_to_collect))  # noqa
+        self.assertEquals((GAUGE, 'mongodb.foobar.intent_shared'), resolve_metric('foobar.r', metrics_to_collect))  # noqa
+        self.assertEquals((RATE, 'mongodb.foobar.intent_exclusiveps'), resolve_metric('foobar.w', metrics_to_collect))  # noqa
+        self.assertEquals((GAUGE, 'mongodb.foobar.exclusive'), resolve_metric('foobar.W', metrics_to_collect))  # noqa
 
 
 @attr(requires='mongo')

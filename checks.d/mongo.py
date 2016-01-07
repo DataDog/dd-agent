@@ -280,6 +280,32 @@ class MongoDb(AgentCheck):
     }
 
     """
+    Usage statistics for each collection.
+
+    https://docs.mongodb.org/v3.0/reference/command/top/
+    """
+    TOP_METRICS = {
+        "commands.count": GAUGE,
+        "commands.time": GAUGE,
+        "getmore.count": GAUGE,
+        "getmore.time": GAUGE,
+        "insert.count": GAUGE,
+        "insert.time": GAUGE,
+        "queries.count": GAUGE,
+        "queries.time": GAUGE,
+        "readLock.count": GAUGE,
+        "readLock.time": GAUGE,
+        "remove.count": GAUGE,
+        "remove.time": GAUGE,
+        "total.count": GAUGE,
+        "total.time": GAUGE,
+        "update.count": GAUGE,
+        "update.time": GAUGE,
+        "writeLock.count": GAUGE,
+        "writeLock.time": GAUGE,
+    }
+
+    """
     Mapping for case-sensitive metric name suffixes.
 
     https://docs.mongodb.org/manual/reference/command/serverStatus/#server-status-locks
@@ -300,6 +326,7 @@ class MongoDb(AgentCheck):
         'metrics.commands': COMMANDS_METRICS,
         'tcmalloc': TCMALLOC_METRICS,
         'wiredtiger': WIREDTIGER_METRICS,
+        'top': TOP_METRICS,
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
@@ -396,7 +423,7 @@ class MongoDb(AgentCheck):
                 self._build_metric_list_to_collect(additional_metrics)
         return self.metrics_to_collect_by_instance[instance_key]
 
-    def _resolve_metric(self, original_metric_name, metrics_to_collect):
+    def _resolve_metric(self, original_metric_name, metrics_to_collect, prefix=""):
         """
         Return the submit method and the metric name to use.
 
@@ -413,21 +440,25 @@ class MongoDb(AgentCheck):
             if isinstance(metrics_to_collect[original_metric_name], tuple) \
             else original_metric_name
 
-        return submit_method, self._normalize(metric_name, submit_method)
+        return submit_method, self.normalize(metric_name, submit_method, prefix)
 
-    def _normalize(self, metric_name, submit_method):
+    def normalize(self, metric_name, submit_method, prefix):
         """
-        Replace case-sensitive metric name characters and normalize
-        the metric name according to its type.
+        Replace case-sensitive metric name characters, normalize the metric name,
+        prefix and suffix according to its type.
         """
-        # Handle case-sensitive metric name suffixes
+        metric_prefix = "mongodb." if not prefix else "mongodb.{0}.".format(prefix)
+        metric_suffix = "ps" if submit_method == RATE else ""
+
+        # Replace case-sensitive metric name characters
         for pattern, repl in self.CASE_SENSITIVE_METRIC_NAME_SUFFIXES.iteritems():
             metric_name = re.compile(pattern).sub(repl, metric_name)
 
-        if submit_method == RATE:
-            return self.normalize(metric_name.lower(), 'mongodb') + "ps"
-
-        return self.normalize(metric_name.lower(), 'mongodb')
+        # Normalize, and wrap
+        return u"{metric_prefix}{normalized_metric_name}{metric_suffix}".format(
+            normalized_metric_name=super(MongoDb, self).normalize(metric_name.lower()),
+            metric_prefix=metric_prefix, metric_suffix=metric_suffix
+        )
 
     def check(self, instance):
         """
@@ -662,3 +693,40 @@ class MongoDb(AgentCheck):
                     self._resolve_metric(metric_name, metrics_to_collect)
                 metrics_tags = tags + ['cluster:db:%s' % st]
                 submit_method(self, metric_name_alias, val, tags=metrics_tags)
+
+        # Report the usage metrics for dbs/collections
+        if 'top' in additional_metrics:
+            try:
+                dbtop = db.command('top')
+                for ns, ns_metrics in dbtop['totals'].iteritems():
+                    if "." not in ns:
+                        continue
+
+                    # configure tags for db name and collection name
+                    dbname, collname = ns.split(".", 1)
+                    ns_tags = tags + ["db:%s" % dbname, "collection:%s" % collname]
+
+                    # iterate over DBTOP metrics
+                    for m in self.TOP_METRICS:
+                        # each metric is of the form: x.y.z with z optional
+                        # and can be found at ns_metrics[x][y][z]
+                        value = ns_metrics
+                        try:
+                            for c in m.split("."):
+                                value = value[c]
+                        except Exception:
+                            continue
+
+                        # value is now status[x][y][z]
+                        if not isinstance(value, (int, long, float)):
+                            raise TypeError(
+                                u"{0} value is a {1}, it should be an int, a float or a long instead."
+                                .format(m, type(value))
+                            )
+
+                        # Submit the metric
+                        submit_method, metric_name_alias = \
+                            self._resolve_metric(m, metrics_to_collect, prefix="usage")
+                        submit_method(self, metric_name_alias, value, tags=ns_tags)
+            except Exception, e:
+                self.log.warning('Failed to record `top` metrics %s' % str(e))
