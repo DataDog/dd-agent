@@ -53,6 +53,19 @@ class Ceph(AgentCheck):
         self.tags = tags
         
     def _extract_metrics(self, raw):
+        if 'osd_perf' in raw:
+            for osdperf in raw['osd_perf']['osd_perf_infos']:
+                tags = self.tags + [ 'osd:osd%s' % osdperf['id'] ]
+                for k,v in osdperf['perf_stats'].iteritems():
+                    self.gauge(NAMESPACE + '.' + k, v, tags)
+
+        if 'osd_pool_stats' in raw:
+            for osdinfo in raw['osd_pool_stats']:
+                name = osdinfo['pool_name']
+                tags = self.tags + [ 'pool:%s' % name ]
+                for k,v in osdinfo['client_io_rate'].iteritems():
+                    self.gauge(NAMESPACE + '.' + k, v, tags)
+
         if 'status' in raw:
             osdstatus = raw['status']['osdmap']['osdmap']
             self.gauge(NAMESPACE + '.num_osds', osdstatus['num_osds'], self.tags)
@@ -71,7 +84,6 @@ class Ceph(AgentCheck):
 
         if 'df_detail' in raw:
             stats = raw['df_detail']['stats']
-            print stats
             self.gauge(NAMESPACE + '.total_objects', stats['total_objects'], self.tags)
             used = float(stats['total_used_bytes'])
             avail = float(stats['total_avail_bytes'])
@@ -86,7 +98,7 @@ class Ceph(AgentCheck):
                 used = float(stats['bytes_used'])
                 avail = float(stats['max_avail'])
                 if avail>0:
-                    self.gauge(NAMESPACE + '.used', used/avail, tags)
+                    self.gauge(NAMESPACE + '.pct_used', 100.0*used/avail, tags)
                 self.gauge(NAMESPACE + '.num_objects', stats['objects'], tags)
                 self.gauge(NAMESPACE + '.rd_bytes', stats['rd_bytes'], tags)
                 self.gauge(NAMESPACE + '.wr_bytes', stats['wr_bytes'], tags)
