@@ -3,5 +3,6 @@ init_config:
 
 instances:
   - url: "http://localhost:5051"
-  # tasks:
-  #   - "hello"
+  #  master_port: 5050
+  #  tasks:
+  #    - "hello"

@@ -8,6 +8,7 @@ import requests
 # project
 from checks import AgentCheck, CheckException
 
+DEFAULT_MASTER_PORT = 5050
 
 class MesosSlave(AgentCheck):
     GAUGE = AgentCheck.gauge
@@ -123,13 +124,16 @@ class MesosSlave(AgentCheck):
             endpoint = '/stats.json'
         return self._get_json(url + endpoint, timeout)
 
-    def _get_constant_attributes(self, url, timeout):
+    def _get_constant_attributes(self, url, timeout, master_port):
         state_metrics = None
         if self.cluster_name is None:
             state_metrics = self._get_state(url, timeout)
             if state_metrics is not None:
                 self.version = map(int, state_metrics['version'].split('.'))
-                master_state = self._get_state('http://' + state_metrics['master_hostname'] + ':5050', timeout)
+                master_state = self._get_state(
+                    'http://{0}:{1}'.format(state_metrics['master_hostname'], master_port),
+                    timeout
+                )
                 if master_state is not None:
                     self.cluster_name = master_state.get('cluster')
 
@@ -144,8 +148,9 @@ class MesosSlave(AgentCheck):
         tasks = instance.get('tasks', [])
         default_timeout = self.init_config.get('default_timeout', 5)
         timeout = float(instance.get('timeout', default_timeout))
+        master_port = instance.get("master_port", DEFAULT_MASTER_PORT)
 
-        state_metrics = self._get_constant_attributes(url, timeout)
+        state_metrics = self._get_constant_attributes(url, timeout, master_port)
         tags = None
 
         if state_metrics is None:
