@@ -61,6 +61,11 @@ class ProcessCheck(AgentCheck):
             )
         )
 
+        if Platform.is_linux():
+            procfs_path = init_config.get('procfs_path')
+            if procfs_path:
+                psutil.PROCFS_PATH = procfs_path
+
         # Process cache, indexed by instance
         self.process_cache = defaultdict(dict)
 
