@@ -59,7 +59,7 @@ class GoExpvar(AgentCheck):
         self._last_gc_count = defaultdict(int)
 
     def _get_data(self, url):
-        r = requests.get(url)
+        r = requests.get(url, timeout=10)
         r.raise_for_status()
         return r.json()
 
