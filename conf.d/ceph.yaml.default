@@ -1,4 +1,8 @@
 init_config:
+  #cluster_names:
+  #  'e0efcf84-e8ed-4916-8ce1-9c70242d390a': mars_cluster
+  #  'f0efcf84-e8ed-4916-8ce1-9c70242d390a': apostrophe_cluster
+  #
   #    tags:
   #      - optional_tag1
   #      - optional_tag2

@@ -19,7 +19,8 @@ class Ceph(AgentCheck):
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.hostname = get_hostname(agentConfig)
-
+        self.cluster_names = init_config.get('cluster_names', {})
+        
     def _run_command(self, cmd):
         fd = os.popen(cmd)
         raw = fd.read()
@@ -44,8 +45,12 @@ class Ceph(AgentCheck):
     def _extract_tags(self, raw, instance):
         tags = []
         if 'mon_status' in raw:
-            tags.append(NAMESPACE + '_fsid:%s' % raw['mon_status']['monmap']['fsid'])
+            fsid = raw['mon_status']['monmap']['fsid']
+            tags.append(NAMESPACE + '_fsid:%s' % fsid)
             tags.append(NAMESPACE + '_mon_state:%s' % raw['mon_status']['state'])
+            if fsid in self.cluster_names:
+                tags.append(NAMESPACE + '_cluster_name:%s' % self.cluster_names[fsid])
+
         name = instance.get('name')
         if name:
             tags.append(NAMESPACE + '_name:%s' % name)
@@ -55,14 +60,14 @@ class Ceph(AgentCheck):
     def _extract_metrics(self, raw):
         if 'osd_perf' in raw:
             for osdperf in raw['osd_perf']['osd_perf_infos']:
-                tags = self.tags + [ 'osd:osd%s' % osdperf['id'] ]
+                tags = self.tags + [ 'ceph_osd:osd%s' % osdperf['id'] ]
                 for k,v in osdperf['perf_stats'].iteritems():
                     self.gauge(NAMESPACE + '.' + k, v, tags)
 
         if 'osd_pool_stats' in raw:
             for osdinfo in raw['osd_pool_stats']:
                 name = osdinfo['pool_name']
-                tags = self.tags + [ 'pool:%s' % name ]
+                tags = self.tags + [ 'ceph_pool:%s' % name ]
                 for k,v in osdinfo['client_io_rate'].iteritems():
                     self.gauge(NAMESPACE + '.' + k, v, tags)
 
@@ -88,7 +93,7 @@ class Ceph(AgentCheck):
             used = float(stats['total_used_bytes'])
             avail = float(stats['total_avail_bytes'])
             if avail>0:
-                self.gauge(NAMESPACE + '.aggregate_used', used/avail, self.tags)
+                self.gauge(NAMESPACE + '.aggregate_pct_used', 100.0*used/avail, self.tags)
 
             l_pools = raw['df_detail']['pools']
             self.gauge(NAMESPACE + '.num_pools', len(l_pools), self.tags)
@@ -100,8 +105,8 @@ class Ceph(AgentCheck):
                 if avail>0:
                     self.gauge(NAMESPACE + '.pct_used', 100.0*used/avail, tags)
                 self.gauge(NAMESPACE + '.num_objects', stats['objects'], tags)
-                self.gauge(NAMESPACE + '.rd_bytes', stats['rd_bytes'], tags)
-                self.gauge(NAMESPACE + '.wr_bytes', stats['wr_bytes'], tags)
+                self.rate(NAMESPACE + '.rd_bytes', stats['rd_bytes'], tags)
+                self.rate(NAMESPACE + '.wr_bytes', stats['wr_bytes'], tags)
 
     def _perform_service_checks(self, raw):
         if 'status' in raw:
