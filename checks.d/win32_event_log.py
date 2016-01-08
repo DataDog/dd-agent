@@ -37,11 +37,11 @@ class Win32EventLogWMI(WinWMICheck):
         instance_tags = instance.get('tags', [])
         notify = instance.get('notify', [])
 
-        ltype = instance.get('type')
         user = instance.get('user')
-        source_name = instance.get('source_name')
-        log_file = instance.get('log_file')
-        event_id = instance.get('event_id', [])
+        ltypes = instance.get('type', [])
+        source_names = instance.get('source_name', [])
+        log_files = instance.get('log_file', [])
+        event_ids = instance.get('event_id', [])
         message_filters = instance.get('message_filters', [])
 
         instance_key = self._get_instance_key(host, self.NAMESPACE, self.CLASS)
@@ -55,26 +55,32 @@ class Win32EventLogWMI(WinWMICheck):
         filters = []
         last_ts = self.last_ts[instance_key]
         query['TimeGenerated'] = ('>=', self._dt_to_wmi(last_ts))
-        if ltype:
-            query['Type'] = ('=', ltype)
         if user:
             query['User'] = ('=', user)
-        if source_name:
-            query['SourceName'] = ('=', source_name)
-        if log_file:
-            query['LogFile'] = ('=', log_file)
-        if event_id:
+        if ltypes:
+            query['Type'] = []
+            for ltype in ltypes:
+                query['Type'].append(('=', ltype))
+        if source_names:
+            query['SourceName'] = []
+            for source_name in source_names:
+                query['SourceName'].append(('=', source_name))
+        if log_files:
+            query['LogFile'] = []
+            for log_file in log_files:
+                query['LogFile'].append(('=', log_file))
+        if event_ids:
             query['EventCode'] = []
-            for code in event_id:
-                query['EventCode'] += ('=', event_id)
+            for event_id in event_ids:
+                query['EventCode'].append(('=', event_id))
         if message_filters:
             query['NOT Message'] = []
             query['Message'] = []
             for filt in message_filters:
                 if filt[0] == '-':
-                    query['NOT Message'] += [('LIKE', filt[1:])]
+                    query['NOT Message'].append(('LIKE', filt[1:]))
                 else:
-                    query['Message'] += [('LIKE', filt)]
+                    query['Message'].append(('LIKE', filt))
 
         filters.append(query)
 
