@@ -1,0 +1,6 @@
+init_config:
+
+instances:
+  - 
+    # The AWS region to connect to.
+    region: us-east-1
