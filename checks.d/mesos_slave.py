@@ -112,6 +112,9 @@ class MesosSlave(AgentCheck):
             if status is AgentCheck.CRITICAL:
                 raise CheckException("Cannot connect to mesos, please check your configuration.")
 
+        if r.encoding is None:
+            r.encoding = 'UTF8'
+
         return r.json()
 
     def _get_state(self, url, timeout):
