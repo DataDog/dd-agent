@@ -148,6 +148,9 @@ class MesosMaster(AgentCheck):
                                    message=msg)
                 raise CheckException("Cannot connect to mesos, please check your configuration.")
 
+        if r.encoding is None:
+            r.encoding = 'UTF8'
+
         return r.json()
 
     def _get_master_state(self, url, timeout):
