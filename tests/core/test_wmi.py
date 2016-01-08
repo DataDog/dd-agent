@@ -447,39 +447,49 @@ class TestUnitWMISampler(TestCommonWMI):
         filters = []
         query = {}
         and_props = ['mEssage']
-        message_filters = ["-foo", "%bar%", "%zen%"]
+        ltypes = ["Error", "Warning"]
+        source_names = ["MSSQLSERVER", "IIS"]
+        log_files = ["System", "Security"]
         event_codes = [302, 404, 501]
+        message_filters = ["-foo", "%bar%", "%zen%"]
         last_ts = datetime(2016, 1, 1, 15, 8, 24, 78915)
+
         query['TimeGenerated'] = ('>=', from_time(last_ts))
         query['Type'] = ('=', 'footype')
         query['User'] = ('=', 'luser')
         query['SourceName'] = ('=', 'MSSQL')
         query['LogFile'] = ('=', 'thelogfile')
 
-        for code in event_codes:
-            if 'EventCode' in query:
-                query['EventCode'] += [('=', code)]
-            else:
-                query['EventCode'] = [('=', code)]
+        query['Type'] = []
+        for ltype in ltypes:
+            query['Type'].append(('=', ltype))
 
+        query['SourceName'] = []
+        for source_name in source_names:
+            query['SourceName'].append(('=', source_name))
+
+        query['LogFile'] = []
+        for log_file in log_files:
+            query['LogFile'].append(('=', log_file))
+
+        query['EventCode'] = []
+        for code in event_codes:
+            query['EventCode'].append(('=', code))
+
+        query['NOT Message'] = []
+        query['Message'] = []
         for filt in message_filters:
             if filt[0] == '-':
-                if 'NOT Message' in query:
-                    query['NOT Message'] += [('LIKE', filt[1:])]
-                else:
-                    query['NOT Message'] = [('LIKE', filt[1:])]
+                query['NOT Message'].append(('LIKE', filt[1:]))
             else:
-                if 'Message' in query:
-                    query['Message'] += [('LIKE', filt)]
-                else :
-                    query['Message'] = [('LIKE', filt)]
+                query['Message'].append(('LIKE', filt))
 
         filters.append(query)
 
         self.assertEquals(" WHERE ( NOT Message LIKE 'foo' AND ( EventCode = '302' OR EventCode = '404' OR EventCode = '501' ) "
-                          "AND SourceName = 'MSSQL' AND TimeGenerated >= '2016-01-01 15:08:24.078915**********.******+' "
-                          "AND User = 'luser' AND Message LIKE '%bar%' AND Message LIKE '%zen%' AND LogFile = 'thelogfile' "
-                          "AND Type = 'footype' )",
+                          "AND ( SourceName = 'MSSQLSERVER' OR SourceName = 'IIS' ) AND TimeGenerated >= '2016-01-01 15:08:24.078915**********.******+' "
+                          "AND User = 'luser' AND Message LIKE '%bar%' AND Message LIKE '%zen%' AND ( LogFile = 'System' OR LogFile = 'Security' ) "
+                          "AND ( Type = 'Error' OR Type = 'Warning' ) )",
                           format_filter(filters, and_props))
 
     def test_wql_filtering_inclusive(self):
