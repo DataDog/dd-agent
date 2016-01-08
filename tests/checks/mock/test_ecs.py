@@ -12,54 +12,45 @@ MOCK_CONFIG = {
 }
 
 def requests_get_mock(*args, **kwargs):
-    class MockResponse:
-        def __init__(self, data, status_code):
-            self.data = data
-            self.status_code = status_code
-
-        def json(self):
-            return self.data
-
-        def raise_for_status(self):
-            return True
-
-    return MockResponse({
+    response = mock.Mock()
+    response.status_code = 200
+    response.raise_for_status.return_value = True
+    response.json.return_value = {
         'Cluster': 'default',
-        'ContainerInstanceArn': 'arn:aws:ecs:us-east-1:012345678910:container-instance/c9c9a6f2-8766-464b-8805-9c57b9368fb0',
-    }, 200)
+        'ContainerInstanceArn': 'arn:aws:ecs:us-east-1:012345678910:container-instance/c9c9a6f2-8766-464b-8805-9c57b9368fb0' }
+    return response
 
-class MockECSClient:
-    def __init__(self, container_instances):
-        self.container_instances = container_instances
-
-    def describe_container_instances(self, container_instances, cluster=None):
-        return {
-                'containerInstances': self.container_instances,
-                'failures': [] }
+def mock_ecs_client(agent_connected=None):
+    container_instances = []
+    if agent_connected is not None:
+        container_instances.append({ 'agentConnected': agent_connected })
+    mock_client = mock.Mock()
+    mock_client.describe_container_instances.return_value = { 'containerInstances': container_instances }
+    return mock_client
 
 class TestCheckECS(AgentCheckTest):
     CHECK_NAME = 'ecs'
 
     def mock_agent_connected(self, instance):
-        return MockECSClient([{ 'agentConnected': True, }])
+        return mock_ecs_client(agent_connected=True)
 
     def mock_agent_disconnected(self, instance):
-        return MockECSClient([{ 'agentConnected': False, }])
+        return mock_ecs_client(agent_connected=False)
 
     def mock_agent_not_found(self, instance):
-        return MockECSClient([])
+        return mock_ecs_client()
 
     @mock.patch('requests.get', side_effect=requests_get_mock)
     def test_agent_connected(self, mock_requests):
-        self.run_check(MOCK_CONFIG, mocks={'connect_to_region': self.mock_agent_connected})
+        self.run_check(MOCK_CONFIG, mocks={ 'connect_to_region': self.mock_agent_connected })
         self.assertServiceCheckOK('ecs.agent_connected')
 
     @mock.patch('requests.get', side_effect=requests_get_mock)
     def test_agent_disconnected(self, mock_requests):
-        self.run_check(MOCK_CONFIG, mocks={'connect_to_region': self.mock_agent_disconnected})
+        self.run_check(MOCK_CONFIG, mocks={ 'connect_to_region': self.mock_agent_disconnected })
         self.assertServiceCheckWarning('ecs.agent_connected')
 
     @mock.patch('requests.get', side_effect=requests_get_mock)
     def test_agent_not_found(self, mock_requests):
-        self.run_check(MOCK_CONFIG, mocks={'connect_to_region': self.mock_agent_not_found})
+        self.run_check(MOCK_CONFIG, mocks={ 'connect_to_region': self.mock_agent_not_found })
         self.assertServiceCheckUnknown('ecs.agent_connected')
