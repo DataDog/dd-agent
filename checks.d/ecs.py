@@ -31,7 +31,7 @@ class ECS(AgentCheck):
         container_instance = metadata['ContainerInstanceArn']
 
         desc = ecs.describe_container_instances(container_instance, cluster)
-        container_instances = desc['containerInstances']
+        container_instances = desc['DescribeContainerInstancesResponse']['DescribeContainerInstancesResult']['containerInstances']
 
         if not container_instances:
             return self.service_check(SERVICE_CHECK, AgentCheck.UNKNOWN)

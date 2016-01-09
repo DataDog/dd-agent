@@ -25,7 +25,10 @@ def mock_ecs_client(agent_connected=None):
     if agent_connected is not None:
         container_instances.append({ 'agentConnected': agent_connected })
     mock_client = mock.Mock()
-    mock_client.describe_container_instances.return_value = { 'containerInstances': container_instances }
+    mock_client.describe_container_instances.return_value = {
+            'DescribeContainerInstancesResponse': {
+                'DescribeContainerInstancesResult': {
+                    'containerInstances': container_instances }}}
     return mock_client
 
 class TestCheckECS(AgentCheckTest):
