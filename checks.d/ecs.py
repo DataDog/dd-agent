@@ -40,7 +40,7 @@ class ECS(AgentCheck):
         else:
             return self.service_check(SERVICE_CHECK, AgentCheck.WARNING)
 
-    def connect_to_region(region_name, **kwargs):
+    def connect_to_region(self, region_name, **kwargs):
         for region in regions():
             if region.name == region_name:
                 return region.connect(**kwargs)
