@@ -26,19 +26,22 @@ class ECS(AgentCheck):
     def check(self, instance):
         ecs = self.connect_to_region(instance.get('region'))
 
-        metadata = requests.get(METADATA_URL).json()
-        cluster = metadata.get('Cluster')
-        container_instance = metadata['ContainerInstanceArn']
+        try:
+            metadata = requests.get(METADATA_URL).json()
+            cluster = metadata.get('Cluster')
+            container_instance = metadata['ContainerInstanceArn']
 
-        desc = ecs.describe_container_instances(container_instance, cluster)
-        container_instances = desc['DescribeContainerInstancesResponse']['DescribeContainerInstancesResult']['containerInstances']
+            desc = ecs.describe_container_instances(container_instance, cluster)
+            container_instances = desc['DescribeContainerInstancesResponse']['DescribeContainerInstancesResult']['containerInstances']
 
-        if not container_instances:
-            return self.service_check(SERVICE_CHECK, AgentCheck.UNKNOWN)
-        if container_instances[0].get('agentConnected'):
-            return self.service_check(SERVICE_CHECK, AgentCheck.OK)
-        else:
-            return self.service_check(SERVICE_CHECK, AgentCheck.WARNING)
+            if not container_instances:
+                return self.service_check(SERVICE_CHECK, AgentCheck.UNKNOWN)
+            if container_instances[0].get('agentConnected'):
+                return self.service_check(SERVICE_CHECK, AgentCheck.OK)
+            else:
+                return self.service_check(SERVICE_CHECK, AgentCheck.WARNING)
+        except:
+            return self.service_check(SERVICE_CHECK, AgentCheck.CRITICAL)
 
     def connect_to_region(self, region_name, **kwargs):
         for region in regions():
