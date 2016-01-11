@@ -20,7 +20,10 @@ def mock_metadata_response(*args, **kwargs):
     return response
 
 def mock_connection_refused(*args, **kwargs):
-    raise IOError
+    raise TestFailed
+
+class TestFailed(Exception):
+    pass
 
 def mock_ecs_client(agent_connected=None):
     container_instances = []
@@ -62,5 +65,7 @@ class TestCheckECS(AgentCheckTest):
 
     @mock.patch('requests.get', side_effect=mock_connection_refused)
     def test_agent_not_running(self, mock_requests):
-        self.run_check(MOCK_CONFIG)
+        with self.assertRaises(TestFailed):
+            self.run_check(MOCK_CONFIG)
+
         self.assertServiceCheckCritical('ecs.agent_connected')
