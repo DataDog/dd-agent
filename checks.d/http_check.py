@@ -183,22 +183,23 @@ class HTTPCheck(NetworkCheck):
         ssl_expire = _is_affirmative(instance.get('check_certificate_expiration', True))
         instance_ca_certs = instance.get('ca_certs', self.ca_certs)
         weakcipher = _is_affirmative(instance.get('weakciphers', False))
+        ignore_ssl_warning = _is_affirmative(instance.get('ignore_ssl_warning', False))
 
         return url, username, password, http_response_status_code, timeout, include_content,\
             headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs,\
-            weakcipher
+            weakcipher, ignore_ssl_warning
 
     def _check(self, instance):
         addr, username, password, http_response_status_code, timeout, include_content, headers,\
             response_time, content_match, tags, disable_ssl_validation,\
-            ssl_expire, instance_ca_certs, weakcipher = self._load_conf(instance)
+            ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning = self._load_conf(instance)
         start = time.time()
 
         service_checks = []
         try:
             parsed_uri = urlparse(addr)
             self.log.debug("Connecting to %s" % addr)
-            if disable_ssl_validation and parsed_uri.scheme == "https":
+            if disable_ssl_validation and parsed_uri.scheme == "https" and not ignore_ssl_warning:
                 self.warning("Skipping SSL certificate validation for %s based on configuration"
                              % addr)
 

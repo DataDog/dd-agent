@@ -64,6 +64,10 @@ instances:
     #
     # disable_ssl_validation: true
 
+    # If you enable the disable_ssl_validation above, you might want to disable security warnings
+    # You can use the flag below to do so
+    # ignore_ssl_warning: false
+
     # Path of trusted CA certificates used to validate the SSL certificate
     # for this url.
     # Overrides the default path and the one specified in init_config.
