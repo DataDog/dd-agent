@@ -236,15 +236,18 @@ class ESCheck(AgentCheck):
             url = "%s://%s" % (parsed[0], parsed[1])
         port = parsed.port
         host = parsed.hostname
+
+        custom_tags = instance.get('tags', [])
         service_check_tags = [
             'host:%s' % host,
             'port:%s' % port
         ]
+        service_check_tags.extend(custom_tags)
 
         # Tag by URL so we can differentiate the metrics
         # from multiple instances
         tags = ['url:%s' % url]
-        tags.extend(instance.get('tags', []))
+        tags.extend(custom_tags)
 
         timeout = instance.get('timeout') or self.DEFAULT_TIMEOUT
 

@@ -20,7 +20,7 @@ import sys
 import time
 
 # project
-from utils.process import pid_exists
+from utils.process import is_my_process
 
 log = logging.getLogger(__name__)
 
@@ -162,12 +162,13 @@ class Daemon(object):
 
         if pid:
             # Check if the pid in the pidfile corresponds to a running process
-            if pid_exists(pid):
+            # and if psutil is installed, check if it's a datadog-agent one
+            if is_my_process(pid):
                 log.error("Not starting, another instance is already running"
                           " (using pidfile {0})".format(self.pidfile))
                 sys.exit(1)
             else:
-                log.warn('pidfile contains the pid of a stopped process.'
+                log.warn("pidfile doesn't contain the pid of an agent process."
                          ' Starting normally')
 
         log.info("Pidfile: %s" % self.pidfile)

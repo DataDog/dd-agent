@@ -3,7 +3,8 @@ import logging
 
 # project
 from tests.checks.common import AgentCheckTest
-from utils.dockerutil import get_client, set_docker_settings, get_docker_settings, reset_docker_settings
+from utils.dockerutil import get_client, set_docker_settings, get_docker_settings, reset_docker_settings, \
+    image_tag_extractor, container_name_extractor
 
 # 3rd party
 from nose.plugins.attrib import attr
@@ -17,6 +18,7 @@ CONTAINERS_TO_RUN = [
 ]
 
 POD_NAME_LABEL = "io.kubernetes.pod.name"
+
 
 @attr(requires='docker_daemon')
 class TestCheckDockerDaemon(AgentCheckTest):
@@ -46,7 +48,6 @@ class TestCheckDockerDaemon(AgentCheckTest):
         for c in self.containers:
             log.info("Starting container: {0}".format(c))
             self.docker_client.start(c)
-
 
     def tearDown(self):
         for c in self.containers:
@@ -81,10 +82,9 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.mem.cache', ['container_name:test-new-redis-latest', 'docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
             ('docker.mem.rss', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
             ('docker.mem.rss', ['container_name:test-new-redis-latest', 'docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
-            ('docker.mem.limit' ,['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
-            ('docker.mem.in_use' ,['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
+            ('docker.mem.limit', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
+            ('docker.mem.in_use', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
         ]
-
 
         config = {
             "init_config": {},
@@ -99,7 +99,6 @@ class TestCheckDockerDaemon(AgentCheckTest):
         self.run_check(config, force_reload=True)
         for mname, tags in expected_metrics:
             self.assertMetric(mname, tags=tags, count=1, at_least=1)
-
 
     def test_basic_config_twice(self):
         expected_metrics = [
@@ -313,8 +312,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.mem.cache', ['container_command:/entrypoint.sh redis-server']),
             ('docker.mem.rss', ['container_command:/entrypoint.sh redis-server']),
             ('docker.mem.rss', ["container_command:nginx -g 'daemon off;'"]),
-            ('docker.mem.limit' ,["container_command:nginx -g 'daemon off;'"]),
-            ('docker.mem.in_use' ,["container_command:nginx -g 'daemon off;'"]),
+            ('docker.mem.limit', ["container_command:nginx -g 'daemon off;'"]),
+            ('docker.mem.in_use', ["container_command:nginx -g 'daemon off;'"]),
             ('docker.net.bytes_rcvd', ['container_command:/entrypoint.sh redis-server']),
             ('docker.net.bytes_rcvd', ["container_command:nginx -g 'daemon off;'"]),
             ('docker.net.bytes_sent', ["container_command:nginx -g 'daemon off;'"]),
@@ -387,8 +386,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.mem.cache', ['container_name:test-new-redis-latest', 'docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
             ('docker.mem.rss', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx', 'label1:nginx']),
             ('docker.mem.rss', ['container_name:test-new-redis-latest', 'docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
-            ('docker.mem.limit' ,['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx', 'label1:nginx']),
-            ('docker.mem.in_use' ,['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx', 'label1:nginx']),
+            ('docker.mem.limit', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx', 'label1:nginx']),
+            ('docker.mem.in_use', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx', 'label1:nginx']),
         ]
 
         config = {
@@ -440,8 +439,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.mem.cache', ['docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
             ('docker.mem.rss', ['docker_image:nginx', 'image_name:nginx']),
             ('docker.mem.rss', ['docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
-            ('docker.mem.limit' ,['docker_image:nginx', 'image_name:nginx']),
-            ('docker.mem.in_use' ,['docker_image:nginx', 'image_name:nginx']),
+            ('docker.mem.limit', ['docker_image:nginx', 'image_name:nginx']),
+            ('docker.mem.in_use', ['docker_image:nginx', 'image_name:nginx']),
         ]
 
         config = {
@@ -504,8 +503,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.mem.cache', ['container_name:test-new-redis-latest', 'docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
             ('docker.mem.rss', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
             ('docker.mem.rss', ['container_name:test-new-redis-latest', 'docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
-            ('docker.mem.limit' ,['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
-            ('docker.mem.in_use' ,['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
+            ('docker.mem.limit', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
+            ('docker.mem.in_use', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
             # Container size metrics
             ("docker.container.size_rootfs", ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
             ("docker.container.size_rootfs", ['container_name:test-new-redis-latest', 'docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
@@ -527,3 +526,28 @@ class TestCheckDockerDaemon(AgentCheckTest):
         self.run_check(config, force_reload=True)
         for mname, tags in expected_metrics:
             self.assertMetric(mname, tags=tags, count=1, at_least=1)
+
+    def test_image_tags_extraction(self):
+        entities = [
+            # ({'Image': image_name}, [expected_image_name, expected_image_tag])
+            ({'Image': 'nginx:latest'}, [['nginx'], ['latest']]),
+            ({'Image': 'localhost/nginx:latest'}, [['localhost/nginx'], ['latest']]),
+            ({'Image': 'localhost:5000/nginx:latest'}, [['localhost:5000/nginx'], ['latest']]),
+            ({'RepoTags': ['redis:latest']}, [['redis'], ['latest']]),
+            ({'RepoTags': ['localhost/redis:latest']}, [['localhost/redis'], ['latest']]),
+            ({'RepoTags': ['localhost:5000/redis:latest']}, [['localhost:5000/redis'], ['latest']]),
+            ({'RepoTags': ['localhost:5000/redis:latest', 'localhost:5000/redis:v1.1']}, [['localhost:5000/redis'], ['latest', 'v1.1']]),
+        ]
+        for entity in entities:
+            self.assertEqual(sorted(image_tag_extractor(entity[0], 0)), sorted(entity[1][0]))
+            self.assertEqual(sorted(image_tag_extractor(entity[0], 1)), sorted(entity[1][1]))
+
+    def test_container_name_extraction(self):
+        containers = [
+            ({'Id': ['deadbeef']}, ['deadbeef']),
+            ({'Names': ['/redis'], 'Id': ['deadbeef']}, ['redis']),
+            ({'Names': ['/mongo', '/redis/mongo'], 'Id': ['deadbeef']}, ['mongo']),
+            ({'Names': ['/redis/mongo', '/mongo'], 'Id': ['deadbeef']}, ['mongo']),
+        ]
+        for co in containers:
+            self.assertEqual(container_name_extractor(co[0]), co[1])

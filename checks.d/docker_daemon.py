@@ -10,13 +10,15 @@ from collections import defaultdict, Counter, deque
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-from utils.dockerutil import find_cgroup, find_cgroup_filename_pattern, get_client, MountException, set_docker_settings
+from utils.dockerutil import find_cgroup, find_cgroup_filename_pattern, get_client, MountException, \
+    set_docker_settings, image_tag_extractor, container_name_extractor
+from utils.kubeutil import get_kube_labels
 from utils.platform import Platform
 
 
 EVENT_TYPE = 'docker'
 SERVICE_CHECK_NAME = 'docker.service_up'
-SIZE_REFRESH_RATE = 5 # Collect container sizes every 5 iterations of the check
+SIZE_REFRESH_RATE = 5  # Collect container sizes every 5 iterations of the check
 MAX_CGROUP_LISTING_RETRIES = 3
 CONTAINER_ID_RE = re.compile('[0-9a-f]{64}')
 POD_NAME_LABEL = "io.kubernetes.pod.name"
@@ -83,35 +85,6 @@ DEFAULT_IMAGE_TAGS = [
     'image_name',
     'image_tag'
 ]
-
-
-def image_tag_extractor(c, key):
-    if "Image" in c:
-        split = c["Image"].split(":", 1)
-        if len(split) <= key:
-            return None
-        else:
-            return [split[key]]
-    if "RepoTags" in c:
-        splits = [el.split(":", 1) for el in c["RepoTags"]]
-        tags = []
-        for split in splits:
-            if len(split) > key:
-                tags.append(split[key])
-        if len(tags) > 0:
-            return list(set(tags))
-    return None
-
-
-def container_name_extractor(c):
-    # we sort the list to make sure that a docker API update introducing
-    # new names with a single "/" won't make us report dups.
-    names = sorted(c.get('Names', []))
-    for name in names:
-        # the leading "/" is legit, if there's another one it means the name is actually an alias
-        if name.count('/') <= 1:
-            return [str(name).lstrip('/')]
-    return [c.get('Id')[:11]]
 
 
 TAG_EXTRACTORS = {
@@ -190,8 +163,7 @@ class DockerDaemon(AgentCheck):
             # Set tagging options
             self.custom_tags = instance.get("tags", [])
             self.collect_labels_as_tags = instance.get("collect_labels_as_tags", [])
-            if self.is_k8s():
-                self.collect_labels_as_tags.append("io.kubernetes.pod.name")
+            self.kube_labels = {}
 
             self.use_histogram = _is_affirmative(instance.get('use_histogram', False))
             performance_tags = instance.get("performance_tags", DEFAULT_PERFORMANCE_TAGS)
@@ -233,7 +205,6 @@ class DockerDaemon(AgentCheck):
 
     def check(self, instance):
         """Run the Docker check for one instance."""
-
         if not self.init_success:
             # Initialization can fail if cgroups are not ready. So we retry if needed
             # https://github.com/DataDog/dd-agent/issues/1896
@@ -248,6 +219,9 @@ class DockerDaemon(AgentCheck):
 
         if self.collect_ecs_tags:
             self.refresh_ecs_tags()
+
+        if self.is_k8s():
+            self.kube_labels = get_kube_labels()
 
         # Get the list of containers and the index of their names
         containers_by_id = self._get_and_count_containers()
@@ -342,7 +316,13 @@ class DockerDaemon(AgentCheck):
         """Generate the tags for a given entity (container or image) according to a list of tag names."""
         # Start with custom tags
         tags = list(self.custom_tags)
+
+        # Collect pod names as tags on kubernetes
+        if self.is_k8s() and POD_NAME_LABEL not in self.collect_labels_as_tags:
+            self.collect_labels_as_tags.append(POD_NAME_LABEL)
+
         if entity is not None:
+            pod_name = None
 
             # Get labels as tags
             labels = entity.get("Labels")
@@ -351,7 +331,16 @@ class DockerDaemon(AgentCheck):
                     if k in labels:
                         v = labels[k]
                         if k == POD_NAME_LABEL and self.is_k8s():
+                            pod_name = v
                             k = "pod_name"
+                            if "-" in pod_name:
+                                replication_controller = "-".join(pod_name.split("-")[:-1])
+                                if "/" in replication_controller:
+                                    namespace, replication_controller = replication_controller.split("/", 1)
+                                    tags.append("kube_namespace:%s" % namespace)
+
+                                tags.append("kube_replication_controller:%s" % replication_controller)
+
                         if not v:
                             tags.append(k)
                         else:
@@ -374,6 +363,13 @@ class DockerDaemon(AgentCheck):
                 if entity_id in self.ecs_tags:
                     ecs_tags = self.ecs_tags[entity_id]
                     tags.extend(ecs_tags)
+
+            # Add kube labels
+            if self.is_k8s():
+                kube_tags = self.kube_labels.get(pod_name)
+                if kube_tags:
+                    tags.extend(list(kube_tags))
+
 
         return tags
 
@@ -486,8 +482,14 @@ class DockerDaemon(AgentCheck):
             self._report_net_metrics(container, tags)
 
         if containers_without_proc_root:
-            self.warning("Couldn't find pid directory for container: {0}. They'll be missing network metrics".format(
-                ",".join(containers_without_proc_root)))
+            message = "Couldn't find pid directory for container: {0}. They'll be missing network metrics".format(
+                ",".join(containers_without_proc_root))
+            if not self.is_k8s():
+                self.warning(message)
+            else:
+                # On kubernetes, this is kind of expected. Network metrics will be collected by the kubernetes integration anyway
+                self.log.debug(message)
+
 
     def _report_cgroup_metrics(self, container, tags):
         try:
@@ -697,6 +699,11 @@ class DockerDaemon(AgentCheck):
                 path = os.path.join(proc_path, folder, 'cgroup')
                 with open(path, 'r') as f:
                     content = [line.strip().split(':') for line in f.readlines()]
+            except IOError, e:
+                #  Issue #2074
+                self.log.debug("Cannot read %s, "
+                               "process likely raced to finish : %s" %
+                               (path, str(e)))
             except Exception, e:
                 self.warning("Cannot read %s : %s" % (path, str(e)))
                 continue

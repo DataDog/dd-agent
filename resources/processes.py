@@ -38,9 +38,9 @@ class Processes(ResourcePlugin):
                 ps_arg = 'auxww'
             output, _, _ = get_subprocess_output(['ps', ps_arg], self.log)
             processLines = output.splitlines()  # Also removes a trailing empty line
-        except Exception, e:
+        except Exception:
             self.log.exception('Cannot get process list')
-            return False
+            raise
 
         del processLines[0]  # Removes the headers
 

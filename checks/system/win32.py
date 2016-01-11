@@ -187,9 +187,9 @@ class Cpu(Check):
 
         cpu_percent = psutil.cpu_times()
 
-        self.save_sample('system.cpu.user', 100 * cpu_percent.user / psutil.NUM_CPUS)
-        self.save_sample('system.cpu.idle', 100 * cpu_percent.idle / psutil.NUM_CPUS)
-        self.save_sample('system.cpu.system', 100 * cpu_percent.system / psutil.NUM_CPUS)
+        self.save_sample('system.cpu.user', 100 * cpu_percent.user / psutil.cpu_count())
+        self.save_sample('system.cpu.idle', 100 * cpu_percent.idle / psutil.cpu_count())
+        self.save_sample('system.cpu.system', 100 * cpu_percent.system / psutil.cpu_count())
 
         return self.get_metrics()
 

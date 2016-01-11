@@ -41,6 +41,10 @@ MOCK_BAD_CONFIG = {
     }]
 }
 
+def _get_random_ip():
+    rand_int = int(15 * random.random()) + 10
+    return "10.0.2.{0}".format(rand_int)
+
 class TestCheckConsul(AgentCheckTest):
     CHECK_NAME = 'consul'
 
@@ -115,21 +119,139 @@ class TestCheckConsul(AgentCheckTest):
 
 
     def mock_get_nodes_with_service(self, instance, service):
-        def _get_random_ip():
-            rand_int = int(15 * random.random()) + 10
-            return "10.0.2.{0}".format(rand_int)
 
         return [
             {
-                "Address": _get_random_ip(),
-                "Node": "node-1",
-                "ServiceAddress": "",
-                "ServiceID": service,
-                "ServiceName": service,
-                "ServicePort": 80,
-                "ServiceTags": [
-                    "az-us-east-1a"
-                ]
+                "Checks": [
+                    {
+                        "CheckID": "serfHealth",
+                        "Name": "Serf Health Status",
+                        "Node": "node-1",
+                        "Notes": "",
+                        "Output": "Agent alive and reachable",
+                        "ServiceID": "",
+                        "ServiceName": "",
+                        "Status": "passing"
+                    },
+                    {
+                        "CheckID": "service:{0}".format(service),
+                        "Name": "service check {0}".format(service),
+                        "Node": "node-1",
+                        "Notes": "",
+                        "Output": "Service {0} alive".format(service),
+                        "ServiceID": service,
+                        "ServiceName": "",
+                        "Status": "passing"
+                    }
+                ],
+                "Node": {
+                    "Address": _get_random_ip(),
+                    "Node": "node-1"
+                },
+                "Service": {
+                    "Address": "",
+                    "ID": service,
+                    "Port": 80,
+                    "Service": service,
+                    "Tags": [
+                        "az-us-east-1a"
+                    ]
+                }
+            }
+        ]
+
+    def mock_get_nodes_with_service_warning(self, instance, service):
+
+        return [
+            {
+                "Checks": [
+                    {
+                        "CheckID": "serfHealth",
+                        "Name": "Serf Health Status",
+                        "Node": "node-1",
+                        "Notes": "",
+                        "Output": "Agent alive and reachable",
+                        "ServiceID": "",
+                        "ServiceName": "",
+                        "Status": "passing"
+                    },
+                    {
+                        "CheckID": "service:{0}".format(service),
+                        "Name": "service check {0}".format(service),
+                        "Node": "node-1",
+                        "Notes": "",
+                        "Output": "Service {0} alive".format(service),
+                        "ServiceID": service,
+                        "ServiceName": "",
+                        "Status": "warning"
+                    }
+                ],
+                "Node": {
+                    "Address": _get_random_ip(),
+                    "Node": "node-1"
+                },
+                "Service": {
+                    "Address": "",
+                    "ID": service,
+                    "Port": 80,
+                    "Service": service,
+                    "Tags": [
+                        "az-us-east-1a"
+                    ]
+                }
+            }
+        ]
+
+
+    def mock_get_nodes_with_service_critical(self, instance, service):
+
+        return [
+            {
+                "Checks": [
+                    {
+                        "CheckID": "serfHealth",
+                        "Name": "Serf Health Status",
+                        "Node": "node-1",
+                        "Notes": "",
+                        "Output": "Agent alive and reachable",
+                        "ServiceID": "",
+                        "ServiceName": "",
+                        "Status": "passing"
+                    },
+                    {
+                        "CheckID": "service:{0}".format(service),
+                        "Name": "service check {0}".format(service),
+                        "Node": "node-1",
+                        "Notes": "",
+                        "Output": "Service {0} alive".format(service),
+                        "ServiceID": service,
+                        "ServiceName": "",
+                        "Status": "warning"
+                    },
+                    {
+                        "CheckID": "service:{0}".format(service),
+                        "Name": "service check {0}".format(service),
+                        "Node": "node-1",
+                        "Notes": "",
+                        "Output": "Service {0} alive".format(service),
+                        "ServiceID": service,
+                        "ServiceName": "",
+                        "Status": "critical"
+                    }
+                ],
+                "Node": {
+                    "Address": _get_random_ip(),
+                    "Node": "node-1"
+                },
+                "Service": {
+                    "Address": "",
+                    "ID": service,
+                    "Port": 80,
+                    "Service": service,
+                    "Tags": [
+                        "az-us-east-1a"
+                    ]
+                }
             }
         ]
 
@@ -154,6 +276,41 @@ class TestCheckConsul(AgentCheckTest):
     def test_get_nodes_with_service(self):
         self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
         self.assertMetric('consul.catalog.nodes_up', value=1, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.nodes_passing', value=1, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.nodes_warning', value=0, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.nodes_critical', value=0, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.services_up', value=6, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
+        self.assertMetric('consul.catalog.services_passing', value=6, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
+        self.assertMetric('consul.catalog.services_warning', value=0, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
+        self.assertMetric('consul.catalog.services_critical', value=0, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
+
+    def test_get_nodes_with_service_warning(self):
+        my_mocks = self._get_consul_mocks()
+        my_mocks['get_nodes_with_service'] = self.mock_get_nodes_with_service_warning
+
+        self.run_check(MOCK_CONFIG, mocks=my_mocks)
+        self.assertMetric('consul.catalog.nodes_up', value=1, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.nodes_passing', value=0, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.nodes_warning', value=1, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.nodes_critical', value=0, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.services_up', value=6, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
+        self.assertMetric('consul.catalog.services_passing', value=0, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
+        self.assertMetric('consul.catalog.services_warning', value=6, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
+        self.assertMetric('consul.catalog.services_critical', value=0, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
+
+    def test_get_nodes_with_service_critical(self):
+        my_mocks = self._get_consul_mocks()
+        my_mocks['get_nodes_with_service'] = self.mock_get_nodes_with_service_critical
+
+        self.run_check(MOCK_CONFIG, mocks=my_mocks)
+        self.assertMetric('consul.catalog.nodes_up', value=1, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.nodes_passing', value=0, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.nodes_warning', value=0, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.nodes_critical', value=1, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
+        self.assertMetric('consul.catalog.services_up', value=6, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
+        self.assertMetric('consul.catalog.services_passing', value=0, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
+        self.assertMetric('consul.catalog.services_warning', value=0, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
+        self.assertMetric('consul.catalog.services_critical', value=6, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
 
     def test_get_peers_in_cluster(self):
         mocks = self._get_consul_mocks()
@@ -167,11 +324,6 @@ class TestCheckConsul(AgentCheckTest):
         # When node is follower
         self.run_check(MOCK_CONFIG, mocks=mocks)
         self.assertMetric('consul.peers', value=3, tags=['consul_datacenter:dc1', 'mode:follower'])
-
-
-    def test_get_services_on_node(self):
-        self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
-        self.assertMetric('consul.catalog.services_up', value=6, tags=['consul_datacenter:dc1', 'consul_node_id:node-1'])
 
     def test_cull_services_list(self):
         self.check = load_check(self.CHECK_NAME, MOCK_CONFIG_LEADER_CHECK, self.DEFAULT_AGENT_CONFIG)

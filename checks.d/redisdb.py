@@ -244,6 +244,8 @@ class Redis(AgentCheck):
                         self.gauge('redis.key.length', 0, tags=key_tags)
 
         self._check_replication(info, tags)
+        if instance.get("command_stats", False):
+            self._check_command_stats(conn, tags)
 
     def _check_replication(self, info, tags):
 
@@ -324,6 +326,22 @@ class Redis(AgentCheck):
             self.histogram('redis.slowlog.micros', value, tags=tags + [command_tag])
 
         self.last_timestamp_seen[ts_key] = max_ts
+
+    def _check_command_stats(self, conn, tags):
+        """Get command-specific statistics from redis' INFO COMMANDSTATS command
+        """
+        try:
+            command_stats = conn.info("commandstats")
+        except Exception:
+            self.warning("Could not retrieve command stats from Redis."
+                         "INFO COMMANDSTATS only works with Redis >= 2.6.")
+            return
+
+        for key, stats in command_stats.iteritems():
+            command = key.split('_', 1)[1]
+            command_tags = tags + ['command:%s' % command]
+            self.gauge('redis.command.calls', stats['calls'], tags=command_tags)
+            self.gauge('redis.command.usec_per_call', stats['usec_per_call'], tags=command_tags)
 
     def check(self, instance):
         if ("host" not in instance or "port" not in instance) and "unix_socket_path" not in instance:
