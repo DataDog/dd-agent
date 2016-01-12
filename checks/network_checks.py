@@ -145,7 +145,7 @@ class NetworkCheck(AgentCheck):
             self.resultsq.put(result)
 
     def _process_results(self):
-        for i in range(MAX_LOOP_ITERATIONS):
+        for i in xrange(MAX_LOOP_ITERATIONS):
             try:
                 # We want to fetch the result in a non blocking way
                 status, msg, sc_name, instance = self.resultsq.get_nowait()
@@ -210,8 +210,7 @@ class NetworkCheck(AgentCheck):
 
     def _clean(self):
         now = time.time()
-        for name in self.jobs_status.keys():
-            start_time = self.jobs_status[name]
+        for name, start_time in self.jobs_status.iteritems():
             if now - start_time > TIMEOUT:
                 self.log.critical("Restarting Pool. One check is stuck: %s" % name)
                 self.restart_pool()
