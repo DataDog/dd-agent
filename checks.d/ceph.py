@@ -8,31 +8,34 @@ import json
 
 # project
 from checks import AgentCheck
-from util import get_hostname
+from utils.subprocess_output import get_subprocess_output
 
 NAMESPACE = "ceph"
-CEPH_CMD = "/usr/bin/ceph"
 
 class Ceph(AgentCheck):
     """ Collect metrics and events from ceph """
 
+    DEFAULT_CEPH_CMD = '/usr/bin/ceph'
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
-        self.hostname = get_hostname(agentConfig)
         self.cluster_names = init_config.get('cluster_names', {})
-        
+
     def _run_command(self, cmd):
         fd = os.popen(cmd)
         raw = fd.read()
         fd.close()
         return json.loads(raw)
     
-    def _collect_raw(self):
+    def _collect_raw(self, ceph_cmd):
         raw = {}
-        for cmd in ( 'mon_status', 'status', 'df detail', 'osd pool stats', 'osd perf', 'pg dump',
-                     'pg ls', 'pg dump_json all' ):
+        for cmd in ( 'mon_status', 'status', 'df detail', 'osd pool stats', 'osd perf' ):
             try:
-                res = self._run_command("%s %s -f json 2>/dev/null" % (CEPH_CMD, cmd))
+                args = [ceph_cmd]
+                args.extend(cmd.split())
+                args.append('-fjson')
+                output,_,_ = get_subprocess_output(args, self.log)
+                res = json.loads(output)
             except Exception, e:
                 self.log.warning('Unable to parse data from cmd=%s: %s' % (cmd, str(e)))
                 continue
@@ -43,7 +46,7 @@ class Ceph(AgentCheck):
         return raw
 
     def _extract_tags(self, raw, instance):
-        tags = []
+        tags = instance.get('tags', [])
         if 'mon_status' in raw:
             fsid = raw['mon_status']['monmap']['fsid']
             tags.append(NAMESPACE + '_fsid:%s' % fsid)
@@ -118,11 +121,10 @@ class Ceph(AgentCheck):
             self.service_check(NAMESPACE + '.overall_status', status)
 
     def check(self, instance):
-        raw = self._collect_raw()
+        ceph_cmd = instance.get('ceph_cmd', self.DEFAULT_CEPH_CMD)
+        raw = self._collect_raw(ceph_cmd)
         self._extract_tags(raw, instance)
         if instance.get('publish_metrics', True):
             self._extract_metrics(raw)
         if instance.get('publish_service_checks', True):
             self._perform_service_checks(raw)
-
-        
