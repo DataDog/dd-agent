@@ -12,6 +12,7 @@ CONFIG = {
             'rabbitmq_user': 'guest',
             'rabbitmq_pass': 'guest',
             'queues': ['test1'],
+            'exchanges': ['ex1'],
         }
     ]
 }
@@ -24,6 +25,7 @@ CONFIG_REGEX = {
             'rabbitmq_user': 'guest',
             'rabbitmq_pass': 'guest',
             'queues_regexes': ['test\d+'],
+            'exchanges_regexes': ['ex\d+'],
         }
     ]
 }
@@ -65,15 +67,28 @@ class RabbitMQCheckTest(AgentCheckTest):
             'messages.publish.count',
             'messages.publish.rate',
         ]
+
+        E_METRICS = [
+            'messages.publish_in.count',
+            'messages.publish_in.rate',
+            'messages.publish_out.count',
+            'messages.publish_out.rate',
+            'messages.return_unroutable.count',
+            'messages.return_unroutable.rate',
+        ]
         for mname in Q_METRICS:
             self.assertMetricTag('rabbitmq.queue.%s' %
                                  mname, 'rabbitmq_queue:test1', count=1)
+
+        for mname in E_METRICS:
+            self.assertMetricTag('rabbitmq.exchange.%s' %
+                                 mname, 'rabbitmq_exchange:ex1', count=1)
 
         self.assertServiceCheckOK('rabbitmq.aliveness', tags=['vhost:/'])
 
         self.coverage_report()
 
-    def test_queue_regex(self):
+    def test_regex(self):
         self.run_check(CONFIG_REGEX)
 
         # Node attributes
@@ -92,6 +107,15 @@ class RabbitMQCheckTest(AgentCheckTest):
             'messages.publish.count',
             'messages.publish.rate',
         ]
+
+        E_METRICS = [
+            'messages.publish_in.count',
+            'messages.publish_in.rate',
+            'messages.publish_out.count',
+            'messages.publish_out.rate',
+            'messages.return_unroutable.count',
+            'messages.return_unroutable.rate',
+        ]
         for mname in Q_METRICS:
             self.assertMetricTag('rabbitmq.queue.%s' %
                                  mname, 'rabbitmq_queue:test1', count=1)
@@ -99,6 +123,14 @@ class RabbitMQCheckTest(AgentCheckTest):
                                  mname, 'rabbitmq_queue:test5', count=1)
             self.assertMetricTag('rabbitmq.queue.%s' %
                                  mname, 'rabbitmq_queue:tralala', count=0)
+
+        for mname in E_METRICS:
+            self.assertMetricTag('rabbitmq.exchange.%s' %
+                                 mname, 'rabbitmq_exchange:ex1', count=1)
+            self.assertMetricTag('rabbitmq.exchange.%s' %
+                                 mname, 'rabbitmq_exchange:ex5', count=1)
+            self.assertMetricTag('rabbitmq.exchange.%s' %
+                                 mname, 'rabbitmq_exchange:trololo', count=0)
 
         self.assertServiceCheckOK('rabbitmq.aliveness', tags=['vhost:/'])
 

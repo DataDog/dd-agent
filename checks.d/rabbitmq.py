@@ -67,7 +67,6 @@ EXCHANGE_ATTRIBUTES = [
 
 ]
 
-
 NODE_ATTRIBUTES = [
     ('fd_used', 'fd_used', float),
     ('mem_used', 'mem_used', float),
@@ -193,7 +192,7 @@ class RabbitMQ(AgentCheck):
         """
         instance: the check instance
         base_url: the url of the rabbitmq management api (e.g. http://localhost:15672/api)
-        object_type: either QUEUE_TYPE or NODE_TYPE
+        object_type: either QUEUE_TYPE, EXCHANGE_TYPE or NODE_TYPE
         max_detailed: the limit of objects to collect for this type
         filters: explicit or regexes filters of specified queues or nodes (specified in the yaml file)
         """
@@ -265,7 +264,7 @@ class RabbitMQ(AgentCheck):
         if len(data) > max_detailed:
             # Display a warning in the info page
             self.warning(
-                "Too many queues to fetch. You must choose the %s you are interested in by editing the rabbitmq.yaml configuration file or get in touch with Datadog Support" % object_type)
+                "Too many queues/exchanges to fetch. You must choose the %s you are interested in by editing the rabbitmq.yaml configuration file or get in touch with Datadog Support" % object_type)
 
         for data_line in data[:max_detailed]:
             # We truncate the list of nodes/queues if it's above the limit
