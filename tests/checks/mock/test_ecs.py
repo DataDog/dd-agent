@@ -65,7 +65,5 @@ class TestCheckECS(AgentCheckTest):
 
     @mock.patch('requests.get', side_effect=mock_connection_refused)
     def test_agent_not_running(self, mock_requests):
-        with self.assertRaises(TestFailed):
-            self.run_check(MOCK_CONFIG)
-
+        self.assertRaises(TestFailed, lambda: self.run_check(MOCK_CONFIG))
         self.assertServiceCheckCritical('ecs.agent_connected')
