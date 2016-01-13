@@ -20,7 +20,7 @@ namespace :ci do
       unless Dir.exist? File.expand_path(mysql_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/mysql-#{mysql_version}.tar.gz\
-             http://cdn.mysql.com//Downloads/MySQL-#{mysql_parent_version}/mysql-boost-#{mysql_version}.tar.gz)
+             http://cdn.mysql.com//Downloads/MySQL-#{mysql_parent_version}/mysql-#{mysql_version}.tar.gz)
         sh %(mkdir -p #{mysql_rootdir})
         sh %(mkdir -p $VOLATILE_DIR/mysql)
         sh %(tar zxf $VOLATILE_DIR/mysql-#{mysql_version}.tar.gz\
