@@ -9,6 +9,7 @@ import json
 # project
 from checks import AgentCheck
 from utils.subprocess_output import get_subprocess_output
+from config import _is_affirmative
 
 NAMESPACE = "ceph"
 
@@ -19,7 +20,6 @@ class Ceph(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
-        self.cluster_names = init_config.get('cluster_names', {})
 
     def _run_command(self, cmd):
         fd = os.popen(cmd)
@@ -27,11 +27,20 @@ class Ceph(AgentCheck):
         fd.close()
         return json.loads(raw)
     
-    def _collect_raw(self, ceph_cmd):
+    def _collect_raw(self, ceph_cmd, instance):
+        use_sudo = _is_affirmative(instance.get('use_sudo', False))
+        if use_sudo:
+            test_sudo = os.system('setsid sudo -l < /dev/null')
+            if test_sudo != 0:
+                raise Exception('The dd-agent user does not have sudo access')
+                
         raw = {}
         for cmd in ( 'mon_status', 'status', 'df detail', 'osd pool stats', 'osd perf' ):
             try:
-                args = [ceph_cmd]
+                if use_sudo:
+                    args = ['sudo', ceph_cmd]
+                else:
+                    args = [ceph_cmd]
                 args.extend(cmd.split())
                 args.append('-fjson')
                 output,_,_ = get_subprocess_output(args, self.log)
@@ -51,10 +60,8 @@ class Ceph(AgentCheck):
             fsid = raw['mon_status']['monmap']['fsid']
             tags.append(NAMESPACE + '_fsid:%s' % fsid)
             tags.append(NAMESPACE + '_mon_state:%s' % raw['mon_status']['state'])
-            if fsid in self.cluster_names:
-                tags.append(NAMESPACE + '_cluster_name:%s' % self.cluster_names[fsid])
 
-        name = instance.get('name')
+        name = instance.get('name', None)
         if name:
             tags.append(NAMESPACE + '_name:%s' % name)
         
@@ -122,7 +129,7 @@ class Ceph(AgentCheck):
 
     def check(self, instance):
         ceph_cmd = instance.get('ceph_cmd', self.DEFAULT_CEPH_CMD)
-        raw = self._collect_raw(ceph_cmd)
+        raw = self._collect_raw(ceph_cmd, instance)
         self._extract_tags(raw, instance)
         if instance.get('publish_metrics', True):
             self._extract_metrics(raw)
