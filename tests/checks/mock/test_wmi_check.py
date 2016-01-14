@@ -103,8 +103,8 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         wmi_sampler = self.check.wmi_samplers["myhost:some/namespace:Win32_OperatingSystem"]
 
         # Connection was established with the right parameters
-        self.assertWMIConnWith(wmi_sampler, "myhost")
-        self.assertWMIConnWith(wmi_sampler, "some/namespace")
+        self.assertWMIConn(wmi_sampler, "myhost")
+        self.assertWMIConn(wmi_sampler, "some/namespace")
 
     def test_wmi_sampler_initialization(self):
         """
