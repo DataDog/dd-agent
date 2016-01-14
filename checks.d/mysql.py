@@ -263,6 +263,11 @@ REPLICA_VARS = {
     'Seconds_Behind_Master': ('mysql.replication.seconds_behind_master', GAUGE),
 }
 
+SYNTHETIC_VARS = {
+    'Qcache_utilization': ('mysql.performance.qcache.utilization', GAUGE),
+    'Qcache_instant_utilization': ('mysql.performance.qcache.utilization.instant', GAUGE),
+}
+
 class MySql(AgentCheck):
     SERVICE_CHECK_NAME = 'mysql.can_connect'
     SLAVE_SERVICE_CHECK_NAME = 'mysql.replication.slave_running'
@@ -272,6 +277,12 @@ class MySql(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.mysql_version = {}
         self.greater_502 = {}
+
+        # keep track of these:
+        self._qcache_hits = None
+        self._qcache_inserts = None
+        self._qcache_not_cached = None
+
 
     def get_library_versions(self):
         return {"pymysql": pymysql.__version__}
@@ -509,6 +520,14 @@ class MySql(AgentCheck):
 
             self.service_check(self.SLAVE_SERVICE_CHECK_NAME, slave_running_status, tags=tags)
 
+        # "synthetic" metrics
+        metrics.update(SYNTHETIC_VARS)
+        self._compute_synthetic_results(results)
+
+        # remove uncomputed metrics
+        for k in SYNTHETIC_VARS:
+            if k not in results:
+                metrics.pop(k, None)
 
         self._rate_or_gauge_vars(metrics, results, tags)
 
@@ -1273,3 +1292,27 @@ class MySql(AgentCheck):
         del cursor
 
         return schema_size
+
+    def _compute_synthetic_results(self, results):
+        if ('Qcache_hits' in results) and ('Qcache_inserts' in results) and ('Qcache_not_cached' in results):
+            if not results['Qcache_hits']:
+                results['Qcache_utilization'] = 0
+            else:
+                results['Qcache_utilization'] = (results['Qcache_hits'] /
+                                                (results['Qcache_inserts'] +
+                                                results['Qcache_not_cached'] +
+                                                results['Qcache_hits']) * 100)
+
+            if self._qcache_hits and self._qcache_inserts and self._qcache_not_cached:
+                try:
+                    results['Qcache_instant_utilization'] = ((results['Qcache_hits'] - self._qcache_hits) /
+                                                    ((results['Qcache_inserts'] - self._qcache_inserts) +
+                                                    (results['Qcache_not_cached'] - self._qcache_not_cached) +
+                                                    (results['Qcache_hits'] - self._qcache_hits)) * 100)
+                except ZeroDivisionError:
+                    self.log.debug("Qcache stats samples unchanged - will not compute instant utilization.")
+
+            # update all three, or none - for consistent samples.
+            self._qcache_hits = results['Qcache_hits']
+            self._qcache_inserts = results['Qcache_inserts']
+            self._qcache_not_cached = results['Qcache_not_cached']
