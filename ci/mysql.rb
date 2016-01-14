@@ -53,13 +53,14 @@ namespace :ci do
       sh %(#{mysql_rootdir}/bin/mysqld_safe --no-defaults --user=$USER --port=6033 --pid-file=#{mysql_rootdir}/mysql.pid &)
       Wait.for 6_033
       sleep_for 2
-      sh %(#{mysql_rootdir}/bin/mysql -P 6033 -e "create user 'dog'@'localhost' identified by 'dog'" -uroot)
+      sh %(#{mysql_rootdir}/bin/mysql -P 6033 -e "create user 'dog'@'localhost' identified by 'dog';" -uroot)
       sh %(#{mysql_rootdir}/bin/mysql -P 6033 -e "CREATE DATABASE testdb;" -uroot)
       sh %(#{mysql_rootdir}/bin/mysql -P 6033 -e "CREATE TABLE testdb.users (name VARCHAR(20), age INT);" -uroot)
       sh %(#{mysql_rootdir}/bin/mysql -P 6033 -e "GRANT SELECT ON testdb.users TO 'dog'@'localhost';" -uroot)
       sh %(#{mysql_rootdir}/bin/mysql -P 6033 -e "INSERT INTO testdb.users (name,age) VALUES('Alice',25);" -uroot)
       sh %(#{mysql_rootdir}/bin/mysql -P 6033 -e "INSERT INTO testdb.users (name,age) VALUES('Bob',20);" -uroot)
       sh %(#{mysql_rootdir}/bin/mysql -P 6033 -e "GRANT SUPER, REPLICATION CLIENT ON *.* TO 'dog'@'localhost';" -uroot)
+			sh %(#{mysql_rootdir}/bin/mysql -P 6033 -e "show databases;" -udog -pdog)
     end
 
     task script: ['ci:common:script'] do
