@@ -32,6 +32,7 @@ except ImportError:
 from utils.dockerutil import get_hostname as get_docker_hostname, is_dockerized
 from utils.pidfile import PidFile  # noqa, see ^^^
 from utils.platform import Platform
+from utils.proxy import get_proxy
 from utils.subprocess_output import get_subprocess_output
 
 
@@ -330,14 +331,13 @@ class GCE(object):
             return None
 
 
-
 class EC2(object):
     """Retrieve EC2 metadata
     """
     EC2_METADATA_HOST = "http://169.254.169.254"
     METADATA_URL_BASE = EC2_METADATA_HOST + "/latest/meta-data"
     INSTANCE_IDENTITY_URL = EC2_METADATA_HOST + "/latest/dynamic/instance-identity/document"
-    TIMEOUT = 0.1 # second
+    TIMEOUT = 0.1  # second
     metadata = {}
 
     @staticmethod
@@ -360,7 +360,16 @@ class EC2(object):
             region = instance_identity['region']
 
             import boto.ec2
-            connection = boto.ec2.connect_to_region(region, aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
+            proxy_settings = get_proxy(agentConfig) or {}
+            connection = boto.ec2.connect_to_region(
+                region,
+                aws_access_key_id=iam_params['AccessKeyId'],
+                aws_secret_access_key=iam_params['SecretAccessKey'],
+                security_token=iam_params['Token'],
+                proxy=proxy_settings.get('host'), proxy_port=proxy_settings.get('port'),
+                proxy_user=proxy_settings.get('user'), proxy_pass=proxy_settings.get('password')
+            )
+
             tag_object = connection.get_all_tags({'resource-id': EC2.metadata['instance-id']})
 
             EC2_tags = [u"%s:%s" % (tag.name, tag.value) for tag in tag_object]
@@ -379,7 +388,6 @@ class EC2(object):
             pass
 
         return EC2_tags
-
 
     @staticmethod
     def get_metadata(agentConfig):
