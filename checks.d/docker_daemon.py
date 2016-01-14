@@ -221,7 +221,11 @@ class DockerDaemon(AgentCheck):
             self.refresh_ecs_tags()
 
         if self.is_k8s():
-            self.kube_labels = get_kube_labels()
+            try:
+                self.kube_labels = get_kube_labels()
+            except Exception as e:
+                self.log.warning('Could not retrieve kubernetes labels: %s' % str(e))
+                self.kube_labels = {}
 
         # Get the list of containers and the index of their names
         containers_by_id = self._get_and_count_containers()
