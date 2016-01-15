@@ -28,6 +28,7 @@ from config import _is_affirmative
 from util import headers as agent_headers
 from utils.proxy import get_proxy
 
+DEFAULT_EXPECTED_CODE = "(1|2|3)\d\d"
 
 class WeakCiphersHTTPSConnection(urllib3.connection.VerifiedHTTPSConnection):
 
@@ -168,7 +169,7 @@ class HTTPCheck(NetworkCheck):
         tags = instance.get('tags', [])
         username = instance.get('username')
         password = instance.get('password')
-        http_response_status_code = str(instance.get('http_response_status_code', "(1|2|3)\d\d"))
+        http_response_status_code = str(instance.get('http_response_status_code', DEFAULT_EXPECTED_CODE))
         timeout = int(instance.get('timeout', 10))
         config_headers = instance.get('headers', {})
         headers = agent_headers(self.agentConfig)
@@ -254,14 +255,20 @@ class HTTPCheck(NetworkCheck):
 
         # Check HTTP response status code
         if not (service_checks or re.match(http_response_status_code, str(r.status_code))):
-            self.log.info("Incorrect HTTP return code. Expected %s, got %s"
-                          % (http_response_status_code, str(r.status_code)))
+            if http_response_status_code == DEFAULT_EXPECTED_CODE:
+                expected_code = "1xx or 2xx or 3xx"
+            else:
+                expected_code = http_response_status_code
+
+            message = "Incorrect HTTP return code for url %s. Expected %s, got %s" % (
+                addr, expected_code, str(r.status_code))
+
+            self.log.info(message)
 
             service_checks.append((
                 self.SC_STATUS,
                 Status.DOWN,
-                "Incorrect HTTP return code. Expected %s, got %s"
-                % (http_response_status_code, str(r.status_code))
+                message
             ))
 
         if not service_checks:
