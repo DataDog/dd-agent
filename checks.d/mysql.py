@@ -1,5 +1,4 @@
 # stdlib
-import os
 import sys
 import re
 import traceback
@@ -14,7 +13,6 @@ except ImportError:
 
 # project
 from checks import AgentCheck
-from utils.platform import Platform
 from utils.subprocess_output import get_subprocess_output
 
 GAUGE = "gauge"
@@ -40,7 +38,7 @@ STATUS_VARS = {
     'Com_replace_select': ('mysql.performance.com_replace_select', RATE),
     # Connection Metrics
     'Connections': ('mysql.net.connections', RATE),
-    'Max_used_connections': ('mysql.net.max_connections', RATE),
+    'Max_used_connections': ('mysql.net.max_connections', GAUGE),
     'Aborted_clients': ('mysql.net.aborted_clients', RATE),
     'Aborted_connects': ('mysql.net.aborted_connects', RATE),
     # Table Cache Metrics
@@ -464,21 +462,19 @@ class MySql(AgentCheck):
         metrics.update(INNODB_VARS)
         metrics.update(BINLOG_VARS)
 
-        if 'extra_status_metrics' in options and options['extra_status_metrics']:
+        if options.get('extra_status_metrics'):
             self.log.debug("Collecting Extra Status Metrics")
             metrics.update(OPTIONAL_STATUS_VARS)
 
             if self._version_compatible(db, host, "5.6.6"):
                 metrics.update(OPTIONAL_STATUS_VARS_5_6_6)
 
-        if 'galera_cluster' in options and options['galera_cluster']:
+        if options.get('galera_cluster'):
             # already in result-set after 'SHOW STATUS' just add vars to collect
             self.log.debug("Collecting Galera Metrics.")
             metrics.update(GALERA_VARS)
 
-        if 'extra_performance_metrics' in options and options['extra_performance_metrics'] and \
-                self._version_compatible(db, host, "5.6.0"):
-
+        if options.get('extra_performance_metrics') and self._version_compatible(db, host, "5.6.0"):
             # report avg query response time per schema to Datadog
             schemas = {}
             try:
@@ -488,7 +484,7 @@ class MySql(AgentCheck):
             except Exception as e:
                 self.log.debug("Performance metrics unavailable at this time: {0}".format(e))
 
-        if 'schema_size_metrics' in options and options['schema_size_metrics']:
+        if options.get('schema_size_metrics'):
             # report avg query response time per schema to Datadog
             schemas = {}
             try:
@@ -497,7 +493,7 @@ class MySql(AgentCheck):
             except Exception as e:
                 self.log.debug("Schema size metrics unavailable at this time: {0}".format(e))
 
-        if 'replication' in options and options['replication']:
+        if options.get('replication'):
             # Get replica stats
             results.update(self._get_replica_stats(db))
             metrics.update(REPLICA_VARS)
@@ -528,14 +524,11 @@ class MySql(AgentCheck):
 
                     if not (slave_io_running is None and slave_sql_running is None):
                         if slave_io_running and slave_sql_running:
-                            slave_running = 1
                             slave_running_status = AgentCheck.OK
                         elif not slave_io_running and not slave_sql_running:
-                            slave_running = 0
                             slave_running_status = AgentCheck.CRITICAL
                         else:
                             # not everything is running smoothly
-                            slave_running = 1
                             slave_running_status = AgentCheck.WARNING
 
             self.service_check(self.SLAVE_SERVICE_CHECK_NAME, slave_running_status, tags=tags)
@@ -582,28 +575,18 @@ class MySql(AgentCheck):
         # some patch version numbers contain letters (e.g. 5.0.51a)
         # so let's be careful when we compute the version number
 
-        compatible = False
         try:
             mysql_version = self._get_version(db, host)
-            self.log.debug("MySQL version %s" % mysql_version)
+        except Exception, e:
+            self.warning("Cannot compute mysql version, assuming it's older.: %s"
+                         % str(e))
+            return False
+        self.log.debug("MySQL version %s" % mysql_version)
 
-            major = int(mysql_version[0])
-            minor = int(mysql_version[1])
-            patchlevel = int(re.match(r"([0-9]+)", mysql_version[2]).group(1))
+        patchlevel = int(re.match(r"([0-9]+)", mysql_version[2]).group(1))
+        version = (int(mysql_version[0]), int(mysql_version[1]), patchlevel)
 
-            compat_version = compat_version.split('.')
-            compat_major = int(compat_version[0])
-            compat_minor = int(compat_version[1])
-            compat_patchlevel = int(compat_version[2])
-
-            if (major, minor, patchlevel) > (compat_major, compat_minor, compat_patchlevel):
-                compatible = True
-
-        except Exception, exception:
-            self.warning("Cannot compute mysql version, assuming older than 5.0.2: %s"
-                         % str(exception))
-
-        return compatible
+        return version > compat_version
 
     def _get_version(self, db, host):
         hostkey = host
@@ -633,7 +616,7 @@ class MySql(AgentCheck):
         return version
 
     def _collect_all_scalars(self, key, dictionary):
-        if (key not in dictionary) or (dictionary[key] is None):
+        if key not in dictionary or dictionary[key] is None:
             yield None, None
         elif isinstance(dictionary[key], dict):
             for tag, _ in dictionary[key].iteritems():
@@ -716,48 +699,19 @@ class MySql(AgentCheck):
             # At last, get mysql cpu data out of psutil or procfs
 
             try:
-                proc = None
+                proc, ucpu, scpu = None, None, None
                 if PSUTIL_AVAILABLE:
                     proc = psutil.Process(pid)
 
-                ucpu, scpu, tcpu = None, None, None
-                if hasattr(proc, 'cpu_times') :
                     ucpu = proc.cpu_times()[0]
                     scpu = proc.cpu_times()[1]
 
-                elif Platform.is_linux():
-                    # See http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
-                    # for meaning: we get 13 & 14: utime and stime, in clock ticks and convert
-                    # them with the right sysconf value (SC_CLK_TCK)
-                    clk_tck = os.sysconf(os.sysconf_names["SC_CLK_TCK"])
-                    proc_file = open("/proc/%d/stat" % pid)
-
-                    data = proc_file.readline()
-                    proc_file.close()
-                    fields = data.split(' ')
-                    # Convert time to s (number of second of CPU used by mysql)
-                    # It's a counter, it will be divided by the period, multiply by 100
-                    # to get the percentage of CPU used by mysql over the period
-                    #
-                    # FIX(?) : /proc stats are ticks since boot-up, so
-                    # dividing by clk_tck isn't but a conversation to seconds -
-                    # multiplying * 100 does not convert it into a percentage
-                    # Does reporting as a rate make that make sense?
-                    # ucpu = int((float(fields[13]) / float(clk_tck)) * 100)
-                    # scpu = int((float(fields[14]) / float(clk_tck)) * 100)
-                    ucpu = int((float(fields[13]) / float(clk_tck)))
-                    scpu = int((float(fields[14]) / float(clk_tck)))
-
-                elif Platform.is_windows() is not True:
-                    tcpu, _ = self._get_cpumem_from_ps(pid)
 
                 if ucpu and scpu:
                     self.rate("mysql.performance.user_time", ucpu, tags=tags)
                     # should really be system_time
                     self.rate("mysql.performance.kernel_time", scpu, tags=tags)
                     self.rate("mysql.performance.cpu_time", ucpu+scpu, tags=tags)
-                elif tcpu:
-                    self.rate("mysql.performance.cpu_time", tcpu, tags=tags)
 
             except Exception:
                 self.warning("Error while reading mysql (pid: %s) procfs data\n%s"
@@ -799,23 +753,6 @@ class MySql(AgentCheck):
                 self.log.exception("Error while fetching mysql pid from ps")
 
         return pid
-
-    def _get_cpumem_from_ps(self, pid):
-        cpu = None
-        mem = None
-        try:
-            if not Platform.is_windows():
-                ps, _, _ = get_subprocess_output(['ps', '-p{0}'.format(pid), '-o', '%cpu,%mem'], self.log)
-                pslines = ps.strip().splitlines()
-                # First line is header, second line is mysql pid
-                if len(pslines) == 2:
-                    fields = pslines[1].split()
-                    cpu = int(fields[0])
-                    mem = int(fields[1])
-        except Exception:
-            self.log.exception("Error while fetching cpu and memory usage from ps.")
-
-        return cpu, mem
 
     def _get_stats_from_status(self, db):
         cursor = db.cursor()
