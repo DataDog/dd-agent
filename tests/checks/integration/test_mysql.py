@@ -284,6 +284,11 @@ class TestMySql(AgentCheckTest):
         'mysql.info.schema.size'
     ]
 
+    SYNTHETIC_VARS = [
+        'mysql.performance.qcache.utilization',
+        'mysql.performance.qcache.utilization.instant',
+    ]
+
     def _test_optional_metrics(self, optional_metrics, at_least):
         """
         Check optional metrics - there should be at least `at_least` matches
@@ -315,7 +320,7 @@ class TestMySql(AgentCheckTest):
         ver = tuple(ver)
 
         testable_metrics = (self.STATUS_VARS + self.VARIABLES_VARS + self.INNODB_VARS
-                      + self.BINLOG_VARS + self.SYSTEM_METRICS + self.SCHEMA_VARS)
+                      + self.BINLOG_VARS + self.SYSTEM_METRICS + self.SCHEMA_VARS + self.SYNTHETIC_VARS)
 
         if ver >= (5, 6, 0):
             testable_metrics.extend(self.PERFORMANCE_VARS)
