@@ -221,7 +221,7 @@ class YarnCheck(AgentCheck):
         for status, metric in yarn_metrics.iteritems():
             metric_name, metric_type = metric
 
-            if metrics_json[status] is not None:
+            if metrics_json.get(status) is not None:
                 self._set_metric(metric_name,
                     metric_type,
                     metrics_json[status],
