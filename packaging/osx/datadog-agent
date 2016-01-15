@@ -11,6 +11,7 @@ SUPERVISOR_SOCK="/opt/datadog-agent/run/datadog-supervisor.sock"
 SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
 COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
+SYSTEM_PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH
 
 # be sure to remove PY2APP parameters
 unset PYTHONHOME
@@ -67,7 +68,7 @@ case $1 in
         fi
 
         echo "Starting $DESC (using supervisord)" "$NAME"
-        $SUPERVISORD_PATH -c $SUPERVISOR_CONF_FILE
+        PATH=$SYSTEM_PATH $SUPERVISORD_PATH -c $SUPERVISOR_CONF_FILE
         exit 0
         ;;
 
