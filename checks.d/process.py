@@ -28,6 +28,10 @@ ATTR_TO_METRIC = {
     'w_bytes':          'iowrite_bytes',  # FIXME: namespace me correctly (6.x) io.w_bytes
     'ctx_swtch_vol':    'voluntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.voluntary
     'ctx_swtch_invol':  'involuntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.involuntary
+    'minflt':           'mem.minflt',
+    'cminflt':          'mem.cminflt',
+    'majflt':           'mem.majflt',
+    'cmajflt':          'mem.cmajflt',
 }
 
 
@@ -232,7 +236,32 @@ class ProcessCheck(AgentCheck):
             st['r_bytes'].append(ioinfo.get('read_bytes'))
             st['w_bytes'].append(ioinfo.get('write_bytes'))
 
+            pagefault_stats = self.get_pagefault_stats(pid)
+            if pagefault_stats is not None:
+                (minflt, cminflt, majflt, cmajflt) = pagefault_stats
+                st['minflt'].append(minflt)
+                st['cminflt'].append(cminflt)
+                st['majflt'].append(majflt)
+                st['cmajflt'].append(cmajflt)
+
         return st
+
+    def get_pagefault_stats(self, pid):
+        if not Platform.is_linux():
+            return None
+
+        def file_to_string(path):
+            with open(path, 'r') as f:
+                res = f.read()
+            return res
+
+        # http://man7.org/linux/man-pages/man5/proc.5.html
+        try:
+            data = file_to_string('/proc/%s/stat' % pid)
+        except:
+            return None
+
+        return map(lambda i: int(i), data.split()[9:13])
 
     def check(self, instance):
         name = instance.get('name', None)

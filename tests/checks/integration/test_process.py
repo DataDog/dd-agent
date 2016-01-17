@@ -7,7 +7,7 @@ import contextlib
 import os
 
 # 3p
-from mock import patch, MagicMock
+from mock import patch, MagicMock, Mock
 import psutil
 
 # project
@@ -428,3 +428,39 @@ class ProcessCheckTest(AgentCheckTest):
         self.assertMetric('system.processes.number', at_least=1, tags=expected_tags)
 
         self.coverage_report()
+
+    def test_pagefault_stats(self):
+        (minflt, cminflt, majflt, cmajflt) = [1, 2, 3, 4]
+        def mock_get_pagefault_stats(pid):
+            return [minflt, cminflt, majflt, cmajflt]
+
+        from utils.platform import Platform
+        is_linux = Platform.is_linux
+        Platform.is_linux = Mock(return_value=True)
+
+        config = {
+            'instances': [{
+                'name': 'test_0',
+                'search_string': ['test_0'],  # index in the array for our find_pids mock
+                'thresholds': {
+                    'critical': [2, 4],
+                    'warning': [1, 5]
+                }
+            }]
+        }
+        def mock_find_pids(_1, _2, _3, **kwargs):
+            return {1}
+        mocks = {
+            'find_pids': mock_find_pids,
+            'get_pagefault_stats': mock_get_pagefault_stats,
+        }
+        self.run_check(config, mocks=mocks)
+
+        instance_config = config['instances'][0]
+        self.assertMetric('system.processes.mem.minflt', at_least=1, tags=self.generate_expected_tags(instance_config), value=minflt)
+        self.assertMetric('system.processes.mem.cminflt', at_least=1, tags=self.generate_expected_tags(instance_config), value=cminflt)
+        self.assertMetric('system.processes.mem.majflt', at_least=1, tags=self.generate_expected_tags(instance_config), value=majflt)
+        self.assertMetric('system.processes.mem.cmajflt', at_least=1, tags=self.generate_expected_tags(instance_config), value=cmajflt)
+        self.coverage_report()
+
+        Platform.is_linux = is_linux
