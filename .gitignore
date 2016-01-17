@@ -1,3 +1,5 @@
+*.zip
+Gemfile.lock
 *.pyc
 *.*~
 build/*
@@ -6,8 +8,10 @@ datadog_agent.egg-info/*
 artifacts/*
 node_modules/*
 .DS_Store
+venv/*
 *.swp
 *.log
+!nagios.log
 *.pid
 *.deb
 *.rpm
@@ -25,3 +29,9 @@ packaging/build/
 packaging/root/
 Vagrantfile
 .vagrant/*
+embedded/*
+.pip-cache/*
+.cache
+dump.rdb
+tests/core/fixtures/flare/dd*
+.python-version

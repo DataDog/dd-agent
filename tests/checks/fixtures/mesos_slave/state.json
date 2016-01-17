@@ -1,0 +1,123 @@
+{
+  "version": "0.22.0",
+  "started_tasks": 0,
+  "start_time": 1428673344.06054,
+  "staged_tasks": 1,
+  "cluster": "test",
+  "resources": {
+    "ports": "[31000-32000]",
+    "mem": 244,
+    "disk": 35164,
+    "cpus": 1
+  },
+  "pid": "slave(1)@127.0.0.1:5051",
+  "master_hostname": "localhost",
+  "flags": {
+    "work_dir": "/tmp/mesos",
+    "version": "false",
+    "switch_user": "true",
+    "strict": "true",
+    "resource_monitoring_interval": "1secs",
+    "registration_backoff_factor": "1secs",
+    "recovery_timeout": "15mins",
+    "recover": "reconnect",
+    "executor_shutdown_grace_period": "5secs",
+    "executor_registration_timeout": "1mins",
+    "enforce_container_disk_quota": "false",
+    "docker_stop_timeout": "0ns",
+    "docker_sandbox_directory": "/mnt/mesos/sandbox",
+    "docker_remove_delay": "6hrs",
+    "docker": "docker",
+    "disk_watch_interval": "1mins",
+    "authenticatee": "crammd5",
+    "cgroups_enable_cfs": "false",
+    "cgroups_hierarchy": "/sys/fs/cgroup",
+    "cgroups_limit_swap": "false",
+    "cgroups_root": "mesos",
+    "container_disk_watch_interval": "15secs",
+    "containerizers": "mesos",
+    "default_role": "*",
+    "frameworks_home": "",
+    "gc_delay": "1weeks",
+    "gc_disk_headroom": "0.1",
+    "hadoop_home": "",
+    "help": "false",
+    "initialize_driver_logging": "true",
+    "isolation": "posix/cpu,posix/mem",
+    "launcher_dir": "/usr/libexec/mesos",
+    "log_dir": "/var/log/mesos",
+    "logbufsecs": "0",
+    "logging_level": "INFO",
+    "master": "zk://localhost:2181/mesos",
+    "perf_duration": "10secs",
+    "perf_interval": "1mins",
+    "port": "5051",
+    "quiet": "false"
+  },
+  "finished_tasks": 0,
+  "failed_tasks": 0,
+  "completed_frameworks": [],
+  "build_user": "root",
+  "build_time": 1427376927,
+  "build_date": "2015-03-26 13:35:27",
+  "attributes": {},
+  "frameworks": [
+    {
+      "user": "root",
+      "checkpoint": 'true',
+      "completed_executors": [],
+      "executors": [
+        {
+          "tasks": [
+            {
+              "statuses": [
+                {
+                  "timestamp": 1428673971.61592,
+                  "state": "TASK_RUNNING"
+                }
+              ],
+              "executor_id": "",
+              "framework_id": "20150403-140128-251789322-5050-6047-0000",
+              "id": "hello.dc130e23-df88-11e4-b9ec-080027fc1312",
+              "labels": [],
+              "name": "hello",
+              "resources": {
+                "ports": "[31915-31915]",
+                "mem": 100,
+                "disk": 0,
+                "cpus": 1
+              },
+              "slave_id": "20150410-134224-16777343-5050-1778-S0",
+              "state": "TASK_RUNNING"
+            }
+          ],
+          "completed_tasks": [],
+          "container": "f67a5e0b-91f9-474a-94a0-e2c6a3b28ea4",
+          "directory": "/tmp/mesos/slaves/20150410-134224-16777343-5050-1778-S0/frameworks/20150403-140128-251789322-5050-6047-0000/executors/hello.dc130e23-df88-11e4-b9ec-080027fc1312/runs/f67a5e0b-91f9-474a-94a0-e2c6a3b28ea4",
+          "id": "hello.dc130e23-df88-11e4-b9ec-080027fc1312",
+          "name": "Command Executor (Task: hello.dc130e23-df88-11e4-b9ec-080027fc1312) (Command: sh -c 'cd hello && ...')",
+          "queued_tasks": [],
+          "resources": {
+            "ports": "[31915-31915]",
+            "mem": 132,
+            "disk": 0,
+            "cpus": 1.1
+          },
+          "source": "hello.dc130e23-df88-11e4-b9ec-080027fc1312"
+        }
+      ],
+      "failover_timeout": 604800,
+      "hostname": "vagrant-ubuntu-trusty-64",
+      "id": "20150403-140128-251789322-5050-6047-0000",
+      "name": "marathon",
+      "role": "*"
+    }
+  ],
+  "git_sha": "e890e2414903bb69cab730d5204f10b10d2e91bb",
+  "git_tag": "0.22.0",
+  "hostname": "localhost",
+  "id": "20150410-134224-16777343-5050-1778-S0",
+  "killed_tasks": 0,
+  "log_dir": "/var/log/mesos",
+  "lost_tasks": 0
+}

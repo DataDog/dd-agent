@@ -1,0 +1,5 @@
+# This check takes no initial configuration
+init_config:
+
+instances:
+    [{}]

@@ -1,0 +1,8 @@
+init_config:
+  default_timeout: 10
+
+instances:
+  - url: "http://localhost:5051"
+  #  master_port: 5050
+  #  tasks:
+  #    - "hello"

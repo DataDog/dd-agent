@@ -1,90 +1,90 @@
 # stdlib
-import time
-from hashlib import md5
 import socket
+
+# 3rd party
+from httplib2 import Http, HttpLib2Error
+import simplejson as json
 
 # project
 from checks import AgentCheck
 
-# 3rd party
-import simplejson as json
-from httplib2 import Http, HttpLib2Error
 
 class Riak(AgentCheck):
+    SERVICE_CHECK_NAME = 'riak.can_connect'
 
     keys = [
-        "vnode_gets",
-        "vnode_puts",
-        "vnode_index_reads",
-        "vnode_index_writes",
-        "vnode_index_deletes",
-        "node_gets",
-        "node_puts",
-        "pbc_active",
-        "pbc_connects",
-        "memory_total",
-        "memory_processes",
-        "memory_processes_used",
         "memory_atom",
         "memory_atom_used",
         "memory_binary",
         "memory_code",
         "memory_ets",
-        "read_repairs",
-        "node_put_fsm_rejected_60s",
-        "node_put_fsm_active_60s",
-        "node_put_fsm_in_rate",
-        "node_put_fsm_out_rate",
-        "node_get_fsm_rejected_60s",
+        "memory_processes",
+        "memory_processes_used",
+        "memory_total",
         "node_get_fsm_active_60s",
         "node_get_fsm_in_rate",
         "node_get_fsm_out_rate"
+        "node_get_fsm_rejected_60s",
+        "node_gets",
+        "node_put_fsm_active_60s",
+        "node_put_fsm_in_rate",
+        "node_put_fsm_out_rate",
+        "node_put_fsm_rejected_60s",
+        "node_puts",
+        "pbc_active",
+        "pbc_connects",
+        "read_repairs",
+        "vnode_gets",
+        "vnode_index_deletes",
+        "vnode_index_reads",
+        "vnode_index_writes",
+        "vnode_puts",
     ]
 
     stat_keys = [
-        "node_get_fsm_siblings",
         "node_get_fsm_objsize",
+        "node_get_fsm_siblings",
         "node_get_fsm_time",
         "node_put_fsm_time"
-      ]
+    ]
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         for k in ["mean", "median", "95", "99", "100"]:
-            [self.keys.append(m + "_" + k) for m in self.stat_keys]
+            for m in self.stat_keys:
+                self.keys.append(m + "_" + k)
 
         self.prev_coord_redirs_total = -1
 
-
     def check(self, instance):
-        url             = instance['url']
+        url = instance['url']
         default_timeout = self.init_config.get('default_timeout', 5)
-        timeout         = float(instance.get('timeout', default_timeout))
-
-        aggregation_key = md5(url).hexdigest()
+        timeout = float(instance.get('timeout', default_timeout))
+        tags = instance.get('tags', [])
+        service_check_tags = tags + ['url:%s' % url]
 
         try:
             h = Http(timeout=timeout)
             resp, content = h.request(url, "GET")
-
-        except socket.timeout, e:
-            self.timeout_event(url, timeout, aggregation_key)
-            return
-
-        except socket.error, e:
-            self.timeout_event(url, timeout, aggregation_key)
-            return
-
-        except HttpLib2Error, e:
-            self.timeout_event(url, timeout, aggregation_key)
-            return
+        except (socket.timeout, socket.error, HttpLib2Error) as e:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                               message="Unable to fetch Riak stats: %s" % str(e),
+                               tags=service_check_tags)
+            raise
 
         if resp.status != 200:
-            self.status_code_event(url, resp, aggregation_key)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                               tags=service_check_tags,
+                               message="Unexpected status of %s when fetching Riak stats, "
+                               "response: %s" % (resp.status, content))
 
         stats = json.loads(content)
+        self.service_check(
+            self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
 
-        [self.gauge("riak." + k, stats[k]) for k in self.keys if k in stats]
+        for k in self.keys:
+            if k in stats:
+                self.gauge("riak." + k, stats[k], tags=tags)
 
         coord_redirs_total = stats["coord_redirs_total"]
         if self.prev_coord_redirs_total > -1:
@@ -92,21 +92,3 @@ class Riak(AgentCheck):
             self.gauge('riak.coord_redirs', count)
 
         self.prev_coord_redirs_total = coord_redirs_total
-
-    def timeout_event(self, url, timeout, aggregation_key):
-        self.event({
-            'timestamp': int(time.time()),
-            'event_type': 'riak_check',
-            'msg_title': 'riak check timeout',
-            'msg_text': '%s timed out after %s seconds.' % (url, timeout),
-            'aggregation_key': aggregation_key
-        })
-
-    def status_code_event(self, url, r, aggregation_key):
-        self.event({
-            'timestamp': int(time.time()),
-            'event_type': 'riak_check',
-            'msg_title': 'Invalid reponse code for riak check',
-            'msg_text': '%s returned a status of %s' % (url, r.status_code),
-            'aggregation_key': aggregation_key
-        })

@@ -9,66 +9,110 @@
     (C) Boxed Ice 2010 all rights reserved
     (C) Datadog, Inc. 2010-2014 all rights reserved
 '''
-
 # set up logging before importing any other components
-from config import get_version, initialize_logging; initialize_logging('collector')
+from config import get_version, initialize_logging # noqa
+initialize_logging('collector')
 
-import os; os.umask(022)
-
-# Core modules
+# stdlib
 import logging
-import os.path
+import os
 import signal
 import sys
 import time
-import glob
 
-# Custom modules
-from checks.collector import Collector
+# For pickle & PID files, see issue 293
+os.umask(022)
+
+# project
 from checks.check_status import CollectorStatus
-from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml, get_logging_config
-from daemon import Daemon, AgentSupervisor
+from checks.collector import Collector
+from config import (
+    get_config,
+    get_parsed_args,
+    get_system_stats,
+    load_check_directory,
+)
+from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from util import Watchdog, PidFile, EC2, get_os, get_hostname
-from jmxfetch import JMXFetch
-
+from util import (
+    EC2,
+    get_hostname,
+    Watchdog,
+)
+from utils.flare import configcheck, Flare
+from utils.jmx import jmx_command
+from utils.pidfile import PidFile
+from utils.profile import AgentProfiler
 
 # Constants
 PID_NAME = "dd-agent"
+PID_DIR = None
 WATCHDOG_MULTIPLIER = 10
-RESTART_INTERVAL = 4 * 24 * 60 * 60 # Defaults to 4 days
+RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 START_COMMANDS = ['start', 'restart', 'foreground']
+DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
+
+DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
 # Globals
 log = logging.getLogger('collector')
+
 
 class Agent(Daemon):
     """
     The agent class is a daemon that runs the collector in a background process.
     """
 
-    def __init__(self, pidfile, autorestart, start_event=True):
+    def __init__(self, pidfile, autorestart, start_event=True, in_developer_mode=False):
         Daemon.__init__(self, pidfile, autorestart=autorestart)
         self.run_forever = True
         self.collector = None
         self.start_event = start_event
+        self.in_developer_mode = in_developer_mode
+        self._agentConfig = {}
+        self._checksd = []
+        self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
+        self.check_frequency = None
+        self.configs_reloaded = False
 
     def _handle_sigterm(self, signum, frame):
+        """Handles SIGTERM and SIGINT, which gracefully stops the agent."""
         log.debug("Caught sigterm. Stopping run loop.")
         self.run_forever = False
-
-        if JMXFetch.is_running():
-            JMXFetch.stop()
 
         if self.collector:
             self.collector.stop()
         log.debug("Collector is stopped.")
 
     def _handle_sigusr1(self, signum, frame):
+        """Handles SIGUSR1, which signals an exit with an autorestart."""
         self._handle_sigterm(signum, frame)
         self._do_restart()
 
-    def info(self, verbose=None):
+    def _handle_sighup(self, signum, frame):
+        """Handles SIGHUP, which signals a configuration reload."""
+        log.info("SIGHUP caught!")
+        self.reload_configs()
+        self.configs_reloaded = True
+
+    def reload_configs(self):
+        """Reloads the agent configuration and checksd configurations."""
+        log.info("Attempting a configuration reload...")
+
+        # Reload checksd configs
+        hostname = get_hostname(self._agentConfig)
+        self._checksd = load_check_directory(self._agentConfig, hostname)
+
+        # Logging
+        num_checks = len(self._checksd['initialized_checks'])
+        if num_checks > 0:
+            log.info("Successfully reloaded {num_checks} checks".
+                     format(num_checks=num_checks))
+        else:
+            log.info("No checksd configs found")
+
+    @classmethod
+    def info(cls, verbose=None):
         logging.getLogger().setLevel(logging.ERROR)
         return CollectorStatus.print_latest_status(verbose=verbose)
 
@@ -84,6 +128,9 @@ class Agent(Daemon):
         # Handle Keyboard Interrupt
         signal.signal(signal.SIGINT, self._handle_sigterm)
 
+        # A SIGHUP signals a configuration reload
+        signal.signal(signal.SIGHUP, self._handle_sighup)
+
         # Save the agent start-up stats.
         CollectorStatus().persist()
 
@@ -91,64 +138,72 @@ class Agent(Daemon):
         if not config:
             config = get_config(parse_args=True)
 
-        agentConfig = self._set_agent_config_hostname(config)
-        hostname = get_hostname(agentConfig)
+        self._agentConfig = self._set_agent_config_hostname(config)
+        hostname = get_hostname(self._agentConfig)
         systemStats = get_system_stats()
-        emitters = self._get_emitters(agentConfig)
-        # Load the checks.d checks
-        checksd = load_check_directory(agentConfig, hostname)
+        emitters = self._get_emitters()
 
-        self.collector = Collector(agentConfig, emitters, systemStats, hostname)
+        # Load the checks.d checks
+        self._checksd = load_check_directory(self._agentConfig, hostname)
+
+        # Initialize the Collector
+        self.collector = Collector(self._agentConfig, emitters, systemStats, hostname)
+
+        # In developer mode, the number of runs to be included in a single collector profile
+        self.collector_profile_interval = self._agentConfig.get('collector_profile_interval',
+                                                                DEFAULT_COLLECTOR_PROFILE_INTERVAL)
 
         # Configure the watchdog.
-        check_frequency = int(agentConfig['check_freq'])
-        watchdog = self._get_watchdog(check_frequency, agentConfig)
+        self.check_frequency = int(self._agentConfig['check_freq'])
+        watchdog = self._get_watchdog(self.check_frequency)
 
         # Initialize the auto-restarter
-        self.restart_interval = int(agentConfig.get('restart_interval', RESTART_INTERVAL))
+        self.restart_interval = int(self._agentConfig.get('restart_interval', RESTART_INTERVAL))
         self.agent_start = time.time()
+
+        profiled = False
+        collector_profiled_runs = 0
 
         # Run the main loop.
         while self.run_forever:
+            log.debug("Found {num_checks} checks".format(num_checks=len(self._checksd['initialized_checks'])))
 
-            # enable profiler if needed
-            profiled = False
-            if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes':
+            # Setup profiling if necessary
+            if self.in_developer_mode and not profiled:
                 try:
-                    import cProfile
-                    profiler = cProfile.Profile()
+                    profiler = AgentProfiler()
+                    profiler.enable_profiling()
                     profiled = True
-                    profiler.enable()
-                    log.debug("Agent profiling is enabled")
-                except Exception:
-                    log.warn("Cannot enable profiler")
+                except Exception as e:
+                    log.warn("Cannot enable profiler: %s" % str(e))
 
             # Do the work.
-            self.collector.run(checksd=checksd, start_event=self.start_event)
-
-            # disable profiler and printout stats to stdout
-            if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes' and profiled:
-                try:
-                    profiler.disable()
-                    import pstats
-                    from cStringIO import StringIO
-                    s = StringIO()
-                    ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
-                    ps.print_stats()
-                    log.debug(s.getvalue())
-                except Exception:
-                    log.warn("Cannot disable profiler")
+            self.collector.run(checksd=self._checksd,
+                               start_event=self.start_event,
+                               configs_reloaded=self.configs_reloaded)
+            if self.configs_reloaded:
+                self.configs_reloaded = False
+            if profiled:
+                if collector_profiled_runs >= self.collector_profile_interval:
+                    try:
+                        profiler.disable_profiling()
+                        profiled = False
+                        collector_profiled_runs = 0
+                    except Exception as e:
+                        log.warn("Cannot disable profiler: %s" % str(e))
 
             # Check if we should restart.
             if self.autorestart and self._should_restart():
                 self._do_restart()
 
-            # Only plan for the next loop if we will continue,
-            # otherwise just exit quickly.
+            # Only plan for next loop if we will continue, otherwise exit quickly.
             if self.run_forever:
                 if watchdog:
                     watchdog.reset()
-                time.sleep(check_frequency)
+                if profiled:
+                    collector_profiled_runs += 1
+                log.debug("Sleeping for {0} seconds".format(self.check_frequency))
+                time.sleep(self.check_frequency)
 
         # Now clean-up.
         try:
@@ -156,19 +211,18 @@ class Agent(Daemon):
         except Exception:
             pass
 
-        # Explicitly kill the process, because it might be running
-        # as a daemon.
+        # Explicitly kill the process, because it might be running as a daemon.
         log.info("Exiting. Bye bye.")
         sys.exit(0)
 
-    def _get_emitters(self, agentConfig):
+    def _get_emitters(self):
         return [http_emitter]
 
-    def _get_watchdog(self, check_freq, agentConfig):
+    def _get_watchdog(self, check_freq):
         watchdog = None
-        if agentConfig.get("watchdog", True):
+        if self._agentConfig.get("watchdog", True):
             watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER,
-                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
+                                max_mem_mb=self._agentConfig.get('limit_memory_consumption', None))
             watchdog.reset()
         return watchdog
 
@@ -196,23 +250,30 @@ class Agent(Daemon):
             self.collector.stop()
         sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
+
 def main():
     options, args = get_parsed_args()
     agentConfig = get_config(options=options)
     autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
-
-    COMMANDS = [
+    in_developer_mode = agentConfig.get('developer_mode')
+    COMMANDS_AGENT = [
         'start',
         'stop',
         'restart',
-        'foreground',
         'status',
+        'foreground',
+    ]
+
+    COMMANDS_NO_AGENT = [
         'info',
         'check',
         'configcheck',
         'jmx',
+        'flare',
     ]
+
+    COMMANDS = COMMANDS_AGENT + COMMANDS_NO_AGENT
 
     if len(args) < 1:
         sys.stderr.write("Usage: %s %s\n" % (sys.argv[0], "|".join(COMMANDS)))
@@ -223,12 +284,14 @@ def main():
         sys.stderr.write("Unknown command: %s\n" % command)
         return 3
 
-    pid_file = PidFile('dd-agent')
+    # Deprecation notice
+    if command not in DD_AGENT_COMMANDS:
+        # Will become an error message and exit after deprecation period
+        from utils.deprecations import deprecate_old_command_line_tools
+        deprecate_old_command_line_tools()
 
-    if options.clean:
-        pid_file.clean()
-
-    agent = Agent(pid_file.get_path(), autorestart)
+    if command in COMMANDS_AGENT:
+        agent = Agent(PidFile(PID_NAME, PID_DIR).get_path(), autorestart, in_developer_mode=in_developer_mode)
 
     if command in START_COMMANDS:
         log.info('Agent version %s' % get_version())
@@ -249,21 +312,34 @@ def main():
         agent.status()
 
     elif 'info' == command:
-        return agent.info(verbose=options.verbose)
+        return Agent.info(verbose=options.verbose)
 
     elif 'foreground' == command:
         logging.info('Running in foreground')
         if autorestart:
             # Set-up the supervisor callbacks and fork it.
             logging.info('Running Agent with auto-restart ON')
-            def child_func(): agent.run()
-            def parent_func(): agent.start_event = False
+
+            def child_func():
+                agent.start(foreground=True)
+
+            def parent_func():
+                agent.start_event = False
+
             AgentSupervisor.start(parent_func, child_func)
         else:
             # Run in the standard foreground.
-            agent.run(config=agentConfig)
+            agent.start(foreground=True)
 
     elif 'check' == command:
+        if len(args) < 2:
+            sys.stderr.write(
+                "Usage: %s check <check_name> [check_rate]\n"
+                "Add check_rate as last argument to compute rates\n"
+                % sys.argv[0]
+            )
+            return 1
+
         check_name = args[1]
         try:
             import checks.collector
@@ -274,62 +350,35 @@ def main():
             checks = load_check_directory(agentConfig, hostname)
             for check in checks['initialized_checks']:
                 if check.name == check_name:
-                    check.run()
-                    print check.get_metrics()
-                    print check.get_events()
+                    if in_developer_mode:
+                        check.run = AgentProfiler.wrap_profiling(check.run)
+
+                    cs = Collector.run_single_check(check, verbose=True)
+                    print CollectorStatus.render_check_status(cs)
+
                     if len(args) == 3 and args[2] == 'check_rate':
                         print "Running 2nd iteration to capture rate metrics"
                         time.sleep(1)
-                        check.run()
-                        print check.get_metrics()
-                        print check.get_events()
+                        cs = Collector.run_single_check(check, verbose=True)
+                        print CollectorStatus.render_check_status(cs)
+
+                    check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:
-        osname = get_os()
-        all_valid = True
-        for conf_path in glob.glob(os.path.join(get_confd_path(osname), "*.yaml")):
-            basename = os.path.basename(conf_path)
-            try:
-                check_yaml(conf_path)
-            except Exception, e:
-                all_valid = False
-                print "%s contains errors:\n    %s" % (basename, e)
-            else:
-                print "%s is valid" % basename
-        if all_valid:
-            print "All yaml files passed. You can now run the Datadog agent."
-            return 0
-        else:
-            print("Fix the invalid yaml files above in order to start the Datadog agent. "
-                    "A useful external tool for yaml parsing can be found at "
-                    "http://yaml-online-parser.appspot.com/")
-            return 1
+        configcheck()
 
     elif 'jmx' == command:
-        from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
+        jmx_command(args[1:], agentConfig)
 
-        if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS.keys():
-            print "#" * 80
-            print "JMX tool to be used to help configuring your JMX checks."
-            print "See http://docs.datadoghq.com/integrations/java/ for more information"
-            print "#" * 80
-            print "\n"
-            print "You have to specify one of the following commands:"
-            for command, desc in JMX_LIST_COMMANDS.iteritems():
-                print "      - %s [OPTIONAL: LIST OF CHECKS]: %s" % (command, desc)
-            print "Example: sudo /etc/init.d/datadog-agent jmx list_matching_attributes tomcat jmx solr"
-            print "\n"
-
-        else:
-            jmx_command = args[1]
-            checks_list = args[2:]
-            confd_directory = get_confd_path(get_os())
-            should_run  = JMXFetch.init(confd_directory, agentConfig, get_logging_config(), 15, jmx_command, checks_list, reporter="console")
-            if not should_run:
-                print "Couldn't find any valid JMX configuration in your conf.d directory: %s" % confd_directory
-                print "Have you enabled any JMX check ?"
-                print "If you think it's not normal please get in touch with Datadog Support"
-
+    elif 'flare' == command:
+        Flare.check_user_rights()
+        case_id = int(args[1]) if len(args) > 1 else None
+        f = Flare(True, case_id)
+        f.collect()
+        try:
+            f.upload()
+        except Exception, e:
+            print 'The upload failed:\n{0}'.format(str(e))
 
     return 0
 

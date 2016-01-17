@@ -1,0 +1,132 @@
+{
+  "version": "0.22.0",
+  "unregistered_frameworks": [],
+  "started_tasks": 0,
+  "start_time": 1428951954.34111,
+  "staged_tasks": 0,
+  "slaves": [
+    {
+      "resources": {
+        "ports": "[31000-32000]",
+        "mem": 244,
+        "disk": 35164,
+        "cpus": 1
+      },
+      "reregistered_time": 1428951983.53731,
+      "registered_time": 1428951983.53725,
+      "pid": "slave(1)@127.0.0.1:5051",
+      "id": "20150410-134224-16777343-5050-1778-S0",
+      "hostname": "localhost",
+      "attributes": {},
+      "active": 'true'
+    }
+  ],
+  "pid": "master@127.0.0.1:5050",
+  "orphan_tasks": [],
+  "lost_tasks": 0,
+  "log_dir": "/var/log/mesos",
+  "leader": "master@127.0.0.1:5050",
+  "killed_tasks": 0,
+  "elected_time": 1428951954.3774,
+  "deactivated_slaves": 0,
+  "completed_frameworks": [],
+  "cluster": "datadog-test",
+  "build_user": "root",
+  "build_time": 1427376927,
+  "build_date": "2015-03-26 13:35:27",
+  "activated_slaves": 1,
+  "failed_tasks": 0,
+  "finished_tasks": 0,
+  "flags": {
+    "zk_session_timeout": "10secs",
+    "zk": "zk://localhost:2181/mesos",
+    "work_dir": "/var/lib/mesos",
+    "webui_dir": "/usr/share/mesos/webui",
+    "version": "false",
+    "user_sorter": "drf",
+    "slave_reregister_timeout": "10mins",
+    "root_submissions": "true",
+    "registry_strict": "false",
+    "registry_store_timeout": "5secs",
+    "registry_fetch_timeout": "1mins",
+    "registry": "replicated_log",
+    "initialize_driver_logging": "true",
+    "help": "false",
+    "framework_sorter": "drf",
+    "cluster": "datadog-test",
+    "authenticators": "crammd5",
+    "authenticate_slaves": "false",
+    "authenticate": "false",
+    "allocation_interval": "1secs",
+    "log_auto_initialize": "true",
+    "log_dir": "/var/log/mesos",
+    "logbufsecs": "0",
+    "logging_level": "INFO",
+    "port": "5050",
+    "quiet": "false",
+    "quorum": "1",
+    "recovery_slave_removal_limit": "100%"
+  },
+  "frameworks": [
+    {
+      "webui_url": "http://192.168.33.20:8080",
+      "user": "root",
+      "offered_resources": {
+        "mem": 0,
+        "disk": 0,
+        "cpus": 0
+      },
+      "name": "marathon",
+      "id": "20150403-140128-251789322-5050-6047-0000",
+      "hostname": "vagrant-ubuntu-trusty-64",
+      "failover_timeout": 604800,
+      "completed_tasks": [],
+      "checkpoint": 'true',
+      "active": 'true',
+      "offers": [],
+      "registered_time": 1428951955.38871,
+      "reregistered_time": 1428951955.38872,
+      "resources": {
+        "ports": "[31915-31915]",
+        "mem": 100,
+        "disk": 0,
+        "cpus": 1
+      },
+      "role": "*",
+      "tasks": [
+        {
+          "statuses": [
+            {
+              "timestamp": 1428673971.61592,
+              "state": "TASK_RUNNING"
+            }
+          ],
+          "executor_id": "",
+          "framework_id": "20150403-140128-251789322-5050-6047-0000",
+          "id": "hello.dc130e23-df88-11e4-b9ec-080027fc1312",
+          "labels": [],
+          "name": "hello",
+          "resources": {
+            "ports": "[31915-31915]",
+            "mem": 100,
+            "disk": 0,
+            "cpus": 1
+          },
+          "slave_id": "20150410-134224-16777343-5050-1778-S0",
+          "state": "TASK_RUNNING"
+        }
+      ],
+      "unregistered_time": 0,
+      "used_resources": {
+        "ports": "[31915-31915]",
+        "mem": 100,
+        "disk": 0,
+        "cpus": 1
+      }
+    }
+  ],
+  "git_sha": "e890e2414903bb69cab730d5204f10b10d2e91bb",
+  "git_tag": "0.22.0",
+  "hostname": "localhost",
+  "id": "20150413-190554-16777343-5050-16324"
+}

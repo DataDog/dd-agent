@@ -1,171 +1,254 @@
 # stdlib
+from collections import defaultdict
 import time
+
+# 3p
+import psutil
 
 # project
 from checks import AgentCheck
-from util import Platform
+from config import _is_affirmative
+from utils.platform import Platform
 
-# 3rd party
-import psutil
+
+DEFAULT_AD_CACHE_DURATION = 120
+DEFAULT_PID_CACHE_DURATION = 120
+
+
+ATTR_TO_METRIC = {
+    'thr':              'threads',
+    'cpu':              'cpu.pct',
+    'rss':              'mem.rss',
+    'vms':              'mem.vms',
+    'real':             'mem.real',
+    'open_fd':          'open_file_descriptors',
+    'r_count':          'ioread_count',  # FIXME: namespace me correctly (6.x), io.r_count
+    'w_count':          'iowrite_count',  # FIXME: namespace me correctly (6.x) io.r_bytes
+    'r_bytes':          'ioread_bytes',  # FIXME: namespace me correctly (6.x) io.w_count
+    'w_bytes':          'iowrite_bytes',  # FIXME: namespace me correctly (6.x) io.w_bytes
+    'ctx_swtch_vol':    'voluntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.voluntary
+    'ctx_swtch_invol':  'involuntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.involuntary
+}
+
 
 class ProcessCheck(AgentCheck):
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
-    SOURCE_TYPE_NAME = 'system'
-
-    PROCESS_GAUGE = (
-        'system.processes.threads',
-        'system.processes.cpu.pct',
-        'system.processes.mem.rss',
-        'system.processes.mem.vms',
-        'system.processes.mem.real',
-        'system.processes.open_file_descriptors',
-        'system.processes.ioread_count',
-        'system.processes.iowrite_count',
-        'system.processes.ioread_bytes',
-        'system.processes.iowrite_bytes',
-        'system.processes.voluntary_ctx_switches',
-        'system.processes.involuntary_ctx_switches',
+        # ad stands for access denied
+        # We cache the PIDs getting this error and don't iterate on them
+        # more often than `access_denied_cache_duration`
+        # This cache is for all PIDs so it's global, but it should
+        # be refreshed by instance
+        self.last_ad_cache_ts = {}
+        self.ad_cache = set()
+        self.access_denied_cache_duration = int(
+            init_config.get(
+                'access_denied_cache_duration',
+                DEFAULT_AD_CACHE_DURATION
+            )
         )
 
-    def find_pids(self, search_string, exact_match, ignore_denied_access):
+        # By default cache the PID list for a while
+        # Sometimes it's not wanted b/c it can mess with no-data monitoring
+        # This cache is indexed per instance
+        self.last_pid_cache_ts = {}
+        self.pid_cache = {}
+        self.pid_cache_duration = int(
+            init_config.get(
+                'pid_cache_duration',
+                DEFAULT_PID_CACHE_DURATION
+            )
+        )
+
+        if Platform.is_linux():
+            procfs_path = init_config.get('procfs_path')
+            if procfs_path:
+                psutil.PROCFS_PATH = procfs_path
+
+        # Process cache, indexed by instance
+        self.process_cache = defaultdict(dict)
+
+    def should_refresh_ad_cache(self, name):
+        now = time.time()
+        return now - self.last_ad_cache_ts.get(name, 0) > self.access_denied_cache_duration
+
+    def should_refresh_pid_cache(self, name):
+        now = time.time()
+        return now - self.last_pid_cache_ts.get(name, 0) > self.pid_cache_duration
+
+    def find_pids(self, name, search_string, exact_match, ignore_ad=True):
         """
         Create a set of pids of selected processes.
         Search for search_string
         """
-        found_process_list = []
+        if not self.should_refresh_pid_cache(name):
+            return self.pid_cache[name]
+
+        ad_error_logger = self.log.debug
+        if not ignore_ad:
+            ad_error_logger = self.log.error
+
+        refresh_ad_cache = self.should_refresh_ad_cache(name)
+
+        matching_pids = set()
+
         for proc in psutil.process_iter():
+            # Skip access denied processes
+            if not refresh_ad_cache and proc.pid in self.ad_cache:
+                continue
+
             found = False
             for string in search_string:
-                if exact_match:
-                    try:
+                try:
+                    # FIXME 6.x: All has been deprecated from the doc, should be removed
+                    if string == 'All':
+                        found = True
+                    if exact_match:
                         if proc.name() == string:
                             found = True
-                    except psutil.NoSuchProcess:
-                        self.log.warning('Process disappeared while scanning')
-                    except psutil.AccessDenied, e:
-                        self.log.error('Access denied to %s process' % string)
-                        self.log.error('Error: %s' % e)
-                        if not ignore_denied_access: raise
-                else:
-                    if not found:
-                        try:
-                            cmdline = proc.cmdline()
-                            if string in ' '.join(cmdline):
-                                found = True
-                        except psutil.NoSuchProcess:
-                            self.warning('Process disappeared while scanning')
-                        except psutil.AccessDenied, e:
-                            self.log.error('Access denied to %s process' % string)
-                            self.log.error('Error: %s' % e)
-                            if not ignore_denied_access: raise
-
-                if found or string == 'All':
-                    found_process_list.append(proc.pid)
-
-        return set(found_process_list)
-
-    def get_process_metrics(self, pids, cpu_check_interval, ignore_denied_access=True):
-
-        # initialize process metrics
-        # process metrics available for all versions of psutil
-        rss = 0
-        vms = 0
-        cpu = 0
-        thr = 0
-        voluntary_ctx_switches = 0
-        involuntary_ctx_switches = 0
-
-        # process metrics available for psutil versions 0.6.0 and later
-        if not Platform.is_win32():
-            real = 0
-            if Platform.is_unix():
-                open_file_descriptors = 0
-            else:
-                open_file_descriptors = None
-        else:
-            real = None
-
-        # process I/O counters (agent might not have permission to access)
-        read_count = 0
-        write_count = 0
-        read_bytes = 0
-        write_bytes = 0
-
-        got_denied = False
-
-        for pid in set(pids):
-            try:
-                p = psutil.Process(pid)
-                try:
-                    if real is not None:
-                        mem = p.memory_info_ex()
-                        real += mem.rss - mem.shared
-                        ctx_switches = p.num_ctx_switches()
-                        voluntary_ctx_switches += ctx_switches.voluntary
-                        involuntary_ctx_switches += ctx_switches.involuntary
                     else:
-                        mem = p.memory_info()
+                        cmdline = proc.cmdline()
+                        if string in ' '.join(cmdline):
+                            found = True
+                except psutil.NoSuchProcess:
+                    self.log.warning('Process disappeared while scanning')
+                except psutil.AccessDenied, e:
+                    ad_error_logger('Access denied to process with PID %s', proc.pid)
+                    ad_error_logger('Error: %s', e)
+                    if refresh_ad_cache:
+                        self.ad_cache.add(proc.pid)
+                    if not ignore_ad:
+                        raise
+                else:
+                    if refresh_ad_cache:
+                        self.ad_cache.discard(proc.pid)
+                    if found:
+                        matching_pids.add(proc.pid)
+                        break
 
-                    rss += mem.rss
-                    vms += mem.vms
-                    thr += p.num_threads()
-                    cpu += p.cpu_percent(cpu_check_interval)
+        self.pid_cache[name] = matching_pids
+        self.last_pid_cache_ts[name] = time.time()
+        if refresh_ad_cache:
+            self.last_ad_cache_ts[name] = time.time()
+        return matching_pids
 
-                    if open_file_descriptors is not None:
-                        open_file_descriptors += p.num_fds()
+    def psutil_wrapper(self, process, method, accessors, *args, **kwargs):
+        """
+        A psutil wrapper that is calling
+        * psutil.method(*args, **kwargs) and returns the result
+        OR
+        * psutil.method(*args, **kwargs).accessor[i] for each accessors given in
+        a list, the result being indexed in a dictionary by the accessor name
+        """
 
-                except NotImplementedError:
-                    # Handle old Kernels which don't provide this info.
-                    voluntary_ctx_switches = None
-                    involuntary_ctx_switches = None
-                except AttributeError:
-                        self.log.debug("process attribute not supported on this platform")
-                except psutil.AccessDenied:
-                    got_denied = True
+        if accessors is None:
+            result = None
+        else:
+            result = {}
 
-                # user agent might not have permission to call io_counters()
-                # user agent might have access to io counters for some processes and not others
-                if read_count is not None:
+        # Ban certain method that we know fail
+        if method == 'memory_info_ex'\
+                and (Platform.is_win32() or Platform.is_solaris()):
+            return result
+        elif method == 'num_fds' and not Platform.is_unix():
+            return result
+
+        try:
+            res = getattr(process, method)(*args, **kwargs)
+            if accessors is None:
+                result = res
+            else:
+                for acc in accessors:
                     try:
-                        io_counters = p.io_counters()
-                        read_count += io_counters.read_count
-                        write_count += io_counters.write_count
-                        read_bytes += io_counters.read_bytes
-                        write_bytes += io_counters.write_bytes
+                        result[acc] = getattr(res, acc)
                     except AttributeError:
-                        self.log.debug("process attribute not supported on this platform")
-                    except psutil.AccessDenied:
-                        self.log.info('dd-agent user does not have access \
-                            to I/O counters for process %d: %s' % (pid, p.name()))
-                        read_count = None
-                        write_count = None
-                        read_bytes = None
-                        write_bytes = None
+                        self.log.debug("psutil.%s().%s attribute does not exist", method, acc)
+        except (NotImplementedError, AttributeError):
+            self.log.debug("psutil method %s not implemented", method)
+        except psutil.AccessDenied:
+            self.log.debug("psutil was denied acccess for method %s", method)
+        except psutil.NoSuchProcess:
+            self.warning("Process {0} disappeared while scanning".format(process.pid))
 
-            # Skip processes dead in the meantime
-            except psutil.NoSuchProcess:
-                self.warning('Process %s disappeared while scanning' % pid)
+        return result
 
-        if got_denied and not ignore_denied_access:
-            self.warning("The Datadog Agent was denied access when trying to get the number of file descriptors")
+    def get_process_state(self, name, pids):
+        st = defaultdict(list)
 
-        #Memory values are in Byte
-        return (thr, cpu, rss, vms, real, open_file_descriptors,
-            read_count, write_count, read_bytes, write_bytes, voluntary_ctx_switches, involuntary_ctx_switches)
+        # Remove from cache the processes that are not in `pids`
+        cached_pids = set(self.process_cache[name].keys())
+        pids_to_remove = cached_pids - pids
+        for pid in pids_to_remove:
+            del self.process_cache[name][pid]
+
+        for pid in pids:
+            st['pids'].append(pid)
+
+            new_process = False
+            # If the pid's process is not cached, retrieve it
+            if pid not in self.process_cache[name] or not self.process_cache[name][pid].is_running():
+                new_process = True
+                try:
+                    self.process_cache[name][pid] = psutil.Process(pid)
+                    self.log.debug('New process in cache: %s' % pid)
+                # Skip processes dead in the meantime
+                except psutil.NoSuchProcess:
+                    self.warning('Process %s disappeared while scanning' % pid)
+                    # reset the PID cache now, something changed
+                    self.last_pid_cache_ts[name] = 0
+                    continue
+
+            p = self.process_cache[name][pid]
+
+            meminfo = self.psutil_wrapper(p, 'memory_info', ['rss', 'vms'])
+            st['rss'].append(meminfo.get('rss'))
+            st['vms'].append(meminfo.get('vms'))
+
+            # will fail on win32 and solaris
+            shared_mem = self.psutil_wrapper(p, 'memory_info_ex', ['shared']).get('shared')
+            if shared_mem is not None and meminfo.get('rss') is not None:
+                st['real'].append(meminfo['rss'] - shared_mem)
+            else:
+                st['real'].append(None)
+
+            ctxinfo = self.psutil_wrapper(p, 'num_ctx_switches', ['voluntary', 'involuntary'])
+            st['ctx_swtch_vol'].append(ctxinfo.get('voluntary'))
+            st['ctx_swtch_invol'].append(ctxinfo.get('involuntary'))
+
+            st['thr'].append(self.psutil_wrapper(p, 'num_threads', None))
+
+            cpu_percent = self.psutil_wrapper(p, 'cpu_percent', None)
+            if not new_process:
+                # psutil returns `0.` for `cpu_percent` the first time it's sampled on a process,
+                # so save the value only on non-new processes
+                st['cpu'].append(cpu_percent)
+
+            st['open_fd'].append(self.psutil_wrapper(p, 'num_fds', None))
+
+            ioinfo = self.psutil_wrapper(p, 'io_counters', ['read_count', 'write_count', 'read_bytes', 'write_bytes'])
+            st['r_count'].append(ioinfo.get('read_count'))
+            st['w_count'].append(ioinfo.get('write_count'))
+            st['r_bytes'].append(ioinfo.get('read_bytes'))
+            st['w_bytes'].append(ioinfo.get('write_bytes'))
+
+        return st
 
     def check(self, instance):
         name = instance.get('name', None)
-        exact_match = instance.get('exact_match', True)
+        tags = instance.get('tags', [])
+        exact_match = _is_affirmative(instance.get('exact_match', True))
         search_string = instance.get('search_string', None)
-        ignore_denied_access = instance.get('ignore_denied_access', True)
-        cpu_check_interval = instance.get('cpu_check_interval', 0.1)
+        ignore_ad = _is_affirmative(instance.get('ignore_denied_access', True))
 
         if not isinstance(search_string, list):
             raise KeyError('"search_string" parameter should be a list')
 
+        # FIXME 6.x remove me
         if "All" in search_string:
-            self.warning('Deprecated: Having "All" in your search_string will\
-             greatly reduce the performance of the check and will be removed in a future version of the agent. ')
+            self.warning('Deprecated: Having "All" in your search_string will'
+                         'greatly reduce the performance of the check and '
+                         'will be removed in a future version of the agent.')
 
         if name is None:
             raise KeyError('The "name" of process groups is mandatory')
@@ -173,35 +256,36 @@ class ProcessCheck(AgentCheck):
         if search_string is None:
             raise KeyError('The "search_string" is mandatory')
 
-        if not isinstance(cpu_check_interval, (int, long, float)):
-            self.warning("cpu_check_interval must be a number. Defaulting to 0.1")
-            cpu_check_interval = 0.1
+        pids = self.find_pids(
+            name,
+            search_string,
+            exact_match,
+            ignore_ad=ignore_ad
+        )
 
-        pids = self.find_pids(search_string,
-                              exact_match,
-                              ignore_denied_access)
-        tags = ['process_name:%s' % name, name]
+        proc_state = self.get_process_state(name, pids)
 
-        self.log.debug('ProcessCheck: process %s analysed' % name)
+        # FIXME 6.x remove the `name` tag
+        tags.extend(['process_name:%s' % name, name])
 
+        self.log.debug('ProcessCheck: process %s analysed', name)
         self.gauge('system.processes.number', len(pids), tags=tags)
 
-        metrics = dict(zip(ProcessCheck.PROCESS_GAUGE, self.get_process_metrics(pids,
-            cpu_check_interval, ignore_denied_access)))
-
-        for metric, value in metrics.iteritems():
-            if value is not None:
-                self.gauge(metric, value, tags=tags)
+        for attr, mname in ATTR_TO_METRIC.iteritems():
+            vals = [x for x in proc_state[attr] if x is not None]
+            # skip []
+            if vals:
+                # FIXME 6.x: change this prefix?
+                self.gauge('system.processes.%s' % mname, sum(vals), tags=tags)
 
         self._process_service_check(name, len(pids), instance.get('thresholds', None))
 
-
     def _process_service_check(self, name, nb_procs, bounds):
         '''
-        Repport a service check, for each processes in search_string.
-        Repport as OK if the process is in the warning thresolds
-                   CRITICAL             out of the critical thresolds
-                   WARNING              out of the warning thresolds
+        Report a service check, for each process in search_string.
+        Report as OK if the process is in the warning thresholds
+                   CRITICAL             out of the critical thresholds
+                   WARNING              out of the warning thresholds
         '''
         tag = ["process:%s" % name]
         status = AgentCheck.OK

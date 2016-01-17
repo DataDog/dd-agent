@@ -2,25 +2,25 @@
 from copy import deepcopy
 from datetime import datetime, timedelta
 from hashlib import md5
+from Queue import Empty, Queue
 import re
+import ssl
 import time
 import traceback
-from Queue import Queue, Empty
+
+# 3p
+from pyVim import connect
+from pyVmomi import vim
 
 # project
 from checks import AgentCheck
-from util import Timer
 from checks.libs.thread_pool import Pool
 from checks.libs.vmware.basic_metrics import BASIC_METRICS
 from checks.libs.vmware.all_metrics import ALL_METRICS
-
-# 3rd party
-from pyVim import connect
-# This drives travis-ci pylint crazy!
-from pyVmomi import vim # pylint: disable=E0611
+from util import Timer
 
 SOURCE_TYPE = 'vsphere'
-REAL_TIME_INTERVAL = 20 # Default vCenter sampling interval
+REAL_TIME_INTERVAL = 20  # Default vCenter sampling interval
 
 # The size of the ThreadPool used to process the request queue
 DEFAULT_SIZE_POOL = 4
@@ -60,6 +60,7 @@ MORLIST = 'morlist'
 METRICS_METADATA = 'metrics_metadata'
 LAST = 'last'
 INTERVAL = 'interval'
+
 
 class VSphereEvent(object):
     UNKNOWN = 'unknown'
@@ -275,7 +276,7 @@ class VSphereEvent(object):
         self.payload["msg_title"] = u"VM {0} configuration has been changed".format(self.raw_event.vm.name)
         self.payload["msg_text"] = u"{user} saved the new configuration:\n@@@\n".format(user=self.raw_event.userName)
         # Add lines for configuration change don't show unset, that's hacky...
-        config_change_lines = [ line for line in self.raw_event.configSpec.__repr__().splitlines() if 'unset' not in line ]
+        config_change_lines = [line for line in self.raw_event.configSpec.__repr__().splitlines() if 'unset' not in line]
         self.payload["msg_text"] += u"\n".join(config_change_lines)
         self.payload["msg_text"] += u"\n@@@"
         self.payload['host'] = self.raw_event.vm.name
@@ -288,7 +289,7 @@ def atomic_method(method):
     def wrapper(*args, **kwargs):
         try:
             method(*args, **kwargs)
-        except Exception as e:
+        except Exception:
             args[0].exceptionq.put("A worker thread crashed:\n" + traceback.format_exc())
     return wrapper
 
@@ -301,6 +302,8 @@ class VSphereCheck(AgentCheck):
     don't know exactly when they will finish, but we reap them if they're stuck.
     The other calls are performed synchronously.
     """
+
+    SERVICE_CHECK_NAME = 'vcenter.can_connect'
 
     def __init__(self, name, init_config, agentConfig, instances):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
@@ -423,17 +426,55 @@ class VSphereCheck(AgentCheck):
     def _get_server_instance(self, instance):
         i_key = self._instance_key(instance)
 
+        service_check_tags = [
+            'vcenter_server:{0}'.format(instance.get('name')),
+            'vcenter_host:{0}'.format(instance.get('host')),
+        ]
+
+        # Check for ssl configs and generate an appropriate ssl context object
+        ssl_verify = instance.get('ssl_verify', True)
+        ssl_capath = instance.get('ssl_capath', None)
+        if not ssl_verify:
+            context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            context.verify_mode = ssl.CERT_NONE
+        elif ssl_capath:
+            context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            context.verify_mode = ssl.CERT_REQUIRED
+            context.load_verify_locations(capath=ssl_capath)
+
+        # If both configs are used, log a message explaining the default
+        if not ssl_verify and ssl_capath:
+            self.log.debug("Your configuration is incorrectly attempting to "
+                           "specify both a CA path, and to disable SSL "
+                           "verification. You cannot do both. Proceeding with "
+                           "disabling ssl verification.")
+
         if i_key not in self.server_instances:
             try:
                 server_instance = connect.SmartConnect(
-                    host=instance.get('host'),
-                    user=instance.get('username'),
-                    pwd=instance.get('password')
+                    host = instance.get('host'),
+                    user = instance.get('username'),
+                    pwd = instance.get('password'),
+                    sslContext = context if not ssl_verify or ssl_capath else None
                 )
             except Exception as e:
-                raise Exception("Connection to %s failed: %s" % (instance.get('host'), e))
+                err_msg = "Connection to %s failed: %s" % (instance.get('host'), e)
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                        tags=service_check_tags, message=err_msg)
+                raise Exception(err_msg)
 
             self.server_instances[i_key] = server_instance
+
+        # Test if the connection is working
+        try:
+            self.server_instances[i_key].RetrieveContent()
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                    tags=service_check_tags)
+        except Exception as e:
+            err_msg = "Connection to %s died unexpectedly: %s" % (instance.get('host'), e)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                    tags=service_check_tags, message=err_msg)
+            raise Exception(err_msg)
 
         return self.server_instances[i_key]
 
@@ -449,8 +490,8 @@ class VSphereCheck(AgentCheck):
         # Get only the basic metrics
         for metric in available_metrics:
             # No cache yet, skip it for now
-            if i_key not in self.metrics_metadata\
-                or metric.counterId not in self.metrics_metadata[i_key]:
+            if (i_key not in self.metrics_metadata
+                    or metric.counterId not in self.metrics_metadata[i_key]):
                 continue
             if self.metrics_metadata[i_key][metric.counterId]['name'] in BASIC_METRICS:
                 wanted_metrics.append(metric)
@@ -474,7 +515,7 @@ class VSphereCheck(AgentCheck):
         return external_host_tags
 
     @atomic_method
-    def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags):
+    def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags, regexes=None):
         """ Compute tags for a single node in the vCenter rootFolder
         and queue other such jobs for children nodes.
         Usual hierarchy:
@@ -504,7 +545,7 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'datacenter', datacenter, tags_copy)
+                    args=(i_key, 'datacenter', datacenter, tags_copy, regexes)
                 )
 
         elif obj_type == 'datacenter':
@@ -516,7 +557,7 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'compute_resource', compute_resource, tags_copy)
+                    args=(i_key, 'compute_resource', compute_resource, tags_copy, regexes)
                 )
 
         elif obj_type == 'compute_resource':
@@ -529,10 +570,15 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'host', host, tags_copy)
+                    args=(i_key, 'host', host, tags_copy, regexes)
                 )
 
         elif obj_type == 'host':
+            if regexes and regexes.get('host_include') is not None:
+                match = re.search(regexes['host_include'], obj.name)
+                if not match:
+                    self.log.debug(u"Filtered out VM {0} because of host_include_only_regex".format(obj.name))
+                    return
             watched_mor = dict(mor_type='host', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:host'])
             self.morlist_raw[i_key].append(watched_mor)
 
@@ -543,10 +589,15 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'vm', vm, tags_copy)
+                    args=(i_key, 'vm', vm, tags_copy, regexes)
                 )
 
         elif obj_type == 'vm':
+            if regexes and regexes.get('vm_include') is not None:
+                match = re.search(regexes['vm_include'], obj.name)
+                if not match:
+                    self.log.debug(u"Filtered out VM {0} because of vm_include_only_regex".format(obj.name))
+                    return
             watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:vm'])
             self.morlist_raw[i_key].append(watched_mor)
 
@@ -562,8 +613,11 @@ class VSphereCheck(AgentCheck):
         i_key = self._instance_key(instance)
         self.log.debug("Caching the morlist for vcenter instance %s" % i_key)
         if i_key in self.morlist_raw and len(self.morlist_raw[i_key]) > 0:
-            self.log.debug("Skipping morlist collection now, RAW results processing not over (latest refresh was {0}s ago)"\
-                .format(time.time() - self.cache_times[i_key][MORLIST][LAST]))
+            self.log.debug(
+                "Skipping morlist collection now, RAW results "
+                "processing not over (latest refresh was {0}s ago)".format(
+                    time.time() - self.cache_times[i_key][MORLIST][LAST])
+            )
             return
         self.morlist_raw[i_key] = []
 
@@ -571,9 +625,13 @@ class VSphereCheck(AgentCheck):
         root_folder = server_instance.content.rootFolder
 
         instance_tag = "vcenter_server:%s" % instance.get('name')
+        regexes = {
+            'host_include': instance.get('host_include_only_regex'),
+            'vm_include': instance.get('vm_include_only_regex')
+        }
         self.pool.apply_async(
             self._cache_morlist_raw_atomic,
-            args=(i_key, 'rootFolder', root_folder, [instance_tag])
+            args=(i_key, 'rootFolder', root_folder, [instance_tag], regexes)
         )
         self.cache_times[i_key][MORLIST][LAST] = time.time()
 
@@ -589,8 +647,10 @@ class VSphereCheck(AgentCheck):
         server_instance = self._get_server_instance(instance)
         perfManager = server_instance.content.perfManager
 
-        self.log.debug("job_atomic: Querying available metrics for MOR {0} (type={1})"\
-            .format(mor['mor'], mor['mor_type']))
+        self.log.debug(
+            "job_atomic: Querying available metrics"
+            " for MOR {0} (type={1})".format(mor['mor'], mor['mor_type'])
+        )
 
         available_metrics = perfManager.QueryAvailablePerfMetric(
             mor['mor'], intervalId=REAL_TIME_INTERVAL)
@@ -659,7 +719,7 @@ class VSphereCheck(AgentCheck):
             d = dict(
                 name = "%s.%s" % (counter.groupInfo.key, counter.nameInfo.key),
                 unit = counter.unitInfo.key,
-                instance_tag = 'instance' #FIXME: replace by what we want to tag!
+                instance_tag = 'instance'  # FIXME: replace by what we want to tag!
             )
             new_metadata[counter.key] = d
         self.cache_times[i_key][METRICS_METADATA][LAST] = time.time()
@@ -697,10 +757,10 @@ class VSphereCheck(AgentCheck):
         server_instance = self._get_server_instance(instance)
         perfManager = server_instance.content.perfManager
         query = vim.PerformanceManager.QuerySpec(maxSample=1,
-                                     entity=mor['mor'],
-                                     metricId=mor['metrics'],
-                                     intervalId=20,
-                                     format='normal')
+                                                 entity=mor['mor'],
+                                                 metricId=mor['metrics'],
+                                                 intervalId=20,
+                                                 format='normal')
         results = perfManager.QueryPerf(querySpec=[query])
         if results:
             for result in results[0].value:
@@ -709,10 +769,17 @@ class VSphereCheck(AgentCheck):
                     continue
                 instance_name = result.id.instance or "none"
                 value = self._transform_value(instance, result.id.counterId, result.value[0])
-                self.gauge("vsphere.%s" % self.metrics_metadata[i_key][result.id.counterId]['name'],
-                            value,
-                            hostname=mor['hostname'],
-                            tags=['instance:%s' % instance_name]
+
+                # Metric types are absolute, delta, and rate
+                if ALL_METRICS[self.metrics_metadata[i_key][result.id.counterId]['name']]['s_type'] == 'rate':
+                    record_metric = self.rate
+                else:
+                    record_metric = self.gauge
+                record_metric(
+                    "vsphere.%s" % self.metrics_metadata[i_key][result.id.counterId]['name'],
+                    value,
+                    hostname=mor['hostname'],
+                    tags=['instance:%s' % instance_name]
                 )
 
         ### <TEST-INSTRUMENTATION>

@@ -1,0 +1,25 @@
+# We allow longer lines in our style
+Metrics/LineLength:
+  Max: 150
+
+# TODO/FIXME:
+# At some point, we might just want to do the changes and get rid of those
+
+# Offense count: 1
+# Configuration parameters: CountComments.
+Metrics/ClassLength:
+  Max: 128
+
+# Offense count: 2
+# Configuration parameters: CountComments.
+Metrics/MethodLength:
+  Max: 17
+
+# Offense count: 2
+Style/Documentation:
+  Enabled: false
+
+# Offense count: 1
+# Configuration parameters: Methods.
+Style/SingleLineBlockParams:
+  Enabled: false

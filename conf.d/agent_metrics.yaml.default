@@ -1,0 +1,17 @@
+init_config:
+    process_metrics:
+        - name: memory_info
+          type: gauge
+          active: yes
+        - name: io_counters
+          type: rate
+          active: yes
+        - name: num_threads
+          type: gauge
+          active: yes
+        - name: connections
+          type: gauge
+          active: no
+
+instances:
+    [{}]

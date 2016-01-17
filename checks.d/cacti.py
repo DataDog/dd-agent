@@ -1,11 +1,8 @@
 # stdlib
+from collections import namedtuple
 from fnmatch import fnmatch
 import os
 import time
-from collections import namedtuple
-
-# project
-from checks import AgentCheck
 
 # 3rd party
 try:
@@ -13,6 +10,9 @@ try:
 except ImportError:
     rrdtool = None
 import pymysql
+
+# project
+from checks import AgentCheck
 
 CFUNC_TO_AGGR = {
     'AVERAGE': 'avg',
@@ -41,13 +41,13 @@ class Cacti(AgentCheck):
 
     def get_library_versions(self):
         if rrdtool is not None:
-            return {"rrdtool": rrdtool.__version__} 
+            return {"rrdtool": rrdtool.__version__}
         return {"rrdtool": "Not Found"}
 
     def check(self, instance):
         if rrdtool is None:
             raise Exception("Unable to import python rrdtool module")
-        
+
         # Load the instance config
         config = self._get_config(instance)
 
@@ -74,8 +74,7 @@ class Cacti(AgentCheck):
         if whitelist:
             if not os.path.isfile(whitelist) or not os.access(whitelist, os.R_OK):
                 # Don't run the check if the whitelist is unavailable
-                self.log.exception("Unable to read whitelist file at %s" \
-                    % (whitelist))
+                self.log.exception("Unable to read whitelist file at %s" % (whitelist))
 
             wl = open(whitelist)
             for line in wl:
@@ -193,7 +192,7 @@ class Cacti(AgentCheck):
             WHERE dt.data_source_path IS NOT NULL
             AND dt.data_source_path != ''
             AND (%s OR hsc.field_name is NULL) """ % and_parameters
-            
+
         c.execute(rrd_query)
         res = []
         for hostname, device_name, rrd_path in c.fetchall():

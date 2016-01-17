@@ -1,67 +1,63 @@
-import platform
+# stdlib
+from datetime import date
+import os
 import sys
+
+# 3p
+from setuptools import find_packages, setup
+from requests.certs import where
+
+# project
 from config import get_version
-from jmxfetch import JMX_FETCH_JAR_NAME
-
-try:
-    from setuptools import setup, find_packages
-
-    # required to build the cython extensions
-    from distutils.extension import Extension #pylint: disable=no-name-in-module
-
-except ImportError:
-    from ez_setup import use_setuptools
-    use_setuptools()
-    from setuptools import setup, find_packages
+from utils.jmx import JMX_FETCH_JAR_NAME
 
 # Extra arguments to pass to the setup function
 extra_args = {}
 
 # Prereqs of the build. Won't get installed when deploying the egg.
-setup_requires = [
-]
+setup_requires = []
 
 # Prereqs of the install. Will install when deploying the egg.
-install_requires=[
-]
+install_requires = []
+
+# Modified on mac
+app_name = 'datadog-agent'
+# plist (used only on mac)
+plist = None
 
 if sys.platform == 'win32':
     from glob import glob
-    import py2exe
-    import pysnmp_mibs
-    import pyVim
-    import pyVmomi
-    install_requires.extend([
-        'tornado==3.0.1',
-        'pywin32==217',
-        'wmi==1.4.9',
-        'simplejson==3.3.3',
-        'mysql-python==1.2.3',
-        'pymongo==2.3',
-        'pg8000==1.9.6',
-        'python-memcached==1.48',
-        'adodbapi==2.4.2.2',
-        'elementtree==1.2.7.20070827-preview',
-        'pycurl==7.19.0',
-        'pymysql==0.6.1',
-        'psutil==2.1.1',
-        'redis==2.10.1',
-        'requests==2.3.0',
-        'httplib2==0.9',
-        'pysnmp==4.2.5',
-        'pysnmp-mibs==0.1.4',
-        'pyvmomi==5.5.0'
-    ])
+    # noqa for flake8, these imports are probably here to force packaging of these modules
+    import py2exe  # noqa
+    import pysnmp_mibs  # noqa
+    import pyVim  # noqa
+    import pyVmomi  # noqa
+
+    # That's just a copy/paste of requirements.txt
+    for reqfile in ('requirements.txt', 'requirements-opt.txt'):
+        with open(reqfile) as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('#') or not line:
+                    continue
+                # we skip psycopg2 now because don't want to install PG
+                # on windows
+                if 'psycopg2' in line:
+                    continue
+                install_requires.append(line)
+
+    # windows-specific deps
+    install_requires.append('pywin32==217')
 
     # Modules to force-include in the exe
     include_modules = [
         # 3p
+        'wmi',
         'win32service',
         'win32serviceutil',
         'win32event',
         'simplejson',
         'adodbapi',
-        'elementtree.ElementTree',
         'pycurl',
         'tornado.curl_httpclient',
         'pymongo',
@@ -77,6 +73,10 @@ if sys.platform == 'win32':
         'pysnmp.entity.rfc3413.oneliner.*',
         'pyVim.*',
         'pyVmomi.*',
+        'paramiko',
+        'Crypto',
+        'winrandom',
+        'uptime',
 
         # agent
         'checks.network_checks',
@@ -84,8 +84,6 @@ if sys.platform == 'win32':
         'httplib2',
 
         # pup
-        'pup',
-        'pup.pup',
         'tornado.websocket',
         'tornado.web',
         'tornado.ioloop',
@@ -93,7 +91,7 @@ if sys.platform == 'win32':
 
     class Target(object):
         def __init__(self, **kw):
-            self.__dict__.update(kw) 
+            self.__dict__.update(kw)
             self.version = get_version()
             self.company_name = 'Datadog, Inc.'
             self.copyright = 'Copyright 2013 Datadog, Inc.'
@@ -109,7 +107,7 @@ if sys.platform == 'win32':
                 'compressed': True,
                 'bundle_files': 3,
                 'excludes': ['numpy'],
-                'dll_excludes': [ "IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll"],
+                'dll_excludes': ["IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll"],
                 'ascii':False,
             },
         },
@@ -122,15 +120,41 @@ if sys.platform == 'win32':
                      }],
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
-            ('pup', [r'pup\status.html']),
-            ('pup/static', glob('pup/static/*.*')),
             ('jmxfetch', [r'checks\libs\%s' % JMX_FETCH_JAR_NAME]),
-            ('gohai', [r'gohai\gohai.exe'])
+            ('gohai', [r'gohai\gohai.exe']),
+            ('', [where()]),  # CA certificates bundled with `requests`
         ],
     }
 
+elif sys.platform == 'darwin':
+    app_name = 'Datadog Agent'
+
+    from plistlib import Plist
+    plist = Plist.fromFile(os.path.dirname(os.path.realpath(__file__)) + '/packaging/Info.plist')
+    plist.update(dict(
+        CFBundleGetInfoString="{0}, Copyright (c) 2009-{1}, Datadog Inc.".format(
+            get_version(), date.today().year),
+        CFBundleVersion=get_version()
+    ))
+
+    extra_args = {
+        'app': ['gui.py'],
+        'data_files': [
+            'images',
+            'status.html',
+        ],
+        'options': {
+            'py2app': {
+                'optimize': 0,
+                'iconfile': 'packaging/Agent.icns',
+                'plist': plist
+            }
+        }
+    }
+
+
 setup(
-    name='datadog-agent',
+    name=app_name,
     version=get_version(),
     description="DevOps' best friend",
     author='DataDog',
@@ -138,7 +162,7 @@ setup(
     url='http://www.datadoghq.com',
     install_requires=install_requires,
     setup_requires=setup_requires,
-    packages=find_packages(exclude=['ez_setup']),
+    packages=find_packages(),
     include_package_data=True,
     test_suite='nose.collector',
     zip_safe=False,

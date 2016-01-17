@@ -3,14 +3,17 @@ import socket
 import time
 
 # project
-from checks.network_checks import NetworkCheck, Status, EventType
+from checks.network_checks import EventType, NetworkCheck, Status
 
-class BadConfException(Exception): pass
+
+class BadConfException(Exception):
+    pass
+
 
 class TCPCheck(NetworkCheck):
 
     SOURCE_TYPE_NAME = 'system'
-    SERVICE_CHECK_PREFIX = 'tcp_check'
+    SERVICE_CHECK_NAME = 'tcp.can_connect'
 
     def _load_conf(self, instance):
         # Fetches the conf
@@ -27,11 +30,11 @@ class TCPCheck(NetworkCheck):
         try:
             url = instance.get('host', None)
             split = url.split(":")
-        except Exception: # Would be raised if url is not a string
+        except Exception:  # Would be raised if url is not a string
             raise BadConfException("A valid url must be specified")
 
         # IPv6 address format: 2001:db8:85a3:8d3:1319:8a2e:370:7348
-        if len(split) == 8: # It may then be a IP V6 address, we check that
+        if len(split) == 8:  # It may then be a IP V6 address, we check that
             for block in split:
                 if len(block) != 4:
                     raise BadConfException("%s is not a correct IPv6 address." % url)
@@ -92,20 +95,19 @@ class TCPCheck(NetworkCheck):
         self.log.debug("%s:%s is UP" % (addr, port))
         return Status.UP, "UP"
 
-
-    def _create_status_event(self, status, msg, instance):
+    # FIXME: 5.3 remove that
+    def _create_status_event(self, sc_name, status, msg, instance):
         # Get the instance settings
         host = instance.get('host', None)
         port = instance.get('port', None)
         name = instance.get('name', None)
-        nb_failures = self.statuses[name].count(Status.DOWN)
-        nb_tries = len(self.statuses[name])
+        nb_failures = self.statuses[name][sc_name].count(Status.DOWN)
+        nb_tries = len(self.statuses[name][sc_name])
 
         # Get a custom message that will be displayed in the event
         custom_message = instance.get('message', "")
         if custom_message:
             custom_message += " \n"
-
 
         # Let the possibility to override the source type name
         instance_source_type_name = instance.get('source_type', None)
@@ -113,7 +115,6 @@ class TCPCheck(NetworkCheck):
             source_type = "%s.%s" % (NetworkCheck.SOURCE_TYPE_NAME, name)
         else:
             source_type = "%s.%s" % (NetworkCheck.SOURCE_TYPE_NAME, instance_source_type_name)
-
 
         # Get the handles you want to notify
         notify = instance.get('notify', self.init_config.get('notify', []))
@@ -124,7 +125,6 @@ class TCPCheck(NetworkCheck):
                 notify_list.append("@%s" % handle.strip())
             notify_message = " ".join(notify_list) + " \n"
 
-
         if status == Status.DOWN:
             title = "[Alert] %s reported that %s is down" % (self.hostname, name)
             alert_type = "error"
@@ -133,7 +133,7 @@ class TCPCheck(NetworkCheck):
                 custom_message, self.hostname, name, host, port, nb_failures, nb_tries, msg)
             event_type = EventType.DOWN
 
-        else: # Status is UP
+        else:  # Status is UP
             title = "[Recovered] %s reported that %s is up" % (self.hostname, name)
             alert_type = "success"
             msg = "%s %s %s reported that %s (%s:%s) recovered." % (notify_message,
@@ -141,27 +141,31 @@ class TCPCheck(NetworkCheck):
             event_type = EventType.UP
 
         return {
-             'timestamp': int(time.time()),
-             'event_type': event_type,
-             'host': self.hostname,
-             'msg_text': msg,
-             'msg_title': title,
-             'alert_type': alert_type,
-             "source_type_name": source_type,
-             "event_object": name,
+            'timestamp': int(time.time()),
+            'event_type': event_type,
+            'host': self.hostname,
+            'msg_text': msg,
+            'msg_title': title,
+            'alert_type': alert_type,
+            "source_type_name": source_type,
+            "event_object": name,
         }
 
-    def report_as_service_check(self, name, status, instance, msg=None):
-        service_check_name = self.normalize(name, self.SERVICE_CHECK_PREFIX)
+    def report_as_service_check(self, sc_name, status, instance, msg=None):
+        instance_name = self.normalize(instance['name'])
         host = instance.get('host', None)
         port = instance.get('port', None)
+        custom_tags = instance.get('tags', [])
 
         if status == Status.UP:
-            msg=None
+            msg = None
 
-        self.service_check(service_check_name,
+        tags = custom_tags + ['target_host:{0}'.format(host),
+                              'port:{0}'.format(port),
+                              'instance:{0}'.format(instance_name)]
+
+        self.service_check(self.SERVICE_CHECK_NAME,
                            NetworkCheck.STATUS_TO_SERVICE_CHECK[status],
-                           tags= ['target_host:%s' % host,
-                                  'port:%s' % port],
+                           tags=tags,
                            message=msg
                            )

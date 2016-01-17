@@ -2,11 +2,12 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
     <Product Name="Datadog Agent" Id="*" UpgradeCode="82210ed1-bbe4-4051-aa15-002ea31dde15"
     Language="1033" Codepage="1252" Version="$(var.AgentVersion)" Manufacturer="Datadog Inc.">
-        <Package Id="*" Keywords="Installer" Description="Datadog Agent Installer"
+        <Package Id="*" Keywords="Installer" Description="Datadog Agent v$(var.AgentVersion)"
           Comments="Copyright 2013 Datadog, Inc." Manufacturer="Datadog Inc."
           InstallerVersion="100" Languages="1033" Compressed="yes" SummaryCodepage="1252" />
 
         <Property Id="PREVIOUSVERSIONSINSTALLED" Secure="yes" />
+        <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" />
 
         <Upgrade Id="82210ed1-bbe4-4051-aa15-002ea31dde15">
            <UpgradeVersion
@@ -64,9 +65,6 @@
                 <Component Id="license.rtf" Guid="4B59F7AE-01AC-11E2-9AF6-28EC6088709B">
                     <File Id="license.rtf" Source="$(var.InstallFiles)\license.rtf" KeyPath="yes"></File>
                 </Component>
-                <Component Id="datadogagentstatus.url" Guid="B8F673AA-F5F7-4273-947A-21391678D6BD">
-                    <File Id="datadogagentstatus.url" Source="$(var.InstallFiles)\datadog-agent-status.url" KeyPath="yes"></File>
-                </Component>
                 <Directory Id="FILESDIR" Name="files">
                     <Component Id="cacertificates.crt" Guid="514F0A5A-01AC-11E2-B0F9-2CEC6088709B">
                         <File Id="cacertificates.crt" Name="ca-certificates.crt" Source="$(var.InstallFiles)\ca-certificates.crt" KeyPath="yes"></File>
@@ -91,7 +89,7 @@
 
         <DirectoryRef Id="ApplicationProgramsFolder">
             <Component Id="ApplicationShortcut" Guid="05206095-f4a0-4bb7-9ebd-80c7488dd7f9">
-                <Shortcut Id="ApplicationStartMenuShortcut" 
+                <Shortcut Id="ApplicationStartMenuShortcut"
                           Name="Datadog Agent Manager"
                           Description="Manage your Datadog Agent"
                           Target="[FILESDIR]agent-manager.exe"
@@ -118,7 +116,6 @@
             <ComponentRef Id="cacertificates.crt" />
             <ComponentRef Id="datadogcert.pem" />
             <ComponentRef Id="license.rtf" />
-            <ComponentRef Id="datadogagentstatus.url" />
             <ComponentRef Id="Microsoft.VC90.CRT.manifest" />
             <ComponentRef Id="msvcp90.dll" />
             <ComponentRef Id="msvcr90.dll" />
@@ -132,9 +129,9 @@
 
         <UI>
             <UIRef Id="WixUI_Minimal" />
-            <Publish Dialog="ExitDialog" 
-                Control="Finish" 
-                Event="DoAction" 
+            <Publish Dialog="ExitDialog"
+                Control="Finish"
+                Event="DoAction"
                 Value="LaunchApplication">
                 WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed
             </Publish>

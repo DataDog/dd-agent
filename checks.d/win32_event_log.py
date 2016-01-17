@@ -2,21 +2,23 @@
 Monitor the Windows Event Log
 '''
 # stdlib
-from datetime import datetime, timedelta
 import calendar
-
-# project
-from checks import AgentCheck
+from datetime import datetime, timedelta
 
 # 3rd party
 import wmi
 
+# project
+from checks import AgentCheck
+
 SOURCE_TYPE_NAME = 'event viewer'
 EVENT_TYPE = 'win32_log_event'
 
+
 class Win32EventLog(AgentCheck):
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig,
+                            instances=instances)
         self.last_ts = {}
         self.wmi_conns = {}
 
@@ -44,13 +46,14 @@ class Win32EventLog(AgentCheck):
         # straight WQL query against the event log
         last_ts = self.last_ts[instance_key]
         q = EventLogQuery(
-                ltype=instance.get('type'),
-                user=instance.get('user'),
-                source_name=instance.get('source_name'),
-                log_file=instance.get('log_file'),
-                message_filters=instance.get('message_filters', []),
-                start_ts=last_ts
-            )
+            ltype=instance.get('type'),
+            user=instance.get('user'),
+            source_name=instance.get('source_name'),
+            log_file=instance.get('log_file'),
+            event_id=instance.get('event_id'),
+            message_filters=instance.get('message_filters', []),
+            start_ts=last_ts
+        )
         wql = q.to_wql()
         self.log.debug("Querying for Event Log events: %s" % wql)
         events = w.query(wql)
@@ -58,7 +61,8 @@ class Win32EventLog(AgentCheck):
         # Save any events returned to the payload as Datadog events
         for ev in events:
             log_ev = LogEvent(ev, self.agentConfig.get('api_key', ''),
-                              self.hostname, tags, notify)
+                              self.hostname, tags, notify,
+                              self.init_config.get('tag_event_id', False))
 
             # Since WQL only compares on the date and NOT the time, we have to
             # do a secondary check to make sure events are after the last
@@ -80,10 +84,12 @@ class Win32EventLog(AgentCheck):
 
 class EventLogQuery(object):
     def __init__(self, ltype=None, user=None, source_name=None, log_file=None,
-        start_ts=None, message_filters=None):
+                 event_id=None, start_ts=None, message_filters=None):
+
         self.filters = [
             ('Type', self._convert_event_types(ltype)),
             ('User', user),
+            ('EventCode', event_id),
             ('SourceName', source_name),
             ('LogFile', log_file)
         ]
@@ -93,7 +99,7 @@ class EventLogQuery(object):
     def to_wql(self):
         ''' Return this query as a WQL string. '''
         wql = """
-        SELECT Message, SourceName, TimeGenerated, Type, User, InsertionStrings
+        SELECT Message, SourceName, TimeGenerated, Type, User, InsertionStrings, EventCode
         FROM Win32_NTLogEvent
         WHERE TimeGenerated >= "%s"
         """ % (self._dt_to_wmi(self.start_ts))
@@ -134,8 +140,8 @@ class EventLogQuery(object):
             time struct.
         '''
         return wmi.from_time(year=dt.year, month=dt.month, day=dt.day,
-            hours=dt.hour, minutes=dt.minute, seconds=dt.second, microseconds=0,
-            timezone=0)
+                             hours=dt.hour, minutes=dt.minute,
+                             seconds=dt.second, microseconds=0, timezone=0)
 
     def _convert_event_types(self, types):
         ''' Detect if we are running on <= Server 2003. If so, we should convert
@@ -143,12 +149,13 @@ class EventLogQuery(object):
         '''
         return types
 
+
 class LogEvent(object):
-    def __init__(self, ev, api_key, hostname, tags, notify_list):
+    def __init__(self, ev, api_key, hostname, tags, notify_list, tag_event_id):
         self.event = ev
         self.api_key = api_key
         self.hostname = hostname
-        self.tags = tags
+        self.tags = self._tags(tags, ev.EventCode) if tag_event_id else tags
         self.notify_list = notify_list
         self.timestamp = self._wmi_to_ts(self.event.TimeGenerated)
 
@@ -175,11 +182,23 @@ class LogEvent(object):
     def _wmi_to_ts(self, wmi_ts):
         ''' Convert a wmi formatted timestamp into an epoch using wmi.to_time().
         '''
-        year, month, day, hour, minute, second, microsecond, tz = \
-                                                            wmi.to_time(wmi_ts)
+        year, month, day, hour, minute, second, microsecond, tz = wmi.to_time(wmi_ts)
+        tz_delta = timedelta(minutes=int(tz))
+        if '+' in wmi_ts:
+            tz_delta = - tz_delta
+
         dt = datetime(year=year, month=month, day=day, hour=hour, minute=minute,
-            second=second, microsecond=microsecond)
+                      second=second, microsecond=microsecond) + tz_delta
         return int(calendar.timegm(dt.timetuple()))
+
+    def _tags(self, tags, event_code):
+        ''' Inject additional tags into the list already supplied to LogEvent.
+        '''
+        tags_list = []
+        if tags is not None:
+            tags_list += list(tags)
+        tags_list.append("event_id:{event_id}".format(event_id=event_code))
+        return tags_list
 
     def _msg_title(self, event):
         return '%s/%s' % (event.Logfile, event.SourceName)
