@@ -7,7 +7,7 @@ import contextlib
 import os
 
 # 3p
-from mock import patch, MagicMock, Mock
+from mock import patch, MagicMock
 import psutil
 
 # project
@@ -434,10 +434,6 @@ class ProcessCheckTest(AgentCheckTest):
         def mock_get_pagefault_stats(pid):
             return [minflt, cminflt, majflt, cmajflt]
 
-        from utils.platform import Platform
-        is_linux = Platform.is_linux
-        Platform.is_linux = Mock(return_value=True)
-
         config = {
             'instances': [{
                 'name': 'test_0',
@@ -462,5 +458,3 @@ class ProcessCheckTest(AgentCheckTest):
         self.assertMetric('system.processes.mem.majflt', at_least=1, tags=self.generate_expected_tags(instance_config), value=majflt)
         self.assertMetric('system.processes.mem.cmajflt', at_least=1, tags=self.generate_expected_tags(instance_config), value=cmajflt)
         self.coverage_report()
-
-        Platform.is_linux = is_linux
