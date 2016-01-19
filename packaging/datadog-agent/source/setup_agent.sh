@@ -390,24 +390,39 @@ $DOWNLOADER "$DD_HOME/requirements-opt.txt" "$BASE_GITHUB_URL/requirements-opt.t
 print_done
 
 print_console "* Setting up a datadog.conf generic configuration file"
-if [ "$DD_API_KEY" = "no_key" ]; then
-    print_console "    Got no API KEY through $DD_API_KEY. Proceeding without installing datadog.conf"
-elif [ -z "$SED_CMD" ]; then
-    print_console "    No sed command. Proceeding without installing datadog.conf"
+if [ -z "$SED_CMD" ]; then
+    print_console "    No sed command. Proceeding without installing datadog.conf
+    Please make sure that the agent's log files are explicitly configured in datadog.conf"
 else
-    # Install API key
-    $SED_CMD "s/api_key:.*/api_key: $DD_API_KEY/" "$DD_HOME/agent/datadog.conf.example" > "$DD_HOME/agent/datadog.conf"
-    # Disable syslog by default on SunOS as it causes errors
-    if [ "$(uname)" = "SunOS" ]; then
-        $SED_CMD -i "s/# log_to_syslog: yes/log_to_syslog: no/" "$DD_HOME/agent/datadog.conf"
+    dd_conf_file="$DD_HOME/agent/datadog.conf"
+
+    if [ "$DD_API_KEY" = "no_key" ]; then
+        print_console "    Got no API KEY through $DD_API_KEY. Proceeding without installing datadog.conf"
+    else
+        # Install API key
+        $SED_CMD -e "s/api_key:.*/api_key: $DD_API_KEY/" "$dd_conf_file.example" > "$dd_conf_file"
+        # Disable syslog by default on SunOS as it causes errors
+        if [ "$(uname)" = "SunOS" ]; then
+            $SED_CMD -i -e "s/# log_to_syslog: yes/log_to_syslog: no/" "$dd_conf_file"
+        fi
+        chmod 640 "$dd_conf_file"
     fi
+
     # Setting up logging
+    # Make the changes to the example config file if datadog.conf doesn't exist.
+    if [ ! -f "$dd_conf_file" ]; then
+        dd_conf_file="$dd_conf_file.example"
+    fi
+    # Remove `disable_file_logging` that was set by this script before 5.7.0
+    $SED_CMD -i -e "s/disable_file_logging: True/# disable_file_logging: True/" "$dd_conf_file"
+    # Log to $DD_HOME/logs/
     # Needed to avoid "unknown var $prog_log_file"
     log_suffix="_log_file"
     for prog in collector forwarder dogstatsd jmxfetch; do
-      echo "$prog$log_suffix: $DD_HOME/logs/$prog.log" >> "$DD_HOME/agent/datadog.conf"
+        if ! grep "^[[:space:]]*$prog$log_suffix" "$dd_conf_file"; then
+            echo "$prog$log_suffix: $DD_HOME/logs/$prog.log" >> "$dd_conf_file"
+        fi
     done
-    chmod 640 "$DD_HOME/agent/datadog.conf"
 fi
 print_done
 
