@@ -167,6 +167,15 @@ class AgentCheckTest(unittest.TestCase):
         time.sleep(1)
         self.run_check(config, agent_config, mocks)
 
+    def run_check_n(self, config, agent_config=None, mocks=None,
+                    force_reload=False, repeat=1):
+        for i in xrange(repeat):
+            if not i:
+                self.run_check(config, agent_config, mocks, force_reload)
+            else:
+                self.run_check(config, agent_config, mocks)
+            time.sleep(1)
+
     def run_check(self, config, agent_config=None, mocks=None, force_reload=False):
         # If not loaded already, do it!
         if self.check is None or force_reload:
