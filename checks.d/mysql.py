@@ -277,13 +277,7 @@ class MySql(AgentCheck):
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.mysql_version = {}
-        self.greater_502 = {}
-
-        # keep track of these:
-        self._qcache_hits = None
-        self._qcache_inserts = None
-        self._qcache_not_cached = None
-
+        self.qcache_stats = {}
 
     def get_library_versions(self):
         return {"pymysql": pymysql.__version__}
@@ -291,6 +285,8 @@ class MySql(AgentCheck):
     def check(self, instance):
         host, port, user, password, mysql_sock, defaults_file, tags, options, queries, ssl = \
             self._get_config(instance)
+
+        self._set_qcache_stats()
 
         if (not host or not user) and not defaults_file:
             raise Exception("Mysql host and user are needed.")
@@ -306,6 +302,9 @@ class MySql(AgentCheck):
             self._collect_metrics(host, db, tags, options, queries)
             self._collect_system_metrics(host, db, tags)
 
+            # keeping track of these:
+            self._put_qcache_stats()
+
         except Exception as e:
             self.log.exception("error!")
             raise e
@@ -318,16 +317,45 @@ class MySql(AgentCheck):
         self.host = instance.get('server', '')
         self.port = int(instance.get('port', 0))
         self.mysql_sock = instance.get('sock', '')
+        self.defaults_file = instance.get('defaults_file', '')
         user = instance.get('user', '')
         password = instance.get('pass', '')
-        defaults_file = instance.get('defaults_file', '')
         tags = instance.get('tags', None)
         options = instance.get('options', {})
         queries = instance.get('queries', [])
         ssl = instance.get('ssl', {})
 
         return (self.host, self.port, user, password, self.mysql_sock,
-                defaults_file, tags, options, queries, ssl)
+                self.defaults_file, tags, options, queries, ssl)
+
+    def _set_qcache_stats(self):
+        host_key = self._get_host_key()
+        qcache_st = self.qcache_stats.get(host_key, (None, None, None))
+
+        self._qcache_hits = qcache_st[0]
+        self._qcache_inserts = qcache_st[1]
+        self._qcache_not_cached = qcache_st[2]
+
+    def _put_qcache_stats(self):
+        host_key = self._get_host_key()
+        self.qcache_stats[host_key] = (
+            self._qcache_hits,
+            self._qcache_inserts,
+            self._qcache_not_cached
+        )
+
+    def _get_host_key(self):
+        if self.defaults_file:
+            return self.defaults_file
+
+        hostkey = self.host
+        if self.mysql_sock:
+            hostkey = "{0}:{1}".format(hostkey, self.mysql_sock)
+            return self.mysql_sock
+        elif self.port:
+            hostkey = "{0}:{1}".format(hostkey, self.port)
+
+        return None
 
     def _connect(self, host, port, mysql_sock, user, password, defaults_file, ssl):
         service_check_tags = [
@@ -595,12 +623,7 @@ class MySql(AgentCheck):
         return version > compat_version
 
     def _get_version(self, db, host):
-        hostkey = host
-        if self.mysql_sock:
-            hostkey = "{0}:{1}".format(hostkey, self.mysql_sock)
-        elif self.port:
-            hostkey = "{0}:{1}".format(hostkey, self.port)
-
+        hostkey = self._get_host_key()
         if hostkey in self.mysql_version:
             version = self.mysql_version[hostkey]
             self.service_metadata('version', ".".join(version))
