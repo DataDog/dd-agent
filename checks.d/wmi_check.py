@@ -1,6 +1,5 @@
 # project
 from checks.wmi_check import WinWMICheck
-from utils.timeout import TimeoutException
 from utils.containers import hash_mutable
 
 
