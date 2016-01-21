@@ -5,7 +5,7 @@ import requests
 import time
 import socket
 import urllib2
-from collections import defaultdict, Counter, deque
+from collections import defaultdict, deque
 
 # project
 from checks import AgentCheck
@@ -264,8 +264,8 @@ class DockerDaemon(AgentCheck):
         must_query_size = self.collect_container_size and self._latest_size_query == 0
         self._latest_size_query = (self._latest_size_query + 1) % SIZE_REFRESH_RATE
 
-        running_containers_count = Counter()
-        all_containers_count = Counter()
+        running_containers_count = defaultdict(int)
+        all_containers_count = defaultdict(int)
 
         try:
             containers = self.client.containers(all=True, size=must_query_size)
