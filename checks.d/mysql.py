@@ -364,11 +364,10 @@ class MySql(AgentCheck):
         ]
 
         try:
+            ssl = dict(ssl) if ssl else None
+
             if defaults_file != '':
-                if ssl:
-                    db = pymysql.connect(read_default_file=defaults_file, ssl=dict(ssl))
-                else:
-                    db = pymysql.connect(read_default_file=defaults_file)
+                db = pymysql.connect(read_default_file=defaults_file, ssl=ssl)
             elif mysql_sock != '':
                 db = pymysql.connect(
                     unix_socket=mysql_sock,
@@ -379,33 +378,20 @@ class MySql(AgentCheck):
                     'server:{0}'.format(mysql_sock),
                     'port:unix_socket'
                 ]
-            elif port and ssl:
-                db = pymysql.connect(
-                    host=host,
-                    port=port,
-                    user=user,
-                    passwd=password,
-                    ssl=dict(ssl)
-                )
             elif port:
                 db = pymysql.connect(
                     host=host,
                     port=port,
                     user=user,
-                    passwd=password
-                )
-            elif ssl:
-                db = pymysql.connect(
-                    host=host,
-                    user=user,
                     passwd=password,
-                    ssl=dict(ssl)
+                    ssl=ssl
                 )
             else:
                 db = pymysql.connect(
                     host=host,
                     user=user,
-                    passwd=password
+                    passwd=password,
+                    ssl=ssl
                 )
             self.log.debug("Connected to MySQL")
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
