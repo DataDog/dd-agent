@@ -1,6 +1,8 @@
 # project
-from checks.wmi_check import WinWMICheck, WMIMetric
+from checks.wmi_check import WinWMICheck
 from utils.timeout import TimeoutException
+
+from utils.containers import hash_mutable
 
 
 class WMICheck(WinWMICheck):
@@ -33,7 +35,8 @@ class WMICheck(WinWMICheck):
         constant_tags = instance.get('constant_tags')
 
         # Create or retrieve an existing WMISampler
-        instance_key = self._get_instance_key(host, namespace, wmi_class)
+        instance_hash = hash_mutable(instance)
+        instance_key = self._get_instance_key(host, namespace, wmi_class, instance_hash)
 
         metric_name_and_type_by_property, properties = \
             self._get_wmi_properties(instance_key, metrics, tag_queries)

@@ -213,10 +213,14 @@ class WinWMICheck(AgentCheck):
 
             func(metric_name, metric.value, metric.tags)
 
-    def _get_instance_key(self, host, namespace, wmi_class):
+    def _get_instance_key(self, host, namespace, wmi_class, other=None):
         """
-        Return an index key for a given instance. Usefull for caching.
+        Return an index key for a given instance. Useful for caching.
         """
+        if other:
+            return "{host}:{namespace}:{wmi_class}-{other}".format(
+                host=host, namespace=namespace, wmi_class=wmi_class, other=other
+            )
         return "{host}:{namespace}:{wmi_class}".format(
             host=host, namespace=namespace, wmi_class=wmi_class,
         )
