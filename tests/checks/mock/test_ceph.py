@@ -3,6 +3,7 @@ import simplejson as json
 
 # project
 from tests.checks.common import AgentCheckTest, Fixtures
+from checks import AgentCheck
 
 class TestCeph(AgentCheckTest):
     CHECK_NAME = 'ceph'
@@ -22,6 +23,8 @@ class TestCeph(AgentCheckTest):
 
         for metric in expected_metrics:
             self.assertMetric(metric, count=1, tags=expected_tags)
+
+        self.assertServiceCheck('ceph.overall_status', status=AgentCheck.OK)
 
     def test_tagged_metrics(self):
         mocks = {
