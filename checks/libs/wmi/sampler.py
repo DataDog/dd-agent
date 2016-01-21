@@ -27,6 +27,7 @@ import pywintypes
 
 # 3p
 from win32com.client import Dispatch
+import pythoncom
 
 # project
 from checks.libs.wmi.counter_type import get_calculator, get_raw, UndefinedCalculator
@@ -289,6 +290,8 @@ class WMISampler(object):
                     username=self.username
                 )
             )
+
+            pythoncom.CoInitialize()
             locator = Dispatch("WbemScripting.SWbemLocator")
             connection = locator.ConnectServer(
                 self.host, self.namespace,

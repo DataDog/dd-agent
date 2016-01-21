@@ -76,6 +76,7 @@ if sys.platform == 'win32':
         'Crypto',
         'winrandom',
         'uptime',
+        'pythoncom',
 
         # agent
         'checks.network_checks',
