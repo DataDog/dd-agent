@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 # project
 from checks.wmi_check import WinWMICheck, to_time, from_time
+from utils.containers import hash_mutable
 
 SOURCE_TYPE_NAME = 'event viewer'
 EVENT_TYPE = 'win32_log_event'
@@ -44,7 +45,8 @@ class Win32EventLogWMI(WinWMICheck):
         event_ids = instance.get('event_id', [])
         message_filters = instance.get('message_filters', [])
 
-        instance_key = self._get_instance_key(host, self.NAMESPACE, self.CLASS)
+        instance_hash = hash_mutable(instance)
+        instance_key = self._get_instance_key(host, self.NAMESPACE, self.CLASS, instance_hash)
 
         # Store the last timestamp by instance
         if instance_key not in self.last_ts:

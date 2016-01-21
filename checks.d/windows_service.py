@@ -3,6 +3,7 @@
 # project
 from checks import AgentCheck
 from checks.wmi_check import WinWMICheck
+from utils.containers import hash_mutable
 
 
 class WindowsService(WinWMICheck):
@@ -29,7 +30,8 @@ class WindowsService(WinWMICheck):
         password = instance.get('password', "")
         services = instance.get('services', [])
 
-        instance_key = self._get_instance_key(host, self.NAMESPACE, self.CLASS)
+        instance_hash = hash_mutable(instance)
+        instance_key = self._get_instance_key(host, self.NAMESPACE, self.CLASS, instance_hash)
 
         if len(services) == 0:
             raise Exception('No services defined in windows_service.yaml')

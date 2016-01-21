@@ -4,6 +4,7 @@ Check the performance counters from IIS
 # project
 from checks import AgentCheck
 from checks.wmi_check import WinWMICheck, WMIMetric
+from utils.containers import hash_mutable
 
 
 class IIS(WinWMICheck):
@@ -57,7 +58,8 @@ class IIS(WinWMICheck):
         sites = instance.get('sites', ['_Total'])
 
 
-        instance_key = self._get_instance_key(host, self.NAMESPACE, self.CLASS)
+        instance_hash = hash_mutable(instance)
+        instance_key = self._get_instance_key(host, self.NAMESPACE, self.CLASS, instance_hash)
         filters = map(lambda x: {"Name": tuple(('=', x))}, sites)
 
         metrics_by_property, properties = self._get_wmi_properties(instance_key, self.METRICS, [])

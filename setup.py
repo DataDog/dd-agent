@@ -83,6 +83,7 @@ if sys.platform == 'win32':
         'checks.wmi_check',
         'checks.libs.vmware.*',
         'httplib2',
+        'utils.containers',
 
         # pup
         'tornado.websocket',
