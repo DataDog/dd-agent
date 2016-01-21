@@ -4,8 +4,6 @@ instances:
   - name: mars_cluster
 #
 #   ceph_cmd: /usr/bin/ceph
-#   publish_metrics: True
-#   publish_service_checks: True
 #
 # If your environment requires sudo, please add a line like:
 #          dd-agent ALL=(ALL) NOPASSWD:/usr/bin/ceph
