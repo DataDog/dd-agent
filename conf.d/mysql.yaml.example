@@ -31,6 +31,11 @@ instances:
     #                     - mysql.info.schema.size (per schame)
     #                     - mysql.performance.query_run_time.avg (per schema)
     #                     - mysql.performance.digest_95th_percentile.avg_us
+    #
+    # ssl:               # Optional
+    #   key: /path/to/my/key.file
+    #   cert: /path/to/my/cert.file
+    #   ca: /path/to/my/ca.file
 
     # queries:               # Optional
     #  - # Sample Custom metric
