@@ -176,6 +176,8 @@ class Network(AgentCheck):
                 metrics = self._parse_linux_cx_state(lines[2:], self.TCP_STATES['netstat'], 5)
                 for metric, value in metrics.iteritems():
                     self.gauge(metric, value)
+            except Exception:
+                self.log.exception("Error collecting connection stats.")
 
         proc = open('/proc/net/dev', 'r')
         try:
