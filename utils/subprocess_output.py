@@ -10,6 +10,8 @@ from utils.platform import Platform
 
 log = logging.getLogger(__name__)
 
+class SubprocessOutputEmptyError(Exception):
+    pass
 
 # FIXME: python 2.7 has a far better way to do this
 def get_subprocess_output(command, log, shell=False, stdin=None, output_expected=True):
@@ -38,8 +40,8 @@ def get_subprocess_output(command, log, shell=False, stdin=None, output_expected
         stdout_f.seek(0)
         output = stdout_f.read()
 
-    if output_expected and output == "":
-        raise Exception("get_subprocess_output expected output but had none.")
+    if output_expected and output is None:
+        raise SubprocessOutputEmptyError("get_subprocess_output expected output but had none.")
 
     return (output, err, proc.returncode)
 

@@ -25,7 +25,11 @@ import yaml
 from util import get_os, yLoader
 from utils.platform import Platform
 from utils.proxy import get_proxy
-from utils.subprocess_output import get_subprocess_output
+from utils.subprocess_output import (
+    get_subprocess_output,
+    SubprocessOutputEmptyError,
+)
+
 
 # CONSTANTS
 AGENT_VERSION = "5.7.0"
@@ -575,15 +579,11 @@ def get_system_stats():
             output, _, _ = get_subprocess_output(['grep', 'model name', '/proc/cpuinfo'], log)
             systemStats['cpuCores'] = len(output.splitlines())
 
-        if Platform.is_darwin(platf):
+        if Platform.is_darwin(platf) or Platform.is_freebsd(platf):
             output, _, _ = get_subprocess_output(['sysctl', 'hw.ncpu'], log)
             systemStats['cpuCores'] = int(output.split(': ')[1])
-
-        if Platform.is_freebsd(platf):
-            output, _, _ = get_subprocess_output(['sysctl', 'hw.ncpu'], log)
-            systemStats['cpuCores'] = int(output.split(': ')[1])
-    except Exception as e:
-        log.warning("unable to retrieve number of cpuCores. Failed with error %s" % str(e))
+    except SubprocessOutputEmptyError as e:
+        log.warning("unable to retrieve number of cpuCores. Failed with error %s", e)
 
     if Platform.is_linux(platf):
         systemStats['nixV'] = platform.dist()
