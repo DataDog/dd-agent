@@ -56,6 +56,7 @@ STATUS_VARS = {
     'Qcache_lowmem_prunes': ('mysql.performance.qcache_lowmem_prunes', RATE),
     # Table Lock Metrics
     'Table_locks_waited': ('mysql.performance.table_locks_waited', GAUGE),
+    'Table_locks_waited_rate': ('mysql.performance.table_locks_waited.rate', RATE),
     # Temporary Table Metrics
     'Created_tmp_tables': ('mysql.performance.created_tmp_tables', RATE),
     'Created_tmp_disk_tables': ('mysql.performance.created_tmp_disk_tables', RATE),
@@ -64,7 +65,7 @@ STATUS_VARS = {
     'Threads_connected': ('mysql.performance.threads_connected', GAUGE),
     'Threads_running': ('mysql.performance.threads_running', GAUGE),
     # MyISAM Metrics
-    'Key_buffer_bytes_unflushed': ('mysql.myisam.key_buffer_bytes_unflushed', RATE),
+    'Key_buffer_bytes_unflushed': ('mysql.myisam.key_buffer_bytes_unflushed', GAUGE),
     'Key_buffer_bytes_used': ('mysql.myisam.key_buffer_bytes_used', GAUGE),
     'Key_read_requests': ('mysql.myisam.key_read_requests', RATE),
     'Key_reads': ('mysql.myisam.key_reads', RATE),
@@ -80,8 +81,6 @@ VARIABLES_VARS = {
     'query_cache_size': ('mysql.performance.qcache_size', GAUGE),
     'table_open_cache': ('mysql.performance.table_open_cache', GAUGE),
     'thread_cache_size': ('mysql.performance.thread_cache_size', GAUGE)
-
-
 }
 
 INNODB_VARS = {
@@ -143,7 +142,8 @@ OPTIONAL_STATUS_VARS = {
     'Sort_range': ('mysql.performance.sort_range', RATE),
     'Sort_rows': ('mysql.performance.sort_rows', RATE),
     'Sort_scan': ('mysql.performance.sort_scan', RATE),
-    'Table_locks_immediate': ('mysql.performance.table_locks_immediate', RATE),
+    'Table_locks_immediate': ('mysql.performance.table_locks_immediate', GAUGE),
+    'Table_locks_immediate_rate': ('mysql.performance.table_locks_immediate.rate', RATE),
     'Threads_cached': ('mysql.performance.threads_cached', GAUGE),
     'Threads_created': ('mysql.performance.threads_created', GAUGE)
 }
@@ -154,7 +154,7 @@ OPTIONAL_STATUS_VARS_5_6_6 = {
     'Table_open_cache_misses': ('mysql.performance.table_cache_misses', RATE),
 }
 
-# Will collect if [FLAG NAME] is True
+# Will collect if [extra_innodb_metrics] is True
 OPTIONAL_INNODB_VARS = {
     'Innodb_active_transactions': ('mysql.innodb.active_transactions', GAUGE),
     'Innodb_buffer_pool_bytes_data': ('mysql.innodb.buffer_pool_data', GAUGE),
@@ -170,14 +170,14 @@ OPTIONAL_INNODB_VARS = {
     'Innodb_buffer_pool_write_requests': ('mysql.innodb.buffer_pool_write_requests', RATE),
     'Innodb_checkpoint_age': ('mysql.innodb.checkpoint_age', GAUGE),
     'Innodb_current_transactions': ('mysql.innodb.current_transactions', GAUGE),
-    'Innodb_data_fsyncs': ('mysql.innodb.data_fsyncs', GAUGE),
+    'Innodb_data_fsyncs': ('mysql.innodb.data_fsyncs', RATE),
     'Innodb_data_pending_fsyncs': ('mysql.innodb.data_pending_fsyncs', GAUGE),
     'Innodb_data_pending_reads': ('mysql.innodb.data_pending_reads', GAUGE),
     'Innodb_data_pending_writes': ('mysql.innodb.data_pending_writes', GAUGE),
-    'Innodb_data_read': ('mysql.innodb.data_read', GAUGE),
-    'Innodb_data_written': ('mysql.innodb.data_written', GAUGE),
-    'Innodb_dblwr_pages_written': ('mysql.innodb.dblwr_pages_written', GAUGE),
-    'Innodb_dblwr_writes': ('mysql.innodb.dblwr_writes', GAUGE),
+    'Innodb_data_read': ('mysql.innodb.data_read', RATE),
+    'Innodb_data_written': ('mysql.innodb.data_written', RATE),
+    'Innodb_dblwr_pages_written': ('mysql.innodb.dblwr_pages_written', RATE),
+    'Innodb_dblwr_writes': ('mysql.innodb.dblwr_writes', RATE),
     'Innodb_hash_index_cells_total': ('mysql.innodb.hash_index_cells_total', GAUGE),
     'Innodb_hash_index_cells_used': ('mysql.innodb.hash_index_cells_used', GAUGE),
     'Innodb_history_list_length': ('mysql.innodb.history_list_length', GAUGE),
@@ -210,23 +210,23 @@ OPTIONAL_INNODB_VARS = {
     'Innodb_os_file_fsyncs': ('mysql.innodb.os_file_fsyncs', RATE),
     'Innodb_os_file_reads': ('mysql.innodb.os_file_reads', RATE),
     'Innodb_os_file_writes': ('mysql.innodb.os_file_writes', RATE),
-    'Innodb_os_log_pending_fsyncs': ('mysql.innodb.os_log_pending_fsyncs', RATE),
-    'Innodb_os_log_pending_writes': ('mysql.innodb.os_log_pending_writes', RATE),
+    'Innodb_os_log_pending_fsyncs': ('mysql.innodb.os_log_pending_fsyncs', GAUGE),
+    'Innodb_os_log_pending_writes': ('mysql.innodb.os_log_pending_writes', GAUGE),
     'Innodb_os_log_written': ('mysql.innodb.os_log_written', RATE),
     'Innodb_pages_created': ('mysql.innodb.pages_created', RATE),
     'Innodb_pages_read': ('mysql.innodb.pages_read', RATE),
     'Innodb_pages_written': ('mysql.innodb.pages_written', RATE),
-    'Innodb_pending_aio_log_ios': ('mysql.innodb.pending_aio_log_ios', RATE),
-    'Innodb_pending_aio_sync_ios': ('mysql.innodb.pending_aio_sync_ios', RATE),
-    'Innodb_pending_buffer_pool_flushes': ('mysql.innodb.pending_buffer_pool_flushes', RATE),
-    'Innodb_pending_checkpoint_writes': ('mysql.innodb.pending_checkpoint_writes', RATE),
-    'Innodb_pending_ibuf_aio_reads': ('mysql.innodb.pending_ibuf_aio_reads', RATE),
-    'Innodb_pending_log_flushes': ('mysql.innodb.pending_log_flushes', RATE),
-    'Innodb_pending_log_writes': ('mysql.innodb.pending_log_writes', RATE),
-    'Innodb_pending_normal_aio_reads': ('mysql.innodb.pending_normal_aio_reads', RATE),
-    'Innodb_pending_normal_aio_writes': ('mysql.innodb.pending_normal_aio_writes', RATE),
-    'Innodb_queries_inside': ('mysql.innodb.queries_inside', RATE),
-    'Innodb_queries_queued': ('mysql.innodb.queries_queued', RATE),
+    'Innodb_pending_aio_log_ios': ('mysql.innodb.pending_aio_log_ios', GAUGE),
+    'Innodb_pending_aio_sync_ios': ('mysql.innodb.pending_aio_sync_ios', GAUGE),
+    'Innodb_pending_buffer_pool_flushes': ('mysql.innodb.pending_buffer_pool_flushes', GAUGE),
+    'Innodb_pending_checkpoint_writes': ('mysql.innodb.pending_checkpoint_writes', GAUGE),
+    'Innodb_pending_ibuf_aio_reads': ('mysql.innodb.pending_ibuf_aio_reads', GAUGE),
+    'Innodb_pending_log_flushes': ('mysql.innodb.pending_log_flushes', GAUGE),
+    'Innodb_pending_log_writes': ('mysql.innodb.pending_log_writes', GAUGE),
+    'Innodb_pending_normal_aio_reads': ('mysql.innodb.pending_normal_aio_reads', GAUGE),
+    'Innodb_pending_normal_aio_writes': ('mysql.innodb.pending_normal_aio_writes', GAUGE),
+    'Innodb_queries_inside': ('mysql.innodb.queries_inside', GAUGE),
+    'Innodb_queries_queued': ('mysql.innodb.queries_queued', GAUGE),
     'Innodb_read_views': ('mysql.innodb.read_views', GAUGE),
     'Innodb_rows_deleted': ('mysql.innodb.rows_deleted', RATE),
     'Innodb_rows_inserted': ('mysql.innodb.rows_inserted', RATE),
@@ -561,6 +561,13 @@ class MySql(AgentCheck):
         for k in SYNTHETIC_VARS:
             if k not in results:
                 metrics.pop(k, None)
+
+        #add duped metrics - reporting some as both rate and gauge
+        dupes = [('Table_locks_waited', 'Table_locks_waited_rate'),
+                 ('Table_locks_immediate', 'Table_locks_immediate_rate')]
+        for src, dst in dupes:
+            if src in results:
+                results[dst] = results[src]
 
         self._rate_or_gauge_vars(metrics, results, tags)
 
