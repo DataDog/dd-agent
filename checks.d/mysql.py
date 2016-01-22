@@ -2,7 +2,7 @@
 import sys
 import re
 import traceback
-from contextlib import closing
+from contextlib import closing, contextmanager
 from collections import defaultdict
 
 # 3p
@@ -293,27 +293,22 @@ class MySql(AgentCheck):
         if (not host or not user) and not defaults_file:
             raise Exception("Mysql host and user are needed.")
 
-        db = self._connect(host, port, mysql_sock, user,
-                        password, defaults_file, ssl)
+        with self._connect(host, port, mysql_sock, user,
+                           password, defaults_file, ssl) as db:
+            try:
+                # Metadata collection
+                self._collect_metadata(db, host)
 
-        try:
-            # Metadata collection
-            self._collect_metadata(db, host)
+                # Metric collection
+                self._collect_metrics(host, db, tags, options, queries)
+                self._collect_system_metrics(host, db, tags)
 
-            # Metric collection
-            self._collect_metrics(host, db, tags, options, queries)
-            self._collect_system_metrics(host, db, tags)
+                # keeping track of these:
+                self._put_qcache_stats()
 
-            # keeping track of these:
-            self._put_qcache_stats()
-
-        except Exception as e:
-            self.log.exception("error!")
-            raise e
-        finally:
-            # Close connection
-            if db is not None and db.open:
-                db.close()
+            except Exception as e:
+                self.log.exception("error!")
+                raise e
 
     def _get_config(self, instance):
         self.host = instance.get('server', '')
@@ -359,6 +354,7 @@ class MySql(AgentCheck):
 
         return None
 
+    @contextmanager
     def _connect(self, host, port, mysql_sock, user, password, defaults_file, ssl):
         service_check_tags = [
             'server:{0}'.format(host),
@@ -398,12 +394,13 @@ class MySql(AgentCheck):
             self.log.debug("Connected to MySQL")
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                                tags=service_check_tags)
+            yield db
         except Exception:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                                tags=service_check_tags)
             raise
-
-        return db
+        finally:
+            db.close()
 
     def _collect_metrics(self, host, db, tags, options, queries):
 
