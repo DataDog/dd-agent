@@ -80,6 +80,7 @@ class TestMySql(AgentCheckTest):
         'mysql.performance.qcache_lowmem_prunes',
         # Table Lock Metrics
         'mysql.performance.table_locks_waited',
+        'mysql.performance.table_locks_waited.rate',
         # Temporary Table Metrics
         'mysql.performance.created_tmp_tables',
         'mysql.performance.created_tmp_disk_tables',
@@ -176,6 +177,7 @@ class TestMySql(AgentCheckTest):
         'mysql.performance.sort_rows',
         'mysql.performance.sort_scan',
         'mysql.performance.table_locks_immediate',
+        'mysql.performance.table_locks_immediate.rate',
         'mysql.performance.threads_cached',
         'mysql.performance.threads_created'
     ]

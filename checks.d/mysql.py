@@ -20,6 +20,8 @@ from utils.subprocess_output import get_subprocess_output
 
 GAUGE = "gauge"
 RATE = "rate"
+COUNT = "count"
+MONOTONIC = "monotonic_count"
 
 VER_5_7 = (5, 7, 0)
 
@@ -145,7 +147,7 @@ OPTIONAL_STATUS_VARS = {
     'Table_locks_immediate': ('mysql.performance.table_locks_immediate', GAUGE),
     'Table_locks_immediate_rate': ('mysql.performance.table_locks_immediate.rate', RATE),
     'Threads_cached': ('mysql.performance.threads_cached', GAUGE),
-    'Threads_created': ('mysql.performance.threads_created', GAUGE)
+    'Threads_created': ('mysql.performance.threads_created', MONOTONIC)
 }
 
 # Status Vars added in Mysql 5.6.6
@@ -164,9 +166,9 @@ OPTIONAL_INNODB_VARS = {
     'Innodb_buffer_pool_pages_free': ('mysql.innodb.buffer_pool_pages_free', GAUGE),
     'Innodb_buffer_pool_pages_total': ('mysql.innodb.buffer_pool_pages_total', GAUGE),
     'Innodb_buffer_pool_read_ahead': ('mysql.innodb.buffer_pool_read_ahead', RATE),
-    'Innodb_buffer_pool_read_ahead_evicted': ('mysql.innodb.buffer_pool_read_ahead_evicted', GAUGE),
+    'Innodb_buffer_pool_read_ahead_evicted': ('mysql.innodb.buffer_pool_read_ahead_evicted', RATE),
     'Innodb_buffer_pool_read_ahead_rnd': ('mysql.innodb.buffer_pool_read_ahead_rnd', GAUGE),
-    'Innodb_buffer_pool_wait_free': ('mysql.innodb.buffer_pool_wait_free', GAUGE),
+    'Innodb_buffer_pool_wait_free': ('mysql.innodb.buffer_pool_wait_free', MONOTONIC),
     'Innodb_buffer_pool_write_requests': ('mysql.innodb.buffer_pool_write_requests', RATE),
     'Innodb_checkpoint_age': ('mysql.innodb.checkpoint_age', GAUGE),
     'Innodb_current_transactions': ('mysql.innodb.current_transactions', GAUGE),
@@ -569,7 +571,7 @@ class MySql(AgentCheck):
             if src in results:
                 results[dst] = results[src]
 
-        self._rate_or_gauge_vars(metrics, results, tags)
+        self._submit_metrics(metrics, results, tags)
 
         # Collect custom query metrics
         # Max of 20 queries allowed
@@ -585,7 +587,7 @@ class MySql(AgentCheck):
     def _collect_metadata(self, db, host):
         self._get_version(db, host)
 
-    def _rate_or_gauge_vars(self, variables, dbResults, tags):
+    def _submit_metrics(self, variables, dbResults, tags):
         for variable, metric in variables.iteritems():
             metric_name, metric_type = metric
             for tag, value in self._collect_all_scalars(variable, dbResults):
@@ -597,6 +599,10 @@ class MySql(AgentCheck):
                         self.rate(metric_name, value, tags=metric_tags)
                     elif metric_type == GAUGE:
                         self.gauge(metric_name, value, tags=metric_tags)
+                    elif metric_type == COUNT:
+                        self.count(metric_name, value, tags=metric_tags)
+                    elif metric_type == MONOTONIC:
+                        self.monotonic_count(metric_name, value, tags=metric_tags)
 
     def _version_compatible(self, db, host, compat_version):
         # some patch version numbers contain letters (e.g. 5.0.51a)
