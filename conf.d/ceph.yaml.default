@@ -1,16 +1,13 @@
 init_config:
 
 instances:
-  - name: mars_cluster
+#  - tags:
+#    - name:mars_cluster
 #
-#   ceph_cmd: /usr/bin/ceph
+#    ceph_cmd: /usr/bin/ceph
 #
 # If your environment requires sudo, please add a line like:
 #          dd-agent ALL=(ALL) NOPASSWD:/usr/bin/ceph
 # to your sudoers file, and uncomment the below option.
 #
-#   use_sudo: True
-#
-#   tags:
-#     - optional_tag1
-#     - optional_tag2
+#    use_sudo: True
