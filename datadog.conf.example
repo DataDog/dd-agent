@@ -33,6 +33,9 @@ api_key:
 # Collect AWS EC2 custom tags as agent tags
 # collect_ec2_tags: no
 
+# Incorporate security-groups into tags collected from AWS EC2
+# collect_security_groups: no
+
 # Enable Agent Developer Mode
 # Agent Developer Mode collects and sends more fine-grained metrics about agent and check performance
 # developer_mode: no
@@ -101,7 +104,7 @@ use_mount: no
 # use_dogstatsd: yes
 
 # DogStatsd is a small server that aggregates your custom app metrics. For
-# usage information, check out http://api.datadoghq.com
+# usage information, check out http://docs.datadoghq.com/guides/dogstatsd/
 
 #  Make sure your client is sending to the same port.
 # dogstatsd_port : 8125

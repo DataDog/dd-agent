@@ -1,6 +1,24 @@
 Changes
 =======
 
+# 5.6.3 / 12-10-2015
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.6.2...5.6.3
+
+### Changes
+* [FEATURE] Consul: More accurate nodes_* and services_* gauges (NB: `consul.check` service checks are now tagged by `consul_service_id` rather than `service-id`) See [#2130][] (Thanks [@mtougeron][])
+* [FEATURE] Docker: Improve container name, image name and image tag extraction. See [#2071][]
+
+* [BUGFIX] Core: Catch and log exceptions from the resources checks. See [#2029][]
+* [BUGFIX] Core: Fix host tags sending when `create_dd_check_tags` is enabled. See [#2088][]
+* [BUGFIX] Docker: Add one more cgroup location. See [#2139][] (Thanks [@bakins][])
+* [BUGFIX] Flare: Remove proxy credentials from collected datadog.conf. See [#1942][]
+* [BUGFIX] Marathon: Fix _disk_ typo in metric name. See [#2126][] (Thanks [@pidah][])
+* [BUGFIX] OS X: Fix memory metrics. See [#2097][]
+* [BUGFIX] Postgres: Fix metrics not reporting with multiple relations. See [#2111][]
+* [BUGFIX] Windows: Bundle default CA certs of `requests`. See [#2098][]
+
 # 5.6.2 / 11-16-2015
 **Linux, Mac OS and Source Install only**
 
@@ -2334,6 +2352,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#1936]: https://github.com/DataDog/dd-agent/issues/1936
 [#1939]: https://github.com/DataDog/dd-agent/issues/1939
 [#1940]: https://github.com/DataDog/dd-agent/issues/1940
+[#1942]: https://github.com/DataDog/dd-agent/issues/1942
 [#1943]: https://github.com/DataDog/dd-agent/issues/1943
 [#1944]: https://github.com/DataDog/dd-agent/issues/1944
 [#1948]: https://github.com/DataDog/dd-agent/issues/1948
@@ -2362,6 +2381,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2011]: https://github.com/DataDog/dd-agent/issues/2011
 [#2015]: https://github.com/DataDog/dd-agent/issues/2015
 [#2026]: https://github.com/DataDog/dd-agent/issues/2026
+[#2029]: https://github.com/DataDog/dd-agent/issues/2029
 [#2031]: https://github.com/DataDog/dd-agent/issues/2031
 [#2035]: https://github.com/DataDog/dd-agent/issues/2035
 [#2038]: https://github.com/DataDog/dd-agent/issues/2038
@@ -2375,8 +2395,16 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2063]: https://github.com/DataDog/dd-agent/issues/2063
 [#2064]: https://github.com/DataDog/dd-agent/issues/2064
 [#2065]: https://github.com/DataDog/dd-agent/issues/2065
+[#2071]: https://github.com/DataDog/dd-agent/issues/2071
 [#2075]: https://github.com/DataDog/dd-agent/issues/2075
 [#2082]: https://github.com/DataDog/dd-agent/issues/2082
+[#2088]: https://github.com/DataDog/dd-agent/issues/2088
+[#2097]: https://github.com/DataDog/dd-agent/issues/2097
+[#2098]: https://github.com/DataDog/dd-agent/issues/2098
+[#2111]: https://github.com/DataDog/dd-agent/issues/2111
+[#2126]: https://github.com/DataDog/dd-agent/issues/2126
+[#2130]: https://github.com/DataDog/dd-agent/issues/2130
+[#2139]: https://github.com/DataDog/dd-agent/issues/2139
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@KnownSubset]: https://github.com/KnownSubset
@@ -2389,6 +2417,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@arosenhagen]: https://github.com/arosenhagen
 [@arthurnn]: https://github.com/arthurnn
 [@asiebert]: https://github.com/asiebert
+[@bakins]: https://github.com/bakins
 [@bdotdub]: https://github.com/bdotdub
 [@benmccann]: https://github.com/benmccann
 [@bpuzon]: https://github.com/bpuzon
@@ -2445,6 +2474,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@patrickbcullen]: https://github.com/patrickbcullen
 [@pbitty]: https://github.com/pbitty
 [@pfmooney]: https://github.com/pfmooney
+[@pidah]: https://github.com/pidah
 [@polynomial]: https://github.com/polynomial
 [@rl-0x0]: https://github.com/rl-0x0
 [@ronaldbradford]: https://github.com/ronaldbradford

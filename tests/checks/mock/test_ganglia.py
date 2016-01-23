@@ -2,7 +2,6 @@
 from cStringIO import StringIO
 import logging
 import subprocess
-import tempfile
 import time
 import unittest
 
@@ -18,16 +17,11 @@ class TestGanglia(unittest.TestCase):
     def testSpeed(self):
         # Pretend to be gmetad and serve a large piece of content
         original_file = Fixtures.file('ganglia.txt')
-        server = subprocess.Popen("nc -l 8651 < %s" % original_file, shell=True)
+        subprocess.Popen("nc -l 8651 < %s" % original_file, shell=True)
         # Wait for 1 second
         time.sleep(1)
 
-        pfile = tempfile.NamedTemporaryFile()
         g = Ganglia(logging.getLogger(__file__))
-        # Running the profiler
-        # profile.runctx("g.check({'ganglia_host': 'localhost', 'ganglia_port': 8651})", {}, {"g": g}, pfile.name)
-        # p = pstats.Stats(pfile.name)
-        # p.sort_stats('time').print_stats()
         parsed = StringIO(g.check({'ganglia_host': 'localhost', 'ganglia_port': 8651}))
         original = Fixtures.file('ganglia.txt')
         x1 = tree.parse(parsed)

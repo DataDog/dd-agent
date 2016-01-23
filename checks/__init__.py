@@ -33,7 +33,7 @@ if Platform.is_windows():
 log = logging.getLogger(__name__)
 
 # Default methods run when collecting info about the agent in developer mode
-DEFAULT_PSUTIL_METHODS = ['get_memory_info', 'get_io_counters']
+DEFAULT_PSUTIL_METHODS = ['memory_info', 'io_counters']
 
 AGENT_METRICS_CHECK_NAME = 'agent_metrics'
 
@@ -91,7 +91,7 @@ class Check(object):
         """Turn a metric into a well-formed metric name
         prefix.b.c
         """
-        name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
+        name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", metric)
         # Eliminate multiple _
         name = re.sub(r"__+", "_", name)
         # Don't start/end with _
@@ -832,7 +832,7 @@ class AgentCheck(object):
             if prefix is not None:
                 prefix = self.convert_to_underscore_separated(prefix)
         else:
-            name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
+            name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", metric)
         # Eliminate multiple _
         name = re.sub(r"__+", "_", name)
         # Don't start/end with _

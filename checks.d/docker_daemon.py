@@ -221,7 +221,11 @@ class DockerDaemon(AgentCheck):
             self.refresh_ecs_tags()
 
         if self.is_k8s():
-            self.kube_labels = get_kube_labels()
+            try:
+                self.kube_labels = get_kube_labels()
+            except Exception as e:
+                self.log.warning('Could not retrieve kubernetes labels: %s' % str(e))
+                self.kube_labels = {}
 
         # Get the list of containers and the index of their names
         containers_by_id = self._get_and_count_containers()
@@ -441,7 +445,6 @@ class DockerDaemon(AgentCheck):
         return container_name in self._filtered_containers
 
     def _report_container_size(self, containers_by_id):
-        container_list_with_size = None
         for container in containers_by_id.itervalues():
             if self._is_container_excluded(container):
                 continue
@@ -600,15 +603,17 @@ class DockerDaemon(AgentCheck):
             max_timestamp = 0
             status = defaultdict(int)
             status_change = []
-            container_names = set()
+            container_tags = set()
             for event in event_group:
                 max_timestamp = max(max_timestamp, int(event['time']))
                 status[event['status']] += 1
                 container_name = event['id'][:11]
                 if event['id'] in containers_by_id:
-                    container_name = container_name_extractor(containers_by_id[event['id']])[0]
+                    cont = containers_by_id[event['id']]
+                    container_name = container_name_extractor(cont)[0]
+                    container_tags.update(self._get_tags(cont, PERFORMANCE))
+                    container_tags.add('container_name:%s' % container_name)
 
-                container_names.add(container_name)
                 status_change.append([container_name, event['status']])
 
             status_text = ", ".join(["%d %s" % (count, st) for st, count in status.iteritems()])
@@ -633,7 +638,7 @@ class DockerDaemon(AgentCheck):
                 'msg_text': msg_body,
                 'source_type_name': EVENT_TYPE,
                 'event_object': 'docker:%s' % image_name,
-                'tags': ['container_name:%s' % c_name for c_name in container_names]
+                'tags': list(container_tags)
             })
 
         return events
@@ -699,6 +704,11 @@ class DockerDaemon(AgentCheck):
                 path = os.path.join(proc_path, folder, 'cgroup')
                 with open(path, 'r') as f:
                     content = [line.strip().split(':') for line in f.readlines()]
+            except IOError, e:
+                #  Issue #2074
+                self.log.debug("Cannot read %s, "
+                               "process likely raced to finish : %s" %
+                               (path, str(e)))
             except Exception, e:
                 self.warning("Cannot read %s : %s" % (path, str(e)))
                 continue
@@ -714,6 +724,9 @@ class DockerDaemon(AgentCheck):
                 match = CONTAINER_ID_RE.search(cpuacct)
                 if match:
                     container_id = match.group(0)
+                    if container_id not in container_dict:
+                        self.log.debug("Container %s not in container_dict, it's likely excluded", container_id)
+                        continue
                     container_dict[container_id]['_pid'] = folder
                     container_dict[container_id]['_proc_root'] = os.path.join(proc_path, folder)
             except Exception, e:

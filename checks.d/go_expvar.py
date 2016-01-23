@@ -16,12 +16,14 @@ TAGS = "tags"
 
 GAUGE = "gauge"
 RATE = "rate"
+COUNTER = "counter"
 DEFAULT_TYPE = GAUGE
 
 
 SUPPORTED_TYPES = {
     GAUGE: AgentCheck.gauge,
     RATE: AgentCheck.rate,
+    COUNTER: AgentCheck.increment,
 }
 
 DEFAULT_METRIC_NAMESPACE = "go_expvar"
@@ -57,7 +59,7 @@ class GoExpvar(AgentCheck):
         self._last_gc_count = defaultdict(int)
 
     def _get_data(self, url):
-        r = requests.get(url)
+        r = requests.get(url, timeout=10)
         r.raise_for_status()
         return r.json()
 

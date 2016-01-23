@@ -215,15 +215,6 @@ class IO(Check):
             return False
 
 
-class System(Check):
-    def check(self, agentConfig):
-        if Platform.is_linux():
-            with open("/proc/uptime", "r") as f:
-                uptime_seconds = float(f.readline().split()[0])
-            return {"system.uptime": uptime_seconds}
-        return {}
-
-
 class Load(Check):
 
     def check(self, agentConfig):
@@ -364,6 +355,8 @@ class Memory(Check):
                 memData['physBuffers'] = int(meminfo.get('Buffers', 0)) / 1024
                 memData['physCached'] = int(meminfo.get('Cached', 0)) / 1024
                 memData['physShared'] = int(meminfo.get('Shmem', 0)) / 1024
+                memData['physSlab'] = int(meminfo.get('Slab', 0)) / 1024
+                memData['physPageTables'] = int(meminfo.get('PageTables', 0)) / 1024
                 memData['physUsed'] = memData['physTotal'] - memData['physFree']
 
                 if 'MemAvailable' in meminfo:
@@ -382,6 +375,7 @@ class Memory(Check):
             try:
                 memData['swapTotal'] = int(meminfo.get('SwapTotal', 0)) / 1024
                 memData['swapFree'] = int(meminfo.get('SwapFree', 0)) / 1024
+                memData['swapCached'] = int(meminfo.get('SwapCached', 0)) / 1024
 
                 memData['swapUsed'] = memData['swapTotal'] - memData['swapFree']
 

@@ -94,7 +94,7 @@ class ConsulCheck(AgentCheck):
             self.log.debug("Consul agent lives at %s . Consul Leader lives at %s" % (agent_url,leader))
             return agent_url == leader
 
-        except Exception as e:
+        except Exception:
             return False
 
     def _check_for_leader_change(self, instance):
@@ -205,6 +205,7 @@ class ConsulCheck(AgentCheck):
                 self.service_check(self.HEALTH_CHECK, status, tags=main_tags+tags)
 
         except Exception as e:
+            self.log.error(e)
             self.service_check(self.CONSUL_CHECK, AgentCheck.CRITICAL,
                                tags=service_check_tags)
         else:

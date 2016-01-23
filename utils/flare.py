@@ -494,7 +494,7 @@ class Flare(object):
         if not os.path.isfile(supervisor_conf):
             supervisor_conf = os.path.join(
                 os.path.dirname(os.path.realpath(__file__)),
-                '../../supervisord/supervisord.conf'
+                '../../agent/supervisor.conf'
             )
         return supervisor_conf
 
@@ -564,7 +564,6 @@ class Flare(object):
         # Then raise potential 500 and 404
         self._resp.raise_for_status()
         try:
-            json_resp = self._resp.json()
             self._case_id = self._resp.json()['case_id']
         # Failed parsing
         except ValueError:

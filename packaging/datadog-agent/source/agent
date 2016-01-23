@@ -3,10 +3,9 @@ BASEDIR=$(dirname $0)
 cd "$BASEDIR/.."
 
 PATH=$BASEDIR/../venv/bin:$PATH
-EMBEDDED_BIN_PATH="/opt/datadog-agent/embedded/bin"
 
 SUPERVISOR_NOT_RUNNING="Supervisor is not running"
-SUPERVISOR_CONF_FILE='supervisord/supervisord.conf'
+SUPERVISOR_CONF_FILE='agent/supervisor.conf'
 SOCK_FILE='run/agent-supervisor.sock'
 PID_FILE='run/supervisord.pid'
 COLLECTOR_PIDFILE='run/dd-agent.pid'
@@ -109,7 +108,7 @@ case $action in
         ;;
 
     reload)
-        $EMBEDDED_BIN_PATH/kill -HUP `cat $COLLECTOR_PIDFILE`
+        kill -HUP `cat $COLLECTOR_PIDFILE`
         exit $?
         ;;
 

@@ -6,3 +6,9 @@ instances:
     # apache_password: example_password
     # tags:
     #   - optional_tag
+
+    # The (optional) disable_ssl_validation will instruct the check
+    # to skip the validation of the SSL certificate of the URL being tested.
+    # Defaults to false, set to true if you want to disable SSL certificate validation.
+    #
+    # disable_ssl_validation: false

@@ -31,15 +31,15 @@ require './ci/resources/cache/aws4_signature'
 class Cache
   MSGS = {
     config_missing: 'Worker S3 config missing: %s'
-  }
+  }.freeze
 
   VALIDATE = {
     bucket:            'bucket name',
     access_key_id:     'access key id',
     secret_access_key: 'secret access key'
-  }
+  }.freeze
 
-  CURL_FORMAT = <<-EOF
+  CURL_FORMAT = "<<-EOF
      time_namelookup:  %{time_namelookup} s
         time_connect:  %{time_connect} s
      time_appconnect:  %{time_appconnect} s
@@ -50,7 +50,7 @@ class Cache
        url_effective:  %{url_effective}
                      ----------
           time_total:  %{time_total} s
-  EOF
+  EOF".freeze
 
   KeyPair = Struct.new(:id, :secret)
 
@@ -60,9 +60,9 @@ class Cache
     end
   end
 
-  CASHER_URL = 'https://raw.githubusercontent.com/DataDog/casher/%s/bin/casher'
-  USE_RUBY   = '1.9.3'
-  BIN_PATH   = '$DD_CASHER_DIR/bin/casher'
+  CASHER_URL = 'https://raw.githubusercontent.com/DataDog/casher/%s/bin/casher'.freeze
+  USE_RUBY   = '1.9.3'.freeze
+  BIN_PATH   = '$DD_CASHER_DIR/bin/casher'.freeze
 
   attr_reader :data, :slug, :start, :msgs
   attr_accessor :directories

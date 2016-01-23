@@ -212,7 +212,7 @@ class Dogstream(object):
             else:
                 try:
                     parsed = self.parse_func(self.logger, line, self.parser_state, *self.parse_args)
-                except TypeError, e:
+                except TypeError:
                     # Arity of parse_func is 3 (old-style), not 4
                     parsed = self.parse_func(self.logger, line)
 
@@ -274,13 +274,12 @@ class Dogstream(object):
                         repr(datum), ', '.join(invalid_reasons), line)
                 else:
                     self._values.append((metric, ts, value, attrs))
-        except Exception, e:
+        except Exception:
             self.logger.debug("Error while parsing line %s" % line, exc_info=True)
             self._error_count += 1
             self.logger.error("Parser error: %s out of %s" % (self._error_count, self._line_count))
 
     def _default_line_parser(self, logger, line):
-        original_line = line
         sep = ' '
         metric, _, line = partition(line.strip(), sep)
         timestamp, _, line = partition(line.strip(), sep)
@@ -292,7 +291,7 @@ class Dogstream(object):
                 keyval, _, line = partition(line.strip(), sep)
                 key, val = keyval.split('=', 1)
                 attributes[key] = val
-        except Exception, e:
+        except Exception:
             logger.debug(traceback.format_exc())
 
         return metric, timestamp, value, attributes
