@@ -66,7 +66,6 @@ class Ceph(AgentCheck):
                 raw = raw[k]
             func(self.NAMESPACE + '.' + k, raw, tags)
         except KeyError:
-            self.log.debug('Failed to retrieve spec=%s' % '.'.join(keyspec))
             return
 
     def _extract_metrics(self, raw, tags):
@@ -76,7 +75,7 @@ class Ceph(AgentCheck):
                 self._publish(osdperf, self.gauge, ['perf_stats', 'apply_latency_ms'], local_tags)
                 self._publish(osdperf, self.gauge, ['perf_stats', 'commit_latency_ms'], local_tags)
         except KeyError:
-            pass
+            self.log.debug('Error retrieving osdperf metrics')
 
         try:
             for osdinfo in raw['osd_pool_stats']:
@@ -86,7 +85,7 @@ class Ceph(AgentCheck):
                 self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_bytes_sec'], local_tags)
                 self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_bytes_sec'], local_tags)
         except KeyError:
-            pass
+            self.log.debug('Error retrieving osd_pool_stats metrics')
 
         try:
             osdstatus = raw['status']['osdmap']['osdmap']
@@ -94,7 +93,7 @@ class Ceph(AgentCheck):
             self._publish(osdstatus, self.gauge, ['num_in_osds'], tags)
             self._publish(osdstatus, self.gauge, ['num_up_osds'], tags)
         except KeyError:
-            pass
+            self.log.debug('Error retrieving osdstatus metrics')
 
         try:
             pgstatus = raw['status']['pgmap']
@@ -103,13 +102,13 @@ class Ceph(AgentCheck):
                 s_name = pgstate['state_name'].replace("+", "_")
                 self.gauge(self.NAMESPACE + '.pgstate.' + s_name, pgstate['count'], tags)
         except KeyError:
-            pass
+            self.log.debug('Error retrieving pgstatus metrics')
 
         try:
             num_mons = len(raw['mon_status']['monmap']['mons'])
             self.gauge(self.NAMESPACE + '.num_mons', num_mons, tags)
         except KeyError:
-            pass
+            self.log.debug('Error retrieving mon_status metrics')
 
         try:
             stats = raw['df_detail']['stats']
@@ -133,10 +132,8 @@ class Ceph(AgentCheck):
                 self.rate(self.NAMESPACE + '.read_bytes', stats['rd_bytes'], local_tags)
                 self.rate(self.NAMESPACE + '.write_bytes', stats['wr_bytes'], local_tags)
 
-        except KeyError:
-            pass
-        except ValueError:
-            pass
+        except (KeyError, ValueError):
+            self.log.debug('Error retrieving df_detail metrics')
 
     def _perform_service_checks(self, raw, tags):
         if 'status' in raw:
