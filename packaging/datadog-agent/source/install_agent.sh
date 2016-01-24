@@ -36,6 +36,10 @@ solve your problem.\n\033[0m\n"
 }
 trap on_error ERR
 
+if [ -n "$DD_HOSTNAME" ]; then
+    dd_hostname=$DD_HOSTNAME
+fi
+
 if [ -n "$DD_API_KEY" ]; then
     apikey=$DD_API_KEY
 fi
@@ -49,6 +53,10 @@ fi
 if [ ! $apikey ]; then
     printf "\033[31mAPI key not available in DD_API_KEY environment variable.\033[0m\n"
     exit 1;
+fi
+
+if [ $dd_hostname ]; then
+    printf "\033[31mHOSTNAME is force installed.\033[0m\n"
 fi
 
 # OS/Distro Detection
@@ -160,6 +168,10 @@ if [ -e /etc/dd-agent/datadog.conf ]; then
 else
     printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
     $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
+    if [ $dd_hostname ]; then
+        printf "\033[34m\n* Adding your HOSTNAME to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
+        $sudo_cmd sh -c "sed -i 's|#hostname:.*|hostname: $dd_hostname|' /etc/dd-agent/datadog.conf"
+    fi
     $sudo_cmd chown dd-agent:root /etc/dd-agent/datadog.conf
     $sudo_cmd chmod 640 /etc/dd-agent/datadog.conf
 fi
