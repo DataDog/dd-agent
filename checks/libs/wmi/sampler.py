@@ -53,7 +53,7 @@ class WMISampler(object):
     """
     # Shared resources
     _wmi_locators = {}
-    _wmi_connections = defaultdict(set)
+    _wmi_connections = defaultdict(list)
 
     def __init__(self, logger, class_name, property_names, filters="", host="localhost",
                  namespace="root\\cimv2", username="", password="", timeout_duration=10):
@@ -293,7 +293,7 @@ class WMISampler(object):
         yield connection
 
         # Release it
-        self._wmi_connections[self.connection_key].add(connection)
+        self._wmi_connections[self.connection_key].append(connection)
 
     @staticmethod
     def _format_filter(filters):

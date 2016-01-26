@@ -224,7 +224,7 @@ class TestCommonWMI(unittest.TestCase):
         # Flush cache
         from checks.libs.wmi.sampler import WMISampler
         WMISampler._wmi_locators = {}
-        WMISampler._wmi_connections = defaultdict(set)
+        WMISampler._wmi_connections = defaultdict(list)
 
     def assertWMIConn(self, wmi_sampler, param=None, count=None):
         """
