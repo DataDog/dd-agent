@@ -360,6 +360,7 @@ class MySql(AgentCheck):
             'server:{0}'.format(host),
             'port:{0}'.format(port)
         ]
+        db = None
 
         try:
             ssl = dict(ssl) if ssl else None
@@ -400,7 +401,8 @@ class MySql(AgentCheck):
                                tags=service_check_tags)
             raise
         finally:
-            db.close()
+            if db:
+                db.close()
 
     def _collect_metrics(self, host, db, tags, options, queries):
 

@@ -9,15 +9,16 @@ namespace :ci do
     task install: ['ci:common:install']
 
     task before_script: ['ci:common:before_script'] do
-      sh %(mysql -e "create user 'dog'@'localhost' identified by 'dog'" -uroot)
-      sh %(mysql -e "GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'dog'@'localhost' WITH MAX_USER_CONNECTIONS 5;" -uroot)
-      sh %(mysql -e "CREATE DATABASE testdb;" -uroot)
-      sh %(mysql -e "CREATE TABLE testdb.users (name VARCHAR(20), age INT);" -uroot)
-      sh %(mysql -e "GRANT SELECT ON testdb.users TO 'dog'@'localhost';" -uroot)
-      sh %(mysql -e "INSERT INTO testdb.users (name,age) VALUES('Alice',25);" -uroot)
-      sh %(mysql -e "INSERT INTO testdb.users (name,age) VALUES('Bob',20);" -uroot)
-      sh %(mysql -e "GRANT SELECT ON performance_schema.* TO 'dog'@'localhost';" -uroot)
-      sh %(mysql -e "USE testdb; SELECT * FROM users ORDER BY name;" -uroot)
+      sh %(mysql --protocol=tcp -P 3312 -e "create user 'dog'@'localhost' identified by 'dog'" -uroot -pdatadog)
+      sh %(mysql --protocol=tcp -P 3312 -e "GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'dog'@'localhost' \
+           WITH MAX_USER_CONNECTIONS 5;" -uroot -pdatadog)
+      sh %(mysql --protocol=tcp -P 3312 -e "CREATE DATABASE testdb;" -uroot -pdatadog)
+      sh %(mysql --protocol=tcp -P 3312 -e "CREATE TABLE testdb.users (name VARCHAR(20), age INT);" -uroot -pdatadog)
+      sh %(mysql --protocol=tcp -P 3312 -e "GRANT SELECT ON testdb.users TO 'dog'@'localhost';" -uroot -pdatadog)
+      sh %(mysql --protocol=tcp -P 3312 -e "INSERT INTO testdb.users (name,age) VALUES('Alice',25);" -uroot -pdatadog)
+      sh %(mysql --protocol=tcp -P 3312 -e "INSERT INTO testdb.users (name,age) VALUES('Bob',20);" -uroot -pdatadog)
+      sh %(mysql --protocol=tcp -P 3312 -e "GRANT SELECT ON performance_schema.* TO 'dog'@'localhost';" -uroot -pdatadog)
+      sh %(mysql --protocol=tcp -P 3312 -e "USE testdb; SELECT * FROM users ORDER BY name;" -uroot -pdatadog)
     end
 
     task script: ['ci:common:script'] do
@@ -32,8 +33,8 @@ namespace :ci do
     task cache: ['ci:common:cache']
 
     task cleanup: ['ci:common:cleanup'] do
-      sh %(mysql -e "DROP USER 'dog'@'localhost';" -uroot)
-      sh %(mysql -e "DROP DATABASE testdb;" -uroot)
+      sh %(mysql --protocol=tcp -P 3312 -e "DROP USER 'dog'@'localhost';" -uroot -pdatadog)
+      sh %(mysql --protocol=tcp -P 3312 -e "DROP DATABASE testdb;" -uroot -pdatadog)
     end
 
     task :execute do

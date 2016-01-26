@@ -12,12 +12,13 @@ class TestMySql(AgentCheckTest):
     CHECK_NAME = 'mysql'
 
     METRIC_TAGS = ['tag1', 'tag2']
-    SC_TAGS = ['server:localhost', 'port:0']
+    SC_TAGS = ['server:localhost', 'port:3312']
 
     MYSQL_CONFIG = [{
         'server': 'localhost',
-        'user': 'dog',
-        'pass': 'dog',
+        'port': 3312,
+        'user': 'root',
+        'pass': 'datadog',
         'options': {
             'replication': True,
             'extra_status_metrics': True,
@@ -44,6 +45,7 @@ class TestMySql(AgentCheckTest):
 
     CONNECTION_FAILURE = [{
         'server': 'localhost',
+        'port': 3312,
         'user': 'unknown',
         'pass': 'dog',
     }]
