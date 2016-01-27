@@ -200,7 +200,8 @@ class MySql(AgentCheck):
         # Max of 20 queries allowed
         if isinstance(queries, list):
             for index, check in enumerate(queries[:self.MAX_CUSTOM_QUERIES]):
-                self._collect_dict(check['type'], {check['field']: check['metric']}, check['query'], db, tags=tags)
+                total_tags = tags + check.get('tags', [])
+                self._collect_dict(check['type'], {check['field']: check['metric']}, check['query'], db, tags=total_tags)
 
             if len(queries) > self.MAX_CUSTOM_QUERIES:
                 self.warning("Maximum number (%s) of custom queries reached.  Skipping the rest."

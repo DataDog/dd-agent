@@ -17,10 +17,16 @@ instances:
     #  - # Sample Custom metric
     #    query: SELECT TIMESTAMPDIFF(second,MAX(create_time),NOW()) as last_accessed FROM requests
     #    metric: app.seconds_since_last_request
+    #    tags:               # Optional - only applied to this custom metric query, will not affect default mysql metrics
+    #        - custom_tag1
+    #        - custom_tag2
     #    type: gauge
     #    field: last_accessed
     #  - # Sample Custom metric
     #    query: SELECT TIMESTAMPDIFF(second,MAX(create_time),NOW()) as last_user FROM users
     #    metric: app.seconds_since_new_user
+    #    tags:               # Optional - only applied to this custom metric query, will not affect default mysql metrics
+    #        - custom_tag1
+    #        - custom_tag2
     #    type: gauge
     #    field: last_user
