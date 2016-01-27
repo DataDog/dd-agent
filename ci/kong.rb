@@ -1,7 +1,7 @@
 require './ci/common'
 
 def kong_version
-  ENV['FLAVOR_VERSION'] || '0.5.2'
+  ENV['FLAVOR_VERSION'] || '0.6.0'
 end
 
 def kong_rootdir
@@ -53,8 +53,7 @@ namespace :ci do
       Wait.for 9042, 10
       sh %(#{kong_rootdir}/usr/local/bin/kong start -c #{kong_rootdir}/kong.yml)
       Wait.for 8001, 10
-      sleep_for 10
-      sh %(curl http://localhost:8001/status)
+      sleep_for 5
     end
 
     task script: ['ci:common:script'] do
