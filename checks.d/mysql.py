@@ -148,11 +148,13 @@ class MySql(AgentCheck):
         del cursor
 
         # Compute key cache utilization metric
-        key_blocks_unused = self._collect_scalar('Key_blocks_unused', status_results)
-        key_cache_block_size = self._collect_scalar('key_cache_block_size', variables_results)
-        key_buffer_size = self._collect_scalar('key_buffer_size', variables_results)
-        key_cache_utilization = 1 - ((key_blocks_unused * key_cache_block_size) / key_buffer_size)
-        self.gauge("mysql.performance.key_cache_utilization", key_cache_utilization, tags=tags)
+        # Be sure MyISAM is enabled
+        if 'Key_blocks_unused' in status_results:
+            key_blocks_unused = self._collect_scalar('Key_blocks_unused', status_results)
+            key_cache_block_size = self._collect_scalar('key_cache_block_size', variables_results)
+            key_buffer_size = self._collect_scalar('key_buffer_size', variables_results)
+            key_cache_utilization = 1 - ((key_blocks_unused * key_cache_block_size) / key_buffer_size)
+            self.gauge("mysql.performance.key_cache_utilization", key_cache_utilization, tags=tags)
 
         # Compute InnoDB buffer metrics
         # Be sure InnoDB is enabled
