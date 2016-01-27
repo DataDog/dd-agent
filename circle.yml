@@ -11,7 +11,9 @@ test:
     pre:
         # setup mysql - we can move this to rake script.
         #- docker-compose -f development.yml -f development.test.yml run -d db
-        - docker run -p 3312:3306 --name mysql -e MYSQL_ROOT_PASSWORD=datadog -d mysql:latest
+        - docker create -p 3312:3306 --name mysql-latest -e MYSQL_ROOT_PASSWORD=datadog mysql:latest
+        - docker create -p 3312:3306 --name mysql-5_6 -e MYSQL_ROOT_PASSWORD=datadog mysql:5.6
+        - docker create -p 3312:3306 --name mysql-5_5 -e MYSQL_ROOT_PASSWORD=datadog mysql:5.5
     override:
         - bundle exec rake ci:run[mysql]
     post:

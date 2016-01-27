@@ -1,14 +1,20 @@
 require './ci/common'
 
 # FIXME: use our own brew of MySQL like other flavors
+def mysql_version
+  ENV['FLAVOR_VERSION'] || 'latest'
+end
 
 namespace :ci do
   namespace :mysql do |flavor|
     task before_install: ['ci:common:before_install']
 
-    task install: ['ci:common:install']
+    task install: ['ci:common:install'] do
+      sh %(docker start mysql-#{mysql_version})
+    end
 
     task before_script: ['ci:common:before_script'] do
+      Wait.for 3312, 10
       sh %(mysql --protocol=tcp -P 3312 -e "create user 'dog'@'localhost' identified by 'dog'" -uroot -pdatadog)
       sh %(mysql --protocol=tcp -P 3312 -e "GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'dog'@'localhost' \
            WITH MAX_USER_CONNECTIONS 5;" -uroot -pdatadog)
@@ -19,6 +25,7 @@ namespace :ci do
       sh %(mysql --protocol=tcp -P 3312 -e "INSERT INTO testdb.users (name,age) VALUES('Bob',20);" -uroot -pdatadog)
       sh %(mysql --protocol=tcp -P 3312 -e "GRANT SELECT ON performance_schema.* TO 'dog'@'localhost';" -uroot -pdatadog)
       sh %(mysql --protocol=tcp -P 3312 -e "USE testdb; SELECT * FROM users ORDER BY name;" -uroot -pdatadog)
+      sh %(mysql --protocol=tcp -P 3312 -e "SHOW SLAVE STATUS;" -uroot -pdatadog)
     end
 
     task script: ['ci:common:script'] do
@@ -35,6 +42,7 @@ namespace :ci do
     task cleanup: ['ci:common:cleanup'] do
       sh %(mysql --protocol=tcp -P 3312 -e "DROP USER 'dog'@'localhost';" -uroot -pdatadog)
       sh %(mysql --protocol=tcp -P 3312 -e "DROP DATABASE testdb;" -uroot -pdatadog)
+      sh %(docker stop mysql-#{mysql_version})
     end
 
     task :execute do
