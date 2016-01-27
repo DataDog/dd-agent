@@ -185,7 +185,8 @@ class Dogstream(object):
             # read until the end of file
             try:
                 self._gen.next()
-                self.logger.debug("Done dogstream check for file %s, found %s metric points" % (self.log_path, len(self._values)))
+                self.logger.debug("Done dogstream check for file {0}".format(self.log_path))
+                self.logger.debug("Found {0} metric points".format(len(self._values)))
             except StopIteration, e:
                 self.logger.exception(e)
                 self.logger.warn("Can't tail %s file" % self.log_path)
@@ -193,6 +194,7 @@ class Dogstream(object):
             check_output = self._aggregate(self._values)
             if self._events:
                 check_output.update({"dogstreamEvents": self._events})
+                self.logger.debug("Found {0} events".format(len(self._events)))
             return check_output
         else:
             return {}
@@ -210,7 +212,7 @@ class Dogstream(object):
             else:
                 try:
                     parsed = self.parse_func(self.logger, line, self.parser_state, *self.parse_args)
-                except TypeError, e:
+                except TypeError:
                     # Arity of parse_func is 3 (old-style), not 4
                     parsed = self.parse_func(self.logger, line)
 
@@ -272,13 +274,12 @@ class Dogstream(object):
                         repr(datum), ', '.join(invalid_reasons), line)
                 else:
                     self._values.append((metric, ts, value, attrs))
-        except Exception, e:
+        except Exception:
             self.logger.debug("Error while parsing line %s" % line, exc_info=True)
             self._error_count += 1
             self.logger.error("Parser error: %s out of %s" % (self._error_count, self._line_count))
 
     def _default_line_parser(self, logger, line):
-        original_line = line
         sep = ' '
         metric, _, line = partition(line.strip(), sep)
         timestamp, _, line = partition(line.strip(), sep)
@@ -290,7 +291,7 @@ class Dogstream(object):
                 keyval, _, line = partition(line.strip(), sep)
                 key, val = keyval.split('=', 1)
                 attributes[key] = val
-        except Exception, e:
+        except Exception:
             logger.debug(traceback.format_exc())
 
         return metric, timestamp, value, attributes

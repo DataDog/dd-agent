@@ -29,9 +29,11 @@ except ImportError:
 # if a user actually uses them in a custom check
 # If you're this user, please use utils.pidfile or utils.platform instead
 # FIXME: remove them at a point (6.x)
+from utils.dockerutil import get_hostname as get_docker_hostname, is_dockerized
 from utils.pidfile import PidFile  # noqa, see ^^^
 from utils.platform import Platform
-from utils.subprocess_output import subprocess
+from utils.proxy import get_proxy
+from utils.subprocess_output import get_subprocess_output
 
 
 VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")
@@ -183,20 +185,26 @@ def get_hostname(config=None):
     if config_hostname and is_valid_hostname(config_hostname):
         return config_hostname
 
-    #Try to get GCE instance name
+    # Try to get GCE instance name
     if hostname is None:
         gce_hostname = GCE.get_hostname(config)
         if gce_hostname is not None:
             if is_valid_hostname(gce_hostname):
                 return gce_hostname
+
+    # Try to get the docker hostname
+    if hostname is None and is_dockerized():
+        docker_hostname = get_docker_hostname()
+        if docker_hostname is not None and is_valid_hostname(docker_hostname):
+            return docker_hostname
+
     # then move on to os-specific detection
     if hostname is None:
         def _get_hostname_unix():
             try:
                 # try fqdn
-                p = subprocess.Popen(['/bin/hostname', '-f'], stdout=subprocess.PIPE)
-                out, err = p.communicate()
-                if p.returncode == 0:
+                out, _, rtcode = get_subprocess_output(['/bin/hostname', '-f'], log)
+                if rtcode == 0:
                     return out.strip()
             except Exception:
                 return None
@@ -217,7 +225,7 @@ def get_hostname(config=None):
     if hostname is None:
         try:
             socket_hostname = socket.gethostname()
-        except socket.error, e:
+        except socket.error:
             socket_hostname = None
         if socket_hostname and is_valid_hostname(socket_hostname):
             hostname = socket_hostname
@@ -233,7 +241,8 @@ class GCE(object):
     TIMEOUT = 0.1 # second
     SOURCE_TYPE_NAME = 'google cloud platform'
     metadata = None
-    EXCLUDED_ATTRIBUTES = ["sshKeys", "user-data", "cli-cert", "ipsec-cert", "ssl-cert"]
+    EXCLUDED_ATTRIBUTES = ["kube-env", "startup-script", "sshKeys", "user-data",
+    "cli-cert", "ipsec-cert", "ssl-cert"]
 
 
     @staticmethod
@@ -322,14 +331,13 @@ class GCE(object):
             return None
 
 
-
 class EC2(object):
     """Retrieve EC2 metadata
     """
     EC2_METADATA_HOST = "http://169.254.169.254"
     METADATA_URL_BASE = EC2_METADATA_HOST + "/latest/meta-data"
     INSTANCE_IDENTITY_URL = EC2_METADATA_HOST + "/latest/dynamic/instance-identity/document"
-    TIMEOUT = 0.1 # second
+    TIMEOUT = 0.1  # second
     metadata = {}
 
     @staticmethod
@@ -352,10 +360,21 @@ class EC2(object):
             region = instance_identity['region']
 
             import boto.ec2
-            connection = boto.ec2.connect_to_region(region, aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
+            proxy_settings = get_proxy(agentConfig) or {}
+            connection = boto.ec2.connect_to_region(
+                region,
+                aws_access_key_id=iam_params['AccessKeyId'],
+                aws_secret_access_key=iam_params['SecretAccessKey'],
+                security_token=iam_params['Token'],
+                proxy=proxy_settings.get('host'), proxy_port=proxy_settings.get('port'),
+                proxy_user=proxy_settings.get('user'), proxy_pass=proxy_settings.get('password')
+            )
+
             tag_object = connection.get_all_tags({'resource-id': EC2.metadata['instance-id']})
 
             EC2_tags = [u"%s:%s" % (tag.name, tag.value) for tag in tag_object]
+            if agentConfig.get('collect_security_groups') and EC2.metadata.get('security-groups'):
+                EC2_tags.append(u"security-group-name:{0}".format(EC2.metadata.get('security-groups')))
 
         except Exception:
             log.exception("Problem retrieving custom EC2 tags")
@@ -369,7 +388,6 @@ class EC2(object):
             pass
 
         return EC2_tags
-
 
     @staticmethod
     def get_metadata(agentConfig):

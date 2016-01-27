@@ -56,7 +56,10 @@ from util import (
     json,
     Watchdog,
 )
+from utils.logger import RedactedLogRecord
 
+
+logging.LogRecord = RedactedLogRecord
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)
 
@@ -163,19 +166,14 @@ class AgentTransaction(Transaction):
 
     @classmethod
     def set_endpoints(cls):
+        """
+        Set Datadog endpoint if an API key exists.
+        """
+        if not cls._application._agentConfig.get('api_key'):
+            log.warning(u"No API key was found. Aborting endpoint setting.")
+            return
 
-        # Only send data to Datadog if an API KEY exists
-        # i.e. user is also Datadog user
-        try:
-            is_dd_user = 'api_key' in cls._application._agentConfig\
-                and 'use_dd' in cls._application._agentConfig\
-                and cls._application._agentConfig['use_dd']\
-                and cls._application._agentConfig.get('api_key')
-            if is_dd_user:
-                log.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
-                cls._endpoints.append(DD_ENDPOINT)
-        except Exception:
-            log.info("Not a Datadog user")
+        cls._endpoints.append(DD_ENDPOINT)
 
     def __init__(self, data, headers, msg_type=""):
         self._data = data
@@ -208,7 +206,10 @@ class AgentTransaction(Transaction):
     def flush(self):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
-            log.debug("Sending %s to endpoint %s at %s" % (self._type, endpoint, url))
+            log.debug(
+                u"Sending %s to endpoint %s at %s",
+                self._type, endpoint, url
+            )
 
             # Getting proxy settings
             proxy_settings = self._application._agentConfig.get('proxy_settings', None)
@@ -358,7 +359,7 @@ class ApiInputHandler(tornado.web.RequestHandler):
 
         if msg is not None:
             # Setup a transaction for this message
-            tr = APIMetricTransaction(msg, headers)
+            APIMetricTransaction(msg, headers)
         else:
             raise tornado.web.HTTPError(500)
 
@@ -415,9 +416,13 @@ class Application(tornado.web.Application):
             log_method = log.warning
         else:
             log_method = log.error
+
         request_time = 1000.0 * handler.request.request_time()
-        log_method("%d %s %.2fms", handler.get_status(),
-                   handler._request_summary(), request_time)
+        log_method(
+            u"%d %s %.2fms",
+            handler.get_status(),
+            handler._request_summary(), request_time
+        )
 
     def appendMetric(self, prefix, name, host, device, ts, value):
 

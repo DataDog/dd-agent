@@ -115,7 +115,6 @@ log = logging.getLogger(__name__)
 EXCLUDED_WINDOWS_CHECKS = [
     'btrfs',
     'cacti',
-    'directory',
     'docker',
     'gearmand',
     'gunicorn',
@@ -126,7 +125,6 @@ EXCLUDED_WINDOWS_CHECKS = [
     'mesos',
     'network',
     'postfix',
-    'ssh_check',
     'zk',
 ]
 
@@ -775,18 +773,19 @@ def windows_flare():
     f.collect()
     email, ok = QInputDialog.getText(
         None, "Your email",
-        "Logs and configuration files have been collected"
+        "Logs and configuration files have been collected."
         " Please enter your email address:"
     )
     if not ok:
-        info_popup("Flare cancelled")
+        info_popup("Flare cancelled. You can still use {0}".format(f.tar_path))
         return
     try:
         case_id = f.upload(email=str(email))
         info_popup("Your logs were successfully uploaded. For future reference,"
                    " your internal case id is {0}".format(case_id))
     except Exception, e:
-        warning_popup('The upload failed:\n{0}'.format(str(e)))
+        warning_popup('The upload failed. Please send the following file by email'
+                      ' to support: {0}\n\n{1}'.format(f.tar_path, str(e)))
     finally:
         return
 
@@ -828,11 +827,10 @@ def kill_old_process():
     # agent-manager.exe, let's save its pid
     pid = str(os.getpid())
     try:
-        fp = open(pidfile, 'w+')
-        fp.write(str(pid))
-        fp.close()
+        with open(pidfile, 'w+') as fp:
+            fp.write(str(pid))
     except Exception, e:
-        msg = "Unable to write pidfile: %s" % pidfile
+        msg = "Unable to write pidfile: %s %s" % (pidfile, str(e))
         log.exception(msg)
         sys.stderr.write(msg + "\n")
         sys.exit(1)

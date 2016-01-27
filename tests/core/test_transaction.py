@@ -102,9 +102,9 @@ class TestTransaction(unittest.TestCase):
             trManager.append(tr)
 
         # Try to flush them, time it
-        before = datetime.now()
+        before = datetime.utcnow()
         trManager.flush()
-        after = datetime.now()
+        after = datetime.utcnow()
         self.assertTrue((after - before) > 3 * THROTTLING_DELAY - timedelta(microseconds=100000),
                         "before = %s after = %s" % (before, after))
 
@@ -157,9 +157,9 @@ class TestTransaction(unittest.TestCase):
         MetricTransaction.set_application(app)
         MetricTransaction.set_endpoints()
 
-        transaction = MetricTransaction(None, {}, "msgtype")
+        transaction = MetricTransaction(None, {}, "")
         endpoints = [transaction.get_url(e) for e in transaction._endpoints]
-        expected = ['https://{0}-app.agent.datadoghq.com/intake/msgtype?api_key={1}'.format(
+        expected = ['https://{0}-app.agent.datadoghq.com/intake/?api_key={1}'.format(
             get_version().replace(".", "-"), api_key)]
         self.assertEqual(endpoints, expected, (endpoints, expected))
 

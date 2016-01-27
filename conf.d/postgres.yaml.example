@@ -25,26 +25,30 @@ instances:
 #    relations:
 #      - relation_name: another_table
 #        schemas:
-#          - public 
+#          - public
 #          - prod
-#      
+#
 
 
-# Custom metrics 
+# Custom metrics
 # Below are some examples of commonly used metrics, which are implemented as custom metrics.
 # Uncomment them if you want to use them as is, or use as an example for creating your own custom metrics. 
 # The format for describing custome metrics is identical with the one used for common metrics in postgres.py
 # Be extra careful with ensuring proper custom metrics description format. If your custom metric does not work 
 # after an agent restart, look for errors in the output of "/etc/init.d/datadog-agent info" command, as well as 
-# /var/log/datadog/collector.log file. 
+# /var/log/datadog/collector.log file.
 #
 #    custom_metrics:
-#    - # Londiste 3 replication lag 
-#      descriptors: 
+#    - # Londiste 3 replication lag
+#      descriptors:
 #        - [consumer_name, consumer_name]
-#      metrics: 
+#      metrics:
 #         GREATEST(0, EXTRACT(EPOCH FROM lag)) as lag: [postgresql.londiste_lag, GAUGE]
 #         GREATEST(0, EXTRACT(EPOCH FROM lag)) as last_seen: [postgresql.londiste_last_seen, GAUGE]
 #         pending_events: [postgresql.londiste_pending_events, GAUGE]
 #      query: SELECT consumer_name, %s from pgq.get_consumer_info() where consumer_name !~ 'watermark$';
 #      relation: false
+
+#    Collect metrics regarding PL/pgSQL functions from pg_stat_user_functions
+#    collect_function_metrics: False
+#

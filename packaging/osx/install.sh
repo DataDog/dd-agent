@@ -62,6 +62,7 @@ if egrep 'api_key:( APIKEY)?$' "/opt/datadog-agent/etc/datadog.conf" > /dev/null
     printf "\033[34m\n* Adding your API key to the Agent configuration: datadog.conf\n\033[0m\n"
     $sudo_cmd sh -c "sed -i '' 's/api_key:.*/api_key: $apikey/' \"/opt/datadog-agent/etc/datadog.conf\""
     $sudo_cmd chown $real_user:admin "/opt/datadog-agent/etc/datadog.conf"
+    $sudo_cmd chmod 640 /opt/datadog-agent/etc/datadog.conf
     printf "\033[34m* Restarting the Agent...\n\033[0m\n"
     $cmd_real_user "/opt/datadog-agent/bin/datadog-agent" restart >/dev/null
 else

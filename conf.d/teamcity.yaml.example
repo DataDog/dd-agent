@@ -22,6 +22,9 @@ instances:
     # rather than just that a successful build happened
     # is_deployment: true
 
+    # Optional, this turns off ssl certificate validation. Defaults to True.
+    # ssl_validation: false
+
     # Optional, any additional tags you'd like to add to the event
     # tags:
     #   - test

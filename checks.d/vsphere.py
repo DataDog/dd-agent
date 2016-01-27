@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from hashlib import md5
 from Queue import Empty, Queue
 import re
+import ssl
 import time
 import traceback
 
@@ -15,6 +16,7 @@ from pyVmomi import vim
 from checks import AgentCheck
 from checks.libs.thread_pool import Pool
 from checks.libs.vmware.basic_metrics import BASIC_METRICS
+from checks.libs.vmware.all_metrics import ALL_METRICS
 from util import Timer
 
 SOURCE_TYPE = 'vsphere'
@@ -287,7 +289,7 @@ def atomic_method(method):
     def wrapper(*args, **kwargs):
         try:
             method(*args, **kwargs)
-        except Exception as e:
+        except Exception:
             args[0].exceptionq.put("A worker thread crashed:\n" + traceback.format_exc())
     return wrapper
 
@@ -429,12 +431,31 @@ class VSphereCheck(AgentCheck):
             'vcenter_host:{0}'.format(instance.get('host')),
         ]
 
+        # Check for ssl configs and generate an appropriate ssl context object
+        ssl_verify = instance.get('ssl_verify', True)
+        ssl_capath = instance.get('ssl_capath', None)
+        if not ssl_verify:
+            context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            context.verify_mode = ssl.CERT_NONE
+        elif ssl_capath:
+            context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            context.verify_mode = ssl.CERT_REQUIRED
+            context.load_verify_locations(capath=ssl_capath)
+
+        # If both configs are used, log a message explaining the default
+        if not ssl_verify and ssl_capath:
+            self.log.debug("Your configuration is incorrectly attempting to "
+                           "specify both a CA path, and to disable SSL "
+                           "verification. You cannot do both. Proceeding with "
+                           "disabling ssl verification.")
+
         if i_key not in self.server_instances:
             try:
                 server_instance = connect.SmartConnect(
-                    host=instance.get('host'),
-                    user=instance.get('username'),
-                    pwd=instance.get('password')
+                    host = instance.get('host'),
+                    user = instance.get('username'),
+                    pwd = instance.get('password'),
+                    sslContext = context if not ssl_verify or ssl_capath else None
                 )
             except Exception as e:
                 err_msg = "Connection to %s failed: %s" % (instance.get('host'), e)
@@ -748,7 +769,13 @@ class VSphereCheck(AgentCheck):
                     continue
                 instance_name = result.id.instance or "none"
                 value = self._transform_value(instance, result.id.counterId, result.value[0])
-                self.gauge(
+
+                # Metric types are absolute, delta, and rate
+                if ALL_METRICS[self.metrics_metadata[i_key][result.id.counterId]['name']]['s_type'] == 'rate':
+                    record_metric = self.rate
+                else:
+                    record_metric = self.gauge
+                record_metric(
                     "vsphere.%s" % self.metrics_metadata[i_key][result.id.counterId]['name'],
                     value,
                     hostname=mor['hostname'],

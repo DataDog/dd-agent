@@ -19,3 +19,21 @@ instances:
     # ssl_certfile: # Path to the certificate file used to identify the local connection against mongod.
     # ssl_cert_reqs: # Specifies whether a certificate is required from the other side of the connection, and whether it will be validated if provided.
     # ssl_ca_certs: #  Path to the ca_certs file
+    #
+    # By default, the check collects a sample of metrics from MongoDB.
+    # The (optional) `additional_metrics` parameter instructs the check to collect additional
+    # metrics on specific topics.
+    # Available options are:
+    # * `durability` - Journaling-related operations and performance
+    # * `locks` - Locks
+    # * `metrics.commands` - Use of database commands
+    # * `tcmalloc` -  TCMalloc memory allocator
+    # * `top` - Usage statistics for each collection
+    # * `wiredtiger` - WiredTiger storage engine
+    # additional_metrics:
+    #   - durability
+    #   - locks
+    #   - metrics.commands
+    #   - tcmalloc
+    #   - top
+    #   - wiredtiger

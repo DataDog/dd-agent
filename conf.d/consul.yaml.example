@@ -3,7 +3,22 @@ init_config:
 
 instances:
     # Where your Consul HTTP Server Lives
+    # Remind to use https instead of http if your Consul setup is configured to do so.
     - url: http://localhost:8500
+
+      # If Consul setup uses SSL, you might need to set the following options as well.
+
+      # You can specify a local cert to use as client side certificate
+      # as a single file (containing the private key and the certificate concatenated)
+      # client_cert_file: '/path/to/client.concatenated.pem'
+
+      # Or as two separate files (for certificate and key):
+      # client_cert_file: '/path/to/client.cert.pem'
+      # private_key_file: '/path/to/private.key.pem'
+
+      # Whether to verifiy SSL certificates for HTTPS requests.
+      # Possible values: True, False or '/path/to/your/trusted_ca_bundle_file'
+      # ca_bundle_file: '/path/to/trusted_ca_bundle_file'
 
       # Whether to perform checks against the Consul service Catalog
       catalog_checks: yes
@@ -17,7 +32,7 @@ instances:
       # The default settings query up to 50 services. So if you have more than
       # this many in your Consul service catalog, you will want to fill in the
       # whitelist
-      service_whitelist:
-        - zookeeper
-        - gunicorn
-        - redis
+      # service_whitelist:
+      #   - zookeeper
+      #   - gunicorn
+      #   - redis

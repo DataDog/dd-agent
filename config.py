@@ -1,3 +1,4 @@
+# stdlib
 import ConfigParser
 from cStringIO import StringIO
 import glob
@@ -17,17 +18,17 @@ import sys
 import traceback
 from urlparse import urlparse
 
-# 3rd party
+# 3p
 import yaml
 
 # project
 from util import get_os, yLoader
 from utils.platform import Platform
 from utils.proxy import get_proxy
-from utils.subprocess_output import subprocess
+from utils.subprocess_output import get_subprocess_output
 
 # CONSTANTS
-AGENT_VERSION = "5.6.0"
+AGENT_VERSION = "5.7.0"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
 MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
@@ -136,7 +137,7 @@ def _windows_commondata_path():
                                 wintypes.DWORD, wintypes.LPCWSTR]
 
     path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
-    result = _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
+    _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
     return path_buf.value
 
 
@@ -221,6 +222,14 @@ def get_config_path(cfg_path=None, os_name=None):
     if cfg_path is not None and os.path.exists(cfg_path):
         return cfg_path
 
+    # Check if there's a config stored in the current agent directory
+    try:
+        path = os.path.realpath(__file__)
+        path = os.path.dirname(path)
+        return _config_path(path)
+    except PathNotFound, e:
+        pass
+
     if os_name is None:
         os_name = get_os()
 
@@ -236,14 +245,6 @@ def get_config_path(cfg_path=None, os_name=None):
     except PathNotFound, e:
         if len(e.args) > 0:
             bad_path = e.args[0]
-
-    # Check if there's a config stored in the current agent directory
-    try:
-        path = os.path.realpath(__file__)
-        path = os.path.dirname(path)
-        return _config_path(path)
-    except PathNotFound, e:
-        pass
 
     # If all searches fail, exit the agent with an error
     sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
@@ -347,7 +348,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig[option] = config.get('Main', option)
 
         # Store developer mode setting in the agentConfig
-        in_developer_mode = None
         if config.has_option('Main', 'developer_mode'):
             agentConfig['developer_mode'] = _is_affirmative(config.get('Main', 'developer_mode'))
 
@@ -360,12 +360,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         #
 
         # FIXME unnecessarily complex
-
-        if config.has_option('Main', 'use_dd'):
-            agentConfig['use_dd'] = config.get('Main', 'use_dd').lower() in ("yes", "true")
-        else:
-            agentConfig['use_dd'] = True
-
         agentConfig['use_forwarder'] = False
         if options is not None and options.use_forwarder:
             listen_port = 17123
@@ -399,10 +393,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig['use_web_info_page'] = config.get('Main', 'use_web_info_page').lower() in ("yes", "true")
         else:
             agentConfig['use_web_info_page'] = True
-
-        if not agentConfig['use_dd']:
-            sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
-            exit(2)
 
         # Which API key to use
         agentConfig['api_key'] = config.get('Main', 'api_key')
@@ -581,15 +571,16 @@ def get_system_stats():
     platf = sys.platform
 
     if Platform.is_linux(platf):
-        grep = subprocess.Popen(['grep', 'model name', '/proc/cpuinfo'], stdout=subprocess.PIPE, close_fds=True)
-        wc = subprocess.Popen(['wc', '-l'], stdin=grep.stdout, stdout=subprocess.PIPE, close_fds=True)
-        systemStats['cpuCores'] = int(wc.communicate()[0])
+        output, _, _ = get_subprocess_output(['grep', 'model name', '/proc/cpuinfo'], log)
+        systemStats['cpuCores'] = len(output.splitlines())
 
     if Platform.is_darwin(platf):
-        systemStats['cpuCores'] = int(subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1])
+        output, _, _ = get_subprocess_output(['sysctl', 'hw.ncpu'], log)
+        systemStats['cpuCores'] = int(output.split(': ')[1])
 
     if Platform.is_freebsd(platf):
-        systemStats['cpuCores'] = int(subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1])
+        output, _, _ = get_subprocess_output(['sysctl', 'hw.ncpu'], log)
+        systemStats['cpuCores'] = int(output.split(': ')[1])
 
     if Platform.is_linux(platf):
         systemStats['nixV'] = platform.dist()
@@ -628,7 +619,33 @@ def set_win32_cert_path():
     log.info("Windows certificate path: %s" % crt_path)
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
+
+def set_win32_requests_ca_bundle_path():
+    """In order to allow `requests` to validate SSL requests with the packaged .exe on Windows,
+    we need to override the default certificate location which is based on the location of the
+    requests or certifi libraries.
+
+    We override the path directly in requests.adapters so that the override works even when the
+    `requests` lib has already been imported
+    """
+    import requests.adapters
+    if hasattr(sys, 'frozen'):
+        # we're frozen - from py2exe
+        prog_path = os.path.dirname(sys.executable)
+        ca_bundle_path = os.path.join(prog_path, 'cacert.pem')
+        requests.adapters.DEFAULT_CA_BUNDLE_PATH = ca_bundle_path
+
+    log.info("Default CA bundle path of the requests library: {0}"
+             .format(requests.adapters.DEFAULT_CA_BUNDLE_PATH))
+
+
 def get_confd_path(osname=None):
+    try:
+        cur_path = os.path.dirname(os.path.realpath(__file__))
+        return _confd_path(cur_path)
+    except PathNotFound, e:
+        pass
+
     if not osname:
         osname = get_os()
     bad_path = ''
@@ -642,12 +659,6 @@ def get_confd_path(osname=None):
     except PathNotFound, e:
         if len(e.args) > 0:
             bad_path = e.args[0]
-
-    try:
-        cur_path = os.path.dirname(os.path.realpath(__file__))
-        return _confd_path(cur_path)
-    except PathNotFound, e:
-        pass
 
     raise PathNotFound(bad_path)
 
@@ -710,9 +721,7 @@ def get_ssl_certificate(osname, filename):
     return None
 
 def check_yaml(conf_path):
-    f = open(conf_path)
-    check_name = os.path.basename(conf_path).split('.')[0]
-    try:
+    with open(conf_path) as f:
         check_config = yaml.load(f.read(), Loader=yLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
         assert 'instances' in check_config, "No 'instances' section found"
@@ -729,9 +738,6 @@ def check_yaml(conf_path):
             raise Exception('You need to have at least one instance defined in the YAML file for this check')
         else:
             return check_config
-    finally:
-        f.close()
-
 
 def load_check_directory(agentConfig, hostname):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
@@ -1023,9 +1029,11 @@ def initialize_logging(logger_name):
                     sys_log_addr = (logging_config['syslog_host'], logging_config['syslog_port'])
                 else:
                     sys_log_addr = "/dev/log"
-                    # Special-case macs
-                    if sys.platform == 'darwin':
+                    # Special-case BSDs
+                    if Platform.is_darwin():
                         sys_log_addr = "/var/run/syslog"
+                    elif Platform.is_freebsd():
+                        sys_log_addr = "/var/run/log"
 
                 handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
                 handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
