@@ -146,11 +146,12 @@ class WMISampler(object):
             self.previous_sample = self.current_sample
             self.current_sample = self._query()
         except TimeoutException:
-            self.logger.warning(
+            self.logger.debug(
                 u"Query timeout after {timeout}s".format(
                     timeout=self._timeout_duration
                 )
             )
+            raise
         else:
             self._sampling = False
             self.logger.debug(u"Sample: {0}".format(self.current_sample))
@@ -161,7 +162,9 @@ class WMISampler(object):
         """
         # No data is returned while sampling
         if self._sampling:
-            return 0
+            raise TypeError(
+                u"Sampling `WMISampler` object has no len()"
+            )
 
         return len(self.current_sample)
 
@@ -171,7 +174,9 @@ class WMISampler(object):
         """
         # No data is returned while sampling
         if self._sampling:
-            return
+            raise TypeError(
+                u"Sampling `WMISampler` object is not iterable"
+            )
 
         if self.is_raw_perf_class:
             # Format required

@@ -16,6 +16,9 @@ except Exception:
         """
         return
 
+# datadog
+from utils.timeout import TimeoutException
+
 
 # Device WMI drive types
 class DriveType(object):
@@ -44,7 +47,14 @@ class Processes(Check):
         self.gauge('system.proc.count')
 
     def check(self, agentConfig):
-        self.wmi_sampler.sample()
+        try:
+            self.wmi_sampler.sample()
+        except TimeoutException:
+            self.logger.warning(
+                u"Timeout while querying Win32_PerfRawData_PerfOS_System WMI class."
+                u" Processes metrics will be returned at next iteration."
+            )
+            return
 
         if not (len(self.wmi_sampler)):
             self.logger.info('Missing Win32_PerfRawData_PerfOS_System WMI class.'
@@ -100,7 +110,14 @@ class Memory(Check):
         self.gauge('system.mem.pct_usable')
 
     def check(self, agentConfig):
-        self.os_wmi_sampler.sample()
+        try:
+            self.os_wmi_sampler.sample()
+        except TimeoutException:
+            self.logger.warning(
+                u"Timeout while querying Win32_OperatingSystem WMI class."
+                u" Memory metrics will be returned at next iteration."
+            )
+            return
 
         if not (len(self.os_wmi_sampler)):
             self.logger.info('Missing Win32_OperatingSystem WMI class.'
@@ -123,7 +140,14 @@ class Memory(Check):
             self.save_sample('system.mem.free', free)
             self.save_sample('system.mem.used', total - free)
 
-        self.mem_wmi_sampler.sample()
+        try:
+            self.mem_wmi_sampler.sample()
+        except TimeoutException:
+            self.logger.warning(
+                u"Timeout while querying Win32_PerfRawData_PerfOS_Memory WMI class."
+                u" Memory metrics will be returned at next iteration."
+            )
+            return
 
         if not (len(self.mem_wmi_sampler)):
             self.logger.info('Missing Win32_PerfRawData_PerfOS_Memory WMI class.'
@@ -173,8 +197,14 @@ class Cpu(Check):
         self.counter('system.cpu.system')
 
     def check(self, agentConfig):
-
-        self.wmi_sampler.sample()
+        try:
+            self.wmi_sampler.sample()
+        except TimeoutException:
+            self.logger.warning(
+                u"Timeout while querying Win32_PerfRawData_PerfOS_Processor WMI class."
+                u" CPU metrics will be returned at next iteration."
+            )
+            return
 
         if not (len(self.wmi_sampler)):
             self.logger.info('Missing Win32_PerfRawData_PerfOS_Processor WMI class.'
@@ -230,7 +260,14 @@ class Network(Check):
         self.gauge('system.net.bytes_sent')
 
     def check(self, agentConfig):
-        self.wmi_sampler.sample()
+        try:
+            self.wmi_sampler.sample()
+        except TimeoutException:
+            self.logger.warning(
+                u"Timeout while querying Win32_PerfRawData_Tcpip_NetworkInterface WMI class."
+                u" Network metrics will be returned at next iteration."
+            )
+            return
 
         if not (len(self.wmi_sampler)):
             self.logger.info('Missing Win32_PerfRawData_Tcpip_NetworkInterface WMI class.'
@@ -271,7 +308,14 @@ class IO(Check):
         self.gauge('system.io.avg_q_sz')
 
     def check(self, agentConfig):
-        self.wmi_sampler.sample()
+        try:
+            self.wmi_sampler.sample()
+        except TimeoutException:
+            self.logger.warning(
+                u"Timeout while querying Win32_PerfRawData_PerfDisk_LogicalDiskUnable WMI class."
+                u" I/O metrics will be returned at next iteration."
+            )
+            return
 
         if not (len(self.wmi_sampler)):
             self.logger.info('Missing Win32_PerfRawData_PerfDisk_LogicalDiskUnable WMI class.'

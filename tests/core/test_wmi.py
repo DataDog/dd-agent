@@ -10,18 +10,12 @@ from mock import Mock
 
 # project
 from tests.checks.common import Fixtures
+from utils.timeout import TimeoutException
 
 
 log = logging.getLogger(__name__)
 
 WMISampler = None
-
-
-# Thoughts
-# Log WMI activity
-# Mechanism to timeout
-# Check when pywintypes.com_error are raised
-# Check the role of the flags
 
 
 def load_fixture(f, args=None):
@@ -100,9 +94,11 @@ class SWbemServices(object):
     @classmethod
     def reset(cls):
         """
-        FIXME - Dirty patch to reset `SWbemServices.ExecQuery` to 0.
+        Dirty patch to reset `SWbemServices.ExecQuery.call_count` and
+        `SWbemServices._exec_query_run_time` to 0.
         """
         cls._exec_query_call_count.reset()
+        cls._exec_query_run_time = 0
 
     def get_conn_args(self):
         """
@@ -451,7 +447,7 @@ class TestUnitWMISampler(TestCommonWMI):
 
     def test_wmi_sampler_timeout(self):
         """
-        Gracefully handle WMI queries' timeouts.
+        Gracefully handle WMI query timeouts.
         """
         from checks.libs.wmi.sampler import WMISampler
         logger = Mock()
@@ -462,14 +458,14 @@ class TestUnitWMISampler(TestCommonWMI):
                                  timeout_duration=0.5)
         SWbemServices._exec_query_run_time = 0.5
 
-        # Gracefully timeout with a warning message but no exception
-        wmi_sampler.sample()
+        # `TimeoutException` exception is raised, DEBUG message logged
+        self.assertRaises(TimeoutException, wmi_sampler.sample)
         self.assertTrue(wmi_sampler._sampling)
-        self.assertTrue(logger.warning.called)
+        self.assertTrue(logger.debug.called)
 
-        # Show no data
-        self.assertEquals(len(wmi_sampler), 0)
-        self.assertEquals(sum(1 for _ in wmi_sampler), 0)
+        # Cannot iterate on data
+        self.assertRaises(TypeError, lambda: len(wmi_sampler))
+        self.assertRaises(TypeError, lambda: sum(1 for _ in wmi_sampler))
 
         # Recover from timeout at next iteration
         wmi_sampler.sample()
