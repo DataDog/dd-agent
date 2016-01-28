@@ -46,7 +46,8 @@ namespace :ci do
         ENV['LUA_PATH'] = "./?.lua;$LUAROCKS_DIR/share/lua/5.1/?.lua;$LUAROCKS_DIR/share/lua/5.1/?/init.lua;\
           $LUAROCKS_DIR/lib/lua/5.1/?.lua;#{ENV['LUA_PATH']}"
         ENV['PATH'] = "$LUAJIT_DIR/bin:$LUAROCKS_DIR/bin:$OPENRESTY_DIR/nginx/sbin:$SERF_DIR:$DNSMASQ_DIR/usr/local/sbin:#{ENV['PATH']}"
-
+		
+		sh %(echo $PATH)
         sh %(bash #{kong_rootdir}/kong_install.sh)
 
         sh %(curl -s -L -o $VOLATILE_DIR/apache-cassandra-2.1.3-bin.tar.gz\
