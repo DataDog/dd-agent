@@ -7,6 +7,7 @@ if [ "$TEST_SUITE" == "unit" ]; then
   exit
 fi
 
+
 pushd $INTEGRATIONS_DIR/
 mkdir -p $OPENRESTY_DIR
 
