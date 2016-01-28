@@ -42,12 +42,14 @@ namespace :ci do
         sh %(bash #{kong_rootdir}/setup_serf.sh)
         sh %(bash #{kong_rootdir}/setup_dnsmasq.sh)
 
-        ENV['LUA_CPATH'] = "./?.so;$LUAROCKS_DIR/lib/lua/5.1/?.so;$LUA_CPATH;#{ENV['LUA_CPATH']}"
-        ENV['LUA_PATH'] = "./?.lua;$LUAROCKS_DIR/share/lua/5.1/?.lua;$LUAROCKS_DIR/share/lua/5.1/?/init.lua;\
-          $LUAROCKS_DIR/lib/lua/5.1/?.lua;#{ENV['LUA_PATH']}"
-        ENV['PATH'] = "$LUAJIT_DIR/bin:$LUAROCKS_DIR/bin:$OPENRESTY_DIR/nginx/sbin:$SERF_DIR:$DNSMASQ_DIR/usr/local/sbin:#{ENV['PATH']}"
+        ENV['LUA_CPATH']="./?.so;$LUAROCKS_DIR/lib/lua/5.1/?.so;"
+        ENV['LUA_PATH']="./?.lua;$LUAROCKS_DIR/share/lua/5.1/?.lua;$LUAROCKS_DIR/share/lua/5.1/?/init.lua;$LUAROCKS_DIR/lib/lua/5.1/?.lua;"
+        ENV['PATH']="$LUAJIT_DIR/bin:$LUAROCKS_DIR/bin:$OPENRESTY_DIR/nginx/sbin:$SERF_DIR:$DNSMASQ_DIR/usr/local/sbin:#{ENV['PATH']}"
 		
 		sh %(echo $PATH)
+		sh %(echo $LUAROCKS_DIR)
+		sh %(echo $LUA_CPATH)
+		sh %(echo $LUA_PATH)
         sh %(bash #{kong_rootdir}/kong_install.sh)
 
         sh %(curl -s -L -o $VOLATILE_DIR/apache-cassandra-2.1.3-bin.tar.gz\
