@@ -281,6 +281,14 @@ class WMISampler(object):
                 )
             )
             connection = available_connections.pop()
+
+            # this is compulsory and overrides connection - caching it doesn't make much sense
+            pythoncom.CoInitialize()
+            locator = Dispatch("WbemScripting.SWbemLocator")
+            connection = locator.ConnectServer(
+                self.host, self.namespace,
+                self.username, self.password
+            )
         else:
             self.logger.debug(
                 u"Connecting to WMI server "
