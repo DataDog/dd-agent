@@ -50,4 +50,4 @@ if [ ! "$(ls -A $OPENRESTY_DIR)" ]; then
   make install
   popd
 fi
-pops
+popd
