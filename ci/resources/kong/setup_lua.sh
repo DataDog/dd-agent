@@ -8,6 +8,9 @@
 
 set -e
 
+
+pushd $INTEGRATIONS_DIR/
+
 LUAJIT="no"
 
 if [ -z "$PLATFORM" ]; then
@@ -114,4 +117,5 @@ fi
   $CONFIGURE_FLAGS
 
 make build && make install
+popd
 popd

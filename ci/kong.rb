@@ -22,7 +22,7 @@ namespace :ci do
         ENV['LUA_VERSION']="luajit-2.1"
         ENV['CASSANDRA_VERSION']="2.2.4"
         ENV['LUAROCKS_VERSION']="2.2.2"
-        ENV['OPENSSL_VERSION']="1.0.2e"
+        ENV['OPENSSL_VERSION']="1.0.2f"
         ENV['OPENRESTY_VERSION']="1.9.3.1"
         ENV['SERF_VERSION']="0.7.0"
         ENV['DNSMASQ_VERSION']="2.75"

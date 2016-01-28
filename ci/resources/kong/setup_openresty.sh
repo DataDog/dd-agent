@@ -7,17 +7,17 @@ if [ "$TEST_SUITE" == "unit" ]; then
   exit
 fi
 
-mkdir -p $OPENRESTY_DIR
 pushd $INTEGRATIONS_DIR/
+mkdir -p $OPENRESTY_DIR
 
 if [ ! "$(ls -A $OPENRESTY_DIR)" ]; then
   # Download OpenSSL
   OPENSSL_BASE=openssl-$OPENSSL_VERSION
-  curl http://www.openssl.org/source/$OPENSSL_BASE.tar.gz | tar xzf
+  curl http://www.openssl.org/source/$OPENSSL_BASE.tar.gz | tar xz
 
   # Download OpenResty
   OPENRESTY_BASE=ngx_openresty-$OPENRESTY_VERSION
-  curl https://openresty.org/download/$OPENRESTY_BASE.tar.gz | tar xzf
+  curl https://openresty.org/download/$OPENRESTY_BASE.tar.gz | tar xz
   pushd $OPENRESTY_BASE
 
   # Download and apply nginx patch
@@ -50,4 +50,4 @@ if [ ! "$(ls -A $OPENRESTY_DIR)" ]; then
   make install
   popd
 fi
-  popd
+pops
