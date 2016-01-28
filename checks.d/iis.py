@@ -5,6 +5,7 @@ Check the performance counters from IIS
 from checks import AgentCheck
 from checks.wmi_check import WinWMICheck, WMIMetric
 from utils.containers import hash_mutable
+from utils.timeout import TimeoutException
 
 
 class IIS(WinWMICheck):
@@ -73,12 +74,22 @@ class IIS(WinWMICheck):
         )
 
         # Sample, extract & submit metrics
-        wmi_sampler.sample()
+        try:
+            wmi_sampler.sample()
 
-        metrics = self._extract_metrics(wmi_sampler, sites, instance_tags)
-
-        self._submit_events(wmi_sampler, sites)
-        self._submit_metrics(metrics, metrics_by_property)
+            metrics = self._extract_metrics(wmi_sampler, sites, instance_tags)
+        except TimeoutException:
+            self.log.warning(
+                u"[IIS] WMI query timed out."
+                u" class={wmi_class} - properties={wmi_properties} -"
+                u" filters={filters} - tags={instance_tags}".format(
+                    wmi_class=self.CLASS, wmi_properties=properties,
+                    filters=filters, instance_tags=instance_tags
+                )
+            )
+        else:
+            self._submit_events(wmi_sampler, sites)
+            self._submit_metrics(metrics, metrics_by_property)
 
     def _extract_metrics(self, wmi_sampler, sites, tags):
         """
