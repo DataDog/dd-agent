@@ -31,6 +31,17 @@ instances:
     #   - thisqueue-.*
     #   - another_\d+queue
 
+    # Use the `exchanges` or `exchanges_regexes` parameters to specify the exchanges you'd like to
+    # collect metrics on (up to 200 exchanges).
+    # If you have less than 200 exchanges, you don't have to set this parameter,
+    # the metrics will be collected on all the exchanges by default.
+    #
+    # exchanges:
+    #   - exchange1
+    #   - exchange2
+    # exchanges_regexes:
+    #   - thisexchange-.*
+
     # Service checks:
     # By default a list of all vhosts is fetched and each one will be checked
     # using the aliveness API. If you prefer only certain vhosts to be monitored
