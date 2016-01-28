@@ -1,6 +1,7 @@
 # project
 from checks.wmi_check import WinWMICheck
 from utils.containers import hash_mutable
+from utils.timeout import TimeoutException
 
 
 class WMICheck(WinWMICheck):
@@ -48,6 +49,17 @@ class WMICheck(WinWMICheck):
         )
 
         # Sample, extract & submit metrics
-        wmi_sampler.sample()
-        metrics = self._extract_metrics(wmi_sampler, tag_by, tag_queries, constant_tags)
-        self._submit_metrics(metrics, metric_name_and_type_by_property)
+        try:
+            wmi_sampler.sample()
+            metrics = self._extract_metrics(wmi_sampler, tag_by, tag_queries, constant_tags)
+        except TimeoutException:
+            self.log.warning(
+                u"[WMI] WMI query timed out."
+                u" class={wmi_class} - properties={wmi_properties} -"
+                u" filters={filters} - tag_queries={tag_queries}".format(
+                    wmi_class=wmi_class, wmi_properties=properties,
+                    filters=filters, tag_queries=tag_queries
+                )
+            )
+        else:
+            self._submit_metrics(metrics, metric_name_and_type_by_property)

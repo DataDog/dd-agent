@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 # project
 from checks.wmi_check import WinWMICheck, to_time, from_time
 from utils.containers import hash_mutable
+from utils.timeout import TimeoutException
 
 SOURCE_TYPE_NAME = 'event viewer'
 EVENT_TYPE = 'win32_log_event'
@@ -95,24 +96,34 @@ class Win32EventLogWMI(WinWMICheck):
             and_props=['Message']
         )
 
-        wmi_sampler.sample()
+        try:
+            wmi_sampler.sample()
+        except TimeoutException:
+            self.log.warning(
+                u"[Win32EventLog] WMI query timed out."
+                u" class={wmi_class} - properties={wmi_properties} -"
+                u" filters={filters} - tags={tags}".format(
+                    wmi_class=self.CLASS, wmi_properties=self.EVENT_PROPERTIES,
+                    filters=filters, tags=instance_tags
+                )
+            )
+        else:
+            for ev in wmi_sampler:
+                # for local events we dont need to specify a hostname
+                hostname = None if (host == "localhost" or host == ".") else host
+                log_ev = LogEvent(ev, hostname, instance_tags, notify,
+                                self.init_config.get('tag_event_id', False))
 
-        for ev in wmi_sampler:
-            # for local events we dont need to specify a hostname
-            hostname = None if (host == "localhost" or host == ".") else host
-            log_ev = LogEvent(ev, hostname, instance_tags, notify,
-                              self.init_config.get('tag_event_id', False))
+                # Since WQL only compares on the date and NOT the time, we have to
+                # do a secondary check to make sure events are after the last
+                # timestamp
+                if log_ev.is_after(last_ts):
+                    self.event(log_ev.to_event_dict())
+                else:
+                    self.log.debug('Skipping event after %s. ts=%s' % (last_ts, log_ev.timestamp))
 
-            # Since WQL only compares on the date and NOT the time, we have to
-            # do a secondary check to make sure events are after the last
-            # timestamp
-            if log_ev.is_after(last_ts):
-                self.event(log_ev.to_event_dict())
-            else:
-                self.log.debug('Skipping event after %s. ts=%s' % (last_ts, log_ev.timestamp))
-
-        # Update the last time checked
-        self.last_ts[instance_key] = datetime.utcnow()
+            # Update the last time checked
+            self.last_ts[instance_key] = datetime.utcnow()
 
 
     def _dt_to_wmi(self, dt):
