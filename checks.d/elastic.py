@@ -201,6 +201,9 @@ class ESCheck(AgentCheck):
     ADDITIONAL_METRICS_POST_1_0_0 = {
         "elasticsearch.indices.translog.size_in_bytes": ("gauge", "indices.translog.size_in_bytes"),
         "elasticsearch.indices.translog.operations": ("gauge", "indices.translog.operations"),
+    }
+
+    ADDITIONAL_METRICS_1_x = {  # Stats are only valid for v1.x
         "elasticsearch.fs.total.disk_reads": ("rate", "fs.total.disk_reads"),
         "elasticsearch.fs.total.disk_writes": ("rate", "fs.total.disk_writes"),
         "elasticsearch.fs.total.disk_io_op": ("rate", "fs.total.disk_io_op"),
@@ -392,6 +395,9 @@ class ESCheck(AgentCheck):
 
         if version >= [1, 0, 0]:
             stats_metrics.update(self.ADDITIONAL_METRICS_POST_1_0_0)
+
+        if version >= [1, 0, 0] and version < [2, 0, 0]:
+            stats_metrics.update(self.ADDITIONAL_METRICS_1_x)
 
         if version >= [1, 3, 0]:
             stats_metrics.update(self.ADDITIONAL_METRICS_POST_1_3_0)

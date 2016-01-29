@@ -177,6 +177,9 @@ ADDITIONAL_METRICS_PRE_0_90_5 = {
 ADDITIONAL_METRICS_POST_1_0_0 = {
     "elasticsearch.indices.translog.size_in_bytes": ("gauge", "indices.translog.size_in_bytes"),
     "elasticsearch.indices.translog.operations": ("gauge", "indices.translog.operations"),
+}
+
+ADDITIONAL_METRICS_1_x = {
     # Currently has issues in test framework:
     # "elasticsearch.fs.total.disk_reads": ("rate", "fs.total.disk_reads"),
     # "elasticsearch.fs.total.disk_writes": ("rate", "fs.total.disk_writes"),
@@ -273,6 +276,9 @@ class TestElastic(AgentCheckTest):
 
         if es_version >= [1, 0, 0]:
             expected_metrics.update(ADDITIONAL_METRICS_POST_1_0_0)
+
+        if es_version >= [1, 0, 0] and es_version < [2, 0, 0]:
+            expected_metrics.update(ADDITIONAL_METRICS_1_x)
 
         if es_version >= [1, 3, 0]:
             expected_metrics.update(ADDITIONAL_METRICS_POST_1_3_0)
