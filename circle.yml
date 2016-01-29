@@ -4,6 +4,12 @@ machine:
     services:
         - docker
 
+general:
+    branches:
+        only:
+            - jaime/mysql_circleci
+
+
 dependencies:
     pre:
         - sudo pip install docker-compose
