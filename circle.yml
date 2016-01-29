@@ -1,0 +1,30 @@
+machine:
+    python:
+        version: 2.7.3
+    services:
+        - docker
+
+general:
+    branches:
+        only:
+            - jaime/mysql_circleci
+
+
+dependencies:
+    pre:
+        - sudo pip install docker-compose
+        - sudo pip install flake8
+test:
+    pre:
+        # setup mysql - we can move this to rake script.
+        #- docker-compose -f development.yml -f development.test.yml run -d db
+        - docker create -p 3312:3306 --name mysql-latest -e MYSQL_ROOT_PASSWORD=datadog mysql:latest
+        - docker create -p 3312:3306 --name mysql-5_6 -e MYSQL_ROOT_PASSWORD=datadog mysql:5.6
+        - docker create -p 3312:3306 --name mysql-5_5 -e MYSQL_ROOT_PASSWORD=datadog mysql:5.5
+    override:
+        # - bundle exec rake ci:run[mysql]
+        - bundle exec rake default
+    post:
+        # docker-compose stop was not stopping containers started with docker-compose run
+        # so using this hackity hack to force stop them all
+        - docker stop $(docker ps -a -q)

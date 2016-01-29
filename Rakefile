@@ -44,7 +44,7 @@ require './ci/docker_daemon'
 CLOBBER.include '**/*.pyc'
 
 # CI-like environment for local use
-unless ENV['CI']
+if !ENV['CI'] || ENV['CIRCLECI']
   rakefile_dir = File.dirname(__FILE__)
   ENV['TRAVIS_BUILD_DIR'] = rakefile_dir
   ENV['INTEGRATIONS_DIR'] = File.join(rakefile_dir, 'embedded')
