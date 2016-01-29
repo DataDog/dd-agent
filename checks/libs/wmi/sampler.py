@@ -19,7 +19,6 @@ Credits to @TheCloudlessSky (https://github.com/TheCloudlessSky)
 """
 
 # stdlib
-from collections import defaultdict
 from contextlib import contextmanager
 from copy import deepcopy
 from itertools import izip
@@ -54,7 +53,6 @@ class WMISampler(object):
     """
     # Shared resources
     _wmi_locators = {}
-    _wmi_connections = defaultdict(list)
 
     def __init__(self, logger, class_name, property_names, filters="", host="localhost",
                  namespace="root\\cimv2", username="", password="", and_props=[], timeout_duration=10):
@@ -266,51 +264,24 @@ class WMISampler(object):
 
         Release, i.e. mark as available at exit.
         """
-        connection = None
-
-        # Fetch an existing connection or create a new one
-        available_connections = self._wmi_connections[self.connection_key]
-
-        if available_connections:
-            self.logger.debug(
-                u"Using cached connection "
-                u"(host={host}, namespace={namespace}, username={username}).".format(
-                    host=self.host,
-                    namespace=self.namespace,
-                    username=self.username
-                )
+        self.logger.debug(
+            u"Connecting to WMI server "
+            u"(host={host}, namespace={namespace}, username={username}).".format(
+                host=self.host,
+                namespace=self.namespace,
+                username=self.username
             )
-            connection = available_connections.pop()
+        )
 
-            # this is compulsory and overrides connection - caching it doesn't make much sense
-            pythoncom.CoInitialize()
-            locator = Dispatch("WbemScripting.SWbemLocator")
-            connection = locator.ConnectServer(
-                self.host, self.namespace,
-                self.username, self.password
-            )
-        else:
-            self.logger.debug(
-                u"Connecting to WMI server "
-                u"(host={host}, namespace={namespace}, username={username}).".format(
-                    host=self.host,
-                    namespace=self.namespace,
-                    username=self.username
-                )
-            )
-
-            pythoncom.CoInitialize()
-            locator = Dispatch("WbemScripting.SWbemLocator")
-            connection = locator.ConnectServer(
-                self.host, self.namespace,
-                self.username, self.password
-            )
+        pythoncom.CoInitialize()
+        locator = Dispatch("WbemScripting.SWbemLocator")
+        connection = locator.ConnectServer(
+            self.host, self.namespace,
+            self.username, self.password
+        )
 
         # Yield the connection
         yield connection
-
-        # Release it
-        self._wmi_connections[self.connection_key].append(connection)
 
     @staticmethod
     def _format_filter(filters, and_props=[]):
