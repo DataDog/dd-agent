@@ -1,0 +1,22 @@
+init_config:
+   keystone_server_url: http://10.0.2.15:5000 # Where your keystone server lives
+   
+   # In some cases, the nova url is returned without the tenant id suffixed
+   # e.g. http://172.0.0.1:8774 rather than http://172.0.0.1:8774/<tenant_id>
+   # Setting append_tenant_id to true manually adds this suffix for downstream requests
+   # append_tenant_id: false
+
+instances:
+   # Enumerate here each domain whose projects you wish to monitor
+
+   - admin_domain_id: default # A domain ID that this user will request a domain-scoped token against to call identity:list_projects and identity:list_users
+
+     auth: # The username and password that will be used to request the above token
+        user: datadog 
+        password: dd_password
+
+ # - admin_domain_id: my_other_domain
+ #
+ #   auth:
+ #     user: datadog 
+ #     password: dd_password
