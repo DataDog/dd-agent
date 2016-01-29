@@ -18,6 +18,20 @@ def get_mocked_config():
     }
 
 
+def get_mocked_config_with_proxy():
+    return {
+        'api_key': 'APIKEY',
+        'dd_url': 'https://app.datadoghq.com',
+        'skip_ssl_validation': True,
+        'proxy_settings': {
+            'host': 'proxy.host.com',
+            'port': 3128,
+            'user': 'proxy_user',
+            'password': 'proxy_pass',
+        }
+    }
+
+
 def get_mocked_version():
     return '6.6.6'
 
@@ -120,6 +134,33 @@ class FlareTest(unittest.TestCase):
         self.assertEqual(kwargs['data']['email'], 'test@example.com')
         assert kwargs['data']['hostname']
 
+    @mock.patch('utils.flare.requests.post', return_value=FakeResponse())
+    @mock.patch('config.get_version', side_effect=get_mocked_version)
+    @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
+    @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
+    @mock.patch('utils.flare.get_config', side_effect=get_mocked_config_with_proxy)
+    def test_upload_with_case_proxy(self, mock_config, mock_tempdir, mock_stfrtime, mock_version, mock_requests):
+        f = Flare(case_id=1337)
+        f._ask_for_email = lambda: 'test@example.com'
+
+        assert not mock_requests.called
+        f.upload()
+        assert mock_requests.called
+        args, kwargs = mock_requests.call_args_list[0]
+        self.assertEqual(
+            args,
+            ('https://6-6-6-flare.agent.datadoghq.com/support/flare/1337?api_key=APIKEY',)
+        )
+        self.assertEqual(
+            kwargs['files']['flare_file'].name,
+            os.path.join(get_mocked_temp(), "datadog-agent-1.tar.bz2")
+        )
+        self.assertEqual(kwargs['data']['case_id'], 1337)
+        self.assertEqual(kwargs['data']['email'], 'test@example.com')
+        assert kwargs['data']['hostname']
+        assert kwargs['proxies']['https'] == 'http://proxy_user:proxy_pass@proxy.host.com:3128'
+        assert not kwargs['verify']
+
     @attr(requires='core_integration')
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
@@ -170,3 +211,34 @@ class FlareTest(unittest.TestCase):
             line,
             password_tests['uri_password_expected']
         )
+
+    @attr(requires='core_integration')
+    @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
+    @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
+    @mock.patch('utils.flare.get_config', side_effect=get_mocked_config_with_proxy)
+    def test_uri_set_proxy(self, mock_config, mock_tempdir, mock_strftime):
+        f = Flare()
+        request_options = {}
+        f.set_proxy(request_options)
+        expected = 'http://proxy_user:proxy_pass@proxy.host.com:3128'
+        self.assertEqual(expected, request_options['proxies']['https'])
+
+    @attr(requires='core_integration')
+    @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
+    @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
+    @mock.patch('utils.flare.get_config', side_effect=get_mocked_config_with_proxy)
+    def test_uri_no_verify_ssl(self, mock_config, mock_tempdir, mock_strftime):
+        f = Flare()
+        request_options = {}
+        f.set_ssl_validation(request_options)
+        self.assertFalse(request_options['verify'])
+
+    @attr(requires='core_integration')
+    @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
+    @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
+    @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
+    def test_uri_verify_ssl_default(self, mock_config, mock_tempdir, mock_strftime):
+        f = Flare()
+        request_options = {}
+        f.set_ssl_validation(request_options)
+        self.assertEquals(request_options.get('verify'), None)
