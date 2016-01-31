@@ -180,7 +180,7 @@ class Dogstream(object):
 
             # Build our tail -f
             if self._gen is None:
-                self._gen = TailFile(self.logger, self.log_path, self._line_parser, multi=True).tail(line_by_line=False, move_end=move_end)
+                self._gen = TailFile(self.logger, self.log_path, self._line_parser).tail(line_by_line=False, move_end=move_end)
 
             # read until the end of file
             try:
@@ -199,8 +199,7 @@ class Dogstream(object):
         else:
             return {}
 
-
-    def _line_parser(self, lines):
+    def _line_parser(self, line):
         try:
             # alq - Allow parser state to be kept between invocations
             # This means a new argument can be passed the custom parsing function
@@ -217,62 +216,31 @@ class Dogstream(object):
                     # Arity of parse_func is 3 (old-style), not 4
                     parsed = self.parse_func(self.logger, line)
 
-                self._line_count += 1
+            self._line_count += 1
 
-                if parsed is None:
-                    continue
+            if parsed is None:
+                return
 
-                if isinstance(parsed, (tuple, dict)):
-                    parsed = [parsed]
+            if isinstance(parsed, (tuple, dict)):
+                parsed = [parsed]
 
-                for datum in parsed:
-                    # Check if it's an event
-                    if isinstance(datum, dict):
-                        # An event requires at least a title or a body
-                        if 'msg_title' not in datum and 'msg_text' not in datum:
-                            continue
-
-                        # Populate the default fields
-                        if 'event_type' not in datum:
-                            datum['event_type'] = EventDefaults.EVENT_TYPE
-                        if 'timestamp' not in datum:
-                            datum['timestamp'] = time.time()
-                        # Make sure event_object and aggregation_key (synonyms) are set
-                        # FIXME when the backend treats those as true synonyms, we can
-                        # deprecate event_object.
-                        if 'event_object' in datum or 'aggregation_key' in datum:
-                            datum['aggregation_key'] = datum.get('event_object', datum.get('aggregation_key'))
-                        else:
-                            datum['aggregation_key'] = EventDefaults.EVENT_OBJECT
-                        datum['event_object'] = datum['aggregation_key']
-
-                        self._events.append(datum)
+            for datum in parsed:
+                # Check if it's an event
+                if isinstance(datum, dict):
+                    # An event requires at least a title or a body
+                    if 'msg_title' not in datum and 'msg_text' not in datum:
                         continue
 
-                    # Otherwise, assume it's a metric
-                    try:
-                        metric, ts, value, attrs = datum
-                    except Exception:
-                        continue
-
-                    # Validation
-                    invalid_reasons = []
-                    try:
-                        # Bucket points into 15 second buckets
-                        ts = (int(float(ts)) / self._freq) * self._freq
-                        date = datetime.fromtimestamp(ts)
-                        assert date.year > 1990
-                    except Exception:
-                        invalid_reasons.append('invalid timestamp')
-
-                    try:
-                        value = float(value)
-                    except Exception:
-                        invalid_reasons.append('invalid metric value')
-
-                    if invalid_reasons:
-                        self.logger.debug('Invalid parsed values %s (%s): "%s"',
-                            repr(datum), ', '.join(invalid_reasons), line)
+                    # Populate the default fields
+                    if 'event_type' not in datum:
+                        datum['event_type'] = EventDefaults.EVENT_TYPE
+                    if 'timestamp' not in datum:
+                        datum['timestamp'] = time.time()
+                    # Make sure event_object and aggregation_key (synonyms) are set
+                    # FIXME when the backend treats those as true synonyms, we can
+                    # deprecate event_object.
+                    if 'event_object' in datum or 'aggregation_key' in datum:
+                        datum['aggregation_key'] = datum.get('event_object', datum.get('aggregation_key'))
                     else:
                         datum['aggregation_key'] = EventDefaults.EVENT_OBJECT
                     datum['event_object'] = datum['aggregation_key']

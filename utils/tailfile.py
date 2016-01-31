@@ -92,22 +92,9 @@ class TailFile(object):
                     else:
                         continue
                 else:
-                  line = self._f.readline()
-                  if line:
-                      line = line.strip(chr(0)) # a truncate may have create holes in the file
-                      if self._callback(line.rstrip("\n")):
-                          if line_by_line:
-                              yield True
-                              pos = self._f.tell()
-                              self._open_file(move_end=False,pos=pos)
-                          else:
-                              continue
-                      else:
-                          continue
-                  else:
-                      yield True
-                      assert pos == self._f.tell()
-                      self._open_file(move_end=False, pos=pos)
+                    yield True
+                    assert pos == self._f.tell()
+                    self._open_file(move_end=False, pos=pos)
 
         except Exception, e:
             # log but survive

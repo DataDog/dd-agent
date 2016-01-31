@@ -18,7 +18,6 @@ class TestTail(unittest.TestCase):
         self.logrotate_config.flush()
         self.logrotate_state_file = tempfile.NamedTemporaryFile()
         self.last_line = None
-        self.last_lines = None
 
     def _trigger_logrotate(self):
         subprocess.check_call([
