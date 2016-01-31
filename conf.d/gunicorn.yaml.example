@@ -1,3 +1,6 @@
+# NB: This check requires the python environment on which gunicorn runs to
+# have the `setproctitle` module installed (https://pypi.python.org/pypi/setproctitle/)
+
 init_config:
 
 instances:
