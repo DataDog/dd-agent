@@ -23,8 +23,8 @@ test:
         - docker create -p 3312:3306 --name mysql-5_6 -e MYSQL_ROOT_PASSWORD=datadog mysql:5.6
         - docker create -p 3312:3306 --name mysql-5_5 -e MYSQL_ROOT_PASSWORD=datadog mysql:5.5
     override:
-        # - bundle exec rake ci:run[mysql]
         - bundle exec rake default
+        - for f in $(find ci/ -type f -iname "*.rb" -exec basename {} \; | cut -f1 -d'.'); do bundle exec rake ci:run[$f]; done
     post:
         # docker-compose stop was not stopping containers started with docker-compose run
         # so using this hackity hack to force stop them all
