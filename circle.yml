@@ -14,6 +14,7 @@ dependencies:
     pre:
         - sudo pip install docker-compose
         - sudo pip install flake8
+        - sudo pip install pep8==1.5.7
 test:
     pre:
         # setup mysql - we can move this to rake script.
