@@ -78,6 +78,7 @@ if sys.platform == 'win32':
         'winrandom',
         'uptime',
         'pythoncom',
+        'datadog',
 
         # agent
         'checks.network_checks',
