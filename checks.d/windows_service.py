@@ -72,10 +72,10 @@ class WindowsService(WinWMICheck):
                 continue
 
             status = self.STATE_TO_VALUE.get(wmi_obj["state"], AgentCheck.UNKNOWN)
-            self.service_check("old.windows_service.state", status,
+            self.service_check("windows_service.state", status,
                                tags=tags + ['service:{0}'.format(service)])
             expected_services.remove(service)
 
         for service in expected_services:
-            self.service_check("old.windows_service.state", AgentCheck.CRITICAL,
+            self.service_check("windows_service.state", AgentCheck.CRITICAL,
                                tags=tags + ['service:{0}'.format(service)])
