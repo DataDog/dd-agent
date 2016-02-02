@@ -3,15 +3,24 @@ machine:
         version: 2.7.3
     services:
         - docker
+    environment:
+        NOSE_FILTER: "not windows"
+        INTEGRATIONS_DIR: $HOME/embedded
+        PIP_CACHE: $HOME/.cache/pip
+        SKIP_CLEANUP: true
+        VOLATILE_DIR: /tmp
 
 general:
     branches:
         only:
             - jaime/mysql_circleci
 
-
 dependencies:
     pre:
+        # Install circleci-matrix
+        - mkdir -p ~/.local/bin
+        - curl -fsSL https://raw.githubusercontent.com/michaelcontento/circleci-matrix/master/src/circleci-matrix.sh -o ~/.local/bin/circleci-matrix
+        - chmod +x ~/.local/bin/circleci-matrix
         - sudo pip install docker-compose
         - sudo pip install flake8
         - sudo pip install pep8==1.5.7
@@ -24,11 +33,12 @@ test:
         - docker create -p 3312:3306 --name mysql-5_5 -e MYSQL_ROOT_PASSWORD=datadog mysql:5.5
     override:
         - bundle exec rake default
+        - ~/.local/bin/circleci-matrix
           # - for f in $(find ci/ -type f -iname "*.rb" -exec basename {} \; | cut -f1 -d'.'); do bundle exec rake ci:run[$f]; done
-        - bundle exec rake:
-            parallel: true
-            files:
-              - ci/*.rb
+          # - bundle exec rake:
+          # -   parallel: true
+          # -   files:
+          # -     - ci/*.rb
     post:
         # docker-compose stop was not stopping containers started with docker-compose run
         # so using this hackity hack to force stop them all
