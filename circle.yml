@@ -25,7 +25,7 @@ test:
     override:
         - bundle exec rake default
           # - for f in $(find ci/ -type f -iname "*.rb" -exec basename {} \; | cut -f1 -d'.'); do bundle exec rake ci:run[$f]; done
-        - bundle exec rake
+        - bundle exec rake:
             parallel: true
             files:
               - ci/*.rb
