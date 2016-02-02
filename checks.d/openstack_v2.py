@@ -179,21 +179,41 @@ class OpenStackCheck(AgentCheck):
         return resp.json()
 
     ### Network
-    def get_neutron_endpoint(self, instance=None):
-        if not instance:
-            # Assume instance scope is populated on self
-            return self._current_scope.service_catalog.neutron_endpoint
+    def get_neutron_endpoint_from_catalog(self, catalog):
+        """
+        Parse the service catalog returned by the Identity API for an endpoint matching the Neutron service
+        Sends a CRITICAL service check when none are found registered in the Catalog
+        """
+        match = 'neutron'
 
-        return self.get_scope_for_instance(instance).service_catalog.neutron_endpoint
+        neutron_endpoint = None
+        for entry in catalog:
+            if entry['name'] == match:
+                valid_endpoints = {}
+                for ep in entry['endpoints']:
+                    interface = ep.get('interface','')
+                    if interface in ['public', 'internal']:
+                        valid_endpoints[interface] = ep['url']
 
-    def get_network_stats(self):
+                if valid_endpoints:
+                    # Favor public endpoints over internal
+                    neutron_endpoint = valid_endpoints.get("public",
+                                        valid_endpoints.get("internal"))
+                    break
+        else:
+            raise MissingNeutronEndpoint()
+
+        return neutron_endpoint
+
+
+    def get_network_stats(self, neutron_endpoint, domain_token):
         """
         Collect stats for all reachable networks
         """
 
         # FIXME: (aaditya) Check all networks defaults to true until we can reliably assign agents to networks to monitor
         if self.init_config.get('check_all_networks', True):
-            network_ids = list(set(self.get_all_network_ids()) - set(self.init_config.get('exclude_network_ids', [])))
+            network_ids = list(set(self.get_all_network_ids(neutron_endpoint, domain_token)) - set(self.init_config.get('exclude_network_ids', [])))
         else:
             network_ids = self.init_config.get('network_ids', [])
 
@@ -202,11 +222,11 @@ class OpenStackCheck(AgentCheck):
                          "Please list `network_ids` under your init_config")
 
         for nid in network_ids:
-            self.get_stats_for_single_network(nid)
+            self.get_stats_for_single_network(nid, neutron_endpoint, domain_token)
 
-    def get_all_network_ids(self):
-        url = '{0}/{1}/networks'.format(self.get_neutron_endpoint(), DEFAULT_NEUTRON_API_VERSION)
-        headers = {'X-Auth-Token': self.get_auth_token()}
+    def get_all_network_ids(self, neutron_endpoint, domain_token):
+        url = '{0}/{1}/networks'.format(neutron_endpoint, DEFAULT_NEUTRON_API_VERSION)
+        headers = {'X-Auth-Token': domain_token}
 
         network_ids = []
         try:
@@ -217,9 +237,9 @@ class OpenStackCheck(AgentCheck):
             self.warning('Unable to get the list of all network ids: {0}'.format(str(e)))
         return network_ids
 
-    def get_stats_for_single_network(self, network_id):
-        url = '{0}/{1}/networks/{2}'.format(self.get_neutron_endpoint(), DEFAULT_NEUTRON_API_VERSION, network_id)
-        headers = {'X-Auth-Token': self.get_auth_token()}
+    def get_stats_for_single_network(self, network_id, neutron_endpoint, domain_token):
+        url = '{0}/{1}/networks/{2}'.format(neutron_endpoint, DEFAULT_NEUTRON_API_VERSION, network_id)
+        headers = {'X-Auth-Token': domain_token}
         net_details = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
 
         service_check_tags = ['network:{0}'.format(network_id)]
@@ -521,7 +541,9 @@ class OpenStackCheck(AgentCheck):
 
         auth_token = auth_resp.headers.get('X-Subject-Token')
         user_id = auth_resp.json()['token']['user']['id']
-        return auth_token, user_id
+        neutron_endpoint = self.get_neutron_endpoint_from_catalog(auth_resp.json()["token"]["catalog"])
+
+        return auth_token, user_id, neutron_endpoint
 
     def get_projects_for_user(self, auth_token, user_id):
         keystone_server_url = self.keystone_server_url
@@ -542,7 +564,7 @@ class OpenStackCheck(AgentCheck):
         domain_id = instance.get("admin_domain_id")
         auth = instance.get("auth")
 
-        admin_token, admin_user_id = self.get_domain_scoped_token(auth["user"], auth["password"], domain_id)
+        admin_token, admin_user_id, neutron_endpoint = self.get_domain_scoped_token(auth["user"], auth["password"], domain_id)
         if not admin_token:
             raise BadCredentials
         if not domain_id:
@@ -579,12 +601,14 @@ class OpenStackCheck(AgentCheck):
                 servers = list(set(servers) - set(excluded_server_ids))
 
                 for sid in servers:
-                    server_tags = ["nova_managed_server", "tenant_id:%s" % project['id']]
-                    self.external_host_tags[sid] = host_tags
+                    server_tags = ["tenant_id:%s" % project['id'], "hypervisor_host:%s" % self.get_my_hostname()]
+                    self.external_host_tags[sid] = host_tags + server_tags
                     self.get_stats_for_single_server(sid, project_token, nova_endpoint, tags=server_tags)
 
+                self.external_host_tags[self.get_my_hostname()] = host_tags
+
             # For now, monitor all networks
-            # self.get_network_stats()
+            self.get_network_stats(neutron_endpoint, admin_token)
 
         except IncompleteConfig as e:
             if isinstance(e, IncompleteAuthScope):
@@ -622,35 +646,6 @@ class OpenStackCheck(AgentCheck):
         hyp = self.get_all_hypervisor_ids_v2(project_token, nova_endpoint, filter_by_host=host)
         if hyp:
             return hyp[0]
-
-    def get_scoped_project(self, instance):
-        """
-        Returns the project that this instance of the check is scoped to
-        """
-        project_auth_scope = self.get_scope_for_instance(instance)
-        if project_auth_scope.tenant_id:
-            return {"id": project_auth_scope.tenant_id}
-
-        filter_params = {
-            "name": project_auth_scope.project_name,
-            "domain_id": project_auth_scope.domain_id
-        }
-
-        url = "{0}/{1}/{2}".format(self.keystone_server_url, DEFAULT_KEYSTONE_API_VERSION, "projects")
-        headers = {'X-Auth-Token': self.get_auth_token(instance)}
-
-        try:
-            project_details = self._make_request_with_auth_fallback(url, headers, params=filter_params)
-            assert len(project_details["projects"]) == 1, "Non-unique project credentials"
-
-            # Set the tenant_id so we won't have to fetch it next time
-            project_auth_scope.tenant_id = project_details["projects"][0].get("id")
-
-            return project_details["projects"][0]
-        except Exception as e:
-            self.warning('Unable to get the list of all project ids: {0}'.format(str(e)))
-
-        return None
 
     def get_my_hostname(self):
         """
