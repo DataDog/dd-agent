@@ -39,6 +39,14 @@ class Riak(AgentCheck):
         "vnode_index_reads",
         "vnode_index_writes",
         "vnode_puts",
+        "search_index_fail_count",
+        "search_index_fail_one",
+        "search_query_fail_count",
+        "search_query_fail_one",
+        "search_index_throughput_count",
+        "search_index_throughput_one",
+        "search_query_throughput_count",
+        "search_query_throughput_one"
     ]
 
     stat_keys = [
@@ -48,10 +56,19 @@ class Riak(AgentCheck):
         "node_put_fsm_time"
     ]
 
+    search_latency_keys = [
+        "search_query_latency",
+        "search_index_latency"
+    ]
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         for k in ["mean", "median", "95", "99", "100"]:
             for m in self.stat_keys:
+                self.keys.append(m + "_" + k)
+
+        for k in ["min", "max", "mean", "median", "95", "99", "999"]:
+            for m in self.search_latency_keys:
                 self.keys.append(m + "_" + k)
 
         self.prev_coord_redirs_total = -1
