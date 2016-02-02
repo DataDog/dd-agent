@@ -18,6 +18,23 @@ class MongoDb(AgentCheck):
     SERVICE_CHECK_NAME = 'mongodb.can_connect'
     SOURCE_TYPE_NAME = 'mongodb'
 
+    """
+    MongoDB replica set states, as documented at
+    https://docs.mongodb.org/manual/reference/replica-states/
+    """
+    REPLSET_STATES = {
+        0: 'startup',
+        1: 'primary',
+        2: 'secondary',
+        3: 'recovering',
+        5: 'startup2',
+        6: 'unknown',
+        7: 'arbiter',
+        8: 'down',
+        9: 'rollback',
+        10: 'removed'
+    }
+
     # METRIC LIST DEFINITION
     #
     # Format
@@ -619,6 +636,7 @@ class MongoDb(AgentCheck):
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
+                tags.append('replset_state:%s' % self.REPLSET_STATES[data['state']])
                 self.check_last_state(
                     data['state'],
                     clean_server_name,
