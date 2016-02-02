@@ -268,7 +268,7 @@ class OpenStackCheck(AgentCheck):
         nova_version = nova_api_version or DEFAULT_NOVA_API_VERSION
         catalog = json_resp.get('token', {}).get('catalog', [])
 
-        nova_match = 'nova' if nova_version == 'v2.1' else 'nova'
+        nova_match = 'novav21' if nova_version == 'v2.1' else 'nova'
 
         for entry in catalog:
             if entry['name'] == nova_match:
