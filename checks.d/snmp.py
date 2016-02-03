@@ -323,7 +323,7 @@ class SnmpCheck(NetworkCheck):
     def report_raw_metrics(self, metrics, results, tags):
         '''
         For all the metrics that are specified as oid,
-        the conf oid is going to be a prefix of the oid sent back by the device
+        the conf oid is going to exactly match or be a prefix of the oid sent back by the device
         Use the instance configuration to find the name to give to the metric
 
         Submit the results to the aggregator.
@@ -331,14 +331,17 @@ class SnmpCheck(NetworkCheck):
         for metric in metrics:
             if 'OID' in metric:
                 queried_oid = metric['OID']
-                for oid in results:
-                    if oid.startswith(queried_oid):
-                        value = results[oid]
-                        break
+                if queried_oid in results:
+                    value = results[queried_oid]
                 else:
-                    self.log.warning("No matching results found for oid %s",
-                                     queried_oid)
-                    continue
+                    for oid in results:
+                        if oid.startswith(queried_oid):
+                            value = results[oid]
+                            break
+                    else:
+                        self.log.warning("No matching results found for oid %s",
+                                         queried_oid)
+                        continue
                 name = metric.get('name', 'unnamed_metric')
                 self.submit_metric(name, value, tags)
 
