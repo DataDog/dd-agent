@@ -353,8 +353,8 @@ class MySql(AgentCheck):
     @contextmanager
     def _connect(self, host, port, mysql_sock, user, password, defaults_file, ssl):
         self.service_check_tags = [
-            'server:{0}'.format(host),
-            'port:{0}'.format(port)
+            'server:%s' % (mysql_sock if mysql_sock != '' else host),
+            'port:%s' % ('unix_socket' if port == 0 else port)
         ]
 
         db = None
@@ -369,10 +369,6 @@ class MySql(AgentCheck):
                     user=user,
                     passwd=password
                 )
-                self.service_check_tags = [
-                    'server:{0}'.format(mysql_sock),
-                    'port:unix_socket'
-                ]
             elif port:
                 db = pymysql.connect(
                     host=host,

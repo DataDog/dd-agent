@@ -12,7 +12,7 @@ class TestMySql(AgentCheckTest):
     CHECK_NAME = 'mysql'
 
     METRIC_TAGS = ['tag1', 'tag2']
-    SC_TAGS = ['server:localhost', 'port:0']
+    SC_TAGS = ['server:localhost', 'port:unix_socket']
 
     MYSQL_CONFIG = [{
         'server': 'localhost',
@@ -374,6 +374,7 @@ class TestMySql(AgentCheckTest):
             Exception,
             lambda: self.run_check(config)
         )
+
         self.assertServiceCheck('mysql.can_connect', status=AgentCheck.CRITICAL,
                                 tags=self.SC_TAGS, count=1)
         self.coverage_report()
