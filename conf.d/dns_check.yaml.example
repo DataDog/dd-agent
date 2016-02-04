@@ -1,0 +1,7 @@
+init_config:
+    default_timeout: 4
+
+instances:
+    - hostname: www.example.org
+      nameserver: 127.0.0.1
+      timeout: 8
