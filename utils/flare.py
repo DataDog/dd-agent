@@ -164,6 +164,34 @@ class Flare(object):
         log.info("Saving all files to {0}".format(self.tar_path))
         self._tar.close()
 
+    # Set the proxy settings, if they exist
+    def set_proxy(self, options):
+        proxy_settings = self._config.get('proxy_settings')
+        if proxy_settings is None:
+            return
+        userpass = ''
+        if proxy_settings.get('user'):
+            userpass = "%s:%s@" % (proxy_settings.get('user'),
+                                   proxy_settings.get('password'),)
+
+        url = "http://%s%s:%s" % (userpass, proxy_settings.get('host'),
+                                  proxy_settings.get('port'),)
+
+        options['proxies'] = {
+            "https": url
+        }
+
+    # Set whether to ignore invalid ssl certs or not
+    def set_ssl_validation(self, options):
+        if self._config.get('skip_ssl_validation', False):
+            options['verify'] = False
+        elif Platform.is_windows():
+            options['verify'] = os.path.realpath(os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                os.pardir, os.pardir,
+                'datadog-cert.pem'
+            ))
+
     # Upload the tar file
     def upload(self, email=None):
         self._check_size()
@@ -188,12 +216,9 @@ class Flare(object):
             'files': {'flare_file': open(self.tar_path, 'rb')},
             'timeout': self.TIMEOUT
         }
-        if Platform.is_windows():
-            requests_options['verify'] = os.path.realpath(os.path.join(
-                os.path.dirname(os.path.realpath(__file__)),
-                os.pardir, os.pardir,
-                'datadog-cert.pem'
-            ))
+
+        self.set_proxy(requests_options)
+        self.set_ssl_validation(requests_options)
 
         self._resp = requests.post(url, **requests_options)
         self._analyse_result()
