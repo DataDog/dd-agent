@@ -93,7 +93,7 @@ class Wait
       n += 1
       sleep 0.25
     end
-    fail "Still not up after #{max_timeout}s" unless status
+    raise "Still not up after #{max_timeout}s" unless status
     puts 'Found!'
     status
   end
