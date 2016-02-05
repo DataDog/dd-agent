@@ -26,6 +26,7 @@ ESInstanceConfig = namedtuple(
         'timeout',
         'url',
         'username',
+        'pending_task_stats',
     ])
 
 
@@ -255,6 +256,7 @@ class ESCheck(AgentCheck):
         if 'is_external' in instance:
             cluster_stats = _is_affirmative(instance.get('is_external', False))
 
+        pending_task_stats = _is_affirmative(instance.get('pending_task_stats', True))
         # Support URLs that have a path in them from the config, for
         # backwards-compatibility.
         parsed = urlparse.urlparse(url)
@@ -285,7 +287,8 @@ class ESCheck(AgentCheck):
             tags=tags,
             timeout=timeout,
             url=url,
-            username=instance.get('username')
+            username=instance.get('username'),
+            pending_task_stats=pending_task_stats
         )
         return config
 
@@ -315,10 +318,11 @@ class ESCheck(AgentCheck):
         health_data = self._get_data(health_url, config)
         self._process_health_data(health_data, config)
 
-        # Load the pending_tasks data.
-        pending_tasks_url = urlparse.urljoin(config.url, pending_tasks_url)
-        pending_tasks_data = self._get_data(pending_tasks_url, config)
-        self._process_pending_tasks_data(pending_tasks_data, config)
+        if config.pending_task_stats:
+            # Load the pending_tasks data.
+            pending_tasks_url = urlparse.urljoin(config.url, pending_tasks_url)
+            pending_tasks_data = self._get_data(pending_tasks_url, config)
+            self._process_pending_tasks_data(pending_tasks_data, config)
 
         # If we're here we did not have any ES conn issues
         self.service_check(
