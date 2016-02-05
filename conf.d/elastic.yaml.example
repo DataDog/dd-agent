@@ -22,12 +22,19 @@ instances:
   # 'elasticsearch.primaries.docs.count` will give you the total number of
   # documents in your indexes WITHOUT counting duplicates due to the existence
   # of replica shards in your ES cluster
-  #
+
+  # `pending_task_stats` (defaults to True) specifies whether to collect data exposed
+  # by the `pending_tasks` cluster endpoint
+  # Ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/cluster-pending.html
+  # Some managed ElasticSearch services (e.g. AWS ElasticSearch) do not expose this endpoint.
+  # Set `pending_task_stats` to false if you use such a service.
+
   - url: http://localhost:9200
     # username: username
     # password: password
     # cluster_stats: false
     # pshard_stats: false
+    # pending_task_stats: true
     # tags:
     #   - 'tag1:key1'
     #   - 'tag2:key2'
