@@ -48,7 +48,7 @@ namespace :ci do
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
       end
-      fail exception if exception
+      raise exception if exception
     end
   end
 end
