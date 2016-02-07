@@ -21,7 +21,6 @@ at /etc/dd-agent/dogstream/apache.py
 import time
 from datetime import datetime
 import re
-import math
 
 # Adapted from http://www.leancrew.com/all-this/2013/07/parsing-my-apache-logs/
 # Regex for the Apache common log format.
@@ -38,7 +37,7 @@ COMBINED_PATTERN_PARTS = [
     r'"(?P<agent>.*)"'                  # user agent "%{User-agent}i"
 ]
 
-COMMON_PATTERN_PARTS  = [
+COMMON_PATTERN_PARTS = [
     r'(?P<host>\S+)',                   # host %h
     r'\S+',                             # indent %l (unused)
     r'(?P<user>\S+)',                   # user %u
@@ -134,7 +133,6 @@ def parse_web(logger, line):
     return (metric_name, date, metric_value, attr_dict)
 
 def test():
-    import sys
     import pprint
     import logging
     logging.basicConfig(level=logging.DEBUG)
