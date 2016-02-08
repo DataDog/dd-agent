@@ -220,28 +220,28 @@ init_config:
         domain: 'kafka.controller'
         bean: 'kafka.controller:type=KafkaController,name=OfflinePartitionsCount'
         attribute:
-          Count:
+          Value:
             metric_type: gauge
             alias: kafka.replication.offline_partitions_count
     - include:
         domain: 'kafka.controller'
         bean: 'kafka.controller:type=KafkaController,name=ActiveControllerCount'
         attribute:
-          Count:
+          Value:
             metric_type: gauge
             alias: kafka.replication.active_controller_count
     - include:
         domain: 'kafka.server'
         bean: 'kafka.server:type=ReplicaManager,name=PartitionCount'
         attribute:
-          Count:
+          Value:
             metric_type: gauge
             alias: kafka.replication.partition_count
     - include:
         domain: 'kafka.server'
         bean: 'kafka.server:type=ReplicaManager,name=LeaderCount'
         attribute:
-          Count:
+          Value:
             metric_type: gauge
             alias: kafka.replication.leader_count
     - include:
