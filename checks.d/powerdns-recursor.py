@@ -2,8 +2,8 @@
 from checks import AgentCheck
 
 # Other
-import json
-import urllib2
+import simplejson as json
+import requests
 from collections import namedtuple
 
 class PdnsChecks(AgentCheck):
@@ -11,9 +11,10 @@ class PdnsChecks(AgentCheck):
 
     def _get_pdns_stats(self, instance):
         config = self._get_config(instance)
-        request = urllib2.Request(config.pdns_url + ':' + str(config.port) + "/servers/localhost/statistics", headers={"X-API-Key" : config.api_key})
-        content = urllib2.urlopen(request).read()
-        result = json.loads(content)
+        url = config.pdns_url + ':' + str(config.port) + "/servers/localhost/statistics"
+        headers = {"X-API-Key" : config.api_key}
+        request = requests.get(url, headers=headers)
+        result = json.loads(request.text)
         return result
 
     def check(self, instance):
