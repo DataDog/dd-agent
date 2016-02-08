@@ -77,7 +77,7 @@ class ProcessCheck(AgentCheck):
         now = time.time()
         return now - self.last_pid_cache_ts.get(name, 0) > self.pid_cache_duration
 
-    def find_pids(self, name, search_string, exact_match, ignore_ad=True):
+    def find_pids(self, name, search_string, exact_match, ignore_ad=True, get_children=False):
         """
         Create a set of pids of selected processes.
         Search for search_string
@@ -125,6 +125,10 @@ class ProcessCheck(AgentCheck):
                         self.ad_cache.discard(proc.pid)
                     if found:
                         matching_pids.add(proc.pid)
+                        if get_children:
+                            # only get direct descendants
+                            for child in proc.children():
+                                matching_pids.add(child.pid)
                         break
 
         self.pid_cache[name] = matching_pids
@@ -240,6 +244,7 @@ class ProcessCheck(AgentCheck):
         exact_match = _is_affirmative(instance.get('exact_match', True))
         search_string = instance.get('search_string', None)
         ignore_ad = _is_affirmative(instance.get('ignore_denied_access', True))
+        get_children = _is_affirmative(instance.get('report_children', False))
 
         if not isinstance(search_string, list):
             raise KeyError('"search_string" parameter should be a list')
@@ -260,7 +265,8 @@ class ProcessCheck(AgentCheck):
             name,
             search_string,
             exact_match,
-            ignore_ad=ignore_ad
+            ignore_ad=ignore_ad,
+            get_children=get_children,
         )
 
         proc_state = self.get_process_state(name, pids)

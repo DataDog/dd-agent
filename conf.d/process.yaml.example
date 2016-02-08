@@ -45,6 +45,7 @@ instances:
   - name: postgres
     search_string: ['postgres']
     ignore_denied_access: True
+    report_children: False
 
   - name: nodeserver
     search_string: ['node server.js']
