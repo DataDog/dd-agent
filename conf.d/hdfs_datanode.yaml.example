@@ -1,0 +1,4 @@
+init_config:
+
+instances:
+    -    hdfs_datanode_jmx_uri: http://localhost:50075
