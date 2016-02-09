@@ -25,6 +25,16 @@ instances:
     # This only applies if collect_status_metrics is True.
     # collect_status_metrics_by_host: False
     #
+    # The (optional) collect_count_per_status parameter will instruct
+    # the check to collect counts for each status by host.
+    # This only applies if collect_status_metrics is True.
+    # collect_count_per_status: True
+    #
+    # The (optional) aggregate_status_by_service parameter will instruct
+    # the check to tag the status counts it collects by service in addition to by host.
+    # This only applies if collect_status_metrics and collect_count_per_status are True.
+    # aggregate_status_by_service: True
+    #
     # The (optional) tag_service_check_by_host parameter will instruct the
     # check to tag the service check status by host on top of other tags.
     # The default case will only tag by backend and service.
