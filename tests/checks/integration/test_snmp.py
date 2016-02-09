@@ -6,6 +6,7 @@ from nose.plugins.attrib import attr
 
 # agent
 from checks import AgentCheck
+from checks.metric_types import MetricTypes
 from tests.checks.common import AgentCheckTest
 
 # This test is dependent of having a fully open snmpd responding at localhost:161
@@ -61,6 +62,31 @@ class SNMPTestCase(AgentCheckTest):
         {
             'OID': "1.3.6.1.2.1.25.6.3.1.2.637",    # String (not supported)
             'name': "IAmString"
+        }
+    ]
+
+    FORCED_METRICS = [
+        {
+            'OID': "1.3.6.1.2.1.4.24.6.0",          # Gauge32
+            'name': "IAmAGauge32",
+            'forced_type': 'counter'
+
+        }, {
+            'OID': "1.3.6.1.2.1.4.31.1.1.6.1",      # Counter32
+            'name': "IAmACounter64",
+            'forced_type': 'gauge'
+        }
+    ]
+    INVALID_FORCED_METRICS = [
+        {
+            'OID': "1.3.6.1.2.1.4.24.6.0",          # Gauge32
+            'name': "IAmAGauge32",
+            'forced_type': 'counter'
+
+        }, {
+            'OID': "1.3.6.1.2.1.4.31.1.1.6.1",      # Counter32
+            'name': "IAmACounter64",
+            'forced_type': 'histogram'
         }
     ]
 
@@ -265,7 +291,7 @@ class SNMPTestCase(AgentCheckTest):
         config = {
             'instances': [self.generate_instance_config(self.TABULAR_OBJECTS)]
         }
-        self.run_check_n(config, repeat=3)
+        self.run_check_n(config, repeat=3, sleep=2)
         self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
 
         # Test metrics
@@ -296,6 +322,51 @@ class SNMPTestCase(AgentCheckTest):
         self.warnings = self.wait_for_async('get_warnings', 'warnings', 1)
         self.assertWarning("Fail to collect metrics: No symbol IF-MIB::noIdeaWhatIAmDoingHere",
                            count=1, exact_match=False)
+
+        # # Test service check
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+        self.assertServiceCheck("snmp.can_check", status=AgentCheck.CRITICAL,
+                                tags=self.CHECK_TAGS, count=1)
+        self.coverage_report()
+
+    def test_forcedtype_metric(self):
+        """
+        Forced Types should be reported as metrics of the forced type
+        """
+        config = {
+            'instances': [self.generate_instance_config(self.FORCED_METRICS)]
+        }
+        self.run_check_twice(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+
+        for metric in self.FORCED_METRICS:
+            metric_name = "snmp." + (metric.get('name') or metric.get('symbol'))
+            if metric.get('forced_type') == MetricTypes.COUNTER:
+                # rate will be flushed as a gauge, so count should be 0.
+                self.assertMetric(metric_name, tags=self.CHECK_TAGS,
+                                  count=0, metric_type=MetricTypes.GAUGE)
+            elif metric.get('forced_type') == MetricTypes.GAUGE:
+                self.assertMetric(metric_name, tags=self.CHECK_TAGS,
+                                  count=1, metric_type=MetricTypes.GAUGE)
+
+        # # Test service check
+        self.assertServiceCheck("snmp.can_check", status=AgentCheck.OK,
+                                tags=self.CHECK_TAGS, count=1)
+        self.coverage_report()
+
+    def test_invalid_forcedtype_metric(self):
+        """
+        If a forced type is invalid a warning should be issued + a service check
+        should be available
+        """
+        config = {
+            'instances': [self.generate_instance_config(self.INVALID_FORCED_METRICS)]
+        }
+
+        self.run_check(config)
+
+        self.warnings = self.wait_for_async('get_warnings', 'warnings', 1)
+        self.assertWarning("Invalid forced-type specified:", count=1, exact_match=False)
 
         # # Test service check
         self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
