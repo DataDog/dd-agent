@@ -77,12 +77,23 @@ class HAProxy(AgentCheck):
         collect_status_metrics = _is_affirmative(
             instance.get('collect_status_metrics', False)
         )
+
         collect_status_metrics_by_host = _is_affirmative(
             instance.get('collect_status_metrics_by_host', False)
         )
+
+        collect_count_per_status = _is_affirmative(
+            instance.get('collect_count_per_status', True)
+        )
+
+        aggregate_status_by_service = _is_affirmative(
+            instance.get('aggregate_status_by_service', True)
+        )
+
         tag_service_check_by_host = _is_affirmative(
             instance.get('tag_service_check_by_host', False)
         )
+
         services_incl_filter = instance.get('services_include', [])
         services_excl_filter = instance.get('services_exclude', [])
 
@@ -98,7 +109,9 @@ class HAProxy(AgentCheck):
             collect_status_metrics_by_host=collect_status_metrics_by_host,
             tag_service_check_by_host=tag_service_check_by_host,
             services_incl_filter=services_incl_filter,
-            services_excl_filter=services_excl_filter
+            services_excl_filter=services_excl_filter,
+            collect_count_per_status=collect_count_per_status,
+            aggregate_status_by_service=aggregate_status_by_service
         )
 
     def _fetch_data(self, url, username, password):
@@ -118,7 +131,8 @@ class HAProxy(AgentCheck):
     def _process_data(self, data, collect_aggregates_only, process_events, url=None,
                       collect_status_metrics=False, collect_status_metrics_by_host=False,
                       tag_service_check_by_host=False, services_incl_filter=None,
-                      services_excl_filter=None):
+                      services_excl_filter=None, collect_count_per_status=True,
+                      aggregate_status_by_service=True):
         ''' Main data-processing loop. For each piece of useful data, we'll
         either save a metric, save an event or both. '''
 
@@ -171,11 +185,14 @@ class HAProxy(AgentCheck):
             )
 
         if collect_status_metrics:
-            self._process_status_metric(
-                self.hosts_statuses, collect_status_metrics_by_host,
-                services_incl_filter=services_incl_filter,
-                services_excl_filter=services_excl_filter
-            )
+            if collect_count_per_status:
+                self._process_status_metric(
+                    self.hosts_statuses, collect_status_metrics_by_host,
+                    services_incl_filter=services_incl_filter,
+                    services_excl_filter=services_excl_filter,
+                    aggregate_status_by_service=aggregate_status_by_service
+                )
+
             self._process_backend_hosts_metric(
                 self.hosts_statuses,
                 services_incl_filter=services_incl_filter,
@@ -285,7 +302,8 @@ class HAProxy(AgentCheck):
         return agg_statuses
 
     def _process_status_metric(self, hosts_statuses, collect_status_metrics_by_host,
-                               services_incl_filter=None, services_excl_filter=None):
+                               services_incl_filter=None, services_excl_filter=None,
+                               aggregate_status_by_service=True):
         agg_statuses = defaultdict(lambda: {'available': 0, 'unavailable': 0})
         for host_status, count in hosts_statuses.iteritems():
             try:
@@ -294,13 +312,20 @@ class HAProxy(AgentCheck):
                 service, status = host_status
             status = status.lower()
 
-            tags = ['service:%s' % service]
+            tags = []
+            if aggregate_status_by_service:
+                tags.append('service:%s' % service)
+
             if self._is_service_excl_filtered(service, services_incl_filter, services_excl_filter):
                 continue
 
             if collect_status_metrics_by_host:
                 tags.append('backend:%s' % hostname)
-            self._gauge_all_statuses("haproxy.count_per_status", count, status, tags=tags)
+
+            self._gauge_all_statuses(
+                "haproxy.count_per_status",
+                count, status, tags=tags
+            )
 
             if 'up' in status or 'open' in status:
                 agg_statuses[service]['available'] += count
