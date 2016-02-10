@@ -122,6 +122,9 @@ class OpenStackCheck(AgentCheck):
         auth_resp.raise_for_status()
         auth_token = auth_resp.headers.get('X-Subject-Token')
         nova_endpoint = self.get_nova_endpoint(auth_resp.json(), self.init_config.get("nova_api_version"))
+
+        if self.init_config.get("append_tenant_id"):
+            nova_endpoint = urljoin(os.path.join(nova_endpoint, ''), project_id)
         return auth_token, nova_endpoint
 
 
@@ -146,9 +149,7 @@ class OpenStackCheck(AgentCheck):
 
                 if valid_endpoints:
                     # Favor public endpoints over internal
-                    nova_endpoint = valid_endpoints.get("public",
-                                        valid_endpoints.get("internal"))
-
+                    nova_endpoint = valid_endpoints.get("public", valid_endpoints.get("internal"))
                     return nova_endpoint
         else:
             raise MissingNovaEndpoint()
@@ -180,16 +181,10 @@ class OpenStackCheck(AgentCheck):
             return label in PROJECT_METRICS
 
         project_id = project['id']
-        if self.init_config.get("append_tenant_id"):
-            nova_endpoint = urljoin(
-                os.path.join(nova_endpoint, ''),
-                project['id']
-            )
-
         url = '{0}/limits'.format(nova_endpoint)
         headers = {'X-Auth-Token': token}
 
-
+        self.log.debug("Requesting project stats from url %s", url)
         server_stats = self._make_request_with_auth_fallback(url, headers, params={"tenant_id": project['id']})
         if not server_stats:
             return
@@ -212,7 +207,7 @@ class OpenStackCheck(AgentCheck):
         if not admin_token:
             raise BadCredentials
         if not domain_id:
-            self.log("Please specify a domain id under instances.")
+            self.warning("Please specify a domain id under instances.")
             raise IncompleteConfig
 
         try:
@@ -234,6 +229,8 @@ class OpenStackCheck(AgentCheck):
                     project_token, nova_endpoint = self.get_project_scoped_token(
                         project['id'], domain_id, auth["user"], auth["password"]
                     )
+                    self.log.debug("Project auth token for project %s is %s", project['id'], project_token)
+                    self.log.debug("Nova endpoint for project %s is %s", project['id'], nova_endpoint)
                     self.get_stats_for_single_project(project, project_token, nova_endpoint)
                 except Exception as e:
                     self.warning("Couldn't get stats for project %s : %s" % (project['id'], e))
