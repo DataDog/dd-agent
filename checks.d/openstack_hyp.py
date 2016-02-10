@@ -305,7 +305,9 @@ class OpenStackCheck(AgentCheck):
         url = '{0}/os-hypervisors'.format(nova_endpoint)
         hypervisor_ids = []
         try:
+            self.log.debug("Requesting hypervisor ids from %s", url)
             hv_list = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+            self.log.debug("Obtained hypervisor list %s", hv_list)
             for hv in hv_list['hypervisors']:
                 if filter_by_host and hv['hypervisor_hostname'] == filter_by_host:
                     # Assume one-one relationship between hypervisor and host, return the 1st found
@@ -433,6 +435,7 @@ class OpenStackCheck(AgentCheck):
 
         server_ids = []
         try:
+            self.log.debug("Requesting servers from url %s", url)
             resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify, params=query_params)
 
             server_ids = [s['id'] for s in resp['servers']]
@@ -519,6 +522,11 @@ class OpenStackCheck(AgentCheck):
         auth_resp.raise_for_status()
         auth_token = auth_resp.headers.get('X-Subject-Token')
         nova_endpoint = self.get_nova_endpoint_v2(auth_resp.json(), self.init_config.get("nova_api_version"))
+        if self.init_config.get("append_tenant_id"):
+            nova_endpoint = urljoin(
+                os.path.join(nova_endpoint, ''),
+                project_id
+            )
         return auth_token, nova_endpoint
 
     def get_domain_scoped_token(self, user, password, domain_id):
@@ -587,6 +595,8 @@ class OpenStackCheck(AgentCheck):
                 project_token, nova_endpoint = self.get_project_scoped_token(
                     project['id'], domain_id, auth["user"], auth["password"]
                 )
+                self.log.debug("Project auth token for project %s is %s", project['id'], project_token)
+                self.log.debug("Nova endpoint for project %s is %s", project['id'], nova_endpoint)
                 hyp = self.get_local_hypervisor_v2(project_token, nova_endpoint)
                 host_tags = self._get_tags_for_host(project_token, nova_endpoint)
 
