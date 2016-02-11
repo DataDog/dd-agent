@@ -296,15 +296,16 @@ class TestElastic(AgentCheckTest):
         if es_version >= [1, 4, 0]:
             expected_metrics.update(ADDITIONAL_METRICS_POST_1_4_0)
 
+        local_hostname = socket.gethostname() if es_version < [2, 0, 0] else '127.0.0.1'
         contexts = [
             (conf_hostname, default_tags + tags),
-            (socket.gethostname(), default_tags)
+            (local_hostname, default_tags)
         ]
 
         for m_name, desc in expected_metrics.iteritems():
             for hostname, m_tags in contexts:
                 if (m_name in CLUSTER_HEALTH_METRICS
-                        and hostname == socket.gethostname()):
+                        and hostname == local_hostname):
                     hostname = conf_hostname
 
                 if desc[0] == "gauge":
