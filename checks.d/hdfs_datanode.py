@@ -35,7 +35,7 @@ JMX_PATH = 'jmx'
 GAUGE = 'gauge'
 
 # HDFS bean name
-HDFS_DATANODE_BEAN_NAME = 'Hadoop:service=DataNode,name=FSDatasetState'
+HDFS_DATANODE_BEAN_NAME = 'Hadoop:service=DataNode,name=FSDatasetState*'
 
 # HDFS metrics
 HDFS_METRICS = {
@@ -76,11 +76,11 @@ class HDFSDataNode(AgentCheck):
 
         if beans:
 
+            # Only get the first bean
             bean = next(iter(beans))
             bean_name = bean.get('name')
 
-            if bean_name != HDFS_DATANODE_BEAN_NAME:
-                raise Exception("Unexpected bean name {0}".format(bean_name))
+            self.log.debug('Bean name retrieved: %s' % (bean_name))
 
             for metric, (metric_name, metric_type) in HDFS_METRICS.iteritems():
                 metric_value = bean.get(metric)
