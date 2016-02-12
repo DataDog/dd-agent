@@ -142,6 +142,7 @@ class TestMySql(AgentCheckTest):
     OPTIONAL_REPLICATION_METRICS = [
         'mysql.replication.slave_running',
         'mysql.replication.seconds_behind_master',
+        'mysql.replication.slaves_connected',
     ]
 
     # Additional Vars found in "SHOW STATUS;"

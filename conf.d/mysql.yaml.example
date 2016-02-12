@@ -32,6 +32,11 @@ instances:
     #                     - mysql.performance.query_run_time.avg (per schema)
     #                     - mysql.performance.digest_95th_percentile.avg_us
     #
+    #           With the addition of new metrics to the MySQL catalog starting with agent >=5.7.0, because
+    #           we query additional schemas to get this full set of metrics. Some of these require the user
+    #           defined for the instance to have PROCESS and SELECT privileges. Please take a look at the
+    #           MySQL integration tile in the Datadog WebUI for further instructions.
+    #
     # ssl:               # Optional
     #   key: /path/to/my/key.file
     #   cert: /path/to/my/cert.file
