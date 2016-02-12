@@ -3,7 +3,7 @@ from mock import Mock
 
 # project
 from tests.checks.common import AgentCheckTest
-from tests.core.test_wmi import TestCommonWMI
+from tests.core.test_wmi import SWbemServices, TestCommonWMI
 
 
 class WMITestCase(AgentCheckTest, TestCommonWMI):
@@ -185,6 +185,35 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         }
         logger = Mock()
 
+        self.run_check(config, mocks={'log': logger})
+        self.assertTrue(logger.warning.called)
+
+    def test_query_timeouts(self):
+        """
+        Gracefully handle WMI query timeouts.
+        """
+        def __patched_init__(*args, **kwargs):
+            """
+            Force `timeout_duration` value.
+            """
+            kwargs['timeout_duration'] = 0.5
+            return wmi_constructor(*args, **kwargs)
+
+        # Increase WMI queries' runtime
+        SWbemServices._exec_query_run_time = 0.5
+
+        # Patch WMISampler to decrease timeout tolerancy
+        WMISampler = self.load_class("WMISampler")
+        wmi_constructor = WMISampler.__init__
+        WMISampler.__init__ = __patched_init__
+
+        # Set up the check
+        config = {
+            'instances': [self.WMI_CONFIG]
+        }
+        logger = Mock()
+
+        # No exception is raised but a WARNING is logged
         self.run_check(config, mocks={'log': logger})
         self.assertTrue(logger.warning.called)
 

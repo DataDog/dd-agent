@@ -36,7 +36,7 @@ class TestWMICalculators(unittest.TestCase):
         Asssign a calculator to a counter_type. Raise when the calculator is missing.
         """
         @calculator(123456)
-        def do_something():
+        def do_something(*args, **kwargs):
             """A function that does something."""
             pass
 

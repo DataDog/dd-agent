@@ -4,6 +4,7 @@ from collections import namedtuple
 # project
 from checks import AgentCheck
 from checks.libs.wmi.sampler import WMISampler
+from utils.timeout import TimeoutException
 
 WMIMetric = namedtuple('WMIMetric', ['name', 'value', 'tags'])
 
@@ -37,6 +38,8 @@ class WMICheck(AgentCheck):
     """
     def __init__(self, name, init_config, agentConfig, instances):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+
+        # Cache
         self.wmi_samplers = {}
         self.wmi_props = {}
 
@@ -69,13 +72,25 @@ class WMICheck(AgentCheck):
             wmi_class, properties,
             filters=filters,
             host=host, namespace=namespace,
-            username=username, password=password
+            username=username, password=password,
         )
 
         # Sample, extract & submit metrics
-        wmi_sampler.sample()
-        metrics = self._extract_metrics(wmi_sampler, tag_by, tag_queries, constant_tags)
-        self._submit_metrics(metrics, metric_name_and_type_by_property)
+        metrics = []
+        try:
+            wmi_sampler.sample()
+            metrics = self._extract_metrics(wmi_sampler, tag_by, tag_queries, constant_tags)
+        except TimeoutException:
+            self.log.warning(
+                u"WMI query timed out."
+                u" class={wmi_class} - properties={wmi_properties} -"
+                u" filters={filters} - tag_queries={tag_queries}".format(
+                    wmi_class=wmi_class, wmi_properties=properties,
+                    filters=filters, tag_queries=tag_queries
+                )
+            )
+        else:
+            self._submit_metrics(metrics, metric_name_and_type_by_property)
 
     def _format_tag_query(self, sampler, wmi_obj, tag_query):
         """
@@ -177,7 +192,10 @@ class WMICheck(AgentCheck):
         """
         Extract and tag metrics from the WMISampler.
 
-        Raise when multiple WMIObject were returned by the sampler with no `tag_by` specified.
+        Raise
+        * `MissingTagBy` when multiple WMIObject were returned by the sampler
+          with no `tag_by` specified.
+        * `TimeoutException` on WMI query timeouts.
 
         Returns: List of WMIMetric
         ```
