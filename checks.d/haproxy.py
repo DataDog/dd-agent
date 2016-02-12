@@ -20,7 +20,7 @@ class Services(object):
     FRONTEND = 'FRONTEND'
     ALL = (BACKEND, FRONTEND)
     ALL_STATUSES = (
-        'up', 'open', 'no check', 'down', 'maint', 'nolb'
+        'up', 'open', 'down', 'maint', 'nolb'
     )
     STATUSES_TO_SERVICE_CHECK = {
         'UP': AgentCheck.OK,
@@ -341,10 +341,8 @@ class HAProxy(AgentCheck):
                 self.gauge("haproxy.count_per_status", count, tags=tags)
 
     def _gauge_all_statuses(self, metric_name, count, status, tags):
-        self.gauge(metric_name, count, tags + ['status:%s' % status])
-        for state in Services.ALL_STATUSES:
-            if state != status:
-                self.gauge(metric_name, 0, tags + ['status:%s' % state.replace(" ", "_")])
+        if status in Services.ALL_STATUSES:
+            self.gauge(metric_name, count, tags + ['status:%s' % status])
 
     def _process_metrics(self, data, url, services_incl_filter=None,
                          services_excl_filter=None):
