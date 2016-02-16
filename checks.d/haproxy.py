@@ -321,10 +321,6 @@ class HAProxy(AgentCheck):
                 service, status = host_status
             status = status.lower()
 
-            if status == 'no check':
-                # Not much useful we can get here, skip this host status
-                continue
-
             tags = []
             if count_status_by_service:
                 tags.append('service:%s' % service)
@@ -367,7 +363,14 @@ class HAProxy(AgentCheck):
                 self.gauge(metric_name, 0, tags + ['status:%s' % state.replace(" ", "_")])
 
     def _gauge_collated_statuses(self, metric_name, count, status, tags):
-        collated_status = Services.STATUS_MAP[status]
+        collated_status = Services.STATUS_MAP.get(status)
+        if not collated_status:
+            # We can't properly collate this guy, because it's a status we don't expect,
+            # let's abandon collation
+            self.log.warning("Unexpected status found %s", status)
+            self._gauge_all_statuses(metric_name, count, status, tags)
+            return
+
         self.gauge(metric_name, count, tags + ['status:%s' % status])
 
         for state in ['up', 'down']:
