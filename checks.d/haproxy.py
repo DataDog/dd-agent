@@ -371,7 +371,7 @@ class HAProxy(AgentCheck):
             self._gauge_all_statuses(metric_name, count, status, tags)
             return
 
-        self.gauge(metric_name, count, tags + ['status:%s' % status])
+        self.gauge(metric_name, count, tags + ['status:%s' % collated_status])
 
         for state in ['up', 'down']:
             if collated_status != state:
