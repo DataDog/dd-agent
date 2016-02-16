@@ -82,10 +82,6 @@ class HAProxy(AgentCheck):
             instance.get('collect_status_metrics_by_host', False)
         )
 
-        collect_count_per_status = _is_affirmative(
-            instance.get('collect_count_per_status', True)
-        )
-
         count_status_by_service = _is_affirmative(
             instance.get('count_status_by_service', True)
         )
@@ -110,7 +106,6 @@ class HAProxy(AgentCheck):
             tag_service_check_by_host=tag_service_check_by_host,
             services_incl_filter=services_incl_filter,
             services_excl_filter=services_excl_filter,
-            collect_count_per_status=collect_count_per_status,
             count_status_by_service=count_status_by_service
         )
 
@@ -131,8 +126,7 @@ class HAProxy(AgentCheck):
     def _process_data(self, data, collect_aggregates_only, process_events, url=None,
                       collect_status_metrics=False, collect_status_metrics_by_host=False,
                       tag_service_check_by_host=False, services_incl_filter=None,
-                      services_excl_filter=None, collect_count_per_status=True,
-                      count_status_by_service=True):
+                      services_excl_filter=None, count_status_by_service=True):
         ''' Main data-processing loop. For each piece of useful data, we'll
         either save a metric, save an event or both. '''
 
@@ -185,13 +179,12 @@ class HAProxy(AgentCheck):
             )
 
         if collect_status_metrics:
-            if collect_count_per_status:
-                self._process_status_metric(
-                    self.hosts_statuses, collect_status_metrics_by_host,
-                    services_incl_filter=services_incl_filter,
-                    services_excl_filter=services_excl_filter,
-                    count_status_by_service=count_status_by_service
-                )
+            self._process_status_metric(
+                self.hosts_statuses, collect_status_metrics_by_host,
+                services_incl_filter=services_incl_filter,
+                services_excl_filter=services_excl_filter,
+                count_status_by_service=count_status_by_service
+            )
 
             self._process_backend_hosts_metric(
                 self.hosts_statuses,

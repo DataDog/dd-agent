@@ -27,7 +27,7 @@ instances:
     #
     # The (optional) count_status_by_service parameter will instruct
     # the check to tag the status counts it collects by service in addition to by host.
-    # This only applies if collect_status_metrics and collect_count_per_status are True.
+    # This only applies if collect_status_metrics is True.
     # count_status_by_service: True
     #
     # The (optional) tag_service_check_by_host parameter will instruct the
