@@ -321,6 +321,10 @@ class HAProxy(AgentCheck):
                 service, status = host_status
             status = status.lower()
 
+            if status == 'no check':
+                # Not much useful we can get here, skip this host status
+                continue
+
             tags = []
             if count_status_by_service:
                 tags.append('service:%s' % service)
