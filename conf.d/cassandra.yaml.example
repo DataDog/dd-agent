@@ -50,6 +50,8 @@ init_config:
     - include:
         domain: org.apache.cassandra.metrics
         type: ColumnFamily
+        bean_regex:
+          - .*keyspace=.*  
         name:
           - TotalDiskSpaceUsed
           - BloomFilterDiskSpaceUsed
