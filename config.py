@@ -30,7 +30,6 @@ from utils.subprocess_output import (
     SubprocessOutputEmptyError,
 )
 
-
 # CONSTANTS
 AGENT_VERSION = "5.8.0"
 DATADOG_CONF = "datadog.conf"
@@ -677,6 +676,18 @@ def get_checksd_path(osname=None):
     else:
         return _unix_checksd_path()
 
+def get_3rd_party_path(osname=None):
+    if not osname:
+        osname = get_os()
+    if osname in ['windows', 'mac']:
+        raise PathNotFound()
+
+    cur_path = os.path.dirname(os.path.realpath(__file__))
+    path = os.path.join(cur_path, '../3rd-party')
+    if os.path.exists(path):
+        return path
+    raise PathNotFound(path)
+
 
 def get_win32service_file(osname, filename):
     # This file is needed to log in the event viewer for windows
@@ -743,157 +754,189 @@ def check_yaml(conf_path):
         else:
             return check_config
 
-def load_check_directory(agentConfig, hostname):
-    ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
-    initialize. Only checks that have a configuration
-    file in conf.d will be returned. '''
-    from checks import AgentCheck, AGENT_METRICS_CHECK_NAME
-
-    initialized_checks = {}
-    init_failed_checks = {}
+def _deprecated_configs(agentConfig):
+    """ Warn about deprecated configs
+    """
     deprecated_checks = {}
-    agentConfig['checksd_hostname'] = hostname
-
     deprecated_configs_enabled = [v for k,v in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
     for deprecated_config in deprecated_configs_enabled:
         msg = "Configuring %s in datadog.conf is not supported anymore. Please use conf.d" % deprecated_config
         deprecated_checks[deprecated_config] = {'error': msg, 'traceback': None}
         log.error(msg)
+    return deprecated_checks
 
-    osname = get_os()
-    checks_paths = [glob.glob(os.path.join(agentConfig['additional_checksd'], '*.py'))]
-
-    try:
-        checksd_path = get_checksd_path(osname)
-        checks_paths.append(glob.glob(os.path.join(checksd_path, '*.py')))
-    except PathNotFound, e:
-        log.error(e.args[0])
-        sys.exit(3)
-
+def _all_configs_paths(osname, agentConfig):
+    """ Retrieve all configs and return their paths
+    """
     try:
         confd_path = get_confd_path(osname)
+        all_configs = glob.glob(os.path.join(confd_path, '*.yaml'))
+        all_default_configs = glob.glob(os.path.join(confd_path, '*.yaml.default'))
     except PathNotFound, e:
         log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
         sys.exit(3)
 
-    # We don't support old style configs anymore
-    # So we iterate over the files in the checks.d directory
-    # If there is a matching configuration file in the conf.d directory
-    # then we import the check
-    for check in itertools.chain(*checks_paths):
-        check_name = os.path.basename(check).split('.')[0]
-        check_config = None
-        if check_name in initialized_checks or check_name in init_failed_checks:
-            log.debug('Skipping check %s because it has already been loaded from another location', check)
+    if all_default_configs:
+        current_configs = set([_conf_path_to_check_name(conf) for conf in all_configs])
+        for default_config in all_default_configs:
+            if not _conf_path_to_check_name(default_config) in current_configs:
+                all_configs.append(default_config)
+
+    # Compatibility code for the Nagios checks if it's still configured
+    # in datadog.conf
+    # FIXME: 6.x, should be removed
+    if not any('nagios' in config for config in itertools.chain(*all_configs)):
+        # check if it's configured in datadog.conf the old way
+        if any([nagios_key in agentConfig for nagios_key in NAGIOS_OLD_CONF_KEYS]):
+            all_configs.append('deprecated/nagios')
+
+    return all_configs
+
+def _conf_path_to_check_name(conf_path):
+    return conf_path.rsplit('/', 1)[-1].split('.yaml')[0]
+
+def _checks_places(agentConfig, osname):
+    """ Return methods to generated paths to inspect for a check provided it's name
+    """
+    try:
+        checksd_path = get_checksd_path(osname)
+    except PathNotFound, e:
+        log.error(e.args[0])
+        sys.exit(3)
+
+    places = [lambda name: os.path.join(agentConfig['additional_checksd'], '%s.py' % name)]
+
+    try:
+        third_party_path = get_3rd_party_path(osname)
+        places.append(lambda name: os.path.join(third_party_path, name, 'check.py'))
+    except PathNotFound:
+        log.debug('No 3rd-party path found')
+
+    places.append(lambda name: os.path.join(checksd_path, '%s.py' % name))
+    return places
+
+def _validate_config(config_path, check_name, agentConfig):
+
+    if config_path == 'deprecated/nagios':
+        log.warning("Configuring Nagios in datadog.conf is deprecated "
+                    "and will be removed in a future version. "
+                    "Please use conf.d")
+        check_config = {'instances':[dict((key, value) for (key, value) in agentConfig.iteritems() if key in NAGIOS_OLD_CONF_KEYS)]}
+        return True, check_config, {}
+
+    try:
+        check_config = check_yaml(config_path)
+    except Exception, e:
+        log.exception("Unable to parse yaml config in %s" % config_path)
+        traceback_message = traceback.format_exc()
+        return False, None, {check_name: {'error': str(e), 'traceback': traceback_message}}
+    return True, check_config, {}
+
+def _validate_check(check_name, check_path):
+    from checks import AgentCheck
+    # Let's try to import the check
+    try:
+        check_module = imp.load_source('checksd_%s' % check_name, check_path)
+    except Exception, e:
+        traceback_message = traceback.format_exc()
+        # There is a configuration file for that check but the module can't be imported
+        log.exception('Unable to import check module %s.py from checks.d' % check_name)
+        return False, None, {check_name: {'error':e, 'traceback':traceback_message}}
+
+    # We make sure that there is an AgentCheck class defined
+    check_class = None
+    classes = inspect.getmembers(check_module, inspect.isclass)
+    for _, clsmember in classes:
+        if clsmember == AgentCheck:
             continue
-
-        # Let's see if there is a conf.d for this check
-        conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
-        conf_exists = False
-
-        if os.path.exists(conf_path):
-            conf_exists = True
-        else:
-            log.debug("No configuration file for %s. Looking for defaults" % check_name)
-
-            # Default checks read their config from the "[CHECKNAME].yaml.default" file
-            default_conf_path = os.path.join(confd_path, '%s.yaml.default' % check_name)
-            if not os.path.exists(default_conf_path):
-                log.debug("Default configuration file {0} is missing. Skipping check".format(default_conf_path))
+        if issubclass(clsmember, AgentCheck):
+            check_class = clsmember
+            if AgentCheck in clsmember.__bases__:
                 continue
-            conf_path = default_conf_path
-            conf_exists = True
-
-        if conf_exists:
-            try:
-                check_config = check_yaml(conf_path)
-            except Exception, e:
-                log.exception("Unable to parse yaml config in %s" % conf_path)
-                traceback_message = traceback.format_exc()
-                init_failed_checks[check_name] = {'error': str(e), 'traceback': traceback_message}
-                continue
-        else:
-            # Compatibility code for the Nagios checks if it's still configured
-            # in datadog.conf
-            # FIXME: 6.x, should be removed
-            if check_name == 'nagios':
-                if any([nagios_key in agentConfig for nagios_key in NAGIOS_OLD_CONF_KEYS]):
-                    log.warning("Configuring Nagios in datadog.conf is deprecated "
-                                "and will be removed in a future version. "
-                                "Please use conf.d")
-                    check_config = {'instances':[dict((key, agentConfig[key]) for key in agentConfig if key in NAGIOS_OLD_CONF_KEYS)]}
-                else:
-                    continue
             else:
-                log.debug("No configuration file for %s" % check_name)
+                break
+
+    if not check_class:
+        log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
+        return False, None, {}
+    return True, check_class, {}
+
+def _initialize_check(check_config, check_name, check_class, agentConfig):
+    init_config = check_config.get('init_config') or {}
+    instances = check_config['instances']
+    try:
+        try:
+            check = check_class(check_name, init_config=init_config,
+                            agentConfig=agentConfig, instances=instances)
+        except TypeError, e:
+            # Backwards compatibility for checks which don't support the
+            # instances argument in the constructor.
+            check = check_class(check_name, init_config=init_config,
+                            agentConfig=agentConfig)
+            check.instances = instances
+    except Exception, e:
+        log.exception('Unable to initialize check %s' % check_name)
+        traceback_message = traceback.format_exc()
+        return {}, {check_name: {'error':e, 'traceback':traceback_message}}
+    else:
+        return {check_name: check}, {}
+
+def _update_python_path(check_config):
+    # Add custom pythonpath(s) if available
+    if 'pythonpath' in check_config:
+        pythonpath = check_config['pythonpath']
+        if not isinstance(pythonpath, list):
+            pythonpath = [pythonpath]
+        sys.path.extend(pythonpath)
+
+def load_check_directory(agentConfig, hostname):
+    ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
+    initialize. Only checks that have a configuration
+    file in conf.d will be returned. '''
+    from checks import AGENT_METRICS_CHECK_NAME
+
+    initialized_checks = {}
+    init_failed_checks = {}
+    deprecated_checks = {}
+    agentConfig['checksd_hostname'] = hostname
+    osname = get_os()
+
+    deprecated_checks.update(_deprecated_configs(agentConfig))
+
+    all_configs_paths = _all_configs_paths(osname, agentConfig)
+
+    checks_places = _checks_places(agentConfig, osname)
+
+    for config_path in all_configs_paths:
+        # '/etc/dd-agent/checks.d/my_check.py' -> 'my_check'
+        check_name = _conf_path_to_check_name(config_path)
+
+        conf_is_valid, check_config, invalid_check = _validate_config(config_path, check_name, agentConfig)
+        init_failed_checks.update(invalid_check)
+        if not conf_is_valid:
+            continue
+
+        # find check
+        for check_path_builder in checks_places:
+            check_path = check_path_builder(check_name)
+            if not os.path.exists(check_path):
                 continue
 
-        # If we are here, there is a valid matching configuration file.
-        # Let's try to import the check
-        try:
-            check_module = imp.load_source('checksd_%s' % check_name, check)
-        except Exception, e:
-            traceback_message = traceback.format_exc()
-            # There is a configuration file for that check but the module can't be imported
-            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
-            log.exception('Unable to import check module %s.py from checks.d' % check_name)
-            continue
-
-        # We make sure that there is an AgentCheck class defined
-        check_class = None
-        classes = inspect.getmembers(check_module, inspect.isclass)
-        for _, clsmember in classes:
-            if clsmember == AgentCheck:
+            check_is_valid, check_class, invalid_check = _validate_check(check_name, check_path)
+            init_failed_checks.update(invalid_check)
+            if not check_is_valid:
                 continue
-            if issubclass(clsmember, AgentCheck):
-                check_class = clsmember
-                if AgentCheck in clsmember.__bases__:
-                    continue
-                else:
-                    break
 
-        if not check_class:
-            log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
-            continue
+            init_success, init_failed = _initialize_check(
+                check_config, check_name, check_class, agentConfig
+            )
+            initialized_checks.update(init_success)
+            init_failed_checks.update(init_failed)
 
-        # Look for the per-check config, which *must* exist
-        if not check_config.get('instances'):
-            log.error("Config %s is missing 'instances'" % conf_path)
-            continue
+            _update_python_path(check_config)
 
-        # Init all of the check's classes with
-        init_config = check_config.get('init_config', {})
-        # init_config: in the configuration triggers init_config to be defined
-        # to None.
-        if init_config is None:
-            init_config = {}
-
-        instances = check_config['instances']
-        try:
-            try:
-                c = check_class(check_name, init_config=init_config,
-                                agentConfig=agentConfig, instances=instances)
-            except TypeError, e:
-                # Backwards compatibility for checks which don't support the
-                # instances argument in the constructor.
-                c = check_class(check_name, init_config=init_config,
-                                agentConfig=agentConfig)
-                c.instances = instances
-        except Exception, e:
-            log.exception('Unable to initialize check %s' % check_name)
-            traceback_message = traceback.format_exc()
-            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
-        else:
-            initialized_checks[check_name] = c
-
-        # Add custom pythonpath(s) if available
-        if 'pythonpath' in check_config:
-            pythonpath = check_config['pythonpath']
-            if not isinstance(pythonpath, list):
-                pythonpath = [pythonpath]
-            sys.path.extend(pythonpath)
-
-        log.debug('Loaded check.d/%s.py' % check_name)
+            log.debug('Loaded %s' % check_path)
+            break  # we succesfully initialized this check, let's go to next config
 
     init_failed_checks.update(deprecated_checks)
     log.info('initialized checks.d checks: %s' % [k for k in initialized_checks.keys() if k != AGENT_METRICS_CHECK_NAME])
