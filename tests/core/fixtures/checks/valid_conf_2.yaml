@@ -1,0 +1,5 @@
+init_config:
+
+instances:
+  - host: localhost
+  - host: localh0st

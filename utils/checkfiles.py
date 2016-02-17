@@ -1,6 +1,5 @@
 """Helpers to work with check files (Python and YAML)."""
 # std
-import itertools
 import logging
 import os
 from urlparse import urljoin
@@ -35,19 +34,21 @@ def get_conf_path(check_name):
 
 def get_check_class(agentConfig, check_name):
     """Return the class object for a given check name"""
-    from config import get_os, get_checks_paths, get_check_class
+    from config import get_os, get_checks_places, get_valid_check_class
 
     osname = get_os()
-    checks_paths = get_checks_paths(agentConfig, osname)
-    for check in itertools.chain(*checks_paths):
-        py_check_name = os.path.basename(check).split('.')[0]
-        if py_check_name == check_name:
-            check_class = get_check_class(check_name, check)
-            if isinstance(check_class, dict) or check_class is None:
-                log.warning('Failed to load the check class for %s.' % check_name)
-                return None
-            else:
-                return check_class
+    checks_places = get_checks_places(osname, agentConfig)
+    for check_path_builder in checks_places:
+        check_path = check_path_builder(check_name)
+        if not os.path.exists(check_path):
+            continue
+
+        check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path)
+        if check_is_valid:
+            return check_class
+
+    log.warning('Failed to load the check class for %s.' % check_name)
+    return None
 
 
 def get_auto_conf(agentConfig, check_name):
