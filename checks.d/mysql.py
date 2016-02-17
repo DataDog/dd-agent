@@ -800,7 +800,7 @@ class MySql(AgentCheck):
 
                 return binary_log_space
         except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
-            self.warning("Privileges error accessing the BINARY LOGS (must grant REPLICATION CLIENT): %s", e)
+            self.warning("Privileges error accessing the BINARY LOGS (must grant REPLICATION CLIENT): %s" % str(e))
             return None
 
     def _is_innodb_engine_enabled(self, db):
@@ -827,7 +827,7 @@ class MySql(AgentCheck):
 
                 return replica_results
         except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
-            self.warning("Privileges error getting replication status (must grant REPLICATION CLIENT): %s", e)
+            self.warning("Privileges error getting replication status (must grant REPLICATION CLIENT): %s" % str(e))
             return {}
 
     def _get_slave_status(self, db, nonblocking=False):
@@ -847,7 +847,7 @@ class MySql(AgentCheck):
                 return {'Slaves_connected': slaves}
 
         except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
-            self.warning("Privileges error accessing the process tables (must grant PROCESS): %s", e)
+            self.warning("Privileges error accessing the process tables (must grant PROCESS): %s" % str(e))
             return {}
 
     def _get_stats_from_innodb_status(self, db):
@@ -862,7 +862,7 @@ class MySql(AgentCheck):
                 innodb_status = cursor.fetchone()
                 innodb_status_text = innodb_status[2]
         except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
-            self.warning("Privilege error accessing the INNODB status tables (must grant PROCESS): %s", e)
+            self.warning("Privilege error accessing the INNODB status tables (must grant PROCESS): %s" % str(e))
             return {}
 
         results = defaultdict(int)
@@ -1167,7 +1167,7 @@ class MySql(AgentCheck):
 
                 return query_exec_time_95th_per
         except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
-            self.warning("95th percentile performance metrics unavailable at this time: %s", e)
+            self.warning("95th percentile performance metrics unavailable at this time: %s" % str(e))
             return None
 
     def _query_exec_time_per_schema(self, db):
@@ -1197,7 +1197,7 @@ class MySql(AgentCheck):
 
                 return schema_query_avg_run_time
         except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
-            self.warning("Avg exec time performance metrics unavailable at this time: %s", e)
+            self.warning("Avg exec time performance metrics unavailable at this time: %s" % str(e))
             return None
 
     def _query_size_per_schema(self, db):
@@ -1229,7 +1229,7 @@ class MySql(AgentCheck):
 
                 return schema_size
         except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
-            self.warning("Avg exec time performance metrics unavailable at this time: %s", e)
+            self.warning("Avg exec time performance metrics unavailable at this time: %s" % str(e))
 
         return {}
 
