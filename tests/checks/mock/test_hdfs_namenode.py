@@ -53,6 +53,7 @@ class HDFSNameNode(AgentCheckTest):
         'hdfs_namenode.capacity_total': 41167421440,
         'hdfs_namenode.capacity_used': 501932032,
         'hdfs_namenode.capacity_remaining': 27878948864,
+        'hdfs_namenode.capacity_in_use': None,  # Don't test the value as it's a float
         'hdfs_namenode.total_load': 2,
         'hdfs_namenode.fs_lock_queue_length': 0,
         'hdfs_namenode.blocks_total': 27661,
