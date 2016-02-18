@@ -1,3 +1,7 @@
+# DEPRECATED:
+# This check is deprecated and will be removed in a future version of the agent
+# Please use the `hdfs_namenode` and `hdfs_datanode` checks instead
+
 init_config:
 # HDFS check does not require any init_config
 
