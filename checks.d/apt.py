@@ -34,11 +34,12 @@ class APT(AgentCheck):
 
     def updates(self, instance):
         updates = {}
-        content = open(instance['updates_file'], 'r').read()
+        with open(instance['updates_file'], 'r') as fd:
+            content = fd.read()
 
-        for m in PACKAGES_REGEX.finditer(content):
-            updates['packages'] = int(m.groups()[0])
-        for m in SECURITY_REGEX.finditer(content):
-            updates['security'] = int(m.groups()[0])
+            for m in PACKAGES_REGEX.finditer(content):
+                updates['packages'] = int(m.groups()[0])
+            for m in SECURITY_REGEX.finditer(content):
+                updates['security'] = int(m.groups()[0])
 
         return updates
