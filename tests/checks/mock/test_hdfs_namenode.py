@@ -5,6 +5,15 @@ from tests.checks.common import AgentCheckTest, Fixtures
 import mock
 import json
 
+# Namenode URI
+NAMENODE_JMX_URI = 'http://localhost:50070/jmx'
+
+# Namesystem state URL
+NAME_SYSTEM_STATE_URL = NAMENODE_JMX_URI + '?qry=Hadoop:service=NameNode,name=FSNamesystemState'
+
+# Namesystem url
+NAME_SYSTEM_URL = NAMENODE_JMX_URI + '?qry=Hadoop:service=NameNode,name=FSNamesystem'
+
 def requests_get_mock(*args, **kwargs):
     class MockResponse:
         def __init__(self, json_data, status_code):
@@ -18,10 +27,20 @@ def requests_get_mock(*args, **kwargs):
         def raise_for_status(self):
             return True
 
+    print 'DEBUG: {0}'.format(args[0])
+    print NAME_SYSTEM_STATE_URL
 
-    with open(Fixtures.file('hdfs_namenode_jmx'), 'r') as f:
-        body = f.read()
-        return MockResponse(body, 200)
+    if args[0] == NAME_SYSTEM_STATE_URL:
+        print 'here'
+        with open(Fixtures.file('hdfs_namesystem_state'), 'r') as f:
+            body = f.read()
+            return MockResponse(body, 200)
+
+    elif args[0] == NAME_SYSTEM_URL:
+        print 'here'
+        with open(Fixtures.file('hdfs_namesystem'), 'r') as f:
+            body = f.read()
+            return MockResponse(body, 200)
 
 class HDFSNameNode(AgentCheckTest):
     CHECK_NAME = 'hdfs_namenode'
@@ -30,7 +49,7 @@ class HDFSNameNode(AgentCheckTest):
         'hdfs_namenode_jmx_uri': 'http://localhost:50070'
     }
 
-    HDFS_NAMENODE_METRICS_VALUES = {
+    HDFS_NAMESYSTEM_STATE_METRICS_VALUES = {
         'hdfs_namenode.capacity_total': 41167421440,
         'hdfs_namenode.capacity_used': 501932032,
         'hdfs_namenode.capacity_remaining': 27878948864,
@@ -54,7 +73,12 @@ class HDFSNameNode(AgentCheckTest):
         'hdfs_namenode.num_stale_storages': 0,
     }
 
-    HDFS_NAMENODE_METRIC_TAGS = [
+    HDFS_NAMESYSTEM_METRICS_VALUES = {
+        'hdfs_namenode.missing_blocks': 0,
+        'hdfs_namenode.corrupt_blocks': 1,
+    }
+
+    HDFS_NAMESYSTEM_METRIC_TAGS = [
         'namenode_url:' + HDFS_NAMENODE_CONFIG['hdfs_namenode_jmx_uri']
     ]
 
@@ -66,5 +90,8 @@ class HDFSNameNode(AgentCheckTest):
 
         self.run_check(config)
 
-        for metric, value in self.HDFS_NAMENODE_METRICS_VALUES.iteritems():
-            self.assertMetric(metric, value=value, tags=self.HDFS_NAMENODE_METRIC_TAGS)
+        for metric, value in self.HDFS_NAMESYSTEM_STATE_METRICS_VALUES.iteritems():
+            self.assertMetric(metric, value=value, tags=self.HDFS_NAMESYSTEM_METRIC_TAGS)
+
+        for metric, value in self.HDFS_NAMESYSTEM_METRICS_VALUES.iteritems():
+            self.assertMetric(metric, value=value, tags=self.HDFS_NAMESYSTEM_METRIC_TAGS)
