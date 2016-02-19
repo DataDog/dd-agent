@@ -22,6 +22,8 @@ hdfs_namenode.estimated_capacity_lost_total     Estimated capacity lost in bytes
 hdfs_namenode.num_decommissioning_data_nodes    Number of decommissioning data nodes
 hdfs_namenode.num_stale_data_nodes              Number of stale data nodes
 hdfs_namenode.num_stale_storages                Number of stale storages
+hdfs_namenode.missing_blocks                    Number of missing blocks
+hdfs_namenode.corrupt_blocks                    Number of corrupt blocks
 '''
 
 # stdlib
@@ -41,14 +43,17 @@ JMX_SERVICE_CHECK = 'hdfs_namenode.jmx.can_connect'
 # URL Paths
 JMX_PATH = 'jmx'
 
-# Namenode Bean
-HDFS_NAMENODE_BEAN_NAME = 'Hadoop:service=NameNode,name=FSNamesystemState'
+# Namesystem state bean
+HDFS_NAME_SYSTEM_STATE_BEAN = 'Hadoop:service=NameNode,name=FSNamesystemState'
+
+# Namesystem bean
+HDFS_NAME_SYSTEM_BEAN = 'Hadoop:service=NameNode,name=FSNamesystem'
 
 # Metric types
 GAUGE = 'gauge'
 
 # HDFS metrics
-HDFS_METRICS = {
+HDFS_NAME_SYSTEM_STATE_METRICS = {
     'CapacityTotal' : ('hdfs_namenode.capacity_total',  GAUGE),
     'CapacityUsed' : ('hdfs_namenode.capacity_used',  GAUGE),
     'CapacityRemaining' : ('hdfs_namenode.capacity_remaining',  GAUGE),
@@ -72,6 +77,11 @@ HDFS_METRICS = {
     'NumStaleStorages' : ('hdfs_namenode.num_stale_storages',  GAUGE),
 }
 
+HDFS_NAME_SYSTEM_METRICS = {
+    'MissingBlocks' : ('hdfs_namenode.missing_blocks', GAUGE),
+    'CorruptBlocks' : ('hdfs_namenode.corrupt_blocks', GAUGE)
+}
+
 class HDFSNameNode(AgentCheck):
 
     def check(self, instance):
@@ -80,15 +90,26 @@ class HDFSNameNode(AgentCheck):
             raise Exception('The JMX URL must be specified in the instance configuration')
 
         # Get metrics from JMX
-        self._hdfs_namenode_metrics(jmx_address)
+        self._hdfs_namenode_metrics(jmx_address,
+            HDFS_NAME_SYSTEM_STATE_BEAN,
+            HDFS_NAME_SYSTEM_STATE_METRICS)
 
-    def _hdfs_namenode_metrics(self, jmx_uri):
+        self._hdfs_namenode_metrics(jmx_address,
+            HDFS_NAME_SYSTEM_BEAN,
+            HDFS_NAME_SYSTEM_METRICS)
+
+        self.service_check(JMX_SERVICE_CHECK,
+            AgentCheck.OK,
+            tags=['namenode_url:' + jmx_address],
+            message='Connection to %s was successful' % jmx_address)
+
+    def _hdfs_namenode_metrics(self, jmx_uri, bean_name, metrics):
         '''
-        Get HDFS data node metrics from JMX
+        Get HDFS namenode metrics from JMX
         '''
         response = self._rest_request_to_json(jmx_uri,
             JMX_PATH,
-            query_params={'qry':HDFS_NAMENODE_BEAN_NAME})
+            query_params={'qry':bean_name})
 
         beans = response.get('beans', [])
 
@@ -99,10 +120,10 @@ class HDFSNameNode(AgentCheck):
             bean = next(iter(beans))
             bean_name = bean.get('name')
 
-            if bean_name != HDFS_NAMENODE_BEAN_NAME:
+            if bean_name != bean_name:
                 raise Exception("Unexpected bean name {0}".format(bean_name))
 
-            for metric, (metric_name, metric_type) in HDFS_METRICS.iteritems():
+            for metric, (metric_name, metric_type) in metrics.iteritems():
                 metric_value = bean.get(metric)
 
                 if metric_value is not None:
@@ -172,14 +193,7 @@ class HDFSNameNode(AgentCheck):
                 message=e)
             raise
 
-        else:
-            self.service_check(JMX_SERVICE_CHECK,
-                AgentCheck.OK,
-                tags=service_check_tags,
-                message='Connection to %s was successful' % url)
-
         return response_json
-
 
     def _join_url_dir(self, url, *args):
         '''
