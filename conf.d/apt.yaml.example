@@ -1,0 +1,8 @@
+init_config:
+
+instances:
+  -
+    # The file where apt stores available updates.
+    #
+    # See also http://askubuntu.com/questions/49958/how-to-find-the-number-of-packages-needing-update-from-the-command-line
+    updates_file: /var/lib/update-notifier/updates-available
