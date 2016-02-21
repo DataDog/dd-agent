@@ -1,13 +1,13 @@
 """ Collect status information for Windows services
 """
-# 3rd party
-import wmi
-
 # project
 from checks import AgentCheck
+from checks.wmi_check import WinWMICheck
+from utils.containers import hash_mutable
+from utils.timeout import TimeoutException
 
 
-class WindowsService(AgentCheck):
+class WindowsService(WinWMICheck):
     STATE_TO_VALUE = {
         'Stopped': AgentCheck.CRITICAL,
         'Start Pending': AgentCheck.WARNING,
@@ -18,50 +18,64 @@ class WindowsService(AgentCheck):
         'Paused': AgentCheck.WARNING,
         'Unknown': AgentCheck.UNKNOWN
     }
+    NAMESPACE = "root\\CIMV2"
+    CLASS = "Win32_Service"
 
     def __init__(self, name, init_config, agentConfig, instances):
-        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
-        self.wmi_conns = {}
-
-    def _get_wmi_conn(self, host, user, password):
-        key = "%s:%s" % (host, user)
-        if key not in self.wmi_conns:
-            self.wmi_conns[key] = wmi.WMI(host, user=user, password=password)
-        return self.wmi_conns[key]
+        WinWMICheck.__init__(self, name, init_config, agentConfig, instances)
 
     def check(self, instance):
         # Connect to the WMI provider
-        host = instance.get('host', None)
-        user = instance.get('username', None)
-        password = instance.get('password', None)
-        services = instance.get('services') or []
-        w = self._get_wmi_conn(host, user, password)
+        host = instance.get('host', "localhost")
+        user = instance.get('username', "")
+        password = instance.get('password', "")
+        services = instance.get('services', [])
+
+        instance_hash = hash_mutable(instance)
+        instance_key = self._get_instance_key(host, self.NAMESPACE, self.CLASS, instance_hash)
+        tags = [] if (host == "localhost" or host == ".") else [u'host:{0}'.format(host)]
 
         if len(services) == 0:
             raise Exception('No services defined in windows_service.yaml')
 
-        for service in services:
-            self.log.debug(u"Looking for service name: %s" % service)
-            results = w.Win32_Service(name=service)
-            if len(results) == 0:
-                self.warning(u"No services found matching %s" % service)
-                continue
-            elif len(results) > 1:
-                self.warning(u"Multiple services found matching %s" % service)
-                continue
+        properties = ["Name", "State"]
+        filters = map(lambda x: {"Name": tuple(('=', x))}, services)
+        wmi_sampler = self._get_wmi_sampler(
+            instance_key,
+            self.CLASS, properties,
+            filters=filters,
+            host=host, namespace=self.NAMESPACE,
+            username=user, password=password
+        )
 
-            wmi_service = results[0]
-            self._create_service_check(wmi_service, host)
-
-    def _create_service_check(self, wmi_service, host):
-        """ Given an instance of a wmi_object from Win32_Service, write any
-            performance counters to be gathered and flushed by the collector.
-        """
-        if host == ".":
-            host_name = self.hostname
+        try:
+            # Sample, extract & submit metrics
+            wmi_sampler.sample()
+        except TimeoutException:
+            self.log.warning(
+                u"[WinService] WMI query timed out."
+                u" class={wmi_class} - properties={wmi_properties} -"
+                u" filters={filters} - tags={tags}".format(
+                    wmi_class=self.CLASS, wmi_properties=properties,
+                    filters=filters, tags=tags
+                )
+            )
         else:
-            host_name = host
+            self._process_services(wmi_sampler, services, tags)
 
-        tags = [u'service:%s' % wmi_service.Name, u'host:%s' % host_name]
-        state_value = self.STATE_TO_VALUE.get(wmi_service.State, AgentCheck.UNKNOWN)
-        self.service_check('windows_service.state', state_value, tags=tags)
+    def _process_services(self, wmi_sampler, services, tags):
+        expected_services = set(services)
+
+        for wmi_obj in wmi_sampler:
+            service = wmi_obj['Name']
+            if service not in services:
+                continue
+
+            status = self.STATE_TO_VALUE.get(wmi_obj["state"], AgentCheck.UNKNOWN)
+            self.service_check("windows_service.state", status,
+                               tags=tags + ['service:{0}'.format(service)])
+            expected_services.remove(service)
+
+        for service in expected_services:
+            self.service_check("windows_service.state", AgentCheck.CRITICAL,
+                               tags=tags + ['service:{0}'.format(service)])
