@@ -54,12 +54,12 @@ class Processes(Check):
                 u"Timeout while querying Win32_PerfRawData_PerfOS_System WMI class."
                 u" Processes metrics will be returned at next iteration."
             )
-            return
+            return []
 
         if not (len(self.wmi_sampler)):
             self.logger.info('Missing Win32_PerfRawData_PerfOS_System WMI class.'
                              ' No process metrics will be returned.')
-            return
+            return []
 
         os = self.wmi_sampler[0]
         processor_queue_length = os.get('ProcessorQueueLength')
@@ -117,12 +117,12 @@ class Memory(Check):
                 u"Timeout while querying Win32_OperatingSystem WMI class."
                 u" Memory metrics will be returned at next iteration."
             )
-            return
+            return []
 
         if not (len(self.os_wmi_sampler)):
             self.logger.info('Missing Win32_OperatingSystem WMI class.'
                              ' No memory metrics will be returned.')
-            return
+            return []
 
         os = self.os_wmi_sampler[0]
 
@@ -204,12 +204,12 @@ class Cpu(Check):
                 u"Timeout while querying Win32_PerfRawData_PerfOS_Processor WMI class."
                 u" CPU metrics will be returned at next iteration."
             )
-            return
+            return []
 
         if not (len(self.wmi_sampler)):
             self.logger.info('Missing Win32_PerfRawData_PerfOS_Processor WMI class.'
                              ' No CPU metrics will be returned')
-            return
+            return []
 
         cpu_interrupt = self._average_metric(self.wmi_sampler, 'PercentInterruptTime')
         if cpu_interrupt is not None:
@@ -267,12 +267,12 @@ class Network(Check):
                 u"Timeout while querying Win32_PerfRawData_Tcpip_NetworkInterface WMI class."
                 u" Network metrics will be returned at next iteration."
             )
-            return
+            return []
 
         if not (len(self.wmi_sampler)):
             self.logger.info('Missing Win32_PerfRawData_Tcpip_NetworkInterface WMI class.'
                              ' No network metrics will be returned')
-            return
+            return []
 
         for iface in self.wmi_sampler:
             name = iface.get('Name')
@@ -315,12 +315,12 @@ class IO(Check):
                 u"Timeout while querying Win32_PerfRawData_PerfDisk_LogicalDiskUnable WMI class."
                 u" I/O metrics will be returned at next iteration."
             )
-            return
+            return []
 
         if not (len(self.wmi_sampler)):
             self.logger.info('Missing Win32_PerfRawData_PerfDisk_LogicalDiskUnable WMI class.'
                              ' No I/O metrics will be returned.')
-            return
+            return []
 
         blacklist_re = agentConfig.get('device_blacklist_re', None)
         for device in self.wmi_sampler:
