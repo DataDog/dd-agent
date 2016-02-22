@@ -38,6 +38,7 @@ from config import get_config, get_version
 from daemon import AgentSupervisor, Daemon
 from util import chunks, get_hostname, get_uuid, plural
 from utils.pidfile import PidFile
+from utils.watchdog import new_watchdog
 
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")
@@ -143,8 +144,7 @@ class Reporter(threading.Thread):
 
         self.watchdog = None
         if use_watchdog:
-            from util import Watchdog
-            self.watchdog = Watchdog(WATCHDOG_TIMEOUT)
+            self.watchdog = new_watchdog(WATCHDOG_TIMEOUT)
 
         self.api_key = api_key
         self.api_host = api_host

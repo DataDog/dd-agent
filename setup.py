@@ -67,7 +67,7 @@ if sys.platform == 'win32':
                 'bundle_files': 3,
                 'excludes': ['numpy'],
                 'dll_excludes': ["IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll"],
-                'ascii':False,
+                'ascii': False,
             },
         },
         'service': [agent_svc],

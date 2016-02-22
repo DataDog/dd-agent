@@ -49,10 +49,11 @@ def _windows_commondata_path():
 
 # Let's configure logging accordingly now (we need the above function for that)
 logging.basicConfig(
-    filename= os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'service.log'),
-    level = logging.DEBUG,
-    format = '%(asctime)s | %(levelname)s | %(name)s(%(filename)s:%(lineno)s) | %(message)s'
+    filename=os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'service.log'),
+    level=logging.DEBUG,
+    format='%(asctime)s | %(levelname)s | %(name)s(%(filename)s:%(lineno)s) | %(message)s'
 )
+
 
 class AgentService(win32serviceutil.ServiceFramework):
     _svc_name_ = "DatadogAgent"
@@ -141,13 +142,11 @@ class AgentService(win32serviceutil.ServiceFramework):
             os.chdir(self.agent_path + "\\win32")
         except WindowsError as e:
             logging.exception("WindowsError occured when starting our supervisor :\n\t"
-                     "[Errno {1}] {0}".
-                     format(e.strerror, e.errno))
+                              "[Errno {1}] {0}".format(e.strerror, e.errno))
             self.SvcStop()
             return
         except Exception as e:
-            logging.exception("[Error happened when launching the Windows supervisor] {0}".
-                     format(e.message))
+            logging.exception("[Error happened when launching the Windows supervisor] {0}".format(e.message))
             self.SvcStop()
             return
 

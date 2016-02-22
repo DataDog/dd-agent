@@ -14,7 +14,7 @@ from nose.plugins.attrib import attr
 # needed because of the subprocess calls
 sys.path.append(os.getcwd())
 from ddagent import Application
-from util import Watchdog
+from utils.watchdog import WatchdogPosix as Watchdog
 
 
 @attr(requires='core_integration')

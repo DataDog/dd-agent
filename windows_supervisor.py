@@ -51,21 +51,15 @@ class AgentSupervisor():
         self.server_mode = server
 
         # Setup the correct options so the agent will use the forwarder
-        opts, args = Values({
+        opts = Values({
             'autorestart': False,
             'dd_url': None,
             'use_forwarder': True,
             'disabled_dd': False,
             'profile': False
-        }), []
+        })
         agent_config = get_config(parse_args=False, options=opts)
         self.hostname = get_hostname(agent_config)
-
-        # Watchdog for Windows
-        self._collector_heartbeat, self._collector_send_heartbeat = multiprocessing.Pipe(False)
-        self._collector_failed_heartbeats = 0
-        self._max_failed_heartbeats = \
-            MAX_FAILED_HEARTBEATS * agent_config['check_freq'] / SERVICE_SLEEP_INTERVAL
 
         # Let's have an uptime counter
         self.start_ts = None
@@ -82,17 +76,25 @@ class AgentSupervisor():
         # Keep a list of running processes so we can start/end as needed.
         # Processes will start started in order and stopped in reverse order.
         self.procs = {
-            'forwarder': ProcessWatchDog("forwarder",
-                DDProcess("Forwarder", [embedded_python, "ddagent.py"])),
-            'collector': ProcessWatchDog("collector",
+            'forwarder': ProcessWatchDog(
+                "forwarder",
+                DDProcess("Forwarder", [embedded_python, "ddagent.py"])
+            ),
+            'collector': ProcessWatchDog(
+                "collector",
                 DDProcess("Collector", [embedded_python, "agent.py", "foreground",
-                          "--use-local-forwarder"])),
-            'dogstatsd': ProcessWatchDog("dogstatsd",
+                          "--use-local-forwarder"])
+            ),
+            'dogstatsd': ProcessWatchDog(
+                "dogstatsd",
                 DDProcess("Dogstatsd server", [embedded_python, "dogstatsd.py",
                           "--use-local-forwarder"],
-                          config.get("use_dogstatsd", True))),
-            'jmxfetch': ProcessWatchDog("jmxfetch",
-                JMXFetchProcess("JMXFetch", [embedded_python, "jmxfetch.py"], 3)),
+                          config.get("use_dogstatsd", True))
+            ),
+            'jmxfetch': ProcessWatchDog(
+                "jmxfetch",
+                JMXFetchProcess("JMXFetch", [embedded_python, "jmxfetch.py"], 3)
+            ),
         }
 
     def stop(self):
@@ -138,12 +140,10 @@ class AgentSupervisor():
                     log.warning("%s has died. Restarting..." % name)
                     proc.restart()
 
-            self._check_collector_blocked()
-
             if(self.server_mode):
                 # Let's check if the service tried to connect to us
                 rlist, wlist, xlist = select.select([service_sock], [], [],
-                        SERVICE_SLEEP_INTERVAL/2.0)
+                                                    SERVICE_SLEEP_INTERVAL/2.0)
 
                 for req in rlist:
                     transaction, info = req.accept()
@@ -152,7 +152,7 @@ class AgentSupervisor():
                 requests = []
                 try:
                     requests, wlist, xlist = select.select(clients, [], [],
-                            SERVICE_SLEEP_INTERVAL/2.0)
+                                                           SERVICE_SLEEP_INTERVAL/2.0)
                 except select.error:
                     pass
                 else:
@@ -167,18 +167,6 @@ class AgentSupervisor():
                             time.sleep(SERVICE_SLEEP_INTERVAL)
             else:
                 time.sleep(SERVICE_SLEEP_INTERVAL)
-
-    def _check_collector_blocked(self):
-        if self._collector_heartbeat.poll():
-            while self._collector_heartbeat.poll():
-                self._collector_heartbeat.recv()
-            self._collector_failed_heartbeats = 0
-        else:
-            self._collector_failed_heartbeats += 1
-            if self._collector_failed_heartbeats > self._max_failed_heartbeats:
-                log.warning("%s was unresponsive for too long. Restarting..." % 'collector')
-                self.procs['collector'].restart()
-                self._collector_failed_heartbeats = 0
 
 
 class ProcessWatchDog(object):
@@ -235,6 +223,7 @@ class ProcessWatchDog(object):
             self._process.terminate()
 
         self._process.start()
+
 
 class DDProcess(object):
     def __init__(self, name, command, enable=True):

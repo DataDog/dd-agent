@@ -37,12 +37,12 @@ from emitter import http_emitter
 from util import (
     EC2,
     get_hostname,
-    Watchdog,
 )
 from utils.flare import configcheck, Flare
 from utils.jmx import jmx_command
 from utils.pidfile import PidFile
 from utils.profile import AgentProfiler
+from utils.watchdog import new_watchdog
 
 # Constants
 PID_NAME = "dd-agent"
@@ -222,8 +222,8 @@ class Agent(Daemon):
     def _get_watchdog(self, check_freq):
         watchdog = None
         if self._agentConfig.get("watchdog", True):
-            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER,
-                                max_mem_mb=self._agentConfig.get('limit_memory_consumption', None))
+            watchdog = new_watchdog(check_freq * WATCHDOG_MULTIPLIER,
+                                    max_mem_mb=self._agentConfig.get('limit_memory_consumption', None))
             watchdog.reset()
         return watchdog
 

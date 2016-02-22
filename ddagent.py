@@ -54,10 +54,9 @@ from util import (
     get_tornado_ioloop,
     get_uuid,
     json,
-    Watchdog,
 )
 from utils.logger import RedactedLogRecord
-
+from utils.watchdog import new_watchdog
 
 logging.LogRecord = RedactedLogRecord
 log = logging.getLogger('forwarder')
@@ -403,8 +402,8 @@ class Application(tornado.web.Application):
 
         if watchdog:
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER / 1000
-            self._watchdog = Watchdog(watchdog_timeout,
-                                      max_mem_mb=agentConfig.get('limit_memory_consumption', None))
+            self._watchdog = new_watchdog(watchdog_timeout,
+                                          max_mem_mb=agentConfig.get('limit_memory_consumption', None))
 
     def log_request(self, handler):
         """ Override the tornado logging method.
