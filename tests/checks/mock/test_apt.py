@@ -32,3 +32,9 @@ class TestCheckAPT(AgentCheckTest):
         self.assertServiceCheckCritical('apt.updates')
         self.assertMetric('apt.updates.packages', value=10)
         self.assertMetric('apt.updates.security', value=2)
+
+    def test_single_update(self):
+        self.run_check(mock_config('updates-available.single'))
+        self.assertServiceCheckCritical('apt.updates')
+        self.assertMetric('apt.updates.packages', value=1)
+        self.assertMetric('apt.updates.security', value=1)
