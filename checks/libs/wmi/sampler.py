@@ -23,6 +23,8 @@ from contextlib import contextmanager
 from copy import deepcopy
 from itertools import izip
 import pywintypes
+import random
+import time
 
 # 3p
 from win32com.client import Dispatch
@@ -375,6 +377,12 @@ class WMISampler(object):
 
         Returns: List of WMI objects or `TimeoutException`.
         """
+        #random timeout
+        do_timeout = bool(random.getbits(1))
+        if do_timeout:
+            self.logger.debug(u"Random timeout! Sleeping {ts}".format(ts=self._timeout_duration))
+            time.sleep(self._timeout_duration)
+
         formated_property_names = ",".join(self.property_names)
         wql = "Select {property_names} from {class_name}{filters}".format(
             property_names=formated_property_names,
