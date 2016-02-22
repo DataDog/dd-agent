@@ -12,6 +12,7 @@ NET = "net"
 NET_ERRORS = "net_errors"
 DISK = "disk"
 DISK_USAGE = "disk_usage"
+PODS = "pods"
 
 METRICS = [
     ('kubernetes.memory.usage', MEM),
@@ -24,6 +25,7 @@ METRICS = [
     ('kubernetes.diskio.io_service_bytes.stats.total', DISK),
     ('kubernetes.filesystem.usage_pct', DISK_USAGE),
     ('kubernetes.filesystem.usage', DISK_USAGE),
+    ('kubernetes.pods.running', PODS),
 ]
 
 class TestKubernetes(AgentCheckTest):
@@ -35,6 +37,8 @@ class TestKubernetes(AgentCheckTest):
         mocks = {
             '_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics.json")),
             '_retrieve_kube_labels': lambda: json.loads(Fixtures.read_file("kube_labels.json")),
+            # parts of the json returned by the kubelet api is escaped, keep it untouched
+            '_retrieve_pods_list': lambda: json.loads(Fixtures.read_file("pods_list.json", string_escape=False)),
         }
         config = {
             "instances": [{"host": "foo"}]
@@ -49,6 +53,8 @@ class TestKubernetes(AgentCheckTest):
         mocks = {
             '_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics.json")),
             '_retrieve_kube_labels': lambda: json.loads(Fixtures.read_file("kube_labels.json")),
+            # parts of the json returned by the kubelet api is escaped, keep it untouched
+            '_retrieve_pods_list': lambda: json.loads(Fixtures.read_file("pods_list.json", string_escape=False)),
         }
         config = {
             "instances": [
@@ -58,8 +64,6 @@ class TestKubernetes(AgentCheckTest):
                 }
             ]
         }
-
-
 
         # Can't use run_check_twice due to specific metrics
         self.run_check_twice(config, mocks=mocks, force_reload=True)
@@ -86,7 +90,11 @@ class TestKubernetes(AgentCheckTest):
             (['kube_replication_controller:propjoe','kube_namespace:default', 'container_name:k8s_propjoe.21f63023_propjoe-lkc3l_default_3a9b1759-4055-11e5-84ce-42010af01c62_9fe8b7b0', 'pod_name:default/propjoe-lkc3l'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['kube_replication_controller:kube-dns-v8','kube_namespace:kube-system', 'container_name:k8s_healthz.4469a25d_kube-dns-v8-smhcb_kube-system_b80ffab3-3619-11e5-84ce-42010af01c62_241c34d1', 'pod_name:kube-system/kube-dns-v8-smhcb'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['kube_replication_controller:fluentd-cloud-logging-kubernetes-minion','kube_namespace:kube-system', 'container_name:k8s_fluentd-cloud-logging.7721935b_fluentd-cloud-logging-kubernetes-minion-mu4w_kube-system_d0feac1ad02da9e97c4bf67970ece7a1_2c3c0879', 'pod_name:kube-system/fluentd-cloud-logging-kubernetes-minion-mu4w'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
-            (['container_name:dd-agent', 'pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK])
+            (['container_name:dd-agent', 'pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
+            (['kube_replication_controller:l7-lb-controller'], [PODS]),
+            (['kube_replication_controller:redis-slave'], [PODS]),
+            (['kube_replication_controller:frontend'], [PODS]),
+            (['kube_replication_controller:heapster-v11'], [PODS]),
         ]
         for m, _type in METRICS:
             for tags, types in expected_tags:
@@ -100,6 +108,8 @@ class TestKubernetes(AgentCheckTest):
         mocks = {
             '_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics.json")),
             '_retrieve_kube_labels': lambda: json.loads(Fixtures.read_file("kube_labels.json")),
+            # parts of the json returned by the kubelet api is escaped, keep it untouched
+            '_retrieve_pods_list': lambda: json.loads(Fixtures.read_file("pods_list.json", string_escape=False)),
         }
         config = {
             "instances": [
@@ -126,6 +136,10 @@ class TestKubernetes(AgentCheckTest):
             (['kube_replication_controller:kube-ui-v1','kube_namespace:kube-system', 'pod_name:kube-system/kube-ui-v1-sv2sq'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['kube_replication_controller:propjoe', 'kube_namespace:default', 'pod_name:default/propjoe-lkc3l'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['kube_replication_controller:haproxy-6db79c7bbcac01601ac35bcdb18868b3', 'kube_namespace:default', 'pod_name:default/haproxy-6db79c7bbcac01601ac35bcdb18868b3-rr7la'], [MEM, CPU, FS, NET, NET_ERRORS]),
+            (['kube_replication_controller:l7-lb-controller'], [PODS]),
+            (['kube_replication_controller:redis-slave'], [PODS]),
+            (['kube_replication_controller:frontend'], [PODS]),
+            (['kube_replication_controller:heapster-v11'], [PODS]),
         ]
 
         for m, _type in METRICS:

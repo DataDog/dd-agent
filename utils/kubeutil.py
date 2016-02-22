@@ -9,12 +9,14 @@ from utils.http import retrieve_json
 
 DEFAULT_METHOD = 'http'
 METRICS_PATH = '/api/v1.3/subcontainers/'
+PODS_LIST_PATH = '/pods/'
 DEFAULT_CADVISOR_PORT = 4194
 DEFAULT_KUBELET_PORT = 10255
 DEFAULT_MASTER_PORT = 8080
 
 log = logging.getLogger('collector')
 _kube_settings = {}
+
 
 def get_kube_settings():
     global _kube_settings
@@ -31,6 +33,7 @@ def set_kube_settings(instance):
     kubelet_port = instance.get('kubelet_port', DEFAULT_KUBELET_PORT)
     master_port = instance.get('master_port', DEFAULT_MASTER_PORT)
     master_host = instance.get('master_host', host)
+    pods_list_url = urljoin('%s://%s:%d' % (method, host, kubelet_port), PODS_LIST_PATH)
 
     _kube_settings = {
         "host": host,
@@ -39,7 +42,8 @@ def set_kube_settings(instance):
         "cadvisor_port": cadvisor_port,
         "labels_url": '%s://%s:%d/pods' % (method, host, kubelet_port),
         "master_url_nodes": '%s://%s:%d/api/v1/nodes' % (method, master_host, master_port),
-        "kube_health_url": '%s://%s:%d/healthz' % (method, host, kubelet_port)
+        "kube_health_url": '%s://%s:%d/healthz' % (method, host, kubelet_port),
+        "pods_list_url": pods_list_url
     }
 
     return _kube_settings
@@ -48,8 +52,16 @@ def set_kube_settings(instance):
 def get_kube_labels():
     global _kube_settings
     pods = retrieve_json(_kube_settings["labels_url"])
+    return extract_kube_labels(pods)
+
+
+def extract_kube_labels(pods_list):
+    """
+    Extract labels from a list of pods coming from
+    the kubelet API.
+    """
     kube_labels = {}
-    for pod in pods["items"]:
+    for pod in pods_list["items"]:
         metadata = pod.get("metadata", {})
         name = metadata.get("name")
         namespace = metadata.get("namespace")
@@ -59,6 +71,7 @@ def get_kube_labels():
             kube_labels[key] = ["kube_%s:%s" % (k,v) for k,v in labels.iteritems()]
 
     return kube_labels
+
 
 def _get_default_router():
     try:
