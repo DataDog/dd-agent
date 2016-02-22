@@ -378,7 +378,7 @@ class WMISampler(object):
         Returns: List of WMI objects or `TimeoutException`.
         """
         #random timeout
-        do_timeout = bool(random.getrandbits(1))
+        do_timeout = not bool(random.randint(0,3))
         if do_timeout:
             self.logger.debug(u"Random timeout! Sleeping {ts}".format(ts=self._timeout_duration))
             time.sleep(self._timeout_duration)
