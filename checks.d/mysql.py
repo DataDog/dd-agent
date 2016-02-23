@@ -817,15 +817,19 @@ class MySql(AgentCheck):
 
     def _get_replica_stats(self, db):
         try:
-            with closing(db.cursor()) as cursor:
+            with closing(db.cursor(pymysql.cursors.DictCursor)) as cursor:
+                replica_results = {}
                 cursor.execute("SHOW SLAVE STATUS;")
-                replica_results = dict(cursor.fetchall())
+                slave_results = cursor.fetchone()
+                if slave_results:
+                    replica_results.update(slave_results)
                 cursor.execute("SHOW MASTER STATUS;")
-                binlog_results = dict(cursor.fetchall())
+                binlog_results = cursor.fetchone()
                 if binlog_results:
                     replica_results.update({'Binlog_enabled': True})
 
                 return replica_results
+
         except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
             self.warning("Privileges error getting replication status (must grant REPLICATION CLIENT): %s" % str(e))
             return {}
