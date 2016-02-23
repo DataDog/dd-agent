@@ -348,7 +348,7 @@ class MySql(AgentCheck):
         elif self.port:
             hostkey = "{0}:{1}".format(hostkey, self.port)
 
-        return None
+        return hostkey
 
     @contextmanager
     def _connect(self, host, port, mysql_sock, user, password, defaults_file, ssl):
