@@ -1,0 +1,105 @@
+{
+  "status_code": 200,
+  "status_txt": "OK",
+  "data": {
+    "version": "0.2.31",
+    "health": "OK",
+    "topics": [
+      {
+        "topic_name": "bapi_events",
+        "channels": [
+          {
+            "channel_name": "nsq_to_file",
+            "depth": 0,
+            "backend_depth": 0,
+            "in_flight_count": 0,
+            "deferred_count": 0,
+            "message_count": 685,
+            "requeue_count": 0,
+            "timeout_count": 0,
+            "clients": [
+              {
+                "name": "nsqsink2",
+                "client_id": "nsqsink2",
+                "hostname": "nsqsink2.northwest.example.com",
+                "version": "V2",
+                "remote_address": "10.68.25.230:48495",
+                "state": 3,
+                "ready_count": 6,
+                "in_flight_count": 0,
+                "message_count": 205,
+                "finish_count": 205,
+                "requeue_count": 0,
+                "connect_ts": 1456356910,
+                "sample_rate": 0,
+                "deflate": false,
+                "snappy": false,
+                "user_agent": "nsq_to_file\/0.2.31 go-nsq\/1.0.1-alpha",
+                "tls": false,
+                "tls_cipher_suite": "",
+                "tls_version": "",
+                "tls_negotiated_protocol": "",
+                "tls_negotiated_protocol_is_mutual": false
+              }
+            ],
+            "paused": false,
+            "e2e_processing_latency": {
+              "count": 6,
+              "percentiles": [
+                {
+                  "quantile": 0.5,
+                  "value": 709396048
+                },
+                {
+                  "quantile": 0.95,
+                  "value": 8506929254
+                },
+                {
+                  "quantile": 0.99,
+                  "value": 8506929254
+                },
+                {
+                  "quantile": 0.999,
+                  "value": 8506929254
+                },
+                {
+                  "quantile": 0.9999,
+                  "value": 8506929254
+                }
+              ]
+            }
+          }
+        ],
+        "depth": 0,
+        "backend_depth": 0,
+        "message_count": 685,
+        "paused": false,
+        "e2e_processing_latency": {
+          "count": 6,
+          "percentiles": [
+            {
+              "quantile": 0.5,
+              "value": 709396048
+            },
+            {
+              "quantile": 0.95,
+              "value": 8506929254
+            },
+            {
+              "quantile": 0.99,
+              "value": 8506929254
+            },
+            {
+              "quantile": 0.999,
+              "value": 8506929254
+            },
+            {
+              "quantile": 0.9999,
+              "value": 8506929254
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

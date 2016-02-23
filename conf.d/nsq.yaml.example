@@ -1,0 +1,7 @@
+# This check takes no init_config
+init_config:
+
+instances:
+    # Where your NSQD HTTP Server Lives
+    # Remind to use https instead of http if your Consul setup is configured to do so.
+    - url: http://localhost:4151
