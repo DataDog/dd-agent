@@ -295,12 +295,16 @@ class ZookeeperCheck(AgentCheck):
         # Received: 101032173
         _, value = buf.readline().split(':')
         metrics.append(ZKMetric('zookeeper.bytes_received', long(value.strip())))
-        metrics.append(ZKMetric('zookeeper.bytes_received_per_second', long(value.strip()), "rate"))
+        metrics.append(
+            ZKMetric('zookeeper.packets_received', long(value.strip()), "rate")
+        )
 
         # Sent: 1324
         _, value = buf.readline().split(':')
         metrics.append(ZKMetric('zookeeper.bytes_sent', long(value.strip())))
-        metrics.append(ZKMetric('zookeeper.bytes_sent_per_second', long(value.strip()), "rate"))
+        metrics.append(
+            ZKMetric('zookeeper.packets_sent', long(value.strip()), "rate")
+        )
 
         if has_connections_val:
             # Connections: 1
@@ -342,7 +346,6 @@ class ZookeeperCheck(AgentCheck):
         metrics.append(ZKMetric('zookeeper.nodes', long(value.strip())))
 
         return metrics, tags, mode, version
-
 
     def parse_mntr(self, buf):
         ''' `buf` is a readable file-like object
