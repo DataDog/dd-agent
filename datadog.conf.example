@@ -30,7 +30,7 @@ api_key:
 # and dice per monitored app (= running Agent Check) on Datadog's backend.
 # create_dd_check_tags: no
 
-# Collect AWS EC2 custom tags as agent tags
+# Collect AWS EC2 custom tags as agent tags (requires an IAM role associated with the instance)
 # collect_ec2_tags: no
 
 # Incorporate security-groups into tags collected from AWS EC2

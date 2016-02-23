@@ -340,12 +340,35 @@ class EC2(object):
     TIMEOUT = 0.1  # second
     metadata = {}
 
+    class NoIAMRole(Exception):
+        """
+        Instance has no associated IAM role.
+        """
+        pass
+
+    @staticmethod
+    def get_iam_role():
+        """
+        Retrieve instance's IAM role.
+        Raise `NoIAMRole` when unavailable.
+        """
+        try:
+            return urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials/").read().strip()
+        except urllib2.HTTPError as err:
+            if err.code == 404:
+                raise EC2.NoIAMRole()
+            raise
+
     @staticmethod
     def get_tags(agentConfig):
+        """
+        Retrieve AWS EC2 tags.
+        """
         if not agentConfig['collect_instance_metadata']:
             log.info("Instance metadata collection is disabled. Not collecting it.")
             return []
 
+        EC2_tags = []
         socket_to = None
         try:
             socket_to = socket.getdefaulttimeout()
@@ -354,7 +377,7 @@ class EC2(object):
             pass
 
         try:
-            iam_role = urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials/").read().strip()
+            iam_role = EC2.get_iam_role()
             iam_params = json.loads(urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials/" + unicode(iam_role)).read().strip())
             instance_identity = json.loads(urllib2.urlopen(EC2.INSTANCE_IDENTITY_URL).read().strip())
             region = instance_identity['region']
@@ -376,9 +399,13 @@ class EC2(object):
             if agentConfig.get('collect_security_groups') and EC2.metadata.get('security-groups'):
                 EC2_tags.append(u"security-group-name:{0}".format(EC2.metadata.get('security-groups')))
 
+        except EC2.NoIAMRole:
+            log.warning(
+                u"Unable to retrieve AWS EC2 custom tags: "
+                u"an IAM role associated with the instance is required"
+            )
         except Exception:
             log.exception("Problem retrieving custom EC2 tags")
-            EC2_tags = []
 
         try:
             if socket_to is None:
