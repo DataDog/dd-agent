@@ -55,6 +55,7 @@ class GUnicornCheck(AgentCheck):
         self.log.debug("instance %s procs - working:%s idle:%s" % (proc_name, working, idle))
         self.gauge("gunicorn.workers", working, self.WORKING_TAGS)
         self.gauge("gunicorn.workers", idle, self.IDLE_TAGS)
+        self.gauge("gunicorn.workers.utilization", working / (idle + working), self.IDLE_TAGS)
 
     def _count_workers(self, worker_procs):
         working = 0
