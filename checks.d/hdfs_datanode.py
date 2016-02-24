@@ -1,17 +1,17 @@
 '''
 HDFS DataNode Metrics
 ---------------------
-hdfs_datanode.dfs_remaining                  The remaining disk space left in bytes
-hdfs_datanode.dfs_capacity                   Disk capacity in bytes
-hdfs_datanode.dfs_used                       Disk usage in bytes
-hdfs_datanode.cache_capacity                 Cache capacity in bytes
-hdfs_datanode.cache_used                     Cache used in bytes
-hdfs_datanode.num_failed_volumes             Number of failed volumes
-hdfs_datanode.last_volume_failure_date       Date the last volume failed
-hdfs_datanode.estimated_capacity_lost_total  The estimated capacity lost in bytes
-hdfs_datanode.num_blocks_cached              The number of blocks cached
-hdfs_datanode.num_blocks_failed_to_cache     The number of blocks that failed to cache
-hdfs_datanode.num_blocks_failed_to_uncache   The number of failed blocks to remove from cache
+hdfs.datanode.dfs_remaining                  The remaining disk space left in bytes
+hdfs.datanode.dfs_capacity                   Disk capacity in bytes
+hdfs.datanode.dfs_used                       Disk usage in bytes
+hdfs.datanode.cache_capacity                 Cache capacity in bytes
+hdfs.datanode.cache_used                     Cache used in bytes
+hdfs.datanode.num_failed_volumes             Number of failed volumes
+hdfs.datanode.last_volume_failure_date       Date the last volume failed
+hdfs.datanode.estimated_capacity_lost_total  The estimated capacity lost in bytes
+hdfs.datanode.num_blocks_cached              The number of blocks cached
+hdfs.datanode.num_blocks_failed_to_cache     The number of blocks that failed to cache
+hdfs.datanode.num_blocks_failed_to_uncache   The number of failed blocks to remove from cache
 '''
 
 # stdlib
@@ -26,7 +26,7 @@ from simplejson import JSONDecodeError
 from checks import AgentCheck
 
 # Service check names
-JMX_SERVICE_CHECK = 'hdfs_datanode.jmx.can_connect'
+JMX_SERVICE_CHECK = 'hdfs.datanode.jmx.can_connect'
 
 # URL Paths
 JMX_PATH = 'jmx'
@@ -39,17 +39,17 @@ HDFS_DATANODE_BEAN_NAME = 'Hadoop:service=DataNode,name=FSDatasetState*'
 
 # HDFS metrics
 HDFS_METRICS = {
-    'Remaining' : ('hdfs_datanode.dfs_remaining',  GAUGE),
-    'Capacity' :('hdfs_datanode.dfs_capacity', GAUGE),
-    'DfsUsed' : ('hdfs_datanode.dfs_used', GAUGE),
-    'CacheCapacity' : ('hdfs_datanode.cache_capacity', GAUGE),
-    'CacheUsed' : ('hdfs_datanode.cache_used', GAUGE),
-    'NumFailedVolumes' : ('hdfs_datanode.num_failed_volumes', GAUGE),
-    'LastVolumeFailureDate' : ('hdfs_datanode.last_volume_failure_date', GAUGE),
-    'EstimatedCapacityLostTotal' : ('hdfs_datanode.estimated_capacity_lost_total', GAUGE),
-    'NumBlocksCached' : ('hdfs_datanode.num_blocks_cached', GAUGE),
-    'NumBlocksFailedToCache' : ('hdfs_datanode.num_blocks_failed_to_cache', GAUGE),
-    'NumBlocksFailedToUnCache' : ('hdfs_datanode.num_blocks_failed_to_uncache', GAUGE)
+    'Remaining' : ('hdfs.datanode.dfs_remaining',  GAUGE),
+    'Capacity' :('hdfs.datanode.dfs_capacity', GAUGE),
+    'DfsUsed' : ('hdfs.datanode.dfs_used', GAUGE),
+    'CacheCapacity' : ('hdfs.datanode.cache_capacity', GAUGE),
+    'CacheUsed' : ('hdfs.datanode.cache_used', GAUGE),
+    'NumFailedVolumes' : ('hdfs.datanode.num_failed_volumes', GAUGE),
+    'LastVolumeFailureDate' : ('hdfs.datanode.last_volume_failure_date', GAUGE),
+    'EstimatedCapacityLostTotal' : ('hdfs.datanode.estimated_capacity_lost_total', GAUGE),
+    'NumBlocksCached' : ('hdfs.datanode.num_blocks_cached', GAUGE),
+    'NumBlocksFailedToCache' : ('hdfs.datanode.num_blocks_failed_to_cache', GAUGE),
+    'NumBlocksFailedToUnCache' : ('hdfs.datanode.num_blocks_failed_to_uncache', GAUGE)
 }
 
 class HDFSDataNode(AgentCheck):

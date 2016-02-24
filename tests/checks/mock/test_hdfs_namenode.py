@@ -50,33 +50,33 @@ class HDFSNameNode(AgentCheckTest):
     }
 
     HDFS_NAMESYSTEM_STATE_METRICS_VALUES = {
-        'hdfs_namenode.capacity_total': 41167421440,
-        'hdfs_namenode.capacity_used': 501932032,
-        'hdfs_namenode.capacity_remaining': 27878948864,
-        'hdfs_namenode.capacity_in_use': None,  # Don't test the value as it's a float
-        'hdfs_namenode.total_load': 2,
-        'hdfs_namenode.fs_lock_queue_length': 0,
-        'hdfs_namenode.blocks_total': 27661,
-        'hdfs_namenode.max_objects': 0,
-        'hdfs_namenode.files_total': 82950,
-        'hdfs_namenode.pending_replication_blocks': 0,
-        'hdfs_namenode.under_replicated_blocks': 27661,
-        'hdfs_namenode.scheduled_replication_blocks': 0,
-        'hdfs_namenode.pending_deletion_blocks': 0,
-        'hdfs_namenode.num_live_data_nodes': 1,
-        'hdfs_namenode.num_dead_data_nodes': 0,
-        'hdfs_namenode.num_decom_live_data_nodes': 0,
-        'hdfs_namenode.num_decom_dead_data_nodes': 0,
-        'hdfs_namenode.volume_failures_total': 0,
-        'hdfs_namenode.estimated_capacity_lost_total': 0,
-        'hdfs_namenode.num_decommissioning_data_nodes': 0,
-        'hdfs_namenode.num_stale_data_nodes': 0,
-        'hdfs_namenode.num_stale_storages': 0,
+        'hdfs.namenode.capacity_total': 41167421440,
+        'hdfs.namenode.capacity_used': 501932032,
+        'hdfs.namenode.capacity_remaining': 27878948864,
+        'hdfs.namenode.capacity_in_use': None,  # Don't test the value as it's a float
+        'hdfs.namenode.total_load': 2,
+        'hdfs.namenode.fs_lock_queue_length': 0,
+        'hdfs.namenode.blocks_total': 27661,
+        'hdfs.namenode.max_objects': 0,
+        'hdfs.namenode.files_total': 82950,
+        'hdfs.namenode.pending_replication_blocks': 0,
+        'hdfs.namenode.under_replicated_blocks': 27661,
+        'hdfs.namenode.scheduled_replication_blocks': 0,
+        'hdfs.namenode.pending_deletion_blocks': 0,
+        'hdfs.namenode.num_live_data_nodes': 1,
+        'hdfs.namenode.num_dead_data_nodes': 0,
+        'hdfs.namenode.num_decom_live_data_nodes': 0,
+        'hdfs.namenode.num_decom_dead_data_nodes': 0,
+        'hdfs.namenode.volume_failures_total': 0,
+        'hdfs.namenode.estimated_capacity_lost_total': 0,
+        'hdfs.namenode.num_decommissioning_data_nodes': 0,
+        'hdfs.namenode.num_stale_data_nodes': 0,
+        'hdfs.namenode.num_stale_storages': 0,
     }
 
     HDFS_NAMESYSTEM_METRICS_VALUES = {
-        'hdfs_namenode.missing_blocks': 0,
-        'hdfs_namenode.corrupt_blocks': 1,
+        'hdfs.namenode.missing_blocks': 0,
+        'hdfs.namenode.corrupt_blocks': 1,
     }
 
     HDFS_NAMESYSTEM_METRIC_TAGS = [
