@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2010-2016
+# (C) Datadog, Inc. Patrick Galbraith <patg@patg.net> 2013
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import re
 import traceback

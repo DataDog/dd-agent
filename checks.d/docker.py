@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2014-2016
+# (C) Steeve Morin <steeve.morin@gmail.com> 2014
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import urllib2
 import urllib

@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2014-2016
+# (C)  graemej <graeme.johnson@jadedpixel.com> 2014
+# All rights reserved
+
 # stdlib
 from hashlib import md5
 import time

@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 """Base class for Checks.
 
 If you are writing your own checks you should subclass the AgentCheck class.

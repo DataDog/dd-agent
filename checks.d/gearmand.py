@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2013-2016
+# (C) Patrick Galbraith <patg@patg.net> 2013
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # 3rd party
 import gearman
 

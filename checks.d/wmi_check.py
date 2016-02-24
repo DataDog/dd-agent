@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2013-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # project
 from checks.wmi_check import WinWMICheck
 from utils.containers import hash_mutable

@@ -1,14 +1,14 @@
 #!/opt/datadog-agent/embedded/bin/python
-'''
+"""
     Datadog
     www.datadoghq.com
     ----
-    Make sense of your IT Data
+    Cloud-Scale Monitoring. Monitoring that tracks your dynamic infrastructure.
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
-    (C) Datadog, Inc. 2010-2014 all rights reserved
-'''
+    (C) Datadog, Inc. 2010-2016 all rights reserved
+"""
 # set up logging before importing any other components
 from config import get_version, initialize_logging  # noqa
 initialize_logging('collector')
