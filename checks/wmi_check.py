@@ -7,6 +7,7 @@ from collections import namedtuple
 
 WMIMetric = namedtuple('WMIMetric', ['name', 'value', 'tags'])
 
+
 class InvalidWMIQuery(Exception):
     """
     Invalid WMI Query.
@@ -183,6 +184,11 @@ class WinWMICheck(AgentCheck):
                         )
                     )
                     continue
+
+                # No metric extraction on 'Name' property
+                if wmi_property == 'name':
+                    continue
+
                 try:
                     metrics.append(WMIMetric(wmi_property, float(wmi_value), tags))
                 except ValueError:
