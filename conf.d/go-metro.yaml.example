@@ -38,7 +38,3 @@ instances:
 # - interface: eth2           # multiple interfaces may be sniffed from.
 #   tags:
 #     - bla:zap
-#   hosts:                   # will perform ip lookup and filter by hosts ip's
-#     - datadog.com
-
-
