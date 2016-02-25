@@ -289,6 +289,7 @@ class Collector(object):
                 metrics.extend(self._win32_system_checks['network'].check(self.agentConfig))
                 metrics.extend(self._win32_system_checks['io'].check(self.agentConfig))
                 metrics.extend(self._win32_system_checks['proc'].check(self.agentConfig))
+                metrics.extend(self._win32_system_checks['system'].check(self.agentConfig))
             except Exception:
                 log.exception('Unable to fetch Windows system metrics.')
         else:
