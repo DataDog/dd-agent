@@ -6,6 +6,15 @@ import dns.resolver
 
 # project
 from checks import AgentCheck
+from util import Platform
+
+
+# These imports are necessary because otherwise dynamic type
+# resolution will fail on windows without it.
+# See more here: https://github.com/rthalley/dnspython/issues/39.
+if Platform.is_win32():
+    from dns.rdtypes.ANY import *  # noqa
+    from dns.rdtypes.IN import *  # noqa
 
 
 class DNSCheck(AgentCheck):
