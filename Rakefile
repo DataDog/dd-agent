@@ -39,6 +39,7 @@ require './ci/tomcat'
 require './ci/varnish'
 require './ci/windows'
 require './ci/zookeeper'
+require './ci/docker_daemon'
 
 CLOBBER.include '**/*.pyc'
 
@@ -60,9 +61,10 @@ task 'setup_env' do
   `python venv/virtualenv.py  --no-site-packages --no-pip --no-setuptools venv/`
   `wget -O venv/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py`
   `venv/bin/python venv/ez_setup.py`
-  `wget -O venv/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py`
+  `wget -O venv/get-pip.py https://bootstrap.pypa.io/get-pip.py`
   `venv/bin/python venv/get-pip.py`
   `venv/bin/pip install -r requirements.txt`
+  `venv/bin/pip install -r requirements-test.txt`
   # These deps are not really needed, so we ignore failures
   ENV['PIP_COMMAND'] = 'venv/bin/pip'
   `./utils/pip-allow-failures.sh requirements-opt.txt`

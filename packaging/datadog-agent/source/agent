@@ -5,9 +5,10 @@ cd "$BASEDIR/.."
 PATH=$BASEDIR/../venv/bin:$PATH
 
 SUPERVISOR_NOT_RUNNING="Supervisor is not running"
-SUPERVISOR_CONF_FILE='supervisord/supervisord.conf'
-SOCK_FILE='supervisord/agent-supervisor.sock'
-PID_FILE='supervisord/supervisord.pid'
+SUPERVISOR_CONF_FILE='agent/supervisor.conf'
+SOCK_FILE='run/agent-supervisor.sock'
+PID_FILE='run/supervisord.pid'
+COLLECTOR_PIDFILE='run/dd-agent.pid'
 action=$1
 
 if [ ! -n "$action" ]; then
@@ -106,6 +107,11 @@ case $action in
         exit $?
         ;;
 
+    reload)
+        kill -HUP `cat $COLLECTOR_PIDFILE`
+        exit $?
+        ;;
+
     info)
         shift # shift to pass the remaining arguments to agent/agent.py info.
               # Currently only agent.py takes additional arguments
@@ -144,7 +150,7 @@ case $action in
 
 
     *)
-        echo "Usage: $0 {start|stop|restart|info|status|configcheck|check|jmx}"
+        echo "Usage: $0 {start|stop|restart|info|status|reload|configcheck|check|jmx}"
         exit 2
         ;;
 esac

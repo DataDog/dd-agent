@@ -21,7 +21,7 @@ class TeamCityCheck(AgentCheck):
         # Keep track of last build IDs per instance
         self.last_build_ids = {}
 
-    def _initialize_if_required(self, instance_name, server, build_conf):
+    def _initialize_if_required(self, instance_name, server, build_conf, ssl_validation):
         # Already initialized
         if instance_name in self.last_build_ids:
             return
@@ -32,7 +32,7 @@ class TeamCityCheck(AgentCheck):
             build_conf=build_conf
         )
         try:
-            resp = requests.get(build_url, timeout=self.DEFAULT_TIMEOUT, headers=self.HEADERS)
+            resp = requests.get(build_url, timeout=self.DEFAULT_TIMEOUT, headers=self.HEADERS, verify=ssl_validation)
             resp.raise_for_status()
 
             last_build_id = resp.json().get('build')[0].get('id')
@@ -91,6 +91,8 @@ class TeamCityCheck(AgentCheck):
         if instance_name is None:
             raise Exception("Each instance must have a unique name")
 
+        ssl_validation = _is_affirmative(instance.get('ssl_validation', True))
+
         server = instance.get('server')
         if 'server' is None:
             raise Exception("Each instance must have a server")
@@ -103,7 +105,7 @@ class TeamCityCheck(AgentCheck):
         tags = instance.get('tags')
         is_deployment = _is_affirmative(instance.get('is_deployment', False))
 
-        self._initialize_if_required(instance_name, server, build_conf)
+        self._initialize_if_required(instance_name, server, build_conf, ssl_validation)
 
         # Look for new successful builds
         new_build_url = self.NEW_BUILD_URL.format(
@@ -113,7 +115,7 @@ class TeamCityCheck(AgentCheck):
         )
 
         try:
-            resp = requests.get(new_build_url, timeout=self.DEFAULT_TIMEOUT, headers=self.HEADERS)
+            resp = requests.get(new_build_url, timeout=self.DEFAULT_TIMEOUT, headers=self.HEADERS, verify=ssl_validation)
             resp.raise_for_status()
 
             new_builds = resp.json()

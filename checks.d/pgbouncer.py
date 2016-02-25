@@ -25,16 +25,16 @@ class PgBouncer(AgentCheck):
         'descriptors': [
             ('database', 'db'),
         ],
-        'metrics': {
-            'total_requests':       ('pgbouncer.stats.requests_per_second', RATE),
-            'total_received':       ('pgbouncer.stats.bytes_received_per_second', RATE),
-            'total_sent':           ('pgbouncer.stats.bytes_sent_per_second', RATE),
-            'total_query_time':     ('pgbouncer.stats.total_query_time', GAUGE),
-            'avg_req':              ('pgbouncer.stats.avg_req', GAUGE),
-            'avg_recv':             ('pgbouncer.stats.avg_recv', GAUGE),
-            'avg_sent':             ('pgbouncer.stats.avg_sent', GAUGE),
-            'avg_query':            ('pgbouncer.stats.avg_query', GAUGE),
-        },
+        'metrics': [
+            ('total_requests',       ('pgbouncer.stats.requests_per_second', RATE)),
+            ('total_received',       ('pgbouncer.stats.bytes_received_per_second', RATE)),
+            ('total_sent',           ('pgbouncer.stats.bytes_sent_per_second', RATE)),
+            ('total_query_time',     ('pgbouncer.stats.total_query_time', GAUGE)),
+            ('avg_req',              ('pgbouncer.stats.avg_req', GAUGE)),
+            ('avg_recv',             ('pgbouncer.stats.avg_recv', GAUGE)),
+            ('avg_sent',             ('pgbouncer.stats.avg_sent', GAUGE)),
+            ('avg_query',            ('pgbouncer.stats.avg_query', GAUGE)),
+        ],
         'query': """SHOW STATS""",
     }
 
@@ -43,16 +43,16 @@ class PgBouncer(AgentCheck):
             ('database', 'db'),
             ('user', 'user'),
         ],
-        'metrics': {
-            'cl_active':            ('pgbouncer.pools.cl_active', GAUGE),
-            'cl_waiting':           ('pgbouncer.pools.cl_waiting', GAUGE),
-            'sv_active':            ('pgbouncer.pools.sv_active', GAUGE),
-            'sv_idle':              ('pgbouncer.pools.sv_idle', GAUGE),
-            'sv_used':              ('pgbouncer.pools.sv_used', GAUGE),
-            'sv_tested':            ('pgbouncer.pools.sv_tested', GAUGE),
-            'sv_login':             ('pgbouncer.pools.sv_login', GAUGE),
-            'maxwait':              ('pgbouncer.pools.maxwait', GAUGE),
-        },
+        'metrics': [
+            ('cl_active',            ('pgbouncer.pools.cl_active', GAUGE)),
+            ('cl_waiting',           ('pgbouncer.pools.cl_waiting', GAUGE)),
+            ('sv_active',            ('pgbouncer.pools.sv_active', GAUGE)),
+            ('sv_idle',              ('pgbouncer.pools.sv_idle', GAUGE)),
+            ('sv_used',              ('pgbouncer.pools.sv_used', GAUGE)),
+            ('sv_tested',            ('pgbouncer.pools.sv_tested', GAUGE)),
+            ('sv_login',             ('pgbouncer.pools.sv_login', GAUGE)),
+            ('maxwait',              ('pgbouncer.pools.maxwait', GAUGE)),
+        ],
         'query': """SHOW POOLS""",
     }
 
@@ -76,9 +76,11 @@ class PgBouncer(AgentCheck):
 
         try:
             cursor = db.cursor()
+            results = None
             for scope in metric_scope:
 
-                cols = scope['metrics'].keys()
+                metrics = scope['metrics']
+                cols = [m[0] for m in metrics]
 
                 try:
                     query = scope['query']
@@ -95,14 +97,16 @@ class PgBouncer(AgentCheck):
                         continue
 
                     desc = scope['descriptors']
+                    if len(row) == len(cols) + len(desc) + 1:
+                        # Some versions of pgbouncer have an extra field at the end of show pools
+                        row = row[:-1]
                     assert len(row) == len(cols) + len(desc)
 
-                    tags = instance_tags[:]
+                    tags = list(instance_tags)
                     tags += ["%s:%s" % (d[0][1], d[1]) for d in zip(desc, row[:len(desc)])]
-
-                    values = zip([scope['metrics'][c] for c in cols], row[len(desc):])
-
-                    [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
+                    for i, (key_name, (mname, mtype)) in enumerate(metrics):
+                        value = row[i + len(desc)]
+                        mtype(self, mname, value, tags)
 
             if not results:
                 self.warning('No results were found for query: "%s"' % query)

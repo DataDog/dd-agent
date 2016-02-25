@@ -58,7 +58,7 @@ class Wait
     Timeout.timeout(0.5) do
       begin
         r = HTTParty.get(url)
-        return (200...300).include? r.code
+        return (200...300).cover? r.code
       rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
         return false
       end
@@ -93,11 +93,8 @@ class Wait
       n += 1
       sleep 0.25
     end
-    if status
-      puts 'Found!'
-    else
-      fail "Still not up after #{max_timeout}s"
-    end
+    raise "Still not up after #{max_timeout}s" unless status
+    puts 'Found!'
     status
   end
 end
@@ -137,6 +134,7 @@ namespace :ci do
                            "--cache-dir #{ENV['PIP_CACHE']}",
                            "#{ENV['VOLATILE_DIR']}/ci.log")
       sh %(pip install\
+           --upgrade\
            -r requirements-test.txt\
            --cache-dir #{ENV['PIP_CACHE']}\
             2>&1 >> #{ENV['VOLATILE_DIR']}/ci.log)
@@ -179,17 +177,18 @@ namespace :ci do
     task :run_tests, :flavor do |t, attr|
       flavors = attr[:flavor]
       filter = ENV['NOSE_FILTER'] || '1'
-      if flavors.include?('default') || flavors.include?('checks_mock')
-        nose = "(not requires) and #{filter}"
-      else
-        nose = "(requires in ['#{flavors.join("','")}']) and #{filter}"
-      end
-      if flavors.include?('default') || flavors.include?('core_integration')
-        tests_directory = 'tests/core'
-      else
-        tests_directory = 'tests/checks'
-      end
 
+      nose = if flavors.include?('default') || flavors.include?('checks_mock')
+               "(not requires) and #{filter}"
+             else
+               "(requires in ['#{flavors.join("','")}']) and #{filter}"
+             end
+
+      tests_directory = if flavors.include?('default') || flavors.include?('core_integration')
+                          'tests/core'
+                        else
+                          'tests/checks'
+                        end
       # Rake on Windows doesn't support setting the var at the beginning of the
       # command
       path = ''
@@ -199,7 +198,7 @@ namespace :ci do
         # separate dir we symlink stuff in the rootdir
         path = %(PATH="#{ENV['INTEGRATIONS_DIR']}/bin:#{ENV['PATH']}" )
       end
-      sh %(#{path}nosetests -v -A "#{nose}" #{tests_directory})
+      sh %(#{path}nosetests -s -v -A "#{nose}" #{tests_directory})
       t.reenable
     end
     task execute: [:before_install, :install, :before_script, :script]

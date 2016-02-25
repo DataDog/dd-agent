@@ -34,6 +34,7 @@ import simplejson as json
 # project
 from aggregator import get_formatter, MetricsBucketAggregator
 from checks.check_status import DogstatsdStatus
+from checks.metric_types import MetricTypes
 from config import get_config, get_version
 from daemon import AgentSupervisor, Daemon
 from util import chunks, get_hostname, get_uuid, plural
@@ -45,6 +46,9 @@ requests_log.setLevel(logging.WARN)
 requests_log.propagate = True
 
 log = logging.getLogger('dogstatsd')
+
+PID_NAME = "dogstatsd"
+PID_DIR = None
 
 # Dogstatsd constants in seconds
 DOGSTATSD_FLUSH_INTERVAL = 10
@@ -62,8 +66,53 @@ EVENT_CHUNK_SIZE = 50
 COMPRESS_THRESHOLD = 1024
 
 
-def serialize_metrics(metrics):
-    serialized = json.dumps({"series": metrics})
+def add_serialization_status_metric(status, hostname):
+    """
+    Add a metric to track the number of metric serializations,
+    tagged by their status.
+    """
+    interval = 10.0
+    value = 1
+    return {
+        'tags': ["status:{0}".format(status)],
+        'metric': 'datadog.dogstatsd.serialization_status',
+        'interval': interval,
+        'device_name': None,
+        'host': hostname,
+        'points': [(time(), value / interval)],
+        'type': MetricTypes.RATE,
+    }
+
+
+def unicode_metrics(metrics):
+    for i, metric in enumerate(metrics):
+        for key, value in metric.items():
+            if isinstance(value, basestring):
+                metric[key] = unicode(value, errors='replace')
+            elif isinstance(value, tuple) or isinstance(value, list):
+                value_list = list(value)
+                for j, value_element in enumerate(value_list):
+                    if isinstance(value_element, basestring):
+                        value_list[j] = unicode(value_element, errors='replace')
+                metric[key] = tuple(value_list)
+        metrics[i] = metric
+    return metrics
+
+
+def serialize_metrics(metrics, hostname):
+    try:
+        metrics.append(add_serialization_status_metric("success", hostname))
+        serialized = json.dumps({"series": metrics})
+    except UnicodeDecodeError as e:
+        log.exception("Unable to serialize payload. Trying to replace bad characters. %s", e)
+        metrics.append(add_serialization_status_metric("failure", hostname))
+        try:
+            log.error(metrics)
+            serialized = json.dumps({"series": unicode_metrics(metrics)})
+        except Exception as e:
+            log.exception("Unable to serialize payload. Giving up. %s", e)
+            serialized = json.dumps({"series": [add_serialization_status_metric("permanent_failure", hostname)]})
+
     if len(serialized) > COMPRESS_THRESHOLD:
         headers = {'Content-Type': 'application/json',
                    'Content-Encoding': 'deflate'}
@@ -91,6 +140,7 @@ class Reporter(threading.Thread):
         self.metrics_aggregator = metrics_aggregator
         self.flush_count = 0
         self.log_count = 0
+        self.hostname = get_hostname()
 
         self.watchdog = None
         if use_watchdog:
@@ -144,15 +194,15 @@ class Reporter(threading.Thread):
                 self.submit_events(events)
 
             service_checks = self.metrics_aggregator.flush_service_checks()
-            check_count = len(service_checks)
-            if check_count:
+            service_check_count = len(service_checks)
+            if service_check_count:
                 self.submit_service_checks(service_checks)
 
             should_log = self.flush_count <= FLUSH_LOGGING_INITIAL or self.log_count <= FLUSH_LOGGING_COUNT
             log_func = log.info
             if not should_log:
                 log_func = log.debug
-            log_func("Flush #%s: flushed %s metric%s, %s event%s, and %s service check run%s" % (self.flush_count, count, plural(count), event_count, plural(event_count), check_count, plural(check_count)))
+            log_func("Flush #%s: flushed %s metric%s, %s event%s, and %s service check run%s" % (self.flush_count, count, plural(count), event_count, plural(event_count), service_check_count, plural(service_check_count)))
             if self.flush_count == FLUSH_LOGGING_INITIAL:
                 log.info("First flushes done, %s flushes will be logged every %s flushes." % (FLUSH_LOGGING_COUNT, FLUSH_LOGGING_PERIOD))
 
@@ -164,6 +214,7 @@ class Reporter(threading.Thread):
                 packets_per_second=packets_per_second,
                 metric_count=count,
                 event_count=event_count,
+                service_check_count=service_check_count,
             ).persist()
 
         except Exception:
@@ -173,7 +224,7 @@ class Reporter(threading.Thread):
                 log.exception("Error flushing metrics")
 
     def submit(self, metrics):
-        body, headers = serialize_metrics(metrics)
+        body, headers = serialize_metrics(metrics, self.hostname)
         params = {}
         if self.api_key:
             params['api_key'] = self.api_key
@@ -438,7 +489,7 @@ def main(config_path=None):
 
     if not args or args[0] in COMMANDS_START_DOGSTATSD:
         reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder, args=args)
-        daemon = Dogstatsd(PidFile('dogstatsd').get_path(), server, reporter,
+        daemon = Dogstatsd(PidFile(PID_NAME, PID_DIR).get_path(), server, reporter,
                            cnf.get('autorestart', False))
 
     # If no args were passed in, run the server in the foreground.

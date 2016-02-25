@@ -10,6 +10,8 @@ SUPERVISOR_CONF_FILE="/opt/datadog-agent/etc/supervisor.conf"
 SUPERVISOR_SOCK="/opt/datadog-agent/run/datadog-supervisor.sock"
 SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
+COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
+SYSTEM_PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH
 
 # be sure to remove PY2APP parameters
 unset PYTHONHOME
@@ -66,7 +68,7 @@ case $1 in
         fi
 
         echo "Starting $DESC (using supervisord)" "$NAME"
-        $SUPERVISORD_PATH -c $SUPERVISOR_CONF_FILE
+        PATH=$SYSTEM_PATH $SUPERVISORD_PATH -c $SUPERVISOR_CONF_FILE
         exit 0
         ;;
 
@@ -92,6 +94,11 @@ case $1 in
 
     status)
         check_status
+        exit $?
+        ;;
+
+    reload)
+        kill -HUP `cat $COLLECTOR_PIDFILE`
         exit $?
         ;;
 
@@ -131,7 +138,7 @@ case $1 in
         ;;
 
     *)
-        echo "Usage: $0 {start|stop|restart|info|status|configcheck|check|flare|jmx}"
+        echo "Usage: $0 {start|stop|restart|info|status|reload|configcheck|check|flare|jmx}"
         exit 2
         ;;
 esac

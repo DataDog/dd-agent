@@ -1,6 +1,7 @@
 # stdlib
 import atexit
 import cStringIO as StringIO
+from collections import namedtuple
 from functools import partial
 import glob
 try:
@@ -74,10 +75,34 @@ class Flare(object):
     """
 
     DATADOG_SUPPORT_URL = '/support/flare'
-    PASSWORD_REGEX = re.compile('( *(\w|_)*pass(word)?:).+')
+
+    CredentialPattern = namedtuple('CredentialPattern', ['pattern', 'replacement', 'label'])
+    CHECK_CREDENTIALS = [
+        CredentialPattern(
+            re.compile('( *(\w|_)*pass(word)?:).+'),
+            r'\1 ********',
+            'password'
+        ),
+        CredentialPattern(
+            re.compile('(.*\ [A-Za-z0-9]+)\:\/\/([A-Za-z0-9]+)\:(.+)\@'),
+            r'\1://\2:********@',
+            'password in a uri'
+        ),
+    ]
+    MAIN_CREDENTIALS = [
+        CredentialPattern(
+            re.compile('^api_key: *\w+(\w{5})$'),
+            r'api_key: *************************\1',
+            'api_key'
+        ),
+        CredentialPattern(
+            re.compile('^(proxy_user|proxy_password): *.+'),
+            r'\1: ********',
+            'proxy credentials'
+        ),
+    ]
     COMMENT_REGEX = re.compile('^ *#.*')
-    APIKEY_REGEX = re.compile('^api_key: *\w+(\w{5})$')
-    REPLACE_APIKEY = r'api_key: *************************\1'
+
     COMPRESSED_FILE = 'datadog-agent-{0}.tar.bz2'
     # We limit to 10MB arbitrarily
     MAX_UPLOAD_SIZE = 10485000
@@ -136,8 +161,36 @@ class Flare(object):
         self._add_file_tar(self._permissions_file.name, 'permissions.log',
                            log_permissions=False)
 
-        log.info("Saving all files to {0}".format(self._tar_path))
+        log.info("Saving all files to {0}".format(self.tar_path))
         self._tar.close()
+
+    # Set the proxy settings, if they exist
+    def set_proxy(self, options):
+        proxy_settings = self._config.get('proxy_settings')
+        if proxy_settings is None:
+            return
+        userpass = ''
+        if proxy_settings.get('user'):
+            userpass = "%s:%s@" % (proxy_settings.get('user'),
+                                   proxy_settings.get('password'),)
+
+        url = "http://%s%s:%s" % (userpass, proxy_settings.get('host'),
+                                  proxy_settings.get('port'),)
+
+        options['proxies'] = {
+            "https": url
+        }
+
+    # Set whether to ignore invalid ssl certs or not
+    def set_ssl_validation(self, options):
+        if self._config.get('skip_ssl_validation', False):
+            options['verify'] = False
+        elif Platform.is_windows():
+            options['verify'] = os.path.realpath(os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                os.pardir, os.pardir,
+                'datadog-cert.pem'
+            ))
 
     # Upload the tar file
     def upload(self, email=None):
@@ -149,7 +202,7 @@ class Flare(object):
         if not email:
             email = self._ask_for_email()
 
-        log.info("Uploading {0} to Datadog Support".format(self._tar_path))
+        log.info("Uploading {0} to Datadog Support".format(self.tar_path))
         url = self._url
         if self._case_id:
             url = '{0}/{1}'.format(self._url, str(self._case_id))
@@ -160,15 +213,12 @@ class Flare(object):
                 'hostname': self._hostname,
                 'email': email
             },
-            'files': {'flare_file': open(self._tar_path, 'rb')},
+            'files': {'flare_file': open(self.tar_path, 'rb')},
             'timeout': self.TIMEOUT
         }
-        if Platform.is_windows():
-            requests_options['verify'] = os.path.realpath(os.path.join(
-                os.path.dirname(os.path.realpath(__file__)),
-                os.pardir, os.pardir,
-                'datadog-cert.pem'
-            ))
+
+        self.set_proxy(requests_options)
+        self.set_ssl_validation(requests_options)
 
         self._resp = requests.post(url, **requests_options)
         self._analyse_result()
@@ -177,14 +227,14 @@ class Flare(object):
     # Start by creating the tar file which will contain everything
     def _init_tarfile(self):
         # Default temp path
-        self._tar_path = os.path.join(
+        self.tar_path = os.path.join(
             tempfile.gettempdir(),
             self.COMPRESSED_FILE.format(strftime("%Y-%m-%d-%H-%M-%S"))
         )
 
-        if os.path.exists(self._tar_path):
-            os.remove(self._tar_path)
-        self._tar = tarfile.open(self._tar_path, 'w:bz2')
+        if os.path.exists(self.tar_path):
+            os.remove(self.tar_path)
+        self._tar = tarfile.open(self.tar_path, 'w:bz2')
 
     # Create a file to log permissions on collected files and write header line
     def _init_permissions_file(self):
@@ -207,6 +257,7 @@ class Flare(object):
         self._forwarder_log = config.get('{0}forwarder_log_file'.format(prefix))
         self._dogstatsd_log = config.get('{0}dogstatsd_log_file'.format(prefix))
         self._jmxfetch_log = config.get('jmxfetch_log_file')
+        self._gometro_log = config.get('go-metro_log_file')
 
     # Add logs to the tarfile
     def _add_logs_tar(self):
@@ -214,6 +265,7 @@ class Flare(object):
         self._add_log_file_tar(self._forwarder_log)
         self._add_log_file_tar(self._dogstatsd_log)
         self._add_log_file_tar(self._jmxfetch_log)
+        self._add_log_file_tar(self._gometro_log)
         self._add_log_file_tar(
             "{0}/*supervisord.log".format(os.path.dirname(self._collector_log))
         )
@@ -229,11 +281,11 @@ class Flare(object):
     # Collect all conf
     def _add_conf_tar(self):
         conf_path = get_config_path()
-        if self._can_read(conf_path):
-            self._add_file_tar(
-                self._strip_comment(conf_path),
-                os.path.join('etc', 'datadog.conf'),
-                original_file_path=conf_path
+        if self._can_read(conf_path, output=False):
+            self._add_clean_conf(
+                conf_path,
+                'etc',
+                self.MAIN_CREDENTIALS
             )
 
         if not Platform.is_windows():
@@ -241,17 +293,20 @@ class Flare(object):
                 os.path.dirname(get_config_path()),
                 'supervisor.conf'
             )
-            if self._can_read(supervisor_path):
-                self._add_file_tar(
-                    self._strip_comment(supervisor_path),
-                    os.path.join('etc', 'supervisor.conf'),
-                    original_file_path=supervisor_path
+            if self._can_read(supervisor_path, output=False):
+                self._add_clean_conf(
+                    supervisor_path,
+                    'etc'
                 )
 
         for file_path in glob.glob(os.path.join(get_confd_path(), '*.yaml')) +\
                 glob.glob(os.path.join(get_confd_path(), '*.yaml.default')):
             if self._can_read(file_path, output=False):
-                self._add_clean_confd(file_path)
+                self._add_clean_conf(
+                    file_path,
+                    os.path.join('etc', 'confd'),
+                    self.CHECK_CREDENTIALS
+                )
 
     # Collect JMXFetch-specific info and save to jmxinfo directory if jmx config
     # files are present and valid
@@ -327,46 +382,56 @@ class Flare(object):
                 log.warn("  * not readable - {0}".format(f))
             return False
 
-    # Return path to a temp file without comment
-    def _strip_comment(self, file_path):
-        fh, temp_path = tempfile.mkstemp(prefix='dd')
-        atexit.register(os.remove, temp_path)
-        with os.fdopen(fh, 'w') as temp_file:
-            with open(file_path, 'r') as orig_file:
-                for line in orig_file.readlines():
-                    if not self.COMMENT_REGEX.match(line):
-                        temp_file.write(re.sub(self.APIKEY_REGEX, self.REPLACE_APIKEY, line))
-
-        return temp_path
-
-    # Remove password before collecting the file
-    def _add_clean_confd(self, file_path):
+    def _add_clean_conf(self, file_path, target_dir, credential_patterns=None):
         basename = os.path.basename(file_path)
 
-        temp_path, password_found = self._strip_password(file_path)
-        log.info("  * {0}{1}".format(file_path, password_found))
+        temp_path, log_message = self._strip_credentials(file_path, credential_patterns)
+        log.info('  * {0}{1}'.format(file_path, log_message))
         self._add_file_tar(
             temp_path,
-            os.path.join('etc', 'conf.d', basename),
+            os.path.join(target_dir, basename),
             original_file_path=file_path
         )
 
-    # Return path to a temp file without password and comment
-    def _strip_password(self, file_path):
+    # Return path to a temp file without comments on which the credential patterns have been applied
+    def _strip_credentials(self, file_path, credential_patterns=None):
+        if not credential_patterns:
+            credential_patterns = []
+        credentials_found = set()
         fh, temp_path = tempfile.mkstemp(prefix='dd')
         atexit.register(os.remove, temp_path)
         with os.fdopen(fh, 'w') as temp_file:
             with open(file_path, 'r') as orig_file:
-                password_found = ''
                 for line in orig_file.readlines():
-                    if self.PASSWORD_REGEX.match(line):
-                        line = re.sub(self.PASSWORD_REGEX, r'\1 ********', line)
-                        password_found = ' - this file contains a password which '\
-                                         'has been removed in the version collected'
                     if not self.COMMENT_REGEX.match(line):
-                        temp_file.write(line)
+                        clean_line, credential_found = self._clean_credentials(line, credential_patterns)
+                        temp_file.write(clean_line)
+                        if credential_found:
+                            credentials_found.add(credential_found)
 
-        return temp_path, password_found
+        credentials_log = ''
+        if len(credentials_found) > 1:
+            credentials_log = ' - this file contains credentials ({0}) which'\
+                              ' have been removed in the collected version'\
+                              .format(', '.join(credentials_found))
+        elif len(credentials_found) == 1:
+            credentials_log = ' - this file contains a credential ({0}) which'\
+                              ' has been removed in the collected version'\
+                              .format(credentials_found.pop())
+
+        return temp_path, credentials_log
+
+    # Remove credentials from a given line
+    def _clean_credentials(self, line, credential_patterns):
+        credential_found = None
+        for credential_pattern in credential_patterns:
+            if credential_pattern.pattern.match(line):
+                line = re.sub(credential_pattern.pattern, credential_pattern.replacement, line)
+                credential_found = credential_pattern.label
+                # only one pattern should match per line
+                break
+
+        return line, credential_found
 
     # Add output of the command to the tarfile
     def _add_command_output_tar(self, name, command, command_desc=None):
@@ -456,7 +521,7 @@ class Flare(object):
         if not os.path.isfile(supervisor_conf):
             supervisor_conf = os.path.join(
                 os.path.dirname(os.path.realpath(__file__)),
-                '../../supervisord/supervisord.conf'
+                '../../agent/supervisor.conf'
             )
         return supervisor_conf
 
@@ -499,17 +564,17 @@ class Flare(object):
 
     # Check if the file is not too big before upload
     def _check_size(self):
-        if os.path.getsize(self._tar_path) > self.MAX_UPLOAD_SIZE:
+        if os.path.getsize(self.tar_path) > self.MAX_UPLOAD_SIZE:
             log.info("{0} won't be uploaded, its size is too important.\n"
-                     "You can send it directly to support by mail.")
+                     "You can send it directly to support by email.")
             sys.exit(1)
 
     # Function to ask for confirmation before upload
     def _ask_for_confirmation(self):
-        print '{0} is going to be uploaded to Datadog.'.format(self._tar_path)
+        print '{0} is going to be uploaded to Datadog.'.format(self.tar_path)
         choice = raw_input('Do you want to continue [Y/n]? ')
         if choice.strip().lower() not in ['yes', 'y', '']:
-            print 'Aborting (you can still use {0})'.format(self._tar_path)
+            print 'Aborting (you can still use {0})'.format(self.tar_path)
             sys.exit(1)
 
     # Ask for email if needed
@@ -526,7 +591,6 @@ class Flare(object):
         # Then raise potential 500 and 404
         self._resp.raise_for_status()
         try:
-            json_resp = self._resp.json()
             self._case_id = self._resp.json()['case_id']
         # Failed parsing
         except ValueError:

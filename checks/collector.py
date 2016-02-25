@@ -21,19 +21,19 @@ from config import get_system_stats, get_version
 from resources.processes import Processes as ResProcesses
 import checks.system.unix as u
 import checks.system.win32 as w32
+import checks.system.common as common
 import modules
 from util import (
     EC2,
     GCE,
-    get_hostname,
     get_os,
     get_uuid,
     Timer,
 )
-from utils.debug import log_exceptions
+from utils.logger import log_exceptions
 from utils.jmx import JMXFiles
 from utils.platform import Platform
-from utils.subprocess_output import subprocess
+from utils.subprocess_output import get_subprocess_output
 
 log = logging.getLogger(__name__)
 
@@ -174,10 +174,6 @@ class Collector(object):
                 'start': time.time(),
                 'interval': int(agentConfig.get('agent_checks_interval', 10 * 60))
             },
-            'dd_check_tags': {
-                'start': time.time(),
-                'interval': int(agentConfig.get('dd_check_tags_interval', 10 * 60))
-            },
         }
         socket.setdefaulttimeout(15)
         self.run_count = 0
@@ -193,7 +189,7 @@ class Collector(object):
             'memory': u.Memory(log),
             'processes': u.Processes(log),
             'cpu': u.Cpu(log),
-            'system': u.System(log)
+            'system': common.System(log)
         }
 
         # Win32 System `Checks
@@ -202,7 +198,8 @@ class Collector(object):
             'proc': w32.Processes(log),
             'memory': w32.Memory(log),
             'network': w32.Network(log),
-            'cpu': w32.Cpu(log)
+            'cpu': w32.Cpu(log),
+            'system': common.System(log)
         }
 
         # Old-style metric checks
@@ -223,7 +220,7 @@ class Collector(object):
                 self._metrics_checks.append(modules.load(module_spec, 'Check')(log))
                 log.info("Registered custom check %s" % module_spec)
                 log.warning("Old format custom checks are deprecated. They should be moved to the checks.d interface as old custom checks will be removed in a next version")
-            except Exception, e:
+            except Exception:
                 log.exception('Unable to load custom check module %s' % module_spec)
 
         # Resource Checks
@@ -250,10 +247,11 @@ class Collector(object):
         return pprint.pformat(raw_stats, indent=4)
 
     @log_exceptions(log)
-    def run(self, checksd=None, start_event=True):
+    def run(self, checksd=None, start_event=True, configs_reloaded=False):
         """
         Collect data from each check and submit their data.
         """
+        log.debug("Found {num_checks} checks".format(num_checks=len(checksd['initialized_checks'])))
         timer = Timer()
         if not Platform.is_windows():
             cpu_clock = time.clock()
@@ -268,7 +266,7 @@ class Collector(object):
 
         # Find the AgentMetrics check and pop it out
         # This check must run at the end of the loop to collect info on agent performance
-        if not self._agent_metrics:
+        if not self._agent_metrics or configs_reloaded:
             for check in self.initialized_checks_d:
                 if check.name == AGENT_METRICS_CHECK_NAME:
                     self._agent_metrics = check
@@ -306,7 +304,7 @@ class Collector(object):
             memory = sys_checks['memory'].check(self.agentConfig)
 
             if memory:
-                payload.update({
+                memstats = {
                     'memPhysUsed': memory.get('physUsed'),
                     'memPhysPctUsable': memory.get('physPctUsable'),
                     'memPhysFree': memory.get('physFree'),
@@ -318,8 +316,12 @@ class Collector(object):
                     'memSwapTotal': memory.get('swapTotal'),
                     'memCached': memory.get('physCached'),
                     'memBuffers': memory.get('physBuffers'),
-                    'memShared': memory.get('physShared')
-                })
+                    'memShared': memory.get('physShared'),
+                    'memSlab': memory.get('physSlab'),
+                    'memPageTables': memory.get('physPageTables'),
+                    'memSwapCached': memory.get('swapCached')
+                }
+                payload.update(memstats)
 
             ioStats = sys_checks['io'].check(self.agentConfig)
             if ioStats:
@@ -360,18 +362,21 @@ class Collector(object):
         if not Platform.is_windows():
             has_resource = False
             for resources_check in self._resources_checks:
-                resources_check.check()
-                snaps = resources_check.pop_snapshots()
-                if snaps:
-                    has_resource = True
-                    res_value = {
-                        'snaps': snaps,
-                        'format_version': resources_check.get_format_version()
-                    }
-                    res_format = resources_check.describe_format_if_needed()
-                    if res_format is not None:
-                        res_value['format_description'] = res_format
-                    payload['resources'][resources_check.RESOURCE_KEY] = res_value
+                try:
+                    resources_check.check()
+                    snaps = resources_check.pop_snapshots()
+                    if snaps:
+                        has_resource = True
+                        res_value = {
+                            'snaps': snaps,
+                            'format_version': resources_check.get_format_version()
+                        }
+                        res_format = resources_check.describe_format_if_needed()
+                        if res_format is not None:
+                            res_value['format_description'] = res_format
+                        payload['resources'][resources_check.RESOURCE_KEY] = res_value
+                except Exception:
+                    log.exception("Error running resource check %s" % resources_check.RESOURCE_KEY)
 
             if has_resource:
                 payload['resources']['meta'] = {
@@ -530,7 +535,6 @@ class Collector(object):
         metric_count = 0
         event_count = 0
         service_check_count = 0
-        check_start_time = time.time()
         check_stats = None
 
         try:
@@ -634,12 +638,10 @@ class Collector(object):
                     command = "gohai"
                 else:
                     command = "gohai\gohai.exe"
-                gohai_metadata, gohai_log = subprocess.Popen(
-                    [command], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-                ).communicate()
+                gohai_metadata, gohai_err, _ = get_subprocess_output([command], log)
                 payload['gohai'] = gohai_metadata
-                if gohai_log:
-                    log.warning("GOHAI LOG | {0}".format(gohai_log))
+                if gohai_err:
+                    log.warning("GOHAI LOG | {0}".format(gohai_err))
             except OSError as e:
                 if e.errno == 2:  # file not found, expected when install from source
                     log.info("gohai file not found")
@@ -663,6 +665,17 @@ class Collector(object):
 
             if host_tags:
                 payload['host-tags']['system'] = host_tags
+
+            # If required by the user, let's create the dd_check:xxx host tags
+            if self.agentConfig['create_dd_check_tags']:
+                app_tags_list = [DD_CHECK_TAG.format(c.name) for c in self.initialized_checks_d]
+                app_tags_list.extend([DD_CHECK_TAG.format(cname) for cname
+                                      in JMXFiles.get_jmx_appnames()])
+
+                if 'system' not in payload['host-tags']:
+                    payload['host-tags']['system'] = []
+
+                payload['host-tags']['system'].extend(app_tags_list)
 
             GCE_tags = GCE.get_tags(self.agentConfig)
             if GCE_tags is not None:
@@ -718,18 +731,6 @@ class Collector(object):
             payload['agent_checks'] = agent_checks
             payload['meta'] = self.hostname_metadata_cache  # add hostname metadata
 
-        # If required by the user, let's create the dd_check:xxx host tags
-        if self.agentConfig['create_dd_check_tags'] and \
-                self._should_send_additional_data('dd_check_tags'):
-            app_tags_list = [DD_CHECK_TAG.format(c.name) for c in self.initialized_checks_d]
-            app_tags_list.extend([DD_CHECK_TAG.format(cname) for cname
-                                  in JMXFiles.get_jmx_appnames()])
-
-            if 'system' not in payload['host-tags']:
-                payload['host-tags']['system'] = []
-
-            payload['host-tags']['system'].extend(app_tags_list)
-
     def _get_hostname_metadata(self):
         """
         Returns a dictionnary that contains hostname metadata.
@@ -751,7 +752,8 @@ class Collector(object):
         except Exception:
             pass
 
-        metadata["hostname"] = get_hostname()
+        metadata["hostname"] = self.hostname
+        metadata["timezones"] = time.tzname
 
         # Add cloud provider aliases
         host_aliases = GCE.get_host_aliases(self.agentConfig)

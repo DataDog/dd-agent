@@ -10,6 +10,10 @@ from subprocess import check_output
 # project
 from checks import AgentCheck
 from utils.platform import Platform
+from utils.subprocess_output import (
+    get_subprocess_output,
+    SubprocessOutputEmptyError,
+)
 
 BSD_TCP_METRICS = [
     (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
@@ -67,20 +71,35 @@ class Network(AgentCheck):
     SOURCE_TYPE_NAME = 'system'
 
     TCP_STATES = {
-        "ESTABLISHED": "established",
-        "SYN_SENT": "opening",
-        "SYN_RECV": "opening",
-        "FIN_WAIT1": "closing",
-        "FIN_WAIT2": "closing",
-        "TIME_WAIT": "time_wait",
-        "CLOSE": "closing",
-        "CLOSE_WAIT": "closing",
-        "LAST_ACK": "closing",
-        "LISTEN": "listening",
-        "CLOSING": "closing",
+        "ss": {
+            "ESTAB": "established",
+            "SYN-SENT": "opening",
+            "SYN-RECV": "opening",
+            "FIN-WAIT-1": "closing",
+            "FIN-WAIT-2": "closing",
+            "TIME-WAIT": "time_wait",
+            "UNCONN": "closing",
+            "CLOSE-WAIT": "closing",
+            "LAST-ACK": "closing",
+            "LISTEN": "listening",
+            "CLOSING": "closing",
+        },
+        "netstat": {
+            "ESTABLISHED": "established",
+            "SYN_SENT": "opening",
+            "SYN_RECV": "opening",
+            "FIN_WAIT1": "closing",
+            "FIN_WAIT2": "closing",
+            "TIME_WAIT": "time_wait",
+            "CLOSE": "closing",
+            "CLOSE_WAIT": "closing",
+            "LAST_ACK": "closing",
+            "LISTEN": "listening",
+            "CLOSING": "closing",
+        }
     }
 
-    NETSTAT_GAUGE = {
+    CX_STATE_GAUGE = {
         ('udp4', 'connections') : 'system.net.udp4.connections',
         ('udp6', 'connections') : 'system.net.udp6.connections',
         ('tcp4', 'established') : 'system.net.tcp4.established',
@@ -103,6 +122,7 @@ class Network(AgentCheck):
     def check(self, instance):
         if instance is None:
             instance = {}
+
         self._excluded_ifaces = instance.get('excluded_interfaces', [])
         self._collect_cx_state = instance.get('collect_connection_state', False)
 
@@ -152,7 +172,7 @@ class Network(AgentCheck):
                 return 0
 
     def _submit_regexed_values(self, output, regex_list):
-        lines = output.split("\n")
+        lines = output.splitlines()
         for line in lines:
             for regex, metric in regex_list:
                 value = re.match(regex, line)
@@ -161,39 +181,47 @@ class Network(AgentCheck):
 
     def _check_linux(self, instance):
         if self._collect_cx_state:
-            netstat = subprocess.Popen(["netstat", "-n", "-u", "-t", "-a"],
-                                       stdout=subprocess.PIPE,
-                                       close_fds=True).communicate()[0]
-            # Active Internet connections (w/o servers)
-            # Proto Recv-Q Send-Q Local Address           Foreign Address         State
-            # tcp        0      0 46.105.75.4:80          79.220.227.193:2032     SYN_RECV
-            # tcp        0      0 46.105.75.4:143         90.56.111.177:56867     ESTABLISHED
-            # tcp        0      0 46.105.75.4:50468       107.20.207.175:443      TIME_WAIT
-            # tcp6       0      0 46.105.75.4:80          93.15.237.188:58038     FIN_WAIT2
-            # tcp6       0      0 46.105.75.4:80          79.220.227.193:2029     ESTABLISHED
-            # udp        0      0 0.0.0.0:123             0.0.0.0:*
-            # udp6       0      0 :::41458                :::*
+            try:
+                self.log.debug("Using `ss` to collect connection state")
+                # Try using `ss` for increased performance over `netstat`
+                for ip_version in ['4', '6']:
+                    # Call `ss` for each IP version because there's no built-in way of distinguishing
+                    # between the IP versions in the output
+                    output, _, _ = get_subprocess_output(["ss", "-n", "-u", "-t", "-a", "-{0}".format(ip_version)], self.log)
+                    lines = output.splitlines()
+                    # Netid  State      Recv-Q Send-Q     Local Address:Port       Peer Address:Port
+                    # udp    UNCONN     0      0              127.0.0.1:8125                  *:*
+                    # udp    ESTAB      0      0              127.0.0.1:37036         127.0.0.1:8125
+                    # udp    UNCONN     0      0        fe80::a00:27ff:fe1c:3c4:123          :::*
+                    # tcp    TIME-WAIT  0      0          90.56.111.177:56867        46.105.75.4:143
+                    # tcp    LISTEN     0      0       ::ffff:127.0.0.1:33217  ::ffff:127.0.0.1:7199
+                    # tcp    ESTAB      0      0       ::ffff:127.0.0.1:58975  ::ffff:127.0.0.1:2181
 
-            lines = netstat.split("\n")
+                    metrics = self._parse_linux_cx_state(lines[1:], self.TCP_STATES['ss'], 1, ip_version=ip_version)
+                    # Only send the metrics which match the loop iteration's ip version
+                    for stat, metric in self.CX_STATE_GAUGE.iteritems():
+                        if stat[0].endswith(ip_version):
+                            self.gauge(metric, metrics.get(metric))
 
-            metrics = dict.fromkeys(self.NETSTAT_GAUGE.values(), 0)
-            for l in lines[2:-1]:
-                cols = l.split()
-                # 0          1      2               3                           4               5
+            except OSError:
+                self.log.info("`ss` not found: using `netstat` as a fallback")
+                output, _, _ = get_subprocess_output(["netstat", "-n", "-u", "-t", "-a"], self.log)
+                lines = output.splitlines()
+                # Active Internet connections (w/o servers)
+                # Proto Recv-Q Send-Q Local Address           Foreign Address         State
+                # tcp        0      0 46.105.75.4:80          79.220.227.193:2032     SYN_RECV
                 # tcp        0      0 46.105.75.4:143         90.56.111.177:56867     ESTABLISHED
-                if cols[0].startswith("tcp"):
-                    protocol = ("tcp4", "tcp6")[cols[0] == "tcp6"]
-                    if cols[5] in self.TCP_STATES:
-                        metric = self.NETSTAT_GAUGE[protocol, self.TCP_STATES[cols[5]]]
-                        metrics[metric] += 1
-                elif cols[0].startswith("udp"):
-                    protocol = ("udp4", "udp6")[cols[0] == "udp6"]
-                    metric = self.NETSTAT_GAUGE[protocol, 'connections']
-                    metrics[metric] += 1
+                # tcp        0      0 46.105.75.4:50468       107.20.207.175:443      TIME_WAIT
+                # tcp6       0      0 46.105.75.4:80          93.15.237.188:58038     FIN_WAIT2
+                # tcp6       0      0 46.105.75.4:80          79.220.227.193:2029     ESTABLISHED
+                # udp        0      0 0.0.0.0:123             0.0.0.0:*
+                # udp6       0      0 :::41458                :::*
 
-            for metric, value in metrics.iteritems():
-                self.gauge(metric, value)
-
+                metrics = self._parse_linux_cx_state(lines[2:], self.TCP_STATES['netstat'], 5)
+                for metric, value in metrics.iteritems():
+                    self.gauge(metric, value)
+            except SubprocessOutputEmptyError:
+                self.log.exception("Error collecting connection stats.")
 
         proc = open('/proc/net/dev', 'r')
         try:
@@ -242,10 +270,15 @@ class Network(AgentCheck):
                 proc.close()
 
             tcp_lines = [line for line in lines if line.startswith('Tcp:')]
-            column_names = tcp_lines[0].strip().split()
-            values = tcp_lines[1].strip().split()
+            udp_lines = [line for line in lines if line.startswith('Udp:')]
 
-            tcp_metrics = dict(zip(column_names,values))
+            tcp_column_names = tcp_lines[0].strip().split()
+            tcp_values = tcp_lines[1].strip().split()
+            tcp_metrics = dict(zip(tcp_column_names, tcp_values))
+
+            udp_column_names = udp_lines[0].strip().split()
+            udp_values = udp_lines[1].strip().split()
+            udp_metrics = dict(zip(udp_column_names, udp_values))
 
             # line start indicating what kind of metrics we're looking at
             assert(tcp_metrics['Tcp:'] == 'Tcp:')
@@ -258,9 +291,42 @@ class Network(AgentCheck):
 
             for key, metric in tcp_metrics_name.iteritems():
                 self.rate(metric, self._parse_value(tcp_metrics[key]))
+
+            assert(udp_metrics['Udp:'] == 'Udp:')
+
+            udp_metrics_name = {
+                'InDatagrams': 'system.net.udp.in_datagrams',
+                'NoPorts': 'system.net.udp.no_ports',
+                'InErrors': 'system.net.udp.in_errors',
+                'OutDatagrams': 'system.net.udp.out_datagrams',
+                'RcvbufErrors': 'system.net.udp.rcv_buf_errors',
+                'SndbufErrors': 'system.net.udp.snd_buf_errors'
+            }
+            for key, metric in udp_metrics_name.iteritems():
+                if key in udp_metrics:
+                    self.rate(metric, self._parse_value(udp_metrics[key]))
+
         except IOError:
             # On Openshift, /proc/net/snmp is only readable by root
             self.log.debug("Unable to read /proc/net/snmp.")
+
+    # Parse the output of the command that retrieves the connection state (either `ss` or `netstat`)
+    # Returns a dict metric_name -> value
+    def _parse_linux_cx_state(self, lines, tcp_states, state_col, ip_version=None):
+        metrics = dict.fromkeys(self.CX_STATE_GAUGE.values(), 0)
+        for l in lines:
+            cols = l.split()
+            if cols[0].startswith('tcp'):
+                protocol = "tcp{0}".format(ip_version) if ip_version else ("tcp4", "tcp6")[cols[0] == "tcp6"]
+                if cols[state_col] in tcp_states:
+                    metric = self.CX_STATE_GAUGE[protocol, tcp_states[cols[state_col]]]
+                    metrics[metric] += 1
+            elif cols[0].startswith('udp'):
+                protocol = "udp{0}".format(ip_version) if ip_version else ("udp4", "udp6")[cols[0] == "udp6"]
+                metric = self.CX_STATE_GAUGE[protocol, 'connections']
+                metrics[metric] += 1
+
+        return metrics
 
         #SocktStat metrics
         for metric, value in self._linux_sockstat().items():
@@ -274,119 +340,123 @@ class Network(AgentCheck):
         if Platform.is_freebsd():
             netstat_flags.append('-W')
 
-        netstat = subprocess.Popen(["netstat"] + netstat_flags,
-                                   stdout=subprocess.PIPE,
-                                   close_fds=True).communicate()[0]
-        # Name  Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
-        # lo0   16384 <Link#1>                        318258     0  428252203   318258     0  428252203     0
-        # lo0   16384 localhost   fe80:1::1           318258     -  428252203   318258     -  428252203     -
-        # lo0   16384 127           localhost         318258     -  428252203   318258     -  428252203     -
-        # lo0   16384 localhost   ::1                 318258     -  428252203   318258     -  428252203     -
-        # gif0* 1280  <Link#2>                             0     0          0        0     0          0     0
-        # stf0* 1280  <Link#3>                             0     0          0        0     0          0     0
-        # en0   1500  <Link#4>    04:0c:ce:db:4e:fa 20801309     0 13835457425 15149389     0 11508790198     0
-        # en0   1500  seneca.loca fe80:4::60c:ceff: 20801309     - 13835457425 15149389     - 11508790198     -
-        # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
-        # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
-        # en0   1500  192.168.1     192.168.1.63    20801309     - 13835457425 15149389     - 11508790198     -
-        # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
-        # p2p0  2304  <Link#5>    06:0c:ce:db:4e:fa        0     0          0        0     0          0     0
-        # ham0  1404  <Link#6>    7a:79:05:4d:bf:f5    30100     0    6815204    18742     0    8494811     0
-        # ham0  1404  5             5.77.191.245       30100     -    6815204    18742     -    8494811     -
-        # ham0  1404  seneca.loca fe80:6::7879:5ff:    30100     -    6815204    18742     -    8494811     -
-        # ham0  1404  2620:9b::54 2620:9b::54d:bff5    30100     -    6815204    18742     -    8494811     -
+        try:
+            output, _, _ = get_subprocess_output(["netstat"] + netstat_flags, self.log)
+            lines = output.splitlines()
+            # Name  Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
+            # lo0   16384 <Link#1>                        318258     0  428252203   318258     0  428252203     0
+            # lo0   16384 localhost   fe80:1::1           318258     -  428252203   318258     -  428252203     -
+            # lo0   16384 127           localhost         318258     -  428252203   318258     -  428252203     -
+            # lo0   16384 localhost   ::1                 318258     -  428252203   318258     -  428252203     -
+            # gif0* 1280  <Link#2>                             0     0          0        0     0          0     0
+            # stf0* 1280  <Link#3>                             0     0          0        0     0          0     0
+            # en0   1500  <Link#4>    04:0c:ce:db:4e:fa 20801309     0 13835457425 15149389     0 11508790198     0
+            # en0   1500  seneca.loca fe80:4::60c:ceff: 20801309     - 13835457425 15149389     - 11508790198     -
+            # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
+            # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
+            # en0   1500  192.168.1     192.168.1.63    20801309     - 13835457425 15149389     - 11508790198     -
+            # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
+            # p2p0  2304  <Link#5>    06:0c:ce:db:4e:fa        0     0          0        0     0          0     0
+            # ham0  1404  <Link#6>    7a:79:05:4d:bf:f5    30100     0    6815204    18742     0    8494811     0
+            # ham0  1404  5             5.77.191.245       30100     -    6815204    18742     -    8494811     -
+            # ham0  1404  seneca.loca fe80:6::7879:5ff:    30100     -    6815204    18742     -    8494811     -
+            # ham0  1404  2620:9b::54 2620:9b::54d:bff5    30100     -    6815204    18742     -    8494811     -
 
-        lines = netstat.split("\n")
-        headers = lines[0].split()
+            headers = lines[0].split()
 
-        # Given the irregular structure of the table above, better to parse from the end of each line
-        # Verify headers first
-        #          -7       -6       -5        -4       -3       -2        -1
-        for h in ("Ipkts", "Ierrs", "Ibytes", "Opkts", "Oerrs", "Obytes", "Coll"):
-            if h not in headers:
-                self.logger.error("%s not found in %s; cannot parse" % (h, headers))
-                return False
+            # Given the irregular structure of the table above, better to parse from the end of each line
+            # Verify headers first
+            #          -7       -6       -5        -4       -3       -2        -1
+            for h in ("Ipkts", "Ierrs", "Ibytes", "Opkts", "Oerrs", "Obytes", "Coll"):
+                if h not in headers:
+                    self.logger.error("%s not found in %s; cannot parse" % (h, headers))
+                    return False
 
-        current = None
-        for l in lines[1:]:
-            # Another header row, abort now, this is IPv6 land
-            if "Name" in l:
-                break
+            current = None
+            for l in lines[1:]:
+                # Another header row, abort now, this is IPv6 land
+                if "Name" in l:
+                    break
 
-            x = l.split()
-            if len(x) == 0:
-                break
+                x = l.split()
+                if len(x) == 0:
+                    break
 
-            iface = x[0]
-            if iface.endswith("*"):
-                iface = iface[:-1]
-            if iface == current:
-                # skip multiple lines of same interface
-                continue
-            else:
-                current = iface
+                iface = x[0]
+                if iface.endswith("*"):
+                    iface = iface[:-1]
+                if iface == current:
+                    # skip multiple lines of same interface
+                    continue
+                else:
+                    current = iface
 
-            # Filter inactive interfaces
-            if self._parse_value(x[-5]) or self._parse_value(x[-2]):
-                iface = current
-                metrics = {
-                    'bytes_rcvd': self._parse_value(x[-5]),
-                    'bytes_sent': self._parse_value(x[-2]),
-                    'packets_in.count': self._parse_value(x[-7]),
-                    'packets_in.error': self._parse_value(x[-6]),
-                    'packets_out.count': self._parse_value(x[-4]),
-                    'packets_out.error':self._parse_value(x[-3]),
-                }
-                self._submit_devicemetrics(iface, metrics)
+                # Filter inactive interfaces
+                if self._parse_value(x[-5]) or self._parse_value(x[-2]):
+                    iface = current
+                    metrics = {
+                        'bytes_rcvd': self._parse_value(x[-5]),
+                        'bytes_sent': self._parse_value(x[-2]),
+                        'packets_in.count': self._parse_value(x[-7]),
+                        'packets_in.error': self._parse_value(x[-6]),
+                        'packets_out.count': self._parse_value(x[-4]),
+                        'packets_out.error':self._parse_value(x[-3]),
+                    }
+                    self._submit_devicemetrics(iface, metrics)
+        except SubprocessOutputEmptyError:
+            self.log.exception("Error collecting connection stats.")
 
 
-        netstat = subprocess.Popen(["netstat", "-s","-p" "tcp"],
-                                   stdout=subprocess.PIPE,
-                                   close_fds=True).communicate()[0]
-        #3651535 packets sent
-        #        972097 data packets (615753248 bytes)
-        #        5009 data packets (2832232 bytes) retransmitted
-        #        0 resends initiated by MTU discovery
-        #        2086952 ack-only packets (471 delayed)
-        #        0 URG only packets
-        #        0 window probe packets
-        #        310851 window update packets
-        #        336829 control packets
-        #        0 data packets sent after flow control
-        #        3058232 checksummed in software
-        #        3058232 segments (571218834 bytes) over IPv4
-        #        0 segments (0 bytes) over IPv6
-        #4807551 packets received
-        #        1143534 acks (for 616095538 bytes)
-        #        165400 duplicate acks
-        #        ...
+        try:
+            netstat, _, _ = get_subprocess_output(["netstat", "-s", "-p" "tcp"], self.log)
+            #3651535 packets sent
+            #        972097 data packets (615753248 bytes)
+            #        5009 data packets (2832232 bytes) retransmitted
+            #        0 resends initiated by MTU discovery
+            #        2086952 ack-only packets (471 delayed)
+            #        0 URG only packets
+            #        0 window probe packets
+            #        310851 window update packets
+            #        336829 control packets
+            #        0 data packets sent after flow control
+            #        3058232 checksummed in software
+            #        3058232 segments (571218834 bytes) over IPv4
+            #        0 segments (0 bytes) over IPv6
+            #4807551 packets received
+            #        1143534 acks (for 616095538 bytes)
+            #        165400 duplicate acks
+            #        ...
 
-        self._submit_regexed_values(netstat, BSD_TCP_METRICS)
+            self._submit_regexed_values(netstat, BSD_TCP_METRICS)
+        except SubprocessOutputEmptyError:
+            self.log.exception("Error collecting TCP stats.")
 
 
     def _check_solaris(self, instance):
         # Can't get bytes sent and received via netstat
         # Default to kstat -p link:0:
-        netstat = subprocess.Popen(["kstat", "-p", "link:0:"],
-                                   stdout=subprocess.PIPE,
-                                   close_fds=True).communicate()[0]
-        metrics_by_interface = self._parse_solaris_netstat(netstat)
-        for interface, metrics in metrics_by_interface.iteritems():
-            self._submit_devicemetrics(interface, metrics)
+        try:
+            netstat, _, _ = get_subprocess_output(["kstat", "-p", "link:0:"], self.log)
+            metrics_by_interface = self._parse_solaris_netstat(netstat)
+            for interface, metrics in metrics_by_interface.iteritems():
+                self._submit_devicemetrics(interface, metrics)
+        except SubprocessOutputEmptyError:
+            self.log.exception("Error collecting kstat stats.")
 
-        netstat = subprocess.Popen(["netstat", "-s","-P" "tcp"],
-                                   stdout=subprocess.PIPE,
-                                   close_fds=True).communicate()[0]
-        # TCP: tcpRtoAlgorithm=     4 tcpRtoMin           =   200
-        # tcpRtoMax           = 60000 tcpMaxConn          =    -1
-        # tcpActiveOpens      =    57 tcpPassiveOpens     =    50
-        # tcpAttemptFails     =     1 tcpEstabResets      =     0
-        # tcpCurrEstab        =     0 tcpOutSegs          =   254
-        # tcpOutDataSegs      =   995 tcpOutDataBytes     =1216733
-        # tcpRetransSegs      =     0 tcpRetransBytes     =     0
-        # tcpOutAck           =   185 tcpOutAckDelayed    =     4
-        # ...
-        self._submit_regexed_values(netstat, SOLARIS_TCP_METRICS)
+        try:
+            netstat, _, _ = get_subprocess_output(["netstat", "-s", "-P" "tcp"], self.log)
+            # TCP: tcpRtoAlgorithm=     4 tcpRtoMin           =   200
+            # tcpRtoMax           = 60000 tcpMaxConn          =    -1
+            # tcpActiveOpens      =    57 tcpPassiveOpens     =    50
+            # tcpAttemptFails     =     1 tcpEstabResets      =     0
+            # tcpCurrEstab        =     0 tcpOutSegs          =   254
+            # tcpOutDataSegs      =   995 tcpOutDataBytes     =1216733
+            # tcpRetransSegs      =     0 tcpRetransBytes     =     0
+            # tcpOutAck           =   185 tcpOutAckDelayed    =     4
+            # ...
+            self._submit_regexed_values(netstat, SOLARIS_TCP_METRICS)
+        except SubprocessOutputEmptyError:
+            self.log.exception("Error collecting TCP stats.")
 
 
     def _parse_solaris_netstat(self, netstat_output):
@@ -463,7 +533,7 @@ class Network(AgentCheck):
             'oerrors':'packets_out.error',
         }
 
-        lines = [l for l in netstat_output.split("\n") if len(l) > 0]
+        lines = [l for l in netstat_output.splitlines() if len(l) > 0]
 
         metrics_by_interface = {}
 

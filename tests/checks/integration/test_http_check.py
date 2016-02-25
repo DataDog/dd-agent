@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # stdlibb
 import time
 
@@ -47,6 +49,12 @@ CONFIG = {
         'timeout': 1,
         'check_certificate_expiration': False,
         'content_match': '(thereisnosuchword|github)'
+    }, {
+        'name': 'cnt_match_unicode',
+        'url': 'http://www.inter-locale.com/whitepaper/learn/learn-to-test.html',
+        'timeout': 1,
+        'check_certificate_expiration': False,
+        'content_match': 'ぶびばぱぴ'
     }
     ]
 }
@@ -54,22 +62,32 @@ CONFIG = {
 CONFIG_SSL_ONLY = {
     'instances': [{
         'name': 'good_cert',
-        'url': 'https://github.com',
+        'url': 'https://github.com:443',
         'timeout': 1,
         'check_certificate_expiration': True,
-        'days_warning': 14
+        'days_warning': 14,
+        'days_critical': 7
     }, {
         'name': 'cert_exp_soon',
         'url': 'https://google.com',
         'timeout': 1,
         'check_certificate_expiration': True,
-        'days_warning': 9999
+        'days_warning': 9999,
+        'days_critical': 7
+    }, {
+        'name': 'cert_critical',
+        'url': 'https://google.com',
+        'timeout': 1,
+        'check_certificate_expiration': True,
+        'days_warning': 9999,
+        'days_critical': 9999
     }, {
         'name': 'conn_error',
         'url': 'https://thereisnosuchlink.com',
         'timeout': 1,
         'check_certificate_expiration': True,
-        'days_warning': 14
+        'days_warning': 14,
+        'days_critical': 7
     }
     ]
 }
@@ -80,7 +98,8 @@ CONFIG_EXPIRED_SSL = {
         'url': 'https://github.com',
         'timeout': 1,
         'check_certificate_expiration': True,
-        'days_warning': 14
+        'days_warning': 14,
+        'days_critical': 7
     },
     ]
 }
@@ -91,7 +110,8 @@ CONFIG_UNORMALIZED_INSTANCE_NAME = {
         'url': 'https://github.com',
         'timeout': 1,
         'check_certificate_expiration': True,
-        'days_warning': 14
+        'days_warning': 14,
+        'days_critical': 7
     },
     ]
 }
@@ -149,11 +169,7 @@ class HTTPCheckTest(AgentCheckTest):
         """
         # Run the check
         self.load_check(CONFIG_HTTP_HEADERS, AGENT_CONFIG)
-
-        url, username, password, http_response_status_code, timeout,\
-            include_content, headers, response_time, content_match,\
-            tags, ssl, ssl_expiration,\
-            instance_ca_certs = self.check._load_conf(CONFIG_HTTP_HEADERS['instances'][0])
+        headers = self.check._load_conf(CONFIG_HTTP_HEADERS['instances'][0])[6]
 
         self.assertEqual(headers["X-Auth-Token"], "SOME-AUTH-TOKEN", headers)
         expected_headers = agent_headers(AGENT_CONFIG).get('User-Agent')
@@ -169,7 +185,6 @@ class HTTPCheckTest(AgentCheckTest):
 
         # HTTP connection error
         tags = ['url:https://thereisnosuchlink.com', 'instance:conn_error']
-
         self.assertServiceCheckCritical("http.can_connect", tags=tags)
 
         # Wrong HTTP response status code
@@ -188,6 +203,9 @@ class HTTPCheckTest(AgentCheckTest):
         self.assertServiceCheckOK("http.can_connect", tags=tags, count=0)
         tags = ['url:https://github.com', 'instance:cnt_match']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
+        tags = ['url:http://www.inter-locale.com/whitepaper/learn/learn-to-test.html',
+                'instance:cnt_match_unicode']
+        self.assertServiceCheckOK("http.can_connect", tags=tags)
 
         self.coverage_report()
 
@@ -195,13 +213,17 @@ class HTTPCheckTest(AgentCheckTest):
         self.run_check(CONFIG_SSL_ONLY)
         # Overrides self.service_checks attribute when values are available
         self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 6)
-        tags = ['url:https://github.com', 'instance:good_cert']
+        tags = ['url:https://github.com:443', 'instance:good_cert']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
         self.assertServiceCheckOK("http.ssl_cert", tags=tags)
 
         tags = ['url:https://google.com', 'instance:cert_exp_soon']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
         self.assertServiceCheckWarning("http.ssl_cert", tags=tags)
+
+        tags = ['url:https://google.com', 'instance:cert_critical']
+        self.assertServiceCheckOK("http.can_connect", tags=tags)
+        self.assertServiceCheckCritical("http.ssl_cert", tags=tags)
 
         tags = ['url:https://thereisnosuchlink.com', 'instance:conn_error']
         self.assertServiceCheckCritical("http.can_connect", tags=tags)

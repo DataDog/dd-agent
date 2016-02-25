@@ -19,6 +19,86 @@ class Couchbase(AgentCheck):
     """
     SERVICE_CHECK_NAME = 'couchbase.can_connect'
 
+    # Selected metrics to send amongst all the bucket stats, after name normalization
+    BUCKET_STATS = set([
+        'avg_bg_wait_time',
+        'avg_disk_commit_time',
+        'bytes_read',
+        'bytes_written',
+        'cas_hits',
+        'cas_misses',
+        'cmd_get',
+        'cmd_set',
+        'couch_docs_actual_disk_size',
+        'couch_docs_data_size',
+        'couch_docs_disk_size',
+        'couch_docs_fragmentation',
+        'couch_total_disk_size',
+        'couch_views_fragmentation',
+        'couch_views_ops',
+        'cpu_idle_ms',
+        'cpu_utilization_rate',
+        'curr_connections',
+        'curr_items',
+        'curr_items_tot',
+        'decr_hits',
+        'decr_misses',
+        'delete_hits',
+        'delete_misses',
+        'disk_commit_count',
+        'disk_update_count',
+        'disk_write_queue',
+        'ep_bg_fetched',
+        'ep_cache_miss_rate',
+        'ep_cache_miss_ratio',
+        'ep_diskqueue_drain',
+        'ep_diskqueue_fill',
+        'ep_flusher_todo',
+        'ep_item_commit_failed',
+        'ep_max_size',
+        'ep_mem_high_wat',
+        'ep_mem_low_wat',
+        'ep_num_non_resident',
+        'ep_num_value_ejects',
+        'ep_oom_errors',
+        'ep_ops_create',
+        'ep_ops_update',
+        'ep_overhead',
+        'ep_queue_size',
+        'ep_resident_items_rate',
+        'ep_tap_replica_queue_drain',
+        'ep_tap_total_queue_drain',
+        'ep_tap_total_queue_fill',
+        'ep_tap_total_total_backlog_size',
+        'ep_tmp_oom_errors',
+        'evictions',
+        'get_hits',
+        'get_misses',
+        'hit_ratio',
+        'incr_hits',
+        'incr_misses',
+        'mem_free',
+        'mem_total',
+        'mem_used',
+        'misses',
+        'ops',
+        'page_faults',
+        'replication_docs_rep_queue',
+        'replication_meta_latency_aggr',
+        'vb_active_num',
+        'vb_active_queue_drain',
+        'vb_active_queue_size',
+        'vb_active_resident_items_ratio',
+        'vb_avg_total_queue_age',
+        'vb_pending_ops_create',
+        'vb_pending_queue_fill',
+        'vb_replica_curr_items',
+        'vb_replica_meta_data_memory',
+        'vb_replica_num',
+        'vb_replica_queue_size',
+        'xdc_ops',
+    ])
+
     def _create_metrics(self, data, tags=None):
         storage_totals = data['stats']['storageTotals']
         for key, storage_type in storage_totals.items():
@@ -30,10 +110,12 @@ class Couchbase(AgentCheck):
         for bucket_name, bucket_stats in data['buckets'].items():
             for metric_name, val in bucket_stats.items():
                 if val is not None:
-                    metric_name = '.'.join(['couchbase', 'by_bucket', self.camel_case_to_joined_lower(metric_name)])
-                    metric_tags = list(tags)
-                    metric_tags.append('bucket:%s' % bucket_name)
-                    self.gauge(metric_name, val[0], tags=metric_tags, device_name=bucket_name)
+                    norm_metric_name = self.camel_case_to_joined_lower(metric_name)
+                    if norm_metric_name in self.BUCKET_STATS:
+                        full_metric_name = '.'.join(['couchbase', 'by_bucket', norm_metric_name])
+                        metric_tags = list(tags)
+                        metric_tags.append('bucket:%s' % bucket_name)
+                        self.gauge(full_metric_name, val[0], tags=metric_tags, device_name=bucket_name)
 
         for node_name, node_stats in data['nodes'].items():
             for metric_name, val in node_stats['interestingStats'].items():
@@ -42,7 +124,6 @@ class Couchbase(AgentCheck):
                     metric_tags = list(tags)
                     metric_tags.append('node:%s' % node_name)
                     self.gauge(metric_name, val, tags=metric_tags, device_name=node_name)
-
 
     def _get_stats(self, url, instance):
         """ Hit a given URL and return the parsed json. """

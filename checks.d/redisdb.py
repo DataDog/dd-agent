@@ -48,8 +48,6 @@ class Redis(AgentCheck):
         'expired_keys':                 'redis.keys.expired',
 
         # stats
-        'keyspace_hits':                'redis.stats.keyspace_hits',
-        'keyspace_misses':              'redis.stats.keyspace_misses',
         'latest_fork_usec':             'redis.perf.latest_fork_usec',
 
         # pubsub
@@ -83,6 +81,10 @@ class Redis(AgentCheck):
         'used_cpu_sys_children':        'redis.cpu.sys_children',
         'used_cpu_user':                'redis.cpu.user',
         'used_cpu_user_children':       'redis.cpu.user_children',
+
+        # stats
+        'keyspace_hits':                'redis.stats.keyspace_hits',
+        'keyspace_misses':              'redis.stats.keyspace_misses',
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
@@ -104,7 +106,7 @@ class Redis(AgentCheck):
                     except ValueError:
                         return v
             return default
-        except Exception, e:
+        except Exception:
             self.log.exception("Cannot parse dictionary string: %s" % string)
             return default
 
@@ -167,11 +169,11 @@ class Redis(AgentCheck):
             status = AgentCheck.OK
             self.service_check('redis.can_connect', status, tags=tags_to_add)
             self._collect_metadata(info)
-        except ValueError, e:
+        except ValueError:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
             raise
-        except Exception, e:
+        except Exception:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
             raise
@@ -205,10 +207,11 @@ class Redis(AgentCheck):
                     self.gauge(metric, val, tags=db_tags)
 
         # Save a subset of db-wide statistics
-        for k in set(info).intersection(self.GAUGE_KEYS):
-            self.gauge(self.GAUGE_KEYS[k], info[k], tags=tags)
-        for k in set(info).intersection(self.RATE_KEYS):
-            self.rate(self.RATE_KEYS[k], info[k], tags=tags)
+        for info_name, value in info.iteritems():
+            if info_name in self.GAUGE_KEYS:
+                self.gauge(self.GAUGE_KEYS[info_name], info[info_name], tags=tags)
+            elif info_name in self.RATE_KEYS:
+                self.rate(self.RATE_KEYS[info_name], info[info_name], tags=tags)
 
         # Save the number of commands.
         self.rate('redis.net.commands', info['total_commands_processed'],
@@ -241,6 +244,8 @@ class Redis(AgentCheck):
                         self.gauge('redis.key.length', 0, tags=key_tags)
 
         self._check_replication(info, tags)
+        if instance.get("command_stats", False):
+            self._check_command_stats(conn, tags)
 
     def _check_replication(self, info, tags):
 
@@ -321,6 +326,22 @@ class Redis(AgentCheck):
             self.histogram('redis.slowlog.micros', value, tags=tags + [command_tag])
 
         self.last_timestamp_seen[ts_key] = max_ts
+
+    def _check_command_stats(self, conn, tags):
+        """Get command-specific statistics from redis' INFO COMMANDSTATS command
+        """
+        try:
+            command_stats = conn.info("commandstats")
+        except Exception:
+            self.warning("Could not retrieve command stats from Redis."
+                         "INFO COMMANDSTATS only works with Redis >= 2.6.")
+            return
+
+        for key, stats in command_stats.iteritems():
+            command = key.split('_', 1)[1]
+            command_tags = tags + ['command:%s' % command]
+            self.gauge('redis.command.calls', stats['calls'], tags=command_tags)
+            self.gauge('redis.command.usec_per_call', stats['usec_per_call'], tags=command_tags)
 
     def check(self, instance):
         if ("host" not in instance or "port" not in instance) and "unix_socket_path" not in instance:

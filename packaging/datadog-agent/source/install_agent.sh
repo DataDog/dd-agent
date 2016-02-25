@@ -36,6 +36,10 @@ solve your problem.\n\033[0m\n"
 }
 trap on_error ERR
 
+if [ -n "$DD_HOSTNAME" ]; then
+    dd_hostname=$DD_HOSTNAME
+fi
+
 if [ -n "$DD_API_KEY" ]; then
     apikey=$DD_API_KEY
 fi
@@ -98,7 +102,17 @@ if [ $OS = "RedHat" ]; then
     else
         ARCHI="x86_64"
     fi
-    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = http://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=0\npriority=1' > /etc/yum.repos.d/datadog.repo"
+
+    # Versions of yum on RedHat 5 and lower embed M2Crypto with SSL that doesn't support TLS1.2
+    if [ -f /etc/redhat-release ]; then
+        REDHAT_MAJOR_VERSION=$(grep -Eo "[0-9].[0-9]{1,2}" /etc/redhat-release | head -c 1)
+    fi
+    if [ -n "$REDHAT_MAJOR_VERSION" ] && [ "$REDHAT_MAJOR_VERSION" -le "5" ]; then
+        PROTOCOL="http"
+    else
+        PROTOCOL="https"
+    fi
+    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = $PROTOCOL://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=1\npriority=1\ngpgkey=$PROTOCOL://yum.datadoghq.com/DATADOG_RPM_KEY.public' > /etc/yum.repos.d/datadog.repo"
 
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
 
@@ -111,6 +125,9 @@ if [ $OS = "RedHat" ]; then
     fi
     $sudo_cmd yum -y --disablerepo='*' --enablerepo='datadog' install datadog-agent
 elif [ $OS = "Debian" ]; then
+    printf "\033[34m\n* Installing apt-transport-https\n\033[0m\n"
+    $sudo_cmd apt-get update
+    $sudo_cmd apt-get install -y apt-transport-https
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
     $sudo_cmd sh -c "echo 'deb http://apt.datadoghq.com/ stable main' > /etc/apt/sources.list.d/datadog.list"
     $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
@@ -147,6 +164,12 @@ if [ -e /etc/dd-agent/datadog.conf ]; then
 else
     printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
     $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
+    if [ $dd_hostname ]; then
+        printf "\033[34m\n* Adding your HOSTNAME to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
+        $sudo_cmd sh -c "sed -i 's/#hostname:.*/hostname: $dd_hostname/' /etc/dd-agent/datadog.conf"
+    fi
+    $sudo_cmd chown dd-agent:root /etc/dd-agent/datadog.conf
+    $sudo_cmd chmod 640 /etc/dd-agent/datadog.conf
 fi
 
 restart_cmd="$sudo_cmd /etc/init.d/datadog-agent restart"

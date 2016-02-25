@@ -64,21 +64,27 @@ instances:
     #
     # disable_ssl_validation: true
 
+    # If you enable the disable_ssl_validation above, you might want to disable security warnings
+    # You can use the flag below to do so
+    # ignore_ssl_warning: false
+
     # Path of trusted CA certificates used to validate the SSL certificate
     # for this url.
     # Overrides the default path and the one specified in init_config.
     #
     # ca_certs: /etc/ssl/certs/ca-certificates.crt
 
-    # The (optional) ssl_expire will instruct the check
+    # The (optional) check_certificate_expiration will instruct the check
     # to create a service check that checks the expiration of the
     # ssl certificate. Allow for a warning to occur when x days are
-    # left in the certificate.
+    # left in the certificate, and alternatively raise a critical
+    # warning if the certificate is y days from the expiration date.
     # The SSL certificate will always be validated for this additional
     # service check regardless of the value of disable_ssl_validation
     #
     # check_certificate_expiration: true
     # days_warning: 14
+    # days_critical: 7
 
     # The (optional) headers parameter allows you to send extra headers
     # with the request. This is useful for explicitly specifying the host

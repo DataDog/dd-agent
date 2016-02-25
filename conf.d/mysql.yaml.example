@@ -11,16 +11,51 @@ instances:
     #   - optional_tag1
     #   - optional_tag2
     # options:               # Optional
-    #   replication: 0
-    #   galera_cluster: 1
+    #   replication: false
+    #   galera_cluster: false
+    #   extra_status_metrics: true
+    #   extra_innodb_metrics: true
+    #   extra_performance_metrics: true
+    #   schema_size_metrics: false
+    #
+    #
+    #     NOTE: extra_performance_metrics will only be reported if `performance_schema` is enabled
+    #           in the MySQL instance and if the version for that instance is >= 5.6.0
+    #
+    #           extra_performance_metrics and schema_size_metrics will run two heavier queries
+    #           against your DB to compute the relevant metrics for all your existing schemas.
+    #           Due to the nature of these calls, if you have a high number of tables and/or schemas,
+    #           you may be subject to some negative impact in the performance of your DB.
+    #           Please bear that in mind when enabling them.
+    #           Metrics provided by the options:
+    #                     - mysql.info.schema.size (per schame)
+    #                     - mysql.performance.query_run_time.avg (per schema)
+    #                     - mysql.performance.digest_95th_percentile.avg_us
+    #
+    #           With the addition of new metrics to the MySQL catalog starting with agent >=5.7.0, because
+    #           we query additional schemas to get this full set of metrics. Some of these require the user
+    #           defined for the instance to have PROCESS and SELECT privileges. Please take a look at the
+    #           MySQL integration tile in the Datadog WebUI for further instructions.
+    #
+    # ssl:               # Optional
+    #   key: /path/to/my/key.file
+    #   cert: /path/to/my/cert.file
+    #   ca: /path/to/my/ca.file
+
     # queries:               # Optional
     #  - # Sample Custom metric
     #    query: SELECT TIMESTAMPDIFF(second,MAX(create_time),NOW()) as last_accessed FROM requests
     #    metric: app.seconds_since_last_request
+    #    tags:               # Optional - only applied to this custom metric query, will not affect default mysql metrics
+    #        - custom_tag1
+    #        - custom_tag2
     #    type: gauge
     #    field: last_accessed
     #  - # Sample Custom metric
     #    query: SELECT TIMESTAMPDIFF(second,MAX(create_time),NOW()) as last_user FROM users
     #    metric: app.seconds_since_new_user
+    #    tags:               # Optional - only applied to this custom metric query, will not affect default mysql metrics
+    #        - custom_tag1
+    #        - custom_tag2
     #    type: gauge
     #    field: last_user

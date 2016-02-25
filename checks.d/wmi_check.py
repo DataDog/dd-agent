@@ -1,132 +1,65 @@
-'''
-Windows Only.
-
-Generic WMI check. This check allows you to specify particular metrics that you
-want from WMI in your configuration. Check wmi_check.yaml.example in your conf.d
-directory for more details on configuration.
-'''
-# 3rd party
-import wmi
-
 # project
-from checks import AgentCheck
+from checks.wmi_check import WinWMICheck
+from utils.containers import hash_mutable
+from utils.timeout import TimeoutException
 
-UP_METRIC = 'Up'
-SEARCH_WILDCARD = '*'
 
+class WMICheck(WinWMICheck):
+    """
+    WMI check.
 
-class WMICheck(AgentCheck):
+    Windows only.
+    """
     def __init__(self, name, init_config, agentConfig, instances):
-        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
-        self.wmi_conns = {}
-
-    def _get_wmi_conn(self, host, **kwargs):
-        key = "{0}:".format(host)
-        key += ":".join(str(v) for v in kwargs.values())
-        if key not in self.wmi_conns:
-            self.wmi_conns[key] = wmi.WMI(host, **kwargs)
-        return self.wmi_conns[key]
+        WinWMICheck.__init__(self, name, init_config, agentConfig, instances)
+        self.wmi_samplers = {}
+        self.wmi_props = {}
 
     def check(self, instance):
-        host = instance.get('host', None)
-        namespace = instance.get('namespace', None)
-        user = instance.get('username', None)
-        password = instance.get('password', None)
-        w = self._get_wmi_conn(host, namespace=namespace, user=user, password=password)
+        """
+        Fetch WMI metrics.
+        """
+        # Connection information
+        host = instance.get('host', "localhost")
+        namespace = instance.get('namespace', "root\\cimv2")
+        username = instance.get('username', "")
+        password = instance.get('password', "")
+
+        # WMI instance
         wmi_class = instance.get('class')
         metrics = instance.get('metrics')
         filters = instance.get('filters')
-        tag_by = instance.get('tag_by')
-        tag_queries = instance.get('tag_queries')
+        tag_by = instance.get('tag_by', "").lower()
+        tag_queries = instance.get('tag_queries', [])
         constant_tags = instance.get('constant_tags')
 
-        if not wmi_class:
-            raise Exception('WMI instance is missing a value for `class` in wmi_check.yaml')
+        # Create or retrieve an existing WMISampler
+        instance_hash = hash_mutable(instance)
+        instance_key = self._get_instance_key(host, namespace, wmi_class, instance_hash)
 
-        # If there are filters, we need one query per filter.
-        if filters:
-            for f in filters:
-                prop = f.keys()[0]
-                search = f.values()[0]
-                if SEARCH_WILDCARD in search:
-                    search = search.replace(SEARCH_WILDCARD, '%')
-                    wql = "SELECT * FROM %s WHERE %s LIKE '%s'" \
-                        % (wmi_class, prop, search)
-                    results = w.query(wql)
-                else:
-                    results = getattr(w, wmi_class)(**f)
-                self._extract_metrics(results, metrics, tag_by, w, tag_queries, constant_tags)
+        metric_name_and_type_by_property, properties = \
+            self._get_wmi_properties(instance_key, metrics, tag_queries)
+
+        wmi_sampler = self._get_wmi_sampler(
+            instance_key,
+            wmi_class, properties,
+            filters=filters,
+            host=host, namespace=namespace,
+            username=username, password=password,
+        )
+
+        # Sample, extract & submit metrics
+        try:
+            wmi_sampler.sample()
+            metrics = self._extract_metrics(wmi_sampler, tag_by, tag_queries, constant_tags)
+        except TimeoutException:
+            self.log.warning(
+                u"[WMI] WMI query timed out."
+                u" class={wmi_class} - properties={wmi_properties} -"
+                u" filters={filters} - tag_queries={tag_queries}".format(
+                    wmi_class=wmi_class, wmi_properties=properties,
+                    filters=filters, tag_queries=tag_queries
+                )
+            )
         else:
-            results = getattr(w, wmi_class)()
-            self._extract_metrics(results, metrics, tag_by, w, tag_queries, constant_tags)
-
-    def _extract_metrics(self, results, metrics, tag_by, wmi, tag_queries, constant_tags):
-        if len(results) > 1 and tag_by is None:
-            raise Exception('WMI query returned multiple rows but no `tag_by` value was given. '
-                            'metrics=%s' % metrics)
-
-        for res in results:
-            tags = []
-
-            # include any constant tags...
-            if constant_tags:
-                tags.extend(constant_tags)
-
-            # if tag_queries is specified then get attributes from other classes and use as a tags
-            if tag_queries:
-                for query in tag_queries:
-                    link_source_property = int(getattr(res, query[0]))
-                    target_class = query[1]
-                    link_target_class_property = query[2]
-                    target_property = query[3]
-
-                    link_results = \
-                        wmi.query("SELECT {0} FROM {1} WHERE {2} = {3}"
-                                  .format(target_property, target_class,
-                                          link_target_class_property, link_source_property))
-
-                    if len(link_results) != 1:
-                        self.log.warning("Failed to find {0} for {1} {2}. No metrics gathered"
-                                         .format(target_class, link_target_class_property,
-                                                 link_source_property))
-                        continue
-
-                    link_value = str(getattr(link_results[0], target_property)).lower()
-                    tags.append("{0}:{1}".format(target_property.lower(),
-                                "_".join(link_value.split())))
-
-            # Grab the tag from the result if there's a `tag_by` value (e.g.: "name:jenkins")
-            # Strip any #instance off the value when `tag_queries` is set (gives us unique tags)
-            if tag_by:
-                tag_value = str(getattr(res, tag_by)).lower()
-                if tag_queries and tag_value.find("#") > 0:
-                    tag_value = tag_value[:tag_value.find("#")]
-                tags.append('%s:%s' % (tag_by.lower(), tag_value))
-
-            if len(tags) == 0:
-                tags = None
-
-            for wmi_property, name, mtype in metrics:
-                if wmi_property == UP_METRIC:
-                    # Special-case metric will just submit 1 for every value
-                    # returned in the result.
-                    val = 1
-                else:
-                    try:
-                        val = float(getattr(res, wmi_property))
-                    except (ValueError, TypeError):
-                        self.log.warning("When extracting metrics with WMI, found a non digit value"
-                                         " for property '{0}'.".format(wmi_property))
-                        continue
-                    except AttributeError:
-                        self.log.warning("'{0}' WMI class has no property '{1}'."
-                                         .format(res.__class__.__name__, wmi_property))
-                        continue
-
-                # Submit the metric to Datadog
-                try:
-                    func = getattr(self, mtype)
-                except AttributeError:
-                    raise Exception('Invalid metric type: {0}'.format(mtype))
-
-                func(name, val, tags=tags)
+            self._submit_metrics(metrics, metric_name_and_type_by_property)

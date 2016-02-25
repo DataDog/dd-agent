@@ -2,15 +2,13 @@
 
 Collects metrics from mesos slave node.
 """
-# stdlib
-from hashlib import md5
-
 # 3rd party
 import requests
 
 # project
 from checks import AgentCheck, CheckException
 
+DEFAULT_MASTER_PORT = 5050
 
 class MesosSlave(AgentCheck):
     GAUGE = AgentCheck.gauge
@@ -89,8 +87,6 @@ class MesosSlave(AgentCheck):
         self.cluster_name = None
 
     def _get_json(self, url, timeout):
-        # Use a hash of the URL as an aggregation key
-        aggregation_key = md5(url).hexdigest()
         tags = ["url:%s" % url]
         msg = None
         status = None
@@ -116,6 +112,9 @@ class MesosSlave(AgentCheck):
             if status is AgentCheck.CRITICAL:
                 raise CheckException("Cannot connect to mesos, please check your configuration.")
 
+        if r.encoding is None:
+            r.encoding = 'UTF8'
+
         return r.json()
 
     def _get_state(self, url, timeout):
@@ -128,13 +127,16 @@ class MesosSlave(AgentCheck):
             endpoint = '/stats.json'
         return self._get_json(url + endpoint, timeout)
 
-    def _get_constant_attributes(self, url, timeout):
+    def _get_constant_attributes(self, url, timeout, master_port):
         state_metrics = None
         if self.cluster_name is None:
             state_metrics = self._get_state(url, timeout)
             if state_metrics is not None:
                 self.version = map(int, state_metrics['version'].split('.'))
-                master_state = self._get_state('http://' + state_metrics['master_hostname'] + ':5050', timeout)
+                master_state = self._get_state(
+                    'http://{0}:{1}'.format(state_metrics['master_hostname'], master_port),
+                    timeout
+                )
                 if master_state is not None:
                     self.cluster_name = master_state.get('cluster')
 
@@ -149,8 +151,9 @@ class MesosSlave(AgentCheck):
         tasks = instance.get('tasks', [])
         default_timeout = self.init_config.get('default_timeout', 5)
         timeout = float(instance.get('timeout', default_timeout))
+        master_port = instance.get("master_port", DEFAULT_MASTER_PORT)
 
-        state_metrics = self._get_constant_attributes(url, timeout)
+        state_metrics = self._get_constant_attributes(url, timeout, master_port)
         tags = None
 
         if state_metrics is None:

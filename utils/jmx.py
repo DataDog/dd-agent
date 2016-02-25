@@ -14,7 +14,7 @@ from utils.pidfile import PidFile
 from utils.platform import Platform
 
 # JMXFetch java version
-JMX_FETCH_JAR_NAME = "jmxfetch-0.8.0-jar-with-dependencies.jar"
+JMX_FETCH_JAR_NAME = "jmxfetch-0.9.0-jar-with-dependencies.jar"
 
 log = logging.getLogger(__name__)
 

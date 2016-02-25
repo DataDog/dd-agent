@@ -9,7 +9,7 @@ from pysnmp.smi import builder
 from pysnmp.smi.exval import noSuchInstance, noSuchObject
 
 # project
-from checks import AgentCheck
+from checks.network_checks import NetworkCheck, Status
 from config import _is_affirmative
 
 
@@ -33,7 +33,7 @@ SNMP_GAUGES = frozenset([
     snmp_type.Integer.__name__,
     snmp_type.Integer32.__name__])
 
-OID_BATCH_SIZE = 10
+DEFAULT_OID_BATCH_SIZE = 10
 
 
 def reply_invalid(oid):
@@ -41,26 +41,46 @@ def reply_invalid(oid):
         noSuchObject.isSameTypeWith(oid)
 
 
-class SnmpCheck(AgentCheck):
+class SnmpCheck(NetworkCheck):
 
+    SOURCE_TYPE_NAME = 'system'
     cmd_generator = None
     # pysnmp default values
     DEFAULT_RETRIES = 5
     DEFAULT_TIMEOUT = 1
+    SC_STATUS = 'snmp.can_check'
 
-    def __init__(self, name, init_config, agentConfig, instances=None):
-        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+    def __init__(self, name, init_config, agentConfig, instances):
+        for instance in instances:
+            if 'name' not in instance:
+                instance['name'] = instance['ip_address']
+            instance['skip_event'] = True
+
+        # Set OID batch size
+        self.oid_batch_size = int(init_config.get("oid_batch_size", DEFAULT_OID_BATCH_SIZE))
 
         # Load Custom MIB directory
-        mibs_path = None
-        ignore_nonincreasing_oid = False
+        self.mibs_path = None
+        self.ignore_nonincreasing_oid = False
         if init_config is not None:
-            mibs_path = init_config.get("mibs_folder")
-            ignore_nonincreasing_oid = _is_affirmative(
+            self.mibs_path = init_config.get("mibs_folder")
+            self.ignore_nonincreasing_oid = _is_affirmative(
                 init_config.get("ignore_nonincreasing_oid", False))
 
         # Create SNMP command generator and aliases
-        self.create_command_generator(mibs_path, ignore_nonincreasing_oid)
+        self.create_command_generator(self.mibs_path, self.ignore_nonincreasing_oid)
+
+        NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
+
+    def _load_conf(self, instance):
+        tags = instance.get("tags", [])
+        ip_address = instance["ip_address"]
+        metrics = instance.get('metrics', [])
+        timeout = int(instance.get('timeout', self.DEFAULT_TIMEOUT))
+        retries = int(instance.get('retries', self.DEFAULT_RETRIES))
+
+        return ip_address, tags, metrics, timeout, retries
+
 
     def snmp_logger(self, func):
         """
@@ -184,11 +204,11 @@ class SnmpCheck(AgentCheck):
             error_indication, error_status, error_index, var_binds = self.snmpget(
                 auth_data,
                 transport_target,
-                *(oids[first_oid:first_oid + OID_BATCH_SIZE]),
+                *(oids[first_oid:first_oid + self.oid_batch_size]),
                 lookupValues=lookup_names,
                 lookupNames=lookup_names)
 
-            first_oid = first_oid + OID_BATCH_SIZE
+            first_oid = first_oid + self.oid_batch_size
 
             # Raise on error_indication
             self.raise_on_error_indication(error_indication, instance)
@@ -221,7 +241,7 @@ class SnmpCheck(AgentCheck):
                     message = "{0} for instance {1}".format(error_status.prettyPrint(),
                                                             instance["ip_address"])
                     instance["service_check_error"] = message
-                    self.log.warning(message)
+                    self.warning(message)
 
                 for table_row in var_binds_table:
                     complete_results.extend(table_row)
@@ -239,20 +259,21 @@ class SnmpCheck(AgentCheck):
         self.log.debug("Raw results: {0}".format(results))
         return results
 
-    def check(self, instance):
+    def _check(self, instance):
         '''
         Perform two series of SNMP requests, one for all that have MIB asociated
         and should be looked up and one for those specified by oids
         '''
-        tags = instance.get("tags", [])
-        ip_address = instance["ip_address"]
+
+        ip_address, tags, metrics, timeout, retries = self._load_conf(instance)
+
+        tags += ['snmp_device:{0}'.format(ip_address)]
+
         table_oids = []
         raw_oids = []
-        timeout = int(instance.get('timeout', self.DEFAULT_TIMEOUT))
-        retries = int(instance.get('retries', self.DEFAULT_RETRIES))
 
         # Check the metrics completely defined
-        for metric in instance.get('metrics', []):
+        for metric in metrics:
             if 'MIB' in metric:
                 try:
                     assert "table" in metric or "symbol" in metric
@@ -269,61 +290,73 @@ class SnmpCheck(AgentCheck):
             if table_oids:
                 self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
                 table_results = self.check_table(instance, table_oids, True, timeout, retries)
-                self.report_table_metrics(instance, table_results)
+                self.report_table_metrics(metrics, table_results, tags)
 
             if raw_oids:
                 self.log.debug("Querying device %s for %s oids", ip_address, len(raw_oids))
                 raw_results = self.check_table(instance, raw_oids, False, timeout, retries)
-                self.report_raw_metrics(instance, raw_results)
+                self.report_raw_metrics(metrics, raw_results, tags)
         except Exception as e:
             if "service_check_error" not in instance:
                 instance["service_check_error"] = "Fail to collect metrics: {0}".format(e)
-            raise
+            self.warning(instance["service_check_error"])
+            return [(self.SC_STATUS, Status.CRITICAL, instance["service_check_error"])]
         finally:
             # Report service checks
-            service_check_name = "snmp.can_check"
             tags = ["snmp_device:%s" % ip_address]
             if "service_check_error" in instance:
-                self.service_check(service_check_name, AgentCheck.CRITICAL, tags=tags,
-                                   message=instance["service_check_error"])
-            else:
-                self.service_check(service_check_name, AgentCheck.OK, tags=tags)
+                return [(self.SC_STATUS, Status.DOWN, instance["service_check_error"])]
 
-    def report_raw_metrics(self, instance, results):
+            return [(self.SC_STATUS, Status.UP, None)]
+
+    def report_as_service_check(self, sc_name, status, instance, msg=None):
+        sc_tags = ['snmp_device:{0}'.format(instance["ip_address"])]
+        custom_tags = instance.get('tags', [])
+        tags = sc_tags + custom_tags
+
+        self.service_check(sc_name,
+                           NetworkCheck.STATUS_TO_SERVICE_CHECK[status],
+                           tags=tags,
+                           message=msg
+                           )
+
+    def report_raw_metrics(self, metrics, results, tags):
         '''
         For all the metrics that are specified as oid,
-        the conf oid is going to be a prefix of the oid sent back by the device
+        the conf oid is going to exactly match or be a prefix of the oid sent back by the device
         Use the instance configuration to find the name to give to the metric
 
         Submit the results to the aggregator.
         '''
-        tags = instance.get("tags", [])
-        tags = tags + ["snmp_device:" + instance.get('ip_address')]
-        for metric in instance.get('metrics', []):
+
+        for metric in metrics:
+            forced_type = metric.get('forced_type')
             if 'OID' in metric:
                 queried_oid = metric['OID']
-                for oid in results:
-                    if oid.startswith(queried_oid):
-                        value = results[oid]
-                        break
+                if queried_oid in results:
+                    value = results[queried_oid]
                 else:
-                    self.log.warning("No matching results found for oid %s",
-                                     queried_oid)
-                    continue
+                    for oid in results:
+                        if oid.startswith(queried_oid):
+                            value = results[oid]
+                            break
+                    else:
+                        self.log.warning("No matching results found for oid %s",
+                                         queried_oid)
+                        continue
                 name = metric.get('name', 'unnamed_metric')
-                self.submit_metric(name, value, tags)
+                self.submit_metric(name, value, forced_type, tags)
 
-    def report_table_metrics(self, instance, results):
+    def report_table_metrics(self, metrics, results, tags):
         '''
         For each of the metrics specified as needing to be resolved with mib,
         gather the tags requested in the instance conf for each row.
 
         Submit the results to the aggregator.
         '''
-        tags = instance.get("tags", [])
-        tags = tags + ["snmp_device:"+instance.get('ip_address')]
 
-        for metric in instance.get('metrics', []):
+        for metric in metrics:
+            forced_type = metric.get('forced_type')
             if 'table' in metric:
                 index_based_tags = []
                 column_based_tags = []
@@ -341,7 +374,7 @@ class SnmpCheck(AgentCheck):
                         metric_tags = tags + self.get_index_tags(index, results,
                                                                  index_based_tags,
                                                                  column_based_tags)
-                        self.submit_metric(value_to_collect, val, metric_tags)
+                        self.submit_metric(value_to_collect, val, forced_type, metric_tags)
 
             elif 'symbol' in metric:
                 name = metric['symbol']
@@ -350,7 +383,7 @@ class SnmpCheck(AgentCheck):
                     self.log.warning("Several rows corresponding while the metric is supposed to be a scalar")
                     continue
                 val = result[0][1]
-                self.submit_metric(name, val, tags)
+                self.submit_metric(name, val, forced_type, tags)
             elif 'OID' in metric:
                 pass # This one is already handled by the other batch of requests
             else:
@@ -392,7 +425,7 @@ class SnmpCheck(AgentCheck):
             tags.append("{0}:{1}".format(tag_group, tag_value))
         return tags
 
-    def submit_metric(self, name, snmp_value, tags=[]):
+    def submit_metric(self, name, snmp_value, forced_type, tags=[]):
         '''
         Convert the values reported as pysnmp-Managed Objects to values and
         report them to the aggregator
@@ -403,6 +436,19 @@ class SnmpCheck(AgentCheck):
             return
 
         metric_name = self.normalize(name, prefix="snmp")
+
+        if forced_type:
+            if forced_type.lower() == "gauge":
+                value = int(snmp_value)
+                self.gauge(metric_name, value, tags)
+            elif forced_type.lower() == "counter":
+                value = int(snmp_value)
+                self.rate(metric_name, value, tags)
+            else:
+                self.warning("Invalid forced-type specified: {0} in {1}".format(forced_type, name))
+                raise Exception("Invalid forced-type in config file: {0}".format(name))
+
+            return
 
         # Ugly hack but couldn't find a cleaner way
         # Proper way would be to use the ASN1 method isSameTypeWith but it

@@ -41,6 +41,22 @@ def get_check_class(name):
     return check_class
 
 
+def load_class(check_name, class_name):
+    """
+    Retrieve a class with the given name within the given check module.
+    """
+    checksd_path = get_checksd_path(get_os())
+    if checksd_path not in sys.path:
+        sys.path.append(checksd_path)
+    check_module = __import__(check_name)
+    classes = inspect.getmembers(check_module, inspect.isclass)
+    for name, clsmember in classes:
+        if name == class_name:
+            return clsmember
+
+    raise Exception(u"Unable to import class {0} from the check module.".format(class_name))
+
+
 def load_check(name, config, agentConfig):
     checksd_path = get_checksd_path(get_os())
     if checksd_path not in sys.path:
@@ -68,8 +84,10 @@ def load_check(name, config, agentConfig):
     # init the check class
     try:
         return check_class(name, init_config=init_config, agentConfig=agentConfig, instances=instances)
-    except Exception as e:
+    except TypeError as e:
         raise Exception("Check is using old API, {0}".format(e))
+    except Exception:
+        raise
 
 
 def kill_subprocess(process_obj):
@@ -111,7 +129,8 @@ class Fixtures(object):
 
     @staticmethod
     def read_file(file_name):
-        return open(Fixtures.file(file_name)).read()
+        with open(Fixtures.file(file_name)) as f:
+            return f.read().decode('string-escape').decode("utf-8")
 
 
 class AgentCheckTest(unittest.TestCase):
@@ -135,12 +154,27 @@ class AgentCheckTest(unittest.TestCase):
         agent_config = agent_config or self.DEFAULT_AGENT_CONFIG
         self.check = load_check(self.CHECK_NAME, config, agent_config)
 
+    def load_class(self, name):
+        """
+        Retrieve a class with the given name among the check module.
+        """
+        return load_class(self.CHECK_NAME, name)
+
     # Helper function when testing rates
     def run_check_twice(self, config, agent_config=None, mocks=None,
                         force_reload=False):
         self.run_check(config, agent_config, mocks, force_reload)
         time.sleep(1)
         self.run_check(config, agent_config, mocks)
+
+    def run_check_n(self, config, agent_config=None, mocks=None,
+                    force_reload=False, repeat=1, sleep=1):
+        for i in xrange(repeat):
+            if not i:
+                self.run_check(config, agent_config, mocks, force_reload)
+            else:
+                self.run_check(config, agent_config, mocks)
+            time.sleep(sleep)
 
     def run_check(self, config, agent_config=None, mocks=None, force_reload=False):
         # If not loaded already, do it!
@@ -291,7 +325,7 @@ WARNINGS
             raise
 
     def assertMetric(self, metric_name, value=None, tags=None, count=None,
-                     at_least=1, hostname=None, device_name=None):
+                     at_least=1, hostname=None, device_name=None, metric_type=None):
         candidates = []
         for m_name, ts, val, mdata in self.metrics:
             if m_name == metric_name:
@@ -302,6 +336,8 @@ WARNINGS
                 if hostname is not None and mdata['hostname'] != hostname:
                     continue
                 if device_name is not None and mdata['device_name'] != device_name:
+                    continue
+                if metric_type is not None and mdata['type'] != metric_type:
                     continue
 
                 candidates.append((m_name, ts, val, mdata))

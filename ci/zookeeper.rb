@@ -1,7 +1,7 @@
 require './ci/common'
 
 def zk_version
-  ENV['FLAVOR_VERSION'] || '3.4.6'
+  ENV['FLAVOR_VERSION'] || '3.4.7'
 end
 
 def zk_rootdir
@@ -16,7 +16,7 @@ namespace :ci do
       unless Dir.exist? File.expand_path(zk_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/zookeeper-#{zk_version}.tar.gz\
-             http://mirror.cogentco.com/pub/apache/zookeeper/zookeeper-#{zk_version}/zookeeper-#{zk_version}.tar.gz)
+            http://archive.apache.org/dist/zookeeper/zookeeper-#{zk_version}/zookeeper-#{zk_version}.tar.gz)
         sh %(mkdir -p #{zk_rootdir})
         sh %(tar zxf $VOLATILE_DIR/zookeeper-#{zk_version}.tar.gz\
              -C #{zk_rootdir} --strip-components=1)
@@ -62,7 +62,7 @@ namespace :ci do
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
       end
-      fail exception if exception
+      raise exception if exception
     end
   end
 end

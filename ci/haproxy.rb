@@ -24,11 +24,11 @@ namespace :ci do
         sh %(tar zxf $VOLATILE_DIR/haproxy-#{haproxy_version}.tar.gz\
              -C $VOLATILE_DIR/haproxy --strip-components=1)
 
-        if `uname`.strip == 'Darwin'
-          target = 'mac'
-        else
-          target = 'linux2628'
-        end
+        target = if `uname`.strip == 'Darwin'
+                   'mac'
+                 else
+                   'linux2628'
+                 end
         sh %(cd $VOLATILE_DIR/haproxy\
              && make -j $CONCURRENCY TARGET=#{target} USE_PCRE=1 USE_OPENSSL=1 USE_ZLIB=1)
         sh %(cp $VOLATILE_DIR/haproxy/haproxy #{haproxy_rootdir})
@@ -84,7 +84,7 @@ namespace :ci do
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
       end
-      fail exception if exception
+      raise exception if exception
     end
   end
 end

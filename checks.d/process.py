@@ -38,8 +38,9 @@ class ProcessCheck(AgentCheck):
         # ad stands for access denied
         # We cache the PIDs getting this error and don't iterate on them
         # more often than `access_denied_cache_duration`
-        # This cache is for all PIDs so it's global
-        self.last_ad_cache_ts = 0
+        # This cache is for all PIDs so it's global, but it should
+        # be refreshed by instance
+        self.last_ad_cache_ts = {}
         self.ad_cache = set()
         self.access_denied_cache_duration = int(
             init_config.get(
@@ -60,16 +61,23 @@ class ProcessCheck(AgentCheck):
             )
         )
 
-    def should_refresh_ad_cache(self):
+        if Platform.is_linux():
+            procfs_path = init_config.get('procfs_path')
+            if procfs_path:
+                psutil.PROCFS_PATH = procfs_path
+
+        # Process cache, indexed by instance
+        self.process_cache = defaultdict(dict)
+
+    def should_refresh_ad_cache(self, name):
         now = time.time()
-        return now - self.last_ad_cache_ts > self.access_denied_cache_duration
+        return now - self.last_ad_cache_ts.get(name, 0) > self.access_denied_cache_duration
 
     def should_refresh_pid_cache(self, name):
         now = time.time()
         return now - self.last_pid_cache_ts.get(name, 0) > self.pid_cache_duration
 
-    def find_pids(self, name, search_string, exact_match, ignore_ad=True,
-                  refresh_ad_cache=True):
+    def find_pids(self, name, search_string, exact_match, ignore_ad=True):
         """
         Create a set of pids of selected processes.
         Search for search_string
@@ -81,7 +89,7 @@ class ProcessCheck(AgentCheck):
         if not ignore_ad:
             ad_error_logger = self.log.error
 
-        refresh_ad_cache = self.should_refresh_ad_cache()
+        refresh_ad_cache = self.should_refresh_ad_cache(name)
 
         matching_pids = set()
 
@@ -121,6 +129,8 @@ class ProcessCheck(AgentCheck):
 
         self.pid_cache[name] = matching_pids
         self.last_pid_cache_ts[name] = time.time()
+        if refresh_ad_cache:
+            self.last_ad_cache_ts[name] = time.time()
         return matching_pids
 
     def psutil_wrapper(self, process, method, accessors, *args, **kwargs):
@@ -163,21 +173,33 @@ class ProcessCheck(AgentCheck):
 
         return result
 
-
-    def get_process_state(self, name, pids, cpu_check_interval):
+    def get_process_state(self, name, pids):
         st = defaultdict(list)
+
+        # Remove from cache the processes that are not in `pids`
+        cached_pids = set(self.process_cache[name].keys())
+        pids_to_remove = cached_pids - pids
+        for pid in pids_to_remove:
+            del self.process_cache[name][pid]
 
         for pid in pids:
             st['pids'].append(pid)
 
-            try:
-                p = psutil.Process(pid)
-            # Skip processes dead in the meantime
-            except psutil.NoSuchProcess:
-                self.warning('Process %s disappeared while scanning' % pid)
-                # reset the PID cache now, something changed
-                self.last_pid_cache_ts[name] = 0
-                continue
+            new_process = False
+            # If the pid's process is not cached, retrieve it
+            if pid not in self.process_cache[name] or not self.process_cache[name][pid].is_running():
+                new_process = True
+                try:
+                    self.process_cache[name][pid] = psutil.Process(pid)
+                    self.log.debug('New process in cache: %s' % pid)
+                # Skip processes dead in the meantime
+                except psutil.NoSuchProcess:
+                    self.warning('Process %s disappeared while scanning' % pid)
+                    # reset the PID cache now, something changed
+                    self.last_pid_cache_ts[name] = 0
+                    continue
+
+            p = self.process_cache[name][pid]
 
             meminfo = self.psutil_wrapper(p, 'memory_info', ['rss', 'vms'])
             st['rss'].append(meminfo.get('rss'))
@@ -195,7 +217,12 @@ class ProcessCheck(AgentCheck):
             st['ctx_swtch_invol'].append(ctxinfo.get('involuntary'))
 
             st['thr'].append(self.psutil_wrapper(p, 'num_threads', None))
-            st['cpu'].append(self.psutil_wrapper(p, 'cpu_percent', None, cpu_check_interval))
+
+            cpu_percent = self.psutil_wrapper(p, 'cpu_percent', None)
+            if not new_process:
+                # psutil returns `0.` for `cpu_percent` the first time it's sampled on a process,
+                # so save the value only on non-new processes
+                st['cpu'].append(cpu_percent)
 
             st['open_fd'].append(self.psutil_wrapper(p, 'num_fds', None))
 
@@ -213,7 +240,6 @@ class ProcessCheck(AgentCheck):
         exact_match = _is_affirmative(instance.get('exact_match', True))
         search_string = instance.get('search_string', None)
         ignore_ad = _is_affirmative(instance.get('ignore_denied_access', True))
-        cpu_check_interval = instance.get('cpu_check_interval', 0.1)
 
         if not isinstance(search_string, list):
             raise KeyError('"search_string" parameter should be a list')
@@ -230,10 +256,6 @@ class ProcessCheck(AgentCheck):
         if search_string is None:
             raise KeyError('The "search_string" is mandatory')
 
-        if not isinstance(cpu_check_interval, (int, long, float)):
-            self.warning("cpu_check_interval must be a number. Defaulting to 0.1")
-            cpu_check_interval = 0.1
-
         pids = self.find_pids(
             name,
             search_string,
@@ -241,7 +263,7 @@ class ProcessCheck(AgentCheck):
             ignore_ad=ignore_ad
         )
 
-        proc_state = self.get_process_state(name, pids, cpu_check_interval)
+        proc_state = self.get_process_state(name, pids)
 
         # FIXME 6.x remove the `name` tag
         tags.extend(['process_name:%s' % name, name])
