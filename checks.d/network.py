@@ -4,6 +4,7 @@ Collects network metrics.
 # stdlib
 import re
 import subprocess
+from contextlib import contextmanager
 from subprocess import check_output
 
 # project
@@ -21,6 +22,44 @@ SOLARIS_TCP_METRICS = [
     (re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.in_segs'),
     (re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.out_segs')
 ]
+
+LINUX_SOCKSTATS_REGEX = (re.compile("sockets: used (?P<sockets_used>\d+)\n"
+                 "TCP: inuse (?P<tcp_inuse>\d+) orphan (?P<orphans>\d+)"
+                 " tw (?P<tw_count>\d+) alloc (?P<tcp_sockets>\d+)"
+                 " mem (?P<tcp_pages>\d+)\n"
+                 "UDP: inuse (?P<udp_inuse>\d+)"
+                 "(?: mem (?P<udp_pages>\d+))?\n"
+                 "(?:UDPLITE: inuse (?P<udplite_inuse>\d+)\n)?"
+                 "RAW: inuse (?P<raw_inuse>\d+)\n"
+                 "FRAG: inuse (?P<ip_frag_nqueues>\d+)"
+                 " memory (?P<ip_frag_mem>\d+)\n"))
+
+LINUX_SOCKSTAT_METRICS = [
+    ("sockets_used", 'sockstat.sockets.used'),
+    ("tcp_inuse", 'sockstat.sockets.tcp.inuse'),
+    ("orphans", 'sockstat.sockets.tcp.orphan'),
+    ("tw_count", 'sockstat.sockets.tcp.tw'),
+    ("tcp_sockets", 'sockstat.sockets.tcp.alloc'),
+    ("tcp_pages", 'sockstat.sockets.tcp.mem'),
+    ("udp_inuse", 'sockstat.sockets.udp.inuse'),
+    ("udp_pages", 'sockstat.sockets.udp.mem'),
+    ("udplite_inuse", 'sockstat.sockets.udp.lite'),
+    ("raw_inuse", 'sockstat.sockets.raw.inuse'),
+    ("ip_frag_nqueues", 'sockstat.sockets.frag.inuse'),
+    ("ip_frag_mem", 'sockstat.sockets.frag.memory')
+]
+
+@contextmanager
+def opened_w_error(filename, mode="r"):
+    try:
+        f = open(filename, mode)
+    except IOError, err:
+        yield None, err
+    else:
+        try:
+            yield f, None
+        finally:
+            f.close()
 
 
 class Network(AgentCheck):
@@ -64,7 +103,6 @@ class Network(AgentCheck):
     def check(self, instance):
         if instance is None:
             instance = {}
-
         self._excluded_ifaces = instance.get('excluded_interfaces', [])
         self._collect_cx_state = instance.get('collect_connection_state', False)
 
@@ -225,7 +263,7 @@ class Network(AgentCheck):
             self.log.debug("Unable to read /proc/net/snmp.")
 
         #SocktStat metrics
-        for metric, value in Network._linux_sockstat().items():
+        for metric, value in self._linux_sockstat().items():
             self.gauge(metric, value)
 
 
@@ -447,116 +485,70 @@ class Network(AgentCheck):
 
         return metrics_by_interface
 
-    @staticmethod
-    def _linux_sockstat_get_conntrack_max():
+    def _linux_sockstat_get_conntrack_max(self):
         proc_name = '/proc/sys/net/ipv4/ip_conntrack_max'
-        try:
-            proc = open(proc_name,'r')
-            try:
-                lines = proc.readline()
-            finally:
-                proc.close()
-            return int(lines)
-        except IOError:
-            return 0
+        with opened_w_error(proc_name,'r') as (proc, err):
+            if err:
+                self.log.info("Unable to read %s - %s" % (proc_name, str(err)))
+            else:
+                return int(proc.readline())
 
-    @staticmethod
-    def _linux_sockstat_get_conntrack_count():
+    def _linux_sockstat_get_conntrack_count(self):
         proc_name = '/proc/sys/net/ipv4/netfilter/ip_conntrack_count'
-        try:
-            proc = open(proc_name,'r')
-            try:
-                lines = proc.readline()
-            finally:
-                proc.close()
-            return int(lines)
-        except IOError:
-            return 0
+        with opened_w_error(proc_name,'r') as (proc, err):
+            if err:
+                self.log.info("Unable to read %s - %s" % (proc_name, str(err)))
+            else:
+                return int(proc.readline())
 
-    @staticmethod
     def _linux_sockstat_get_max_orphans(self):
         proc_name = '/proc/sys/net/ipv4/tcp_max_orphans'
-        try:
-            proc = open(proc_name,'r')
-            try:
-                lines = proc.readline()
-            finally:
-                proc.close()
-            return int(lines)
-        except IOError:
-            self.log.debug("Unable to read %s." % proc_name)
+        with opened_w_error(proc_name,'r') as (proc, err):
+            if err:
+                self.log.info("Unable to read %s - %s" % (proc_name, str(err)))
+            else:
+                return int(proc.readline())
 
-    @staticmethod
-    def _linux_sockstat_get_size_of_page():
+    def _linux_sockstat_get_size_of_page(self):
         return long(check_output(["/usr/bin/getconf", "PAGESIZE"]))
 
-    @staticmethod
     def _linux_sockstat_get_max_memory(self):
-        sizeOfPageInBytes = Network._linux_sockstat_get_size_of_page()
-        tcpMemFilePath = '/proc/sys/net/ipv4/tcp_mem'
-        try:
-            proc = open(tcpMemFilePath,'r')
-            try:
-                tcpmem = proc.readlines()
-            finally:
-                proc.close()
+        sizeofpageinbytes = self._linux_sockstat_get_size_of_page()
+        proc_name = '/proc/sys/net/ipv4/tcp_mem'
+        with opened_w_error(proc_name,'r') as (proc, err):
+            if err:
+                self.log.info("Unable to read %s - %s" % (proc_name, str(err)))
+            else:
+                tcpmem = proc.readline()
+                tcpmemline = tcpmem.split()
+                maxmemoryinbytes = sizeofpageinbytes * tcpmemline[2]
+                return long(maxmemoryinbytes)
 
-        except IOError:
-            self.log.debug("Unable to read %s." % tcpMemFilePath)
-        tcpmemline = tcpmem[0].split()
-        maxMemoryInBytes = sizeOfPageInBytes * tcpmemline[2]
-        return long(maxMemoryInBytes)
-
-    @staticmethod
     def _linux_sockstat(self):
         proc_name = '/proc/net/sockstat'
-        try:
-            proc = open(proc_name,'r')
-            try:
+        with opened_w_error(proc_name,'r') as (proc, err):
+            if err:
+                self.log.info("Unable to read %s - %s" % (proc_name, str(err)))
+            else:
                 lines = proc.read()
-            finally:
-                proc.close()
-            reg = re.compile("sockets: used (?P<sockets_used>\d+)\n"
-                        "TCP: inuse (?P<tcp_inuse>\d+) orphan (?P<orphans>\d+)"
-                        " tw (?P<tw_count>\d+) alloc (?P<tcp_sockets>\d+)"
-                        " mem (?P<tcp_pages>\d+)\n"
-                        "UDP: inuse (?P<udp_inuse>\d+)"
-                        "(?: mem (?P<udp_pages>\d+))?\n"
-                        "(?:UDPLITE: inuse (?P<udplite_inuse>\d+)\n)?"
-                        "RAW: inuse (?P<raw_inuse>\d+)\n"
-                        "FRAG: inuse (?P<ip_frag_nqueues>\d+)"
-                        " memory (?P<ip_frag_mem>\d+)\n")
-            match = re.match(reg, lines)
-            if not match:
-                self.log.debug("Unable to parse %s." % proc_name)
-                return
+                match = re.match(LINUX_SOCKSTATS_REGEX, lines)
+                if not match:
+                    self.log.debug("Unable to parse %s." % proc_name)
+                    return
 
-            values = []
-            values.append(match.group("sockets_used"))
-            values.append(match.group("tcp_inuse"))
-            values.append(match.group("orphans"))
-            values.append(match.group("tw_count"))
-            values.append(match.group("tcp_sockets"))
-            values.append(match.group("tcp_pages"))
-            values.append(match.group("udp_inuse"))
-            values.append(match.group("udp_pages"))
-            values.append(match.group("udplite_inuse"))
-            values.append(match.group("raw_inuse"))
-            values.append(match.group("ip_frag_nqueues"))
-            values.append(match.group("ip_frag_mem"))
-            metric_names = ['sockstat.sockets.used','sockstat.sockets.tcp.inuse','sockstat.sockets.tcp.orphan','sockstat.sockets.tcp.tw ','sockstat.sockets.tcp.alloc','sockstat.sockets.tcp.mem','sockstat.sockets.udp.inuse','sockstat.sockets.udp.mem','sockstat.sockets.udp.lite','sockstat.sockets.raw.inuse','sockstat.sockets.frag.inuse','sockstat.sockets.frag.memory']
-            metrics = dict(zip(metric_names,values))
-            tcpMem = long(metrics['sockstat.sockets.tcp.alloc']) * Network._linux_sockstat_get_size_of_page()
-            metrics['linux.kernel.tcp.memorypercentused'] = (long(tcpMem) / Network._linux_sockstat_get_max_memory()) * 100
-            metrics['linux.kernel.tcp.orphanthresholdpercentage'] = ((long(metrics['sockstat.sockets.tcp.orphan']) * 4) / Network._linux_sockstat_get_max_orphans()) * 100
-            metrics['linux.netfilter.conntrack.count'] = Network._linux_sockstat_get_conntrack_count()
-            metrics['linux.netfilter.conntrack.max'] = Network._linux_sockstat_get_conntrack_max()
-            print metrics
-            return metrics
-        except IOError:
-            self.log.debug("Unable to read %s." % proc_name)
-
+                metrics = dict()
+                group, metric = None, None
+                for group, metric in LINUX_SOCKSTAT_METRICS:
+                    metrics[metric] = match.group(group)
+                tcpmem = long(metrics['sockstat.sockets.tcp.alloc']) * self._linux_sockstat_get_size_of_page()
+                metrics['linux.kernel.tcp.memorypercentused'] = (long(tcpmem) / self._linux_sockstat_get_max_memory()) * 100
+                metrics['linux.kernel.tcp.orphanthresholdpercentage'] = ((long(metrics['sockstat.sockets.tcp.orphan']) * 4) / self._linux_sockstat_get_max_orphans()) * 100
+                metrics['linux.netfilter.conntrack.count'] = self._linux_sockstat_get_conntrack_count()
+                metrics['linux.netfilter.conntrack.max'] = self._linux_sockstat_get_conntrack_max()
+                self.log.debug(metrics)
+                return metrics
 
 if __name__ == '__main__':
     # For tests porposes
-    Network._linux_sockstat()
+    net = Network(None,None,None,None)
+    print net._linux_sockstat()
