@@ -7,6 +7,7 @@ import time
 import requests
 
 # project
+from collections import Counter
 from checks import AgentCheck
 from config import _is_affirmative
 from util import headers
@@ -314,6 +315,13 @@ class HAProxy(AgentCheck):
                                services_incl_filter=None, services_excl_filter=None,
                                count_status_by_service=True, collate_status_tags_per_host=False):
         agg_statuses = defaultdict(lambda: {'available': 0, 'unavailable': 0})
+
+        # use a counter when we don't have a unique tag set to gauge
+        use_status_counter = not count_status_by_service and not collect_status_metrics_by_host
+        counter = None
+        if use_status_counter:
+            counter = Counter()
+
         for host_status, count in hosts_statuses.iteritems():
             try:
                 service, hostname, status = host_status
@@ -334,18 +342,24 @@ class HAProxy(AgentCheck):
             if collate_status_tags_per_host:
                 self._gauge_collated_statuses(
                     "haproxy.count_per_status",
-                    count, status, tags=tags
+                    count, status, tags, counter
                 )
             else:
                 self._gauge_all_statuses(
                     "haproxy.count_per_status",
-                    count, status, tags=tags
+                    count, status, tags, counter
                 )
 
             if 'up' in status or 'open' in status:
                 agg_statuses[service]['available'] += count
             if 'down' in status or 'maint' in status or 'nolb' in status:
                 agg_statuses[service]['unavailable'] += count
+
+        if counter is not None:
+            # send aggregated counts as gauges
+            for key, count in counter.iteritems():
+                metric_name, tags = key[0], key[1]
+                self.gauge(metric_name, count, tags=tags)
 
         for service in agg_statuses:
             for status, count in agg_statuses[service].iteritems():
@@ -355,20 +369,25 @@ class HAProxy(AgentCheck):
 
                 self.gauge("haproxy.count_per_status", count, tags=tags)
 
-    def _gauge_all_statuses(self, metric_name, count, status, tags):
-        self.gauge(metric_name, count, tags + ['status:%s' % status])
+    def _gauge_all_statuses(self, metric_name, count, status, tags, counter):
+        if counter is not None:
+            counter_key = tuple([metric_name, tuple(tags + ['status:%s' % status])])
+            counter[counter_key] += count
+        else:
+            # assume we have enough context, just send a gauge
+            self.gauge(metric_name, count, tags + ['status:%s' % status])
 
         for state in Services.ALL_STATUSES:
             if state != status:
                 self.gauge(metric_name, 0, tags + ['status:%s' % state.replace(" ", "_")])
 
-    def _gauge_collated_statuses(self, metric_name, count, status, tags):
+    def _gauge_collated_statuses(self, metric_name, count, status, tags, counter):
         collated_status = Services.STATUS_MAP.get(status)
         if not collated_status:
             # We can't properly collate this guy, because it's a status we don't expect,
             # let's abandon collation
             self.log.warning("Unexpected status found %s", status)
-            self._gauge_all_statuses(metric_name, count, status, tags)
+            self._gauge_all_statuses(metric_name, count, status, tags, counter)
             return
 
         self.gauge(metric_name, count, tags + ['status:%s' % collated_status])
