@@ -23,6 +23,7 @@ def load_fixture(f, args=None):
     Build a WMI query result from a file and given parameters.
     """
     properties = []
+    args = args or []
 
     def extract_line(line):
         """
@@ -51,8 +52,9 @@ def load_fixture(f, args=None):
         )
 
     # Append extra information
-    if args:
-        property_name, property_value = args
+    args = args if isinstance(args, list) else [args]
+    for arg in args:
+        property_name, property_value = arg
         properties.append(Mock(Name=property_name, Value=property_value, Qualifiers_=[]))
 
     return [Mock(Properties_=properties)]
@@ -147,6 +149,9 @@ class SWbemServices(object):
         if query == "Select UnknownCounter,MissingProperty,Timestamp_Sys100NS,Frequency_Sys100NS from Win32_PerfRawData_PerfOS_System":  # noqa
             results += load_fixture("win32_perfrawdata_perfos_system_unknown", ("Name", "C:"))
             results += load_fixture("win32_perfrawdata_perfos_system_unknown", ("Name", "D:"))
+
+        if query == "Select NonDigit,FreeMegabytes from Win32_PerfFormattedData_PerfDisk_LogicalDisk":  # noqa
+            results += load_fixture("win32_perfformatteddata_perfdisk_logicaldisk", [("Name", "C:"), ("NonDigit", "Foo")])  # noqa
 
         if query == "Select IOReadBytesPerSec,IDProcess from Win32_PerfFormattedData_PerfProc_Process WHERE ( Name = 'chrome' )" \
                 or query == "Select IOReadBytesPerSec,UnknownProperty from Win32_PerfFormattedData_PerfProc_Process WHERE ( Name = 'chrome' )":  # noqa
@@ -581,8 +586,8 @@ class TestUnitWMISampler(TestCommonWMI):
         # Create a sampler that timeouts
         wmi_sampler = WMISampler(logger, "Win32_PerfFormattedData_PerfDisk_LogicalDisk",
                                  ["AvgDiskBytesPerWrite", "FreeMegabytes"],
-                                 timeout_duration=0.5)
-        SWbemServices._exec_query_run_time = 0.5
+                                 timeout_duration=0.1)
+        SWbemServices._exec_query_run_time = 0.11
 
         # `TimeoutException` exception is raised, DEBUG message logged
         self.assertRaises(TimeoutException, wmi_sampler.sample)

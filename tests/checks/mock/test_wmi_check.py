@@ -27,6 +27,13 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         'constant_tags': ["foobar"],
     }
 
+    WMI_NON_DIGIT_PROP = {
+        'class': "Win32_PerfFormattedData_PerfDisk_LogicalDisk",
+        'metrics': [["NonDigit", "winsys.nondigit", "gauge"],
+                    ["FreeMegabytes", "winsys.disk.freemegabytes", "gauge"]],
+        'tag_by': "Name",
+    }
+
     WMI_MISSING_PROP_CONFIG = {
         'class': "Win32_PerfRawData_PerfOS_System",
         'metrics': [["UnknownCounter", "winsys.unknowncounter", "gauge"],
@@ -154,7 +161,7 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         Extract metrics from WMI query results.
         """
         # local import to avoid pulling in pywintypes ahead of time.
-        from checks.wmi_check import WMIMetric # noqa
+        from checks.wmi_check import WMIMetric  # noqa
 
         # Set up the check
         config = {
@@ -190,6 +197,27 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         self.run_check(config, mocks={'log': logger})
         self.assertTrue(logger.warning.called)
 
+    def test_warnings_on_non_digit(self):
+        """
+        Log a warning on non digit property values except for:
+        * 'Name' property
+        * 'tag_by' associated property
+        """
+        wmi_instance = self.WMI_NON_DIGIT_PROP.copy()
+        config = {
+            'instances': [wmi_instance]
+        }
+        logger = Mock()
+
+        # Log a warning about 'NonDigit' property
+        self.run_check(config, mocks={'log': logger})
+        self.assertEquals(logger.warning.call_count, 1)
+
+        # No warnings on `tag_by` property neither on `Name`
+        wmi_instance['tag_by'] = "NonDigit"
+        self.run_check(config, mocks={'log': logger})
+        self.assertEquals(logger.warning.call_count, 1)
+
     def test_query_timeouts(self):
         """
         Gracefully handle WMI query timeouts.
@@ -198,11 +226,11 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
             """
             Force `timeout_duration` value.
             """
-            kwargs['timeout_duration'] = 0.5
+            kwargs['timeout_duration'] = 0.1
             return wmi_constructor(*args, **kwargs)
 
         # Increase WMI queries' runtime
-        SWbemServices._exec_query_run_time = 0.5
+        SWbemServices._exec_query_run_time = 0.2
 
         # Patch WMISampler to decrease timeout tolerance
         from checks.libs.wmi.sampler import WMISampler
@@ -226,7 +254,7 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         but no `tag_by` value was given.
         """
         # local import to avoid pulling in pywintypes ahead of time.
-        from checks.wmi_check import MissingTagBy # noqa
+        from checks.wmi_check import MissingTagBy  # noqa
 
         # Valid configuration
         config = {
