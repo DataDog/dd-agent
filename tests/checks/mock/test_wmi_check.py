@@ -31,14 +31,12 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         'class': "Win32_PerfFormattedData_PerfDisk_LogicalDisk",
         'metrics': [["NonDigit", "winsys.nondigit", "gauge"],
                     ["FreeMegabytes", "winsys.disk.freemegabytes", "gauge"]],
-        'tag_by': "Name",
     }
 
     WMI_MISSING_PROP_CONFIG = {
         'class': "Win32_PerfRawData_PerfOS_System",
         'metrics': [["UnknownCounter", "winsys.unknowncounter", "gauge"],
                     ["MissingProperty", "this.will.not.be.reported", "gauge"]],
-        'tag_by': "Name"
     }
 
     WMI_CONFIG_NO_TAG_BY = {
@@ -214,6 +212,7 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         self.assertEquals(logger.warning.call_count, 1)
 
         # No warnings on `tag_by` property neither on `Name`
+        del wmi_instance['metrics'][0]
         wmi_instance['tag_by'] = "NonDigit"
         self.run_check(config, mocks={'log': logger})
         self.assertEquals(logger.warning.call_count, 1)
