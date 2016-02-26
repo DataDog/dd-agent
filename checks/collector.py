@@ -21,7 +21,6 @@ from config import get_system_stats, get_version
 from resources.processes import Processes as ResProcesses
 import checks.system.unix as u
 import checks.system.win32 as w32
-import checks.system.common as common
 import modules
 from util import (
     EC2,
@@ -189,7 +188,7 @@ class Collector(object):
             'memory': u.Memory(log),
             'processes': u.Processes(log),
             'cpu': u.Cpu(log),
-            'system': common.System(log)
+            'system': u.System(log)
         }
 
         # Win32 System `Checks
@@ -199,7 +198,7 @@ class Collector(object):
             'memory': w32.Memory(log),
             'network': w32.Network(log),
             'cpu': w32.Cpu(log),
-            'system': common.System(log)
+            'system': w32.System(log)
         }
 
         # Old-style metric checks
