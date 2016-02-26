@@ -316,11 +316,11 @@ class HAProxy(AgentCheck):
                                count_status_by_service=True, collate_status_tags_per_host=False):
         agg_statuses = defaultdict(lambda: {'available': 0, 'unavailable': 0})
 
-        # use a counter when we don't have a unique tag set to gauge
-        use_status_counter = not count_status_by_service and not collect_status_metrics_by_host
-        counter = None
-        if use_status_counter:
-            counter = Counter()
+        # use a counter unless we have a unique tag set to gauge
+        counter = Counter()
+        if count_status_by_service and collect_status_metrics_by_host:
+            # `service` and `backend` tags will exist
+            counter = None
 
         for host_status, count in hosts_statuses.iteritems():
             try:
