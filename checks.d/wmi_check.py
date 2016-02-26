@@ -29,7 +29,7 @@ class WMICheck(WinWMICheck):
         wmi_class = instance.get('class')
         metrics = instance.get('metrics')
         filters = instance.get('filters')
-        tag_by = instance.get('tag_by', "").lower()
+        tag_by = instance.get('tag_by', "")
         tag_queries = instance.get('tag_queries', [])
         constant_tags = instance.get('constant_tags')
 
@@ -43,7 +43,7 @@ class WMICheck(WinWMICheck):
         wmi_sampler = self._get_wmi_sampler(
             instance_key,
             wmi_class, properties,
-            filters=filters,
+            tag_by=tag_by, filters=filters,
             host=host, namespace=namespace,
             username=username, password=password,
         )
@@ -54,7 +54,7 @@ class WMICheck(WinWMICheck):
             metrics = self._extract_metrics(wmi_sampler, tag_by, tag_queries, constant_tags)
         except TimeoutException:
             self.log.warning(
-                u"[WMI] WMI query timed out."
+                u"WMI query timed out."
                 u" class={wmi_class} - properties={wmi_properties} -"
                 u" filters={filters} - tag_queries={tag_queries}".format(
                     wmi_class=wmi_class, wmi_properties=properties,

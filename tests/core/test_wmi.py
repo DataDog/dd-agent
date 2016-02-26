@@ -135,7 +135,10 @@ class SWbemServices(object):
         # Mock a result
         results = []
 
-        if query == "Select AvgDiskBytesPerWrite,FreeMegabytes from Win32_PerfFormattedData_PerfDisk_LogicalDisk":  # noqa
+        if query in [
+                "Select AvgDiskBytesPerWrite,FreeMegabytes from Win32_PerfFormattedData_PerfDisk_LogicalDisk",  # noqa
+                "Select AvgDiskBytesPerWrite,FreeMegabytes,Name from Win32_PerfFormattedData_PerfDisk_LogicalDisk"  # noqa
+            ]:
             results += load_fixture("win32_perfformatteddata_perfdisk_logicaldisk", ("Name", "C:"))
             results += load_fixture("win32_perfformatteddata_perfdisk_logicaldisk", ("Name", "D:"))
 
@@ -148,9 +151,12 @@ class SWbemServices(object):
 
         if query == "Select UnknownCounter,MissingProperty,Timestamp_Sys100NS,Frequency_Sys100NS from Win32_PerfRawData_PerfOS_System":  # noqa
             results += load_fixture("win32_perfrawdata_perfos_system_unknown", ("Name", "C:"))
-            results += load_fixture("win32_perfrawdata_perfos_system_unknown", ("Name", "D:"))
 
-        if query == "Select NonDigit,FreeMegabytes from Win32_PerfFormattedData_PerfDisk_LogicalDisk":  # noqa
+        if query in [
+                "Select NonDigit,FreeMegabytes from Win32_PerfFormattedData_PerfDisk_LogicalDisk",
+                "Select FreeMegabytes,NonDigit from Win32_PerfFormattedData_PerfDisk_LogicalDisk",
+
+            ]:  # noqa
             results += load_fixture("win32_perfformatteddata_perfdisk_logicaldisk", [("Name", "C:"), ("NonDigit", "Foo")])  # noqa
 
         if query == "Select IOReadBytesPerSec,IDProcess from Win32_PerfFormattedData_PerfProc_Process WHERE ( Name = 'chrome' )" \
@@ -164,16 +170,18 @@ class SWbemServices(object):
                 or query == "Select UnknownProperty from Win32_Process WHERE ( Handle = '4036' )":
             results += load_fixture("win32_process")
 
-        if query == ("Select ServiceUptime,TotalBytesSent,TotalBytesReceived,TotalBytesTransferred,CurrentConnections,TotalFilesSent,TotalFilesReceived,"
-                     "TotalConnectionAttemptsAllInstances,TotalGetRequests,TotalPostRequests,TotalHeadRequests,TotalPutRequests,TotalDeleteRequests,"
-                     "TotalOptionsRequests,TotalTraceRequests,TotalNotFoundErrors,TotalLockedErrors,TotalAnonymousUsers,TotalNonAnonymousUsers,TotalCGIRequests,"
-                     "TotalISAPIExtensionRequests from Win32_PerfFormattedData_W3SVC_WebService WHERE ( Name = 'Failing site' ) OR ( Name = 'Default Web Site' )"):
-            results += load_fixture("win32_perfformatteddata_w3svc_webservice", ("Name", "Default Web Site"))
-        if query == ("Select Name,State from Win32_Service WHERE ( Name = 'WSService' ) OR ( Name = 'WinHttpAutoProxySvc' )"):
+        if query == ("Select ServiceUptime,TotalBytesSent,TotalBytesReceived,TotalBytesTransferred,CurrentConnections,TotalFilesSent,TotalFilesReceived,"  # noqa
+                     "TotalConnectionAttemptsAllInstances,TotalGetRequests,TotalPostRequests,TotalHeadRequests,TotalPutRequests,TotalDeleteRequests,"  # noqa
+                     "TotalOptionsRequests,TotalTraceRequests,TotalNotFoundErrors,TotalLockedErrors,TotalAnonymousUsers,TotalNonAnonymousUsers,TotalCGIRequests,"  # noqa
+                     "TotalISAPIExtensionRequests from Win32_PerfFormattedData_W3SVC_WebService WHERE ( Name = 'Failing site' ) OR ( Name = 'Default Web Site' )"):  # noqa
+            results += load_fixture("win32_perfformatteddata_w3svc_webservice", ("Name", "Default Web Site"))  # noqa
+
+        if query == ("Select Name,State from Win32_Service WHERE ( Name = 'WSService' ) OR ( Name = 'WinHttpAutoProxySvc' )"):  # noqa
             results += load_fixture("win32_service_up", ("Name", "WinHttpAutoProxySvc"))
             results += load_fixture("win32_service_down", ("Name", "WSService"))
-        if query == ("Select Message,SourceName,TimeGenerated,Type,User,InsertionStrings,EventCode from Win32_NTLogEvent WHERE ( ( SourceName = 'MSSQLSERVER' ) "
-                     "AND ( Type = 'Error' OR Type = 'Warning' ) AND TimeGenerated >= '20151224113047.000000-480' )"):
+
+        if query == ("Select Message,SourceName,TimeGenerated,Type,User,InsertionStrings,EventCode from Win32_NTLogEvent WHERE ( ( SourceName = 'MSSQLSERVER' ) "  # noqa
+                     "AND ( Type = 'Error' OR Type = 'Warning' ) AND TimeGenerated >= '20151224113047.000000-480' )"):  # noqa
             results += load_fixture("win32_ntlogevent")
 
         return results
@@ -279,12 +287,29 @@ class TestCommonWMI(unittest.TestCase):
             last_wmi_flags = connection.get_last_wmi_flags()
             self.assertEquals(last_wmi_flags, flags)
 
-    def assertWMIObject(self, wmi_obj, property_names):
+    def assertWMIObject(self, wmi_obj, properties):
         """
-        Assert the WMI object integrity.
+        Assert the WMI object integrity, i.e. contains the given properties.
         """
-        for prop in property_names:
+        for prop_and_value in properties:
+            prop = prop_and_value[0] if isinstance(prop_and_value, tuple) else prop_and_value
+            value = prop_and_value[1] if isinstance(prop_and_value, tuple) else None
+
             self.assertIn(prop, wmi_obj)
+
+            if value is None:
+                continue
+
+            self.assertEquals(wmi_obj[prop], value)
+
+    def assertWMISampler(self, wmi_sampler, properties, count=None):
+        """
+        Assert WMI objects' integrity among the WMI sampler.
+        """
+        self.assertEquals(len(wmi_sampler), count)
+
+        for wmi_obj in wmi_sampler:
+            self.assertWMIObject(wmi_obj, properties)
 
     def assertIn(self, first, second):
         """
@@ -293,6 +318,14 @@ class TestCommonWMI(unittest.TestCase):
         Note: needs to be defined for Python 2.6
         """
         self.assertTrue(first in second, "{0} not in {1}".format(first, second))
+
+    def assertNotIn(self, first, second):
+        """
+        Assert `first` is not in `second`.
+
+        Note: needs to be defined for Python 2.6
+        """
+        self.assertTrue(first not in second, "{0} in {1}".format(first, second))
 
     def assertInPartial(self, first, second):
         """
@@ -313,6 +346,7 @@ class TestCommonWMI(unittest.TestCase):
                 return dict[key]
 
         return None
+
 
 class TestUnitWMISampler(TestCommonWMI):
     """
@@ -660,19 +694,14 @@ class TestUnitWMISampler(TestCommonWMI):
         wmi_raw_sampler = WMISampler("Win32_PerfRawData_PerfOS_System", ["CounterRawCount", "CounterCounter"])  # noqa
         wmi_raw_sampler.sample()
 
-        self.assertEquals(len(wmi_raw_sampler), 2)
-
-        # Using an iterator
-        for wmi_obj in wmi_raw_sampler:
-            self.assertWMIObject(wmi_obj, ["CounterRawCount", "CounterCounter", "Timestamp_Sys100NS", "Frequency_Sys100NS", "name"])  # noqa
-            self.assertEquals(wmi_obj['CounterRawCount'], 500)
-            self.assertEquals(wmi_obj['CounterCounter'], 50)
-
-        # Using an accessor
-        for index in xrange(0, 2):
-            self.assertWMIObject(wmi_raw_sampler[index], ["CounterRawCount", "CounterCounter", "Timestamp_Sys100NS", "Frequency_Sys100NS", "name"])  # noqa
-            self.assertEquals(wmi_raw_sampler[index]['CounterRawCount'], 500)
-            self.assertEquals(wmi_raw_sampler[index]['CounterCounter'], 50)
+        self.assertWMISampler(
+            wmi_raw_sampler,
+            [
+                ("CounterRawCount", 500), ("CounterCounter", 50),
+                "Timestamp_Sys100NS", "Frequency_Sys100NS", "name"
+            ],
+            count=2
+        )
 
     def test_raw_properties_fallback(self):
         """
@@ -685,26 +714,24 @@ class TestUnitWMISampler(TestCommonWMI):
         wmi_raw_sampler = WMISampler(logger, "Win32_PerfRawData_PerfOS_System", ["UnknownCounter", "MissingProperty"])  # noqa
         wmi_raw_sampler.sample()
 
-        self.assertEquals(len(wmi_raw_sampler), 2)
-
-        for wmi_obj in wmi_raw_sampler:
-            self.assertWMIObject(wmi_obj, ["UnknownCounter", "Timestamp_Sys100NS", "Frequency_Sys100NS", "name"])  # noqa
-            self.assertEquals(wmi_obj['UnknownCounter'], 999)
+        self.assertWMISampler(
+            wmi_raw_sampler,
+            [
+                ("UnknownCounter", 999), "Timestamp_Sys100NS", "Frequency_Sys100NS", "Name"
+            ],
+            count=1
+        )
 
         self.assertTrue(logger.warning.called)
 
     def test_missing_property(self):
         """
-        Do not raise on missing properties.
+        Do not raise on missing properties but backfill with empty values.
         """
         wmi_raw_sampler = WMISampler("Win32_PerfRawData_PerfOS_System", ["UnknownCounter", "MissingProperty"])  # noqa
         wmi_raw_sampler.sample()
 
-        self.assertEquals(len(wmi_raw_sampler), 2)
-
-        for wmi_obj in wmi_raw_sampler:
-            # Access a non existent property
-            self.assertFalse(wmi_obj['MissingProperty'])
+        self.assertWMISampler(wmi_raw_sampler, ["MissingProperty"], count=1)
 
 
 class TestIntegrationWMI(unittest.TestCase):

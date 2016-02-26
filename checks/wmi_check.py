@@ -160,6 +160,7 @@ class WinWMICheck(AgentCheck):
             )
 
         metrics = []
+        tag_by = tag_by.lower()
 
         for wmi_obj in wmi_sampler:
             tags = list(constant_tags) if constant_tags else []
@@ -180,7 +181,7 @@ class WinWMICheck(AgentCheck):
 
                     tags.append(
                         "{name}:{value}".format(
-                            name=tag_by.lower(), value=tag_value
+                            name=tag_by, value=tag_value
                         )
                     )
                     continue
@@ -232,10 +233,12 @@ class WinWMICheck(AgentCheck):
             host=host, namespace=namespace, wmi_class=wmi_class,
         )
 
-    def _get_wmi_sampler(self, instance_key, wmi_class, properties, **kwargs):
+    def _get_wmi_sampler(self, instance_key, wmi_class, properties, tag_by="", **kwargs):
         """
         Create and cache a WMISampler for the given (class, properties)
         """
+        properties = properties + [tag_by] if tag_by else properties
+
         if instance_key not in self.wmi_samplers:
             wmi_sampler = WMISampler(self.log, wmi_class, properties, **kwargs)
             self.wmi_samplers[instance_key] = wmi_sampler
