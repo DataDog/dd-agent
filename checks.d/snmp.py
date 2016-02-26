@@ -7,6 +7,7 @@ from pysnmp.entity.rfc3413.oneliner import cmdgen
 import pysnmp.proto.rfc1902 as snmp_type
 from pysnmp.smi import builder
 from pysnmp.smi.exval import noSuchInstance, noSuchObject
+from pysnmp.error import PySnmpError
 
 # project
 from checks.network_checks import NetworkCheck, Status
@@ -78,8 +79,9 @@ class SnmpCheck(NetworkCheck):
         metrics = instance.get('metrics', [])
         timeout = int(instance.get('timeout', self.DEFAULT_TIMEOUT))
         retries = int(instance.get('retries', self.DEFAULT_RETRIES))
+        enforce_constraints = _is_affirmative(instance.get('enforce_mib_constraints', True))
 
-        return ip_address, tags, metrics, timeout, retries
+        return ip_address, tags, metrics, timeout, retries, enforce_constraints
 
 
     def snmp_logger(self, func):
@@ -174,7 +176,7 @@ class SnmpCheck(NetworkCheck):
             instance["service_check_error"] = message
             raise Exception(message)
 
-    def check_table(self, instance, oids, lookup_names, timeout, retries):
+    def check_table(self, instance, oids, lookup_names, timeout, retries, enforce_constraints=False):
         '''
         Perform a snmpwalk on the domain specified by the oids, on the device
         configured in instance.
@@ -200,53 +202,60 @@ class SnmpCheck(NetworkCheck):
 
         while first_oid < len(oids):
 
-            # Start with snmpget command
-            error_indication, error_status, error_index, var_binds = self.snmpget(
-                auth_data,
-                transport_target,
-                *(oids[first_oid:first_oid + self.oid_batch_size]),
-                lookupValues=lookup_names,
-                lookupNames=lookup_names)
-
-            first_oid = first_oid + self.oid_batch_size
-
-            # Raise on error_indication
-            self.raise_on_error_indication(error_indication, instance)
-
-            missing_results = []
-            complete_results = []
-
-            for var in var_binds:
-                result_oid, value = var
-                if reply_invalid(value):
-                    oid_tuple = result_oid.asTuple()
-                    oid = ".".join([str(i) for i in oid_tuple])
-                    missing_results.append(oid)
-                else:
-                    complete_results.append(var)
-
-            if missing_results:
-                # If we didn't catch the metric using snmpget, try snmpnext
-                error_indication, error_status, error_index, var_binds_table = self.snmpgetnext(
+            try:
+                # Start with snmpget command
+                error_indication, error_status, error_index, var_binds = self.snmpget(
                     auth_data,
                     transport_target,
-                    *missing_results,
-                    lookupValues=lookup_names,
+                    *(oids[first_oid:first_oid + self.oid_batch_size]),
+                    lookupValues=enforce_constraints,
                     lookupNames=lookup_names)
 
                 # Raise on error_indication
                 self.raise_on_error_indication(error_indication, instance)
 
-                if error_status:
-                    message = "{0} for instance {1}".format(error_status.prettyPrint(),
-                                                            instance["ip_address"])
-                    instance["service_check_error"] = message
-                    self.warning(message)
+                missing_results = []
+                complete_results = []
 
-                for table_row in var_binds_table:
-                    complete_results.extend(table_row)
+                for var in var_binds:
+                    result_oid, value = var
+                    if reply_invalid(value):
+                        oid_tuple = result_oid.asTuple()
+                        oid = ".".join([str(i) for i in oid_tuple])
+                        missing_results.append(oid)
+                    else:
+                        complete_results.append(var)
 
-            all_binds.extend(complete_results)
+                if missing_results:
+                    # If we didn't catch the metric using snmpget, try snmpnext
+                    error_indication, error_status, error_index, var_binds_table = self.snmpgetnext(
+                        auth_data,
+                        transport_target,
+                        *missing_results,
+                        lookupValues=enforce_constraints,
+                        lookupNames=lookup_names)
+
+                    # Raise on error_indication
+                    self.raise_on_error_indication(error_indication, instance)
+
+                    if error_status:
+                        message = "{0} for instance {1}".format(error_status.prettyPrint(),
+                                                                instance["ip_address"])
+                        instance["service_check_error"] = message
+                        self.warning(message)
+
+                    for table_row in var_binds_table:
+                        complete_results.extend(table_row)
+
+                all_binds.extend(complete_results)
+            except PySnmpError as e:
+                if "service_check_error" not in instance:
+                    instance["service_check_error"] = "Fail to collect metrics: {0}".format(e)
+                if "service_check_severity" not in instance:
+                    instance["service_check_severity"] = Status.CRITICAL
+                self.warning("Fail to collect metrics: {0}".format(e))
+
+            first_oid = first_oid + self.oid_batch_size
 
         for result_oid, value in all_binds:
             if lookup_names:
@@ -265,7 +274,7 @@ class SnmpCheck(NetworkCheck):
         and should be looked up and one for those specified by oids
         '''
 
-        ip_address, tags, metrics, timeout, retries = self._load_conf(instance)
+        ip_address, tags, metrics, timeout, retries, enforce_constraints = self._load_conf(instance)
 
         tags += ['snmp_device:{0}'.format(ip_address)]
 
@@ -289,12 +298,14 @@ class SnmpCheck(NetworkCheck):
         try:
             if table_oids:
                 self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
-                table_results = self.check_table(instance, table_oids, True, timeout, retries)
+                table_results = self.check_table(instance, table_oids, True, timeout, retries,
+                                                 enforce_constraints=enforce_constraints)
                 self.report_table_metrics(metrics, table_results, tags)
 
             if raw_oids:
                 self.log.debug("Querying device %s for %s oids", ip_address, len(raw_oids))
-                raw_results = self.check_table(instance, raw_oids, False, timeout, retries)
+                raw_results = self.check_table(instance, raw_oids, False, timeout, retries,
+                                               enforce_constraints=False)
                 self.report_raw_metrics(metrics, raw_results, tags)
         except Exception as e:
             if "service_check_error" not in instance:
@@ -305,7 +316,10 @@ class SnmpCheck(NetworkCheck):
             # Report service checks
             tags = ["snmp_device:%s" % ip_address]
             if "service_check_error" in instance:
-                return [(self.SC_STATUS, Status.DOWN, instance["service_check_error"])]
+                status = Status.DOWN
+                if "service_check_severity" in instance:
+                    status = instance["service_check_severity"]
+                return [(self.SC_STATUS, status, instance["service_check_error"])]
 
             return [(self.SC_STATUS, Status.UP, None)]
 
