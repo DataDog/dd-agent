@@ -115,7 +115,6 @@ log = logging.getLogger(__name__)
 EXCLUDED_WINDOWS_CHECKS = [
     'btrfs',
     'cacti',
-    'directory',
     'docker',
     'gearmand',
     'gunicorn',
@@ -126,7 +125,6 @@ EXCLUDED_WINDOWS_CHECKS = [
     'mesos',
     'network',
     'postfix',
-    'ssh_check',
     'zk',
 ]
 
@@ -829,11 +827,10 @@ def kill_old_process():
     # agent-manager.exe, let's save its pid
     pid = str(os.getpid())
     try:
-        fp = open(pidfile, 'w+')
-        fp.write(str(pid))
-        fp.close()
+        with open(pidfile, 'w+') as fp:
+            fp.write(str(pid))
     except Exception, e:
-        msg = "Unable to write pidfile: %s" % pidfile
+        msg = "Unable to write pidfile: %s %s" % (pidfile, str(e))
         log.exception(msg)
         sys.stderr.write(msg + "\n")
         sys.exit(1)

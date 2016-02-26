@@ -6,7 +6,7 @@ import unittest
 # 3p
 from nose.plugins.attrib import attr
 
-# project
+# datadog
 import checks.system.win32 as w32
 
 logging.basicConfig(level=logging.DEBUG)

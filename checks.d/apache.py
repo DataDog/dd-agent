@@ -7,6 +7,7 @@ import requests
 # project
 from checks import AgentCheck
 from util import headers
+from config import _is_affirmative
 
 
 class Apache(AgentCheck):
@@ -40,6 +41,8 @@ class Apache(AgentCheck):
 
         tags = instance.get('tags', [])
 
+        disable_ssl_validation = _is_affirmative(instance.get('disable_ssl_validation', False))
+
         auth = None
         if 'apache_user' in instance and 'apache_password' in instance:
             auth = (instance['apache_user'], instance['apache_password'])
@@ -51,7 +54,7 @@ class Apache(AgentCheck):
         service_check_name = 'apache.can_connect'
         service_check_tags = ['host:%s' % apache_host, 'port:%s' % apache_port]
         try:
-            r = requests.get(url, auth=auth, headers=headers(self.agentConfig))
+            r = requests.get(url, auth=auth, headers=headers(self.agentConfig), verify=not disable_ssl_validation)
             r.raise_for_status()
 
         except Exception:

@@ -14,6 +14,12 @@ from util import get_hostname
 from utils.platform import Platform
 from utils.subprocess_output import get_subprocess_output
 
+# 3rd party
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 # locale-resilient float converter
 to_float = lambda s: float(s.replace(",", "."))
 
@@ -209,15 +215,6 @@ class IO(Check):
             return False
 
 
-class System(Check):
-    def check(self, agentConfig):
-        if Platform.is_linux():
-            with open("/proc/uptime", "r") as f:
-                uptime_seconds = float(f.readline().split()[0])
-            return {"system.uptime": uptime_seconds}
-        return {}
-
-
 class Load(Check):
 
     def check(self, agentConfig):
@@ -358,6 +355,8 @@ class Memory(Check):
                 memData['physBuffers'] = int(meminfo.get('Buffers', 0)) / 1024
                 memData['physCached'] = int(meminfo.get('Cached', 0)) / 1024
                 memData['physShared'] = int(meminfo.get('Shmem', 0)) / 1024
+                memData['physSlab'] = int(meminfo.get('Slab', 0)) / 1024
+                memData['physPageTables'] = int(meminfo.get('PageTables', 0)) / 1024
                 memData['physUsed'] = memData['physTotal'] - memData['physFree']
 
                 if 'MemAvailable' in meminfo:
@@ -376,6 +375,7 @@ class Memory(Check):
             try:
                 memData['swapTotal'] = int(meminfo.get('SwapTotal', 0)) / 1024
                 memData['swapFree'] = int(meminfo.get('SwapFree', 0)) / 1024
+                memData['swapCached'] = int(meminfo.get('SwapCached', 0)) / 1024
 
                 memData['swapUsed'] = memData['swapTotal'] - memData['swapFree']
 
@@ -387,34 +387,18 @@ class Memory(Check):
             return memData
 
         elif sys.platform == 'darwin':
-            macV = platform.mac_ver()
-            macV_minor_version = int(re.match(r'10\.(\d+)\.?.*', macV[0]).group(1))
-
-            try:
-                output, _, _ = get_subprocess_output(['top', '-l 1'], self.logger)
-                top = output.splitlines()
-                sysctl, _, _ = get_subprocess_output(['sysctl', 'vm.swapusage'], self.logger)
-            except StandardError:
-                self.logger.exception('getMemoryUsage')
+            if psutil is None:
+                self.logger.error("psutil must be installed on MacOS to collect memory metrics")
                 return False
 
-            # Deal with top
-            physParts = re.findall(r'([0-9]\d+)', top[self.topIndex])
-
-            # Deal with sysctl
-            swapParts = re.findall(r'([0-9]+\.\d+)', sysctl)
-
-            # Mavericks changes the layout of physical memory format in `top`
-            physUsedPartIndex = 3
-            physFreePartIndex = 4
-            if macV and (macV_minor_version >= 9):
-                physUsedPartIndex = 0
-                physFreePartIndex = 2
-
-            return {'physUsed': physParts[physUsedPartIndex],
-                    'physFree': physParts[physFreePartIndex],
-                    'swapUsed': swapParts[1],
-                    'swapFree': swapParts[2]}
+            phys_memory = psutil.virtual_memory()
+            swap = psutil.swap_memory()
+            return {'physUsed': phys_memory.used / float(1024**2),
+                'physFree': phys_memory.free / float(1024**2),
+                'physUsable': phys_memory.available / float(1024**2),
+                'physPctUsable': (100 - phys_memory.percent) / 100.0,
+                'swapUsed': swap.used / float(1024**2),
+                'swapFree': swap.free / float(1024**2)}
 
         elif sys.platform.startswith("freebsd"):
             try:

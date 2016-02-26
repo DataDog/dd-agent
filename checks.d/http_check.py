@@ -26,7 +26,9 @@ from requests.packages.urllib3.packages.ssl_match_hostname import \
 from checks.network_checks import EventType, NetworkCheck, Status
 from config import _is_affirmative
 from util import headers as agent_headers
+from utils.proxy import get_proxy
 
+DEFAULT_EXPECTED_CODE = "(1|2|3)\d\d"
 
 class WeakCiphersHTTPSConnection(urllib3.connection.VerifiedHTTPSConnection):
 
@@ -143,6 +145,23 @@ class HTTPCheck(NetworkCheck):
 
     def __init__(self, name, init_config, agentConfig, instances):
         self.ca_certs = init_config.get('ca_certs', get_ca_certs_path())
+        proxy_settings = get_proxy(agentConfig)
+        if not proxy_settings:
+            self.proxies = None
+        else:
+            uri = "{host}:{port}".format(
+                host=proxy_settings['host'],
+                port=proxy_settings['port'])
+            if proxy_settings['user'] and proxy_settings['password']:
+                uri = "{user}:{password}@{uri}".format(
+                    user=proxy_settings['user'],
+                    password=proxy_settings['password'],
+                    uri=uri)
+            self.proxies = {
+                'http': "http://{uri}".format(uri=uri),
+                'https': "https://{uri}".format(uri=uri)
+            }
+
         NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
 
     def _load_conf(self, instance):
@@ -150,7 +169,7 @@ class HTTPCheck(NetworkCheck):
         tags = instance.get('tags', [])
         username = instance.get('username')
         password = instance.get('password')
-        http_response_status_code = str(instance.get('http_response_status_code', "(1|2|3)\d\d"))
+        http_response_status_code = str(instance.get('http_response_status_code', DEFAULT_EXPECTED_CODE))
         timeout = int(instance.get('timeout', 10))
         config_headers = instance.get('headers', {})
         headers = agent_headers(self.agentConfig)
@@ -165,22 +184,23 @@ class HTTPCheck(NetworkCheck):
         ssl_expire = _is_affirmative(instance.get('check_certificate_expiration', True))
         instance_ca_certs = instance.get('ca_certs', self.ca_certs)
         weakcipher = _is_affirmative(instance.get('weakciphers', False))
+        ignore_ssl_warning = _is_affirmative(instance.get('ignore_ssl_warning', False))
 
         return url, username, password, http_response_status_code, timeout, include_content,\
             headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs,\
-            weakcipher
+            weakcipher, ignore_ssl_warning
 
     def _check(self, instance):
         addr, username, password, http_response_status_code, timeout, include_content, headers,\
             response_time, content_match, tags, disable_ssl_validation,\
-            ssl_expire, instance_ca_certs, weakcipher = self._load_conf(instance)
+            ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning = self._load_conf(instance)
         start = time.time()
 
         service_checks = []
         try:
             parsed_uri = urlparse(addr)
             self.log.debug("Connecting to %s" % addr)
-            if disable_ssl_validation and parsed_uri.scheme == "https":
+            if disable_ssl_validation and parsed_uri.scheme == "https" and not ignore_ssl_warning:
                 self.warning("Skipping SSL certificate validation for %s based on configuration"
                              % addr)
 
@@ -195,7 +215,7 @@ class HTTPCheck(NetworkCheck):
                 self.log.debug("Weak Ciphers will be used for {0}. Suppoted Cipherlist: {1}".format(
                     base_addr, WeakCiphersHTTPSConnection.SUPPORTED_CIPHERS))
 
-            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers,
+            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers, proxies = self.proxies,
                              verify=False if disable_ssl_validation else instance_ca_certs)
 
         except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
@@ -235,14 +255,20 @@ class HTTPCheck(NetworkCheck):
 
         # Check HTTP response status code
         if not (service_checks or re.match(http_response_status_code, str(r.status_code))):
-            self.log.info("Incorrect HTTP return code. Expected %s, got %s"
-                          % (http_response_status_code, str(r.status_code)))
+            if http_response_status_code == DEFAULT_EXPECTED_CODE:
+                expected_code = "1xx or 2xx or 3xx"
+            else:
+                expected_code = http_response_status_code
+
+            message = "Incorrect HTTP return code for url %s. Expected %s, got %s" % (
+                addr, expected_code, str(r.status_code))
+
+            self.log.info(message)
 
             service_checks.append((
                 self.SC_STATUS,
                 Status.DOWN,
-                "Incorrect HTTP return code. Expected %s, got %s"
-                % (http_response_status_code, str(r.status_code))
+                message
             ))
 
         if not service_checks:
@@ -250,7 +276,7 @@ class HTTPCheck(NetworkCheck):
             # Check content matching is set
             if content_match:
                 content = r.content
-                if re.search(content_match, content):
+                if re.search(content_match, content, re.UNICODE):
                     self.log.debug("%s is found in return content" % content_match)
                     service_checks.append((
                         self.SC_STATUS, Status.UP, "UP"
@@ -322,12 +348,12 @@ class HTTPCheck(NetworkCheck):
                 if len(content) > 200:
                     content = content[:197] + '...'
 
-                msg = "%d %s\n\n%s" % (code, reason, content)
+                msg = u"%d %s\n\n%s" % (code, reason, content)
                 msg = msg.rstrip()
 
             title = "[Alert] %s reported that %s is down" % (self.hostname, name)
             alert_type = "error"
-            msg = "%s %s %s reported that %s (%s) failed %s time(s) within %s last attempt(s)."\
+            msg = u"%s %s %s reported that %s (%s) failed %s time(s) within %s last attempt(s)."\
                 " Last error: %s" % (notify_message, custom_message, self.hostname,
                                      name, url, nb_failures, nb_tries, msg)
             event_type = EventType.DOWN
@@ -335,7 +361,7 @@ class HTTPCheck(NetworkCheck):
         else:  # Status is UP
             title = "[Recovered] %s reported that %s is up" % (self.hostname, name)
             alert_type = "success"
-            msg = "%s %s %s reported that %s (%s) recovered" \
+            msg = u"%s %s %s reported that %s (%s) recovered" \
                 % (notify_message, custom_message, self.hostname, name, url)
             event_type = EventType.UP
 
@@ -367,7 +393,7 @@ class HTTPCheck(NetworkCheck):
                 if len(content) > 200:
                     content = content[:197] + '...'
 
-                msg = "%d %s\n\n%s" % (code, reason, content)
+                msg = u"%d %s\n\n%s" % (code, reason, content)
                 msg = msg.rstrip()
 
         self.service_check(sc_name,
@@ -378,6 +404,7 @@ class HTTPCheck(NetworkCheck):
 
     def check_cert_expiration(self, instance, timeout, instance_ca_certs):
         warning_days = int(instance.get('days_warning', 14))
+        critical_days = int(instance.get('days_critical', 7))
         url = instance.get('url')
 
         o = urlparse(url)
@@ -401,6 +428,10 @@ class HTTPCheck(NetworkCheck):
 
         if days_left.days < 0:
             return Status.DOWN, "Expired by {0} days".format(days_left.days)
+
+        elif days_left.days < critical_days:
+            return Status.CRITICAL, "This cert TTL is critical: only {0} days before it expires"\
+                .format(days_left.days)
 
         elif days_left.days < warning_days:
             return Status.WARNING, "This cert is almost expired, only {0} days left"\

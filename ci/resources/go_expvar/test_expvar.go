@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 )
 
 // Two metrics, these are exposed by "magic" :)
@@ -38,6 +39,13 @@ func HelloServer(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	// In some situations, the CI tests for the go_expvar check would fail due
+	// to the Golang runtime not haivng run GC yet. The reason this is needed
+	// is that get_gc_collection_histogram() function in go_expvar.py
+	// short-circuits if there have been no GCs. This causes the pause_ns
+	// metric to not be present, thus causing tests to fail. So trigger GC.
+	runtime.GC()
+
 	http.HandleFunc("/", HelloServer)
 	http.ListenAndServe(":8079", nil)
 }

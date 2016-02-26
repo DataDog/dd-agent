@@ -19,6 +19,15 @@ instances:
     username: datadog-readonly@vsphere.local
     password: mypassword
 
+    # Set to false to disable SSL verification, when connecting to vCenter
+    # optional
+    # ssl_verify: true
+
+    # Set to the absolute file path of a directory containing CA certificates
+    # in PEM format
+    # optional
+    # ssl_capath: "/path/to/directory"
+
     # Use a regex like this if you want only the check
     # to fetch metrics for these ESXi hosts and the VMs
     # running on it

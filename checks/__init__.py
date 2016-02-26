@@ -14,6 +14,7 @@ import time
 import timeit
 import traceback
 from types import ListType, TupleType
+import unicodedata
 
 # 3p
 try:
@@ -33,7 +34,7 @@ if Platform.is_windows():
 log = logging.getLogger(__name__)
 
 # Default methods run when collecting info about the agent in developer mode
-DEFAULT_PSUTIL_METHODS = ['get_memory_info', 'get_io_counters']
+DEFAULT_PSUTIL_METHODS = ['memory_info', 'io_counters']
 
 AGENT_METRICS_CHECK_NAME = 'agent_metrics'
 
@@ -91,7 +92,7 @@ class Check(object):
         """Turn a metric into a well-formed metric name
         prefix.b.c
         """
-        name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
+        name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", metric)
         # Eliminate multiple _
         name = re.sub(r"__+", "_", name)
         # Don't start/end with _
@@ -554,7 +555,7 @@ class AgentCheck(object):
         if hostname is None:
             hostname = self.hostname
         if message is not None:
-            message = str(message)
+            message = unicode(message) # ascii converts to unicode but not viceversa
         self.service_checks.append(
             create_service_check(check_name, status, tags, timestamp,
                                  hostname, check_run_id, message)
@@ -570,7 +571,7 @@ class AgentCheck(object):
         :param value: metadata value
         :type value: string
         """
-        self._instance_metadata.append((meta_name, str(value)))
+        self._instance_metadata.append((meta_name, unicode(value)))
 
     def has_events(self):
         """
@@ -827,12 +828,17 @@ class AgentCheck(object):
         :param fix_case A boolean, indicating whether to make sure that
                         the metric name returned is in underscore_case
         """
+        if isinstance(metric, unicode):
+            metric_name = unicodedata.normalize('NFKD', metric).encode('ascii','ignore')
+        else:
+            metric_name = metric
+
         if fix_case:
-            name = self.convert_to_underscore_separated(metric)
+            name = self.convert_to_underscore_separated(metric_name)
             if prefix is not None:
                 prefix = self.convert_to_underscore_separated(prefix)
         else:
-            name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
+            name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", metric_name)
         # Eliminate multiple _
         name = re.sub(r"__+", "_", name)
         # Don't start/end with _

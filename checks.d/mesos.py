@@ -106,6 +106,9 @@ class Mesos(AgentCheck):
                 self.warning(msg)
                 return None
 
+        if r.encoding is None:
+            r.encoding = 'UTF8'
+
         return r.json()
 
     def timeout_event(self, url, timeout, aggregation_key):

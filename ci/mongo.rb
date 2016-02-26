@@ -16,11 +16,11 @@ namespace :ci do
       unless Dir.exist? File.expand_path(mongo_rootdir)
         # Downloads
         # https://fastdl.mongodb.org/linux/mongodb-#{target}-x86_64-#{mongo_version}.tgz
-        if `uname`.strip == 'Darwin'
-          target = 'osx'
-        else
-          target = 'linux'
-        end
+        target = if `uname`.strip == 'Darwin'
+                   'osx'
+                 else
+                   'linux'
+                 end
         sh %(curl -s -L\
              -o $VOLATILE_DIR/mongodb-#{target}-x86_64-#{mongo_version}.tgz\
              https://s3.amazonaws.com/dd-agent-tarball-mirror/mongodb-#{target}-x86_64-#{mongo_version}.tgz)
@@ -100,7 +100,7 @@ namespace :ci do
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
       end
-      fail exception if exception
+      raise exception if exception
     end
   end
 end

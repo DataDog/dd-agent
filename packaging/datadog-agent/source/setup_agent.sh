@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="5.6.1"
+tag="5.6.3"
 
 PIP_VERSION="6.0.6"
 
@@ -226,7 +226,7 @@ print_done
 printf "Setting up setuptools and pip....." | tee -a $logfile
 $dl_cmd $dd_base/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py >> $logfile 2>&1
 $dd_base/venv/bin/python $dd_base/ez_setup.py >> $logfile 2>&1
-$dl_cmd $dd_base/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py >> $logfile 2>&1
+$dl_cmd $dd_base/get-pip.py https://bootstrap.pypa.io/get-pip.py >> $logfile 2>&1
 $dd_base/venv/bin/python $dd_base/get-pip.py >> $logfile 2>&1
 $dd_base/venv/bin/pip install pip==$PIP_VERSION >> $logfile 2>&1
 print_done
