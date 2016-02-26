@@ -749,7 +749,7 @@ def main():
     io = IO(log)
     load = Load(log)
     mem = Memory(log)
-    proc = Processes(log)
+    # proc = Processes(log)
     system = System(log)
 
     config = {"api_key": "666", "device_blacklist_re": re.compile('.*disk0.*')}
