@@ -62,13 +62,13 @@ class HAProxy(AgentCheck):
         "eresp": ("rate", "errors.resp_rate"),
         "wretr": ("rate", "warnings.retr_rate"),
         "wredis": ("rate", "warnings.redis_rate"),
-        "req_rate": ("gauge", "requests.rate"), # HA Proxy 1.4 and higher
+        "req_rate": ("gauge", "requests.rate"),  # HA Proxy 1.4 and higher
         "hrsp_1xx": ("rate", "response.1xx"),  # HA Proxy 1.4 and higher
-        "hrsp_2xx": ("rate", "response.2xx"), # HA Proxy 1.4 and higher
-        "hrsp_3xx": ("rate", "response.3xx"), # HA Proxy 1.4 and higher
-        "hrsp_4xx": ("rate", "response.4xx"), # HA Proxy 1.4 and higher
-        "hrsp_5xx": ("rate", "response.5xx"), # HA Proxy 1.4 and higher
-        "hrsp_other": ("rate", "response.other"), # HA Proxy 1.4 and higher
+        "hrsp_2xx": ("rate", "response.2xx"),  # HA Proxy 1.4 and higher
+        "hrsp_3xx": ("rate", "response.3xx"),  # HA Proxy 1.4 and higher
+        "hrsp_4xx": ("rate", "response.4xx"),  # HA Proxy 1.4 and higher
+        "hrsp_5xx": ("rate", "response.5xx"),  # HA Proxy 1.4 and higher
+        "hrsp_other": ("rate", "response.other"),  # HA Proxy 1.4 and higher
         "qtime": ("gauge", "queue.time"),  # HA Proxy 1.5 and higher
         "ctime": ("gauge", "connect.time"),  # HA Proxy 1.5 and higher
         "rtime": ("gauge", "response.time"),  # HA Proxy 1.5 and higher
@@ -99,6 +99,13 @@ class HAProxy(AgentCheck):
         collate_status_tags_per_host = _is_affirmative(
             instance.get('collate_status_tags_per_host', False)
         )
+
+        if collate_status_tags_per_host and not collect_status_metrics_by_host:
+            self.log.warning(
+                u"Status tags collation (`collate_status_tags_per_host`) has no effect when status "
+                u"metrics collection per host (`collect_status_metrics_by_host`) is disabled."
+            )
+            collate_status_tags_per_host = False
 
         tag_service_check_by_host = _is_affirmative(
             instance.get('tag_service_check_by_host', False)
