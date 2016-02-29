@@ -1,5 +1,5 @@
 # NOTE: for go metro to run unprivileged, you will have to set CAP_NET_RAW capabilities on the binary:
-#        (debian based) $ sudo apt-get update libcap
+#        (debian based) $ sudo apt-get install libcap
 #        (redhat based) $ sudo yum install libcap
 #        (redhat based - alternatively) $ sudo yum install compat-libcap1
 #        $ sudo setcap cap_net_raw+ep /opt/datadog-agent/bin/go-metro
