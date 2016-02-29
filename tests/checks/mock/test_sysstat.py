@@ -9,7 +9,7 @@ from checks.system.unix import (
     Load,
     Memory,
 )
-from checks.system.common import System
+from checks.system.unix import System
 from config import get_system_stats
 from tests.checks.common import get_check
 from utils.platform import Platform
