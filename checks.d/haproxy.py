@@ -7,7 +7,6 @@ import time
 import requests
 
 # project
-from collections import Counter
 from checks import AgentCheck
 from config import _is_affirmative
 from util import headers
@@ -324,7 +323,7 @@ class HAProxy(AgentCheck):
         agg_statuses = defaultdict(lambda: {'available': 0, 'unavailable': 0})
 
         # use a counter unless we have a unique tag set to gauge
-        counter = Counter()
+        counter = defaultdict(int)
         if count_status_by_service and collect_status_metrics_by_host:
             # `service` and `backend` tags will exist
             counter = None
