@@ -1,10 +1,15 @@
 import logging
 import os
-import resource
 import signal
 import threading
 import time
 import traceback
+
+# Not available on Windows
+try:
+    import resource
+except ImportError:
+    resource = None
 
 try:
     import psutil
@@ -55,6 +60,9 @@ class WatchdogWindows(Watchdog, threading.Thread):
             if time.time() > self.expire_at:
                 self.destruct()
             time.sleep(self._duration/20)
+
+    def run(self):
+        self.watch()
 
 
 class WatchdogPosix(Watchdog):
