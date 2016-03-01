@@ -147,6 +147,7 @@ The `wmi_check` now only supports `%` as the wildcard character in the `filters`
 * [IMPROVEMENT] Go expvar: Add configuration option for custom metric namespace. See [#2022][] (Thanks [@theckman][])
 * [IMPROVEMENT] Go expvar: Add counter support. See [#2133][] (Thanks [@gphat][])
 * [IMPROVEMENT] Gohai: Count number of logical processors. See [gohai-22](https://github.com/DataDog/gohai/pull/22)
+* [IMPROVEMENT] HAProxy: Add options to count statuses by service and collate them per host. See [#2304][]
 * [IMPROVEMENT] HTTP: Add a `days_critical` option to the SSL certificate expiration feature. See [#2087][]
 * [IMPROVEMENT] HTTP: Support unicode in content-matching. See [#2092][]
 * [IMPROVEMENT] Kafka: Compute instant rates and capture more metrics in example configuration. See [#2079][] (Thanks [@dougbarth][])
@@ -154,11 +155,12 @@ The `wmi_check` now only supports `%` as the wildcard character in the `filters`
 * [IMPROVEMENT] Mesos: Improve checks' performance by preventing `requests` from using chardet. See [#2192][] (Thanks [@GregBowyer][])
 * [IMPROVEMENT] MongoDB: Tag mongo instances by replset state. See [#2244][] (Thanks [@rhwlo][])
 * [IMPROVEMENT] SNMP: Improve performance by running instances of the check in parallel. See [#2152][]
+* [IMPROVEMENT] SNMP: Make MIB constraint enforcement optional and improve resilience. See [#2268][]
 * [IMPROVEMENT] TeamCity: Allow disabling ssl validation. See [#2091][] (Thanks [@jslatts][])
 * [IMPROVEMENT] Unix: Revamp source install script. See [#2198][] and [#2199][]
 * [IMPROVEMENT] vSphere: Add `network.received` and `network.transmitted` to the basic metrics collected. See [#1824][]
 * [IMPROVEMENT] vSphere: Check metric type to determine how to report (`rate` or `gauge`). See [#2115][]
-* [IMPROVEMENT] Windows: Add uptime metric. See [#2135][] and [#2292][]
+* [IMPROVEMENT] Windows: Add uptime metric. See [#2135][], [#2292][] and [#2299][]
 * [IMPROVEMENT] Windows WMI-based checks (`wmi_check`, System check, IIS, Windows Service, Windows Event Log): gracefully time out WMI queries. See [#2185][], [#2228][] and [#2278][]
 * [IMPROVEMENT] Windows packaging: Tighten permissions on `datadog.conf`. See [#2210][]
 
@@ -169,6 +171,7 @@ The `wmi_check` now only supports `%` as the wildcard character in the `filters`
 * [BUGFIX] Core: Make Dogstatsd recover gracefully from serialization errors. See [#2176][]
 * [BUGFIX] Core: Set agent pid file and path from constants. See [#2128][] (Thanks [@urosgruber][])
 * [BUGFIX] Development: Fix test of platform in `etcd` CI setup script. See [#2205][] (Thanks [@ojongerius][])
+* [BUGFIX] Docker: Avoid event collection failure if an event has no ID param. See [#2308][]
 * [BUGFIX] Docker: Catch exception when getting k8s labels fails. See [#2200][]
 * [BUGFIX] Docker: Don't warn if process finishes before measuring. See [#2114][] (Thanks [@oeuftete][])
 * [BUGFIX] Docker: Remove misleading warning on excluded containers. See [#2179][] (Thanks [@EdRow][])
@@ -178,6 +181,7 @@ The `wmi_check` now only supports `%` as the wildcard character in the `filters`
 * [BUGFIX] Flare: Mention path to tar file in Windows UI. See [#2084][]
 * [BUGFIX] FreeBSD: Use correct log file for syslog. See [#2171][]
 * [BUGFIX] Go expvar: Add timeout for requests to get go expvar metrics. See [#2183][] (Thanks [@gphat][])
+* [BUGFIX] Gohai: Log unexpected OSError exceptions instead of re-raising them. See [#2309][]
 * [BUGFIX] Gunicorn: Mention in YAML conf that the `setproctitle` module is required. See [#2215][]
 * [BUGFIX] HTTP: Add an option to disable warnings when ssl validation is disabled. See [#2193][]
 * [BUGFIX] HTTP: Improve log message when http code is incorrect. See [#2203][]
@@ -194,6 +198,8 @@ The `wmi_check` now only supports `%` as the wildcard character in the `filters`
 * [BUGFIX] Tomcat: Fix bad attribute in YAML conf file. See [#2153][]
 * [BUGFIX] Unix: Fix URL of get-pip script in source install script. See [#2220][] (Thanks [@mooney6023][])
 * [BUGFIX] Windows: Fix cases of collector getting wrongfully restarted by watchdog after one correct watchdog restart. See [#2175][]
+* [BUGFIX] WMI check: Remove unnecessary warnings on `Name` property. See [#2291][]
+* [BUGFIX] WMI check: Always add the `tag_by` parameter to the collected properties. See [#2296][]
 * [BUGFIX] Zookeeper: Add `zookeeper.packets_received/packets_sent` rate metrics. See [#1848][] and [#2283][]
 
 
@@ -2695,6 +2701,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2250]: https://github.com/DataDog/dd-agent/issues/2250
 [#2260]: https://github.com/DataDog/dd-agent/issues/2260
 [#2264]: https://github.com/DataDog/dd-agent/issues/2264
+[#2268]: https://github.com/DataDog/dd-agent/issues/2268
 [#2271]: https://github.com/DataDog/dd-agent/issues/2271
 [#2274]: https://github.com/DataDog/dd-agent/issues/2274
 [#2278]: https://github.com/DataDog/dd-agent/issues/2278
@@ -2704,7 +2711,13 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2287]: https://github.com/DataDog/dd-agent/issues/2287
 [#2288]: https://github.com/DataDog/dd-agent/issues/2288
 [#2289]: https://github.com/DataDog/dd-agent/issues/2289
+[#2291]: https://github.com/DataDog/dd-agent/issues/2291
 [#2292]: https://github.com/DataDog/dd-agent/issues/2292
+[#2296]: https://github.com/DataDog/dd-agent/issues/2296
+[#2299]: https://github.com/DataDog/dd-agent/issues/2299
+[#2304]: https://github.com/DataDog/dd-agent/issues/2304
+[#2308]: https://github.com/DataDog/dd-agent/issues/2308
+[#2309]: https://github.com/DataDog/dd-agent/issues/2309
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@EdRow]: https://github.com/EdRow
