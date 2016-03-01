@@ -5,6 +5,11 @@
 # Licensed under the terms of the CECILL License
 # Modified for Datadog
 
+# set up logging before importing any other components
+from config import initialize_logging  # noqa
+initialize_logging('gui')
+
+
 # stdlib
 import logging
 import os
@@ -110,7 +115,7 @@ if Platform.is_windows():
     }
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger('gui')
 
 EXCLUDED_WINDOWS_CHECKS = [
     'btrfs',
