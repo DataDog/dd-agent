@@ -587,12 +587,12 @@ class DockerDaemon(AgentCheck):
         events = defaultdict(deque)
         for event in api_events:
             # Skip events related to filtered containers
-            container = containers_by_id.get(event['id'])
+            container = containers_by_id.get(event.get('id'))
             if container is not None and self._is_container_excluded(container):
                 self.log.debug("Excluded event: container {0} status changed to {1}".format(
                     event['id'], event['status']))
                 continue
-            # Known bug: from may be missing
+            # from may be missing (for network events for example)
             if 'from' in event:
                 events[event['from']].appendleft(event)
         return events
