@@ -234,8 +234,15 @@ class DDProcess(object):
 
     def start(self):
         if self.is_enabled:
+            env = os.environ.copy()
+            if env['PATH'][-1] != ';':
+                env['PATH'] += ';'
+
+            file_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+            env['PATH'] += "{};{};".format(os.path.join(file_path, 'bin'), os.path.join(file_path, 'embedded'))
+
             log.info("Starting {0}".format(self.name))
-            self.proc = psutil.Popen(self.command, stdout=AgentSupervisor.devnull, stderr=AgentSupervisor.devnull)
+            self.proc = psutil.Popen(self.command, stdout=AgentSupervisor.devnull, stderr=AgentSupervisor.devnull, env=env)
         else:
             log.info("{0} is not enabled, not starting it.".format(self.name))
 

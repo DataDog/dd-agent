@@ -782,11 +782,7 @@ class Collector(object):
     def _run_gohai(self, options):
         output = None
         try:
-            if not Platform.is_windows():
-                command = "gohai"
-            else:
-                command = "gohai\gohai.exe"
-            output, err, _ = get_subprocess_output([command] + options, log)
+            output, err, _ = get_subprocess_output(["gohai"] + options, log)
             if err:
                 log.warning("GOHAI LOG | {0}".format(err))
         except OSError as e:
