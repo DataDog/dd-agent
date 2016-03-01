@@ -41,6 +41,7 @@ from util import (
 from utils.flare import configcheck, Flare
 from utils.jmx import jmx_command
 from utils.pidfile import PidFile
+from utils.platform import Platform
 from utils.profile import AgentProfiler
 from utils.watchdog import new_watchdog
 
@@ -122,15 +123,15 @@ class Agent(Daemon):
         # Gracefully exit on sigterm.
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
-        if os.name != 'nt':
+        if not Platform.is_windows():
             # A SIGUSR1 signals an exit with an autorestart
             signal.signal(signal.SIGUSR1, self._handle_sigusr1)
 
             # Handle Keyboard Interrupt
             signal.signal(signal.SIGINT, self._handle_sigterm)
 
-        # A SIGHUP signals a configuration reload
-        signal.signal(signal.SIGHUP, self._handle_sighup)
+            # A SIGHUP signals a configuration reload
+            signal.signal(signal.SIGHUP, self._handle_sighup)
 
         # Save the agent start-up stats.
         CollectorStatus().persist()
