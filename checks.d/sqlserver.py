@@ -84,11 +84,11 @@ class SQLServer(AgentCheck):
         for instance in instances:
             try:
                 self._make_metric_list_to_collect(instance, custom_metrics)
+                self.close_db_connections(instance)
             except SQLConnectionError:
                 self.log.exception("Skipping SQL Server instance")
                 continue
 
-        self.close_db_connections()
 
     def _make_metric_list_to_collect(self, instance, custom_metrics):
         """
@@ -280,7 +280,7 @@ class SQLServer(AgentCheck):
         """
         Fetch the metrics from the sys.dm_os_performance_counters table
         """
-        self.open_db_connections()
+        self.open_db_connections(instance)
         cursor = self.get_cursor(instance)
 
         custom_tags = instance.get('tags', [])
@@ -294,7 +294,7 @@ class SQLServer(AgentCheck):
                 self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
         self.close_cursor(cursor)
-        self.close_db_connections()
+        self.close_db_connections(instance)
 
     def close_cursor(self, cursor):
         """
@@ -307,34 +307,47 @@ class SQLServer(AgentCheck):
         except Exception as e:
             self.log.warning("Could not close adodbapi cursor\n{0}".format(e))
 
-    def close_db_connections(self):
+    def close_db_connections(self, instance):
         """
         We close the db connections explicitly b/c when we don't they keep
         locks on the db. This presents as issues such as the SQL Server Agent
         being unable to stop.
         """
-        for _, connection in self.connections.iteritems():
-            try:
-                connection['conn'].close()
-            except Exception as e:
-                self.log.warning("Could not close adodbapi db connection\n{0}".format(e))
+        conn_key = self._conn_key(instance)
+        if conn_key not in self.connections:
+            return
 
-    def open_db_connections(self):
+        try:
+            self.connections[conn_key]['conn'].close()
+        except Exception as e:
+            self.log.warning("Could not close adodbapi db connection\n{0}".format(e))
+
+    def open_db_connections(self, instance):
         """
         We open the db connections explicitly, so we can ensure they are open
         before we use them, and are closable, once we are finished. Open db
         connections keep locks on the db, presenting issues such as the SQL
         Server Agent being unable to stop.
         """
-        for conn_key, connection in self.connections.iteritems():
-            conn = connection['conn']
-            timeout = connection['timeout']
-            conn_dict = {'connection_string': self._conn_string(conn_key=conn_key),
-                         'timeout': timeout}
-            try:
-                conn.connect(conn_dict)
-            except Exception as e:
-                self.log.warning("Could not connect to SQL Server\n{0}".format(e))
+
+        conn_key = self._conn_key(instance)
+        timeout = int(instance.get('command_timeout',
+                                   self.DEFAULT_COMMAND_TIMEOUT))
+        try:
+            rawconn = adodbapi.connect(self._conn_string(instance=instance),
+                                    timeout=timeout)
+            if conn_key not in self.connections:
+                self.connections[conn_key] = {'conn': rawconn, 'timeout': timeout}
+            else:
+                try:
+                    # explicitly trying to avoid leaks...
+                    self.connections[conn_key]['conn'].close()
+                except Exception as e:
+                    self.log.info("Could not close adodbapi db connection\n{0}".format(e))
+
+                self.connections[conn_key]['conn'] = rawconn
+        except Exception as e:
+            self.log.warning("Could not connect to SQL Server\n{0}".format(e))
 
 
 class SqlServerMetric(object):
