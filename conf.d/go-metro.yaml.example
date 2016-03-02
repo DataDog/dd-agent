@@ -13,9 +13,9 @@
 #        Also, please note that go-metro logs to its own file - found in /var/log/datadog/go-metro.log.
 #        Additionally, go-mtro runs standalone so it will *NOT* currently appear on the agent's info page.
 #
-#        Finally, because the go-metro binary is only bundled with the RPM and DEB distributions of the
+#        Finally, because the go-metro binary is only bundled with the 64-bit RPM and DEB distributions of the
 #        datadog-agent, it will only be available in those packaged versions (ie. go-metro is currently
-#        not available with the source install).
+#        unavailable with the source install or the 32-bit packages).
 
 init_config:
     snaplen: 512            # should be >=104 (to accomodate for the largest possible TCP header)

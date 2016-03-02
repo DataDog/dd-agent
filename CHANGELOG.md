@@ -58,7 +58,7 @@ The existing `hdfs` check is deprecated and will be removed in a future version 
 ### TCP RTT measurement with `go-metro`
 **This new feature is in beta**
 
-The Datadog Agent on Linux is now bundled with a new component (`go-metro`) that passively calculates TCP RTT metrics between the agent's host and external hosts, and reports them as `system.net.tcp.rtt.avg`, `system.net.tcp.rtt.jitter` and `system.net.tcp.rtt.last` through StatsD.
+The Datadog Agent on 64-bit Linux is now bundled with a new component (`go-metro`) that passively calculates TCP RTT metrics between the agent's host and external hosts, and reports them as `system.net.tcp.rtt.avg`, `system.net.tcp.rtt.jitter` and `system.net.tcp.rtt` through StatsD.
 
 `go-metro` follows TCP streams active within a certain period of time and estimates the RTT between any outgoing packet with data, and its corresponding TCP acknowledgement.
 
