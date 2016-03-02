@@ -194,7 +194,7 @@ class HDFSNameNode(AgentCheck):
             self.service_check(JMX_SERVICE_CHECK,
                 AgentCheck.CRITICAL,
                 tags=service_check_tags,
-                message=e)
+                message=str(e))
             raise
 
         return response_json

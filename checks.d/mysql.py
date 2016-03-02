@@ -541,9 +541,9 @@ class MySql(AgentCheck):
                     slave_io_running = self._collect_string('Slave_IO_Running', results)
                     slave_sql_running = self._collect_string('Slave_SQL_Running', results)
                     if slave_io_running:
-                        slave_io_running = (slave_io_running.lower.strip() == "yes")
+                        slave_io_running = (slave_io_running.lower().strip() == "yes")
                     if slave_sql_running:
-                        slave_sql_running = (slave_sql_running.lower.strip() == "yes")
+                        slave_sql_running = (slave_sql_running.lower().strip() == "yes")
 
                     if not (slave_io_running is None and slave_sql_running is None):
                         if slave_io_running and slave_sql_running:
