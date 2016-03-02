@@ -84,7 +84,7 @@ class ZooKeeperTestCase(AgentCheckTest):
         config = {
             'instances': [self.CONFIG]
         }
-        self.run_check_twice(config)
+        self.run_check_twice(config, force_reload=True)
 
         # Test metrics
         for mname in self.STAT_METRICS:
