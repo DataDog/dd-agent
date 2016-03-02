@@ -95,8 +95,9 @@ def get_parsed_args():
         # Ignore parse errors
         options, args = Values({'autorestart': False,
                                 'dd_url': None,
-                                'disable_dd':False,
+                                'disable_dd': False,
                                 'use_forwarder': False,
+                                'verbose': False,
                                 'profile': False}), []
     return options, args
 
