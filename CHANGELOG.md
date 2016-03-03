@@ -26,6 +26,7 @@ https://github.com/DataDog/dd-agent/compare/5.6.3...5.7.0
 * Elasticsearch
 * Go expvar
 * Gunicorn
+* HAProxy
 * HTTP
 * IIS
 * Kafka
@@ -38,7 +39,6 @@ https://github.com/DataDog/dd-agent/compare/5.6.3...5.7.0
 * Redis
 * SNMP
 * SSH
-* StatsD
 * TeamCity
 * Tomcat
 * vSphere
@@ -147,7 +147,7 @@ The `wmi_check` now only supports `%` as the wildcard character in the `filters`
 * [IMPROVEMENT] Go expvar: Add configuration option for custom metric namespace. See [#2022][] (Thanks [@theckman][])
 * [IMPROVEMENT] Go expvar: Add counter support. See [#2133][] (Thanks [@gphat][])
 * [IMPROVEMENT] Gohai: Count number of logical processors. See [gohai-22](https://github.com/DataDog/gohai/pull/22)
-* [IMPROVEMENT] HAProxy: Add options to count statuses by service and collate them per host. See [#2304][]
+* [IMPROVEMENT] HAProxy: Add option to count statuses by service. See [#2304][] and [#2314][]
 * [IMPROVEMENT] HTTP: Add a `days_critical` option to the SSL certificate expiration feature. See [#2087][]
 * [IMPROVEMENT] HTTP: Support unicode in content-matching. See [#2092][]
 * [IMPROVEMENT] Kafka: Compute instant rates and capture more metrics in example configuration. See [#2079][] (Thanks [@dougbarth][])
@@ -162,6 +162,7 @@ The `wmi_check` now only supports `%` as the wildcard character in the `filters`
 * [IMPROVEMENT] vSphere: Check metric type to determine how to report (`rate` or `gauge`). See [#2115][]
 * [IMPROVEMENT] Windows: Add uptime metric. See [#2135][], [#2292][] and [#2299][]
 * [IMPROVEMENT] Windows WMI-based checks (`wmi_check`, System check, IIS, Windows Service, Windows Event Log): gracefully time out WMI queries. See [#2185][], [#2228][] and [#2278][]
+* [IMPROVEMENT] Windows IIS, Service and Event Log checks: use the new WMI wrapper with increased performance. See [#2136][]
 * [IMPROVEMENT] Windows packaging: Tighten permissions on `datadog.conf`. See [#2210][]
 
 * [BUGFIX] AWS: Use proxy settings for EC2 tag collection. See [#2201][]
@@ -200,7 +201,6 @@ The `wmi_check` now only supports `%` as the wildcard character in the `filters`
 * [BUGFIX] Windows: Fix cases of collector getting wrongfully restarted by watchdog after one correct watchdog restart. See [#2175][]
 * [BUGFIX] WMI check: Remove unnecessary warnings on `Name` property. See [#2291][]
 * [BUGFIX] WMI check: Always add the `tag_by` parameter to the collected properties. See [#2296][]
-* [BUGFIX] Zookeeper: Add `zookeeper.packets_received/packets_sent` rate metrics. See [#1848][] and [#2283][]
 
 
 # 5.6.3 / 12-10-2015
@@ -2636,6 +2636,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2133]: https://github.com/DataDog/dd-agent/issues/2133
 [#2134]: https://github.com/DataDog/dd-agent/issues/2134
 [#2135]: https://github.com/DataDog/dd-agent/issues/2135
+[#2136]: https://github.com/DataDog/dd-agent/issues/2136
 [#2139]: https://github.com/DataDog/dd-agent/issues/2139
 [#2140]: https://github.com/DataDog/dd-agent/issues/2140
 [#2142]: https://github.com/DataDog/dd-agent/issues/2142
@@ -2718,6 +2719,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2304]: https://github.com/DataDog/dd-agent/issues/2304
 [#2308]: https://github.com/DataDog/dd-agent/issues/2308
 [#2309]: https://github.com/DataDog/dd-agent/issues/2309
+[#2314]: https://github.com/DataDog/dd-agent/issues/2314
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@EdRow]: https://github.com/EdRow
