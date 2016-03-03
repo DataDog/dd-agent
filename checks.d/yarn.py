@@ -271,7 +271,7 @@ class YarnCheck(AgentCheck):
             self.service_check(SERVICE_CHECK_NAME,
                 AgentCheck.CRITICAL,
                 tags=service_check_tags,
-                message=e.reason)
+                message=str(e))
             raise
 
         else:

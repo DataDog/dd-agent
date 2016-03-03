@@ -2,6 +2,7 @@
 from checks import Check
 
 # 3rd party
+import uptime
 try:
     import psutil
 except ImportError:
@@ -349,4 +350,15 @@ class IO(Check):
             if current_disk_queue_length is not None:
                 self.save_sample('system.io.avg_q_sz', current_disk_queue_length,
                                  device_name=name)
+        return self.get_metrics()
+
+
+class System(Check):
+    def __init__(self, logger):
+        Check.__init__(self, logger)
+        self.gauge('system.uptime')
+
+    def check(self, agentConfig):
+        self.save_sample('system.uptime', uptime.uptime())
+
         return self.get_metrics()

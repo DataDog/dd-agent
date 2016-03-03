@@ -489,7 +489,7 @@ class MapReduceCheck(AgentCheck):
             self.service_check(service_name,
                 AgentCheck.CRITICAL,
                 tags=service_check_tags,
-                message=e)
+                message=str(e))
             raise
 
         return response_json

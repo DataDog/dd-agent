@@ -8,17 +8,19 @@ import re
 import sys
 import time
 
+# 3rd party
+import uptime
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 # project
 from checks import Check
 from util import get_hostname
 from utils.platform import Platform
 from utils.subprocess_output import get_subprocess_output
 
-# 3rd party
-try:
-    import psutil
-except ImportError:
-    psutil = None
 
 # locale-resilient float converter
 to_float = lambda s: float(s.replace(",", "."))
@@ -732,7 +734,12 @@ class Cpu(Check):
             return False
 
 
-if __name__ == '__main__':
+class System(Check):
+    def check(self, agentConfig):
+        return {"system.uptime": uptime.uptime()}
+
+
+def main():
     # 1s loop with results
     import logging
 
@@ -742,7 +749,8 @@ if __name__ == '__main__':
     io = IO(log)
     load = Load(log)
     mem = Memory(log)
-    proc = Processes(log)
+    # proc = Processes(log)
+    system = System(log)
 
     config = {"api_key": "666", "device_blacklist_re": re.compile('.*disk0.*')}
     while True:
@@ -755,7 +763,13 @@ if __name__ == '__main__':
         print(load.check(config))
         print("--- Memory ---")
         print(mem.check(config))
+        print("--- System ---")
+        print(system.check(config))
         print("\n\n\n")
         # print("--- Processes ---")
         # print(proc.check(config))
         time.sleep(1)
+
+
+if __name__ == '__main__':
+    main()
