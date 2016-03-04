@@ -402,7 +402,7 @@ class Application(tornado.web.Application):
             log.info("Skipping SSL hostname validation, useful when using a transparent proxy")
 
         if watchdog:
-            watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER
+            watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER / 1000
             self._watchdog = Watchdog(watchdog_timeout,
                                       max_mem_mb=agentConfig.get('limit_memory_consumption', None))
 
