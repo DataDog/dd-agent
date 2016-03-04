@@ -1,6 +1,7 @@
 # stdlib
-import os
+from contextlib import contextmanager
 from random import random, randrange
+import os
 import subprocess
 import sys
 import time
@@ -8,24 +9,72 @@ import unittest
 import urllib as url
 
 # 3p
+from mock import patch
 from nose.plugins.attrib import attr
 
 # project
 # needed because of the subprocess calls
-sys.path.append(os.getcwd())
 from ddagent import Application
 from util import Watchdog
+sys.path.append(os.getcwd())
+
+
+class WatchdogKill(Exception):
+    """
+    The watchdog attempted to kill the process.
+    """
+    pass
 
 
 @attr(requires='core_integration')
 class TestWatchdog(unittest.TestCase):
-    """Test watchdog in various conditions
     """
-
+    Test watchdog in various conditions
+    """
     JITTER_FACTOR = 2
 
+    @contextmanager
+    def set_time(self, time):
+        """
+        Helper, a context manager to set the current time value.
+        """
+        # Set the current time within `util` module
+        mock_time = patch("util.time.time")
+        mock_time.start().return_value = time
+
+        # Yield
+        yield
+
+        # Unset the time mock
+        mock_time.stop()
+
+    @patch.object(Watchdog, 'self_destruct', side_effect=WatchdogKill)
+    def test_watchdog_frenesy_detection(self, mock_restarted):
+        """
+        Watchdog restarts the process on suspicious high activity.
+        """
+        # Limit the restart timeframe for test purpose
+        Watchdog._RESTART_TIMEFRAME = 1
+
+        # Create a watchdog with a low activity tolerancy
+        process_watchdog = Watchdog(10, max_resets=3)
+        ping_watchdog = process_watchdog.reset
+
+        with self.set_time(1):
+            # Can be reset 3 times within the watchdog timeframe
+            for x in xrange(0, 3):
+                ping_watchdog()
+
+            # On the 4th attempt, the watchdog detects a suspicously high activity
+            self.assertRaises(WatchdogKill, ping_watchdog)
+
+        with self.set_time(3):
+            # Gets back to normal when the activity timeframe expires.
+            ping_watchdog()
+
     def test_watchdog(self):
-        """Verify that watchdog kills ourselves even when spinning
+        """
+        Verify that watchdog kills ourselves even when spinning
         Verify that watchdog kills ourselves when hanging
         """
         start = time.time()
