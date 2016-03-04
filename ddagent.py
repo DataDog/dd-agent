@@ -65,8 +65,14 @@ log.setLevel(get_logging_config()['log_level'] or logging.INFO)
 
 DD_ENDPOINT = "dd_url"
 
+# Transactions
 TRANSACTION_FLUSH_INTERVAL = 5000  # Every 5 seconds
+
+# Watchdog settings
 WATCHDOG_INTERVAL_MULTIPLIER = 10  # 10x flush interval
+WATCHDOG_HIGH_ACTIVITY_THRESHOLD = 1000  # Threshold to detect pathological activity
+
+# Misc
 HEADERS_TO_REMOVE = [
     'Host',
     'Content-Length',
@@ -79,7 +85,7 @@ MAX_WAIT_FOR_REPLAY = timedelta(seconds=90)
 # Maximum queue size in bytes (when this is reached, old messages are dropped)
 MAX_QUEUE_SIZE = 30 * 1024 * 1024  # 30MB
 
-THROTTLING_DELAY = timedelta(microseconds=1000000/2)  # 2 msg/second
+THROTTLING_DELAY = timedelta(microseconds=1000000 / 2)  # 2 msg/second
 
 
 class EmitterThread(threading.Thread):
@@ -404,10 +410,14 @@ class Application(tornado.web.Application):
         if self.skip_ssl_validation:
             log.info("Skipping SSL hostname validation, useful when using a transparent proxy")
 
+        # Monitor activity
         if watchdog:
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER / 1000
-            self._watchdog = Watchdog(watchdog_timeout,
-                                      max_mem_mb=agentConfig.get('limit_memory_consumption', None))
+            self._watchdog = Watchdog(
+                watchdog_timeout,
+                max_mem_mb=agentConfig.get('limit_memory_consumption', None),
+                max_resets=WATCHDOG_HIGH_ACTIVITY_THRESHOLD
+            )
 
     def log_request(self, handler):
         """ Override the tornado logging method.

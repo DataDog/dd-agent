@@ -479,7 +479,7 @@ class EC2(object):
 
 class Watchdog(object):
     """
-    Simple signal-based watchdog. Restart the process when:
+    Simple signal-based watchdog. Restarts the process when:
     * no reset was made for more than a specified duration
     * (optional) a specified memory threshold is exceeded
     * (optional) a suspicious high activity is detected, i.e. too many resets for a given timeframe.
@@ -523,7 +523,7 @@ class Watchdog(object):
         finally:
             os.kill(os.getpid(), signal.SIGKILL)
 
-    def is_frenetic(self):
+    def _is_frenetic(self):
         """
         Detect suspicious high activity, i.e. the number of resets exceeds the maximum limit set
         on the watchdog timeframe.
@@ -551,7 +551,7 @@ class Watchdog(object):
         # Check activity
         if self._max_resets:
             self._restarts.append(time.time())
-            if self.is_frenetic():
+            if self._is_frenetic():
                 Watchdog.self_destruct(signal.SIGKILL, sys._getframe(0))
 
         # Re arm alarm signal
