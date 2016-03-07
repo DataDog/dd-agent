@@ -94,11 +94,14 @@ def find_cgroup_filename_pattern(mountpoints, container_id):
         stat_file_path_kubernetes = os.path.join(mountpoint, container_id)
         stat_file_path_kubernetes_docker = os.path.join(mountpoint, "system", "docker", container_id)
         stat_file_path_docker_daemon = os.path.join(mountpoint, "docker-daemon", "docker", container_id)
+        stat_file_path_native_cgroupfs = os.path.join(mountpoint, "system.slice", "docker.service", "docker")
 
         if os.path.exists(stat_file_path_lxc):
             return os.path.join('%(mountpoint)s/lxc/%(id)s/%(file)s')
         elif os.path.exists(stat_file_path_docker):
             return os.path.join('%(mountpoint)s/docker/%(id)s/%(file)s')
+        elif os.path.exists(stat_file_path_native_cgroupfs):
+            return os.path.join('%(mountpoint)s/system.slice/docker.service/docker/%(id)s/%(file)s')
         elif os.path.exists(stat_file_path_coreos):
             return os.path.join('%(mountpoint)s/system.slice/docker-%(id)s.scope/%(file)s')
         elif os.path.exists(stat_file_path_kubernetes):
