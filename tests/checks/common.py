@@ -128,9 +128,12 @@ class Fixtures(object):
         return os.path.join(Fixtures.directory(), file_name)
 
     @staticmethod
-    def read_file(file_name):
+    def read_file(file_name, string_escape=True):
         with open(Fixtures.file(file_name)) as f:
-            return f.read().decode('string-escape').decode("utf-8")
+            contents = f.read()
+            if string_escape:
+                contents = contents.decode('string-escape')
+            return contents.decode("utf-8")
 
 
 class AgentCheckTest(unittest.TestCase):
