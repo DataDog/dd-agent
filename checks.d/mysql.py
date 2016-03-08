@@ -250,7 +250,7 @@ GALERA_VARS = {
 }
 
 PERFORMANCE_VARS = {
-    'query_run_time_avg' : ('mysql.performance.query_run_time.avg', GAUGE),
+    'query_run_time_avg': ('mysql.performance.query_run_time.avg', GAUGE),
     'perf_digest_95th_percentile_avg_us': ('mysql.performance.digest_95th_percentile.avg_us', GAUGE),
 }
 
@@ -267,6 +267,7 @@ SYNTHETIC_VARS = {
     'Qcache_utilization': ('mysql.performance.qcache.utilization', GAUGE),
     'Qcache_instant_utilization': ('mysql.performance.qcache.utilization.instant', GAUGE),
 }
+
 
 class MySql(AgentCheck):
     SERVICE_CHECK_NAME = 'mysql.can_connect'
@@ -314,7 +315,7 @@ class MySql(AgentCheck):
         self.defaults_file = instance.get('defaults_file', '')
         user = instance.get('user', '')
         password = instance.get('pass', '')
-        tags = instance.get('tags', None)
+        tags = instance.get('tags', [])
         options = instance.get('options', {})
         queries = instance.get('queries', [])
         ssl = instance.get('ssl', {})
@@ -480,7 +481,6 @@ class MySql(AgentCheck):
         except TypeError as e:
             self.log.error("Not all Key metrics are available, unable to compute: {0}".format(e))
 
-
         metrics.update(VARIABLES_VARS)
         metrics.update(INNODB_VARS)
         metrics.update(BINLOG_VARS)
@@ -567,7 +567,7 @@ class MySql(AgentCheck):
             if k not in results:
                 metrics.pop(k, None)
 
-        #add duped metrics - reporting some as both rate and gauge
+        # add duped metrics - reporting some as both rate and gauge
         dupes = [('Table_locks_waited', 'Table_locks_waited_rate'),
                  ('Table_locks_immediate', 'Table_locks_immediate_rate')]
         for src, dst in dupes:
@@ -707,7 +707,7 @@ class MySql(AgentCheck):
                                     "Received value is None for index %d" % col_idx)
                         except ValueError:
                             self.log.exception("Cannot find %s in the columns %s"
-                                            % (field, cursor.description))
+                                               % (field, cursor.description))
         except Exception:
             self.warning("Error while running %s\n%s" %
                          (query, traceback.format_exc()))
@@ -730,7 +730,6 @@ class MySql(AgentCheck):
 
                     ucpu = proc.cpu_times()[0]
                     scpu = proc.cpu_times()[1]
-
 
                 if ucpu and scpu:
                     self.rate("mysql.performance.user_time", ucpu, tags=tags)
@@ -970,7 +969,7 @@ class MySql(AgentCheck):
                     results['Innodb_pending_normal_aio_reads'] = (long(row[4]) + long(row[5]) +
                                                                   long(row[6]) + long(row[7]))
                     results['Innodb_pending_normal_aio_writes'] = (long(row[11]) + long(row[12]) +
-                                                                  long(row[13]) + long(row[14]))
+                                                                   long(row[13]) + long(row[14]))
                 elif len(row) == 18:
                     results['Innodb_pending_normal_aio_reads'] = long(row[4])
                     results['Innodb_pending_normal_aio_writes'] = long(row[12])
