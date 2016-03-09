@@ -1,7 +1,18 @@
 Changes
 =======
 
+# 5.7.1 / Unreleased
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.7.0...5.7.1
+
+### Changes
+* [BUGFIX] Core: Avoid python segfault when the ctypes module is imported on SELinux-enabled environments. See [omnibus-software-43](https://github.com/DataDog/omnibus-software/pull/43)
+* [BUGFIX] MySQL: Fix check failure when no tag is provided. See [#2329][]
+* [BUGFIX] Packaging: Fix RPM package for Amazon Linux EMR. See [omnibus-ruby-18](https://github.com/DataDog/omnibus-ruby/pull/18)
+
 # 5.7.0 / 03-07-2016
+**Linux, Mac OS and Source Install only**
 
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.6.3...5.7.0
@@ -2720,6 +2731,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2308]: https://github.com/DataDog/dd-agent/issues/2308
 [#2309]: https://github.com/DataDog/dd-agent/issues/2309
 [#2314]: https://github.com/DataDog/dd-agent/issues/2314
+[#2329]: https://github.com/DataDog/dd-agent/issues/2329
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@EdRow]: https://github.com/EdRow
