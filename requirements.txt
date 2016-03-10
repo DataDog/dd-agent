@@ -1,3 +1,11 @@
+######################## WARNING ##########################
+# This file currently determines the python deps installed
+# for the dev env, the source install and the Win build.
+# It is NOT used for the DEB/RPM packages and the OS X
+# build. For these please update:
+# https://github.com/DataDog/omnibus-software
+###########################################################
+
 ###########################################################
 # These modules are the deps needed by the
 # agent core, meaning every module that is
