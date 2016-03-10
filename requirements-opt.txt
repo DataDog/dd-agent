@@ -1,8 +1,16 @@
+######################## WARNING ##########################
+# This file currently determines the python deps installed
+# for the dev env, the source install and the Win build.
+# It is NOT used for the DEB/RPM packages and the OS X
+# build. For these please update:
+# https://github.com/DataDog/omnibus-software
+###########################################################
+
 # core/optional
 # tornado can work without pycurl and use the simple http client
 # but some features won't work, like the abylity to use a proxy
 # Require a compiler and the curl headers+lib
-# On windows - manual install of pycurl might be easier. 
+# On windows - manual install of pycurl might be easier.
 pycurl==7.19.5.1
 
 # core-ish/system -> system check on windows
