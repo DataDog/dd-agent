@@ -1,4 +1,7 @@
 #!/bin/sh
+# Datadog Agent installation from source script (should support most Unix OSes):
+# download the source of the Agent, install its dependencies and set it up.
+
 # Bail on errors
 set -e
 # We shouldn't have unbounded vars

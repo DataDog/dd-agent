@@ -1,5 +1,7 @@
 #!/bin/bash
-# Datadog Agent install script.
+# Datadog Agent installation script: install and set up the Agent on supported Linux distributions
+# using the package manager and Datadog repositories.
+
 set -e
 logfile="ddagent-install.log"
 gist_request=/tmp/agent-gist-request.tmp
