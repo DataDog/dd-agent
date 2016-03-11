@@ -2,6 +2,9 @@ Changes
 =======
 
 # 5.7.1 / 03-09-2016
+**All platforms**
+
+NB: For Windows, please also refer to the `5.7.0` section. `5.7.0` was not released on Windows but the `5.7.1` Windows installer includes all the changes listed in the `5.7.0` section.
 
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.7.0...5.7.1
