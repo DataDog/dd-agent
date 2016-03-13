@@ -5,11 +5,6 @@
 # Licensed under the terms of the CECILL License
 # Modified for Datadog
 
-# set up logging before importing any other components
-from config import initialize_logging  # noqa
-initialize_logging('gui')
-
-
 # stdlib
 import logging
 import os
@@ -23,40 +18,44 @@ from subprocess import (
 )
 import sys
 import thread  # To manage the windows process asynchronously
+import warnings
 
 # 3p
 # GUI Imports
-from guidata.configtools import (
-    add_image_path,
-    get_family,
-    get_icon,
-    MONOSPACE,
-)
-from guidata.qt.QtCore import (
-    QPoint,
-    QSize,
-    Qt,
-    QTimer,
-    SIGNAL,
-)
-from guidata.qt.QtGui import (
-    QApplication,
-    QFont,
-    QGroupBox,
-    QHBoxLayout,
-    QInputDialog,
-    QLabel,
-    QListWidget,
-    QMenu,
-    QMessageBox,
-    QPushButton,
-    QSplitter,
-    QSystemTrayIcon,
-    QTextEdit,
-    QVBoxLayout,
-    QWidget,
-)
-from guidata.qthelpers import get_std_icon
+with warnings.catch_warnings():
+    warnings.filterwarnings('ignore', 'guidata is still not fully compatible with PySide')
+    from guidata.configtools import (
+        add_image_path,
+        get_family,
+        get_icon,
+        MONOSPACE,
+    )
+    from guidata.qt.QtCore import (
+        QPoint,
+        QSize,
+        Qt,
+        QTimer,
+        SIGNAL,
+    )
+    from guidata.qt.QtGui import (
+        QApplication,
+        QFont,
+        QGroupBox,
+        QHBoxLayout,
+        QInputDialog,
+        QLabel,
+        QListWidget,
+        QMenu,
+        QMessageBox,
+        QPushButton,
+        QSplitter,
+        QSystemTrayIcon,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
+    )
+    from guidata.qthelpers import get_std_icon
+
 
 # small hack to avoid having to patch the spyderlib library
 # Needed because of py2exe bundling not being able to access
