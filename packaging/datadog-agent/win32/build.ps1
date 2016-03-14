@@ -32,8 +32,11 @@ cp ..\..\..\conf.d\* install_files\conf.d
 # Copy JMX Fetch into the install_files
 cp -R ..\..\..\dist\jmxfetch install_files\files\jmxfetch
 
-# Copy JMX Fetch into the install_files
+# Copy gohai into the install_files
 cp -R ..\..\..\dist\gohai install_files\files\gohai
+
+# Copy custom pycurl into the install_files
+cp -R ..\..\..\dist\pycurl install_files\files
 
 # Copy custom pycurl into the install_files
 cp ..\..\..\dist\pycurl\pycurl.pyd install_files\files\pycurl.pyd
