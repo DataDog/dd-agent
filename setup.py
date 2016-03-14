@@ -58,7 +58,6 @@ if sys.platform == 'win32':
         'win32event',
         'simplejson',
         'adodbapi',
-        'pycurl',
         'tornado.curl_httpclient',
         'pymongo',
         'pymysql',
@@ -128,6 +127,7 @@ if sys.platform == 'win32':
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
             ('jmxfetch', [r'checks\libs\%s' % JMX_FETCH_JAR_NAME]),
             ('gohai', [r'gohai\gohai.exe']),
+            ('pycurl', [r'checks\libs\pycurl.pyd']),
             ('', [where()]),  # CA certificates bundled with `requests`
         ],
     }

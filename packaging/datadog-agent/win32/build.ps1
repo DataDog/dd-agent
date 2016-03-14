@@ -35,6 +35,9 @@ cp -R ..\..\..\dist\jmxfetch install_files\files\jmxfetch
 # Copy JMX Fetch into the install_files
 cp -R ..\..\..\dist\gohai install_files\files\gohai
 
+# Copy custom pycurl into the install_files
+cp ..\..\..\dist\pycurl\pycurl.pyd install_files\files\pycurl.pyd
+
 # Move the images needed for the gui
 cp -R install_files\guidata install_files\files
 
