@@ -76,6 +76,7 @@ class PgBouncer(AgentCheck):
 
         try:
             cursor = db.cursor()
+            results = None
             for scope in metric_scope:
 
                 metrics = scope['metrics']

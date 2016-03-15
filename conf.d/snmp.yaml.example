@@ -13,6 +13,8 @@ instances:
   #   snmp_version: 2 # Only required for snmp v1, will default to 2
   #   timeout: 1 # second, by default
   #   retries: 5
+  #   enforce_mib_constraints: true  # if set to false we will not check the values
+  #                                  # returned meet the MIB constraints. Defaults to True.
   #   tags:
   #     - optional_tag_1
   #     - optional_tag_2
@@ -27,6 +29,16 @@ instances:
   #     # If it's just a scalar, you can specify by OID and name it
   #     - OID: 1.3.6.1.2.1.6.5
   #       name: tcpPassiveOpens
+  #
+  #     # This monitor auto-detects OID data types from the remote agent's response.
+  #     # If you're dealing with a buggy agent that returns incorrect data types for OIDs,
+  #     # You can force the data type with the 'forced_type' parameter.  Valid options for
+  #     # this parameter are 'gauge' and 'counter'.
+  #     # Example: When a F5 Networks load balancer is queried for this OID, it will return
+  #     # it as a Counter64 when it should be a gauge.  So, we force the data type to gauge:
+  #     - OID: 1.3.6.1.4.1.3375.2.1.1.2.1.8.0
+  #       name: F5_TotalCurrentConnections
+  #       forced_type: gauge
   #
   #     # You can also query a table and specify
   #     #   - which columns to report as value (symbols)

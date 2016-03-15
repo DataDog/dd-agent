@@ -46,6 +46,7 @@ from utils.profile import AgentProfiler
 
 # Constants
 PID_NAME = "dd-agent"
+PID_DIR = None
 WATCHDOG_MULTIPLIER = 10
 RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 START_COMMANDS = ['start', 'restart', 'foreground']
@@ -201,7 +202,7 @@ class Agent(Daemon):
                     watchdog.reset()
                 if profiled:
                     collector_profiled_runs += 1
-                log.info("Sleeping for {0} seconds".format(self.check_frequency))
+                log.debug("Sleeping for {0} seconds".format(self.check_frequency))
                 time.sleep(self.check_frequency)
 
         # Now clean-up.
@@ -290,7 +291,7 @@ def main():
         deprecate_old_command_line_tools()
 
     if command in COMMANDS_AGENT:
-        agent = Agent(PidFile('dd-agent').get_path(), autorestart, in_developer_mode=in_developer_mode)
+        agent = Agent(PidFile(PID_NAME, PID_DIR).get_path(), autorestart, in_developer_mode=in_developer_mode)
 
     if command in START_COMMANDS:
         log.info('Agent version %s' % get_version())

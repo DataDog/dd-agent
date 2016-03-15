@@ -10,11 +10,14 @@ namespace :ci do
 
     task before_script: ['ci:common:before_script'] do
       sh %(mysql -e "create user 'dog'@'localhost' identified by 'dog'" -uroot)
+      sh %(mysql -e "GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'dog'@'localhost' WITH MAX_USER_CONNECTIONS 5;" -uroot)
       sh %(mysql -e "CREATE DATABASE testdb;" -uroot)
       sh %(mysql -e "CREATE TABLE testdb.users (name VARCHAR(20), age INT);" -uroot)
       sh %(mysql -e "GRANT SELECT ON testdb.users TO 'dog'@'localhost';" -uroot)
       sh %(mysql -e "INSERT INTO testdb.users (name,age) VALUES('Alice',25);" -uroot)
       sh %(mysql -e "INSERT INTO testdb.users (name,age) VALUES('Bob',20);" -uroot)
+      sh %(mysql -e "GRANT SELECT ON performance_schema.* TO 'dog'@'localhost';" -uroot)
+      sh %(mysql -e "USE testdb; SELECT * FROM users ORDER BY name;" -uroot)
     end
 
     task script: ['ci:common:script'] do
@@ -28,7 +31,10 @@ namespace :ci do
 
     task cache: ['ci:common:cache']
 
-    task cleanup: ['ci:common:cleanup']
+    task cleanup: ['ci:common:cleanup'] do
+      sh %(mysql -e "DROP USER 'dog'@'localhost';" -uroot)
+      sh %(mysql -e "DROP DATABASE testdb;" -uroot)
+    end
 
     task :execute do
       exception = nil
@@ -47,7 +53,7 @@ namespace :ci do
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
       end
-      fail exception if exception
+      raise exception if exception
     end
   end
 end

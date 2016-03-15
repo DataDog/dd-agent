@@ -1,10 +1,12 @@
 import copy
+import time
 
 # 3rd party
 from nose.plugins.attrib import attr
 
 # agent
 from checks import AgentCheck
+from checks.metric_types import MetricTypes
 from tests.checks.common import AgentCheckTest
 
 # This test is dependent of having a fully open snmpd responding at localhost:161
@@ -12,10 +14,13 @@ from tests.checks.common import AgentCheckTest
 # This setup should normally be handled by the .travis.yml file, look there if
 # you want to see how to run these tests locally
 
+RESULTS_TIMEOUT = 10
+
 
 @attr(requires='snmpd')
 class SNMPTestCase(AgentCheckTest):
     CHECK_NAME = 'snmp'
+    CHECK_TAGS = ['snmp_device:localhost']
 
     SNMP_CONF = {
         'ip_address': "localhost",
@@ -26,13 +31,15 @@ class SNMPTestCase(AgentCheckTest):
     MIBS_FOLDER = {
         'init_config': {
             'mibs_folder': "/etc/mibs"
-        }
+        },
+        'instances' : [SNMP_CONF]
     }
 
     IGNORE_NONINCREASING_OID = {
         'init_config': {
             'ignore_nonincreasing_oid': True
-        }
+        },
+        'instances' : [SNMP_CONF]
     }
 
     SUPPORTED_METRIC_TYPES = [
@@ -55,6 +62,31 @@ class SNMPTestCase(AgentCheckTest):
         {
             'OID': "1.3.6.1.2.1.25.6.3.1.2.637",    # String (not supported)
             'name': "IAmString"
+        }
+    ]
+
+    FORCED_METRICS = [
+        {
+            'OID': "1.3.6.1.2.1.4.24.6.0",          # Gauge32
+            'name': "IAmAGauge32",
+            'forced_type': 'counter'
+
+        }, {
+            'OID': "1.3.6.1.2.1.4.31.1.1.6.1",      # Counter32
+            'name': "IAmACounter64",
+            'forced_type': 'gauge'
+        }
+    ]
+    INVALID_FORCED_METRICS = [
+        {
+            'OID': "1.3.6.1.2.1.4.24.6.0",          # Gauge32
+            'name': "IAmAGauge32",
+            'forced_type': 'counter'
+
+        }, {
+            'OID': "1.3.6.1.2.1.4.31.1.1.6.1",      # Counter32
+            'name': "IAmACounter64",
+            'forced_type': 'histogram'
         }
     ]
 
@@ -107,19 +139,58 @@ class SNMPTestCase(AgentCheckTest):
         }
     ]
 
-    CHECK_TAGS = ['snmp_device:localhost']
+    def run_check(self, config, agent_config=None, mocks=None, force_reload=False):
+        if force_reload and self.check:
+            self.check.stop()
+        super(SNMPTestCase, self).run_check(config, agent_config, mocks, force_reload)
+
+    def tearDown(self):
+        if self.check:
+            self.check.stop()
 
     @classmethod
     def generate_instance_config(cls, metrics):
         instance_config = copy.copy(cls.SNMP_CONF)
         instance_config['metrics'] = metrics
+        instance_config['name'] = "localhost"
         return instance_config
+
+    def wait_for_async(self, method, attribute, count):
+        """
+        Loop on `self.check.method` until `self.check.attribute >= count`.
+
+        Raise after
+        """
+        i = 0
+        while i < RESULTS_TIMEOUT:
+            self.check._process_results()
+            if len(getattr(self.check, attribute)) >= count:
+                return getattr(self.check, method)()
+            time.sleep(1)
+            i += 1
+        raise Exception("Didn't get the right count for {attribute} in time, {total}/{expected} in {seconds}s: {attr}"
+                        .format(attribute=attribute, total=len(getattr(self.check, attribute)), expected=count, seconds=i,
+                                attr=getattr(self.check, attribute)))
+
+    def wait_for_async_attrib(self, attribute):
+        """
+        Raise after
+        """
+        i = 0
+        while i < RESULTS_TIMEOUT:
+            if getattr(self.check, attribute):
+                return
+            time.sleep(1)
+            i += 1
+        raise Exception("Attribute not created in time.")
+
 
     def test_command_generator(self):
         """
         Command generator's parameters should match init_config
         """
         self.run_check(self.MIBS_FOLDER)
+        self.wait_for_async_attrib('cmd_generator')
 
         # Test command generator MIB source
         mib_folders = self.check.cmd_generator.snmpEngine.msgAndPduDsp\
@@ -131,6 +202,7 @@ class SNMPTestCase(AgentCheckTest):
 
         # Test command generator `ignoreNonIncreasingOid` parameter
         self.run_check(self.IGNORE_NONINCREASING_OID, force_reload=True)
+        self.wait_for_async_attrib('cmd_generator')
         self.assertTrue(self.check.cmd_generator.ignoreNonIncreasingOid)
 
     def test_type_support(self):
@@ -141,7 +213,8 @@ class SNMPTestCase(AgentCheckTest):
             'instances': [self.generate_instance_config(
                 self.SUPPORTED_METRIC_TYPES + self.UNSUPPORTED_METRICS)]
         }
-        self.run_check_twice(config)
+        self.run_check_n(config, repeat=3)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
 
         # Test metrics
         for metric in self.SUPPORTED_METRIC_TYPES:
@@ -169,7 +242,15 @@ class SNMPTestCase(AgentCheckTest):
         config = {
             'instances': [self.generate_instance_config(self.PLAY_WITH_GET_NEXT_METRICS)]
         }
+        self.run_check_twice(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+
+        # Test service check
+        self.assertServiceCheck("snmp.can_check", status=AgentCheck.OK,
+                                tags=self.CHECK_TAGS, count=1)
+
         self.run_check(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
 
         # Test metrics
         for metric in self.PLAY_WITH_GET_NEXT_METRICS:
@@ -189,7 +270,8 @@ class SNMPTestCase(AgentCheckTest):
         config = {
             'instances': [self.generate_instance_config(self.SCALAR_OBJECTS)]
         }
-        self.run_check_twice(config)
+        self.run_check_n(config, repeat=3)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
 
         # Test metrics
         for metric in self.SCALAR_OBJECTS:
@@ -209,7 +291,8 @@ class SNMPTestCase(AgentCheckTest):
         config = {
             'instances': [self.generate_instance_config(self.TABULAR_OBJECTS)]
         }
-        self.run_check_twice(config)
+        self.run_check_n(config, repeat=3, sleep=2)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
 
         # Test metrics
         for symbol in self.TABULAR_OBJECTS[0]['symbols']:
@@ -229,14 +312,64 @@ class SNMPTestCase(AgentCheckTest):
 
     def test_invalid_metric(self):
         """
-        Invalid metrics raise an Exception and a service check
+        Invalid metrics raise a Warning and a critical service check
         """
         config = {
             'instances': [self.generate_instance_config(self.INVALID_METRICS)]
         }
-        self.assertRaises(Exception, self.run_check, config)
+        self.run_check(config)
+
+        self.warnings = self.wait_for_async('get_warnings', 'warnings', 1)
+        self.assertWarning("Fail to collect metrics: No symbol IF-MIB::noIdeaWhatIAmDoingHere",
+                           count=1, exact_match=False)
 
         # # Test service check
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+        self.assertServiceCheck("snmp.can_check", status=AgentCheck.CRITICAL,
+                                tags=self.CHECK_TAGS, count=1)
+        self.coverage_report()
+
+    def test_forcedtype_metric(self):
+        """
+        Forced Types should be reported as metrics of the forced type
+        """
+        config = {
+            'instances': [self.generate_instance_config(self.FORCED_METRICS)]
+        }
+        self.run_check_twice(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+
+        for metric in self.FORCED_METRICS:
+            metric_name = "snmp." + (metric.get('name') or metric.get('symbol'))
+            if metric.get('forced_type') == MetricTypes.COUNTER:
+                # rate will be flushed as a gauge, so count should be 0.
+                self.assertMetric(metric_name, tags=self.CHECK_TAGS,
+                                  count=0, metric_type=MetricTypes.GAUGE)
+            elif metric.get('forced_type') == MetricTypes.GAUGE:
+                self.assertMetric(metric_name, tags=self.CHECK_TAGS,
+                                  count=1, metric_type=MetricTypes.GAUGE)
+
+        # # Test service check
+        self.assertServiceCheck("snmp.can_check", status=AgentCheck.OK,
+                                tags=self.CHECK_TAGS, count=1)
+        self.coverage_report()
+
+    def test_invalid_forcedtype_metric(self):
+        """
+        If a forced type is invalid a warning should be issued + a service check
+        should be available
+        """
+        config = {
+            'instances': [self.generate_instance_config(self.INVALID_FORCED_METRICS)]
+        }
+
+        self.run_check(config)
+
+        self.warnings = self.wait_for_async('get_warnings', 'warnings', 1)
+        self.assertWarning("Invalid forced-type specified:", count=1, exact_match=False)
+
+        # # Test service check
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
         self.assertServiceCheck("snmp.can_check", status=AgentCheck.CRITICAL,
                                 tags=self.CHECK_TAGS, count=1)
         self.coverage_report()
@@ -253,10 +386,14 @@ class SNMPTestCase(AgentCheckTest):
         config = {
             'instances': [instance]
         }
+        self.run_check(config)
+        self.warnings = self.wait_for_async('get_warnings', 'warnings', 1)
 
-        self.assertRaises(Exception, self.run_check, config)
+        self.assertWarning("No SNMP response received before timeout for instance localhost", count=1)
 
         # Test service check
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
         self.assertServiceCheck("snmp.can_check", status=AgentCheck.CRITICAL,
                                 tags=self.CHECK_TAGS, count=1)
+
         self.coverage_report()

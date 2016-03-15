@@ -74,6 +74,8 @@ STATS_METRICS = {  # Metrics that are common to all Elasticsearch versions
     "elasticsearch.search.fetch.total": ("gauge", "indices.search.fetch_total"),
     "elasticsearch.search.fetch.time": ("gauge", "indices.search.fetch_time_in_millis", lambda v: float(v)/1000),
     "elasticsearch.search.fetch.current": ("gauge", "indices.search.fetch_current"),
+    "elasticsearch.indices.segments.count": ("gauge", "indices.segments.count"),
+    "elasticsearch.indices.segments.memory_in_bytes": ("gauge", "indices.segments.memory_in_bytes"),
     "elasticsearch.merges.current": ("gauge", "indices.merges.current"),
     "elasticsearch.merges.current.docs": ("gauge", "indices.merges.current_docs"),
     "elasticsearch.merges.current.size": ("gauge", "indices.merges.current_size_in_bytes"),
@@ -134,6 +136,9 @@ STATS_METRICS = {  # Metrics that are common to all Elasticsearch versions
     "jvm.mem.non_heap_used": ("gauge", "jvm.mem.non_heap_used_in_bytes"),
     "jvm.threads.count": ("gauge", "jvm.threads.count"),
     "jvm.threads.peak_count": ("gauge", "jvm.threads.peak_count"),
+    "elasticsearch.fs.total.total_in_bytes": ("gauge", "fs.total.total_in_bytes"),
+    "elasticsearch.fs.total.free_in_bytes": ("gauge", "fs.total.free_in_bytes"),
+    "elasticsearch.fs.total.available_in_bytes": ("gauge", "fs.total.available_in_bytes"),
 }
 
 JVM_METRICS_POST_0_90_10 = {
@@ -167,6 +172,28 @@ ADDITIONAL_METRICS_PRE_0_90_5 = {
     "elasticsearch.cache.filter.count": ("gauge", "indices.cache.filter_count"),
     "elasticsearch.cache.filter.evictions": ("gauge", "indices.cache.filter_evictions"),
     "elasticsearch.cache.filter.size": ("gauge", "indices.cache.filter_size_in_bytes"),
+}
+
+ADDITIONAL_METRICS_POST_1_0_0 = {
+    "elasticsearch.indices.translog.size_in_bytes": ("gauge", "indices.translog.size_in_bytes"),
+    "elasticsearch.indices.translog.operations": ("gauge", "indices.translog.operations"),
+    # Currently has issues in test framework:
+    # "elasticsearch.fs.total.disk_reads": ("rate", "fs.total.disk_reads"),
+    # "elasticsearch.fs.total.disk_writes": ("rate", "fs.total.disk_writes"),
+    # "elasticsearch.fs.total.disk_io_op": ("rate", "fs.total.disk_io_op"),
+    # "elasticsearch.fs.total.disk_read_size_in_bytes": ("gauge", "fs.total.disk_read_size_in_bytes"),
+    # "elasticsearch.fs.total.disk_write_size_in_bytes": ("gauge", "fs.total.disk_write_size_in_bytes"),
+    # "elasticsearch.fs.total.disk_io_size_in_bytes": ("gauge", "fs.total.disk_io_size_in_bytes"),
+}
+
+ADDITIONAL_METRICS_POST_1_3_0 = {
+    "elasticsearch.indices.segments.index_writer_memory_in_bytes": ("gauge", "indices.segments.index_writer_memory_in_bytes"),
+    "elasticsearch.indices.segments.version_map_memory_in_bytes": ("gauge", "indices.segments.version_map_memory_in_bytes"),
+}
+
+ADDITIONAL_METRICS_POST_1_4_0 = {
+    "elasticsearch.indices.segments.index_writer_max_memory_in_bytes": ("gauge", "indices.segments.index_writer_max_memory_in_bytes"),
+    "elasticsearch.indices.segments.fixed_bit_set_memory_in_bytes": ("gauge", "indices.segments.fixed_bit_set_memory_in_bytes"),
 }
 
 CLUSTER_HEALTH_METRICS = {
@@ -244,6 +271,15 @@ class TestElastic(AgentCheckTest):
             expected_metrics.update(ADDITIONAL_METRICS_PRE_0_90_5)
             expected_metrics.update(JVM_METRICS_PRE_0_90_10)
 
+        if es_version >= [1, 0, 0]:
+            expected_metrics.update(ADDITIONAL_METRICS_POST_1_0_0)
+
+        if es_version >= [1, 3, 0]:
+            expected_metrics.update(ADDITIONAL_METRICS_POST_1_3_0)
+
+        if es_version >= [1, 4, 0]:
+            expected_metrics.update(ADDITIONAL_METRICS_POST_1_4_0)
+
         contexts = [
             (conf_hostname, default_tags + tags),
             (socket.gethostname(), default_tags)
@@ -263,8 +299,11 @@ class TestElastic(AgentCheckTest):
         bad_sc_tags = ['host:localhost', 'port:{0}'.format(bad_port)]
 
         self.assertServiceCheckOK('elasticsearch.can_connect',
+                                  tags=good_sc_tags + tags,
+                                  count=1)
+        self.assertServiceCheckOK('elasticsearch.can_connect',
                                   tags=good_sc_tags,
-                                  count=2)
+                                  count=1)
         self.assertServiceCheckCritical('elasticsearch.can_connect',
                                         tags=bad_sc_tags,
                                         count=1)
@@ -279,9 +318,11 @@ class TestElastic(AgentCheckTest):
             # Warning because elasticsearch status should be yellow, according to
             # http://chrissimpson.co.uk/elasticsearch-yellow-cluster-status-explained.html
             self.assertServiceCheckWarning('elasticsearch.cluster_health',
+                                           tags=good_sc_tags + tags,
+                                           count=1)
+            self.assertServiceCheckWarning('elasticsearch.cluster_health',
                                            tags=good_sc_tags,
-                                           count=2)
-
+                                           count=1)
             # Assert event
             self.assertEvent('ElasticSearch: foo just reported as yellow', count=1,
                              tags=default_tags+tags, msg_title='foo is yellow',
@@ -307,7 +348,7 @@ class TestElastic(AgentCheckTest):
         self.assertEquals(c.url, "http://foo.bar")
         self.assertEquals(c.tags, ["url:http://foo.bar", "a", "b:c"])
         self.assertEquals(c.timeout, check.DEFAULT_TIMEOUT)
-        self.assertEquals(c.service_check_tags, ["host:foo.bar", "port:None"])
+        self.assertEquals(c.service_check_tags, ["host:foo.bar", "port:None", "a", "b:c"])
 
         instance = {
             "url": "http://192.168.42.42:12999",
@@ -342,7 +383,7 @@ class TestElastic(AgentCheckTest):
         )
         self.assertServiceCheckWarning(
             'elasticsearch.cluster_health',
-            tags=['host:localhost', 'port:9200'],
+            tags=['host:localhost', 'port:9200'] + dummy_tags,
             count=1
         )
 
@@ -360,7 +401,7 @@ class TestElastic(AgentCheckTest):
         )
         self.assertServiceCheckOK(
             'elasticsearch.cluster_health',
-            tags=['host:localhost', 'port:9200'],
+            tags=['host:localhost', 'port:9200'] + dummy_tags,
             count=1
         )
 

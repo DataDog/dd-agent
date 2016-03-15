@@ -24,14 +24,17 @@ api_key:
 #hostname: mymachine.mydomain
 
 # Set the host's tags
-#tags: mytag0, mytag1
+#tags: mytag, env:prod, role:database
 
 # Add one "dd_check:checkname" tag per running check. It makes it possible to slice
 # and dice per monitored app (= running Agent Check) on Datadog's backend.
 # create_dd_check_tags: no
 
-# Collect AWS EC2 custom tags as agent tags
+# Collect AWS EC2 custom tags as agent tags (requires an IAM role associated with the instance)
 # collect_ec2_tags: no
+
+# Incorporate security-groups into tags collected from AWS EC2
+# collect_security_groups: no
 
 # Enable Agent Developer Mode
 # Agent Developer Mode collects and sends more fine-grained metrics about agent and check performance
@@ -101,7 +104,7 @@ use_mount: no
 # use_dogstatsd: yes
 
 # DogStatsd is a small server that aggregates your custom app metrics. For
-# usage information, check out http://api.datadoghq.com
+# usage information, check out http://docs.datadoghq.com/guides/dogstatsd/
 
 #  Make sure your client is sending to the same port.
 # dogstatsd_port : 8125

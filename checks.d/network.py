@@ -7,7 +7,10 @@ import re
 # project
 from checks import AgentCheck
 from utils.platform import Platform
-from utils.subprocess_output import get_subprocess_output
+from utils.subprocess_output import (
+    get_subprocess_output,
+    SubprocessOutputEmptyError,
+)
 
 BSD_TCP_METRICS = [
     (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
@@ -176,6 +179,8 @@ class Network(AgentCheck):
                 metrics = self._parse_linux_cx_state(lines[2:], self.TCP_STATES['netstat'], 5)
                 for metric, value in metrics.iteritems():
                     self.gauge(metric, value)
+            except SubprocessOutputEmptyError:
+                self.log.exception("Error collecting connection stats.")
 
         proc = open('/proc/net/dev', 'r')
         try:
@@ -289,111 +294,123 @@ class Network(AgentCheck):
         if Platform.is_freebsd():
             netstat_flags.append('-W')
 
-        output, _, _ = get_subprocess_output(["netstat"] + netstat_flags, self.log)
-        lines = output.splitlines()
-        # Name  Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
-        # lo0   16384 <Link#1>                        318258     0  428252203   318258     0  428252203     0
-        # lo0   16384 localhost   fe80:1::1           318258     -  428252203   318258     -  428252203     -
-        # lo0   16384 127           localhost         318258     -  428252203   318258     -  428252203     -
-        # lo0   16384 localhost   ::1                 318258     -  428252203   318258     -  428252203     -
-        # gif0* 1280  <Link#2>                             0     0          0        0     0          0     0
-        # stf0* 1280  <Link#3>                             0     0          0        0     0          0     0
-        # en0   1500  <Link#4>    04:0c:ce:db:4e:fa 20801309     0 13835457425 15149389     0 11508790198     0
-        # en0   1500  seneca.loca fe80:4::60c:ceff: 20801309     - 13835457425 15149389     - 11508790198     -
-        # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
-        # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
-        # en0   1500  192.168.1     192.168.1.63    20801309     - 13835457425 15149389     - 11508790198     -
-        # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
-        # p2p0  2304  <Link#5>    06:0c:ce:db:4e:fa        0     0          0        0     0          0     0
-        # ham0  1404  <Link#6>    7a:79:05:4d:bf:f5    30100     0    6815204    18742     0    8494811     0
-        # ham0  1404  5             5.77.191.245       30100     -    6815204    18742     -    8494811     -
-        # ham0  1404  seneca.loca fe80:6::7879:5ff:    30100     -    6815204    18742     -    8494811     -
-        # ham0  1404  2620:9b::54 2620:9b::54d:bff5    30100     -    6815204    18742     -    8494811     -
+        try:
+            output, _, _ = get_subprocess_output(["netstat"] + netstat_flags, self.log)
+            lines = output.splitlines()
+            # Name  Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
+            # lo0   16384 <Link#1>                        318258     0  428252203   318258     0  428252203     0
+            # lo0   16384 localhost   fe80:1::1           318258     -  428252203   318258     -  428252203     -
+            # lo0   16384 127           localhost         318258     -  428252203   318258     -  428252203     -
+            # lo0   16384 localhost   ::1                 318258     -  428252203   318258     -  428252203     -
+            # gif0* 1280  <Link#2>                             0     0          0        0     0          0     0
+            # stf0* 1280  <Link#3>                             0     0          0        0     0          0     0
+            # en0   1500  <Link#4>    04:0c:ce:db:4e:fa 20801309     0 13835457425 15149389     0 11508790198     0
+            # en0   1500  seneca.loca fe80:4::60c:ceff: 20801309     - 13835457425 15149389     - 11508790198     -
+            # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
+            # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
+            # en0   1500  192.168.1     192.168.1.63    20801309     - 13835457425 15149389     - 11508790198     -
+            # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
+            # p2p0  2304  <Link#5>    06:0c:ce:db:4e:fa        0     0          0        0     0          0     0
+            # ham0  1404  <Link#6>    7a:79:05:4d:bf:f5    30100     0    6815204    18742     0    8494811     0
+            # ham0  1404  5             5.77.191.245       30100     -    6815204    18742     -    8494811     -
+            # ham0  1404  seneca.loca fe80:6::7879:5ff:    30100     -    6815204    18742     -    8494811     -
+            # ham0  1404  2620:9b::54 2620:9b::54d:bff5    30100     -    6815204    18742     -    8494811     -
 
-        headers = lines[0].split()
+            headers = lines[0].split()
 
-        # Given the irregular structure of the table above, better to parse from the end of each line
-        # Verify headers first
-        #          -7       -6       -5        -4       -3       -2        -1
-        for h in ("Ipkts", "Ierrs", "Ibytes", "Opkts", "Oerrs", "Obytes", "Coll"):
-            if h not in headers:
-                self.logger.error("%s not found in %s; cannot parse" % (h, headers))
-                return False
+            # Given the irregular structure of the table above, better to parse from the end of each line
+            # Verify headers first
+            #          -7       -6       -5        -4       -3       -2        -1
+            for h in ("Ipkts", "Ierrs", "Ibytes", "Opkts", "Oerrs", "Obytes", "Coll"):
+                if h not in headers:
+                    self.logger.error("%s not found in %s; cannot parse" % (h, headers))
+                    return False
 
-        current = None
-        for l in lines[1:]:
-            # Another header row, abort now, this is IPv6 land
-            if "Name" in l:
-                break
+            current = None
+            for l in lines[1:]:
+                # Another header row, abort now, this is IPv6 land
+                if "Name" in l:
+                    break
 
-            x = l.split()
-            if len(x) == 0:
-                break
+                x = l.split()
+                if len(x) == 0:
+                    break
 
-            iface = x[0]
-            if iface.endswith("*"):
-                iface = iface[:-1]
-            if iface == current:
-                # skip multiple lines of same interface
-                continue
-            else:
-                current = iface
+                iface = x[0]
+                if iface.endswith("*"):
+                    iface = iface[:-1]
+                if iface == current:
+                    # skip multiple lines of same interface
+                    continue
+                else:
+                    current = iface
 
-            # Filter inactive interfaces
-            if self._parse_value(x[-5]) or self._parse_value(x[-2]):
-                iface = current
-                metrics = {
-                    'bytes_rcvd': self._parse_value(x[-5]),
-                    'bytes_sent': self._parse_value(x[-2]),
-                    'packets_in.count': self._parse_value(x[-7]),
-                    'packets_in.error': self._parse_value(x[-6]),
-                    'packets_out.count': self._parse_value(x[-4]),
-                    'packets_out.error':self._parse_value(x[-3]),
-                }
-                self._submit_devicemetrics(iface, metrics)
+                # Filter inactive interfaces
+                if self._parse_value(x[-5]) or self._parse_value(x[-2]):
+                    iface = current
+                    metrics = {
+                        'bytes_rcvd': self._parse_value(x[-5]),
+                        'bytes_sent': self._parse_value(x[-2]),
+                        'packets_in.count': self._parse_value(x[-7]),
+                        'packets_in.error': self._parse_value(x[-6]),
+                        'packets_out.count': self._parse_value(x[-4]),
+                        'packets_out.error':self._parse_value(x[-3]),
+                    }
+                    self._submit_devicemetrics(iface, metrics)
+        except SubprocessOutputEmptyError:
+            self.log.exception("Error collecting connection stats.")
 
 
-        netstat, _, _ = get_subprocess_output(["netstat", "-s", "-p" "tcp"], self.log)
-        #3651535 packets sent
-        #        972097 data packets (615753248 bytes)
-        #        5009 data packets (2832232 bytes) retransmitted
-        #        0 resends initiated by MTU discovery
-        #        2086952 ack-only packets (471 delayed)
-        #        0 URG only packets
-        #        0 window probe packets
-        #        310851 window update packets
-        #        336829 control packets
-        #        0 data packets sent after flow control
-        #        3058232 checksummed in software
-        #        3058232 segments (571218834 bytes) over IPv4
-        #        0 segments (0 bytes) over IPv6
-        #4807551 packets received
-        #        1143534 acks (for 616095538 bytes)
-        #        165400 duplicate acks
-        #        ...
+        try:
+            netstat, _, _ = get_subprocess_output(["netstat", "-s", "-p" "tcp"], self.log)
+            #3651535 packets sent
+            #        972097 data packets (615753248 bytes)
+            #        5009 data packets (2832232 bytes) retransmitted
+            #        0 resends initiated by MTU discovery
+            #        2086952 ack-only packets (471 delayed)
+            #        0 URG only packets
+            #        0 window probe packets
+            #        310851 window update packets
+            #        336829 control packets
+            #        0 data packets sent after flow control
+            #        3058232 checksummed in software
+            #        3058232 segments (571218834 bytes) over IPv4
+            #        0 segments (0 bytes) over IPv6
+            #4807551 packets received
+            #        1143534 acks (for 616095538 bytes)
+            #        165400 duplicate acks
+            #        ...
 
-        self._submit_regexed_values(netstat, BSD_TCP_METRICS)
+            self._submit_regexed_values(netstat, BSD_TCP_METRICS)
+        except SubprocessOutputEmptyError:
+            self.log.exception("Error collecting TCP stats.")
 
 
     def _check_solaris(self, instance):
         # Can't get bytes sent and received via netstat
         # Default to kstat -p link:0:
-        netstat, _, _ = get_subprocess_output(["kstat", "-p", "link:0:"], self.log)
-        metrics_by_interface = self._parse_solaris_netstat(netstat)
-        for interface, metrics in metrics_by_interface.iteritems():
-            self._submit_devicemetrics(interface, metrics)
+        try:
+            netstat, _, _ = get_subprocess_output(["kstat", "-p", "link:0:"], self.log)
+            metrics_by_interface = self._parse_solaris_netstat(netstat)
+            for interface, metrics in metrics_by_interface.iteritems():
+                self._submit_devicemetrics(interface, metrics)
+        except SubprocessOutputEmptyError:
+            self.log.exception("Error collecting kstat stats.")
 
-        netstat, _, _ = get_subprocess_output(["netstat", "-s", "-P" "tcp"], self.log)
-        # TCP: tcpRtoAlgorithm=     4 tcpRtoMin           =   200
-        # tcpRtoMax           = 60000 tcpMaxConn          =    -1
-        # tcpActiveOpens      =    57 tcpPassiveOpens     =    50
-        # tcpAttemptFails     =     1 tcpEstabResets      =     0
-        # tcpCurrEstab        =     0 tcpOutSegs          =   254
-        # tcpOutDataSegs      =   995 tcpOutDataBytes     =1216733
-        # tcpRetransSegs      =     0 tcpRetransBytes     =     0
-        # tcpOutAck           =   185 tcpOutAckDelayed    =     4
-        # ...
-        self._submit_regexed_values(netstat, SOLARIS_TCP_METRICS)
+        try:
+            netstat, _, _ = get_subprocess_output(["netstat", "-s", "-P" "tcp"], self.log)
+            # TCP: tcpRtoAlgorithm=     4 tcpRtoMin           =   200
+            # tcpRtoMax           = 60000 tcpMaxConn          =    -1
+            # tcpActiveOpens      =    57 tcpPassiveOpens     =    50
+            # tcpAttemptFails     =     1 tcpEstabResets      =     0
+            # tcpCurrEstab        =     0 tcpOutSegs          =   254
+            # tcpOutDataSegs      =   995 tcpOutDataBytes     =1216733
+            # tcpRetransSegs      =     0 tcpRetransBytes     =     0
+            # tcpOutAck           =   185 tcpOutAckDelayed    =     4
+            # ...
+            self._submit_regexed_values(netstat, SOLARIS_TCP_METRICS)
+        except SubprocessOutputEmptyError:
+            self.log.exception("Error collecting TCP stats.")
 
 
     def _parse_solaris_netstat(self, netstat_output):

@@ -1,0 +1,10 @@
+EventCode 0
+EventIdentifier 0
+EventType 0
+InsertionStrings [insertionstring]
+Logfile Application
+Message SomeMessage
+SourceName MSQLSERVER
+TimeGenerated 21001224113047.000000-480
+User FooUser
+Type Error

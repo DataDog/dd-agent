@@ -66,17 +66,19 @@ init_config:
             metric_type: counter
     - include:
         type: Cache
-        accessCount:
-          alias: tomcat.cache.access_count
-          metric_type: counter
-        hitsCounts:
-          alias: tomcat.cache.hits_count
-          metric_type: counter
+        attribute:
+          accessCount:
+            alias: tomcat.cache.access_count
+            metric_type: counter
+          hitsCounts:
+            alias: tomcat.cache.hits_count
+            metric_type: counter
     - include:
         type: JspMonitor
-        jspCount:
-          alias: tomcat.jsp.count
-          metric_type: counter
-        jspReloadCount:
-          alias: tomcat.jsp.reload_count
-          metric_type: counter
+        attribute:
+          jspCount:
+            alias: tomcat.jsp.count
+            metric_type: counter
+          jspReloadCount:
+            alias: tomcat.jsp.reload_count
+            metric_type: counter

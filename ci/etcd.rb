@@ -17,7 +17,7 @@ namespace :ci do
         # Downloads:
         # https://github.com/coreos/etcd/releases/download/v#{etcd_version}/etcd-v#{etcd_version}-darwin-amd64.zip
         # https://github.com/coreos/etcd/releases/download/v#{etcd_version}/etcd-v#{etcd_version}-linux-amd64.tar.gz
-        if `uname -s`.strip.downcase == 'darwin'
+        if `uname -s`.strip.casecmp('darwin').zero?
           sh %(curl -s -L -o $VOLATILE_DIR/etcd.zip\
                 https://s3.amazonaws.com/dd-agent-tarball-mirror/etcd-v#{etcd_version}-darwin-amd64.zip)
           sh %(mkdir -p #{etcd_rootdir})
@@ -80,7 +80,7 @@ namespace :ci do
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
       end
-      fail exception if exception
+      raise exception if exception
     end
   end
 end

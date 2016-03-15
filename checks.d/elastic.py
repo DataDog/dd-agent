@@ -26,6 +26,7 @@ ESInstanceConfig = namedtuple(
         'timeout',
         'url',
         'username',
+        'pending_task_stats',
     ])
 
 
@@ -98,6 +99,8 @@ class ESCheck(AgentCheck):
         "elasticsearch.search.fetch.total": ("gauge", "indices.search.fetch_total"),
         "elasticsearch.search.fetch.time": ("gauge", "indices.search.fetch_time_in_millis", lambda v: float(v)/1000),
         "elasticsearch.search.fetch.current": ("gauge", "indices.search.fetch_current"),
+        "elasticsearch.indices.segments.count": ("gauge", "indices.segments.count"),
+        "elasticsearch.indices.segments.memory_in_bytes": ("gauge", "indices.segments.memory_in_bytes"),
         "elasticsearch.merges.current": ("gauge", "indices.merges.current"),
         "elasticsearch.merges.current.docs": ("gauge", "indices.merges.current_docs"),
         "elasticsearch.merges.current.size": ("gauge", "indices.merges.current_size_in_bytes"),
@@ -158,6 +161,9 @@ class ESCheck(AgentCheck):
         "jvm.mem.non_heap_used": ("gauge", "jvm.mem.non_heap_used_in_bytes"),
         "jvm.threads.count": ("gauge", "jvm.threads.count"),
         "jvm.threads.peak_count": ("gauge", "jvm.threads.peak_count"),
+        "elasticsearch.fs.total.total_in_bytes": ("gauge", "fs.total.total_in_bytes"),
+        "elasticsearch.fs.total.free_in_bytes": ("gauge", "fs.total.free_in_bytes"),
+        "elasticsearch.fs.total.available_in_bytes": ("gauge", "fs.total.available_in_bytes"),
     }
 
     JVM_METRICS_POST_0_90_10 = {
@@ -191,6 +197,27 @@ class ESCheck(AgentCheck):
         "elasticsearch.cache.filter.count": ("gauge", "indices.cache.filter_count"),
         "elasticsearch.cache.filter.evictions": ("gauge", "indices.cache.filter_evictions"),
         "elasticsearch.cache.filter.size": ("gauge", "indices.cache.filter_size_in_bytes"),
+    }
+
+    ADDITIONAL_METRICS_POST_1_0_0 = {
+        "elasticsearch.indices.translog.size_in_bytes": ("gauge", "indices.translog.size_in_bytes"),
+        "elasticsearch.indices.translog.operations": ("gauge", "indices.translog.operations"),
+        "elasticsearch.fs.total.disk_reads": ("rate", "fs.total.disk_reads"),
+        "elasticsearch.fs.total.disk_writes": ("rate", "fs.total.disk_writes"),
+        "elasticsearch.fs.total.disk_io_op": ("rate", "fs.total.disk_io_op"),
+        "elasticsearch.fs.total.disk_read_size_in_bytes": ("gauge", "fs.total.disk_read_size_in_bytes"),
+        "elasticsearch.fs.total.disk_write_size_in_bytes": ("gauge", "fs.total.disk_write_size_in_bytes"),
+        "elasticsearch.fs.total.disk_io_size_in_bytes": ("gauge", "fs.total.disk_io_size_in_bytes"),
+    }
+
+    ADDITIONAL_METRICS_POST_1_3_0 = {
+        "elasticsearch.indices.segments.index_writer_memory_in_bytes": ("gauge", "indices.segments.index_writer_memory_in_bytes"),
+        "elasticsearch.indices.segments.version_map_memory_in_bytes": ("gauge", "indices.segments.version_map_memory_in_bytes"),
+    }
+
+    ADDITIONAL_METRICS_POST_1_4_0 = {
+        "elasticsearch.indices.segments.index_writer_max_memory_in_bytes": ("gauge", "indices.segments.index_writer_max_memory_in_bytes"),
+        "elasticsearch.indices.segments.fixed_bit_set_memory_in_bytes": ("gauge", "indices.segments.fixed_bit_set_memory_in_bytes"),
     }
 
     CLUSTER_HEALTH_METRICS = {
@@ -229,6 +256,7 @@ class ESCheck(AgentCheck):
         if 'is_external' in instance:
             cluster_stats = _is_affirmative(instance.get('is_external', False))
 
+        pending_task_stats = _is_affirmative(instance.get('pending_task_stats', True))
         # Support URLs that have a path in them from the config, for
         # backwards-compatibility.
         parsed = urlparse.urlparse(url)
@@ -236,15 +264,18 @@ class ESCheck(AgentCheck):
             url = "%s://%s" % (parsed[0], parsed[1])
         port = parsed.port
         host = parsed.hostname
+
+        custom_tags = instance.get('tags', [])
         service_check_tags = [
             'host:%s' % host,
             'port:%s' % port
         ]
+        service_check_tags.extend(custom_tags)
 
         # Tag by URL so we can differentiate the metrics
         # from multiple instances
         tags = ['url:%s' % url]
-        tags.extend(instance.get('tags', []))
+        tags.extend(custom_tags)
 
         timeout = instance.get('timeout') or self.DEFAULT_TIMEOUT
 
@@ -256,7 +287,8 @@ class ESCheck(AgentCheck):
             tags=tags,
             timeout=timeout,
             url=url,
-            username=instance.get('username')
+            username=instance.get('username'),
+            pending_task_stats=pending_task_stats
         )
         return config
 
@@ -286,10 +318,11 @@ class ESCheck(AgentCheck):
         health_data = self._get_data(health_url, config)
         self._process_health_data(health_data, config)
 
-        # Load the pending_tasks data.
-        pending_tasks_url = urlparse.urljoin(config.url, pending_tasks_url)
-        pending_tasks_data = self._get_data(pending_tasks_url, config)
-        self._process_pending_tasks_data(pending_tasks_data, config)
+        if config.pending_task_stats:
+            # Load the pending_tasks data.
+            pending_tasks_url = urlparse.urljoin(config.url, pending_tasks_url)
+            pending_tasks_data = self._get_data(pending_tasks_url, config)
+            self._process_pending_tasks_data(pending_tasks_data, config)
 
         # If we're here we did not have any ES conn issues
         self.service_check(
@@ -350,6 +383,8 @@ class ESCheck(AgentCheck):
         stats_metrics = dict(self.STATS_METRICS)
         stats_metrics.update(additional_metrics)
 
+
+        ### Additional Stats metrics ###
         if version >= [0, 90, 5]:
             # ES versions 0.90.5 and above
             additional_metrics = self.ADDITIONAL_METRICS_POST_0_90_5
@@ -358,6 +393,16 @@ class ESCheck(AgentCheck):
             additional_metrics = self.ADDITIONAL_METRICS_PRE_0_90_5
 
         stats_metrics.update(additional_metrics)
+
+        if version >= [1, 0, 0]:
+            stats_metrics.update(self.ADDITIONAL_METRICS_POST_1_0_0)
+
+        if version >= [1, 3, 0]:
+            stats_metrics.update(self.ADDITIONAL_METRICS_POST_1_3_0)
+
+        if version >= [1, 4, 0]:
+            # ES versions 1.4 and above
+            stats_metrics.update(self.ADDITIONAL_METRICS_POST_1_4_0)
 
         # Version specific stats metrics about the primary shards
         pshard_stats_metrics = dict(self.PRIMARY_SHARD_METRICS)

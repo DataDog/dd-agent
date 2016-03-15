@@ -16,15 +16,17 @@ TAGS = "tags"
 
 GAUGE = "gauge"
 RATE = "rate"
+COUNTER = "counter"
 DEFAULT_TYPE = GAUGE
 
 
 SUPPORTED_TYPES = {
     GAUGE: AgentCheck.gauge,
     RATE: AgentCheck.rate,
+    COUNTER: AgentCheck.increment,
 }
 
-METRIC_NAMESPACE = "go_expvar"
+DEFAULT_METRIC_NAMESPACE = "go_expvar"
 
 
 # See http://golang.org/pkg/runtime/#MemStats
@@ -57,7 +59,7 @@ class GoExpvar(AgentCheck):
         self._last_gc_count = defaultdict(int)
 
     def _get_data(self, url):
-        r = requests.get(url)
+        r = requests.get(url, timeout=10)
         r.raise_for_status()
         return r.json()
 
@@ -71,9 +73,10 @@ class GoExpvar(AgentCheck):
         data = self._get_data(url)
         metrics = DEFAULT_METRICS + instance.get("metrics", [])
         max_metrics = instance.get("max_returned_metrics", DEFAULT_MAX_METRICS)
-        return data, tags, metrics, max_metrics, url
+        namespace = instance.get('namespace', DEFAULT_METRIC_NAMESPACE)
+        return data, tags, metrics, max_metrics, url, namespace
 
-    def get_gc_collection_histogram(self, data, tags, url):
+    def get_gc_collection_histogram(self, data, tags, url, namespace):
         num_gc = data.get("memstats", {}).get("NumGC")
         pause_hist = data.get("memstats", {}).get("PauseNs")
         last_gc_count = self._last_gc_count[url]
@@ -91,15 +94,15 @@ class GoExpvar(AgentCheck):
 
         for value in values:
             self.histogram(
-                self.normalize("memstats.PauseNs", METRIC_NAMESPACE, fix_case=True),
+                self.normalize("memstats.PauseNs", namespace, fix_case=True),
                 value, tags=tags)
 
     def check(self, instance):
-        data, tags, metrics, max_metrics, url = self._load(instance)
-        self.get_gc_collection_histogram(data, tags, url)
-        self.parse_expvar_data(data, tags, metrics, max_metrics)
+        data, tags, metrics, max_metrics, url, namespace = self._load(instance)
+        self.get_gc_collection_histogram(data, tags, url, namespace)
+        self.parse_expvar_data(data, tags, metrics, max_metrics, namespace)
 
-    def parse_expvar_data(self, data, tags, metrics, max_metrics):
+    def parse_expvar_data(self, data, tags, metrics, max_metrics, namespace):
         '''
         Report all the metrics based on the configuration in instance
         If a metric is not well configured or is not present in the payload,
@@ -135,7 +138,7 @@ class GoExpvar(AgentCheck):
                 if tag_by_path:
                     metric_tags.append("path:%s" % actual_path)
 
-                metric_name = alias or self.normalize(actual_path, METRIC_NAMESPACE, fix_case=True)
+                metric_name = alias or self.normalize(actual_path, namespace, fix_case=True)
 
                 try:
                     float(value)

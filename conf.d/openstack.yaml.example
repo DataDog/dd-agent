@@ -1,8 +1,8 @@
 init_config:
       # All directives prefixed with a '#' sign are optional and will default to sane values when omitted
 
-      # Where your identity server lives (please omit the trailing slash). Note that the server must support Identity API v3
-      keystone_server_url: "https://my-keystone-server.com:<port>"
+      # Where your identity server lives. Note that the server must support Identity API v3
+      keystone_server_url: "https://my-keystone-server.com:<port>/"
 
       # The hostname of this machine registered with Nova. Defaults to socket.gethostname()
       # os_host: my_hostname
@@ -46,9 +46,8 @@ instances:
 
 
       # User credentials
-      # Password is the only auth method supported right now
-      # To guarantee a uniquely identifiable user expects username, password
-      # and user domain id
+      # Password authentication is the only auth method supported right now
+      # User expects username, password, and user domain id
       # `user` should resolve to a structure like {'password': 'my_password', 'name': 'my_name', 'domain': {'id': 'my_domain_id'}}
       user:
           password: my_password
@@ -58,7 +57,7 @@ instances:
 
       # In some cases, the nova url is returned without the tenant id suffixed
       # e.g. http://172.0.0.1:8774 rather than http://172.0.0.1:8774/<tenant_id>
-      # The user can set append_tenant_id` to true manually add this suffix for downstream requests
+      # Setting append_tenant_id to true manually adds this suffix for downstream requests
       # append_tenant_id: false
 
       # IDs of servers to exclude from monitoring (by default the agent will collect metrics from all guest servers for this project that are running on the host
