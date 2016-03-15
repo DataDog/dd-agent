@@ -163,7 +163,7 @@ stop() {
     # it does the right thing. and testing supervisorctl status
     # before killproc can lead to states where you cannot stop!
     echo -n 'Stopping Datadog Agent (using killproc on supervisord): '
-    killproc -p $SUPERVISOR_PIDFILE
+    killproc -p $SUPERVISOR_PIDFILE -d 30
     rm -f $LOCKFILE
     echo
     return 0
