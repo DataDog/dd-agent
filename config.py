@@ -80,6 +80,8 @@ def get_parsed_args():
                       dest='autorestart')
     parser.add_option('-d', '--dd_url', action='store', default=None,
                       dest='dd_url')
+    parser.add_option('-c', '--clean', action='store_true', default=False,
+                        dest='clean')
     parser.add_option('-u', '--use-local-forwarder', action='store_true',
                       default=False, dest='use_forwarder')
     parser.add_option('-n', '--disable-dd', action='store_true', default=False,
@@ -96,6 +98,7 @@ def get_parsed_args():
         # Ignore parse errors
         options, args = Values({'autorestart': False,
                                 'dd_url': None,
+                                'clean': False,
                                 'disable_dd': False,
                                 'use_forwarder': False,
                                 'verbose': False,
@@ -219,7 +222,7 @@ def _is_affirmative(s):
     return s.lower() in ('yes', 'true', '1')
 
 
-def get_config_path(cfg_path=None, os_name=None, filename=DATADOG_CONF):
+def get_config_path(cfg_path=None, os_name=None):
     # Check if there's an override and if it exists
     if cfg_path is not None and os.path.exists(cfg_path):
         return cfg_path
@@ -249,10 +252,8 @@ def get_config_path(cfg_path=None, os_name=None, filename=DATADOG_CONF):
             bad_path = e.args[0]
 
     # If all searches fail, exit the agent with an error
-    if filename == DATADOG_CONF:
-        sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % bad_path)
-        sys.exit(3)
-
+    sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
+    sys.exit(3)
 
 def get_default_bind_host():
     try:
@@ -904,20 +905,18 @@ def get_bernard_config():
     """Return the configuration of Bernard"""
     from util import yaml, yLoader
 
-    osname = get_os()
-    config_path = get_config_path(os_name=get_os(), filename=BERNARD_CONF)
+    config_path = '/etc/dd-agent/bernard.yaml'
 
     try:
-        f = open(config_path)
+        with open(config_path) as f:
+            bernard_config = yaml.load(f.read(), Loader=yLoader)
+            assert bernard_config is not None
+    
     except IOError, TypeError:
         log.info("Bernard isn't configured: can't find %s" % BERNARD_CONF)
         return {}
-    try:
-        bernard_config = yaml.load(f.read(), Loader=yLoader)
-        assert bernard_config is not None
-        f.close()
+
     except Exception:
-        f.close()
         log.error("Unable to parse yaml config in %s" % config_path)
         return {}
 

@@ -54,6 +54,7 @@ class Bernard(Daemon):
 
     def run(self):
         """Main loop of Bernard"""
+        self.write_pidfile()
 
         simulated_time = False
 

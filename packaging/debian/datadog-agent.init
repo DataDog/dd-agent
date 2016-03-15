@@ -134,7 +134,7 @@ case "$1" in
 
 
         log_daemon_msg "Starting $DESC (using supervisord)" "$NAME"
-        PATH=$SYSTEM_PATH start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD_PATH -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
+        start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD_PATH -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
         if [ $? -ne 0 ]; then
             log_end_msg 1
         fi
