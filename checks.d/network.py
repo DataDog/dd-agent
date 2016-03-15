@@ -7,6 +7,7 @@ Collects network metrics.
 """
 # stdlib
 import re
+import itertools
 
 # project
 from checks import AgentCheck
@@ -59,6 +60,20 @@ class Network(AgentCheck):
             "LAST_ACK": "closing",
             "LISTEN": "listening",
             "CLOSING": "closing",
+        },
+        "netstat_windows": {
+            "ESTABLISHED": "established",
+            "SYN_SEND": "opening",
+            "SYN_RECEIVED": "opening",
+            "FIN_WAIT_1": "closing",
+            "FIN_WAIT_2": "closing",
+            "TIME_WAIT": "time_wait",
+            "CLOSED": "closing",
+            "CLOSE_WAIT": "closing",
+            "LAST_ACK": "closing",
+            "LISTEN": "listening",
+            "LISTENING": "listening",
+            "CLOSING": "closing",
         }
     }
 
@@ -101,6 +116,8 @@ class Network(AgentCheck):
             self._check_bsd(instance)
         elif Platform.is_solaris():
             self._check_solaris(instance)
+        elif Platform.is_windows():
+            self._check_windows(instance)
 
     def _submit_devicemetrics(self, iface, vals_by_metric):
         if iface in self._excluded_ifaces or (self._exclude_iface_re and self._exclude_iface_re.match(iface)):
@@ -512,3 +529,35 @@ class Network(AgentCheck):
             metrics_by_interface[iface] = metrics
 
         return metrics_by_interface
+
+    def _check_windows(self, instance):
+        output, _, _ = get_subprocess_output(['netstat', '-an'], self.log)
+        return self._parse_windows_netstat(output)
+
+    def _parse_windows_netstat(self, netstat):
+        state_map = Network.TCP_STATES['netstat_windows']
+        lines = netstat.split('\n')
+        lines = itertools.dropwhile(lambda x: not re.match('^ *Proto', x), lines)
+        lines = itertools.islice(lines, 2, None)
+        lines = itertools.takewhile(lambda x: not re.match('^ *$', x), lines)
+        metrics = dict.fromkeys(self.CX_STATE_GAUGE.values(), 0)
+        for l in lines:
+            cols = l.split()
+            proto = cols[0]
+            protocol = proto.lower()
+            local_ip = cols[1]
+            if local_ip.startswith('['):
+                protocol += '6'
+            else:
+                protocol += '4'
+
+            status = "connections"
+            if proto == 'TCP':
+                state = cols[3]
+                status = state_map[state]
+
+            metric = self.CX_STATE_GAUGE[protocol, status]
+            metrics[metric] += 1
+
+        for metric, value in metrics.iteritems():
+            self.gauge(metric, value)
