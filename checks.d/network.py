@@ -60,6 +60,7 @@ class Network(AgentCheck):
         "netstat_windows": {
             "ESTABLISHED": "established",
             "SYN_SEND": "opening",
+            "SYN_SENT": "opening",
             "SYN_RECEIVED": "opening",
             "FIN_WAIT_1": "closing",
             "FIN_WAIT_2": "closing",
