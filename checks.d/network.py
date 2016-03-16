@@ -64,6 +64,7 @@ class Network(AgentCheck):
         "netstat_windows": {
             "ESTABLISHED": "established",
             "SYN_SEND": "opening",
+            "SYN_SENT": "opening",
             "SYN_RECEIVED": "opening",
             "FIN_WAIT_1": "closing",
             "FIN_WAIT_2": "closing",
@@ -536,7 +537,7 @@ class Network(AgentCheck):
 
     def _parse_windows_netstat(self, netstat):
         state_map = Network.TCP_STATES['netstat_windows']
-        lines = netstat.split('\n')
+        lines = netstat.splitlines()
         lines = itertools.dropwhile(lambda x: not re.match('^ *Proto', x), lines)
         lines = itertools.islice(lines, 2, None)
         lines = itertools.takewhile(lambda x: not re.match('^ *$', x), lines)

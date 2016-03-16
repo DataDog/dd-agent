@@ -128,7 +128,6 @@ EXCLUDED_WINDOWS_CHECKS = [
     'marathon',
     'mcache',
     'mesos',
-    'network',
     'postfix',
     'zk',
 ]
