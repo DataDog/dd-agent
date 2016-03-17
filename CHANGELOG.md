@@ -1,6 +1,15 @@
 Changes
 =======
 
+# 5.7.2 / 03-17-2016
+**Windows only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.7.1...5.7.2
+
+### Changes
+* [BUGFIX] WMI: Disable query timeout, cache and re-use connections to avoid memory leaks. See [#2366][]
+
 # 5.7.1 / 03-09-2016
 **All platforms**
 
@@ -2735,6 +2744,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2309]: https://github.com/DataDog/dd-agent/issues/2309
 [#2314]: https://github.com/DataDog/dd-agent/issues/2314
 [#2329]: https://github.com/DataDog/dd-agent/issues/2329
+[#2366]: https://github.com/DataDog/dd-agent/issues/2366
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@EdRow]: https://github.com/EdRow
