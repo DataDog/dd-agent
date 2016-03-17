@@ -15,6 +15,7 @@ initialize_logging('collector')
 
 # stdlib
 import logging
+import modules
 import os
 import signal
 import sys
@@ -216,7 +217,15 @@ class Agent(Daemon):
         sys.exit(0)
 
     def _get_emitters(self):
-        return [http_emitter]
+        emitters = [http_emitter]
+        custom = [s.strip() for s in
+            self._agentConfig.get('custom_emitters', '').split(',')]
+        for emitter_spec in custom:
+            if not emitter_spec:
+                continue
+            emitters.append(modules.load(emitter_spec, 'emitter'))
+
+        return emitters
 
     def _get_watchdog(self, check_freq):
         watchdog = None

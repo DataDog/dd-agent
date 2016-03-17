@@ -332,7 +332,11 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'additional_checksd': '/etc/dd-agent/checks.d/',
         'bind_host': get_default_bind_host(),
         'statsd_metric_namespace': None,
-        'utf8_decoding': False
+        'utf8_decoding': False,
+        'statsd_host': 'localhost',
+        'statsd_port': 8125,
+        'statsd_prefix': None,
+        'statsd_maxudpsize': 512
     }
 
     if Platform.is_mac():
