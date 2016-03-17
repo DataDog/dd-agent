@@ -431,6 +431,7 @@ class ProcessCheckTest(AgentCheckTest):
 
     def test_pagefault_stats(self):
         (minflt, cminflt, majflt, cmajflt) = [1, 2, 3, 4]
+
         def mock_get_pagefault_stats(pid):
             return [minflt, cminflt, majflt, cmajflt]
 
@@ -444,8 +445,9 @@ class ProcessCheckTest(AgentCheckTest):
                 }
             }]
         }
+
         def mock_find_pids(_1, _2, _3, **kwargs):
-            return {1}
+            return set([1])
         mocks = {
             'find_pids': mock_find_pids,
             'get_pagefault_stats': mock_get_pagefault_stats,
