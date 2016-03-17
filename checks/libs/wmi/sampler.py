@@ -51,9 +51,6 @@ class WMISampler(object):
     """
     WMI Sampler.
     """
-    # Shared resources
-    _wmi_locators = {}
-    _wmi_last_connections = {}
 
     def __init__(self, logger, class_name, property_names, filters="", host="localhost",
                  namespace="root\\cimv2", username="", password="", and_props=[], timeout_duration=10):
@@ -283,10 +280,7 @@ class WMISampler(object):
 
         # Yield the connection
         yield connection
-        self._wmi_last_connections[self.connection_key] = connection
-
-    def get_last_connection(self):
-        return self._wmi_last_connections.get(self.connection_key, None)
+        pythoncom.CoUninitialize()
 
     @staticmethod
     def _format_filter(filters, and_props=[]):
