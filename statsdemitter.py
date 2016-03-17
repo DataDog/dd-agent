@@ -1,5 +1,8 @@
 import statsd
 
+from checks.metric_types import MetricTypes
+
+
 def emitter(message, log, agentConfig, endpoint):
     "Send payload"
     log.debug('statsd_emitter: attempting postback to {host}:{port}'.format(host=agentConfig['statsd_host'], port=agentConfig['statsd_port']))
@@ -7,9 +10,14 @@ def emitter(message, log, agentConfig, endpoint):
 
     value_by_name, type_by_name = _aggregate_metrics(message['metrics'])
     for name, value in value_by_name.iteritems():
-        if type_by_name[name] == 'gauge':
-            print "name : {name}, value : {value}".format(name=name, value=value)
+        if type_by_name[name] == MetricTypes.GAUGE:
             c.gauge(name, value)
+        if type_by_name[name] == MetricTypes.COUNTER:
+            c.incr(name, value)
+        if type_by_name[name] == MetricTypes.RATE:
+            c.gauge(name, value) # Not real statsd equivalent
+        if type_by_name[name] == MetricTypes.COUNT:
+            c.gauge(name, value) # Not real statsd equivalent
 
 def _aggregate_metrics(metrics):
     "To deal with metric with the same name and different tags we just average them"
