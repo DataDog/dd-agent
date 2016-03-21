@@ -754,6 +754,17 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(fourth['check'], 'check.4')
         nt.assert_equal(fourth['tags'], sorted(['t1', 't2:v2', 't3', 't4']))
 
+    def test_service_check_msg_tags(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit_packets('_sc|check.1|0|#tag_keym:tag_value')
+
+        service_checks = self.sort_service_checks(stats.flush_service_checks())
+
+        assert len(service_checks) == 1
+        first = service_checks.pop()
+
+        nt.assert_equal(first['tags'], [u'tag_keym:tag_value'])
+
     def test_recent_point_threshold(self):
         threshold = 100
         # The min is not enabled by default
