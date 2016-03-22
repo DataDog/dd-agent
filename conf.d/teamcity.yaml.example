@@ -9,10 +9,16 @@ instances:
 
     # Specify the server name of your teamcity instance here
     # Guest authentication must be on if you want the check to be able to get data
+    # When using the optional basic_http_authentication use
+    # server: user:password@teamcity.mycompany.com
     server: teamcity.mycompany.com
+
     # This is the internal build ID of the build configuration you wish to track.
     # You can find it labelled as "Build configuration ID" when editing the configuration in question.
     build_configuration: MyWebsite_Deploy
+
+    # Optional, this turns on basic http authentication. Defaults to False.
+    # basic_http_authentication: true
 
     # Optional, if you wish to override the host that is affected by this build configuration.
     # Defaults to the host that the agent is running on.
