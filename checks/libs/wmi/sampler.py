@@ -1,3 +1,4 @@
+# pylint: disable=E0401
 """
 A lightweight Python WMI module wrapper built on top of `pywin32` and `win32com` extensions.
 
@@ -363,7 +364,7 @@ class WMISampler(object):
 
         return " WHERE {clause}".format(clause=build_where_clause(filters))
 
-    def _query(self):
+    def _query(self): # pylint: disable=E0202
         """
         Query WMI using WMI Query Language (WQL) & parse the results.
 

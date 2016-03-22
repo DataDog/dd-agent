@@ -457,9 +457,9 @@ class MongoDb(AgentCheck):
             if isinstance(metrics_to_collect[original_metric_name], tuple) \
             else original_metric_name
 
-        return submit_method, self.normalize(metric_name, submit_method, prefix)
+        return submit_method, self._normalize(metric_name, submit_method, prefix)
 
-    def normalize(self, metric_name, submit_method, prefix):
+    def _normalize(self, metric_name, submit_method, prefix):
         """
         Replace case-sensitive metric name characters, normalize the metric name,
         prefix and suffix according to its type.
@@ -473,7 +473,7 @@ class MongoDb(AgentCheck):
 
         # Normalize, and wrap
         return u"{metric_prefix}{normalized_metric_name}{metric_suffix}".format(
-            normalized_metric_name=super(MongoDb, self).normalize(metric_name.lower()),
+            normalized_metric_name=self.normalize(metric_name.lower()),
             metric_prefix=metric_prefix, metric_suffix=metric_suffix
         )
 

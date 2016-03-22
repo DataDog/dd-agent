@@ -10,7 +10,7 @@ import traceback
 
 # 3p
 from pyVim import connect
-from pyVmomi import vim
+from pyVmomi import vim # pylint: disable=E0611
 
 # project
 from checks import AgentCheck

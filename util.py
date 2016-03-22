@@ -1,7 +1,6 @@
 # stdlib
 from hashlib import md5
 import logging
-import math
 import os
 import platform
 import re
@@ -101,27 +100,6 @@ def windows_friendly_colon_split(config_string):
         return COLON_NON_WIN_PATH.split(config_string)
     else:
         return config_string.split(':')
-
-def getTopIndex():
-    macV = None
-    if sys.platform == 'darwin':
-        macV = platform.mac_ver()
-
-    # Output from top is slightly modified on OS X 10.6 (case #28239)
-    if macV and macV[0].startswith('10.6.'):
-        return 6
-    else:
-        return 5
-
-
-def isnan(val):
-    if hasattr(math, 'isnan'):
-        return math.isnan(val)
-
-    # for py < 2.6, use a different check
-    # http://stackoverflow.com/questions/944700/how-to-check-for-nan-in-python
-    return str(val) == str(1e400*0)
-
 
 def cast_metric_val(val):
     # ensure that the metric value is a numeric type

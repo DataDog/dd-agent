@@ -14,16 +14,12 @@ import modules
 from util import windows_friendly_colon_split
 from utils.tailfile import TailFile
 
-if hasattr('some string', 'partition'):
-    def partition(s, sep):
-        return s.partition(sep)
-else:
-    def partition(s, sep):
-        pos = s.find(sep)
-        if pos == -1:
-            return (s, sep, '')
-        else:
-            return s[0:pos], sep, s[pos + len(sep):]
+def partition(s, sep):
+    pos = s.find(sep)
+    if pos == -1:
+        return (s, sep, '')
+    else:
+        return s[0:pos], sep, s[pos + len(sep):]
 
 
 def point_sorter(p):
