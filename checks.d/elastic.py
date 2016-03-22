@@ -121,6 +121,7 @@ class ESCheck(AgentCheck):
         "elasticsearch.thread_pool.bulk.active": ("gauge", "thread_pool.bulk.active"),
         "elasticsearch.thread_pool.bulk.threads": ("gauge", "thread_pool.bulk.threads"),
         "elasticsearch.thread_pool.bulk.queue": ("gauge", "thread_pool.bulk.queue"),
+        "elasticsearch.thread_pool.bulk.rejected": ("gauge", "thread_pool.bulk.rejected"),
         "elasticsearch.thread_pool.flush.active": ("gauge", "thread_pool.flush.active"),
         "elasticsearch.thread_pool.flush.threads": ("gauge", "thread_pool.flush.threads"),
         "elasticsearch.thread_pool.flush.queue": ("gauge", "thread_pool.flush.queue"),
