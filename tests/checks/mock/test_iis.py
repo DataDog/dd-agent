@@ -70,3 +70,31 @@ class IISTestCase(AgentCheckTest, TestCommonWMI):
                                 tags=["site:{0}".format(fail_site_name)], count=1)
 
         self.coverage_report()
+
+    def test_check_2008(self):
+        """
+        Returns the right metrics and service checks for 2008 IIS
+        """
+        # Run check
+        config = {
+            'instances': [self.WIN_SERVICES_CONFIG]
+        }
+        config['instances'][0]['is_2008'] = True
+
+        self.run_check_twice(config)
+
+        # Test metrics
+
+        # normalize site-names
+        ok_site_name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", config['instances'][0]['sites'][0])
+        fail_site_name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", config['instances'][0]['sites'][1])
+        for mname in self.IIS_METRICS:
+            self.assertMetric(mname, tags=["mytag1", "mytag2", "site:{0}".format(ok_site_name)], count=1)
+
+        # Test service checks
+        self.assertServiceCheck('iis.site_up', status=AgentCheck.OK,
+                                tags=["site:{0}".format(ok_site_name)], count=1)
+        self.assertServiceCheck('iis.site_up', status=AgentCheck.CRITICAL,
+                                tags=["site:{0}".format(fail_site_name)], count=1)
+
+        self.coverage_report()

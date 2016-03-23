@@ -83,6 +83,7 @@ class WMISampler(object):
                 #   - Frequency_PerfTime
                 #   - Frequency_Object"
             ])
+
         self.class_name = class_name
         self.property_names = property_names
         self.filters = filters
