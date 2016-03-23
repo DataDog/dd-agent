@@ -29,6 +29,10 @@ instances:
   # - host: MYREMOTESERVER
   #   username: MYREMOTESERVER\fred
   #   password: mysecretpassword
+  #   is_2008: false  # NOTE: because of a typo in IIS6/7 (typically on W2K8)
+                      # where perfmon reports TotalBytesTransferred as
+                      # TotalBytesTransfered, you may have to enable this
+                      # to grab the IIS metrics in that environment.
   #   tags:
   #     - myapp2
   #     - east
