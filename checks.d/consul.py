@@ -20,7 +20,7 @@ class ConsulCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'consul'
 
     MAX_CONFIG_TTL = 300 # seconds
-    MAX_SERVICES = 50 # cap on distinct Consul ServiceIDs to interrogate
+    DEFAULT_MAX_SERVICES = 50 # cap on distinct Consul ServiceIDs to interrogate
 
     STATUS_SC = {
         'up': AgentCheck.OK,
@@ -147,18 +147,18 @@ class ConsulCheck(AgentCheck):
 
         return self.consul_request(instance, consul_request_url)
 
-    def _cull_services_list(self, services, service_whitelist):
+    def _cull_services_list(self, services, service_whitelist, max_services):
         if service_whitelist:
-            if len(service_whitelist) > self.MAX_SERVICES:
-                self.warning('More than %d services in whitelist. Service list will be truncated.' % self.MAX_SERVICES)
+            if max_services > 0 and len(service_whitelist) > max_services:
+                self.warning('More than %d services in whitelist. Service list will be truncated.' % max_services)
 
-            services = [s for s in services if s in service_whitelist][:self.MAX_SERVICES]
+            services = [s for s in services if s in service_whitelist][:max_services]
         else:
-            if len(services) <= self.MAX_SERVICES:
+            if max_services > 0 and len(services) <= max_services:
                 self.warning('Consul service whitelist not defined. Agent will poll for all %d services found' % len(services))
-            else:
-                self.warning('Consul service whitelist not defined. Agent will poll for at most %d services' % self.MAX_SERVICES)
-                services = list(islice(services.iterkeys(), 0, self.MAX_SERVICES))
+            elif max_services > 0:
+                self.warning('Consul service whitelist not defined. Agent will poll for at most %d services' % max_services)
+                services = list(islice(services.iterkeys(), 0, max_services))
 
         return services
 
@@ -218,8 +218,9 @@ class ConsulCheck(AgentCheck):
             services = self.get_services_in_cluster(instance)
             service_whitelist = instance.get('service_whitelist',
                                              self.init_config.get('service_whitelist', []))
+            max_services = instance.get('max_services', self.init_config.get('max_services', self.DEFAULT_MAX_SERVICES))
 
-            services = self._cull_services_list(services, service_whitelist)
+            services = self._cull_services_list(services, service_whitelist, max_services)
 
             # {node_id: {"up: 0, "passing": 0, "warning": 0, "critical": 0}
             nodes_to_service_status = defaultdict(lambda: defaultdict(int))
