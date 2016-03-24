@@ -137,7 +137,7 @@ class ConsulCheck(AgentCheck):
 
     ### Consul Catalog Accessors
     def get_peers_in_cluster(self, instance):
-        return self.consul_request(instance, '/v1/status/peers')
+        return self.consul_request(instance, '/v1/status/peers') or []
 
     def get_services_in_cluster(self, instance):
         return self.consul_request(instance, '/v1/catalog/services')
