@@ -321,9 +321,11 @@ class TokuMX(AgentCheck):
 
     def _get_replica_metrics(self, conn, tags, server, status):
         try:
+            self.log.debug("Trying to collect replica metrics")
             data = {}
 
             replSet = conn['admin'].command('replSetGetStatus')
+            self.log.debug("replSet: {0}".format(replSet))
             if replSet:
                 primary = None
                 current = None
@@ -331,15 +333,20 @@ class TokuMX(AgentCheck):
                 # find nodes: master and current node (ourself)
                 for member in replSet.get('members'):
                     if member.get('self'):
+                        self.log.debug("Member has self")
                         current = member
                     if int(member.get('state')) == 1:
+                        self.log.debug("Member is primary")
                         primary = member
 
                 # If we have both we can compute a lag time
                 if current is not None and primary is not None:
+                    self.log.debug("Member both has self and is primary")
                     lag = primary['optimeDate'] - current['optimeDate']
                     # Python 2.7 has this built in, python < 2.7 don't...
+                    self.log.debug("Lag is {0}".format(lag))
                     if hasattr(lag,'total_seconds'):
+                        self.log.debug("Log has total_seconds")
                         data['replicationLag'] = lag.total_seconds()
                     else:
                         data['replicationLag'] = (
@@ -348,8 +355,10 @@ class TokuMX(AgentCheck):
                         ) / 10.0**6
 
                 if current is not None:
+                    self.log.debug("Setting data['health'] = {0}".format(current['health']))
                     data['health'] = current['health']
 
+                self.log.debug("Setting tags")
                 tags.append('replset:%s' % replSet['set'])
                 tags.append('replstate:%s' % current['stateStr'])
                 if current['stateStr'] == 'PRIMARY':
@@ -358,8 +367,10 @@ class TokuMX(AgentCheck):
                     tags.append('role:secondary')
                     conn.read_preference = ReadPreference.SECONDARY
 
+                self.log.debug("Setting data['state'] = {0}".format(replSet['myState']))
                 data['state'] = replSet['myState']
                 self.check_last_state(data['state'], server, self.agentConfig)
+                self.log.debug("Setting status['replSet'] = {0}".format(data))
                 status['replSet'] = data
         except Exception, e:
             if "OperationFailure" in repr(e) and "replSetGetStatus" in str(e):
