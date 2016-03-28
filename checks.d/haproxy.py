@@ -373,6 +373,9 @@ class HAProxy(AgentCheck):
         tags = ["type:%s" % back_or_front, "instance_url:%s" % url]
         tags.append("service:%s" % service_name)
 
+        if 'act' in data:
+            tags.append("active:%s" % ('true' if data['act'] else 'false'))
+
         if self._is_service_excl_filtered(service_name, services_incl_filter,
                                           services_excl_filter):
             return
