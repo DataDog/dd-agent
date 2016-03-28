@@ -151,9 +151,6 @@ class IIS(WinWMICheck):
 
         for wmi_obj in wmi_sampler:
             sitename = wmi_obj['Name']
-            if sitename == "_Total":
-                continue
-
             uptime = wmi_obj["ServiceUptime"]
             status = AgentCheck.CRITICAL if uptime == 0 else AgentCheck.OK
 
