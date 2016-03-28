@@ -3,6 +3,7 @@ import time
 import types
 
 # 3p
+import bson
 from pymongo import (
     MongoClient,
     ReadPreference,
@@ -251,12 +252,7 @@ class TokuMX(AgentCheck):
             'host': hostname
         })
 
-    def _get_connection(self, instance):
-        if 'server' not in instance:
-            raise Exception("Missing 'server' in tokumx config")
-
-        server = instance['server']
-
+    def _get_ssl_params(self, instance):
         ssl_params = {
             'ssl': instance.get('ssl', None),
             'ssl_keyfile': instance.get('ssl_keyfile', None),
@@ -268,6 +264,16 @@ class TokuMX(AgentCheck):
         for key, param in ssl_params.items():
             if param is None:
                 del ssl_params[key]
+
+        return ssl_params
+
+    def _get_connection(self, instance, read_preference=None):
+        if 'server' not in instance:
+            raise Exception("Missing 'server' in tokumx config")
+
+        server = instance['server']
+
+        ssl_params = self._get_ssl_params(instance)
 
         tags = instance.get('tags', [])
         tags.append('server:%s' % server)
@@ -302,7 +308,13 @@ class TokuMX(AgentCheck):
             self.log.debug("TokuMX: cannot extract username and password from config %s" % server)
             do_auth = False
         try:
-            conn = MongoClient(server, socketTimeoutMS=DEFAULT_TIMEOUT*1000, **ssl_params)
+            if read_preference:
+                conn = MongoClient(server,
+                                   socketTimeoutMS=DEFAULT_TIMEOUT*1000,
+                                   read_preference=ReadPreference.SECONDARY,
+                                   **ssl_params)
+            else:
+                conn = MongoClient(server, socketTimeoutMS=DEFAULT_TIMEOUT*1000, **ssl_params)
             db = conn[db_name]
         except Exception:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
@@ -318,7 +330,7 @@ class TokuMX(AgentCheck):
 
         return server, conn, db, tags
 
-    def _get_replica_metrics(self, conn, tags, server, status):
+    def _get_replica_metrics(self, instance, conn, db, tags, server, status):
         try:
             data = {}
 
@@ -355,7 +367,10 @@ class TokuMX(AgentCheck):
                     tags.append('role:primary')
                 else:
                     tags.append('role:secondary')
-                    conn.read_preference = ReadPreference.SECONDARY
+                    self.log.debug("Current replSet member is secondary. "
+                                   "Creating new connection to set read_preference to secondary.")
+                    # need a new connection to deal with replica sets
+                    server, conn, db, _ = self._get_connection(instance, read_preference=ReadPreference.SECONDARY)
 
                 data['state'] = replSet['myState']
                 self.check_last_state(data['state'], server, self.agentConfig)
@@ -365,6 +380,8 @@ class TokuMX(AgentCheck):
                 pass
             else:
                 raise e
+
+        return conn, db
 
     def submit_idx_rate(self, metric_name, value, tags, key):
         if key not in self.idx_rates:
@@ -393,13 +410,13 @@ class TokuMX(AgentCheck):
                 self.gauge('tokumx.sharding.chunks', doc['count'], tags=chunk_tags)
 
 
-    def collect_metrics(self, server, conn, db, tags):
+    def collect_metrics(self, instance, server, conn, db, tags):
             status = db["$cmd"].find_one({"serverStatus": 1})
             status['stats'] = db.command('dbstats')
 
             # Handle replica data, if any
             # See http://www.mongodb.org/display/DOCS/Replica+Set+Commands#ReplicaSetCommands-replSetGetStatus
-            self._get_replica_metrics(conn, tags, server, status)
+            conn, db = self._get_replica_metrics(instance, conn, db, tags, server, status)
 
             for dbname in conn.database_names():
                 db_tags = list(tags)
@@ -453,7 +470,11 @@ class TokuMX(AgentCheck):
                     continue
 
                 # value is now status[x][y][z]
-                assert type(value) in (types.IntType, types.LongType, types.FloatType)
+                if type(value) == bson.int64.Int64:
+                    value = long(value)
+                else:
+                    if type(value) not in (types.IntType, types.LongType, types.FloatType):
+                        self.log.warning("Value found that is not of type int, int64,long, or float")
 
                 # Check if metric is a gauge or rate
                 if m in self.GAUGES:
@@ -470,4 +491,4 @@ class TokuMX(AgentCheck):
             self.collect_mongos(server, conn, db, tags)
 
         else:
-            self.collect_metrics(server, conn, db, tags)
+            self.collect_metrics(instance, server, conn, db, tags)
