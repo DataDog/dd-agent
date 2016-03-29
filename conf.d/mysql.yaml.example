@@ -17,7 +17,11 @@ instances:
     #   extra_innodb_metrics: true
     #   extra_performance_metrics: true
     #   schema_size_metrics: false
+    #   disable_innodb_metrics: false
     #
+    #     NOTE: disable_innodb_metrics should only be used by users with older (unsupported) versions of
+    #           MySQL who do not run/have innodb engine support and may experiment issue otherwise.
+    #           Should this flag be enabled you will only receive a small subset of metrics.
     #
     #     NOTE: extra_performance_metrics will only be reported if `performance_schema` is enabled
     #           in the MySQL instance and if the version for that instance is >= 5.6.0
