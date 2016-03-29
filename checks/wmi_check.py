@@ -214,7 +214,7 @@ class WinWMICheck(AgentCheck):
 
             metric_name, metric_type = metric_name_and_type_by_property[metric.name]
             try:
-                func = getattr(self, metric_type)
+                func = getattr(self, metric_type.lower())
             except AttributeError:
                 raise Exception(u"Invalid metric type: {0}".format(metric_type))
 
