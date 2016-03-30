@@ -139,7 +139,7 @@ class LogEvent(object):
     def __init__(self, ev, hostname, tags, notify_list, tag_event_id):
         self.event = ev
         self.hostname = hostname
-        self.tags = self._tags(tags, ev.EventCode) if tag_event_id else tags
+        self.tags = self._tags(tags, self.event['EventCode']) if tag_event_id else tags
         self.notify_list = notify_list
         self.timestamp = self._wmi_to_ts(self.event['TimeGenerated'])
 
