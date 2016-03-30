@@ -19,9 +19,11 @@ https://github.com/DataDog/dd-agent/compare/5.7.2...5.7.3
 * [BUGFIX] IIS: Deal with BytesTransfered vs BytesTransferred 2008sp2 typo. See [#2379][]
 * [BUGFIX] JMXFetch: Take into account `bind_host`. See [#2372][] and [jmxfetch-85](https://github.com/DataDog/jmxfetch/pull/85)
 * [BUGFIX] JMXFetch: Handle IOException gracefully at the instance level. See [jmxfetch-83](https://github.com/DataDog/jmxfetch/pull/83)
+* [BUGFIX] Packaging: Fix the version of `requests` shipped with the packaged Linux Agent. See [omnibus-software-45](https://github.com/DataDog/omnibus-software/pull/45)
 * [BUGFIX] MySQL: Avoid check failure when InnoDB is not available or disabled. See [#2385][]
 * [BUGFIX] SNMP: Fix errors in multiple-instance configurations caused by thread-safety issues with pysnmp `cmd_generator`. See [#2357][]
 * [BUGFIX] SQLServer: Fix connection to DB when no username or password are specified. See [#2311][]
+* [BUGFIX] vSphere: Fix SSL config options feature by upgrading the packaged version of `pyvmomi`. See [omnibus-software-44](https://github.com/DataDog/omnibus-software/pull/44)
 * [BUGFIX] Windows Event Log: Fix check when `tag_event_id:true` [#2397][]
 
 # 5.7.2 / 03-17-2016
