@@ -45,7 +45,6 @@ def reply_invalid(oid):
 class SnmpCheck(NetworkCheck):
 
     SOURCE_TYPE_NAME = 'system'
-    cmd_generator = None
     # pysnmp default values
     DEFAULT_RETRIES = 5
     DEFAULT_TIMEOUT = 1
@@ -54,8 +53,10 @@ class SnmpCheck(NetworkCheck):
     def __init__(self, name, init_config, agentConfig, instances):
         for instance in instances:
             if 'name' not in instance:
-                instance['name'] = instance['ip_address']
+                instance['name'] = self._get_instance_key(instance)
             instance['skip_event'] = True
+
+        self.generators = {}
 
         # Set OID batch size
         self.oid_batch_size = int(init_config.get("oid_batch_size", DEFAULT_OID_BATCH_SIZE))
@@ -68,9 +69,6 @@ class SnmpCheck(NetworkCheck):
             self.ignore_nonincreasing_oid = _is_affirmative(
                 init_config.get("ignore_nonincreasing_oid", False))
 
-        # Create SNMP command generator and aliases
-        self.create_command_generator(self.mibs_path, self.ignore_nonincreasing_oid)
-
         NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
 
     def _load_conf(self, instance):
@@ -81,8 +79,32 @@ class SnmpCheck(NetworkCheck):
         retries = int(instance.get('retries', self.DEFAULT_RETRIES))
         enforce_constraints = _is_affirmative(instance.get('enforce_mib_constraints', True))
 
-        return ip_address, tags, metrics, timeout, retries, enforce_constraints
+        instance_key = instance['name']
+        cmd_generator = self.generators.get(instance_key, None)
+        if not cmd_generator:
+            cmd_generator = self.create_command_generator(self.mibs_path, self.ignore_nonincreasing_oid)
+            self.generators[instance_key] = cmd_generator
 
+        return cmd_generator, ip_address, tags, metrics, timeout, retries, enforce_constraints
+
+    def _get_instance_key(self, instance):
+        key = instance.get('name', None)
+        if key:
+            return key
+
+        host = instance.get('host', None)
+        ip = instance.get('ip_address', None)
+        port = instance.get('port', None)
+        if host and port:
+            key = "{host}:{port}".format(host=host, port=port)
+        elif ip and port:
+            key = "{host}:{port}".format(host=ip, port=port)
+        elif host:
+            key = host
+        elif ip:
+            key = ip
+
+        return key
 
     def snmp_logger(self, func):
         """
@@ -103,18 +125,18 @@ class SnmpCheck(NetworkCheck):
         If mibs_path is not None, load the mibs present in the custom mibs
         folder. (Need to be in pysnmp format)
         '''
-        self.cmd_generator = cmdgen.CommandGenerator()
-        self.cmd_generator.ignoreNonIncreasingOid = ignore_nonincreasing_oid
+        cmd_generator = cmdgen.CommandGenerator()
+        cmd_generator.ignoreNonIncreasingOid = ignore_nonincreasing_oid
+
         if mibs_path is not None:
-            mib_builder = self.cmd_generator.snmpEngine.msgAndPduDsp.\
+            mib_builder = cmd_generator.snmpEngine.msgAndPduDsp.\
                 mibInstrumController.mibBuilder
             mib_sources = mib_builder.getMibSources() + \
                 (builder.DirMibSource(mibs_path), )
             mib_builder.setMibSources(*mib_sources)
 
-        # Set aliases for snmpget and snmpgetnext with logging
-        self.snmpget = self.snmp_logger(self.cmd_generator.getCmd)
-        self.snmpgetnext = self.snmp_logger(self.cmd_generator.nextCmd)
+        return cmd_generator
+
 
     @classmethod
     def get_auth_data(cls, instance):
@@ -176,7 +198,8 @@ class SnmpCheck(NetworkCheck):
             instance["service_check_error"] = message
             raise Exception(message)
 
-    def check_table(self, instance, oids, lookup_names, timeout, retries, enforce_constraints=False):
+    def check_table(self, instance, cmd_generator, oids, lookup_names,
+                    timeout, retries, enforce_constraints=False):
         '''
         Perform a snmpwalk on the domain specified by the oids, on the device
         configured in instance.
@@ -193,6 +216,10 @@ class SnmpCheck(NetworkCheck):
         # snmpgetnext -v2c -c public localhost:11111 1.36.1.2.1.25.4.2.1.7.222
         # iso.3.6.1.2.1.25.4.2.1.7.224 = INTEGER: 2
         # SOLUTION: perform a snmget command and fallback with snmpgetnext if not found
+
+        # Set aliases for snmpget and snmpgetnext with logging
+        snmpget = self.snmp_logger(cmd_generator.getCmd)
+        snmpgetnext = self.snmp_logger(cmd_generator.nextCmd)
         transport_target = self.get_transport_target(instance, timeout, retries)
         auth_data = self.get_auth_data(instance)
 
@@ -201,10 +228,9 @@ class SnmpCheck(NetworkCheck):
         results = defaultdict(dict)
 
         while first_oid < len(oids):
-
             try:
                 # Start with snmpget command
-                error_indication, error_status, error_index, var_binds = self.snmpget(
+                error_indication, error_status, error_index, var_binds = snmpget(
                     auth_data,
                     transport_target,
                     *(oids[first_oid:first_oid + self.oid_batch_size]),
@@ -228,7 +254,7 @@ class SnmpCheck(NetworkCheck):
 
                 if missing_results:
                     # If we didn't catch the metric using snmpget, try snmpnext
-                    error_indication, error_status, error_index, var_binds_table = self.snmpgetnext(
+                    error_indication, error_status, error_index, var_binds_table = snmpgetnext(
                         auth_data,
                         transport_target,
                         *missing_results,
@@ -248,14 +274,20 @@ class SnmpCheck(NetworkCheck):
                         complete_results.extend(table_row)
 
                 all_binds.extend(complete_results)
+
             except PySnmpError as e:
                 if "service_check_error" not in instance:
-                    instance["service_check_error"] = "Fail to collect metrics: {0}".format(e)
+                    instance["service_check_error"] = "Fail to collect some metrics: {0}".format(e)
                 if "service_check_severity" not in instance:
                     instance["service_check_severity"] = Status.CRITICAL
-                self.warning("Fail to collect metrics: {0}".format(e))
+                self.warning("Fail to collect some metrics: {0}".format(e))
 
+            # if we fail move onto next batch
             first_oid = first_oid + self.oid_batch_size
+
+        # if we've collected some variables, it's not that bad.
+        if "service_check_severity" in instance and len(all_binds):
+            instance["service_check_severity"] = Status.WARNING
 
         for result_oid, value in all_binds:
             if lookup_names:
@@ -274,7 +306,7 @@ class SnmpCheck(NetworkCheck):
         and should be looked up and one for those specified by oids
         '''
 
-        ip_address, tags, metrics, timeout, retries, enforce_constraints = self._load_conf(instance)
+        cmd_generator, ip_address, tags, metrics, timeout, retries, enforce_constraints = self._load_conf(instance)
 
         tags += ['snmp_device:{0}'.format(ip_address)]
 
@@ -298,18 +330,18 @@ class SnmpCheck(NetworkCheck):
         try:
             if table_oids:
                 self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
-                table_results = self.check_table(instance, table_oids, True, timeout, retries,
+                table_results = self.check_table(instance, cmd_generator, table_oids, True, timeout, retries,
                                                  enforce_constraints=enforce_constraints)
                 self.report_table_metrics(metrics, table_results, tags)
 
             if raw_oids:
                 self.log.debug("Querying device %s for %s oids", ip_address, len(raw_oids))
-                raw_results = self.check_table(instance, raw_oids, False, timeout, retries,
+                raw_results = self.check_table(instance, cmd_generator, raw_oids, False, timeout, retries,
                                                enforce_constraints=False)
                 self.report_raw_metrics(metrics, raw_results, tags)
         except Exception as e:
             if "service_check_error" not in instance:
-                instance["service_check_error"] = "Fail to collect metrics: {0}".format(e)
+                instance["service_check_error"] = "Fail to collect metrics for {0} - {1}".format(instance['name'], e)
             self.warning(instance["service_check_error"])
             return [(self.SC_STATUS, Status.CRITICAL, instance["service_check_error"])]
         finally:
