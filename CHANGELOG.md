@@ -9,6 +9,7 @@ https://github.com/DataDog/dd-agent/compare/5.7.2...5.7.3
 
 ### Changes
 * [IMPROVEMENT] Linux install script: Ignore `apt-get update` failures and use https for apt repo. See [#2378][]
+* [IMPROVEMENT] WMI check: Make configuration of the metric types case-insensitive. See [#2392][]
 
 * [BUGFIX] Consul: Enforce that `get_peers_in_cluster` returns a list. See [#2381][]
 * [BUGFIX] Core: Fix Japanese tzname encoding issue on Windows. See [#2351][]
@@ -21,6 +22,7 @@ https://github.com/DataDog/dd-agent/compare/5.7.2...5.7.3
 * [BUGFIX] MySQL: Avoid check failure when InnoDB is not available or disabled. See [#2385][]
 * [BUGFIX] SNMP: Fix errors in multiple-instance configurations caused by thread-safety issues with pysnmp `cmd_generator`. See [#2357][]
 * [BUGFIX] SQLServer: Fix connection to DB when no username or password are specified. See [#2311][]
+* [BUGFIX] Windows Event Log: Fix check when `tag_event_id:true` [#2397][]
 
 # 5.7.2 / 03-17-2016
 **Windows only**
@@ -2777,6 +2779,8 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2381]: https://github.com/DataDog/dd-agent/issues/2381
 [#2385]: https://github.com/DataDog/dd-agent/issues/2385
 [#2387]: https://github.com/DataDog/dd-agent/issues/2387
+[#2392]: https://github.com/DataDog/dd-agent/issues/2392
+[#2397]: https://github.com/DataDog/dd-agent/issues/2397
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@EdRow]: https://github.com/EdRow
