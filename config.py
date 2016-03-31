@@ -32,7 +32,7 @@ from utils.subprocess_output import (
 
 
 # CONSTANTS
-AGENT_VERSION = "5.7.2"
+AGENT_VERSION = "5.7.3"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
 MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
