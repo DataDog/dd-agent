@@ -55,7 +55,7 @@ if sys.platform == 'win32':
             self.copyright = 'Copyright 2015 Datadog, Inc.'
             self.cmdline_style = 'pywin32'
 
-    agent_svc = Target(name='Datadog Agent', modules='win32.ddagent_service', dest_base='ddagent')
+    agent_svc = Target(name='Datadog Agent', modules='win32.service', dest_base='ddagent')
     sys.path.append("C:\\omnibus-ruby\\src\\vc_redist")
 
     extra_args = {

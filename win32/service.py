@@ -1,16 +1,16 @@
 """
-A Windows Service wrapper for win32/agent.py which consists in a minimalistic
+A Windows Service wrapper for win32/wsupervisor.py which consists in a minimalistic
 supervisor for our agent with restart tries in case of failure. This program
 will be packaged into an .exe file with py2exe in our omnibus build. It doesn't
 have any project dependencies and shouldn't. It just launches and talks to our
-Windows supervisor in our Python venv. This way the agent code isn't shipped in
+Windows supervisor in our Python env. This way the agent code isn't shipped in
 an .exe file which allows for easy hacking on it's source code.
 
 Many thanks to the author of the article below which saved me quite some time:
 http://ryrobes.com/python/running-python-scripts-as-a-windows-service/
 
 """
-#stdlib
+# stdlib
 import os
 import socket
 import select
@@ -38,12 +38,12 @@ def _windows_commondata_path():
 
     _SHGetFolderPath = windll.shell32.SHGetFolderPathW
     _SHGetFolderPath.argtypes = [wintypes.HWND,
-                                ctypes.c_int,
-                                wintypes.HANDLE,
-                                wintypes.DWORD, wintypes.LPCWSTR]
+                                 ctypes.c_int,
+                                 wintypes.HANDLE,
+                                 wintypes.DWORD, wintypes.LPCWSTR]
 
     path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
-    result = _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
+    _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
     return path_buf.value
 
 
@@ -70,16 +70,21 @@ class AgentService(win32serviceutil.ServiceFramework):
 
         win32serviceutil.ServiceFramework.__init__(self, args)
 
+        current_dir = os.path.dirname(os.path.realpath(__file__))
         # Are we in a py2exed package or in a source install script or just a git pulled repo ?
-        if not os.path.isfile(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..') +
-                '\\windows_supervisor.py'):
-            self.agent_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..',
-                    '..', '..') + '\\agent'
+        if not os.path.isfile(os.path.join(current_dir, 'windows_supervisor.py')):
+            # py2exe package
+            # current_dir should be somthing like
+            # C:\Program Files(x86)\Datadog\Datadog Agent\dist\library.zip\win32s
+            self.agent_path = os.path.join(current_dir, '..', '..', '..', 'agent')
         else:
-            self.agent_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')
+            self.agent_path = os.path.join(current_dir, '..')
             # If we are in a proper source install script, let's get into the agent directory
-            if os.path.isdir(self.agent_path + "\\agent"):
-                self.agent_path += "agent"
+            agent_dir = os.path.join(self.agent_path, 'agent')
+            if os.path.isdir(agent_dir):
+                self.agent_path = agent_dir
+
+        self.agent_path = os.path.normpath(self.agent_path)
         logging.info("Agent path: {0}".format(self.agent_path))
         self.proc = None
 
@@ -118,7 +123,8 @@ class AgentService(win32serviceutil.ServiceFramework):
         servicemanager.LogMsg(
             servicemanager.EVENTLOG_INFORMATION_TYPE,
             servicemanager.PYS_SERVICE_STARTED,
-            (self._svc_name_, ''))
+            (self._svc_name_, '')
+        )
 
         # Let's start our components and put our supervisor's output into the
         # appropriate log file. This program also logs a minimalistic set of
@@ -134,12 +140,13 @@ class AgentService(win32serviceutil.ServiceFramework):
             os.chdir(self.agent_path)
 
             # This allows us to use the system's Python in case there is no embedded python
-            embedded_python = '..\\embedded\\python.exe'
+            embedded_python = os.path.normpath(
+                os.path.join(self.agent_path, '..', 'embedded', 'python.exe')
+            )
             if not os.path.isfile(embedded_python):
                 embedded_python = "python"
 
-            self.proc = subprocess.Popen([embedded_python, "windows_supervisor.py" , "start", "server"])
-            os.chdir(self.agent_path + "\\win32")
+            self.proc = subprocess.Popen([embedded_python, "windows_supervisor.py", "start", "server"])
         except WindowsError as e:
             logging.exception("WindowsError occured when starting our supervisor :\n\t"
                               "[Errno {1}] {0}".format(e.strerror, e.errno))

@@ -68,10 +68,17 @@ class AgentSupervisor():
         self._MAX_JMXFETCH_RESTARTS = 3
         self._count_jmxfetch_restarts = 0
 
+        # C:\Program Files(x86)\Datadog\Datadog Agent\agent
+        file_dir = os.path.dirname(os.path.realpath(__file__))
+        embedded_python = os.path.normpath(
+            os.path.join(file_dir, '..', 'embedded', 'python.exe')
+        )
         # This allows us to use the system's Python in case there is no embedded python
-        embedded_python = '..\\embedded\\python.exe'
         if not os.path.isfile(embedded_python):
             embedded_python = "python"
+
+        # cd to C:\Program Files(x86)\Datadog\Datadog Agent\agent
+        os.chdir(file_dir)
 
         # Keep a list of running processes so we can start/end as needed.
         # Processes will start started in order and stopped in reverse order.
@@ -113,8 +120,7 @@ class AgentSupervisor():
         mins = int(secs/60)
         hours = int(secs/3600)
         log.info("They're all dead! The agent has been run for {0} hours {1} "
-                 "minutes {2} seconds".
-                 format(hours, mins % 60, secs % 60))
+                 "minutes {2} seconds".format(hours, mins % 60, secs % 60))
 
     def run(self):
         self.start_ts = time.time()
@@ -238,6 +244,7 @@ class DDProcess(object):
             if env['PATH'][-1] != ';':
                 env['PATH'] += ';'
 
+            # file_path = C:\Program Files(x86)\Datadog\Datadog Agent\
             file_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
             env['PATH'] += "{};{};".format(os.path.join(file_path, 'bin'), os.path.join(file_path, 'embedded'))
 
