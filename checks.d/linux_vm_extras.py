@@ -19,4 +19,4 @@ class MoreLinuxVMCheck(AgentCheck):
 
             for line in content:
                 if line[0] in VM_COUNTS:
-                    self.count("system.linux.vm.{0}".format(VM_COUNTS[line[0]]), int(line[1]), tags=tags)
+                    self.monotonic_count("system.linux.vm.{0}".format(VM_COUNTS[line[0]]), int(line[1]), tags=tags)
