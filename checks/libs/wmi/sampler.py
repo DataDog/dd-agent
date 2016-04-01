@@ -19,18 +19,17 @@ Credits to @TheCloudlessSky (https://github.com/TheCloudlessSky)
 """
 
 # stdlib
-from collections import defaultdict
-from contextlib import contextmanager
 from copy import deepcopy
 from itertools import izip
-from utils.timeout import TimeoutException
 import pywintypes
 
 # 3p
+import pythoncom
 from win32com.client import Dispatch
 
 # project
 from checks.libs.wmi.counter_type import get_calculator, get_raw, UndefinedCalculator
+from utils.timeout import timeout, TimeoutException
 
 
 class CaseInsensitiveDict(dict):
@@ -51,8 +50,6 @@ class WMISampler(object):
     """
     WMI Sampler.
     """
-    # Shared resources
-    _wmi_connections = defaultdict(list)
 
     def __init__(self, logger, class_name, property_names, filters="", host="localhost",
                  namespace="root\\cimv2", username="", password="", and_props=[], timeout_duration=10):
@@ -91,9 +88,7 @@ class WMISampler(object):
         self._formatted_filters = None
         self.property_counter_types = None
         self._timeout_duration = timeout_duration
-
-        # FIXME
-        # self._query = timeout(timeout_duration)(self._query)
+        self._query = timeout(timeout_duration)(self._query)
 
         # Samples
         self.current_sample = None
@@ -260,47 +255,32 @@ class WMISampler(object):
 
         return formatted_wmi_object
 
-    @contextmanager
     def get_connection(self):
         """
-        Return an existing, available WMI connection or create a new one.
-        Release, i.e. mark as available at exit.
+        Create a new WMI connection
         """
-        connection = None
-
-        # Fetch an existing connection or create a new one
-        available_connections = self._wmi_connections[self.connection_key]
-
-        if available_connections:
-            self.logger.debug(
-                u"Using cached connection "
-                u"(host={host}, namespace={namespace}, username={username}).".format(
-                    host=self.host,
-                    namespace=self.namespace,
-                    username=self.username
-                )
+        self.logger.debug(
+            u"Connecting to WMI server "
+            u"(host={host}, namespace={namespace}, username={username}).".format(
+                host=self.host,
+                namespace=self.namespace,
+                username=self.username
             )
-            connection = available_connections.pop()
-        else:
-            self.logger.debug(
-                u"Connecting to WMI server "
-                u"(host={host}, namespace={namespace}, username={username}).".format(
-                    host=self.host,
-                    namespace=self.namespace,
-                    username=self.username
-                )
-            )
-            locator = Dispatch("WbemScripting.SWbemLocator")
-            connection = locator.ConnectServer(
-                self.host, self.namespace,
-                self.username, self.password
-            )
+        )
 
-        # Yield the connection
-        yield connection
+        # Initialize COM for the current thread
+        # WARNING: any python COM object (locator, connection, etc) created in a thread
+        # shouldn't be used in other threads (can lead to memory/handle leaks if done
+        # without a deep knowledge of COM's threading model). Because of this and given
+        # that we run each query in its own thread, we don't cache connections
+        pythoncom.CoInitialize()
+        locator = Dispatch("WbemScripting.SWbemLocator")
+        connection = locator.ConnectServer(
+            self.host, self.namespace,
+            self.username, self.password
+        )
 
-        # Release it
-        self._wmi_connections[self.connection_key].append(connection)
+        return connection
 
     @staticmethod
     def _format_filter(filters, and_props=[]):
@@ -412,8 +392,7 @@ class WMISampler(object):
                 self.property_counter_types = CaseInsensitiveDict()
                 query_flags |= flag_use_amended_qualifiers
 
-            with self.get_connection() as connection:
-                raw_results = connection.ExecQuery(wql, "WQL", query_flags)
+            raw_results = self.get_connection().ExecQuery(wql, "WQL", query_flags)
 
             results = self._parse_results(raw_results, includes_qualifiers=includes_qualifiers)
 
