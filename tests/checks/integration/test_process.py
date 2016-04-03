@@ -34,6 +34,8 @@ class MockProcess(object):
     def is_running(self):
         return True
 
+def noop_get_pagefault_stats(pid):
+    return None
 
 class ProcessCheckTest(AgentCheckTest):
     CHECK_NAME = 'process'
@@ -135,7 +137,7 @@ class ProcessCheckTest(AgentCheckTest):
 
     def test_psutil_wrapper_simple(self):
         # Load check with empty config
-        self.run_check({})
+        self.run_check({}, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         name = self.check.psutil_wrapper(
             self.get_psutil_proc(),
             'name',
@@ -146,7 +148,7 @@ class ProcessCheckTest(AgentCheckTest):
 
     def test_psutil_wrapper_simple_fail(self):
         # Load check with empty config
-        self.run_check({})
+        self.run_check({}, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         name = self.check.psutil_wrapper(
             self.get_psutil_proc(),
             'blah',
@@ -157,7 +159,7 @@ class ProcessCheckTest(AgentCheckTest):
 
     def test_psutil_wrapper_accessors(self):
         # Load check with empty config
-        self.run_check({})
+        self.run_check({}, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         meminfo = self.check.psutil_wrapper(
             self.get_psutil_proc(),
             'memory_info',
@@ -170,7 +172,7 @@ class ProcessCheckTest(AgentCheckTest):
 
     def test_psutil_wrapper_accessors_fail(self):
         # Load check with empty config
-        self.run_check({})
+        self.run_check({}, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         meminfo = self.check.psutil_wrapper(
             self.get_psutil_proc(),
             'memory_infoo',
@@ -198,7 +200,7 @@ class ProcessCheckTest(AgentCheckTest):
         self.assertTrue(len(self.check.ad_cache) > 0)
 
         # The next run shoudn't throw an exception
-        self.run_check(config)
+        self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         # The ad cache should still be valid
         self.assertFalse(self.check.should_refresh_ad_cache('python'))
 
@@ -206,7 +208,7 @@ class ProcessCheckTest(AgentCheckTest):
         self.check.last_ad_cache_ts = {}
         self.check.last_pid_cache_ts = {}
         # Shouldn't throw an exception
-        self.run_check(config)
+        self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
 
     def mock_find_pids(self, name, search_string, exact_match=True, ignore_ad=True,
                        refresh_ad_cache=True):
@@ -233,6 +235,7 @@ class ProcessCheckTest(AgentCheckTest):
         mocks = {
             'find_pids': self.mock_find_pids,
             'psutil_wrapper': self.mock_psutil_wrapper,
+            'get_pagefault_stats': noop_get_pagefault_stats,
         }
 
         config = {
@@ -301,7 +304,7 @@ class ProcessCheckTest(AgentCheckTest):
             }]
         }
 
-        self.run_check(config)
+        self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
 
         expected_tags = self.generate_expected_tags(config['instances'][0])
         for mname in self.PROCESS_METRIC:
@@ -320,7 +323,7 @@ class ProcessCheckTest(AgentCheckTest):
         self.coverage_report()
 
         # Run the check a second time and check that `cpu_pct` is there
-        self.run_check(config)
+        self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         self.assertMetric('system.processes.cpu.pct', count=1, tags=expected_tags)
 
     def test_relocated_procfs(self):
@@ -413,7 +416,7 @@ class ProcessCheckTest(AgentCheckTest):
                     reload(psutil)
                 assert Platform.is_linux()
 
-                self.run_check(config)
+                self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         finally:
             shutil.rmtree(my_procfs)
             if not already_linux:
