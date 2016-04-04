@@ -18,6 +18,7 @@ from utils.platform import Platform
 
 EVENT_TYPE = 'docker'
 SERVICE_CHECK_NAME = 'docker.service_up'
+DISK_METRICS_PREFIX = 'docker.disk.{0}'
 SIZE_REFRESH_RATE = 5  # Collect container sizes every 5 iterations of the check
 MAX_CGROUP_LISTING_RETRIES = 3
 CONTAINER_ID_RE = re.compile('[0-9a-f]{64}')
@@ -30,6 +31,13 @@ HISTO = AgentCheck.generate_histogram_func(["container_name"])
 FUNC_MAP = {
     GAUGE: {True: HISTO, False: GAUGE},
     RATE: {True: HISTORATE, False: RATE}
+}
+
+UNIT_MAP = {
+    'kb': 1000,
+    'mb': 1000000,
+    'gb': 1000000000,
+    'tb': 1000000000000
 }
 
 CGROUP_METRICS = [
@@ -193,6 +201,7 @@ class DockerDaemon(AgentCheck):
             self.collect_container_size = _is_affirmative(instance.get('collect_container_size', False))
             self.collect_events = _is_affirmative(instance.get('collect_events', True))
             self.collect_image_size = _is_affirmative(instance.get('collect_image_size', False))
+            self.collect_disk_stats = _is_affirmative(instance.get('collect_disk_stats', False))
             self.collect_ecs_tags = _is_affirmative(instance.get('ecs_tags', True)) and Platform.is_ecs_instance()
 
             self.ecs_tags = {}
@@ -240,6 +249,10 @@ class DockerDaemon(AgentCheck):
         # Send events from Docker API
         if self.collect_events:
             self._process_events(containers_by_id)
+
+        # Collect disk stats from Docker info command
+        if self.collect_disk_stats:
+            self._report_disk_stats()
 
     def _count_and_weigh_images(self):
         try:
@@ -485,8 +498,8 @@ class DockerDaemon(AgentCheck):
             self._report_net_metrics(container, tags)
 
         if containers_without_proc_root:
-            message = "Couldn't find pid directory for container: {0}. They'll be missing network metrics".format(
-                ",".join(containers_without_proc_root))
+            message = "Couldn't find pid directory for containers: {0}. They'll be missing network metrics".format(
+                ", ".join(containers_without_proc_root))
             if not self.is_k8s():
                 self.warning(message)
             else:
@@ -642,6 +655,42 @@ class DockerDaemon(AgentCheck):
             })
 
         return events
+
+    def _report_disk_stats(self):
+        """Report metrics about the volume space usage"""
+        stats = {
+            'used': None,
+            'total': None,
+            'free': None
+        }
+        info = self.client.info()
+        driver_status = info.get('DriverStatus', [])
+        for metric in driver_status:
+            if metric[0] == 'Data Space Used':
+                stats['used'] = metric[1]
+            elif metric[0] == 'Data Space Total':
+                stats['total'] = metric[1]
+            elif metric[0] == 'Data Space Available':
+                stats['free'] = metric[1]
+        stats = self._format_disk_metrics(stats)
+        tags = self._get_tags()
+        for name, val in stats.iteritems():
+            if val:
+                self.gauge(DISK_METRICS_PREFIX.format(name), val, tags)
+
+    def _format_disk_metrics(self, metrics):
+        """Cast the disk stats to float and convert them to bytes"""
+        for name, raw_val in metrics.iteritems():
+            if raw_val:
+                val, unit = raw_val.split(' ')
+                # by default some are uppercased others lowercased. That's error prone.
+                unit = unit.lower()
+                try:
+                    val = int(float(val) * UNIT_MAP[unit])
+                    metrics[name] = val
+                except KeyError:
+                    self.log.error('Unrecognized unit %s for disk metric %s. Dropping it.' % (unit, name))
+        return metrics
 
     # Cgroups
 
