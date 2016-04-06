@@ -3,7 +3,7 @@ from mock import Mock
 
 # project
 from tests.checks.common import AgentCheckTest
-from tests.core.test_wmi import TestCommonWMI
+from tests.core.test_wmi import SWbemServices, TestCommonWMI
 
 
 class WMITestCase(AgentCheckTest, TestCommonWMI):
@@ -217,35 +217,35 @@ class WMITestCase(AgentCheckTest, TestCommonWMI):
         self.run_check(config, mocks={'log': logger})
         self.assertEquals(logger.warning.call_count, 1)
 
-    # def test_query_timeouts(self):
-    #     """
-    #     Gracefully handle WMI query timeouts.
-    #     """
-    #     def __patched_init__(*args, **kwargs):
-    #         """
-    #         Force `timeout_duration` value.
-    #         """
-    #         kwargs['timeout_duration'] = 0.1
-    #         return wmi_constructor(*args, **kwargs)
+    def test_query_timeouts(self):
+        """
+        Gracefully handle WMI query timeouts.
+        """
+        def __patched_init__(*args, **kwargs):
+            """
+            Force `timeout_duration` value.
+            """
+            kwargs['timeout_duration'] = 0.1
+            return wmi_constructor(*args, **kwargs)
 
-    #     # Increase WMI queries' runtime
-    #     SWbemServices._exec_query_run_time = 0.2
+        # Increase WMI queries' runtime
+        SWbemServices._exec_query_run_time = 0.2
 
-    #     # Patch WMISampler to decrease timeout tolerance
-    #     from checks.libs.wmi.sampler import WMISampler
+        # Patch WMISampler to decrease timeout tolerance
+        from checks.libs.wmi.sampler import WMISampler
 
-    #     wmi_constructor = WMISampler.__init__
-    #     WMISampler.__init__ = __patched_init__
+        wmi_constructor = WMISampler.__init__
+        WMISampler.__init__ = __patched_init__
 
-    #     # Set up the check
-    #     config = {
-    #         'instances': [self.WMI_CONFIG]
-    #     }
-    #     logger = Mock()
+        # Set up the check
+        config = {
+            'instances': [self.WMI_CONFIG]
+        }
+        logger = Mock()
 
-    #     # No exception is raised but a WARNING is logged
-    #     self.run_check(config, mocks={'log': logger})
-    #     self.assertTrue(logger.warning.called)
+        # No exception is raised but a WARNING is logged
+        self.run_check(config, mocks={'log': logger})
+        self.assertTrue(logger.warning.called)
 
     def test_mandatory_tag_by(self):
         """
