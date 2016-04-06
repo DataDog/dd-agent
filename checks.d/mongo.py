@@ -7,7 +7,7 @@ import pymongo
 
 # project
 from checks import AgentCheck
-from util import get_hostname
+from urlparse import urlsplit
 
 DEFAULT_TIMEOUT = 30
 GAUGE = AgentCheck.gauge
@@ -46,10 +46,6 @@ class MongoDb(AgentCheck):
     """
     SOURCE_TYPE_NAME = 'mongodb'
 
-    # Service checks
-    SERVICE_CHECK_NAME = 'mongodb.can_connect'
-
-    # Metrics
     """
     MongoDB replica set states, as documented at
     https://docs.mongodb.org/manual/reference/replica-states/
@@ -67,6 +63,14 @@ class MongoDb(AgentCheck):
         10: 'removed'
     }
 
+    # METRIC LIST DEFINITION
+    #
+    # Format
+    # ------
+    #   metric_name -> (metric_type, alias)
+    # or
+    #   metric_name -> metric_type *
+    # * by default MongoDB metrics are reported under their original metric names
     """
     Core metrics collected by default.
     """
@@ -379,6 +383,20 @@ class MongoDb(AgentCheck):
         'top': TOP_METRICS,
     }
 
+    REPLSET_MEMBER_STATES = {
+        0: ('STARTUP', 'Starting Up'),
+        1: ('PRIMARY', 'Primary'),
+        2: ('SECONDARY', 'Secondary'),
+        3: ('RECOVERING', 'Recovering'),
+        4: ('Fatal', 'Fatal'),   # MongoDB docs don't list this state
+        5: ('STARTUP2', 'Starting up (forking threads)'),
+        6: ('UNKNOWN', 'Unknown to this replset member'),
+        7: ('ARBITER', 'Arbiter'),
+        8: ('DOWN', 'Down'),
+        9: ('ROLLBACK', 'Rollback'),
+        10: ('REMOVED', 'Removed'),
+    }
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
@@ -391,46 +409,47 @@ class MongoDb(AgentCheck):
     def get_library_versions(self):
         return {"pymongo": pymongo.version}
 
-    def _report_replica_set_state(self, state, clean_server_name, agentConfig):
+    def get_state_description(self, state):
+        if state in self.REPLSET_MEMBER_STATES:
+            return self.REPLSET_MEMBER_STATES[state][1]
+        else:
+            return 'Replset state %d is unknown to the Datadog agent' % state
+
+    def get_state_name(self, state):
+        if state in self.REPLSET_MEMBER_STATES:
+            return self.REPLSET_MEMBER_STATES[state][0]
+        else:
+            return 'UNKNOWN'
+
+    def _report_replica_set_state(self, state, clean_server_name, replSet, agentConfig):
         """
         Report the member's replica set state
         * Submit a service check.
         * Create an event on state change.
         """
-        if self._last_state_by_server.get(clean_server_name, -1) != state:
-            self._last_state_by_server[clean_server_name] = state
-            return self.create_event(state, clean_server_name, agentConfig)
+        last_state = self._last_state_by_server.get(clean_server_name, -1)
+        self._last_state_by_server[clean_server_name] = state
+        if last_state != state and last_state != -1:
+            return self.create_event(last_state, state, clean_server_name, replSet['set'], agentConfig)
 
-    def create_event(self, state, clean_server_name, agentConfig):
+    def hostname_for_event(self, clean_server_name, agentConfig):
+        """Return a reasonable hostname for a replset membership event to mention."""
+        uri = urlsplit(clean_server_name)
+        hostname = uri.netloc.split(':')[0]
+        if hostname == 'localhost':
+            hostname = self.hostname
+        return hostname
+
+    def create_event(self, last_state, state, clean_server_name, replset_name, agentConfig):
         """Create an event with a message describing the replication
             state of a mongo node"""
 
-        def get_state_description(state):
-            if state == 0:
-                return 'Starting Up'
-            elif state == 1:
-                return 'Primary'
-            elif state == 2:
-                return 'Secondary'
-            elif state == 3:
-                return 'Recovering'
-            elif state == 4:
-                return 'Fatal'
-            elif state == 5:
-                return 'Starting up (forking threads)'
-            elif state == 6:
-                return 'Unknown'
-            elif state == 7:
-                return 'Arbiter'
-            elif state == 8:
-                return 'Down'
-            elif state == 9:
-                return 'Rollback'
-
-        status = get_state_description(state)
-        hostname = get_hostname(agentConfig)
-        msg_title = "%s is %s" % (clean_server_name, status)
-        msg = "MongoDB %s just reported as %s" % (clean_server_name, status)
+        status = self.get_state_description(state)
+        short_status = self.get_state_name(state)
+        last_short_status = self.get_state_name(last_state)
+        hostname = self.hostname_for_event(clean_server_name, agentConfig)
+        msg_title = "%s is %s for %s" % (hostname, short_status, replset_name)
+        msg = "MongoDB %s (%s) just reported as %s (%s) for %s; it was %s before." % (hostname, clean_server_name, status, short_status, replset_name, last_short_status)
 
         self.event({
             'timestamp': int(time.time()),
@@ -438,7 +457,12 @@ class MongoDb(AgentCheck):
             'api_key': agentConfig.get('api_key', ''),
             'msg_title': msg_title,
             'msg_text': msg,
-            'host': hostname
+            'host': hostname,
+            'tags': [
+                'member_status:' + short_status,
+                'previous_member_status:' + last_short_status,
+                'replset:' + replset_name,
+            ]
         })
 
     def _build_metric_list_to_collect(self, additional_metrics):
@@ -680,10 +704,11 @@ class MongoDb(AgentCheck):
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
-                tags.append('replset_state:%s' % self.REPLSET_STATES[data['state']])
+                tags.append('replset_state:%s' % self.get_state_name(data['state']))
                 self._report_replica_set_state(
                     data['state'],
                     clean_server_name,
+                    replSet,
                     self.agentConfig)
                 status['replSet'] = data
 
