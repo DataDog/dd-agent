@@ -131,6 +131,20 @@ class TestMongoUnit(AgentCheckTest):
         self.assertEquals((RATE, 'mongodb.foobar.intent_exclusiveps'), resolve_metric('foobar.w', metrics_to_collect))  # noqa
         self.assertEquals((GAUGE, 'mongodb.foobar.exclusive'), resolve_metric('foobar.W', metrics_to_collect))  # noqa
 
+    def test_state_translation(self):
+        """
+        Check that resolving replset member state IDs match to names and descriptions properly.
+        """
+        self.assertEquals('STARTUP2', self.check.get_state_name(5))
+        self.assertEquals('PRIMARY', self.check.get_state_name(1))
+
+        self.assertEquals('Starting Up', self.check.get_state_description(0))
+        self.assertEquals('Recovering', self.check.get_state_description(3))
+
+        # Unknown states:
+        self.assertEquals('UNKNOWN', self.check.get_state_name(500))
+        unknown_desc = self.check.get_state_description(500)
+        self.assertTrue(unknown_desc.find('500') != -1)
 
 @attr(requires='mongo')
 class TestMongo(unittest.TestCase):
