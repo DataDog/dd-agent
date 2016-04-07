@@ -1,0 +1,13 @@
+# init_config:
+# # Not required for this check
+#
+# instances:
+#  - path: '/var/run/reboot-required'
+#    expected: absent
+#  - path: '/etc/passwd'
+#    expected: present
+
+init_config:
+  # Not required for this check
+
+instances:
