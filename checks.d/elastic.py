@@ -221,6 +221,12 @@ class ESCheck(AgentCheck):
         "elasticsearch.indices.segments.fixed_bit_set_memory_in_bytes": ("gauge", "indices.segments.fixed_bit_set_memory_in_bytes"),
     }
 
+    ADDITIONAL_METRICS_POST_2_1_0 = {
+        "elasticsearch.thread_pool.force_merge.active": ("gauge", "thread_pool.force_merge.active"),
+        "elasticsearch.thread_pool.force_merge.threads": ("gauge", "thread_pool.force_merge.threads"),
+        "elasticsearch.thread_pool.force_merge.queue": ("gauge", "thread_pool.force_merge.queue"),
+    }
+
     CLUSTER_HEALTH_METRICS = {
         "elasticsearch.number_of_nodes": ("gauge", "number_of_nodes"),
         "elasticsearch.number_of_data_nodes": ("gauge", "number_of_data_nodes"),
@@ -404,6 +410,10 @@ class ESCheck(AgentCheck):
         if version >= [1, 4, 0]:
             # ES versions 1.4 and above
             stats_metrics.update(self.ADDITIONAL_METRICS_POST_1_4_0)
+
+        if version >= [2, 1, 0]:
+            # ES versions 2.1 and above
+            stats_metrics.update(self.ADDITIONAL_METRICS_POST_2_1_0)
 
         # Version specific stats metrics about the primary shards
         pshard_stats_metrics = dict(self.PRIMARY_SHARD_METRICS)
