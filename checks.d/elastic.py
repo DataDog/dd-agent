@@ -137,9 +137,6 @@ class ESCheck(AgentCheck):
         "elasticsearch.thread_pool.management.active": ("gauge", "thread_pool.management.active"),
         "elasticsearch.thread_pool.management.threads": ("gauge", "thread_pool.management.threads"),
         "elasticsearch.thread_pool.management.queue": ("gauge", "thread_pool.management.queue"),
-        "elasticsearch.thread_pool.merge.active": ("gauge", "thread_pool.merge.active"),
-        "elasticsearch.thread_pool.merge.threads": ("gauge", "thread_pool.merge.threads"),
-        "elasticsearch.thread_pool.merge.queue": ("gauge", "thread_pool.merge.queue"),
         "elasticsearch.thread_pool.percolate.active": ("gauge", "thread_pool.percolate.active"),
         "elasticsearch.thread_pool.percolate.threads": ("gauge", "thread_pool.percolate.threads"),
         "elasticsearch.thread_pool.percolate.queue": ("gauge", "thread_pool.percolate.queue"),
@@ -185,11 +182,14 @@ class ESCheck(AgentCheck):
 
     ADDITIONAL_METRICS_POST_0_90_5 = {
         "elasticsearch.search.fetch.open_contexts": ("gauge", "indices.search.open_contexts"),
+        "elasticsearch.fielddata.size": ("gauge", "indices.fielddata.memory_size_in_bytes"),
+        "elasticsearch.fielddata.evictions": ("gauge", "indices.fielddata.evictions"),
+    }
+
+    ADDITIONAL_METRICS_POST_0_90_5_PRE_2_0 = {
         "elasticsearch.cache.filter.evictions": ("gauge", "indices.filter_cache.evictions"),
         "elasticsearch.cache.filter.size": ("gauge", "indices.filter_cache.memory_size_in_bytes"),
         "elasticsearch.id_cache.size": ("gauge", "indices.id_cache.memory_size_in_bytes"),
-        "elasticsearch.fielddata.size": ("gauge", "indices.fielddata.memory_size_in_bytes"),
-        "elasticsearch.fielddata.evictions": ("gauge", "indices.fielddata.evictions"),
     }
 
     ADDITIONAL_METRICS_PRE_0_90_5 = {
@@ -203,6 +203,9 @@ class ESCheck(AgentCheck):
     ADDITIONAL_METRICS_POST_1_0_0 = {
         "elasticsearch.indices.translog.size_in_bytes": ("gauge", "indices.translog.size_in_bytes"),
         "elasticsearch.indices.translog.operations": ("gauge", "indices.translog.operations"),
+    }
+
+    ADDITIONAL_METRICS_1_x = {  # Stats are only valid for v1.x
         "elasticsearch.fs.total.disk_reads": ("rate", "fs.total.disk_reads"),
         "elasticsearch.fs.total.disk_writes": ("rate", "fs.total.disk_writes"),
         "elasticsearch.fs.total.disk_io_op": ("rate", "fs.total.disk_io_op"),
@@ -219,6 +222,12 @@ class ESCheck(AgentCheck):
     ADDITIONAL_METRICS_POST_1_4_0 = {
         "elasticsearch.indices.segments.index_writer_max_memory_in_bytes": ("gauge", "indices.segments.index_writer_max_memory_in_bytes"),
         "elasticsearch.indices.segments.fixed_bit_set_memory_in_bytes": ("gauge", "indices.segments.fixed_bit_set_memory_in_bytes"),
+    }
+
+    ADDITIONAL_METRICS_PRE_2_0 = {
+        "elasticsearch.thread_pool.merge.active": ("gauge", "thread_pool.merge.active"),
+        "elasticsearch.thread_pool.merge.threads": ("gauge", "thread_pool.merge.threads"),
+        "elasticsearch.thread_pool.merge.queue": ("gauge", "thread_pool.merge.queue"),
     }
 
     CLUSTER_HEALTH_METRICS = {
@@ -397,6 +406,13 @@ class ESCheck(AgentCheck):
 
         if version >= [1, 0, 0]:
             stats_metrics.update(self.ADDITIONAL_METRICS_POST_1_0_0)
+
+        if version < [2, 0, 0]:
+            stats_metrics.update(self.ADDITIONAL_METRICS_PRE_2_0)
+            if version >= [0, 90, 5]:
+                stats_metrics.update(self.ADDITIONAL_METRICS_POST_0_90_5_PRE_2_0)
+            if version >= [1, 0, 0]:
+                stats_metrics.update(self.ADDITIONAL_METRICS_1_x)
 
         if version >= [1, 3, 0]:
             stats_metrics.update(self.ADDITIONAL_METRICS_POST_1_3_0)
