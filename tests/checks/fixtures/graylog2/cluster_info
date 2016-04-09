@@ -1,0 +1,16 @@
+{
+  "90047b0c-8f35-4db5-9205-ccf2521401c6": {
+    "facility": "graylog-server",
+    "codename": "graylog-codename",
+    "node_id": "90047b0c-8f35-4db5-9205-ccf2521401c6",
+    "cluster_id": "1a7f9f7d-9899-4fa4-821d-1c5ddfb5a823",
+    "version": "2.0.0-beta.1 (f8d0c45)",
+    "started_at": "2016-04-09T12:55:17.959Z",
+    "hostname": "ip-127-0-0-1.ec2.internal",
+    "lifecycle": "running",
+    "lb_status": "alive",
+    "timezone": "Etc/UTC",
+    "operating_system": "Linux 3.13.0-74-generic",
+    "is_processing": true
+  }
+}

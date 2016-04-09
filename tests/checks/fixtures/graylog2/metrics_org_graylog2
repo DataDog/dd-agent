@@ -1,0 +1,72 @@
+{
+  "total": 4,
+  "metrics": [
+    {
+      "full_name": "org.graylog2.rest.resources.streams.StreamResource.resume",
+      "metric": {
+        "time": {
+          "min": 0,
+          "max": 0,
+          "mean": 0,
+          "std_dev": 0,
+          "95th_percentile": 0,
+          "98th_percentile": 0,
+          "99th_percentile": 0
+        },
+        "rate": {
+          "total": 0,
+          "mean": 0,
+          "one_minute": 0,
+          "five_minute": 0,
+          "fifteen_minute": 0
+        },
+        "duration_unit": "microseconds",
+        "rate_unit": "events/second"
+      },
+      "name": "resume",
+      "type": "timer"
+    },
+    {
+      "full_name": "org.graylog2.buffers.output.size",
+      "metric": {
+        "value": 65536
+      },
+      "name": "size",
+      "type": "gauge"
+    },
+    {
+      "full_name": "org.graylog2.shared.journal.JournalReader.requestedReadCount",
+      "metric": {
+        "count": 2231,
+        "time": {
+          "min": 65440,
+          "max": 65599,
+          "std_dev": 24,
+          "mean": 65540,
+          "95th_percentile": 65599,
+          "99th_percentile": 65599,
+          "98th_percentile": 65599
+        }
+      },
+      "name": "requestedReadCount",
+      "type": "hdrhistogram"
+    },
+    {
+      "full_name": "org.graylog2.outputs.BlockingBatchedESOutput.batchSize",
+      "metric": {
+        "count": 962,
+        "time": {
+          "min": 1,
+          "max": 133,
+          "std_dev": 0,
+          "mean": 2,
+          "95th_percentile": 3,
+          "99th_percentile": 3,
+          "98th_percentile": 3
+        }
+      },
+      "name": "batchSize",
+      "type": "histogram"
+    }
+  ]
+}
