@@ -401,6 +401,7 @@ class HTMLWindow(QTextEdit):
                 platform=platform.platform(),
                 agent_version=get_version(),
                 python_version=platform.python_version(),
+                python_architecture=Platform.python_architecture(),
                 logger_info=logger_info(),
                 dogstatsd=dogstatsd_status.to_dict(),
                 forwarder=forwarder_status.to_dict(),
