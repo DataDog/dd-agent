@@ -3,8 +3,7 @@ import logging
 
 # project
 from tests.checks.common import AgentCheckTest
-from utils.dockerutil import get_client, set_docker_settings, get_docker_settings, reset_docker_settings, \
-    image_tag_extractor, container_name_extractor
+from utils.dockerutil import DockerUtil
 
 # 3rd party
 from nose.plugins.attrib import attr
@@ -20,12 +19,17 @@ CONTAINERS_TO_RUN = [
 POD_NAME_LABEL = "io.kubernetes.pod.name"
 
 
+def reset_docker_settings():
+    """Populate docker settings with default, dummy settings"""
+    DockerUtil().set_docker_settings({}, {})
+
+
 @attr(requires='docker_daemon')
 class TestCheckDockerDaemon(AgentCheckTest):
     CHECK_NAME = 'docker_daemon'
 
     def setUp(self):
-        self.docker_client = get_client()
+        self.docker_client = DockerUtil().client
         for c in CONTAINERS_TO_RUN:
             images = [i["RepoTags"][0] for i in self.docker_client.images(c.split(":")[0]) if i["RepoTags"][0].startswith(c)]
             if len(images) == 0:
@@ -99,6 +103,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
+        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
 
         self.run_check(config, force_reload=True)
         for mname, tags in expected_metrics:
@@ -143,6 +148,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
+        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
 
         self.run_check_twice(config, force_reload=True)
         for mname, tags in expected_metrics:
@@ -194,6 +200,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
+        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
 
         self.run_check_twice(config, force_reload=True)
 
@@ -259,6 +266,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
+        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
 
         self.run_check_twice(config, force_reload=True)
 
@@ -334,13 +342,15 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
+        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
 
         self.run_check_twice(config, force_reload=True)
         for mname, tags in expected_metrics:
             self.assertMetric(mname, tags=tags, count=1, at_least=1)
 
     def test_set_docker_settings(self):
-        self.assertEqual(get_docker_settings()["version"], "auto")
+        """Test a client settings update"""
+        self.assertEqual(DockerUtil().settings["version"], "auto")
         cur_loc = __file__
         init_config = {
             "api_version": "foobar",
@@ -356,8 +366,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             "url": "https://foo.bar:42",
         }
 
-        set_docker_settings(init_config, instance)
-        client = get_client()
+        DockerUtil().set_docker_settings(init_config, instance)
+        client = DockerUtil().client
         self.assertEqual(client.verify, cur_loc)
         self.assertEqual(client.cert, (cur_loc, cur_loc))
         reset_docker_settings()
@@ -404,7 +414,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
-
+        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
         self.run_check(config, force_reload=True)
         for mname, tags in expected_metrics:
             self.assertMetric(mname, tags=tags, count=1, at_least=1)
@@ -457,6 +467,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
+        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
 
         self.run_check(config, force_reload=True)
         for mname, tags in expected_metrics:
@@ -475,6 +486,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
+        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
 
         self.run_check(config, force_reload=True)
         self.assertEqual(len(self.events), 2)
@@ -526,6 +538,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
+        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
 
         self.run_check(config, force_reload=True)
         for mname, tags in expected_metrics:
@@ -543,8 +556,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ({'RepoTags': ['localhost:5000/redis:latest', 'localhost:5000/redis:v1.1']}, [['localhost:5000/redis'], ['latest', 'v1.1']]),
         ]
         for entity in entities:
-            self.assertEqual(sorted(image_tag_extractor(entity[0], 0)), sorted(entity[1][0]))
-            self.assertEqual(sorted(image_tag_extractor(entity[0], 1)), sorted(entity[1][1]))
+            self.assertEqual(sorted(DockerUtil.image_tag_extractor(entity[0], 0)), sorted(entity[1][0]))
+            self.assertEqual(sorted(DockerUtil.image_tag_extractor(entity[0], 1)), sorted(entity[1][1]))
 
     def test_container_name_extraction(self):
         containers = [
@@ -554,4 +567,4 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ({'Names': ['/redis/mongo', '/mongo'], 'Id': ['deadbeef']}, ['mongo']),
         ]
         for co in containers:
-            self.assertEqual(container_name_extractor(co[0]), co[1])
+            self.assertEqual(DockerUtil.container_name_extractor(co[0]), co[1])

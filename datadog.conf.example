@@ -89,6 +89,30 @@ use_mount: no
 # histogram_percentiles: 0.95
 
 # ========================================================================== #
+# Service Discovery                                                          #
+# See https://github.com/DataDog/dd-agent/wiki/Service-Discovery for details #
+# ========================================================================== #
+#
+# Service discovery allows the agent to look for running services
+# and load a configuration object for the one it recognizes.
+# This feature is disabled by default.
+# Uncomment this line to enable it (works for docker containers only for now).
+# service_discovery_backend: docker
+#
+# Define which key/value store must be used to look for configuration templates.
+# Default is etcd. Consul is also supported.
+# sd_config_backend: etcd
+#
+# Settings for connecting to the service discovery backend.
+# sd_backend_host: 127.0.0.1
+# sd_backend_port: 4001
+#
+# By default, the agent will look for the configuration templates under the
+# `/datadog/check_configs` key in the back-end. If you wish otherwise, uncomment this option
+# and modify its value.
+# sd_template_dir: /datadog/check_configs
+
+# ========================================================================== #
 # DogStatsd configuration                                                    #
 # ========================================================================== #
 
