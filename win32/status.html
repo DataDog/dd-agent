@@ -242,6 +242,9 @@
             <dt>Flush count</dt>        <dd>{{ forwarder['flush_count'] }}</dd>
             <dt>Queue size</dt>         <dd>{{ forwarder['queue_size'] }} bytes</dd>
             <dt>Queue length</dt>       <dd>{{ forwarder['queue_length'] }}</dd>
+            <dt>Transactions received</dt> <dd>{{ forwarder['transactions_received'] }}</dd>
+            <dt>Transactions flushed</dt> <dd>{{ forwarder['transactions_flushed'] }}</dd>
+            <dt>Transactions rejected</dt>       <dd>{{ forwarder['too_big_count'] }}</dd>
           </dl>
 
           {% if forwarder['proxy_data'] %}
