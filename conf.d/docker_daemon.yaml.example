@@ -58,6 +58,14 @@ instances:
     #
     # collect_image_size: false
 
+    # Collect daemon stats with docker.info.data.* and docker.info.metadata.* metrics.
+    # Each of those metrics include the sub metrics of total, free, used, and in_use which work the same as the system.disk versions.
+    # The data is collect with the `docker info` command.
+    # Requires collect_deamon_stats to be enabled.
+    # Defaults to false.
+    #
+    # collect_daemon_stats: false 
+
 
     # Exclude containers based on their tags
     # An excluded container will be completely ignored. The rule is a regex on the tags.
