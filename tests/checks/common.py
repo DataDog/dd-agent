@@ -5,7 +5,6 @@ from itertools import product
 import logging
 import os
 from pprint import pformat
-import signal
 import sys
 import time
 import traceback
@@ -88,23 +87,6 @@ def load_check(name, config, agentConfig):
         raise Exception("Check is using old API, {0}".format(e))
     except Exception:
         raise
-
-
-def kill_subprocess(process_obj):
-    try:
-        process_obj.terminate()
-    except AttributeError:
-        # py < 2.6 doesn't support process.terminate()
-        if get_os() == 'windows':
-            import ctypes
-            PROCESS_TERMINATE = 1
-            handle = ctypes.windll.kernel32.OpenProcess(PROCESS_TERMINATE, False,
-                                                        process_obj.pid)
-            ctypes.windll.kernel32.TerminateProcess(handle, -1)
-            ctypes.windll.kernel32.CloseHandle(handle)
-        else:
-            os.kill(process_obj.pid, signal.SIGKILL)
-
 
 class Fixtures(object):
     @staticmethod
@@ -216,7 +198,7 @@ class AgentCheckTest(unittest.TestCase):
                 self.service_metadata.append(metadata)
 
         if error is not None:
-            raise error
+            raise error # pylint: disable=E0702
 
     def print_current_state(self):
         log.debug("""++++++++ CURRENT STATE ++++++++

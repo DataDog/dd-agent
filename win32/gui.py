@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=E0401
 #
 # Copyright © 2009-2010 CEA
 # Pierre Raybaut

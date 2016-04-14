@@ -231,9 +231,3 @@ class Cacti(AgentCheck):
         if m_name[0:11] in ('system.mem.', 'system.disk'):
             return val / 1024
         return val
-
-
-    '''
-        For backwards compatability with pre-checks.d configuration.
-        Convert old-style config to new-style config.
-    '''
