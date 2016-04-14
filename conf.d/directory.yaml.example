@@ -4,8 +4,6 @@ instances:
   # This config is for the Directory Check which is used to report metrics
   # for the files in a given directory
   #
-  # NOTE: This check is NOT currently supported on Windows systems
-  #
   # For each instance, the 'directory' parameter is required, all others are optional.
   #
   # WARNING: Ensure the user account running the Agent (typically dd-agent) has read
