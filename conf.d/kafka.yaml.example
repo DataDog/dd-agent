@@ -44,7 +44,7 @@ init_config:
         domain: 'kafka.producer'
         bean_regex: 'kafka\.producer:type=ProducerRequestMetrics,name=ProducerRequestRateAndTimeMs,clientId=.*'
         attribute:
-          MeanRate:
+          Count:
             metric_type: rate
             alias: kafka.producer.request_rate
     - include:
@@ -52,20 +52,20 @@ init_config:
         bean_regex: 'kafka\.producer:type=ProducerRequestMetrics,name=ProducerRequestRateAndTimeMs,clientId=.*'
         attribute:
           Mean:
-            metric_type: rate
+            metric_type: gauge
             alias: kafka.producer.request_latency_avg
     - include:
         domain: 'kafka.producer'
         bean_regex: 'kafka\.producer:type=ProducerTopicMetrics,name=BytesPerSec,clientId=.*'
         attribute:
-          MeanRate:
+          Count:
             metric_type: rate
             alias: kafka.producer.bytes_out
     - include:
         domain: 'kafka.producer'
         bean_regex: 'kafka\.producer:type=ProducerTopicMetrics,name=MessagesPerSec,clientId=.*'
         attribute:
-          MeanRate:
+          Count:
             metric_type: rate
             alias: kafka.producer.message_rate
 
@@ -76,34 +76,35 @@ init_config:
         bean_regex: 'kafka\.producer:type=producer-metrics,client-id=.*'
         attribute:
           response-rate:
-            metric_type: rate
+            metric_type: gauge
             alias: kafka.producer.response_rate
     - include:
         domain: 'kafka.producer'
         bean_regex: 'kafka\.producer:type=producer-metrics,client-id=.*'
         attribute:
           request-rate:
-            metric_type: rate
+            metric_type: gauge
             alias: kafka.producer.request_rate
     - include:
         domain: 'kafka.producer'
         bean_regex: 'kafka\.producer:type=producer-metrics,client-id=.*'
         attribute:
           request-latency-avg:
-            metric_type: rate
+            metric_type: gauge
             alias: kafka.producer.request_latency_avg
     - include:
         domain: 'kafka.producer'
         bean_regex: 'kafka\.producer:type=producer-metrics,client-id=.*'
         attribute:
           outgoing-byte-rate:
-            metric_type: rate
+            metric_type: gauge
             alias: kafka.producer.bytes_out
     - include:
         domain: 'kafka.producer'
         bean_regex: 'kafka\.producer:type=producer-metrics,client-id=.*'
         attribute:
           io-wait-time-ns-avg:
+            metric_type: gauge
             alias: kafka.producer.io_wait
 
 
@@ -118,13 +119,14 @@ init_config:
         bean_regex: 'kafka\.consumer:type=ConsumerFetcherManager,name=MaxLag,clientId=.*'
         attribute:
           Value:
+            metric_type: gauge
             alias: kafka.consumer.max_lag
     - include:
         domain: 'kafka.consumer'
         bean_regex: 'kafka\.consumer:type=ConsumerFetcherManager,name=MinFetchRate,clientId=.*'
         attribute:
           Value:
-            metric_type: rate
+            metric_type: gauge
             alias: kafka.consumer.fetch_rate
     - include:
         domain: 'kafka.consumer'
@@ -164,13 +166,14 @@ init_config:
         bean_regex: 'kafka\.consumer:type=consumer-fetch-manager-metrics,client-id=.*'
         attribute:
           bytes-consumed-rate:
+            metric_type: gauge
             alias: kafka.consumer.bytes_in
     - include:
         domain: 'kafka.consumer'
         bean_regex: 'kafka\.consumer:type=consumer-fetch-manager-metrics,client-id=.*'
         attribute:
           records-consumed-rate:
-            metric_type: rate
+            metric_type: gauge
             alias: kafka.consumer.messages_in
 
     #
