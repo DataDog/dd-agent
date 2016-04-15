@@ -214,6 +214,9 @@ class ProcessCheckTest(AgentCheckTest):
         return self.CONFIG_STUBS[int(idx)]['mocked_processes']
 
     def mock_psutil_wrapper(self, process, method, accessors, *args, **kwargs):
+        if method == 'num_handles':  # remove num_handles as it's win32 only
+            return None
+
         if accessors is None:
             result = 0
         else:

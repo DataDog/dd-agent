@@ -1,6 +1,31 @@
 Changes
 =======
 
+# 5.7.3 / 03-31-2016
+**All platforms**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.7.2...5.7.3
+
+### Changes
+* [IMPROVEMENT] Linux install script: Ignore `apt-get update` failures and use https for apt repo. See [#2378][]
+* [IMPROVEMENT] WMI check: Make configuration of the metric types case-insensitive. See [#2392][]
+
+* [BUGFIX] Consul: Enforce that `get_peers_in_cluster` returns a list. See [#2381][]
+* [BUGFIX] Core: Fix Japanese tzname encoding issue on Windows. See [#2351][]
+* [BUGFIX] Core: On RHEL, make the `stop` init command kill all the Agent processes properly. See [#2349][]
+* [BUGFIX] Core: Fix Watchdog timeout duration on the forwarder. See [#2320][]
+* [BUGFIX] IIS: Fix `CRITICAL` service check on the `_Total` site (e.g. when no `sites` are specified). See [#2387][]
+* [BUGFIX] IIS: Deal with BytesTransfered vs BytesTransferred 2008sp2 typo. See [#2379][]
+* [BUGFIX] JMXFetch: Take into account `bind_host`. See [#2372][] and [jmxfetch-85](https://github.com/DataDog/jmxfetch/pull/85)
+* [BUGFIX] JMXFetch: Handle IOException gracefully at the instance level. See [jmxfetch-83](https://github.com/DataDog/jmxfetch/pull/83)
+* [BUGFIX] Packaging: Fix the version of `requests` shipped with the packaged Linux Agent. See [omnibus-software-45](https://github.com/DataDog/omnibus-software/pull/45)
+* [BUGFIX] MySQL: Avoid check failure when InnoDB is not available or disabled. See [#2385][]
+* [BUGFIX] SNMP: Fix errors in multiple-instance configurations caused by thread-safety issues with pysnmp `cmd_generator`. See [#2357][]
+* [BUGFIX] SQLServer: Fix connection to DB when no username or password are specified. See [#2311][]
+* [BUGFIX] vSphere: Fix SSL config options feature by upgrading the packaged version of `pyvmomi`. See [omnibus-software-44](https://github.com/DataDog/omnibus-software/pull/44)
+* [BUGFIX] Windows Event Log: Fix check when `tag_event_id:true` [#2397][]
+
 # 5.7.2 / 03-17-2016
 **Windows only**
 
@@ -2742,9 +2767,22 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2304]: https://github.com/DataDog/dd-agent/issues/2304
 [#2308]: https://github.com/DataDog/dd-agent/issues/2308
 [#2309]: https://github.com/DataDog/dd-agent/issues/2309
+[#2311]: https://github.com/DataDog/dd-agent/issues/2311
 [#2314]: https://github.com/DataDog/dd-agent/issues/2314
+[#2320]: https://github.com/DataDog/dd-agent/issues/2320
 [#2329]: https://github.com/DataDog/dd-agent/issues/2329
+[#2349]: https://github.com/DataDog/dd-agent/issues/2349
+[#2351]: https://github.com/DataDog/dd-agent/issues/2351
+[#2357]: https://github.com/DataDog/dd-agent/issues/2357
 [#2366]: https://github.com/DataDog/dd-agent/issues/2366
+[#2372]: https://github.com/DataDog/dd-agent/issues/2372
+[#2378]: https://github.com/DataDog/dd-agent/issues/2378
+[#2379]: https://github.com/DataDog/dd-agent/issues/2379
+[#2381]: https://github.com/DataDog/dd-agent/issues/2381
+[#2385]: https://github.com/DataDog/dd-agent/issues/2385
+[#2387]: https://github.com/DataDog/dd-agent/issues/2387
+[#2392]: https://github.com/DataDog/dd-agent/issues/2392
+[#2397]: https://github.com/DataDog/dd-agent/issues/2397
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@EdRow]: https://github.com/EdRow

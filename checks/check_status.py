@@ -182,7 +182,9 @@ class AgentStatus(object):
         fields += [
             ("Pid", self.created_by_pid),
             ("Platform", platform.platform()),
-            ("Python Version", platform.python_version()),
+            ("Python Version", "%s, %s" % (
+                platform.python_version(),
+                Platform.python_architecture())),
             ("Logs", logger_info()),
         ]
 

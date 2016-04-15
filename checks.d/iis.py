@@ -1,9 +1,13 @@
 '''
 Check the performance counters from IIS
 '''
+# 3p
+import pythoncom
+
 # project
 from checks import AgentCheck
 from checks.wmi_check import WinWMICheck, WMIMetric
+from config import _is_affirmative
 from utils.containers import hash_mutable
 from utils.timeout import TimeoutException
 
@@ -57,6 +61,7 @@ class IIS(WinWMICheck):
         password = instance.get('password', "")
         instance_tags = instance.get('tags', [])
         sites = instance.get('sites', ['_Total'])
+        is_2008 = _is_affirmative(instance.get('is_2008', False))
 
 
         instance_hash = hash_mutable(instance)
@@ -64,6 +69,10 @@ class IIS(WinWMICheck):
         filters = map(lambda x: {"Name": tuple(('=', x))}, sites)
 
         metrics_by_property, properties = self._get_wmi_properties(instance_key, self.METRICS, [])
+        if is_2008:
+            for idx, prop in enumerate(properties):
+                if prop == "TotalBytesTransferred".lower():
+                    properties[idx] = "TotalBytesTransfered"
 
         wmi_sampler = self._get_wmi_sampler(
             instance_key,
@@ -87,6 +96,11 @@ class IIS(WinWMICheck):
                     filters=filters, instance_tags=instance_tags
                 )
             )
+        except pythoncom.com_error as e:
+            if '0x80041017' in str(e):
+                self.warning("You may be running IIS6/7 which reports metrics a \
+                             little differently. Try enabling the is_2008 flag for this instance.")
+            raise e
         else:
             self._submit_events(wmi_sampler, sites)
             self._submit_metrics(metrics, metrics_by_property)
@@ -137,9 +151,6 @@ class IIS(WinWMICheck):
 
         for wmi_obj in wmi_sampler:
             sitename = wmi_obj['Name']
-            if sitename == "_Total":
-                continue
-
             uptime = wmi_obj["ServiceUptime"]
             status = AgentCheck.CRITICAL if uptime == 0 else AgentCheck.OK
 
@@ -153,13 +164,14 @@ class IIS(WinWMICheck):
 
     def _submit_metrics(self, wmi_metrics, metrics_by_property):
         for m in wmi_metrics:
-            if m.name == "TotalBytesTransfered":
-                m.name = "TotalBytesTransferred"
-            elif m.name == "TotalConnectionAttemptsallinstances":
-                m.name = "TotalConnectionAttemptsAllinstances"
+            metric_name = m.name
+            # Windows 2008 sp2 reports it as TotalbytesTransfered
+            # instead of TotalBytesTransferred (single r)
+            if metric_name.lower() == "totalbytestransfered":
+                metric_name = "totalbytestransferred"
             elif m.name not in metrics_by_property:
                 continue
 
-            metric, mtype = metrics_by_property[m.name]
+            metric, mtype = metrics_by_property[metric_name]
             submittor = getattr(self, mtype)
             submittor(metric, m.value, m.tags)

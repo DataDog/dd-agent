@@ -172,38 +172,26 @@ class SNMPTestCase(AgentCheckTest):
                         .format(attribute=attribute, total=len(getattr(self.check, attribute)), expected=count, seconds=i,
                                 attr=getattr(self.check, attribute)))
 
-    def wait_for_async_attrib(self, attribute):
-        """
-        Raise after
-        """
-        i = 0
-        while i < RESULTS_TIMEOUT:
-            if getattr(self.check, attribute):
-                return
-            time.sleep(1)
-            i += 1
-        raise Exception("Attribute not created in time.")
-
 
     def test_command_generator(self):
         """
         Command generator's parameters should match init_config
         """
         self.run_check(self.MIBS_FOLDER)
-        self.wait_for_async_attrib('cmd_generator')
+        cmdgen, _, _, _, _, _, _ = self.check._load_conf(self.SNMP_CONF)
 
         # Test command generator MIB source
-        mib_folders = self.check.cmd_generator.snmpEngine.msgAndPduDsp\
+        mib_folders = cmdgen.snmpEngine.msgAndPduDsp\
             .mibInstrumController.mibBuilder.getMibSources()
         full_path_mib_folders = map(lambda f: f.fullPath(), mib_folders)
 
         self.assertTrue("/etc/mibs" in full_path_mib_folders)
-        self.assertFalse(self.check.cmd_generator.ignoreNonIncreasingOid)
+        self.assertFalse(cmdgen.ignoreNonIncreasingOid)
 
         # Test command generator `ignoreNonIncreasingOid` parameter
         self.run_check(self.IGNORE_NONINCREASING_OID, force_reload=True)
-        self.wait_for_async_attrib('cmd_generator')
-        self.assertTrue(self.check.cmd_generator.ignoreNonIncreasingOid)
+        cmdgen, _, _, _, _, _, _ = self.check._load_conf(self.SNMP_CONF)
+        self.assertTrue(cmdgen.ignoreNonIncreasingOid)
 
     def test_type_support(self):
         """
@@ -320,7 +308,7 @@ class SNMPTestCase(AgentCheckTest):
         self.run_check(config)
 
         self.warnings = self.wait_for_async('get_warnings', 'warnings', 1)
-        self.assertWarning("Fail to collect metrics: No symbol IF-MIB::noIdeaWhatIAmDoingHere",
+        self.assertWarning("Fail to collect some metrics: No symbol IF-MIB::noIdeaWhatIAmDoingHere",
                            count=1, exact_match=False)
 
         # # Test service check
