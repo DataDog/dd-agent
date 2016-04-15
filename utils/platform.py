@@ -60,6 +60,13 @@ class Platform(object):
         return Platform.is_win32(name)
 
     @staticmethod
+    def python_architecture():
+        if sys.maxsize > 2**32:
+            return "64bit"
+        else:
+            return "32bit"
+
+    @staticmethod
     def is_ecs_instance():
         """Return True if the agent is running in an ECS instance, False otherwise."""
         global _is_ecs

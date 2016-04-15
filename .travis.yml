@@ -7,7 +7,6 @@ branches:
 
 language: python
 python:
-  - "2.6"
   - "2.7"
 
 cache:
@@ -46,6 +45,8 @@ env:
     - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.5.2
     - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.6.2
     - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.7.4
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=2.0.2
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=2.1.1
     - TRAVIS_FLAVOR=etcd
     - TRAVIS_FLAVOR=fluentd
     - TRAVIS_FLAVOR=go_expvar

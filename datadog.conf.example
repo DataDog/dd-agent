@@ -42,14 +42,6 @@ api_key:
 # In developer mode, the number of runs to be included in a single collector profile
 # collector_profile_interval: 20
 
-# Collect instance metadata
-# The Agent will try to collect instance metadata for EC2 and GCE instances by
-# trying to connect to the local endpoint: http://169.254.169.254
-# See http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AESDG-chapter-instancedata.html
-# and https://developers.google.com/compute/docs/metadata
-# for more information
-# collect_instance_metadata: yes
-
 # use unique hostname for GCE hosts, see http://dtdg.co/1eAynZk
 gce_updated_hostname: yes
 

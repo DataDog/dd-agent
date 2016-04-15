@@ -5,7 +5,7 @@ import random
 import time
 
 # 3p
-from distutils.version import StrictVersion
+from distutils.version import StrictVersion # pylint: disable=E0611,E0401
 from nose.plugins.attrib import attr
 from nose.plugins.skip import SkipTest
 import redis

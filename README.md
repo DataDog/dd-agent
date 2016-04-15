@@ -26,7 +26,7 @@ pull request.
 ## Setup your environment
 
 Required:
-- python 2.6 or 2.7
+- python 2.7
 - bundler
 
 ```

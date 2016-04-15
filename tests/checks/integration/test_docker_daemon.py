@@ -84,6 +84,9 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ('docker.mem.rss', ['container_name:test-new-redis-latest', 'docker_image:redis:latest', 'image_name:redis', 'image_tag:latest']),
             ('docker.mem.limit', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
             ('docker.mem.in_use', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
+            ('docker.disk.used', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
+            ('docker.disk.free', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx']),
+            ('docker.disk.total', ['container_name:test-new-nginx', 'docker_image:nginx', 'image_name:nginx'])
         ]
 
         config = {
@@ -92,6 +95,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
                 "url": "unix://var/run/docker.sock",
                 "collect_image_size": True,
                 "collect_images_stats": True,
+                "collect_disk_stats": True,
             },
             ],
         }

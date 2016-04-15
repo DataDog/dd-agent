@@ -32,7 +32,7 @@ class NetworkCheck(AgentCheck):
     SERVICE_CHECK_PREFIX = 'network_check'
 
     STATUS_TO_SERVICE_CHECK = {
-        Status.UP  : AgentCheck.OK,
+        Status.UP : AgentCheck.OK,
         Status.WARNING : AgentCheck.WARNING,
         Status.CRITICAL : AgentCheck.CRITICAL,
         Status.DOWN : AgentCheck.CRITICAL,
@@ -70,10 +70,11 @@ class NetworkCheck(AgentCheck):
         # to keep track of statuses
         names = []
         for inst in instances:
-            if 'name' not in inst:
+            name = inst.get('name', None)
+            if not name:
                 raise Exception("All instances should have a 'name' parameter,"
                                 " error on instance: {0}".format(inst))
-            if inst['name'] in names:
+            if name in names:
                 raise Exception("Duplicate names for instances with name {0}"
                                 .format(inst['name']))
 
@@ -142,7 +143,7 @@ class NetworkCheck(AgentCheck):
                     self.resultsq.put((status, msg, sc_name, instance))
 
         except Exception:
-            result = (FAILURE, FAILURE, FAILURE, FAILURE)
+            result = (FAILURE, FAILURE, FAILURE, instance)
             self.resultsq.put(result)
 
     def _process_results(self):
@@ -153,19 +154,23 @@ class NetworkCheck(AgentCheck):
             except Empty:
                 break
 
+            instance_name = instance['name']
             if status == FAILURE:
                 self.nb_failures += 1
                 if self.nb_failures >= self.pool_size - 1:
                     self.nb_failures = 0
                     self.restart_pool()
+
+                # clean failed job
+                self._clean_job(instance_name)
                 continue
+
             self.report_as_service_check(sc_name, status, instance, msg)
 
             # FIXME: 5.3, this has been deprecated before, get rid of events
             # Don't create any event to avoid duplicates with server side
             # service_checks
             skip_event = _is_affirmative(instance.get('skip_event', False))
-            instance_name = instance['name']
             if not skip_event:
                 self.warning("Using events for service checks is deprecated in favor of monitors and will be removed in future versions of the Datadog Agent.")
                 event = None
@@ -200,16 +205,21 @@ class NetworkCheck(AgentCheck):
                 if event is not None:
                     self.events.append(event)
 
-            # The job is finished here, this instance can be re processed
-            if instance_name in self.jobs_status:
-                del self.jobs_status[instance_name]
+            self._clean_job(instance_name)
 
-            # if an exception happened, log it
-            if instance_name in self.jobs_results:
-                ret = self.jobs_results[instance_name].get()
-                if isinstance(ret, Exception):
-                    self.log.exception("Exception in worker thread: {0}".format(ret))
-                del self.jobs_results[instance_name]
+    def _clean_job(self, instance_name):
+        # The job is finished here, this instance can be re processed
+        if instance_name in self.jobs_status:
+            self.log.debug("Instance: %s cleaned from jobs status." % instance_name)
+            del self.jobs_status[instance_name]
+
+        # if an exception happened, log it
+        if instance_name in self.jobs_results:
+            self.log.debug("Instance: %s cleaned from jobs results." % instance_name)
+            ret = self.jobs_results[instance_name].get()
+            if isinstance(ret, Exception):
+                self.log.exception("Exception in worker thread: {0}".format(ret))
+            del self.jobs_results[instance_name]
 
 
     def _check(self, instance):

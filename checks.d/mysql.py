@@ -410,7 +410,7 @@ class MySql(AgentCheck):
         results = self._get_stats_from_status(db)
         results.update(self._get_stats_from_variables(db))
 
-        if self._is_innodb_engine_enabled(db):
+        if (not _is_affirmative(options.get('disable_innodb_metrics', False)) and self._is_innodb_engine_enabled(db)):
             results.update(self._get_stats_from_innodb_status(db))
 
             innodb_keys = [
@@ -806,13 +806,18 @@ class MySql(AgentCheck):
         # Whether InnoDB engine is available or not can be found out either
         # from the output of SHOW ENGINES or from information_schema.ENGINES
         # table. Later is choosen because that involves no string parsing.
-        with closing(db.cursor()) as cursor:
-            cursor.execute(
-                "select engine from information_schema.ENGINES where engine='InnoDB'")
+        try:
+            with closing(db.cursor()) as cursor:
+                cursor.execute(
+                    "select engine from information_schema.ENGINES where engine='InnoDB' and \
+                    support != 'no' and support != 'disabled'"
+                )
 
-            return_val = True if cursor.rowcount > 0 else False
+                return (cursor.rowcount > 0)
 
-            return return_val
+        except (pymysql.err.InternalError, pymysql.err.OperationalError, pymysql.err.NotSupportedError) as e:
+            self.warning("Possibly innodb stats unavailable - error querying engines table: %s" % str(e))
+            return False
 
     def _get_replica_stats(self, db):
         try:
@@ -864,8 +869,9 @@ class MySql(AgentCheck):
                 cursor.execute("SHOW /*!50000 ENGINE*/ INNODB STATUS")
                 innodb_status = cursor.fetchone()
                 innodb_status_text = innodb_status[2]
-        except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
-            self.warning("Privilege error accessing the INNODB status tables (must grant PROCESS): %s" % str(e))
+        except (pymysql.err.InternalError, pymysql.err.OperationalError, pymysql.err.NotSupportedError) as e:
+            self.warning("Privilege error or engine unavailable accessing the INNODB status \
+                         tables (must grant PROCESS): %s" % str(e))
             return {}
 
         results = defaultdict(int)

@@ -28,7 +28,6 @@ THREADS = [
 ]
 
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S,%f'
-LEGACY_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 # Parse Cassandra default system.log log4j pattern: %5p [%t] %d{ISO8601} %F (line %L) %m%n
 LOG_PATTERN = re.compile(r"".join([
@@ -42,12 +41,7 @@ LOG_PATTERN = re.compile(r"".join([
 
 
 def parse_date(timestamp):
-    try:
-        return common.parse_date(timestamp, DATE_FORMAT)
-    except ValueError:
-        # Only Python >= 2.6 supports %f in the date string
-        timestamp, _ = timestamp.split(',')
-        return common.parse_date(timestamp, LEGACY_DATE_FORMAT)
+    return common.parse_date(timestamp, DATE_FORMAT)
 
 def parse_cassandra(log, line):
     matched = LOG_PATTERN.match(line)
