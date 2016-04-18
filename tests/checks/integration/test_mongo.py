@@ -41,14 +41,25 @@ class TestMongoUnit(AgentCheckTest):
 
         self.load_check(config)
         setattr(self.check, "log", Mock())
+
         build_metric_list = self.check._build_metric_list_to_collect
 
         # Default metric list
-        DEFAULT_METRICS = self.check.BASE_METRICS
+        DEFAULT_METRICS = {
+            m_name: m_type for d in [
+                self.check.BASE_METRICS, self.check.DURABILITY_METRICS,
+                self.check.LOCKS_METRICS, self.check.WIREDTIGER_METRICS]
+            for m_name, m_type in d.iteritems()
+        }
 
         # No option
         no_additional_metrics = build_metric_list([])
         self.assertEquals(len(no_additional_metrics), len(DEFAULT_METRICS))
+
+        # Deprecate option, i.e. collected by default
+        default_metrics = build_metric_list(['wiredtiger'])
+        self.assertEquals(len(default_metrics), len(DEFAULT_METRICS))
+        self.assertEquals(self.check.log.warning.call_count, 1)
 
         # One correct option
         default_and_tcmalloc_metrics = build_metric_list(['tcmalloc'])
@@ -63,7 +74,7 @@ class TestMongoUnit(AgentCheckTest):
             len(default_and_tcmalloc_metrics),
             len(DEFAULT_METRICS) + len(self.check.TOP_METRICS)
         )
-        self.assertEquals(self.check.log.warning.called, 1)
+        self.assertEquals(self.check.log.warning.call_count, 2)
 
     def test_metric_resolution(self):
         """
