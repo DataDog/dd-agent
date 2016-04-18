@@ -28,7 +28,7 @@ except ImportError:
 # if a user actually uses them in a custom check
 # If you're this user, please use utils.pidfile or utils.platform instead
 # FIXME: remove them at a point (6.x)
-from utils.dockerutil import get_hostname as get_docker_hostname, is_dockerized
+from utils.dockerutil import DockerUtil
 from utils.pidfile import PidFile  # noqa, see ^^^
 from utils.platform import Platform
 from utils.proxy import get_proxy
@@ -90,6 +90,7 @@ def headers(agentConfig):
         'Accept': 'text/html, */*',
     }
 
+
 def windows_friendly_colon_split(config_string):
     '''
     Perform a split by ':' on the config_string
@@ -100,6 +101,7 @@ def windows_friendly_colon_split(config_string):
         return COLON_NON_WIN_PATH.split(config_string)
     else:
         return config_string.split(':')
+
 
 def cast_metric_val(val):
     # ensure that the metric value is a numeric type
@@ -117,12 +119,15 @@ def cast_metric_val(val):
     return val
 
 _IDS = {}
+
+
 def get_next_id(name):
     global _IDS
     current_id = _IDS.get(name, 0)
     current_id += 1
     _IDS[name] = current_id
     return current_id
+
 
 def is_valid_hostname(hostname):
     if hostname.lower() in set([
@@ -140,6 +145,26 @@ def is_valid_hostname(hostname):
         log.warning("Hostname: %s is not complying with RFC 1123" % hostname)
         return False
     return True
+
+
+def check_yaml(conf_path):
+    with open(conf_path) as f:
+        check_config = yaml.load(f.read(), Loader=yLoader)
+        assert 'init_config' in check_config, "No 'init_config' section found"
+        assert 'instances' in check_config, "No 'instances' section found"
+
+        valid_instances = True
+        if check_config['instances'] is None or not isinstance(check_config['instances'], list):
+            valid_instances = False
+        else:
+            for i in check_config['instances']:
+                if not isinstance(i, dict):
+                    valid_instances = False
+                    break
+        if not valid_instances:
+            raise Exception('You need to have at least one instance defined in the YAML file for this check')
+        else:
+            return check_config
 
 
 def get_hostname(config=None):
@@ -171,8 +196,9 @@ def get_hostname(config=None):
                 return gce_hostname
 
     # Try to get the docker hostname
-    if hostname is None and is_dockerized():
-        docker_hostname = get_docker_hostname()
+    docker_util = DockerUtil()
+    if hostname is None and docker_util.is_dockerized():
+        docker_hostname = docker_util.get_hostname()
         if docker_hostname is not None and is_valid_hostname(docker_hostname):
             return docker_hostname
 

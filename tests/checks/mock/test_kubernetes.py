@@ -1,3 +1,6 @@
+# stdlib
+import mock
+
 # 3p
 import simplejson as json
 
@@ -28,33 +31,28 @@ METRICS = [
     ('kubernetes.pods.running', PODS),
 ]
 
+
 class TestKubernetes(AgentCheckTest):
 
     CHECK_NAME = 'kubernetes'
 
     def test_fail(self):
         # To avoid the disparition of some gauges during the second check
-        mocks = {
-            '_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics.json")),
-            '_retrieve_kube_labels': lambda: json.loads(Fixtures.read_file("kube_labels.json")),
-            # parts of the json returned by the kubelet api is escaped, keep it untouched
-            '_retrieve_pods_list': lambda: json.loads(Fixtures.read_file("pods_list.json", string_escape=False)),
-        }
+        mocks = {'_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics.json"))}
         config = {
             "instances": [{"host": "foo"}]
         }
 
-        # Can't use run_check_twice due to specific metrics
-        self.run_check(config, mocks=mocks, force_reload=True)
-        self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL)
+        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list.json", string_escape=False))):
+            with mock.patch('utils.kubeutil.KubeUtil.extract_kube_labels', side_effect=lambda x: json.loads(Fixtures.read_file("kube_labels.json"))):
+                # Can't use run_check_twice due to specific metrics
+                self.run_check(config, mocks=mocks, force_reload=True)
+                self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL)
 
     def test_metrics(self):
         # To avoid the disparition of some gauges during the second check
         mocks = {
             '_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics.json")),
-            '_retrieve_kube_labels': lambda: json.loads(Fixtures.read_file("kube_labels.json")),
-            # parts of the json returned by the kubelet api is escaped, keep it untouched
-            '_retrieve_pods_list': lambda: json.loads(Fixtures.read_file("pods_list.json", string_escape=False)),
         }
         config = {
             "instances": [
@@ -64,9 +62,11 @@ class TestKubernetes(AgentCheckTest):
                 }
             ]
         }
-
-        # Can't use run_check_twice due to specific metrics
-        self.run_check_twice(config, mocks=mocks, force_reload=True)
+        # parts of the json returned by the kubelet api is escaped, keep it untouched
+        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list.json", string_escape=False))):
+            with mock.patch('utils.kubeutil.KubeUtil.extract_kube_labels', side_effect=lambda x: json.loads(Fixtures.read_file("kube_labels.json"))):
+                # Can't use run_check_twice due to specific metrics
+                self.run_check_twice(config, mocks=mocks, force_reload=True)
 
         expected_tags = [
             (['container_name:/kubelet', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
@@ -105,12 +105,7 @@ class TestKubernetes(AgentCheckTest):
 
     def test_historate(self):
         # To avoid the disparition of some gauges during the second check
-        mocks = {
-            '_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics.json")),
-            '_retrieve_kube_labels': lambda: json.loads(Fixtures.read_file("kube_labels.json")),
-            # parts of the json returned by the kubelet api is escaped, keep it untouched
-            '_retrieve_pods_list': lambda: json.loads(Fixtures.read_file("pods_list.json", string_escape=False)),
-        }
+        mocks = {'_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics.json"))}
         config = {
             "instances": [
                 {
@@ -121,8 +116,11 @@ class TestKubernetes(AgentCheckTest):
             ]
         }
 
-        # Can't use run_check_twice due to specific metrics
-        self.run_check_twice(config, mocks=mocks, force_reload=True)
+        # parts of the json returned by the kubelet api is escaped, keep it untouched
+        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list.json", string_escape=False))):
+            with mock.patch('utils.kubeutil.KubeUtil.extract_kube_labels', side_effect=lambda x: json.loads(Fixtures.read_file("kube_labels.json"))):
+                # Can't use run_check_twice due to specific metrics
+                self.run_check_twice(config, mocks=mocks, force_reload=True)
 
         metric_suffix = ["count", "avg", "median", "max", "95percentile"]
 

@@ -1,0 +1,8 @@
+docker_images:
+  - memcached
+
+init_config:
+
+instances:
+  - url: "%%host%%"
+    port: "%%port%%"

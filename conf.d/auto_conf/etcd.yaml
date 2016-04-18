@@ -1,0 +1,7 @@
+docker_images:
+  - etcd
+
+init_config:
+
+instances:
+  - url: "http://%%host%%:%%port_0%%"

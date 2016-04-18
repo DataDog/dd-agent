@@ -2,6 +2,7 @@
 import copy
 import inspect
 from itertools import product
+import imp
 import logging
 import os
 from pprint import pformat
@@ -58,10 +59,11 @@ def load_class(check_name, class_name):
 
 def load_check(name, config, agentConfig):
     checksd_path = get_checksd_path(get_os())
-    if checksd_path not in sys.path:
-        sys.path.append(checksd_path)
 
-    check_module = __import__(name)
+    # find (in checksd_path) and load the check module
+    fd, filename, desc = imp.find_module(name, [checksd_path])
+    check_module = imp.load_module(name, fd, filename, desc)
+
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
     for _, clsmember in classes:
@@ -87,6 +89,7 @@ def load_check(name, config, agentConfig):
         raise Exception("Check is using old API, {0}".format(e))
     except Exception:
         raise
+
 
 class Fixtures(object):
     @staticmethod
@@ -198,7 +201,7 @@ class AgentCheckTest(unittest.TestCase):
                 self.service_metadata.append(metadata)
 
         if error is not None:
-            raise error # pylint: disable=E0702
+            raise error  # pylint: disable=E0702
 
     def print_current_state(self):
         log.debug("""++++++++ CURRENT STATE ++++++++
