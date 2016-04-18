@@ -297,7 +297,7 @@ class TestServiceDiscovery(unittest.TestCase):
         """Test _get_auto_config"""
         expected_tpl = {
             'redis': ('redisdb', None, {"host": "%%host%%", "port": "%%port%%"}),
-            'consul': ('consul', None, {"url": "http://%%host%%:%%port%%", "catalog_checks": True, "service_whitelist": None, "new_leader_checks": True}),
+            'consul': ('consul', None, {"url": "http://%%host%%:%%port%%", "catalog_checks": True, "new_leader_checks": True}),
             'foobar': None
         }
 
