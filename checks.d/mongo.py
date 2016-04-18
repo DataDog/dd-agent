@@ -15,9 +15,41 @@ RATE = AgentCheck.rate
 
 
 class MongoDb(AgentCheck):
-    SERVICE_CHECK_NAME = 'mongodb.can_connect'
+    """
+    MongoDB agent check.
+
+    # Metrics
+    Metric available for collection are listed by topic as `MongoDb` class variables.
+
+    Various metric topics are collected by default. Others require the
+    corresponding option enabled in the check configuration file.
+
+    ## Format
+    Metrics are listed with the following format:
+        ```
+        metric_name -> metric_type
+        ```
+        or
+        ```
+        metric_name -> (metric_type, alias)*
+        ```
+
+    * `alias` parameter is optional, if unspecified, MongoDB metrics are reported
+       with their original metric names.
+
+    # Service checks
+    Available service checks:
+    * `mongodb.can_connect`
+      Connectivity health to the instance.
+    * `mongodb.replica_set_member_state`
+      Disposition of the member replica set state.
+    """
     SOURCE_TYPE_NAME = 'mongodb'
 
+    # Service checks
+    SERVICE_CHECK_NAME = 'mongodb.can_connect'
+
+    # Metrics
     """
     MongoDB replica set states, as documented at
     https://docs.mongodb.org/manual/reference/replica-states/
@@ -35,14 +67,6 @@ class MongoDb(AgentCheck):
         10: 'removed'
     }
 
-    # METRIC LIST DEFINITION
-    #
-    # Format
-    # ------
-    #   metric_name -> (metric_type, alias)
-    # or
-    #   metric_name -> metric_type *
-    # * by default MongoDB metrics are reported under their original metric names
     """
     Core metrics collected by default.
     """
@@ -335,26 +359,42 @@ class MongoDb(AgentCheck):
     }
 
     """
-    Associates with the metric list to collect.
+    Metrics collected by default.
     """
-    AVAILABLE_METRICS = {
+    DEFAULT_METRICS = {
+        'base': BASE_METRICS,
         'durability': DURABILITY_METRICS,
         'locks': LOCKS_METRICS,
+        'wiredtiger': WIREDTIGER_METRICS,
+    }
+
+    """
+    Additional metrics by category.
+    """
+    AVAILABLE_METRICS = {
         'metrics.commands': COMMANDS_METRICS,
         'tcmalloc': TCMALLOC_METRICS,
-        'wiredtiger': WIREDTIGER_METRICS,
         'top': TOP_METRICS,
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+
+        # Members' last replica set states
         self._last_state_by_server = {}
+
+        # List of metrics to collect per instance
         self.metrics_to_collect_by_instance = {}
 
     def get_library_versions(self):
         return {"pymongo": pymongo.version}
 
-    def check_last_state(self, state, clean_server_name, agentConfig):
+    def _report_replica_set_state(self, state, clean_server_name, agentConfig):
+        """
+        Report the member's replica set state
+        * Submit a service check.
+        * Create an event on state change.
+        """
         if self._last_state_by_server.get(clean_server_name, -1) != state:
             self._last_state_by_server[clean_server_name] = state
             return self.create_event(state, clean_server_name, agentConfig)
@@ -406,26 +446,28 @@ class MongoDb(AgentCheck):
         metrics_to_collect = {}
 
         # Defaut metrics
-        metrics_to_collect.update(self.BASE_METRICS)
+        for default_metrics in self.DEFAULT_METRICS.itervalues():
+            metrics_to_collect.update(default_metrics)
 
         # Additional metrics metrics
         for option in additional_metrics:
             additional_metrics = self.AVAILABLE_METRICS.get(option)
-
             if not additional_metrics:
-                self.log.warning(
-                    u"Failed to extend the list of metrics to collect:"
-                    " unrecognized {option} option".format(
-                        option=option
+                if option in self.DEFAULT_METRICS:
+                    self.log.warning(
+                        u"`%s` option is deprecated."
+                        u" The corresponding metrics are collected by default.", option
                     )
-                )
+                else:
+                    self.log.warning(
+                        u"Failed to extend the list of metrics to collect:"
+                        u" unrecognized `%s` option", option
+                    )
                 continue
 
             self.log.debug(
-                u"Adding `{option}` corresponding metrics to the list"
-                " of metrics to collect.".format(
-                    option=option
-                )
+                u"Adding `%s` corresponding metrics to the list"
+                u" of metrics to collect.", option
             )
             metrics_to_collect.update(additional_metrics)
 
@@ -637,7 +679,7 @@ class MongoDb(AgentCheck):
 
                 data['state'] = replSet['myState']
                 tags.append('replset_state:%s' % self.REPLSET_STATES[data['state']])
-                self.check_last_state(
+                self._report_replica_set_state(
                     data['state'],
                     clean_server_name,
                     self.agentConfig)
