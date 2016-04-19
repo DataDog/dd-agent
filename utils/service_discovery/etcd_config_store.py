@@ -1,4 +1,4 @@
-from urllib3.exceptions import TimeoutError
+from requests.packages.urllib3.exceptions import TimeoutError
 
 from etcd import EtcdKeyNotFound
 from etcd import Client as etcd_client
