@@ -19,6 +19,9 @@ YARN_CLUSTER_METRICS_URL = urljoin(RM_ADDRESS, '/ws/v1/cluster/metrics')
 # Path to retrieve YARN APPS
 YARN_APPS_URL = urljoin(RM_ADDRESS, '/ws/v1/cluster/apps')
 
+# Path to retrieve ALL YARN APPS
+YARN_APPS_FILTER_URL = urljoin(RM_ADDRESS, '/ws/v1/cluster/apps?state=RUNNING,FINISHED')
+
 # Path to retrieve node statistics
 YARN_NODES_URL = urljoin(RM_ADDRESS, '/ws/v1/cluster/nodes')
 
@@ -57,12 +60,28 @@ def requests_get_mock(*args, **kwargs):
             body = f.read()
             return MockResponse(body, 200)
 
+    elif args[0] == YARN_APPS_FILTER_URL:
+        with open(Fixtures.file('apps_metrics'), 'r') as f:
+            body = f.read()
+            return MockResponse(body, 200)
+
 
 class YARNCheck(AgentCheckTest):
     CHECK_NAME = 'yarn'
 
     YARN_CONFIG = {
-        'resourcemanager_uri': 'http://localhost:8088'
+        'resourcemanager_uri': 'http://localhost:8088',
+        'application_tags': [
+            'name:app_name'
+        ]
+    }
+
+    YARN_APPS_FILTER_CONFIG = {
+        'resourcemanager_uri': 'http://localhost:8088',
+        'task_states': [
+            'RUNNING',
+            'FINISHED'
+        ]
     }
 
     YARN_CLUSTER_METRICS_VALUES = {
@@ -105,7 +124,11 @@ class YARNCheck(AgentCheckTest):
         'yarn.apps.vcore_seconds': 103,
     }
 
-    YARN_APP_METRICS_TAGS = ['cluster_id:1326815542473', 'app_id:application_1326815542473_0001']
+    YARN_APP_METRICS_TAGS = [
+        'cluster_id:1326815542473',
+        'app_id:application_1326815542473_0001',
+        'app_name:word count'
+    ]
 
     YARN_NODE_METRICS_VALUES = {
         'yarn.node.last_health_update': 1324056895432,
@@ -122,6 +145,10 @@ class YARNCheck(AgentCheckTest):
     def test_check(self, mock_requests):
         config = {
             'instances': [self.YARN_CONFIG]
+        }
+
+        config_apps_filter = {
+            'instances': [self.YARN_APPS_FILTER_CONFIG]
         }
 
         self.run_check(config)
@@ -143,3 +170,7 @@ class YARNCheck(AgentCheckTest):
             self.assertMetric(metric,
                 value=value,
                 tags=self.YARN_NODE_METRICS_TAGS)
+
+        self.run_check(config_apps_filter, force_reload=True)
+
+        mock_requests.assert_any_call('http://localhost:8088/ws/v1/cluster/apps?state=RUNNING,FINISHED')

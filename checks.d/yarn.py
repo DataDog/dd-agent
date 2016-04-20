@@ -58,6 +58,8 @@ from checks import AgentCheck
 
 # Default settings
 DEFAULT_RM_URI = 'http://localhost:8088'
+DEFAULT_TASK_STATES = []
+DEFAULT_TASK_TAGS = []
 DEFAULT_TIMEOUT = 5
 
 # Path to retrieve cluster info
@@ -119,6 +121,7 @@ YARN_APP_METRICS = {
     'runningContainers': ('yarn.apps.running_containers', GAUGE),
     'memorySeconds': ('yarn.apps.memory_seconds', GAUGE),
     'vcoreSeconds': ('yarn.apps.vcore_seconds', GAUGE),
+    'count': ('yarn.apps.count', GAUGE),
 }
 
 # Node metrics for YARN
@@ -131,7 +134,6 @@ YARN_NODE_METRICS = {
     'numContainers': ('yarn.node.num_containers', GAUGE),
 }
 
-
 class YarnCheck(AgentCheck):
     '''
     Extract statistics from YARN's ResourceManger REST API
@@ -141,13 +143,15 @@ class YarnCheck(AgentCheck):
 
         # Get properties from conf file
         rm_address = instance.get('resourcemanager_uri', DEFAULT_RM_URI)
+        yarn_extra_app_tags = instance.get('application_tags', DEFAULT_TASK_TAGS)
+        task_states = ','.join(instance.get('task_states', DEFAULT_TASK_STATES))
 
         # Get the cluster ID from Yarn
         cluster_id = self._get_cluster_id(rm_address)
 
         # Get metrics from the Resource Manager
         self._yarn_cluster_metrics(cluster_id, rm_address)
-        self._yarn_app_metrics(rm_address)
+        self._yarn_app_metrics(rm_address, task_states, yarn_extra_app_tags)
         self._yarn_node_metrics(cluster_id, rm_address)
 
     def _get_cluster_id(self, rm_address):
@@ -176,11 +180,12 @@ class YarnCheck(AgentCheck):
             if yarn_metrics is not None:
                 self._set_yarn_metrics_from_json(tags, yarn_metrics, YARN_CLUSTER_METRICS)
 
-    def _yarn_app_metrics(self, rm_address):
+    def _yarn_app_metrics(self, rm_address, task_states, yarn_extra_app_tags):
         '''
         Get metrics related to YARN applications
         '''
-        metrics_json = self._rest_request_to_json(rm_address, YARN_APPS_PATH)
+        app_metrics_url = YARN_APPS_PATH + "?state=" + task_states if task_states else YARN_APPS_PATH
+        metrics_json = self._rest_request_to_json(rm_address, app_metrics_url)
 
         if metrics_json:
             if metrics_json['apps'] is not None:
@@ -191,10 +196,18 @@ class YarnCheck(AgentCheck):
                         cluster_id = app_json['clusterId']
                         app_id = app_json['id']
 
-                        tags = ['cluster_id:' + str(cluster_id), 'app_id:' + str(app_id)]
+                        tags = [
+                            'cluster_id:' + str(cluster_id),
+                            'app_id:' + str(app_id),
+                        ]
+
+                        for tag in yarn_extra_app_tags:
+                            key, value = tag.split(':')
+                            tags.append("{tag}:{value}".format(
+                                tag=value, value=str(app_json[key]))
+                            )
 
                         self._set_yarn_metrics_from_json(tags, app_json, YARN_APP_METRICS)
-
 
     def _yarn_node_metrics(self, cluster_id, rm_address):
         '''
