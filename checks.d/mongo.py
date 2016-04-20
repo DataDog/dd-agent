@@ -165,9 +165,9 @@ class MongoDb(AgentCheck):
         "opcountersRepl.insert": RATE,
         "opcountersRepl.query": RATE,
         "opcountersRepl.update": RATE,
-        "oplog.totalSizeMB": GAUGE,
+        "oplog.logSizeMB": GAUGE,
         "oplog.usedSizeMB": GAUGE,
-        "oplog.timeDiffSeconds": GAUGE,
+        "oplog.timeDiff": GAUGE,
         "replSet.health": GAUGE,
         "replSet.replicationLag": GAUGE,
         "replSet.state": GAUGE,
@@ -815,11 +815,15 @@ class MongoDb(AgentCheck):
 
         if ol_metadata:
             try:
-                oplog_data['totalSizeMB'] = round(ol_metadata['options']['size'] / 2.0 ** 20, 2)
+                oplog_data['logSizeMB'] = round(
+                    ol_metadata['options']['size'] / 2.0 ** 20, 2
+                )
 
                 oplog = localdb[ol_collection_name]
 
-                oplog_data['usedSizeMB'] = round(localdb.command("collstats", ol_collection_name)['size'] / 2.0 ** 20, 2)
+                oplog_data['usedSizeMB'] = round(
+                    localdb.command("collstats", ol_collection_name)['size'] / 2.0 ** 20, 2
+                )
 
                 op_asc_cursor = oplog.find().sort("$natural", pymongo.ASCENDING).limit(1)
                 op_dsc_cursor = oplog.find().sort("$natural", pymongo.DESCENDING).limit(1)
@@ -827,14 +831,14 @@ class MongoDb(AgentCheck):
                 try:
                     first_timestamp = op_asc_cursor[0]['ts'].as_datetime()
                     last_timestamp = op_dsc_cursor[0]['ts'].as_datetime()
-                    oplog_data['timeDiffSeconds'] = total_seconds(last_timestamp - first_timestamp)
-                except IndexError: # if the oplog collection doesn't have any entries
+                    oplog_data['timeDiff'] = total_seconds(last_timestamp - first_timestamp)
+                except (IndexError, KeyError):
+                    # if the oplog collection doesn't have any entries
+                    # if an object in the collection doesn't have a ts value, we ignore it
                     pass
-                except KeyError: # if an object in the collection doesn't have a ts value, we ignore it
-                    pass
-
-            except KeyError: # encountered an error trying to access options.size for the oplog collection
-                pass
+            except KeyError:
+                # encountered an error trying to access options.size for the oplog collection
+                self.log.warning(u"Failed to record `ReplicationInfo` metrics.")
 
         for (m, value) in oplog_data.iteritems():
             submit_method, metric_name_alias = \
