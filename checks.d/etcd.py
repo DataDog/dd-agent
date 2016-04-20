@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2015-2016
+# (C) Cory G Watson <gphat@keen.io> 2014-2015
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # 3rd party
 import requests
 

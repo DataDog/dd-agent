@@ -1,4 +1,8 @@
 #!/bin/bash
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # Datadog Agent install script for Mac OS X.
 set -e
 logfile=ddagent-install.log

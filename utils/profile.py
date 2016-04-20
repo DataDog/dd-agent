@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import cProfile  # noqa, it seems that import-names thinks it's not stdlib
 from cStringIO import StringIO

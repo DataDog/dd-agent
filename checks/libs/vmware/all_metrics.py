@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 CPU_METRICS = {
     # CPU Capacity Contention
     # Compatibility: 3.5.0 / 4.0.0 / 4.1.0 / 5.0.0

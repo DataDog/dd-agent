@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2013-2016
+# (C) Stefan Mees <stefan.mees@wooga.net> 2013
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import socket
 

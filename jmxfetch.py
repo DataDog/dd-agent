@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # set up logging before importing any other components
 if __name__ == '__main__':
     from config import initialize_logging  # noqa
