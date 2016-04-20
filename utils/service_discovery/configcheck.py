@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # project
 from utils.dockerutil import DockerUtil
 from utils.service_discovery.config_stores import get_config_store, SD_CONFIG_BACKENDS
