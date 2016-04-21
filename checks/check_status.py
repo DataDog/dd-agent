@@ -10,6 +10,7 @@ of checks.
 from collections import defaultdict
 import cPickle as pickle
 import datetime
+import json
 import logging
 import os
 import platform
@@ -142,6 +143,20 @@ class AgentStatus(object):
         except Exception:
             log.exception("Error persisting status")
 
+        # Also, persist to JSON for GUI compatibility
+        self.persist_json()
+
+    def persist_json(self):
+        try:
+            path = self._get_json_path()
+            log.debug("Persisting status to %s" % path)
+            with open(path, 'w') as f:
+                status = self.to_dict()
+                status = json.dumps(status)
+                f.write(status)
+        except Exception:
+            log.exception("Error persisting status")
+
     def created_seconds_ago(self):
         td = datetime.datetime.now() - self.created_at
         return td.seconds
@@ -221,6 +236,7 @@ class AgentStatus(object):
         log.debug("Removing latest status")
         try:
             os.remove(cls._get_pickle_path())
+            os.remove(cls._get_json_path())
         except OSError:
             pass
 
@@ -269,6 +285,16 @@ class AgentStatus(object):
         else:
             path = tempfile.gettempdir()
         return os.path.join(path, cls.__name__ + '.pickle')
+
+    @classmethod
+    def _get_json_path(cls):
+        if Platform.is_win32():
+            path = os.path.join(_windows_commondata_path(), 'Datadog')
+        elif os.path.isdir(PidFile.get_dir()):
+            path = PidFile.get_dir()
+        else:
+            path = tempfile.gettempdir()
+        return os.path.join(path, cls.__name__ + '.json')
 
 
 class InstanceStatus(object):
