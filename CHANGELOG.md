@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 5.7.4 / Unreleased
+# 5.7.4 / 04-21-2016
 **All platforms**
 
 ### Details
