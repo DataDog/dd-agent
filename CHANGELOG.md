@@ -19,7 +19,6 @@ https://github.com/DataDog/dd-agent/compare/5.7.3...5.7.4
 * [IMPROVEMENT] Windows WMI-based checks (`wmi_check`, System check, IIS, Windows Service, Windows Event Log): gracefully time out WMI queries. See [#2185][], [#2228][], [#2278][], [#2366][] and [#2401][].
 
 * [BUGFIX] Agent Metrics: Flush service metadata to avoid memory leaks. See [#2414][]
-* [BUGFIX] Gohai: Add number of logical processors count to Windows. See [gohai-22](https://github.com/DataDog/gohai/pull/22), [gohai-25](https://github.com/DataDog/gohai/pull/25)
 
 # 5.7.3 / 03-31-2016
 **All platforms**
