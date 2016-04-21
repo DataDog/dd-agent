@@ -46,31 +46,10 @@ class MongoDb(AgentCheck):
     """
     SOURCE_TYPE_NAME = 'mongodb'
 
-    """
-    MongoDB replica set states, as documented at
-    https://docs.mongodb.org/manual/reference/replica-states/
-    """
-    REPLSET_STATES = {
-        0: 'startup',
-        1: 'primary',
-        2: 'secondary',
-        3: 'recovering',
-        5: 'startup2',
-        6: 'unknown',
-        7: 'arbiter',
-        8: 'down',
-        9: 'rollback',
-        10: 'removed'
-    }
+    # Service check
+    SERVICE_CHECK_NAME = 'mongodb.can_connect'
 
-    # METRIC LIST DEFINITION
-    #
-    # Format
-    # ------
-    #   metric_name -> (metric_type, alias)
-    # or
-    #   metric_name -> metric_type *
-    # * by default MongoDB metrics are reported under their original metric names
+    # Metrics
     """
     Core metrics collected by default.
     """
@@ -386,6 +365,11 @@ class MongoDb(AgentCheck):
         'top': TOP_METRICS,
     }
 
+    # Replication states
+    """
+    MongoDB replica set states, as documented at
+    https://docs.mongodb.org/manual/reference/replica-states/
+    """
     REPLSET_MEMBER_STATES = {
         0: ('STARTUP', 'Starting Up'),
         1: ('PRIMARY', 'Primary'),

@@ -135,6 +135,12 @@ class TestMongoUnit(AgentCheckTest):
         """
         Check that resolving replset member state IDs match to names and descriptions properly.
         """
+        # Initialize check
+        config = {
+            'instances': [self.MONGODB_CONFIG]
+        }
+        self.load_check(config)
+
         self.assertEquals('STARTUP2', self.check.get_state_name(5))
         self.assertEquals('PRIMARY', self.check.get_state_name(1))
 
