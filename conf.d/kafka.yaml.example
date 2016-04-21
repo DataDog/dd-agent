@@ -111,11 +111,6 @@ init_config:
     # v0.8.2.x Consumers
     - include:
         domain: 'kafka.consumer'
-        bean_regex: 'kafka\.consumer:type=FetcherLagMetrics,name=ConsumerLag,clientId=.*'
-        attribute:
-            alias: kafka.consumer.lag
-    - include:
-        domain: 'kafka.consumer'
         bean_regex: 'kafka\.consumer:type=ConsumerFetcherManager,name=MaxLag,clientId=.*'
         attribute:
           Value:
