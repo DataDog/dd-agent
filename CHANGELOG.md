@@ -1,6 +1,25 @@
 Changes
 =======
 
+# 5.7.4 / Unreleased
+**All platforms**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.7.3...5.7.4
+
+### Changes
+* [FEATURE] Core: Add Python architecture to the `info` command. See [#2413][]
+* [FEATURE] MongoDB: Collect additional `WiredTiger` storage engine metrics. See [#1825][], [#2423][] (Thanks [@benmccann][])
+* [FEATURE] MongoDB: Collect replication set information metrics. See [#2237][], [#2429][] (Thanks [@rhwlo][])
+
+* [IMPROVEMENT] Cassandra: Exclude new `system_schema` keyspace in version 3.x. See [#2339][]
+* [IMPROVEMENT] Kafka: Update the default configuration file to support collection of more metrics. See [#2371][], [#2425][]
+* [IMPROVEMENT] MongoDB: Collect journaling, locks, `WiredTiger` storage engine metrics by default and deprecate the corresponding options. See [#2423][]
+* [IMPROVEMENT] MongoDB: Improve messaging and tags on replication set member state events. See [#2409][], [#2432][] (Thanks [@antifuchs][])
+* [IMPROVEMENT] Windows WMI-based checks (`wmi_check`, System check, IIS, Windows Service, Windows Event Log): gracefully time out WMI queries. See [#2185][], [#2228][], [#2278][], [#2366][] and [#2401][].
+
+* [BUGFIX] Agent Metrics: Flush service metadata to avoid memory leaks. See [#2414][]
+
 # 5.7.3 / 03-31-2016
 **All platforms**
 
@@ -2563,6 +2582,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#1822]: https://github.com/DataDog/dd-agent/issues/1822
 [#1823]: https://github.com/DataDog/dd-agent/issues/1823
 [#1824]: https://github.com/DataDog/dd-agent/issues/1824
+[#1825]: https://github.com/DataDog/dd-agent/issues/1825
 [#1826]: https://github.com/DataDog/dd-agent/issues/1826
 [#1831]: https://github.com/DataDog/dd-agent/issues/1831
 [#1839]: https://github.com/DataDog/dd-agent/issues/1839
@@ -2742,6 +2762,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2234]: https://github.com/DataDog/dd-agent/issues/2234
 [#2235]: https://github.com/DataDog/dd-agent/issues/2235
 [#2236]: https://github.com/DataDog/dd-agent/issues/2236
+[#2237]: https://github.com/DataDog/dd-agent/issues/2237
 [#2242]: https://github.com/DataDog/dd-agent/issues/2242
 [#2244]: https://github.com/DataDog/dd-agent/issues/2244
 [#2246]: https://github.com/DataDog/dd-agent/issues/2246
@@ -2771,10 +2792,12 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2314]: https://github.com/DataDog/dd-agent/issues/2314
 [#2320]: https://github.com/DataDog/dd-agent/issues/2320
 [#2329]: https://github.com/DataDog/dd-agent/issues/2329
+[#2339]: https://github.com/DataDog/dd-agent/issues/2339
 [#2349]: https://github.com/DataDog/dd-agent/issues/2349
 [#2351]: https://github.com/DataDog/dd-agent/issues/2351
 [#2357]: https://github.com/DataDog/dd-agent/issues/2357
 [#2366]: https://github.com/DataDog/dd-agent/issues/2366
+[#2371]: https://github.com/DataDog/dd-agent/issues/2371
 [#2372]: https://github.com/DataDog/dd-agent/issues/2372
 [#2378]: https://github.com/DataDog/dd-agent/issues/2378
 [#2379]: https://github.com/DataDog/dd-agent/issues/2379
@@ -2783,6 +2806,14 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2387]: https://github.com/DataDog/dd-agent/issues/2387
 [#2392]: https://github.com/DataDog/dd-agent/issues/2392
 [#2397]: https://github.com/DataDog/dd-agent/issues/2397
+[#2401]: https://github.com/DataDog/dd-agent/issues/2401
+[#2409]: https://github.com/DataDog/dd-agent/issues/2409
+[#2413]: https://github.com/DataDog/dd-agent/issues/2413
+[#2414]: https://github.com/DataDog/dd-agent/issues/2414
+[#2423]: https://github.com/DataDog/dd-agent/issues/2423
+[#2425]: https://github.com/DataDog/dd-agent/issues/2425
+[#2429]: https://github.com/DataDog/dd-agent/issues/2429
+[#2432]: https://github.com/DataDog/dd-agent/issues/2432
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@EdRow]: https://github.com/EdRow
@@ -2796,6 +2827,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@a20012251]: https://github.com/a20012251
 [@adriandoolittle]: https://github.com/adriandoolittle
 [@alaz]: https://github.com/alaz
+[@antifuchs]: https://github.com/antifuchs
 [@arosenhagen]: https://github.com/arosenhagen
 [@arthurnn]: https://github.com/arthurnn
 [@asiebert]: https://github.com/asiebert
