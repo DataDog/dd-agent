@@ -761,7 +761,7 @@ class ForwarderStatus(AgentStatus):
     NAME = 'Forwarder'
 
     def __init__(self, queue_length=0, queue_size=0, flush_count=0, transactions_received=0,
-                 transactions_flushed=0):
+                 transactions_flushed=0, too_big_count=0):
         AgentStatus.__init__(self)
         self.queue_length = queue_length
         self.queue_size = queue_size
@@ -771,6 +771,7 @@ class ForwarderStatus(AgentStatus):
         self.proxy_data = get_config(parse_args=False).get('proxy_settings')
         self.hidden_username = None
         self.hidden_password = None
+        self.too_big_count = too_big_count
         if self.proxy_data and self.proxy_data.get('user'):
             username = self.proxy_data.get('user')
             hidden = len(username) / 2 if len(username) <= 7 else len(username) - 4
@@ -784,6 +785,7 @@ class ForwarderStatus(AgentStatus):
             "Flush Count: %s" % self.flush_count,
             "Transactions received: %s" % self.transactions_received,
             "Transactions flushed: %s" % self.transactions_flushed,
+            "Transactions rejected: %s" % self.too_big_count,
             ""
         ]
 
@@ -815,6 +817,7 @@ class ForwarderStatus(AgentStatus):
             'proxy_data': self.proxy_data,
             'hidden_username': self.hidden_username,
             'hidden_password': self.hidden_password,
+            'too_big_count': self.too_big_count,
 
         })
         return status_info
