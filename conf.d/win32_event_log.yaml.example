@@ -1,5 +1,5 @@
 init_config:
-    # The (optional) tag_event_id setting will add an event id tag to each
+    # The (optional) `tag_event_id` setting will add an event id tag to each
     # event sent from this check. Defaults to false.
     # tag_event_id: false
 
@@ -10,30 +10,30 @@ instances:
   -
     # By default, the local machine's event logs are captured. To capture a remote
     # machine's event logs, specify the machine name (DCOM has to be enabled on
-    # the remote machine). If authentication is needed, specify a username and a
-    # password.
+    # the remote machine). If authentication is needed, specify a `username` and a
+    # `password`.
     # host: remote_machine_name
     # username: user
     # password: pass
 
-    # The (optional) log_file filter will instruct the check to only capture events
+    # The (optional) `log_file` filter will instruct the check to only capture events
     # that belong to one of the specified LogFiles (Application, System, Setup, Security,
     # or application-specific LogFile).
     # log_file:
     #   - Security
 
-    # The (optional) source_name filter will instruct the check to only capture events
+    # The (optional) `source_name` filter will instruct the check to only capture events
     # that come from one of the specified SourceNames.
     # source_name:
     #   - Microsoft-Windows-Security-Auditing
 
-    # The (optional) type filter will instruct the check to only capture events
+    # The (optional) `type` filter will instruct the check to only capture events
     # that have one of the specified Types.
     # Standard values are: Critical, Error, Warning, Information, Audit Success, Audit Failure.
     # type:
     #   - Audit Failure
 
-    # The (optional) event_id filter will instruct the check to only capture events
+    # The (optional) `event_id` filter will instruct the check to only capture events
     # that have one of the specified EventCodes.
     # The event ID can be found through http://www.eventid.net/ and viewed in the
     # Windows Event Viewer.
@@ -41,7 +41,7 @@ instances:
     #   - 4776
     #   - 4672
 
-    # The (optional) message_filters filter will instruct the check to only capture
+    # The (optional) `message_filters` filter will instruct the check to only capture
     # events which Message field matches all of the specified filters.
     # Use % as a wildcard. See http://msdn.microsoft.com/en-us/library/aa392263(v=vs.85).aspx
     # for more on the format for LIKE queries.
@@ -51,11 +51,22 @@ instances:
     #   - "-%success%"
     #   - "%SYSTEM%"
 
-    # The (optional) tags parameter will instruct the check to tag the captured
+    # The (optional) `tags` parameter will instruct the check to tag the captured
     # events with the specified tags.
     # tags:
     #   - security
 
+    # The (optional) `event_format` parameter will instruct the check to generate
+    # Datadog's event bodies with the specified list of event properties.
+    # If unspecified, the EventLog's `Message` or `InsertionStrings` are used by default.
+    # event_format:
+    #   - Logfile
+    #   - SourceName
+    #   - EventCode
+    #   - Message
+    #   - InsertionStrings
+    #   - TimeGenerated
+    #   - Type
 
   # Here are a couple basic examples:
 
