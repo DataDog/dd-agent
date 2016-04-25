@@ -35,6 +35,9 @@ instances:
     # cluster_stats: false
     # pshard_stats: false
     # pending_task_stats: true
+    # ssl_verify: false
+    # ssl_cert: /path/to/cert.pem
+    # ssl_key: /path/to/cert.key
     # tags:
     #   - 'tag1:key1'
     #   - 'tag2:key2'

@@ -31,6 +31,9 @@ ESInstanceConfig = namedtuple(
         'url',
         'username',
         'pending_task_stats',
+        'ssl_verify',
+        'ssl_cert',
+        'ssl_key',
     ])
 
 
@@ -298,6 +301,9 @@ class ESCheck(AgentCheck):
             cluster_stats=cluster_stats,
             password=instance.get('password'),
             service_check_tags=service_check_tags,
+            ssl_cert=instance.get('ssl_cert'),
+            ssl_key=instance.get('ssl_key'),
+            ssl_verify=instance.get('ssl_verify'),
             tags=tags,
             timeout=timeout,
             url=url,
@@ -445,12 +451,27 @@ class ESCheck(AgentCheck):
         else:
             auth = None
 
+        # Load SSL configuration, if available.
+        # ssl_verify can be a bool or a string (http://docs.python-requests.org/en/latest/user/advanced/#ssl-cert-verification)
+        if isinstance(config.ssl_verify, bool) or isinstance(config.ssl_verify, str):
+            verify = config.ssl_verify
+        else:
+            verify = None
+        if config.ssl_cert and config.ssl_key:
+            cert = (config.ssl_cert, config.ssl_key)
+        elif config.ssl_cert:
+            cert = config.ssl_cert
+        else:
+            cert = None
+
         try:
             resp = requests.get(
                 url,
                 timeout=config.timeout,
                 headers=headers(self.agentConfig),
-                auth=auth
+                auth=auth,
+                verify=verify,
+                cert=cert
             )
             resp.raise_for_status()
         except Exception as e:
