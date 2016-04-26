@@ -10,10 +10,10 @@ of checks.
 from collections import defaultdict
 import cPickle as pickle
 import datetime
-import json
 import logging
 import os
 import platform
+import simplejson as json
 import sys
 import tempfile
 import time
