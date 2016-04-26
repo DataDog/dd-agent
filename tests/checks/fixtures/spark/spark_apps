@@ -1,0 +1,14 @@
+[
+  {
+    "id": "app_001",
+    "name": "PySparkShell",
+    "attempts": [
+      {
+        "startTime": "2016-04-12T12:48:17.576GMT",
+        "endTime": "1969-12-31T23:59:59.999GMT",
+        "sparkUser": "",
+        "completed": false
+      }
+    ]
+  }
+]

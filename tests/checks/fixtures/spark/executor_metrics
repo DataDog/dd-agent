@@ -1,0 +1,36 @@
+[
+  {
+    "id": "driver",
+    "hostPort": "10.0.2.15:33870",
+    "rddBlocks": 99,
+    "memoryUsed": 98,
+    "diskUsed": 97,
+    "activeTasks": 96,
+    "failedTasks": 95,
+    "completedTasks": 94,
+    "totalTasks": 93,
+    "totalDuration": 92,
+    "totalInputBytes": 91,
+    "totalShuffleRead": 90,
+    "totalShuffleWrite": 89,
+    "maxMemory": 278019440,
+    "executorLogs": {}
+  },
+  {
+    "id": "1",
+    "hostPort": "10.0.2.15:33870",
+    "rddBlocks": 1,
+    "memoryUsed": 2,
+    "diskUsed": 3,
+    "activeTasks": 4,
+    "failedTasks": 5,
+    "completedTasks": 6,
+    "totalTasks": 7,
+    "totalDuration": 8,
+    "totalInputBytes": 9,
+    "totalShuffleRead": 10,
+    "totalShuffleWrite": 11,
+    "maxMemory": 555755765,
+    "executorLogs": {}
+  }
+]
