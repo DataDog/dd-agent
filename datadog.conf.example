@@ -154,17 +154,6 @@ use_mount: no
 # ========================================================================== #
 
 # -------------------------------------------------------------------------- #
-#   Disk                                                                     #
-# -------------------------------------------------------------------------- #
-
-# Some infrastrucures have many constantly changing virtual devices (e.g. folks
-# running constantly churning linux containers) whose metrics aren't
-# interesting for datadog. To filter out a particular pattern of devices
-# from collection, configure a regex here:
-# DEPRECATED: use conf.d/disk.yaml instead to configure it
-# device_blacklist_re: .*\/dev\/mapper\/lxc-box.*
-
-# -------------------------------------------------------------------------- #
 #   Ganglia                                                                  #
 # -------------------------------------------------------------------------- #
 
