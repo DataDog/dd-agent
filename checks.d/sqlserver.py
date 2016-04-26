@@ -19,6 +19,7 @@ from checks import AgentCheck
 
 ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')
+DEFAULT_DB_KEY = 'database'
 
 # Constant for SQLServer cntr_type
 PERF_LARGE_RAW_BASE = 1073939712
@@ -47,6 +48,7 @@ VALUE_AND_BASE_QUERY = '''select cntr_value
                           and instance_name=?
                           order by cntr_type;'''
 
+DATABASE_EXISTS_QUERY = 'select 1 from sys.databases where name=?;'
 
 class SQLConnectionError(Exception):
     """
@@ -82,17 +84,62 @@ class SQLServer(AgentCheck):
         self.connections = {}
         self.failed_connections = {}
         self.instances_metrics = {}
+        self.do_check = {}
+        self.proc_type_mapping = {
+            'gauge': self.gauge,
+            'rate' : self.rate,
+            'histogram': self.histogram
+        }
 
         # Pre-process the list of metrics to collect
         custom_metrics = init_config.get('custom_metrics', [])
+        
         for instance in instances:
             try:
-                self._make_metric_list_to_collect(instance, custom_metrics)
-                self.close_db_connections(instance)
-            except SQLConnectionError:
+                # check to see if the database exists before we try any connections to it
+                db_exists, context = self._check_db_exists(instance)
+
+                instance_key = self._conn_key(instance, db_key=DEFAULT_DB_KEY)
+                
+                if db_exists:
+                    self.do_check[instance_key] = True
+                    self._make_metric_list_to_collect(instance, custom_metrics)
+                else:
+                    
+                    # How much do we care that the DB doesn't exist?
+                    ignore = instance.get('ignore_missing_database')
+                    if ignore is not None and ignore:
+                        # not much : we expect it. Disable checks
+                        self.do_check[instance_key] = False
+                        self.log.info("Database %s does not exist. Disabling checks for this instance." % (context))
+                    else:
+                        # yes we do. Keep trying
+                        self.do_check[instance_key] = True
+                        self.log.exception("Database %s does not exist. Fix issue and restart agent" % (context))
+
+                self.close_db_connections(instance, db_key=DEFAULT_DB_KEY)
+                self.close_db_connections(instance, db_name='master')
+            except SQLConnectionError, e:
                 self.log.exception("Skipping SQL Server instance")
                 continue
 
+    def _check_db_exists(self, instance):
+        """
+        Check if the database we're targeting actually exists
+        If not then we won't do any checks
+        This allows the same config to be installed on many servers but fail gracefully
+        """
+        cursor = self.get_cursor(instance, db_name='master')
+        host, username, password, database = self._get_access_info(instance, db_key=DEFAULT_DB_KEY)
+        context = "%s - %s" % (host, database)
+        
+        try:
+            cursor.execute(DATABASE_EXISTS_QUERY, (database, ))
+            result = cursor.fetchone()
+            return result is not None, context
+        except Exception, e:
+            self.log.error("Failed to check if database %s exists: %s" % (database, e))
+            return False, context
 
     def _make_metric_list_to_collect(self, instance, custom_metrics):
         """
@@ -137,7 +184,7 @@ class SQLServer(AgentCheck):
                                                         row.get('instance_name', ''),
                                                         row.get('tag_by', None)))
 
-        instance_key = self._conn_key(instance)
+        instance_key = self._conn_key(instance, db_key=DEFAULT_DB_KEY)
         self.instances_metrics[instance_key] = metrics_to_collect
 
     def typed_metric(self, dd_name, sql_name, base_name, user_type, sql_type, instance_name, tag_by):
@@ -167,26 +214,32 @@ class SQLServer(AgentCheck):
         return cls(dd_name, sql_name, base_name,
                    metric_type, instance_name, tag_by, self.log)
 
-    def _get_access_info(self, instance):
+    def _get_access_info(self, instance, db_key=None, db_name=None):
         ''' Convenience method to extract info from instance
         '''
         host = instance.get('host', '127.0.0.1,1433')
         username = instance.get('username')
         password = instance.get('password')
-        database = instance.get('database', 'master')
+        database = instance.get(db_key) if db_name is None else db_name
+
+        if database is None:
+            database = ('master' if (db_key == DEFAULT_DB_KEY) else
+                        instance.get(DEFAULT_DB_KEY, 'master'))
+
         return host, username, password, database
 
-    def _conn_key(self, instance):
+    def _conn_key(self, instance, db_key=None, db_name=None):
         ''' Return a key to use for the connection cache
         '''
-        host, username, password, database = self._get_access_info(instance)
+        host, username, password, database = self._get_access_info(instance, db_key)
+        database = database if db_name is None else db_name
         return '%s:%s:%s:%s' % (host, username, password, database)
 
-    def _conn_string(self, instance=None, conn_key=None):
+    def _conn_string(self, instance=None, db_key=None, db_name=None, conn_key=None):
         ''' Return a connection string to use with adodbapi
         '''
         if instance:
-            host, username, password, database = self._get_access_info(instance)
+            host, username, password, database = self._get_access_info(instance, db_key, db_name=db_name)
         elif conn_key:
             host, username, password, database = conn_key.split(":")
         conn_str = 'Provider=SQLOLEDB;Data Source=%s;Initial Catalog=%s;' \
@@ -199,14 +252,13 @@ class SQLServer(AgentCheck):
             conn_str += 'Integrated Security=SSPI;'
         return conn_str
 
-    def get_cursor(self, instance, cache_failure=False):
+    def get_cursor(self, instance, db_key=None, db_name=None, cache_failure=False):
         '''
         Return a cursor to execute query against the db
         Cursor are cached in the self.connections dict
         '''
-        conn_key = self._conn_key(instance)
-        host = instance.get('host')
-        database = instance.get('database')
+        conn_key = self._conn_key(instance, db_key=db_key, db_name=db_name)
+        host, username, password, database = self._get_access_info(instance, db_key, db_name=db_name)
         service_check_tags = [
             'host:%s' % host,
             'db:%s' % database
@@ -219,7 +271,7 @@ class SQLServer(AgentCheck):
             try:
                 timeout = int(instance.get('command_timeout',
                                            self.DEFAULT_COMMAND_TIMEOUT))
-                conn = adodbapi.connect(self._conn_string(instance=instance),
+                conn = adodbapi.connect(self._conn_string(instance=instance, db_key=db_key, db_name=db_name),
                                         timeout=timeout)
                 self.connections[conn_key] = {'conn': conn, 'timeout': timeout}
                 self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
@@ -253,7 +305,7 @@ class SQLServer(AgentCheck):
         If the sql_type is one that needs a base (PERF_RAW_LARGE_FRACTION and
         PERF_AVERAGE_BULK), the name of the base counter will also be returned
         '''
-        cursor = self.get_cursor(instance, cache_failure=True)
+        cursor = self.get_cursor(instance, db_name='master', cache_failure=True)
         cursor.execute(COUNTER_TYPE_QUERY, (counter_name,))
         (sql_type,) = cursor.fetchone()
         if sql_type == PERF_LARGE_RAW_BASE:
@@ -281,14 +333,24 @@ class SQLServer(AgentCheck):
         return sql_type, base_name
 
     def check(self, instance):
+        if self.do_check[self._conn_key(instance, db_key=DEFAULT_DB_KEY)]:
+            proc = instance.get('stored_procedure')
+            if proc is None:
+                self.do_perf_counter_check(instance)
+            else:
+                self.do_stored_procedure_check(instance, proc)
+        else:
+            self.log.debug("Skipping check")
+            
+    def do_perf_counter_check(self, instance):
         """
         Fetch the metrics from the sys.dm_os_performance_counters table
         """
-        self.open_db_connections(instance)
-        cursor = self.get_cursor(instance)
+        self.open_db_connections(instance, db_key=DEFAULT_DB_KEY)
+        cursor = self.get_cursor(instance, db_key=DEFAULT_DB_KEY)
 
         custom_tags = instance.get('tags', [])
-        instance_key = self._conn_key(instance)
+        instance_key = self._conn_key(instance, db_key=DEFAULT_DB_KEY)
         metrics_to_collect = self.instances_metrics[instance_key]
 
         for metric in metrics_to_collect:
@@ -298,8 +360,58 @@ class SQLServer(AgentCheck):
                 self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
         self.close_cursor(cursor)
-        self.close_db_connections(instance)
+        self.close_db_connections(instance, db_key=DEFAULT_DB_KEY)
 
+    def do_stored_procedure_check(self, instance, proc):
+        """
+        Fetch the metrics from the stored proc
+        """
+
+        guardSql = instance.get('proc_only_if')
+
+        if (guardSql and self.proc_check_guard(instance, guardSql)) or not guardSql:
+            self.open_db_connections(instance, db_key=DEFAULT_DB_KEY)
+            cursor = self.get_cursor(instance, db_key=DEFAULT_DB_KEY)
+
+            try:
+                cursor.callproc(proc)
+                rows = cursor.fetchall()
+                for row in rows:
+                    tags = [] if row.tags is None or row.tags == '' else row.tags.split(',')
+
+                    if row.type in self.proc_type_mapping:
+                        self.proc_type_mapping[row.type](row.metric, row.value, tags)
+                    else:
+                        self.log.warning('%s is not a recognised type from procedure %s, metric %s'
+                                         % (row.type, proc, row.metric))
+                        
+            except Exception, e:
+                self.log.warning("Could not call procedure %s: %s" % (proc, e))
+                
+            self.close_cursor(cursor)
+            self.close_db_connections(instance, db_key=DEFAULT_DB_KEY)
+        else:
+            self.log.info("Skipping call to %s due to only_if" % (proc))
+
+    def proc_check_guard(self, instance, sql):
+        """
+        check to see if the guard SQL returns a single column contains 0 or 1
+        We return true if 1, False if 0
+        """
+        self.open_db_connections(instance, 'proc_only_if_database')
+        cursor = self.get_cursor(instance, db_key='proc_only_if_database')
+
+        try:
+            cursor.execute(sql, ())
+            result = cursor.fetchone()
+            return result[0] == 1
+        except Exception, e:
+            self.log.error("Failed to run proc_only_if sql %s : %s" % (sql, e))
+            return False
+        
+        self.close_cursor(cursor)
+        self.close_db_connections(instance, db_key='proc_only_if_database')
+    
     def close_cursor(self, cursor):
         """
         We close the cursor explicitly b/c we had proven memory leaks
@@ -311,13 +423,13 @@ class SQLServer(AgentCheck):
         except Exception as e:
             self.log.warning("Could not close adodbapi cursor\n{0}".format(e))
 
-    def close_db_connections(self, instance):
+    def close_db_connections(self, instance, db_key=None, db_name=None):
         """
         We close the db connections explicitly b/c when we don't they keep
         locks on the db. This presents as issues such as the SQL Server Agent
         being unable to stop.
         """
-        conn_key = self._conn_key(instance)
+        conn_key = self._conn_key(instance, db_key=db_key, db_name=db_name)
         if conn_key not in self.connections:
             return
 
@@ -326,7 +438,7 @@ class SQLServer(AgentCheck):
         except Exception as e:
             self.log.warning("Could not close adodbapi db connection\n{0}".format(e))
 
-    def open_db_connections(self, instance):
+    def open_db_connections(self, instance, db_key=None, db_name=None):
         """
         We open the db connections explicitly, so we can ensure they are open
         before we use them, and are closable, once we are finished. Open db
@@ -334,11 +446,11 @@ class SQLServer(AgentCheck):
         Server Agent being unable to stop.
         """
 
-        conn_key = self._conn_key(instance)
+        conn_key = self._conn_key(instance, db_key=db_key, db_name=db_name)
         timeout = int(instance.get('command_timeout',
                                    self.DEFAULT_COMMAND_TIMEOUT))
         try:
-            rawconn = adodbapi.connect(self._conn_string(instance=instance),
+            rawconn = adodbapi.connect(self._conn_string(instance=instance, db_key=db_key),
                                     timeout=timeout)
             if conn_key not in self.connections:
                 self.connections[conn_key] = {'conn': rawconn, 'timeout': timeout}
@@ -352,7 +464,6 @@ class SQLServer(AgentCheck):
                 self.connections[conn_key]['conn'] = rawconn
         except Exception as e:
             self.log.warning("Could not connect to SQL Server\n{0}".format(e))
-
 
 class SqlServerMetric(object):
     '''General class for common methods, should never be instantiated directly
