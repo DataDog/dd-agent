@@ -163,7 +163,7 @@ class DockerUtil():
 
             candidate = None
             for _, mountpoint, _, opts, _, _ in cgroup_mounts:
-                if hierarchy in opts:
+                if hierarchy in opts and os.path.exists(mountpoint):
                     if mountpoint.startswith("/host/"):
                         return os.path.join(self._docker_root, mountpoint)
                     candidate = mountpoint
