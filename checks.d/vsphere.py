@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -10,7 +14,7 @@ import traceback
 
 # 3p
 from pyVim import connect
-from pyVmomi import vim
+from pyVmomi import vim # pylint: disable=E0611
 
 # project
 from checks import AgentCheck

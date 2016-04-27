@@ -7,7 +7,7 @@
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
-    (C) Datadog, Inc. 2010-2013 all rights reserved
+    (C) Datadog, Inc. 2010-2016 all rights reserved
 '''
 # set up logging before importing any other components
 from config import initialize_logging  # noqa
@@ -266,7 +266,10 @@ class AgentTransaction(Transaction):
     def on_response(self, response):
         if response.error:
             log.error("Response: %s" % response)
-            self._trManager.tr_error(self)
+            if response.code == 413:
+                self._trManager.tr_error_too_big(self)
+            else:
+                self._trManager.tr_error(self)
         else:
             self._trManager.tr_success(self)
 
@@ -402,7 +405,7 @@ class Application(tornado.web.Application):
             log.info("Skipping SSL hostname validation, useful when using a transparent proxy")
 
         if watchdog:
-            watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER
+            watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER / 1000
             self._watchdog = Watchdog(watchdog_timeout,
                                       max_mem_mb=agentConfig.get('limit_memory_consumption', None))
 

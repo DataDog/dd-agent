@@ -1,6 +1,275 @@
 Changes
 =======
 
+# 5.7.4 / 04-21-2016
+**All platforms**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.7.3...5.7.4
+
+### Changes
+* [FEATURE] Core: Add Python architecture to the `info` command. See [#2413][]
+* [FEATURE] MongoDB: Collect additional `WiredTiger` storage engine metrics. See [#1825][], [#2423][] (Thanks [@benmccann][])
+* [FEATURE] MongoDB: Collect replication set information metrics. See [#2237][], [#2429][] (Thanks [@rhwlo][])
+
+* [IMPROVEMENT] Cassandra: Exclude new `system_schema` keyspace in version 3.x. See [#2339][]
+* [IMPROVEMENT] Kafka: Update the default configuration file to support collection of more metrics. See [#2371][], [#2425][]
+* [IMPROVEMENT] MongoDB: Collect journaling, locks, `WiredTiger` storage engine metrics by default and deprecate the corresponding options. See [#2423][]
+* [IMPROVEMENT] MongoDB: Improve messaging and tags on replication set member state events. See [#2409][], [#2432][] (Thanks [@antifuchs][])
+* [IMPROVEMENT] Windows WMI-based checks (`wmi_check`, System check, IIS, Windows Service, Windows Event Log): gracefully time out WMI queries. See [#2185][], [#2228][], [#2278][], [#2366][] and [#2401][].
+
+* [BUGFIX] Agent Metrics: Flush service metadata to avoid memory leaks. See [#2414][]
+
+# 5.7.3 / 03-31-2016
+**All platforms**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.7.2...5.7.3
+
+### Changes
+* [IMPROVEMENT] Linux install script: Ignore `apt-get update` failures and use https for apt repo. See [#2378][]
+* [IMPROVEMENT] WMI check: Make configuration of the metric types case-insensitive. See [#2392][]
+
+* [BUGFIX] Consul: Enforce that `get_peers_in_cluster` returns a list. See [#2381][]
+* [BUGFIX] Core: Fix Japanese tzname encoding issue on Windows. See [#2351][]
+* [BUGFIX] Core: On RHEL, make the `stop` init command kill all the Agent processes properly. See [#2349][]
+* [BUGFIX] Core: Fix Watchdog timeout duration on the forwarder. See [#2320][]
+* [BUGFIX] IIS: Fix `CRITICAL` service check on the `_Total` site (e.g. when no `sites` are specified). See [#2387][]
+* [BUGFIX] IIS: Deal with BytesTransfered vs BytesTransferred 2008sp2 typo. See [#2379][]
+* [BUGFIX] JMXFetch: Take into account `bind_host`. See [#2372][] and [jmxfetch-85](https://github.com/DataDog/jmxfetch/pull/85)
+* [BUGFIX] JMXFetch: Handle IOException gracefully at the instance level. See [jmxfetch-83](https://github.com/DataDog/jmxfetch/pull/83)
+* [BUGFIX] Packaging: Fix the version of `requests` shipped with the packaged Linux Agent. See [omnibus-software-45](https://github.com/DataDog/omnibus-software/pull/45)
+* [BUGFIX] MySQL: Avoid check failure when InnoDB is not available or disabled. See [#2385][]
+* [BUGFIX] SNMP: Fix errors in multiple-instance configurations caused by thread-safety issues with pysnmp `cmd_generator`. See [#2357][]
+* [BUGFIX] SQLServer: Fix connection to DB when no username or password are specified. See [#2311][]
+* [BUGFIX] vSphere: Fix SSL config options feature by upgrading the packaged version of `pyvmomi`. See [omnibus-software-44](https://github.com/DataDog/omnibus-software/pull/44)
+* [BUGFIX] Windows Event Log: Fix check when `tag_event_id:true` [#2397][]
+
+# 5.7.2 / 03-17-2016
+**Windows only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.7.1...5.7.2
+
+### Changes
+* [BUGFIX] WMI: Disable query timeout, cache and re-use connections to avoid memory leaks. See [#2366][]
+
+# 5.7.1 / 03-09-2016
+**All platforms**
+
+NB: For Windows, please also refer to the `5.7.0` section. `5.7.0` was not released on Windows but the `5.7.1` Windows installer includes all the changes listed in the `5.7.0` section.
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.7.0...5.7.1
+
+### Changes
+* [BUGFIX] Core: Avoid python segfault when the ctypes module is imported on SELinux-enabled environments. See [omnibus-software-43](https://github.com/DataDog/omnibus-software/pull/43)
+* [BUGFIX] MySQL: Fix check failure when no tag is provided. See [#2329][]
+* [BUGFIX] Packaging: Fix RPM package for Amazon Linux EMR. See [omnibus-ruby-18](https://github.com/DataDog/omnibus-ruby/pull/18)
+
+# 5.7.0 / 03-07-2016
+**Linux, Mac OS and Source Install only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.6.3...5.7.0
+
+### New integrations
+
+* Ceph
+* DNS
+* HDFS
+* MapReduce
+* StatsD
+* TCP RTT (`go-metro`)
+* YARN
+
+### Updated integrations
+* Apache
+* AWS
+* Cassandra
+* Consul
+* Directory
+* Docker
+* Elasticsearch
+* Go expvar
+* Gunicorn
+* HAProxy
+* HTTP
+* IIS
+* Kafka
+* Mesos
+* MongoDB
+* MySQL
+* PgBouncer
+* Postgres
+* Process
+* Redis
+* SNMP
+* SSH
+* TeamCity
+* Tomcat
+* vSphere
+* Windows Service
+* Windows Event Log
+* WMI
+* Zookeeper
+
+### Hadoop integrations (HDFS, MapReduce and YARN checks)
+The Agent now includes 4 new checks to monitor Hadoop clusters:
+* 2 HDFS checks (`hdfs_namenode` and `hdfs_datanode`) that collect metrics respectively from namenodes and datanodes using the JMX-HTTP API
+* a MapReduce check that collects metrics on the running Mapreduce jobs from the Application Master's REST API
+* a YARN check that collects metrics from YARN's ResourceManager REST API
+
+The existing `hdfs` check is deprecated and will be removed in a future version of the Agent. Its metric scope is entirely covered by the new `hdfs_namenode` check.
+
+### TCP RTT measurement with `go-metro`
+**This new feature is in beta**
+
+The Datadog Agent on 64-bit Linux is now bundled with a new component (`go-metro`) that passively calculates TCP RTT metrics between the agent's host and external hosts, and reports them as `system.net.tcp.rtt.avg`, `system.net.tcp.rtt.jitter` and `system.net.tcp.rtt` through StatsD.
+
+`go-metro` follows TCP streams active within a certain period of time and estimates the RTT between any outgoing packet with data, and its corresponding TCP acknowledgement.
+
+`go-metro` runs in its own process. It's disabled by default and can be enabled like a regular check by configuring an `/etc/dd-agent/conf.d/go-metro.yaml` file and restarting the agent.
+
+For more details on `go-metro`, check out the [project's GitHub page](https://github.com/DataDog/go-metro).
+
+### Ceph check
+The [Ceph](http://ceph.com/) check retrieves metrics from Ceph's Administration Tool command (`ceph`).
+
+The check collects metrics from `mon_status`, `status`, `df detail`, `osd pool stats` and `osd perf`, and sends a service check reflecting the overall health of the cluster.
+
+See [#2264][]
+
+### MySQL
+Multiple community-contributed additions to the MySQL check have been consolidated and merged, including:
+* metrics from the `performance_schema` table on MySQL >= 5.6 (thanks to [@ovaistariq][])
+* extra metrics on the InnoDB and MyISAM engines, from the Binlog, and from the `SHOW STATUS` query (thanks to [@ovaistariq][])
+* several schema-specific metrics, including schema size, schema average query runtime and 95th percentile query execution time (thanks again to [@ovaistariq][])
+* metrics on the Handler (thanks to [@polynomial][])
+* Galera-specific performance stats (thanks to [@zdannar][])
+* Query Cache metrics (thanks to [@leucos][])
+* a `mysql.replication.slave_running` service check reflecting the state of the slaves (thanks to [@c960657][])
+
+Most of these additional metrics are not collected by default but can be enabled in the check's YAML file. See the [YAML conf example file](https://github.com/DataDog/dd-agent/blob/5.7.0/conf.d/mysql.yaml.example) for details.
+
+Various bug fixes and improvements have also been implemented:
+* the Agent's connections to MySQL are handled properly to prevent stale connections
+* the replication status is implemented on both the master and the slaves. On the master this status is determined by the Binlog status and the number of slaves.
+* the system metrics of MySQL are retrieved w/o errors on non-linux platforms by using the `psutil` library
+* the parsing of the MySQL server version is improved
+
+Huge thanks to all our contributors for all these improvements!
+
+See [#2116][] and [#2242][]
+
+### Potential backward incompatibilities
+#### Docker
+The dockerized Agent now uses the docker hostname (provided by the `Name` param from `docker info`) as its own hostname when available. This means that for hosts running the dockerized Agent the reported hostname may change to this docker-provided hostname.
+
+For reference, the rules followed by the Agent for its `hostname` resolution are described on this [wiki page](https://github.com/DataDog/dd-agent/wiki/Agent-Hostname).
+
+#### MongoDB
+The `collect_tcmalloc_metrics` parameter in the YAML conf is replaced with the `tcmalloc` option under `additional_metrics`.
+Please refer to the [example YAML conf file](https://github.com/DataDog/dd-agent/blob/5.7.0/conf.d/mongo.yaml.example) for more info on the usage of the `additional_metrics` option.
+
+#### vSphere
+Instead of sending all metrics as `gauge`s, the vSphere integration now checks the types of the metrics as reported by the VMWare module, and sends metrics as `rate`s when applicable.
+
+If you haven't enabled the `all_metrics` option on the check, the only affected metrics are `cpu.usage`, `cpu.usagemhz`, `network.received` and `network.transmitted`.
+If the option is enabled, the additional affected metrics are listed [here](https://gist.github.com/olivielpeau/f6b5df2ea7f83e53ef6f). The change will affect the values of these metrics.
+
+#### WMI check
+The `wmi_check` now only supports `%` as the wildcard character in the `filters`. The support of `*` as the wildcard character, which was undocumented, has been dropped.
+
+### Changes
+* [FEATURE] Ceph: New check collecting metrics from Ceph clusters. [#2264][]
+* [FEATURE] Consul: Add SSL support. See [#2034][] (Thanks [@diogokiss][])
+* [FEATURE] DNS: New check that sends a service check reflecting the status of a hostname's resolution on a nameserver. See [#2249][] and [#2289][]
+* [FEATURE] Elasticsearch: Report additional metrics related to `fs`, `indices.segments` and `indices.translog`. See [#2143][] (Thanks [@bdharrington7][])
+* [FEATURE] HDFS: 2 new checks (see description above). See [#2235][], [#2260][], [#2274][] and [#2287][]
+* [FEATURE] Go-metro: New component that measures TCP RTT (in beta, see description above). See [#2208][]
+* [FEATURE] Linux: Add memory metrics (slab, page tables and cached swap). See [#2100][] (Thanks [@gphat][])
+* [FEATURE] Linux: New `linux_proc_extras` check collecting system-wide metrics on interrupts, context switches and processes. See [#2202][] (Thanks [@gphat][])
+* [FEATURE] MapReduce: New check (see description above). See [#2236][]
+* [FEATURE] MongoDB: Collect optional additional metrics, grouped by topic. These can be enabled with the new `additional_metrics` option in the check's YAML conf. Also, the underlying `pymongo` library has been upgraded from `2.8` to `3.2`. See [#2161][], [#2166][], [#2140][] and [#2160][] (Thanks [@scottbessler][] and [@benmccann][])
+* [FEATURE] MySQL: Add tag parameter for custom MySQL queries. See [#2229][]
+* [FEATURE] MySQL: Enhance the catalog of metrics reported, and add a service check on the replication state. See [#2116][], [#2242][] and [#2288][] (Thanks [@ovaistariq][], [@zdannar][], [@polynomial][], [@leucos][], [@Zenexer][], [@c960657][], [@nfo][], [@patricknelson][] and [@scottgeary][])
+* [FEATURE] Postgres: Measure user functions. See [#2164][]
+* [FEATURE] Process: Allow configuring the path to procfs (useful when the agent is run in a container), with a newer version of `psutil`. See [#2163][] and [#2134][] (Thanks [@sethp-jive][])
+* [FEATURE] Redis: Optionally report metrics from `INFO COMMANDSTATS` as `calls`, `usec` and `usec_per_call` (prefixed with `redis.command.`). See [#2109][]
+* [FEATURE] SNMP: Add support for forced SNMP data types to help w/ buggy devices. See [#2165][] (Thanks [@chrissnell][])
+* [FEATURE] SSH: Add Windows support. See [#2072][]
+* [FEATURE] StatsD: New check collecting metrics and service checks using StatsD's admin interface. See [#1978][] and [#2162][] (Thanks [@gphat][])
+* [FEATURE] vSphere: Add SSL config options for certs. See [#2180][]
+* [FEATURE] YARN: New check (see description above). See [#2147][] and [#2207][]
+* [FEATURE] Zookeeper: Gather stats from `mntr` command and report `zookeeper.instances.<mode>` metrics as 0/1 gauge. See [#2156][] (Thanks [@jpittis][])
+
+* [IMPROVEMENT] Apache: Allow disabling ssl validation. See [#2169][]
+* [IMPROVEMENT] AWS: Incorporate security-groups into tags collected from EC2. See [#1951][]
+* [IMPROVEMENT] Cassandra: Add YAML conf for Cassandra version > 2.2. See [#2142][] and [#2271][]
+* [IMPROVEMENT] Directory: Show check on Windows. See [#2184][] (Thanks [@xkrt][])
+* [IMPROVEMENT] Docker: Pass tags to events as well. See [#2182][]
+* [IMPROVEMENT] Docker: Use the docker hostname as the agent's `hostname` when available. See [#2145][]
+* [IMPROVEMENT] Elasticsearch: Apply custom tags to service checks too. See [#2148][]
+* [IMPROVEMENT] Go expvar: Add configuration option for custom metric namespace. See [#2022][] (Thanks [@theckman][])
+* [IMPROVEMENT] Go expvar: Add counter support. See [#2133][] (Thanks [@gphat][])
+* [IMPROVEMENT] Gohai: Count number of logical processors. See [gohai-22](https://github.com/DataDog/gohai/pull/22)
+* [IMPROVEMENT] HAProxy: Add option to count statuses by service. See [#2304][] and [#2314][]
+* [IMPROVEMENT] HTTP: Add a `days_critical` option to the SSL certificate expiration feature. See [#2087][]
+* [IMPROVEMENT] HTTP: Support unicode in content-matching. See [#2092][]
+* [IMPROVEMENT] Kafka: Compute instant rates and capture more metrics in example configuration. See [#2079][] (Thanks [@dougbarth][])
+* [IMPROVEMENT] Linux install script: Add custom provided hostname to `datadog.conf`. See [#2225][] (Thanks [@lowl4tency][])
+* [IMPROVEMENT] Mesos: Improve checks' performance by preventing `requests` from using chardet. See [#2192][] (Thanks [@GregBowyer][])
+* [IMPROVEMENT] MongoDB: Tag mongo instances by replset state. See [#2244][] (Thanks [@rhwlo][])
+* [IMPROVEMENT] SNMP: Improve performance by running instances of the check in parallel. See [#2152][]
+* [IMPROVEMENT] SNMP: Make MIB constraint enforcement optional and improve resilience. See [#2268][]
+* [IMPROVEMENT] TeamCity: Allow disabling ssl validation. See [#2091][] (Thanks [@jslatts][])
+* [IMPROVEMENT] Unix: Revamp source install script. See [#2198][] and [#2199][]
+* [IMPROVEMENT] vSphere: Add `network.received` and `network.transmitted` to the basic metrics collected. See [#1824][]
+* [IMPROVEMENT] vSphere: Check metric type to determine how to report (`rate` or `gauge`). See [#2115][]
+* [IMPROVEMENT] Windows: Add uptime metric. See [#2135][], [#2292][] and [#2299][]
+* [IMPROVEMENT] Windows WMI-based checks (`wmi_check`, System check, IIS, Windows Service, Windows Event Log): gracefully time out WMI queries. See [#2185][], [#2228][] and [#2278][]
+* [IMPROVEMENT] Windows IIS, Service and Event Log checks: use the new WMI wrapper with increased performance. See [#2136][]
+* [IMPROVEMENT] Windows packaging: Tighten permissions on `datadog.conf`. See [#2210][]
+
+* [BUGFIX] AWS: Use proxy settings for EC2 tag collection. See [#2201][]
+* [BUGFIX] AWS: During EC2 tags collection, log a warning when the instance is not associated with an IAM role. See [#2285][]
+* [BUGFIX] Core: Do not log API keys. See [#2146][]
+* [BUGFIX] Core: Fix cases of low/no disk space causing the Agent to crash when calling subprocesses. See [#2223][]
+* [BUGFIX] Core: Make Dogstatsd recover gracefully from serialization errors. See [#2176][]
+* [BUGFIX] Core: Set agent pid file and path from constants. See [#2128][] (Thanks [@urosgruber][])
+* [BUGFIX] Development: Fix test of platform in `etcd` CI setup script. See [#2205][] (Thanks [@ojongerius][])
+* [BUGFIX] Docker: Avoid event collection failure if an event has no ID param. See [#2308][]
+* [BUGFIX] Docker: Catch exception when getting k8s labels fails. See [#2200][]
+* [BUGFIX] Docker: Don't warn if process finishes before measuring. See [#2114][] (Thanks [@oeuftete][])
+* [BUGFIX] Docker: Remove misleading warning on excluded containers. See [#2179][] (Thanks [@EdRow][])
+* [BUGFIX] Documentation: Update link to dogstatsd guide in `datadog.conf`. See [#2181][]
+* [BUGFIX] Elasticsearch: Optionally collect pending task stats. See [#2250][]
+* [BUGFIX] Flare: Use ssl and proxy settings from `datadog.conf`. See [#2234][] (Thanks [@tebriel][])
+* [BUGFIX] Flare: Mention path to tar file in Windows UI. See [#2084][]
+* [BUGFIX] FreeBSD: Use correct log file for syslog. See [#2171][]
+* [BUGFIX] Go expvar: Add timeout for requests to get go expvar metrics. See [#2183][] (Thanks [@gphat][])
+* [BUGFIX] Gohai: Log unexpected OSError exceptions instead of re-raising them. See [#2309][]
+* [BUGFIX] Gunicorn: Mention in YAML conf that the `setproctitle` module is required. See [#2215][]
+* [BUGFIX] HTTP: Add an option to disable warnings when ssl validation is disabled. See [#2193][]
+* [BUGFIX] HTTP: Improve log message when http code is incorrect. See [#2203][]
+* [BUGFIX] HTTP: Rename `ssl_expire` to `check_certificate_expiration` in YAML comment. See [#2086][] (Thanks [@MiguelMoll][])
+* [BUGFIX] HTTP: Use proxy settings from `datadog.conf`. See [#2112][]
+* [BUGFIX] Kubernetes: Remove unused function. See [#2157][]
+* [BUGFIX] OpenStack: Improve docs in YAML conf. See [#2094][]
+* [BUGFIX] OpenStack: Remove recommendation for omitting trailing slashes in YAML conf. See [#2081][]
+* [BUGFIX] Mac OS X: Fix `gohai` call by passing correct PATH to supervisor. See [#2206][]
+* [BUGFIX] Mesos slave: Allow configuring mesos master port. See [#2189][]
+* [BUGFIX] MySQL: Fix buggy tagging in service_checks on instances configured w/ unix socket. See [#2216][]
+* [BUGFIX] PgBouncer: Avoid raising error when there are no results for a query. See [#2280][] (Thanks [@hjkatz][])
+* [BUGFIX] SNMP: Fix bug when the requested oid is prefixed by another requested oid. See [#2246][] (Thanks [@xkrt][])
+* [BUGFIX] Tomcat: Fix bad attribute in YAML conf file. See [#2153][]
+* [BUGFIX] Unix: Fix URL of get-pip script in source install script. See [#2220][] (Thanks [@mooney6023][])
+* [BUGFIX] Windows: Fix cases of collector getting wrongfully restarted by watchdog after one correct watchdog restart. See [#2175][]
+* [BUGFIX] WMI check: Remove unnecessary warnings on `Name` property. See [#2291][]
+* [BUGFIX] WMI check: Always add the `tag_by` parameter to the collected properties. See [#2296][]
+
+
 # 5.6.3 / 12-10-2015
 
 ### Details
@@ -2291,6 +2560,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#1760]: https://github.com/DataDog/dd-agent/issues/1760
 [#1761]: https://github.com/DataDog/dd-agent/issues/1761
 [#1767]: https://github.com/DataDog/dd-agent/issues/1767
+[#1770]: https://github.com/DataDog/dd-agent/issues/1770
 [#1771]: https://github.com/DataDog/dd-agent/issues/1771
 [#1772]: https://github.com/DataDog/dd-agent/issues/1772
 [#1773]: https://github.com/DataDog/dd-agent/issues/1773
@@ -2311,6 +2581,8 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#1820]: https://github.com/DataDog/dd-agent/issues/1820
 [#1822]: https://github.com/DataDog/dd-agent/issues/1822
 [#1823]: https://github.com/DataDog/dd-agent/issues/1823
+[#1824]: https://github.com/DataDog/dd-agent/issues/1824
+[#1825]: https://github.com/DataDog/dd-agent/issues/1825
 [#1826]: https://github.com/DataDog/dd-agent/issues/1826
 [#1831]: https://github.com/DataDog/dd-agent/issues/1831
 [#1839]: https://github.com/DataDog/dd-agent/issues/1839
@@ -2318,6 +2590,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#1844]: https://github.com/DataDog/dd-agent/issues/1844
 [#1845]: https://github.com/DataDog/dd-agent/issues/1845
 [#1846]: https://github.com/DataDog/dd-agent/issues/1846
+[#1848]: https://github.com/DataDog/dd-agent/issues/1848
 [#1852]: https://github.com/DataDog/dd-agent/issues/1852
 [#1855]: https://github.com/DataDog/dd-agent/issues/1855
 [#1856]: https://github.com/DataDog/dd-agent/issues/1856
@@ -2356,6 +2629,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#1943]: https://github.com/DataDog/dd-agent/issues/1943
 [#1944]: https://github.com/DataDog/dd-agent/issues/1944
 [#1948]: https://github.com/DataDog/dd-agent/issues/1948
+[#1951]: https://github.com/DataDog/dd-agent/issues/1951
 [#1952]: https://github.com/DataDog/dd-agent/issues/1952
 [#1959]: https://github.com/DataDog/dd-agent/issues/1959
 [#1961]: https://github.com/DataDog/dd-agent/issues/1961
@@ -2363,6 +2637,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#1974]: https://github.com/DataDog/dd-agent/issues/1974
 [#1975]: https://github.com/DataDog/dd-agent/issues/1975
 [#1976]: https://github.com/DataDog/dd-agent/issues/1976
+[#1978]: https://github.com/DataDog/dd-agent/issues/1978
 [#1979]: https://github.com/DataDog/dd-agent/issues/1979
 [#1984]: https://github.com/DataDog/dd-agent/issues/1984
 [#1985]: https://github.com/DataDog/dd-agent/issues/1985
@@ -2380,9 +2655,11 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2010]: https://github.com/DataDog/dd-agent/issues/2010
 [#2011]: https://github.com/DataDog/dd-agent/issues/2011
 [#2015]: https://github.com/DataDog/dd-agent/issues/2015
+[#2022]: https://github.com/DataDog/dd-agent/issues/2022
 [#2026]: https://github.com/DataDog/dd-agent/issues/2026
 [#2029]: https://github.com/DataDog/dd-agent/issues/2029
 [#2031]: https://github.com/DataDog/dd-agent/issues/2031
+[#2034]: https://github.com/DataDog/dd-agent/issues/2034
 [#2035]: https://github.com/DataDog/dd-agent/issues/2035
 [#2038]: https://github.com/DataDog/dd-agent/issues/2038
 [#2039]: https://github.com/DataDog/dd-agent/issues/2039
@@ -2390,48 +2667,190 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2048]: https://github.com/DataDog/dd-agent/issues/2048
 [#2055]: https://github.com/DataDog/dd-agent/issues/2055
 [#2056]: https://github.com/DataDog/dd-agent/issues/2056
+[#2057]: https://github.com/DataDog/dd-agent/issues/2057
 [#2061]: https://github.com/DataDog/dd-agent/issues/2061
 [#2062]: https://github.com/DataDog/dd-agent/issues/2062
 [#2063]: https://github.com/DataDog/dd-agent/issues/2063
 [#2064]: https://github.com/DataDog/dd-agent/issues/2064
 [#2065]: https://github.com/DataDog/dd-agent/issues/2065
 [#2071]: https://github.com/DataDog/dd-agent/issues/2071
+[#2072]: https://github.com/DataDog/dd-agent/issues/2072
 [#2075]: https://github.com/DataDog/dd-agent/issues/2075
+[#2079]: https://github.com/DataDog/dd-agent/issues/2079
+[#2081]: https://github.com/DataDog/dd-agent/issues/2081
 [#2082]: https://github.com/DataDog/dd-agent/issues/2082
+[#2084]: https://github.com/DataDog/dd-agent/issues/2084
+[#2086]: https://github.com/DataDog/dd-agent/issues/2086
+[#2087]: https://github.com/DataDog/dd-agent/issues/2087
 [#2088]: https://github.com/DataDog/dd-agent/issues/2088
+[#2091]: https://github.com/DataDog/dd-agent/issues/2091
+[#2092]: https://github.com/DataDog/dd-agent/issues/2092
+[#2094]: https://github.com/DataDog/dd-agent/issues/2094
 [#2097]: https://github.com/DataDog/dd-agent/issues/2097
 [#2098]: https://github.com/DataDog/dd-agent/issues/2098
+[#2100]: https://github.com/DataDog/dd-agent/issues/2100
+[#2106]: https://github.com/DataDog/dd-agent/issues/2106
+[#2109]: https://github.com/DataDog/dd-agent/issues/2109
 [#2111]: https://github.com/DataDog/dd-agent/issues/2111
+[#2112]: https://github.com/DataDog/dd-agent/issues/2112
+[#2114]: https://github.com/DataDog/dd-agent/issues/2114
+[#2115]: https://github.com/DataDog/dd-agent/issues/2115
+[#2116]: https://github.com/DataDog/dd-agent/issues/2116
+[#2120]: https://github.com/DataDog/dd-agent/issues/2120
+[#2121]: https://github.com/DataDog/dd-agent/issues/2121
 [#2126]: https://github.com/DataDog/dd-agent/issues/2126
+[#2128]: https://github.com/DataDog/dd-agent/issues/2128
 [#2130]: https://github.com/DataDog/dd-agent/issues/2130
+[#2133]: https://github.com/DataDog/dd-agent/issues/2133
+[#2134]: https://github.com/DataDog/dd-agent/issues/2134
+[#2135]: https://github.com/DataDog/dd-agent/issues/2135
+[#2136]: https://github.com/DataDog/dd-agent/issues/2136
 [#2139]: https://github.com/DataDog/dd-agent/issues/2139
+[#2140]: https://github.com/DataDog/dd-agent/issues/2140
+[#2142]: https://github.com/DataDog/dd-agent/issues/2142
+[#2143]: https://github.com/DataDog/dd-agent/issues/2143
+[#2145]: https://github.com/DataDog/dd-agent/issues/2145
+[#2146]: https://github.com/DataDog/dd-agent/issues/2146
+[#2147]: https://github.com/DataDog/dd-agent/issues/2147
+[#2148]: https://github.com/DataDog/dd-agent/issues/2148
+[#2152]: https://github.com/DataDog/dd-agent/issues/2152
+[#2153]: https://github.com/DataDog/dd-agent/issues/2153
+[#2155]: https://github.com/DataDog/dd-agent/issues/2155
+[#2156]: https://github.com/DataDog/dd-agent/issues/2156
+[#2157]: https://github.com/DataDog/dd-agent/issues/2157
+[#2160]: https://github.com/DataDog/dd-agent/issues/2160
+[#2161]: https://github.com/DataDog/dd-agent/issues/2161
+[#2162]: https://github.com/DataDog/dd-agent/issues/2162
+[#2163]: https://github.com/DataDog/dd-agent/issues/2163
+[#2164]: https://github.com/DataDog/dd-agent/issues/2164
+[#2165]: https://github.com/DataDog/dd-agent/issues/2165
+[#2166]: https://github.com/DataDog/dd-agent/issues/2166
+[#2169]: https://github.com/DataDog/dd-agent/issues/2169
+[#2171]: https://github.com/DataDog/dd-agent/issues/2171
+[#2175]: https://github.com/DataDog/dd-agent/issues/2175
+[#2176]: https://github.com/DataDog/dd-agent/issues/2176
+[#2177]: https://github.com/DataDog/dd-agent/issues/2177
+[#2179]: https://github.com/DataDog/dd-agent/issues/2179
+[#2180]: https://github.com/DataDog/dd-agent/issues/2180
+[#2181]: https://github.com/DataDog/dd-agent/issues/2181
+[#2182]: https://github.com/DataDog/dd-agent/issues/2182
+[#2183]: https://github.com/DataDog/dd-agent/issues/2183
+[#2184]: https://github.com/DataDog/dd-agent/issues/2184
+[#2185]: https://github.com/DataDog/dd-agent/issues/2185
+[#2189]: https://github.com/DataDog/dd-agent/issues/2189
+[#2192]: https://github.com/DataDog/dd-agent/issues/2192
+[#2193]: https://github.com/DataDog/dd-agent/issues/2193
+[#2198]: https://github.com/DataDog/dd-agent/issues/2198
+[#2199]: https://github.com/DataDog/dd-agent/issues/2199
+[#2200]: https://github.com/DataDog/dd-agent/issues/2200
+[#2201]: https://github.com/DataDog/dd-agent/issues/2201
+[#2202]: https://github.com/DataDog/dd-agent/issues/2202
+[#2203]: https://github.com/DataDog/dd-agent/issues/2203
+[#2205]: https://github.com/DataDog/dd-agent/issues/2205
+[#2206]: https://github.com/DataDog/dd-agent/issues/2206
+[#2207]: https://github.com/DataDog/dd-agent/issues/2207
+[#2208]: https://github.com/DataDog/dd-agent/issues/2208
+[#2210]: https://github.com/DataDog/dd-agent/issues/2210
+[#2215]: https://github.com/DataDog/dd-agent/issues/2215
+[#2216]: https://github.com/DataDog/dd-agent/issues/2216
+[#2220]: https://github.com/DataDog/dd-agent/issues/2220
+[#2223]: https://github.com/DataDog/dd-agent/issues/2223
+[#2225]: https://github.com/DataDog/dd-agent/issues/2225
+[#2227]: https://github.com/DataDog/dd-agent/issues/2227
+[#2228]: https://github.com/DataDog/dd-agent/issues/2228
+[#2229]: https://github.com/DataDog/dd-agent/issues/2229
+[#2234]: https://github.com/DataDog/dd-agent/issues/2234
+[#2235]: https://github.com/DataDog/dd-agent/issues/2235
+[#2236]: https://github.com/DataDog/dd-agent/issues/2236
+[#2237]: https://github.com/DataDog/dd-agent/issues/2237
+[#2242]: https://github.com/DataDog/dd-agent/issues/2242
+[#2244]: https://github.com/DataDog/dd-agent/issues/2244
+[#2246]: https://github.com/DataDog/dd-agent/issues/2246
+[#2248]: https://github.com/DataDog/dd-agent/issues/2248
+[#2249]: https://github.com/DataDog/dd-agent/issues/2249
+[#2250]: https://github.com/DataDog/dd-agent/issues/2250
+[#2260]: https://github.com/DataDog/dd-agent/issues/2260
+[#2264]: https://github.com/DataDog/dd-agent/issues/2264
+[#2268]: https://github.com/DataDog/dd-agent/issues/2268
+[#2271]: https://github.com/DataDog/dd-agent/issues/2271
+[#2274]: https://github.com/DataDog/dd-agent/issues/2274
+[#2278]: https://github.com/DataDog/dd-agent/issues/2278
+[#2280]: https://github.com/DataDog/dd-agent/issues/2280
+[#2283]: https://github.com/DataDog/dd-agent/issues/2283
+[#2285]: https://github.com/DataDog/dd-agent/issues/2285
+[#2287]: https://github.com/DataDog/dd-agent/issues/2287
+[#2288]: https://github.com/DataDog/dd-agent/issues/2288
+[#2289]: https://github.com/DataDog/dd-agent/issues/2289
+[#2291]: https://github.com/DataDog/dd-agent/issues/2291
+[#2292]: https://github.com/DataDog/dd-agent/issues/2292
+[#2296]: https://github.com/DataDog/dd-agent/issues/2296
+[#2299]: https://github.com/DataDog/dd-agent/issues/2299
+[#2304]: https://github.com/DataDog/dd-agent/issues/2304
+[#2308]: https://github.com/DataDog/dd-agent/issues/2308
+[#2309]: https://github.com/DataDog/dd-agent/issues/2309
+[#2311]: https://github.com/DataDog/dd-agent/issues/2311
+[#2314]: https://github.com/DataDog/dd-agent/issues/2314
+[#2320]: https://github.com/DataDog/dd-agent/issues/2320
+[#2329]: https://github.com/DataDog/dd-agent/issues/2329
+[#2339]: https://github.com/DataDog/dd-agent/issues/2339
+[#2349]: https://github.com/DataDog/dd-agent/issues/2349
+[#2351]: https://github.com/DataDog/dd-agent/issues/2351
+[#2357]: https://github.com/DataDog/dd-agent/issues/2357
+[#2366]: https://github.com/DataDog/dd-agent/issues/2366
+[#2371]: https://github.com/DataDog/dd-agent/issues/2371
+[#2372]: https://github.com/DataDog/dd-agent/issues/2372
+[#2378]: https://github.com/DataDog/dd-agent/issues/2378
+[#2379]: https://github.com/DataDog/dd-agent/issues/2379
+[#2381]: https://github.com/DataDog/dd-agent/issues/2381
+[#2385]: https://github.com/DataDog/dd-agent/issues/2385
+[#2387]: https://github.com/DataDog/dd-agent/issues/2387
+[#2392]: https://github.com/DataDog/dd-agent/issues/2392
+[#2397]: https://github.com/DataDog/dd-agent/issues/2397
+[#2401]: https://github.com/DataDog/dd-agent/issues/2401
+[#2409]: https://github.com/DataDog/dd-agent/issues/2409
+[#2413]: https://github.com/DataDog/dd-agent/issues/2413
+[#2414]: https://github.com/DataDog/dd-agent/issues/2414
+[#2423]: https://github.com/DataDog/dd-agent/issues/2423
+[#2425]: https://github.com/DataDog/dd-agent/issues/2425
+[#2429]: https://github.com/DataDog/dd-agent/issues/2429
+[#2432]: https://github.com/DataDog/dd-agent/issues/2432
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
+[@EdRow]: https://github.com/EdRow
+[@GregBowyer]: https://github.com/GregBowyer
 [@KnownSubset]: https://github.com/KnownSubset
+[@MiguelMoll]: https://github.com/MiguelMoll
 [@Osterjour]: https://github.com/Osterjour
 [@PedroMiguelFigueiredo]: https://github.com/PedroMiguelFigueiredo
 [@TheCloudlessSky]: https://github.com/TheCloudlessSky
+[@Zenexer]: https://github.com/Zenexer
 [@a20012251]: https://github.com/a20012251
 [@adriandoolittle]: https://github.com/adriandoolittle
 [@alaz]: https://github.com/alaz
+[@antifuchs]: https://github.com/antifuchs
 [@arosenhagen]: https://github.com/arosenhagen
 [@arthurnn]: https://github.com/arthurnn
 [@asiebert]: https://github.com/asiebert
 [@bakins]: https://github.com/bakins
+[@bdharrington7]: https://github.com/bdharrington7
 [@bdotdub]: https://github.com/bdotdub
 [@benmccann]: https://github.com/benmccann
 [@bpuzon]: https://github.com/bpuzon
 [@brettlangdon]: https://github.com/brettlangdon
+[@c960657]: https://github.com/c960657
 [@charles-dyfis-net]: https://github.com/charles-dyfis-net
 [@chrissnel]: https://github.com/chrissnel
+[@chrissnell]: https://github.com/chrissnell
 [@ckrough]: https://github.com/ckrough
 [@clly]: https://github.com/clly
 [@clokep]: https://github.com/clokep
 [@datadoghq]: https://github.com/datadoghq
 [@dcrosta]: https://github.com/dcrosta
+[@diogokiss]: https://github.com/diogokiss
 [@djensen47]: https://github.com/djensen47
 [@dmulter]: https://github.com/dmulter
 [@donalguy]: https://github.com/donalguy
+[@dougbarth]: https://github.com/dougbarth
 [@dspangen]: https://github.com/dspangen
 [@echohead]: https://github.com/echohead
 [@etrepum]: https://github.com/etrepum
@@ -2440,6 +2859,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@graemej]: https://github.com/graemej
 [@gtaylor]: https://github.com/gtaylor
 [@handigarde]: https://github.com/handigarde
+[@hjkatz]: https://github.com/hjkatz
 [@host]: https://github.com/host
 [@igor47]: https://github.com/igor47
 [@igroenewold]: https://github.com/igroenewold
@@ -2454,30 +2874,43 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@jonaf]: https://github.com/jonaf
 [@joningle]: https://github.com/joningle
 [@joshk0]: https://github.com/joshk0
+[@jpittis]: https://github.com/jpittis
 [@jraede]: https://github.com/jraede
+[@jslatts]: https://github.com/jslatts
 [@jzoldak]: https://github.com/jzoldak
 [@leifwalsh]: https://github.com/leifwalsh
+[@leucos]: https://github.com/leucos
 [@loris]: https://github.com/loris
+[@lowl4tency]: https://github.com/lowl4tency
 [@mastrolinux]: https://github.com/mastrolinux
 [@micktwomey]: https://github.com/micktwomey
 [@mike-lerch]: https://github.com/mike-lerch
 [@mms-gianni]: https://github.com/mms-gianni
+[@mooney6023]: https://github.com/mooney6023
 [@morskoyzmey]: https://github.com/morskoyzmey
 [@mtougeron]: https://github.com/mtougeron
 [@mutemule]: https://github.com/mutemule
 [@nambrosch]: https://github.com/nambrosch
+[@nfo]: https://github.com/nfo
 [@obi11235]: https://github.com/obi11235
 [@oeuftete]: https://github.com/oeuftete
+[@ojongerius]: https://github.com/ojongerius
 [@ordenull]: https://github.com/ordenull
 [@oremj]: https://github.com/oremj
 [@orenmazor]: https://github.com/orenmazor
+[@ovaistariq]: https://github.com/ovaistariq
 [@patrickbcullen]: https://github.com/patrickbcullen
+[@patricknelson]: https://github.com/patricknelson
 [@pbitty]: https://github.com/pbitty
 [@pfmooney]: https://github.com/pfmooney
 [@pidah]: https://github.com/pidah
 [@polynomial]: https://github.com/polynomial
+[@rhwlo]: https://github.com/rhwlo
 [@rl-0x0]: https://github.com/rl-0x0
 [@ronaldbradford]: https://github.com/ronaldbradford
+[@scottbessler]: https://github.com/scottbessler
+[@scottgeary]: https://github.com/scottgeary
+[@sethp-jive]: https://github.com/sethp-jive
 [@shamada-kuuluu]: https://github.com/shamada-kuuluu
 [@sirlantis]: https://github.com/sirlantis
 [@skingry]: https://github.com/skingry
@@ -2487,10 +2920,15 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@steeve]: https://github.com/steeve
 [@stefan-mees]: https://github.com/stefan-mees
 [@takus]: https://github.com/takus
+[@tebriel]: https://github.com/tebriel
+[@theckman]: https://github.com/theckman
 [@tliakos]: https://github.com/tliakos
 [@tomduckering]: https://github.com/tomduckering
 [@ulich]: https://github.com/ulich
+[@urosgruber]: https://github.com/urosgruber
 [@walkeran]: https://github.com/walkeran
 [@warnerpr-cyan]: https://github.com/warnerpr-cyan
 [@wyaeld]: https://github.com/wyaeld
+[@xkrt]: https://github.com/xkrt
 [@yyamano]: https://github.com/yyamano
+[@zdannar]: https://github.com/zdannar

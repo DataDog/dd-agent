@@ -1,6 +1,6 @@
 # stdlib
 import os
-from distutils.version import LooseVersion
+from distutils.version import LooseVersion # pylint: disable=E0611,E0401
 from nose.plugins.attrib import attr
 
 # project
@@ -39,8 +39,6 @@ class ZooKeeperTestCase(AgentCheckTest):
         'zookeeper.latency.max',
         'zookeeper.bytes_received',
         'zookeeper.bytes_sent',
-        'zookeeper.bytes_received_per_second',
-        'zookeeper.bytes_sent_per_second',
         'zookeeper.connections',
         'zookeeper.connections',
         'zookeeper.bytes_outstanding',

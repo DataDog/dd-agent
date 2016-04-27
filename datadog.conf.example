@@ -24,13 +24,13 @@ api_key:
 #hostname: mymachine.mydomain
 
 # Set the host's tags
-#tags: mytag0, mytag1
+#tags: mytag, env:prod, role:database
 
 # Add one "dd_check:checkname" tag per running check. It makes it possible to slice
 # and dice per monitored app (= running Agent Check) on Datadog's backend.
 # create_dd_check_tags: no
 
-# Collect AWS EC2 custom tags as agent tags
+# Collect AWS EC2 custom tags as agent tags (requires an IAM role associated with the instance)
 # collect_ec2_tags: no
 
 # Incorporate security-groups into tags collected from AWS EC2
@@ -41,14 +41,6 @@ api_key:
 # developer_mode: no
 # In developer mode, the number of runs to be included in a single collector profile
 # collector_profile_interval: 20
-
-# Collect instance metadata
-# The Agent will try to collect instance metadata for EC2 and GCE instances by
-# trying to connect to the local endpoint: http://169.254.169.254
-# See http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AESDG-chapter-instancedata.html
-# and https://developers.google.com/compute/docs/metadata
-# for more information
-# collect_instance_metadata: yes
 
 # use unique hostname for GCE hosts, see http://dtdg.co/1eAynZk
 gce_updated_hostname: yes
@@ -97,6 +89,30 @@ use_mount: no
 # histogram_percentiles: 0.95
 
 # ========================================================================== #
+# Service Discovery                                                          #
+# See https://github.com/DataDog/dd-agent/wiki/Service-Discovery for details #
+# ========================================================================== #
+#
+# Service discovery allows the agent to look for running services
+# and load a configuration object for the one it recognizes.
+# This feature is disabled by default.
+# Uncomment this line to enable it (works for docker containers only for now).
+# service_discovery_backend: docker
+#
+# Define which key/value store must be used to look for configuration templates.
+# Default is etcd. Consul is also supported.
+# sd_config_backend: etcd
+#
+# Settings for connecting to the service discovery backend.
+# sd_backend_host: 127.0.0.1
+# sd_backend_port: 4001
+#
+# By default, the agent will look for the configuration templates under the
+# `/datadog/check_configs` key in the back-end. If you wish otherwise, uncomment this option
+# and modify its value.
+# sd_template_dir: /datadog/check_configs
+
+# ========================================================================== #
 # DogStatsd configuration                                                    #
 # ========================================================================== #
 
@@ -136,17 +152,6 @@ use_mount: no
 # ========================================================================== #
 # Service-specific configuration                                             #
 # ========================================================================== #
-
-# -------------------------------------------------------------------------- #
-#   Disk                                                                     #
-# -------------------------------------------------------------------------- #
-
-# Some infrastrucures have many constantly changing virtual devices (e.g. folks
-# running constantly churning linux containers) whose metrics aren't
-# interesting for datadog. To filter out a particular pattern of devices
-# from collection, configure a regex here:
-# DEPRECATED: use conf.d/disk.yaml instead to configure it
-# device_blacklist_re: .*\/dev\/mapper\/lxc-box.*
 
 # -------------------------------------------------------------------------- #
 #   Ganglia                                                                  #

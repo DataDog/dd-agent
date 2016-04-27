@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2015-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 """Mesos Master check
 
 Collects metrics from mesos master node, only the leader is sending metrics.
@@ -147,6 +151,9 @@ class MesosMaster(AgentCheck):
                 self.service_check(self.SERVICE_CHECK_NAME, status, tags=tags,
                                    message=msg)
                 raise CheckException("Cannot connect to mesos, please check your configuration.")
+
+        if r.encoding is None:
+            r.encoding = 'UTF8'
 
         return r.json()
 

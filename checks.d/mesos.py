@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2014-2016
+# (C)  graemej <graeme.johnson@jadedpixel.com> 2014
+# All rights reserved
+
 # stdlib
 from hashlib import md5
 import time
@@ -105,6 +109,9 @@ class Mesos(AgentCheck):
             if status is AgentCheck.CRITICAL:
                 self.warning(msg)
                 return None
+
+        if r.encoding is None:
+            r.encoding = 'UTF8'
 
         return r.json()
 

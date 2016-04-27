@@ -1,11 +1,15 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import copy
 import inspect
 from itertools import product
+import imp
 import logging
 import os
 from pprint import pformat
-import signal
 import sys
 import time
 import traceback
@@ -59,10 +63,11 @@ def load_class(check_name, class_name):
 
 def load_check(name, config, agentConfig):
     checksd_path = get_checksd_path(get_os())
-    if checksd_path not in sys.path:
-        sys.path.append(checksd_path)
 
-    check_module = __import__(name)
+    # find (in checksd_path) and load the check module
+    fd, filename, desc = imp.find_module(name, [checksd_path])
+    check_module = imp.load_module(name, fd, filename, desc)
+
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
     for _, clsmember in classes:
@@ -90,22 +95,6 @@ def load_check(name, config, agentConfig):
         raise
 
 
-def kill_subprocess(process_obj):
-    try:
-        process_obj.terminate()
-    except AttributeError:
-        # py < 2.6 doesn't support process.terminate()
-        if get_os() == 'windows':
-            import ctypes
-            PROCESS_TERMINATE = 1
-            handle = ctypes.windll.kernel32.OpenProcess(PROCESS_TERMINATE, False,
-                                                        process_obj.pid)
-            ctypes.windll.kernel32.TerminateProcess(handle, -1)
-            ctypes.windll.kernel32.CloseHandle(handle)
-        else:
-            os.kill(process_obj.pid, signal.SIGKILL)
-
-
 class Fixtures(object):
     @staticmethod
     def integration_name():
@@ -128,9 +117,12 @@ class Fixtures(object):
         return os.path.join(Fixtures.directory(), file_name)
 
     @staticmethod
-    def read_file(file_name):
+    def read_file(file_name, string_escape=True):
         with open(Fixtures.file(file_name)) as f:
-            return f.read().decode('string-escape').decode("utf-8")
+            contents = f.read()
+            if string_escape:
+                contents = contents.decode('string-escape')
+            return contents.decode("utf-8")
 
 
 class AgentCheckTest(unittest.TestCase):
@@ -168,13 +160,13 @@ class AgentCheckTest(unittest.TestCase):
         self.run_check(config, agent_config, mocks)
 
     def run_check_n(self, config, agent_config=None, mocks=None,
-                    force_reload=False, repeat=1):
+                    force_reload=False, repeat=1, sleep=1):
         for i in xrange(repeat):
             if not i:
                 self.run_check(config, agent_config, mocks, force_reload)
             else:
                 self.run_check(config, agent_config, mocks)
-            time.sleep(1)
+            time.sleep(sleep)
 
     def run_check(self, config, agent_config=None, mocks=None, force_reload=False):
         # If not loaded already, do it!
@@ -213,7 +205,7 @@ class AgentCheckTest(unittest.TestCase):
                 self.service_metadata.append(metadata)
 
         if error is not None:
-            raise error
+            raise error  # pylint: disable=E0702
 
     def print_current_state(self):
         log.debug("""++++++++ CURRENT STATE ++++++++
@@ -325,7 +317,7 @@ WARNINGS
             raise
 
     def assertMetric(self, metric_name, value=None, tags=None, count=None,
-                     at_least=1, hostname=None, device_name=None):
+                     at_least=1, hostname=None, device_name=None, metric_type=None):
         candidates = []
         for m_name, ts, val, mdata in self.metrics:
             if m_name == metric_name:
@@ -336,6 +328,8 @@ WARNINGS
                 if hostname is not None and mdata['hostname'] != hostname:
                     continue
                 if device_name is not None and mdata['device_name'] != device_name:
+                    continue
+                if metric_type is not None and mdata['type'] != metric_type:
                     continue
 
                 candidates.append((m_name, ts, val, mdata))

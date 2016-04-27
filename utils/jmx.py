@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # std
 import logging
 import os
@@ -14,7 +18,7 @@ from utils.pidfile import PidFile
 from utils.platform import Platform
 
 # JMXFetch java version
-JMX_FETCH_JAR_NAME = "jmxfetch-0.9.0-jar-with-dependencies.jar"
+JMX_FETCH_JAR_NAME = "jmxfetch-0.10.0-jar-with-dependencies.jar"
 
 log = logging.getLogger(__name__)
 

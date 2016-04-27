@@ -5,7 +5,7 @@ init_config:
 #  kafka_timeout: 5
 
 instances:
-  # - kafka_connect_str: localhost:19092
+  # - kafka_connect_str: localhost:9092
   #   zk_connect_str: localhost:2181
   #   zk_prefix: /0.8
   #   consumer_groups:

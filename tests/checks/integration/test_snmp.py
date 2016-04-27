@@ -6,6 +6,7 @@ from nose.plugins.attrib import attr
 
 # agent
 from checks import AgentCheck
+from checks.metric_types import MetricTypes
 from tests.checks.common import AgentCheckTest
 
 # This test is dependent of having a fully open snmpd responding at localhost:161
@@ -61,6 +62,31 @@ class SNMPTestCase(AgentCheckTest):
         {
             'OID': "1.3.6.1.2.1.25.6.3.1.2.637",    # String (not supported)
             'name': "IAmString"
+        }
+    ]
+
+    FORCED_METRICS = [
+        {
+            'OID': "1.3.6.1.2.1.4.24.6.0",          # Gauge32
+            'name': "IAmAGauge32",
+            'forced_type': 'counter'
+
+        }, {
+            'OID': "1.3.6.1.2.1.4.31.1.1.6.1",      # Counter32
+            'name': "IAmACounter64",
+            'forced_type': 'gauge'
+        }
+    ]
+    INVALID_FORCED_METRICS = [
+        {
+            'OID': "1.3.6.1.2.1.4.24.6.0",          # Gauge32
+            'name': "IAmAGauge32",
+            'forced_type': 'counter'
+
+        }, {
+            'OID': "1.3.6.1.2.1.4.31.1.1.6.1",      # Counter32
+            'name': "IAmACounter64",
+            'forced_type': 'histogram'
         }
     ]
 
@@ -146,38 +172,26 @@ class SNMPTestCase(AgentCheckTest):
                         .format(attribute=attribute, total=len(getattr(self.check, attribute)), expected=count, seconds=i,
                                 attr=getattr(self.check, attribute)))
 
-    def wait_for_async_attrib(self, attribute):
-        """
-        Raise after
-        """
-        i = 0
-        while i < RESULTS_TIMEOUT:
-            if getattr(self.check, attribute):
-                return
-            time.sleep(1)
-            i += 1
-        raise Exception("Attribute not created in time.")
-
 
     def test_command_generator(self):
         """
         Command generator's parameters should match init_config
         """
         self.run_check(self.MIBS_FOLDER)
-        self.wait_for_async_attrib('cmd_generator')
+        cmdgen, _, _, _, _, _, _ = self.check._load_conf(self.SNMP_CONF)
 
         # Test command generator MIB source
-        mib_folders = self.check.cmd_generator.snmpEngine.msgAndPduDsp\
+        mib_folders = cmdgen.snmpEngine.msgAndPduDsp\
             .mibInstrumController.mibBuilder.getMibSources()
         full_path_mib_folders = map(lambda f: f.fullPath(), mib_folders)
 
         self.assertTrue("/etc/mibs" in full_path_mib_folders)
-        self.assertFalse(self.check.cmd_generator.ignoreNonIncreasingOid)
+        self.assertFalse(cmdgen.ignoreNonIncreasingOid)
 
         # Test command generator `ignoreNonIncreasingOid` parameter
         self.run_check(self.IGNORE_NONINCREASING_OID, force_reload=True)
-        self.wait_for_async_attrib('cmd_generator')
-        self.assertTrue(self.check.cmd_generator.ignoreNonIncreasingOid)
+        cmdgen, _, _, _, _, _, _ = self.check._load_conf(self.SNMP_CONF)
+        self.assertTrue(cmdgen.ignoreNonIncreasingOid)
 
     def test_type_support(self):
         """
@@ -265,7 +279,7 @@ class SNMPTestCase(AgentCheckTest):
         config = {
             'instances': [self.generate_instance_config(self.TABULAR_OBJECTS)]
         }
-        self.run_check_n(config, repeat=3)
+        self.run_check_n(config, repeat=3, sleep=2)
         self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
 
         # Test metrics
@@ -294,8 +308,53 @@ class SNMPTestCase(AgentCheckTest):
         self.run_check(config)
 
         self.warnings = self.wait_for_async('get_warnings', 'warnings', 1)
-        self.assertWarning("Fail to collect metrics: No symbol IF-MIB::noIdeaWhatIAmDoingHere",
+        self.assertWarning("Fail to collect some metrics: No symbol IF-MIB::noIdeaWhatIAmDoingHere",
                            count=1, exact_match=False)
+
+        # # Test service check
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+        self.assertServiceCheck("snmp.can_check", status=AgentCheck.CRITICAL,
+                                tags=self.CHECK_TAGS, count=1)
+        self.coverage_report()
+
+    def test_forcedtype_metric(self):
+        """
+        Forced Types should be reported as metrics of the forced type
+        """
+        config = {
+            'instances': [self.generate_instance_config(self.FORCED_METRICS)]
+        }
+        self.run_check_twice(config)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+
+        for metric in self.FORCED_METRICS:
+            metric_name = "snmp." + (metric.get('name') or metric.get('symbol'))
+            if metric.get('forced_type') == MetricTypes.COUNTER:
+                # rate will be flushed as a gauge, so count should be 0.
+                self.assertMetric(metric_name, tags=self.CHECK_TAGS,
+                                  count=0, metric_type=MetricTypes.GAUGE)
+            elif metric.get('forced_type') == MetricTypes.GAUGE:
+                self.assertMetric(metric_name, tags=self.CHECK_TAGS,
+                                  count=1, metric_type=MetricTypes.GAUGE)
+
+        # # Test service check
+        self.assertServiceCheck("snmp.can_check", status=AgentCheck.OK,
+                                tags=self.CHECK_TAGS, count=1)
+        self.coverage_report()
+
+    def test_invalid_forcedtype_metric(self):
+        """
+        If a forced type is invalid a warning should be issued + a service check
+        should be available
+        """
+        config = {
+            'instances': [self.generate_instance_config(self.INVALID_FORCED_METRICS)]
+        }
+
+        self.run_check(config)
+
+        self.warnings = self.wait_for_async('get_warnings', 'warnings', 1)
+        self.assertWarning("Invalid forced-type specified:", count=1, exact_match=False)
 
         # # Test service check
         self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)

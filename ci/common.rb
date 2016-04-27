@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 require 'colorize'
 require 'httparty'
 require 'socket'
@@ -93,7 +97,7 @@ class Wait
       n += 1
       sleep 0.25
     end
-    fail "Still not up after #{max_timeout}s" unless status
+    raise "Still not up after #{max_timeout}s" unless status
     puts 'Found!'
     status
   end

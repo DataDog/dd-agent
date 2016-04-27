@@ -37,6 +37,7 @@ SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"
 SUPERVISOR_SOCK="/opt/datadog-agent/run/datadog-supervisor.sock"
 SUPERVISOR_PIDFILE="/opt/datadog-agent/run/datadog-supervisord.pid"
 COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
+DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro"
 
 # Source function library.
 . /etc/rc.d/init.d/functions
@@ -44,18 +45,52 @@ COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
 
 check_status() {
     # run checks to determine if the service is running or use generic status
+    QUERY="all"
+    if [ -n "$1" ] && [ "$1" != "all" ] && [ "$1" != "essential" ] && [ "$1" != "optional" ]; then
+        echo "Valid arguments for $0: all | essential | optional"
+    elif [ -n "$1" ]; then
+        QUERY=$1
+    fi
+
+    ESSENTIAL=0
+    OPTIONAL=0
+    FAIL=1
 
     # if the sock exists, we can use supervisorctl
     if [ -e $SUPERVISOR_SOCK ]; then
 
         s=`$SUPERVISORCTL_PATH -c $SUPERVISOR_CONF status`
 
-        # number of RUNNING supervisord programs (ignoring dogstatsd and jmxfetch)
-	p=`echo "$s" | grep -Ev 'dogstatsd|jmxfetch' | grep -c RUNNING`
+        # number of RUNNING supervisord programs (ignoring dogstatsd, jmxfetch and go-metro)
+        p=`echo "$s" | grep -Ev $DD_OPT_PROC_REGEX | grep -c RUNNING`
 
+        # Number of non-failed OPTIONAL supervisord programs (dogstatsd, jmxfetch and go-metro)
+        p_o=`echo "$s" | grep -E $DD_OPT_PROC_REGEX | grep -cv FATAL`
+:
         # number of expected running supervisord programs (ignoring dogstatsd and jmxfetch)
-	c=`grep -Ev 'dogstatsd|jmxfetch' $SUPERVISOR_CONF | grep -c '\[program:'`
+        c=`grep -Ev $DD_OPT_PROC_REGEX $SUPERVISOR_CONF | grep -c '\[program:'`
+
+        # Number of expected optional supervisord programs (dogstatsd, jmxfetch and go-metro)
+        c_o=`grep -E $DD_OPT_PROC_REGEX $SUPERVISOR_CONF | grep -c '\[program:'`
+
         if [ "$p" -ne "$c" ]; then
+            ESSENTIAL=1
+
+        fi
+
+        if [ "$p_o" -ne "$c_o" ]; then
+            OPTIONAL=1
+        fi
+
+        if [ "$QUERY" = "essential" ] && [ "$ESSENTIAL" -eq 0 ]; then
+            FAIL=0
+        elif [ "$QUERY" = "optional" ] && [ "$OPTIONAL" -eq 0 ]; then
+            FAIL=0
+        elif [ "$QUERY" = "all" ] && [ "$ESSENTIAL" = "$OPTIONAL" ] && [ $ESSENTIAL -eq 0 ]; then
+            FAIL=0
+        fi
+
+        if [ "$FAIL" -gt 0 ]; then
             echo "$s"
             echo -n "Datadog Agent (supervisor) is NOT running all child processes"; failure; echo
             return 1
@@ -86,7 +121,7 @@ check_status() {
 }
 
 grab_status() {
-    GRABSTATUS=`check_status &>/dev/null`
+    GRABSTATUS=`check_status essential &>/dev/null`
 }
 
 start() {
@@ -128,7 +163,7 @@ stop() {
     # it does the right thing. and testing supervisorctl status
     # before killproc can lead to states where you cannot stop!
     echo -n 'Stopping Datadog Agent (using killproc on supervisord): '
-    killproc -p $SUPERVISOR_PIDFILE
+    killproc -p $SUPERVISOR_PIDFILE -d 30
     rm -f $LOCKFILE
     echo
     return 0

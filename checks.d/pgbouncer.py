@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 """Pgbouncer check
 
 Collects metrics from the pgbouncer database.
@@ -76,6 +80,7 @@ class PgBouncer(AgentCheck):
 
         try:
             cursor = db.cursor()
+            results = None
             for scope in metric_scope:
 
                 metrics = scope['metrics']

@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 '''
 YARN Cluster Metrics
 --------------------
@@ -271,7 +275,7 @@ class YarnCheck(AgentCheck):
             self.service_check(SERVICE_CHECK_NAME,
                 AgentCheck.CRITICAL,
                 tags=service_check_tags,
-                message=e.reason)
+                message=str(e))
             raise
 
         else:

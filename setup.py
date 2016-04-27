@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from datetime import date
 import os
@@ -77,11 +81,17 @@ if sys.platform == 'win32':
         'Crypto',
         'winrandom',
         'uptime',
+        'pythoncom',
+        'dns.resolver',
+        'dns.rdtypes.ANY.*',
+        'dns.rdtypes.IN.*',
 
         # agent
         'checks.network_checks',
+        'checks.wmi_check',
         'checks.libs.vmware.*',
         'httplib2',
+        'utils.containers',
 
         # pup
         'tornado.websocket',

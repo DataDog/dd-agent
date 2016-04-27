@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import ConfigParser
 from cStringIO import StringIO
@@ -18,21 +22,20 @@ import sys
 import traceback
 from urlparse import urlparse
 
-# 3p
-import yaml
-
 # project
-from util import get_os, yLoader
+from util import check_yaml, get_os
 from utils.platform import Platform
 from utils.proxy import get_proxy
+from utils.service_discovery.config import extract_agent_config
+from utils.service_discovery.config_stores import CONFIG_FROM_FILE, TRACE_CONFIG
+from utils.service_discovery.sd_backend import get_sd_backend, AUTO_CONFIG_DIR, SD_BACKENDS
 from utils.subprocess_output import (
     get_subprocess_output,
     SubprocessOutputEmptyError,
 )
 
-
 # CONSTANTS
-AGENT_VERSION = "5.7.0"
+AGENT_VERSION = "5.8.0"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
 MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
@@ -43,7 +46,7 @@ log = logging.getLogger(__name__)
 
 OLD_STYLE_PARAMETERS = [
     ('apache_status_url', "apache"),
-    ('cacti_mysql_server' , "cacti"),
+    ('cacti_mysql_server', "cacti"),
     ('couchdb_server', "couchdb"),
     ('elasticsearch', "elasticsearch"),
     ('haproxy_url', "haproxy"),
@@ -95,8 +98,9 @@ def get_parsed_args():
         # Ignore parse errors
         options, args = Values({'autorestart': False,
                                 'dd_url': None,
-                                'disable_dd':False,
+                                'disable_dd': False,
                                 'use_forwarder': False,
+                                'verbose': False,
                                 'profile': False}), []
     return options, args
 
@@ -119,6 +123,7 @@ def get_url_endpoint(default_url, endpoint_type='app'):
             get_version().replace(".", "-"),
             endpoint_type))
 
+
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
     return StringIO("\n".join(map(string.strip, f.readlines())))
@@ -136,9 +141,9 @@ def _windows_commondata_path():
 
     _SHGetFolderPath = windll.shell32.SHGetFolderPathW
     _SHGetFolderPath.argtypes = [wintypes.HWND,
-                                ctypes.c_int,
-                                wintypes.HANDLE,
-                                wintypes.DWORD, wintypes.LPCWSTR]
+                                 ctypes.c_int,
+                                 wintypes.HANDLE,
+                                 wintypes.DWORD, wintypes.LPCWSTR]
 
     path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
     _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
@@ -251,7 +256,8 @@ def get_config_path(cfg_path=None, os_name=None):
             bad_path = e.args[0]
 
     # If all searches fail, exit the agent with an error
-    sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
+    sys.stderr.write("Please supply a configuration file at %s or in the directory where "
+                     "the Agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
 
@@ -286,6 +292,7 @@ def get_histogram_aggregates(configstr=None):
 
     return result
 
+
 def get_histogram_percentiles(configstr=None):
     if configstr is None:
         return None
@@ -301,16 +308,17 @@ def get_histogram_percentiles(configstr=None):
                     raise ValueError
                 if len(val) > 4:
                     log.warning("Histogram percentiles are rounded to 2 digits: {0} rounded"
-                        .format(floatval))
+                                .format(floatval))
                 result.append(float(val[0:4]))
             except ValueError:
                 log.warning("Bad histogram percentile value {0}, must be float in ]0;1[, skipping"
-                    .format(val))
+                            .format(val))
     except Exception:
         log.exception("Error when parsing histogram percentiles, skipping")
         return None
 
     return result
+
 
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
@@ -391,6 +399,15 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig['use_dogstatsd'] = config.get('Main', 'use_dogstatsd').lower() in ("yes", "true")
         else:
             agentConfig['use_dogstatsd'] = True
+
+        # Service discovery
+        if config.has_option('Main', 'service_discovery_backend'):
+            try:
+                additional_config = extract_agent_config(config)
+                agentConfig.update(additional_config)
+            except:
+                log.error('Failed to load the agent configuration related to '
+                          'service discovery. It will not be used.')
 
         # Concerns only Windows
         if config.has_option('Main', 'use_web_info_page'):
@@ -617,7 +634,7 @@ def set_win32_cert_path():
     else:
         cur_path = os.path.dirname(__file__)
         crt_path = os.path.join(cur_path, 'packaging', 'datadog-agent', 'win32',
-                'install_files', 'ca-certificates.crt')
+                                'install_files', 'ca-certificates.crt')
     import tornado.simple_httpclient
     log.info("Windows certificate path: %s" % crt_path)
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
@@ -677,6 +694,11 @@ def get_checksd_path(osname=None):
         return _unix_checksd_path()
 
 
+def get_auto_confd_path(osname=None):
+    """Used for service discovery which only works for Unix"""
+    return os.path.join(get_confd_path(osname), AUTO_CONFIG_DIR)
+
+
 def get_win32service_file(osname, filename):
     # This file is needed to log in the event viewer for windows
     if osname == 'windows':
@@ -719,67 +741,101 @@ def get_ssl_certificate(osname, filename):
         if os.path.exists(path):
             return path
 
-
     log.info("Certificate file NOT found at %s" % str(path))
     return None
 
-def check_yaml(conf_path):
-    with open(conf_path) as f:
-        check_config = yaml.load(f.read(), Loader=yLoader)
-        assert 'init_config' in check_config, "No 'init_config' section found"
-        assert 'instances' in check_config, "No 'instances' section found"
 
-        valid_instances = True
-        if check_config['instances'] is None or not isinstance(check_config['instances'], list):
-            valid_instances = False
-        else:
-            for i in check_config['instances']:
-                if not isinstance(i, dict):
-                    valid_instances = False
-                    break
-        if not valid_instances:
-            raise Exception('You need to have at least one instance defined in the YAML file for this check')
-        else:
-            return check_config
+def get_checks_paths(agentConfig, osname):
+    # this can happen if check.d is not found
+    '''Return the checks paths or None if che
+    log.error'Checks directory not found, exiting.')cks.d is not found.'''
+    checks_paths = [glob.glob(os.path.join(agentConfig['additional_checksd'], '*.py'))]
+    try:
+        checksd_path = get_checksd_path(osname)
+        checks_paths.append(glob.glob(os.path.join(checksd_path, '*.py')))
+    except PathNotFound, e:
+        log.error(e.args[0])
+        return None
+    return checks_paths
+
+
+def get_check_class(check_name, check, init_failed_checks={}):
+    '''Return the corresponding check class for a check name if available.'''
+    from checks import AgentCheck
+    check_class = None
+    try:
+        check_module = imp.load_source('checksd_%s' % check_name, check)
+    except Exception, e:
+        traceback_message = traceback.format_exc()
+        # There is a configuration file for that check but the module can't be imported
+        log.exception('Unable to import check module %s.py from checks.d' % check_name)
+        return {'error': e, 'traceback': traceback_message}
+
+    # We make sure that there is an AgentCheck class defined
+    check_class = None
+    classes = inspect.getmembers(check_module, inspect.isclass)
+    for _, clsmember in classes:
+        if clsmember == AgentCheck:
+            continue
+        if issubclass(clsmember, AgentCheck):
+            check_class = clsmember
+            if AgentCheck in clsmember.__bases__:
+                continue
+            else:
+                break
+    return check_class
+
 
 def load_check_directory(agentConfig, hostname):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
-    from checks import AgentCheck, AGENT_METRICS_CHECK_NAME
+
+    from checks import AGENT_METRICS_CHECK_NAME
 
     initialized_checks = {}
     init_failed_checks = {}
     deprecated_checks = {}
     agentConfig['checksd_hostname'] = hostname
 
-    deprecated_configs_enabled = [v for k,v in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
+    # the TRACE_CONFIG flag is used by the configcheck to trace config object loading and
+    # where they come from (service discovery, auto configuration or configuration file).
+    if agentConfig.get(TRACE_CONFIG):
+        configs_and_sources = {
+            # check_name: (config_source, config)
+        }
+    deprecated_configs_enabled = [v for k, v in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
     for deprecated_config in deprecated_configs_enabled:
         msg = "Configuring %s in datadog.conf is not supported anymore. Please use conf.d" % deprecated_config
         deprecated_checks[deprecated_config] = {'error': msg, 'traceback': None}
         log.error(msg)
 
     osname = get_os()
-    checks_paths = [glob.glob(os.path.join(agentConfig['additional_checksd'], '*.py'))]
-
-    try:
-        checksd_path = get_checksd_path(osname)
-        checks_paths.append(glob.glob(os.path.join(checksd_path, '*.py')))
-    except PathNotFound, e:
-        log.error(e.args[0])
+    checks_paths = get_checks_paths(agentConfig, osname)
+    # this can happen if check.d is not found
+    if checks_paths is None:
+        log.error('Check directory not found, exiting. The agent is likely misconfigured.')
         sys.exit(3)
 
     try:
         confd_path = get_confd_path(osname)
     except PathNotFound, e:
-        log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
+        log.error("No conf.d folder found at '%s' or in the directory where "
+                  "the Agent is currently deployed.\n" % e.args[0])
         sys.exit(3)
+
+    if agentConfig.get('service_discovery') and agentConfig.get('service_discovery_backend') in SD_BACKENDS:
+        sd_backend = get_sd_backend(agentConfig=agentConfig)
+        service_disco_configs = sd_backend.get_configs()
+    else:
+        service_disco_configs = {}
 
     # We don't support old style configs anymore
     # So we iterate over the files in the checks.d directory
     # If there is a matching configuration file in the conf.d directory
     # then we import the check
     for check in itertools.chain(*checks_paths):
+        sd_init_config, sd_instances, skip_config_lookup = None, None, False
         check_name = os.path.basename(check).split('.')[0]
         check_config = None
         if check_name in initialized_checks or check_name in init_failed_checks:
@@ -793,67 +849,73 @@ def load_check_directory(agentConfig, hostname):
         if os.path.exists(conf_path):
             conf_exists = True
         else:
-            log.debug("No configuration file for %s. Looking for defaults" % check_name)
+            log.debug("No configuration file for %s. Looking for auto config or defaults" % check_name)
 
             # Default checks read their config from the "[CHECKNAME].yaml.default" file
             default_conf_path = os.path.join(confd_path, '%s.yaml.default' % check_name)
             if not os.path.exists(default_conf_path):
-                log.debug("Default configuration file {0} is missing. Skipping check".format(default_conf_path))
-                continue
-            conf_path = default_conf_path
-            conf_exists = True
-
-        if conf_exists:
-            try:
-                check_config = check_yaml(conf_path)
-            except Exception, e:
-                log.exception("Unable to parse yaml config in %s" % conf_path)
-                traceback_message = traceback.format_exc()
-                init_failed_checks[check_name] = {'error': str(e), 'traceback': traceback_message}
-                continue
-        else:
-            # Compatibility code for the Nagios checks if it's still configured
-            # in datadog.conf
-            # FIXME: 6.x, should be removed
-            if check_name == 'nagios':
-                if any([nagios_key in agentConfig for nagios_key in NAGIOS_OLD_CONF_KEYS]):
-                    log.warning("Configuring Nagios in datadog.conf is deprecated "
-                                "and will be removed in a future version. "
-                                "Please use conf.d")
-                    check_config = {'instances':[dict((key, agentConfig[key]) for key in agentConfig if key in NAGIOS_OLD_CONF_KEYS)]}
+                if check_name not in service_disco_configs:
+                    log.debug("Default configuration file {0} is missing. "
+                              "Skipping check".format(default_conf_path))
+                    continue
                 else:
+                    # flag set by the configcheck command to track where all configs come from
+                    # if it's set, service_disco_configs will look like:
+                    # 'check_name': (config_src, (sd_init_config, sd_instances)) instead
+                    if agentConfig.get(TRACE_CONFIG):
+                        sd_init_config, sd_instances = service_disco_configs[check_name][1]
+                        configs_and_sources[check_name] = (
+                            service_disco_configs[check_name][0],
+                            {'init_config': sd_init_config, 'instances': sd_instances})
+                    else:
+                        sd_init_config, sd_instances = service_disco_configs[check_name]
+                    check_config = {'init_config': sd_init_config, 'instances': sd_instances}
+                    skip_config_lookup = True
+
+            else:
+                conf_path = default_conf_path
+                conf_exists = True
+
+        if not skip_config_lookup:
+            if conf_exists:
+                try:
+                    check_config = check_yaml(conf_path)
+                    if agentConfig.get(TRACE_CONFIG):
+                        configs_and_sources[check_name] = (CONFIG_FROM_FILE, check_config)
+                except Exception, e:
+                    log.exception("Unable to parse yaml config in %s" % conf_path)
+                    traceback_message = traceback.format_exc()
+                    init_failed_checks[check_name] = {'error': str(e), 'traceback': traceback_message}
                     continue
             else:
-                log.debug("No configuration file for %s" % check_name)
-                continue
+                # Compatibility code for the Nagios checks if it's still configured
+                # in datadog.conf
+                # FIXME: 6.x, should be removed
+                if check_name == 'nagios':
+                    if any([nagios_key in agentConfig for nagios_key in NAGIOS_OLD_CONF_KEYS]):
+                        log.warning("Configuring Nagios in datadog.conf is deprecated "
+                                    "and will be removed in a future version. "
+                                    "Please use conf.d")
+                        check_config = {'instances': [dict((key, agentConfig[key]) for key in agentConfig if key in NAGIOS_OLD_CONF_KEYS)]}
+                        if agentConfig.get(TRACE_CONFIG):
+                            configs_and_sources[check_name] = (CONFIG_FROM_FILE, check_config)
+                    else:
+                        continue
+                else:
+                    log.debug("No configuration file for %s" % check_name)
+                    continue
 
         # If we are here, there is a valid matching configuration file.
         # Let's try to import the check
-        try:
-            check_module = imp.load_source('checksd_%s' % check_name, check)
-        except Exception, e:
-            traceback_message = traceback.format_exc()
-            # There is a configuration file for that check but the module can't be imported
-            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
-            log.exception('Unable to import check module %s.py from checks.d' % check_name)
-            continue
-
-        # We make sure that there is an AgentCheck class defined
-        check_class = None
-        classes = inspect.getmembers(check_module, inspect.isclass)
-        for _, clsmember in classes:
-            if clsmember == AgentCheck:
-                continue
-            if issubclass(clsmember, AgentCheck):
-                check_class = clsmember
-                if AgentCheck in clsmember.__bases__:
-                    continue
-                else:
-                    break
-
+        check_class = get_check_class(check_name, check, init_failed_checks)
         if not check_class:
             log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
             continue
+        # this means we are actually looking at a load failure
+        elif isinstance(check_class, dict):
+            init_failed_checks[check_name] = check_class
+        else:
+            pass
 
         # Look for the per-check config, which *must* exist
         if not check_config.get('instances'):
@@ -881,7 +943,7 @@ def load_check_directory(agentConfig, hostname):
         except Exception, e:
             log.exception('Unable to initialize check %s' % check_name)
             traceback_message = traceback.format_exc()
-            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
+            init_failed_checks[check_name] = {'error': e, 'traceback': traceback_message}
         else:
             initialized_checks[check_name] = c
 
@@ -897,8 +959,12 @@ def load_check_directory(agentConfig, hostname):
     init_failed_checks.update(deprecated_checks)
     log.info('initialized checks.d checks: %s' % [k for k in initialized_checks.keys() if k != AGENT_METRICS_CHECK_NAME])
     log.info('initialization failed checks.d checks: %s' % init_failed_checks.keys())
-    return {'initialized_checks':initialized_checks.values(),
-            'init_failed_checks':init_failed_checks,
+
+    if agentConfig.get(TRACE_CONFIG):
+        return configs_and_sources
+
+    return {'initialized_checks': initialized_checks.values(),
+            'init_failed_checks': init_failed_checks,
             }
 
 
@@ -938,6 +1004,7 @@ def get_logging_config(cfg_path=None):
         logging_config['forwarder_log_file'] = '/var/log/datadog/forwarder.log'
         logging_config['dogstatsd_log_file'] = '/var/log/datadog/dogstatsd.log'
         logging_config['jmxfetch_log_file'] = '/var/log/datadog/jmxfetch.log'
+        logging_config['go-metro_log_file'] = '/var/log/datadog/go-metro.log'
         logging_config['log_to_syslog'] = True
 
     config_path = get_config_path(cfg_path, os_name=system_os)
@@ -999,7 +1066,6 @@ def get_logging_config(cfg_path=None):
     return logging_config
 
 
-
 def initialize_logging(logger_name):
     try:
         logging_config = get_logging_config()
@@ -1050,7 +1116,7 @@ def initialize_logging(logger_name):
         if get_os() == 'windows' and logging_config['log_to_event_viewer']:
             try:
                 from logging.handlers import NTEventLogHandler
-                nt_event_handler = NTEventLogHandler(logger_name,get_win32service_file('windows', 'win32service.pyd'), 'Application')
+                nt_event_handler = NTEventLogHandler(logger_name, get_win32service_file('windows', 'win32service.pyd'), 'Application')
                 nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
                 nt_event_handler.setLevel(logging.ERROR)
                 app_log = logging.getLogger(logger_name)

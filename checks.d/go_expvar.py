@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2014-2016
+# (C) Cory Watson <cory@stripe.com> 2015-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from collections import defaultdict
 import re

@@ -1,0 +1,11 @@
+{
+  "apps": {
+    "app": [
+      {
+        "id": "application_1459362484344_0011",
+        "name": "PySpark",
+        "trackingUrl": "http://localhost:8088/proxy/application_1459362484344_0011/"
+      }
+    ]
+  }
+}

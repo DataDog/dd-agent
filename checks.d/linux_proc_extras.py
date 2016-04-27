@@ -1,3 +1,7 @@
+# (C) Cory Watson <cory@stripe.com> 2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # project
 from checks import AgentCheck
 from utils.subprocess_output import get_subprocess_output

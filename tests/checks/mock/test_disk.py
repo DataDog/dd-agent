@@ -61,6 +61,7 @@ class TestCheckDisk(AgentCheckTest):
     def test_device_exclusion_logic(self):
         self.run_check({'instances': [{'use_mount': 'no',
                                        'excluded_filesystems': ['aaaaaa'],
+                                       'excluded_mountpoint_re': '^/z+$',
                                        'excluded_disks': ['bbbbbb'],
                                        'excluded_disk_re': '^tev+$'}]},
                        mocks={'collect_metrics': lambda: None})
@@ -84,6 +85,10 @@ class TestCheckDisk(AgentCheckTest):
         # excluded devices regex
         self.assertTrue(exclude_disk(MockPart(device='tevvv')))
         self.assertFalse(exclude_disk(MockPart(device='tevvs')))
+
+        # excluded mountpoint regex
+        self.assertTrue(exclude_disk(MockPart(device='sdz', mountpoint='/zz')))
+        self.assertFalse(exclude_disk(MockPart(device='sdz', mountpoint='/zy')))
 
         # and now with all_partitions
         self.check._all_partitions = True
@@ -120,7 +125,7 @@ class TestCheckDisk(AgentCheckTest):
 
         self.coverage_report()
 
-    @mock.patch('disk.get_subprocess_output',
+    @mock.patch('utils.subprocess_output.get_subprocess_output',
                 return_value=(Fixtures.read_file('debian-df-Tk'), "", 0))
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
     def test_no_psutil_debian(self, mock_df_output, mock_statvfs):
@@ -136,7 +141,7 @@ class TestCheckDisk(AgentCheckTest):
 
         self.coverage_report()
 
-    @mock.patch('disk.get_subprocess_output',
+    @mock.patch('utils.subprocess_output.get_subprocess_output',
                 return_value=(Fixtures.read_file('freebsd-df-Tk'), "", 0))
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
     def test_no_psutil_freebsd(self, mock_df_output, mock_statvfs):

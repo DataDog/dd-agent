@@ -1,7 +1,10 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from hashlib import md5
 import logging
-import math
 import os
 import platform
 import re
@@ -29,7 +32,7 @@ except ImportError:
 # if a user actually uses them in a custom check
 # If you're this user, please use utils.pidfile or utils.platform instead
 # FIXME: remove them at a point (6.x)
-from utils.dockerutil import get_hostname as get_docker_hostname, is_dockerized
+from utils.dockerutil import DockerUtil
 from utils.pidfile import PidFile  # noqa, see ^^^
 from utils.platform import Platform
 from utils.proxy import get_proxy
@@ -91,6 +94,7 @@ def headers(agentConfig):
         'Accept': 'text/html, */*',
     }
 
+
 def windows_friendly_colon_split(config_string):
     '''
     Perform a split by ':' on the config_string
@@ -101,26 +105,6 @@ def windows_friendly_colon_split(config_string):
         return COLON_NON_WIN_PATH.split(config_string)
     else:
         return config_string.split(':')
-
-def getTopIndex():
-    macV = None
-    if sys.platform == 'darwin':
-        macV = platform.mac_ver()
-
-    # Output from top is slightly modified on OS X 10.6 (case #28239)
-    if macV and macV[0].startswith('10.6.'):
-        return 6
-    else:
-        return 5
-
-
-def isnan(val):
-    if hasattr(math, 'isnan'):
-        return math.isnan(val)
-
-    # for py < 2.6, use a different check
-    # http://stackoverflow.com/questions/944700/how-to-check-for-nan-in-python
-    return str(val) == str(1e400*0)
 
 
 def cast_metric_val(val):
@@ -139,12 +123,15 @@ def cast_metric_val(val):
     return val
 
 _IDS = {}
+
+
 def get_next_id(name):
     global _IDS
     current_id = _IDS.get(name, 0)
     current_id += 1
     _IDS[name] = current_id
     return current_id
+
 
 def is_valid_hostname(hostname):
     if hostname.lower() in set([
@@ -162,6 +149,26 @@ def is_valid_hostname(hostname):
         log.warning("Hostname: %s is not complying with RFC 1123" % hostname)
         return False
     return True
+
+
+def check_yaml(conf_path):
+    with open(conf_path) as f:
+        check_config = yaml.load(f.read(), Loader=yLoader)
+        assert 'init_config' in check_config, "No 'init_config' section found"
+        assert 'instances' in check_config, "No 'instances' section found"
+
+        valid_instances = True
+        if check_config['instances'] is None or not isinstance(check_config['instances'], list):
+            valid_instances = False
+        else:
+            for i in check_config['instances']:
+                if not isinstance(i, dict):
+                    valid_instances = False
+                    break
+        if not valid_instances:
+            raise Exception('You need to have at least one instance defined in the YAML file for this check')
+        else:
+            return check_config
 
 
 def get_hostname(config=None):
@@ -193,8 +200,9 @@ def get_hostname(config=None):
                 return gce_hostname
 
     # Try to get the docker hostname
-    if hostname is None and is_dockerized():
-        docker_hostname = get_docker_hostname()
+    docker_util = DockerUtil()
+    if hostname is None and docker_util.is_dockerized():
+        docker_hostname = docker_util.get_hostname()
         if docker_hostname is not None and is_valid_hostname(docker_hostname):
             return docker_hostname
 
@@ -340,12 +348,35 @@ class EC2(object):
     TIMEOUT = 0.1  # second
     metadata = {}
 
+    class NoIAMRole(Exception):
+        """
+        Instance has no associated IAM role.
+        """
+        pass
+
+    @staticmethod
+    def get_iam_role():
+        """
+        Retrieve instance's IAM role.
+        Raise `NoIAMRole` when unavailable.
+        """
+        try:
+            return urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials/").read().strip()
+        except urllib2.HTTPError as err:
+            if err.code == 404:
+                raise EC2.NoIAMRole()
+            raise
+
     @staticmethod
     def get_tags(agentConfig):
+        """
+        Retrieve AWS EC2 tags.
+        """
         if not agentConfig['collect_instance_metadata']:
             log.info("Instance metadata collection is disabled. Not collecting it.")
             return []
 
+        EC2_tags = []
         socket_to = None
         try:
             socket_to = socket.getdefaulttimeout()
@@ -354,7 +385,7 @@ class EC2(object):
             pass
 
         try:
-            iam_role = urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials/").read().strip()
+            iam_role = EC2.get_iam_role()
             iam_params = json.loads(urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials/" + unicode(iam_role)).read().strip())
             instance_identity = json.loads(urllib2.urlopen(EC2.INSTANCE_IDENTITY_URL).read().strip())
             region = instance_identity['region']
@@ -376,9 +407,13 @@ class EC2(object):
             if agentConfig.get('collect_security_groups') and EC2.metadata.get('security-groups'):
                 EC2_tags.append(u"security-group-name:{0}".format(EC2.metadata.get('security-groups')))
 
+        except EC2.NoIAMRole:
+            log.warning(
+                u"Unable to retrieve AWS EC2 custom tags: "
+                u"an IAM role associated with the instance is required"
+            )
         except Exception:
             log.exception("Problem retrieving custom EC2 tags")
-            EC2_tags = []
 
         try:
             if socket_to is None:

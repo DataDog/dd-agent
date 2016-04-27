@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=E0401
 #
 # Copyright © 2009-2010 CEA
 # Pierre Raybaut
@@ -115,11 +116,15 @@ log = logging.getLogger(__name__)
 EXCLUDED_WINDOWS_CHECKS = [
     'btrfs',
     'cacti',
+    'ceph',
     'docker',
+    'docker_daemon',
     'gearmand',
+    'go-metro',
     'gunicorn',
     'hdfs',
     'kafka_consumer',
+    'linux_proc_extras',
     'marathon',
     'mcache',
     'mesos',
@@ -397,6 +402,7 @@ class HTMLWindow(QTextEdit):
                 platform=platform.platform(),
                 agent_version=get_version(),
                 python_version=platform.python_version(),
+                python_architecture=Platform.python_architecture(),
                 logger_info=logger_info(),
                 dogstatsd=dogstatsd_status.to_dict(),
                 forwarder=forwarder_status.to_dict(),

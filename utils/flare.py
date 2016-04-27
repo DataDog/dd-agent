@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import atexit
 import cStringIO as StringIO
@@ -164,6 +168,34 @@ class Flare(object):
         log.info("Saving all files to {0}".format(self.tar_path))
         self._tar.close()
 
+    # Set the proxy settings, if they exist
+    def set_proxy(self, options):
+        proxy_settings = self._config.get('proxy_settings')
+        if proxy_settings is None:
+            return
+        userpass = ''
+        if proxy_settings.get('user'):
+            userpass = "%s:%s@" % (proxy_settings.get('user'),
+                                   proxy_settings.get('password'),)
+
+        url = "http://%s%s:%s" % (userpass, proxy_settings.get('host'),
+                                  proxy_settings.get('port'),)
+
+        options['proxies'] = {
+            "https": url
+        }
+
+    # Set whether to ignore invalid ssl certs or not
+    def set_ssl_validation(self, options):
+        if self._config.get('skip_ssl_validation', False):
+            options['verify'] = False
+        elif Platform.is_windows():
+            options['verify'] = os.path.realpath(os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                os.pardir, os.pardir,
+                'datadog-cert.pem'
+            ))
+
     # Upload the tar file
     def upload(self, email=None):
         self._check_size()
@@ -188,12 +220,9 @@ class Flare(object):
             'files': {'flare_file': open(self.tar_path, 'rb')},
             'timeout': self.TIMEOUT
         }
-        if Platform.is_windows():
-            requests_options['verify'] = os.path.realpath(os.path.join(
-                os.path.dirname(os.path.realpath(__file__)),
-                os.pardir, os.pardir,
-                'datadog-cert.pem'
-            ))
+
+        self.set_proxy(requests_options)
+        self.set_ssl_validation(requests_options)
 
         self._resp = requests.post(url, **requests_options)
         self._analyse_result()
@@ -232,6 +261,7 @@ class Flare(object):
         self._forwarder_log = config.get('{0}forwarder_log_file'.format(prefix))
         self._dogstatsd_log = config.get('{0}dogstatsd_log_file'.format(prefix))
         self._jmxfetch_log = config.get('jmxfetch_log_file')
+        self._gometro_log = config.get('go-metro_log_file')
 
     # Add logs to the tarfile
     def _add_logs_tar(self):
@@ -239,6 +269,7 @@ class Flare(object):
         self._add_log_file_tar(self._forwarder_log)
         self._add_log_file_tar(self._dogstatsd_log)
         self._add_log_file_tar(self._jmxfetch_log)
+        self._add_log_file_tar(self._gometro_log)
         self._add_log_file_tar(
             "{0}/*supervisord.log".format(os.path.dirname(self._collector_log))
         )

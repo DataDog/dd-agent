@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2010-2016
+# (C) Datadog, Inc. Patrick Galbraith <patg@patg.net> 2013
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import re
 import traceback
@@ -250,7 +255,7 @@ GALERA_VARS = {
 }
 
 PERFORMANCE_VARS = {
-    'query_run_time_avg' : ('mysql.performance.query_run_time.avg', GAUGE),
+    'query_run_time_avg': ('mysql.performance.query_run_time.avg', GAUGE),
     'perf_digest_95th_percentile_avg_us': ('mysql.performance.digest_95th_percentile.avg_us', GAUGE),
 }
 
@@ -260,12 +265,14 @@ SCHEMA_VARS = {
 
 REPLICA_VARS = {
     'Seconds_Behind_Master': ('mysql.replication.seconds_behind_master', GAUGE),
+    'Slaves_connected': ('mysql.replication.slaves_connected', COUNT),
 }
 
 SYNTHETIC_VARS = {
     'Qcache_utilization': ('mysql.performance.qcache.utilization', GAUGE),
     'Qcache_instant_utilization': ('mysql.performance.qcache.utilization.instant', GAUGE),
 }
+
 
 class MySql(AgentCheck):
     SERVICE_CHECK_NAME = 'mysql.can_connect'
@@ -313,7 +320,7 @@ class MySql(AgentCheck):
         self.defaults_file = instance.get('defaults_file', '')
         user = instance.get('user', '')
         password = instance.get('pass', '')
-        tags = instance.get('tags', None)
+        tags = instance.get('tags', [])
         options = instance.get('options', {})
         queries = instance.get('queries', [])
         ssl = instance.get('ssl', {})
@@ -344,17 +351,16 @@ class MySql(AgentCheck):
         hostkey = self.host
         if self.mysql_sock:
             hostkey = "{0}:{1}".format(hostkey, self.mysql_sock)
-            return self.mysql_sock
         elif self.port:
             hostkey = "{0}:{1}".format(hostkey, self.port)
 
-        return None
+        return hostkey
 
     @contextmanager
     def _connect(self, host, port, mysql_sock, user, password, defaults_file, ssl):
         self.service_check_tags = [
-            'server:{0}'.format(host),
-            'port:{0}'.format(port)
+            'server:%s' % (mysql_sock if mysql_sock != '' else host),
+            'port:%s' % ('unix_socket' if port == 0 else port)
         ]
 
         db = None
@@ -364,15 +370,15 @@ class MySql(AgentCheck):
             if defaults_file != '':
                 db = pymysql.connect(read_default_file=defaults_file, ssl=ssl)
             elif mysql_sock != '':
+                self.service_check_tags = [
+                    'server:{0}'.format(mysql_sock),
+                    'port:unix_socket'
+                ]
                 db = pymysql.connect(
                     unix_socket=mysql_sock,
                     user=user,
                     passwd=password
                 )
-                self.service_check_tags = [
-                    'server:{0}'.format(mysql_sock),
-                    'port:unix_socket'
-                ]
             elif port:
                 db = pymysql.connect(
                     host=host,
@@ -409,7 +415,7 @@ class MySql(AgentCheck):
         results = self._get_stats_from_status(db)
         results.update(self._get_stats_from_variables(db))
 
-        if self._is_innodb_engine_enabled(db):
+        if (not _is_affirmative(options.get('disable_innodb_metrics', False)) and self._is_innodb_engine_enabled(db)):
             results.update(self._get_stats_from_innodb_status(db))
 
             innodb_keys = [
@@ -480,7 +486,6 @@ class MySql(AgentCheck):
         except TypeError as e:
             self.log.error("Not all Key metrics are available, unable to compute: {0}".format(e))
 
-
         metrics.update(VARIABLES_VARS)
         metrics.update(INNODB_VARS)
         metrics.update(BINLOG_VARS)
@@ -497,38 +502,43 @@ class MySql(AgentCheck):
             self.log.debug("Collecting Galera Metrics.")
             metrics.update(GALERA_VARS)
 
+        performance_schema_enabled = self._get_variable_enabled(results, 'performance_schema')
         if _is_affirmative(options.get('extra_performance_metrics', False)) and \
                 self._version_compatible(db, host, "5.6.0") and \
-                self._get_variable_enabled(results, 'performance_schema'):
+                performance_schema_enabled:
             # report avg query response time per schema to Datadog
-            try:
-                results['perf_digest_95th_percentile_avg_us'] = self._get_query_exec_time_95th_us(db)
-                results['query_run_time_avg'] = self._query_exec_time_per_schema(db)
-                metrics.update(PERFORMANCE_VARS)
-            except Exception as e:
-                self.log.debug("Performance metrics unavailable at this time: {0}".format(e))
+            results['perf_digest_95th_percentile_avg_us'] = self._get_query_exec_time_95th_us(db)
+            results['query_run_time_avg'] = self._query_exec_time_per_schema(db)
+            metrics.update(PERFORMANCE_VARS)
 
         if _is_affirmative(options.get('schema_size_metrics', False)):
             # report avg query response time per schema to Datadog
-            try:
-                results['information_schema_size'] = self._query_size_per_schema(db)
-                metrics.update(SCHEMA_VARS)
-            except Exception as e:
-                self.log.debug("Schema size metrics unavailable at this time: {0}".format(e))
+            results['information_schema_size'] = self._query_size_per_schema(db)
+            metrics.update(SCHEMA_VARS)
 
         if _is_affirmative(options.get('replication', False)):
             # Get replica stats
             results.update(self._get_replica_stats(db))
+            results.update(self._get_slave_status(db, performance_schema_enabled))
             metrics.update(REPLICA_VARS)
 
             # get slave running form global status page
             slave_running_status = AgentCheck.UNKNOWN
             slave_running = self._collect_string('Slave_running', results)
+            binlog_running = results.get('Binlog_enabled', False)
+            # slaves will only be collected iff user has PROCESS privileges.
+            slaves = self._collect_scalar('Slaves_connected', results)
+
             if slave_running is not None:
                 if slave_running.lower().strip() == 'on':
                     slave_running_status = AgentCheck.OK
                 else:
                     slave_running_status = AgentCheck.CRITICAL
+            elif slaves or binlog_running:
+                if slaves and slaves > 0 and binlog_running:
+                    slave_running_status = AgentCheck.OK
+                else:
+                    slave_running_status = AgentCheck.WARNING
             else:
                 # MySQL 5.7.x might not have 'Slave_running'. See: https://bugs.mysql.com/bug.php?id=78544
                 # look at replica vars collected at the top of if-block
@@ -536,9 +546,9 @@ class MySql(AgentCheck):
                     slave_io_running = self._collect_string('Slave_IO_Running', results)
                     slave_sql_running = self._collect_string('Slave_SQL_Running', results)
                     if slave_io_running:
-                        slave_io_running = (slave_io_running.lower.strip() == "yes")
+                        slave_io_running = (slave_io_running.lower().strip() == "yes")
                     if slave_sql_running:
-                        slave_sql_running = (slave_sql_running.lower.strip() == "yes")
+                        slave_sql_running = (slave_sql_running.lower().strip() == "yes")
 
                     if not (slave_io_running is None and slave_sql_running is None):
                         if slave_io_running and slave_sql_running:
@@ -562,7 +572,7 @@ class MySql(AgentCheck):
             if k not in results:
                 metrics.pop(k, None)
 
-        #add duped metrics - reporting some as both rate and gauge
+        # add duped metrics - reporting some as both rate and gauge
         dupes = [('Table_locks_waited', 'Table_locks_waited_rate'),
                  ('Table_locks_immediate', 'Table_locks_immediate_rate')]
         for src, dst in dupes:
@@ -702,7 +712,7 @@ class MySql(AgentCheck):
                                     "Received value is None for index %d" % col_idx)
                         except ValueError:
                             self.log.exception("Cannot find %s in the columns %s"
-                                            % (field, cursor.description))
+                                               % (field, cursor.description))
         except Exception:
             self.warning("Error while running %s\n%s" %
                          (query, traceback.format_exc()))
@@ -725,7 +735,6 @@ class MySql(AgentCheck):
 
                     ucpu = proc.cpu_times()[0]
                     scpu = proc.cpu_times()[1]
-
 
                 if ucpu and scpu:
                     self.rate("mysql.performance.user_time", ucpu, tags=tags)
@@ -784,44 +793,91 @@ class MySql(AgentCheck):
             return results
 
     def _get_binary_log_stats(self, db):
-        with closing(db.cursor()) as cursor:
-            cursor.execute("SHOW MASTER LOGS;")
-            master_logs = dict(cursor.fetchall())
+        try:
+            with closing(db.cursor()) as cursor:
+                cursor.execute("SHOW BINARY LOGS;")
+                master_logs = dict(cursor.fetchall())
 
-            binary_log_space = 0
-            for key, value in master_logs.iteritems():
-                binary_log_space += value
+                binary_log_space = 0
+                for key, value in master_logs.iteritems():
+                    binary_log_space += value
 
-            return binary_log_space
+                return binary_log_space
+        except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
+            self.warning("Privileges error accessing the BINARY LOGS (must grant REPLICATION CLIENT): %s" % str(e))
+            return None
 
     def _is_innodb_engine_enabled(self, db):
         # Whether InnoDB engine is available or not can be found out either
         # from the output of SHOW ENGINES or from information_schema.ENGINES
         # table. Later is choosen because that involves no string parsing.
-        with closing(db.cursor()) as cursor:
-            cursor.execute(
-                "select engine from information_schema.ENGINES where engine='InnoDB'")
+        try:
+            with closing(db.cursor()) as cursor:
+                cursor.execute(
+                    "select engine from information_schema.ENGINES where engine='InnoDB' and \
+                    support != 'no' and support != 'disabled'"
+                )
 
-            return_val = True if cursor.rowcount > 0 else False
+                return (cursor.rowcount > 0)
 
-            return return_val
+        except (pymysql.err.InternalError, pymysql.err.OperationalError, pymysql.err.NotSupportedError) as e:
+            self.warning("Possibly innodb stats unavailable - error querying engines table: %s" % str(e))
+            return False
 
     def _get_replica_stats(self, db):
-        with closing(db.cursor()) as cursor:
-            cursor.execute("SHOW SLAVE STATUS;")
-            replica_results = dict(cursor.fetchall())
+        try:
+            with closing(db.cursor(pymysql.cursors.DictCursor)) as cursor:
+                replica_results = {}
+                cursor.execute("SHOW SLAVE STATUS;")
+                slave_results = cursor.fetchone()
+                if slave_results:
+                    replica_results.update(slave_results)
+                cursor.execute("SHOW MASTER STATUS;")
+                binlog_results = cursor.fetchone()
+                if binlog_results:
+                    replica_results.update({'Binlog_enabled': True})
 
-            return replica_results
+                return replica_results
+
+        except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
+            self.warning("Privileges error getting replication status (must grant REPLICATION CLIENT): %s" % str(e))
+            return {}
+
+    def _get_slave_status(self, db, nonblocking=False):
+        try:
+            with closing(db.cursor()) as cursor:
+                # querying threads instead of PROCESSLIST to avoid mutex impact on
+                # performance.
+                if nonblocking:
+                    cursor.execute("SELECT THREAD_ID, NAME FROM performance_schema.threads WHERE NAME LIKE '%worker'")
+                else:
+                    cursor.execute("SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND LIKE '%Binlog dump%'")
+                slave_results = cursor.fetchall()
+                slaves = 0
+                for row in slave_results:
+                    slaves += 1
+
+                return {'Slaves_connected': slaves}
+
+        except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
+            self.warning("Privileges error accessing the process tables (must grant PROCESS): %s" % str(e))
+            return {}
 
     def _get_stats_from_innodb_status(self, db):
         # There are a number of important InnoDB metrics that are reported in
         # InnoDB status but are not otherwise present as part of the STATUS
         # variables in MySQL. Majority of these metrics are reported though
         # as a part of STATUS variables in Percona Server and MariaDB.
-        with closing(db.cursor()) as cursor:
-            cursor.execute("SHOW /*!50000 ENGINE*/ INNODB STATUS")
-            innodb_status = cursor.fetchone()
-            innodb_status_text = innodb_status[2]
+        # Requires querying user to have PROCESS privileges.
+        try:
+            with closing(db.cursor()) as cursor:
+                cursor.execute("SHOW /*!50000 ENGINE*/ INNODB STATUS")
+                innodb_status = cursor.fetchone()
+                innodb_status_text = innodb_status[2]
+        except (pymysql.err.InternalError, pymysql.err.OperationalError, pymysql.err.NotSupportedError) as e:
+            self.warning("Privilege error or engine unavailable accessing the INNODB status \
+                         tables (must grant PROCESS): %s" % str(e))
+            return {}
 
         results = defaultdict(int)
 
@@ -924,7 +980,7 @@ class MySql(AgentCheck):
                     results['Innodb_pending_normal_aio_reads'] = (long(row[4]) + long(row[5]) +
                                                                   long(row[6]) + long(row[7]))
                     results['Innodb_pending_normal_aio_writes'] = (long(row[11]) + long(row[12]) +
-                                                                  long(row[13]) + long(row[14]))
+                                                                   long(row[13]) + long(row[14]))
                 elif len(row) == 18:
                     results['Innodb_pending_normal_aio_reads'] = long(row[4])
                     results['Innodb_pending_normal_aio_writes'] = long(row[12])
@@ -1112,16 +1168,21 @@ class MySql(AgentCheck):
             ORDER BY percentile
             LIMIT 1"""
 
-        with closing(db.cursor()) as cursor:
-            cursor.execute(sql_95th_percentile)
+        try:
+            with closing(db.cursor()) as cursor:
+                cursor.execute(sql_95th_percentile)
 
-            if cursor.rowcount < 1:
-                raise Exception("Failed to fetch record from the table performance_schema.events_statements_summary_by_digest")
+                if cursor.rowcount < 1:
+                    self.warning("Failed to fetch records from the perf schema 'events_statements_summary_by_digest' table.")
+                    return None
 
-            row = cursor.fetchone()
-            query_exec_time_95th_per = row[0]
+                row = cursor.fetchone()
+                query_exec_time_95th_per = row[0]
 
-            return query_exec_time_95th_per
+                return query_exec_time_95th_per
+        except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
+            self.warning("95th percentile performance metrics unavailable at this time: %s" % str(e))
+            return None
 
     def _query_exec_time_per_schema(self, db):
         # Fetches the avg query execution time per schema and returns the
@@ -1132,21 +1193,26 @@ class MySql(AgentCheck):
             WHERE schema_name IS NOT NULL
             GROUP BY schema_name"""
 
-        with closing(db.cursor()) as cursor:
-            cursor.execute(sql_avg_query_run_time)
+        try:
+            with closing(db.cursor()) as cursor:
+                cursor.execute(sql_avg_query_run_time)
 
-            if cursor.rowcount < 1:
-                raise Exception("Failed to fetch records from the table performance_schema.events_statements_summary_by_digest")
+                if cursor.rowcount < 1:
+                    self.warning("Failed to fetch records from the perf schema 'events_statements_summary_by_digest' table.")
+                    return None
 
-            schema_query_avg_run_time = {}
-            for row in cursor.fetchall():
-                schema_name = str(row[0])
-                avg_us = long(row[2])
+                schema_query_avg_run_time = {}
+                for row in cursor.fetchall():
+                    schema_name = str(row[0])
+                    avg_us = long(row[2])
 
-                # set the tag as the dictionary key
-                schema_query_avg_run_time["schema:{0}".format(schema_name)] = avg_us
+                    # set the tag as the dictionary key
+                    schema_query_avg_run_time["schema:{0}".format(schema_name)] = avg_us
 
-            return schema_query_avg_run_time
+                return schema_query_avg_run_time
+        except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
+            self.warning("Avg exec time performance metrics unavailable at this time: %s" % str(e))
+            return None
 
     def _query_size_per_schema(self, db):
         # Fetches the avg query execution time per schema and returns the
@@ -1159,21 +1225,27 @@ class MySql(AgentCheck):
                  GROUP BY table_schema;
         """
 
-        with closing(db.cursor()) as cursor:
-            cursor.execute(sql_query_schema_size)
+        try:
+            with closing(db.cursor()) as cursor:
+                cursor.execute(sql_query_schema_size)
 
-            if cursor.rowcount < 1:
-                raise Exception("Failed to fetch records from the information schema 'tables' table.")
+                if cursor.rowcount < 1:
+                    self.warning("Failed to fetch records from the information schema 'tables' table.")
+                    return None
 
-            schema_size = {}
-            for row in cursor.fetchall():
-                schema_name = str(row[0])
-                size = long(row[1])
+                schema_size = {}
+                for row in cursor.fetchall():
+                    schema_name = str(row[0])
+                    size = long(row[1])
 
-                # set the tag as the dictionary key
-                schema_size["schema:{0}".format(schema_name)] = size
+                    # set the tag as the dictionary key
+                    schema_size["schema:{0}".format(schema_name)] = size
 
-            return schema_size
+                return schema_size
+        except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
+            self.warning("Avg exec time performance metrics unavailable at this time: %s" % str(e))
+
+        return {}
 
     def _compute_synthetic_results(self, results):
         if ('Qcache_hits' in results) and ('Qcache_inserts' in results) and ('Qcache_not_cached' in results):

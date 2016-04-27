@@ -1,10 +1,16 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 """kubernetes check
 Collects metrics from cAdvisor instance
 """
 # stdlib
-import numbers
+from collections import defaultdict
 from fnmatch import fnmatch
+import numbers
 import re
+import simplejson as json
 
 # 3rd party
 import requests
@@ -12,8 +18,8 @@ import requests
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-from utils.kubeutil import set_kube_settings, get_kube_settings, get_kube_labels
 from utils.http import retrieve_json
+from utils.kubeutil import KubeUtil
 
 NAMESPACE = "kubernetes"
 DEFAULT_MAX_DEPTH = 10
@@ -40,6 +46,7 @@ FUNC_MAP = {
     RATE: {True: HISTORATE, False: RATE}
 }
 
+
 class Kubernetes(AgentCheck):
     """ Collect metrics and events from kubelet """
 
@@ -49,7 +56,7 @@ class Kubernetes(AgentCheck):
         if instances is not None and len(instances) > 1:
             raise Exception('Kubernetes check only supports one configured instance.')
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
-        self.kube_settings = set_kube_settings(instances[0])
+        self.kubeutil = KubeUtil()
 
     def _perform_kubelet_checks(self, url):
         service_check_base = NAMESPACE + '.kubelet.check'
@@ -77,7 +84,7 @@ class Kubernetes(AgentCheck):
         except Exception, e:
             self.log.warning('kubelet check failed: %s' % str(e))
             self.service_check(service_check_base, AgentCheck.CRITICAL,
-                message='Kubelet check failed: %s' % str(e))
+                               message='Kubelet check failed: %s' % str(e))
 
         else:
             if is_ok:
@@ -97,7 +104,7 @@ class Kubernetes(AgentCheck):
                 tags = ["minion_name:{0}".format(minion_name)]
                 if cond != 'Ready':
                     self.service_check(service_check_name, AgentCheck.CRITICAL,
-                        tags=tags, message=cond)
+                                       tags=tags, message=cond)
                 else:
                     self.service_check(service_check_name, AgentCheck.OK, tags=tags)
         except Exception, e:
@@ -105,10 +112,8 @@ class Kubernetes(AgentCheck):
             self.log.warning('master checks url=%s exception=%s' % (url, str(e)))
             raise
 
-
     def check(self, instance):
-        kube_settings = get_kube_settings()
-        if not kube_settings.get("host"):
+        if not self.kubeutil.host:
             raise Exception('Unable to get default router and host parameter is not set')
 
         self.max_depth = instance.get('max_depth', DEFAULT_MAX_DEPTH)
@@ -124,16 +129,14 @@ class Kubernetes(AgentCheck):
 
         # master health checks
         if instance.get('enable_master_checks', False):
-            master_url = kube_settings["master_url_nodes"]
-            self._perform_master_checks(master_url)
+            self._perform_master_checks(self.kubeutil.master_url_nodes)
 
         # kubelet health checks
         if instance.get('enable_kubelet_checks', True):
-            kube_health_url = kube_settings["kube_health_url"]
-            self._perform_kubelet_checks(kube_health_url)
+            self._perform_kubelet_checks(self.kubeutil.kube_health_url)
 
         # kubelet metrics
-        self._update_metrics(instance, kube_settings)
+        self._update_metrics(instance)
 
     def _publish_raw_metrics(self, metric, dat, tags, depth=0):
         if depth >= self.max_depth:
@@ -147,7 +150,7 @@ class Kubernetes(AgentCheck):
                 self.publish_gauge(self, metric, float(dat), tags)
 
         elif isinstance(dat, dict):
-            for k,v in dat.iteritems():
+            for k, v in dat.iteritems():
                 self._publish_raw_metrics(metric + '.%s' % k.lower(), v, tags, depth + 1)
 
         elif isinstance(dat, list):
@@ -159,7 +162,7 @@ class Kubernetes(AgentCheck):
         return re.sub('([0-9a-fA-F]{64,})', lambda x: x.group(1)[0:12], name)
 
     def _update_container_metrics(self, instance, subcontainer, kube_labels):
-        tags = instance.get('tags', []) # add support for custom tags
+        tags = instance.get('tags', [])  # add support for custom tags
 
         if len(subcontainer.get('aliases', [])) >= 1:
             # The first alias seems to always match the docker container name
@@ -172,7 +175,7 @@ class Kubernetes(AgentCheck):
 
         pod_name_set = False
         try:
-            for label_name,label in subcontainer['spec']['labels'].iteritems():
+            for label_name, label in subcontainer['spec']['labels'].iteritems():
                 label_name = label_name.replace('io.kubernetes.pod.name', 'pod_name')
                 if label_name == "pod_name":
                     pod_name_set = True
@@ -217,13 +220,11 @@ class Kubernetes(AgentCheck):
     def _retrieve_metrics(self, url):
         return retrieve_json(url)
 
-    def _retrieve_kube_labels(self):
-        return get_kube_labels()
+    def _update_metrics(self, instance):
+        pods_list = self.kubeutil.retrieve_pods_list()
+        metrics = self._retrieve_metrics(self.kubeutil.metrics_url)
+        kube_labels = self.kubeutil.extract_kube_labels(pods_list)
 
-
-    def _update_metrics(self, instance, kube_settings):
-        metrics = self._retrieve_metrics(kube_settings["metrics_url"])
-        kube_labels = self._retrieve_kube_labels()
         if not metrics:
             raise Exception('No metrics retrieved cmd=%s' % self.metrics_cmd)
 
@@ -233,3 +234,22 @@ class Kubernetes(AgentCheck):
             except Exception, e:
                 self.log.error("Unable to collect metrics for container: {0} ({1}".format(
                     subcontainer.get('name'), e))
+
+        self._update_pods_metrics(instance, pods_list)
+
+    def _update_pods_metrics(self, instance, pods):
+        controllers_map = defaultdict(list)
+        for pod in pods['items']:
+            node_name = pod['spec']['nodeName']
+            try:
+                created_by = json.loads(pod['metadata']['annotations']['kubernetes.io/created-by'])
+                if created_by['reference']['kind'] == 'ReplicationController':
+                    controllers_map[created_by['reference']['name']].append(node_name)
+            except KeyError:
+                continue
+
+        tags = instance.get('tags', [])
+        for ctrl, pods in controllers_map.iteritems():
+            _tags = tags[:]  # copy base tags
+            _tags.append('kube_replication_controller:{0}'.format(ctrl))
+            self.publish_gauge(self, NAMESPACE + '.pods.running', len(pods), _tags)

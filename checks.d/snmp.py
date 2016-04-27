@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # std
 from collections import defaultdict
 from functools import wraps
@@ -7,6 +11,7 @@ from pysnmp.entity.rfc3413.oneliner import cmdgen
 import pysnmp.proto.rfc1902 as snmp_type
 from pysnmp.smi import builder
 from pysnmp.smi.exval import noSuchInstance, noSuchObject
+from pysnmp.error import PySnmpError
 
 # project
 from checks.network_checks import NetworkCheck, Status
@@ -44,7 +49,6 @@ def reply_invalid(oid):
 class SnmpCheck(NetworkCheck):
 
     SOURCE_TYPE_NAME = 'system'
-    cmd_generator = None
     # pysnmp default values
     DEFAULT_RETRIES = 5
     DEFAULT_TIMEOUT = 1
@@ -53,8 +57,10 @@ class SnmpCheck(NetworkCheck):
     def __init__(self, name, init_config, agentConfig, instances):
         for instance in instances:
             if 'name' not in instance:
-                instance['name'] = instance['ip_address']
+                instance['name'] = self._get_instance_key(instance)
             instance['skip_event'] = True
+
+        self.generators = {}
 
         # Set OID batch size
         self.oid_batch_size = int(init_config.get("oid_batch_size", DEFAULT_OID_BATCH_SIZE))
@@ -67,9 +73,6 @@ class SnmpCheck(NetworkCheck):
             self.ignore_nonincreasing_oid = _is_affirmative(
                 init_config.get("ignore_nonincreasing_oid", False))
 
-        # Create SNMP command generator and aliases
-        self.create_command_generator(self.mibs_path, self.ignore_nonincreasing_oid)
-
         NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
 
     def _load_conf(self, instance):
@@ -78,9 +81,34 @@ class SnmpCheck(NetworkCheck):
         metrics = instance.get('metrics', [])
         timeout = int(instance.get('timeout', self.DEFAULT_TIMEOUT))
         retries = int(instance.get('retries', self.DEFAULT_RETRIES))
+        enforce_constraints = _is_affirmative(instance.get('enforce_mib_constraints', True))
 
-        return ip_address, tags, metrics, timeout, retries
+        instance_key = instance['name']
+        cmd_generator = self.generators.get(instance_key, None)
+        if not cmd_generator:
+            cmd_generator = self.create_command_generator(self.mibs_path, self.ignore_nonincreasing_oid)
+            self.generators[instance_key] = cmd_generator
 
+        return cmd_generator, ip_address, tags, metrics, timeout, retries, enforce_constraints
+
+    def _get_instance_key(self, instance):
+        key = instance.get('name', None)
+        if key:
+            return key
+
+        host = instance.get('host', None)
+        ip = instance.get('ip_address', None)
+        port = instance.get('port', None)
+        if host and port:
+            key = "{host}:{port}".format(host=host, port=port)
+        elif ip and port:
+            key = "{host}:{port}".format(host=ip, port=port)
+        elif host:
+            key = host
+        elif ip:
+            key = ip
+
+        return key
 
     def snmp_logger(self, func):
         """
@@ -101,18 +129,18 @@ class SnmpCheck(NetworkCheck):
         If mibs_path is not None, load the mibs present in the custom mibs
         folder. (Need to be in pysnmp format)
         '''
-        self.cmd_generator = cmdgen.CommandGenerator()
-        self.cmd_generator.ignoreNonIncreasingOid = ignore_nonincreasing_oid
+        cmd_generator = cmdgen.CommandGenerator()
+        cmd_generator.ignoreNonIncreasingOid = ignore_nonincreasing_oid
+
         if mibs_path is not None:
-            mib_builder = self.cmd_generator.snmpEngine.msgAndPduDsp.\
+            mib_builder = cmd_generator.snmpEngine.msgAndPduDsp.\
                 mibInstrumController.mibBuilder
             mib_sources = mib_builder.getMibSources() + \
                 (builder.DirMibSource(mibs_path), )
             mib_builder.setMibSources(*mib_sources)
 
-        # Set aliases for snmpget and snmpgetnext with logging
-        self.snmpget = self.snmp_logger(self.cmd_generator.getCmd)
-        self.snmpgetnext = self.snmp_logger(self.cmd_generator.nextCmd)
+        return cmd_generator
+
 
     @classmethod
     def get_auth_data(cls, instance):
@@ -174,7 +202,8 @@ class SnmpCheck(NetworkCheck):
             instance["service_check_error"] = message
             raise Exception(message)
 
-    def check_table(self, instance, oids, lookup_names, timeout, retries):
+    def check_table(self, instance, cmd_generator, oids, lookup_names,
+                    timeout, retries, enforce_constraints=False):
         '''
         Perform a snmpwalk on the domain specified by the oids, on the device
         configured in instance.
@@ -191,6 +220,10 @@ class SnmpCheck(NetworkCheck):
         # snmpgetnext -v2c -c public localhost:11111 1.36.1.2.1.25.4.2.1.7.222
         # iso.3.6.1.2.1.25.4.2.1.7.224 = INTEGER: 2
         # SOLUTION: perform a snmget command and fallback with snmpgetnext if not found
+
+        # Set aliases for snmpget and snmpgetnext with logging
+        snmpget = self.snmp_logger(cmd_generator.getCmd)
+        snmpgetnext = self.snmp_logger(cmd_generator.nextCmd)
         transport_target = self.get_transport_target(instance, timeout, retries)
         auth_data = self.get_auth_data(instance)
 
@@ -199,54 +232,66 @@ class SnmpCheck(NetworkCheck):
         results = defaultdict(dict)
 
         while first_oid < len(oids):
-
-            # Start with snmpget command
-            error_indication, error_status, error_index, var_binds = self.snmpget(
-                auth_data,
-                transport_target,
-                *(oids[first_oid:first_oid + self.oid_batch_size]),
-                lookupValues=lookup_names,
-                lookupNames=lookup_names)
-
-            first_oid = first_oid + self.oid_batch_size
-
-            # Raise on error_indication
-            self.raise_on_error_indication(error_indication, instance)
-
-            missing_results = []
-            complete_results = []
-
-            for var in var_binds:
-                result_oid, value = var
-                if reply_invalid(value):
-                    oid_tuple = result_oid.asTuple()
-                    oid = ".".join([str(i) for i in oid_tuple])
-                    missing_results.append(oid)
-                else:
-                    complete_results.append(var)
-
-            if missing_results:
-                # If we didn't catch the metric using snmpget, try snmpnext
-                error_indication, error_status, error_index, var_binds_table = self.snmpgetnext(
+            try:
+                # Start with snmpget command
+                error_indication, error_status, error_index, var_binds = snmpget(
                     auth_data,
                     transport_target,
-                    *missing_results,
-                    lookupValues=lookup_names,
+                    *(oids[first_oid:first_oid + self.oid_batch_size]),
+                    lookupValues=enforce_constraints,
                     lookupNames=lookup_names)
 
                 # Raise on error_indication
                 self.raise_on_error_indication(error_indication, instance)
 
-                if error_status:
-                    message = "{0} for instance {1}".format(error_status.prettyPrint(),
-                                                            instance["ip_address"])
-                    instance["service_check_error"] = message
-                    self.warning(message)
+                missing_results = []
+                complete_results = []
 
-                for table_row in var_binds_table:
-                    complete_results.extend(table_row)
+                for var in var_binds:
+                    result_oid, value = var
+                    if reply_invalid(value):
+                        oid_tuple = result_oid.asTuple()
+                        oid = ".".join([str(i) for i in oid_tuple])
+                        missing_results.append(oid)
+                    else:
+                        complete_results.append(var)
 
-            all_binds.extend(complete_results)
+                if missing_results:
+                    # If we didn't catch the metric using snmpget, try snmpnext
+                    error_indication, error_status, error_index, var_binds_table = snmpgetnext(
+                        auth_data,
+                        transport_target,
+                        *missing_results,
+                        lookupValues=enforce_constraints,
+                        lookupNames=lookup_names)
+
+                    # Raise on error_indication
+                    self.raise_on_error_indication(error_indication, instance)
+
+                    if error_status:
+                        message = "{0} for instance {1}".format(error_status.prettyPrint(),
+                                                                instance["ip_address"])
+                        instance["service_check_error"] = message
+                        self.warning(message)
+
+                    for table_row in var_binds_table:
+                        complete_results.extend(table_row)
+
+                all_binds.extend(complete_results)
+
+            except PySnmpError as e:
+                if "service_check_error" not in instance:
+                    instance["service_check_error"] = "Fail to collect some metrics: {0}".format(e)
+                if "service_check_severity" not in instance:
+                    instance["service_check_severity"] = Status.CRITICAL
+                self.warning("Fail to collect some metrics: {0}".format(e))
+
+            # if we fail move onto next batch
+            first_oid = first_oid + self.oid_batch_size
+
+        # if we've collected some variables, it's not that bad.
+        if "service_check_severity" in instance and len(all_binds):
+            instance["service_check_severity"] = Status.WARNING
 
         for result_oid, value in all_binds:
             if lookup_names:
@@ -265,7 +310,7 @@ class SnmpCheck(NetworkCheck):
         and should be looked up and one for those specified by oids
         '''
 
-        ip_address, tags, metrics, timeout, retries = self._load_conf(instance)
+        cmd_generator, ip_address, tags, metrics, timeout, retries, enforce_constraints = self._load_conf(instance)
 
         tags += ['snmp_device:{0}'.format(ip_address)]
 
@@ -289,23 +334,28 @@ class SnmpCheck(NetworkCheck):
         try:
             if table_oids:
                 self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
-                table_results = self.check_table(instance, table_oids, True, timeout, retries)
+                table_results = self.check_table(instance, cmd_generator, table_oids, True, timeout, retries,
+                                                 enforce_constraints=enforce_constraints)
                 self.report_table_metrics(metrics, table_results, tags)
 
             if raw_oids:
                 self.log.debug("Querying device %s for %s oids", ip_address, len(raw_oids))
-                raw_results = self.check_table(instance, raw_oids, False, timeout, retries)
+                raw_results = self.check_table(instance, cmd_generator, raw_oids, False, timeout, retries,
+                                               enforce_constraints=False)
                 self.report_raw_metrics(metrics, raw_results, tags)
         except Exception as e:
             if "service_check_error" not in instance:
-                instance["service_check_error"] = "Fail to collect metrics: {0}".format(e)
+                instance["service_check_error"] = "Fail to collect metrics for {0} - {1}".format(instance['name'], e)
             self.warning(instance["service_check_error"])
             return [(self.SC_STATUS, Status.CRITICAL, instance["service_check_error"])]
         finally:
             # Report service checks
             tags = ["snmp_device:%s" % ip_address]
             if "service_check_error" in instance:
-                return [(self.SC_STATUS, Status.DOWN, instance["service_check_error"])]
+                status = Status.DOWN
+                if "service_check_severity" in instance:
+                    status = instance["service_check_severity"]
+                return [(self.SC_STATUS, status, instance["service_check_error"])]
 
             return [(self.SC_STATUS, Status.UP, None)]
 
@@ -323,24 +373,29 @@ class SnmpCheck(NetworkCheck):
     def report_raw_metrics(self, metrics, results, tags):
         '''
         For all the metrics that are specified as oid,
-        the conf oid is going to be a prefix of the oid sent back by the device
+        the conf oid is going to exactly match or be a prefix of the oid sent back by the device
         Use the instance configuration to find the name to give to the metric
 
         Submit the results to the aggregator.
         '''
+
         for metric in metrics:
+            forced_type = metric.get('forced_type')
             if 'OID' in metric:
                 queried_oid = metric['OID']
-                for oid in results:
-                    if oid.startswith(queried_oid):
-                        value = results[oid]
-                        break
+                if queried_oid in results:
+                    value = results[queried_oid]
                 else:
-                    self.log.warning("No matching results found for oid %s",
-                                     queried_oid)
-                    continue
+                    for oid in results:
+                        if oid.startswith(queried_oid):
+                            value = results[oid]
+                            break
+                    else:
+                        self.log.warning("No matching results found for oid %s",
+                                         queried_oid)
+                        continue
                 name = metric.get('name', 'unnamed_metric')
-                self.submit_metric(name, value, tags)
+                self.submit_metric(name, value, forced_type, tags)
 
     def report_table_metrics(self, metrics, results, tags):
         '''
@@ -351,6 +406,7 @@ class SnmpCheck(NetworkCheck):
         '''
 
         for metric in metrics:
+            forced_type = metric.get('forced_type')
             if 'table' in metric:
                 index_based_tags = []
                 column_based_tags = []
@@ -368,7 +424,7 @@ class SnmpCheck(NetworkCheck):
                         metric_tags = tags + self.get_index_tags(index, results,
                                                                  index_based_tags,
                                                                  column_based_tags)
-                        self.submit_metric(value_to_collect, val, metric_tags)
+                        self.submit_metric(value_to_collect, val, forced_type, metric_tags)
 
             elif 'symbol' in metric:
                 name = metric['symbol']
@@ -377,7 +433,7 @@ class SnmpCheck(NetworkCheck):
                     self.log.warning("Several rows corresponding while the metric is supposed to be a scalar")
                     continue
                 val = result[0][1]
-                self.submit_metric(name, val, tags)
+                self.submit_metric(name, val, forced_type, tags)
             elif 'OID' in metric:
                 pass # This one is already handled by the other batch of requests
             else:
@@ -419,7 +475,7 @@ class SnmpCheck(NetworkCheck):
             tags.append("{0}:{1}".format(tag_group, tag_value))
         return tags
 
-    def submit_metric(self, name, snmp_value, tags=[]):
+    def submit_metric(self, name, snmp_value, forced_type, tags=[]):
         '''
         Convert the values reported as pysnmp-Managed Objects to values and
         report them to the aggregator
@@ -430,6 +486,19 @@ class SnmpCheck(NetworkCheck):
             return
 
         metric_name = self.normalize(name, prefix="snmp")
+
+        if forced_type:
+            if forced_type.lower() == "gauge":
+                value = int(snmp_value)
+                self.gauge(metric_name, value, tags)
+            elif forced_type.lower() == "counter":
+                value = int(snmp_value)
+                self.rate(metric_name, value, tags)
+            else:
+                self.warning("Invalid forced-type specified: {0} in {1}".format(forced_type, name))
+                raise Exception("Invalid forced-type in config file: {0}".format(name))
+
+            return
 
         # Ugly hack but couldn't find a cleaner way
         # Proper way would be to use the ASN1 method isSameTypeWith but it

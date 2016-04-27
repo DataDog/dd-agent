@@ -1,0 +1,46 @@
+# NOTE: for go metro to run unprivileged, you will have to set CAP_NET_RAW capabilities on the binary:
+#        (debian based) $ sudo apt-get install libcap
+#        (debian based - alternatively) $ sudo apt-get install libcap2-bin
+#        (redhat based) $ sudo yum install libcap
+#        (redhat based - alternatively) $ sudo yum install compat-libcap1
+#        $ sudo setcap cap_net_raw+ep /opt/datadog-agent/bin/go-metro
+#
+#        Because of different package names for different distros, if the instructions above
+#        don't work for you, please issue an `apt-cache search libcap` or `yum search libcap` and you
+#        should get a shortlist of packages that might provide the binary. Feel free to reach out
+#        should you require assistance.
+#
+#        Also, please note that go-metro logs to its own file - found in /var/log/datadog/go-metro.log.
+#        Additionally, go-mtro runs standalone so it will *NOT* currently appear on the agent's info page.
+#
+#        Finally, because the go-metro binary is only bundled with the 64-bit RPM and DEB distributions of the
+#        datadog-agent, it will only be available in those packaged versions (ie. go-metro is currently
+#        unavailable with the source install or the 32-bit packages).
+
+init_config:
+    snaplen: 512            # should be >=104 (to accomodate for the largest possible TCP header)
+    idle_ttl: 300           # time after which an idle flow (no traffic received) is flushed.
+    exp_ttl: 60             # time after which a finished flow is flushed.
+    statsd_ip: 127.0.0.1
+    statsd_port: 8125
+    log_to_file: true
+    log_level: info         # available levels: trace, debug, info, warning, error, critical
+
+instances:
+- interface: eth0           # metrics will be also tagged by interface.
+  tags:
+    - foo:bar
+  ips:                        # Whitelist by IP - will perform name lookup and tag with hostname if available.
+    - 192.168.0.1             # <--- SAMPLE IP SET YOUR OWN LIST.
+  hosts:                      # Whitelist by hostname - will perform ip lookup and filter by hosts ip's
+    - somehost.somedomain.to  # <---SAMPLE HOST, SET YOUR OWN LIST.
+
+                              # NOTE: Whitelisting with ips and hosts is *MANDATORY*. We want to avoid having
+                              #      go-metro inspect every incoming/outgoing packet through the interface.
+                              #      Under high network load circumstances, the performance impact would not be
+                              #      negligible and could consume valuable CPU/memory resources. Please ensure
+                              #      you define your interesting ips/hosts in the whitelists above.
+
+# - interface: eth2           # multiple interfaces may be sniffed from.
+#   tags:
+#     - bla:zap

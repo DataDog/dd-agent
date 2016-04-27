@@ -12,9 +12,15 @@ class TestMySql(AgentCheckTest):
     CHECK_NAME = 'mysql'
 
     METRIC_TAGS = ['tag1', 'tag2']
-    SC_TAGS = ['server:localhost', 'port:0']
+    SC_TAGS = ['server:localhost', 'port:unix_socket']
 
-    MYSQL_CONFIG = [{
+    MYSQL_MINIMAL_CONFIG = [{
+        'server': 'localhost',
+        'user': 'dog',
+        'pass': 'dog'
+    }]
+
+    MYSQL_COMPLEX_CONFIG = [{
         'server': 'localhost',
         'user': 'dog',
         'pass': 'dog',
@@ -142,6 +148,7 @@ class TestMySql(AgentCheckTest):
     OPTIONAL_REPLICATION_METRICS = [
         'mysql.replication.slave_running',
         'mysql.replication.seconds_behind_master',
+        'mysql.replication.slaves_connected',
     ]
 
     # Additional Vars found in "SHOW STATUS;"
@@ -306,8 +313,23 @@ class TestMySql(AgentCheckTest):
 
         self.assertTrue(after - before > at_least)
 
-    def test_check(self):
-        config = {'instances': self.MYSQL_CONFIG}
+    def test_minimal_config(self):
+        config = {'instances': self.MYSQL_MINIMAL_CONFIG}
+        self.run_check_twice(config)
+
+        # Test service check
+        self.assertServiceCheck('mysql.can_connect', status=AgentCheck.OK,
+                                tags=self.SC_TAGS, count=1)
+
+        # Test metrics
+        testable_metrics = (self.STATUS_VARS + self.VARIABLES_VARS + self.INNODB_VARS
+                            + self.BINLOG_VARS + self.SYSTEM_METRICS + self.SYNTHETIC_VARS)
+
+        for mname in testable_metrics:
+            self.assertMetric(mname, count=1)
+
+    def test_complex_config(self):
+        config = {'instances': self.MYSQL_COMPLEX_CONFIG}
         self.run_check_twice(config)
 
         # Test service check
@@ -322,7 +344,7 @@ class TestMySql(AgentCheckTest):
         ver = tuple(ver)
 
         testable_metrics = (self.STATUS_VARS + self.VARIABLES_VARS + self.INNODB_VARS
-                      + self.BINLOG_VARS + self.SYSTEM_METRICS + self.SCHEMA_VARS + self.SYNTHETIC_VARS)
+                            + self.BINLOG_VARS + self.SYSTEM_METRICS + self.SCHEMA_VARS + self.SYNTHETIC_VARS)
 
         if ver >= (5, 6, 0):
             testable_metrics.extend(self.PERFORMANCE_VARS)
@@ -346,7 +368,6 @@ class TestMySql(AgentCheckTest):
                 self.assertMetric(mname, tags=self.METRIC_TAGS+['schema:performance_schema'], count=1)
             else:
                 self.assertMetric(mname, tags=self.METRIC_TAGS, count=1)
-
 
         # Assert service metadata
         self.assertServiceMetadata(['version'], count=1)
@@ -374,6 +395,7 @@ class TestMySql(AgentCheckTest):
             Exception,
             lambda: self.run_check(config)
         )
+
         self.assertServiceCheck('mysql.can_connect', status=AgentCheck.CRITICAL,
                                 tags=self.SC_TAGS, count=1)
         self.coverage_report()

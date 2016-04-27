@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from datetime import datetime, timedelta
 import logging
@@ -78,6 +82,8 @@ class TransactionManager(object):
         self._flush_count = 0
         self._transactions_received = 0
         self._transactions_flushed = 0
+
+        self._too_big_count = 0
 
         # Global counter to assign a number to each transaction: we may have an issue
         #  if this overlaps
@@ -169,7 +175,8 @@ class TransactionManager(object):
             queue_size=self._total_size,
             flush_count=self._flush_count,
             transactions_received=self._transactions_received,
-            transactions_flushed=self._transactions_flushed).persist()
+            transactions_flushed=self._transactions_flushed,
+            too_big_count=self._too_big_count).persist()
 
     def flush_next(self):
 
@@ -211,6 +218,24 @@ class TransactionManager(object):
         log.warn("Transaction %d in error (%s error%s), it will be replayed after %s" %
           (tr.get_id(), tr.get_error_count(), plural(tr.get_error_count()),
            tr.get_next_flush()))
+
+    def tr_error_too_big(self,tr):
+        tr.inc_error_count()
+        log.warn("Transaction %d is %sKB, it has been rejected as too large. \
+          It will not be replayed." % (tr.get_id(), tr.get_size() / 1024))
+        self._transactions.remove(tr)
+        self._total_count -= 1
+        self._total_size -= tr.get_size()
+        self._transactions_flushed += 1
+        self.print_queue_stats()
+        self._too_big_count += 1
+        ForwarderStatus(
+            queue_length=self._total_count,
+            queue_size=self._total_size,
+            flush_count=self._flush_count,
+            transactions_received=self._transactions_received,
+            transactions_flushed=self._transactions_flushed,
+            too_big_count=self._too_big_count).persist()
 
     def tr_success(self,tr):
         log.debug("Transaction %d completed" % tr.get_id())

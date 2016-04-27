@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 require './ci/common'
 
 namespace :ci do
@@ -42,7 +46,12 @@ namespace :ci do
     task before_script: ['ci:common:before_script']
 
     task lint: ['rubocop'] do
+      sh %(echo "PWD IS")
+      sh %(pwd)
       sh %(flake8)
+      sh %(find . -name '*.py' -not\
+             \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' -or -path '*.git*' \\)\
+             | xargs -n 1 pylint --rcfile=./.pylintrc)
     end
 
     task script: ['ci:common:script', :coverage, :lint] do
@@ -72,7 +81,7 @@ namespace :ci do
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
       end
-      fail exception if exception
+      raise exception if exception
     end
   end
 end

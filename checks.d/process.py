@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2010-2016
+# (C) Luca Cipriani <luca@c9.io> 2013
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from collections import defaultdict
 import time
@@ -22,6 +27,7 @@ ATTR_TO_METRIC = {
     'vms':              'mem.vms',
     'real':             'mem.real',
     'open_fd':          'open_file_descriptors',
+    'open_handle':      'open_handles',  # win32 only
     'r_count':          'ioread_count',  # FIXME: namespace me correctly (6.x), io.r_count
     'w_count':          'iowrite_count',  # FIXME: namespace me correctly (6.x) io.r_bytes
     'r_bytes':          'ioread_bytes',  # FIXME: namespace me correctly (6.x) io.w_count
@@ -153,6 +159,8 @@ class ProcessCheck(AgentCheck):
             return result
         elif method == 'num_fds' and not Platform.is_unix():
             return result
+        elif method == 'num_handles' and not Platform.is_win32():
+            return result
 
         try:
             res = getattr(process, method)(*args, **kwargs)
@@ -225,6 +233,7 @@ class ProcessCheck(AgentCheck):
                 st['cpu'].append(cpu_percent)
 
             st['open_fd'].append(self.psutil_wrapper(p, 'num_fds', None))
+            st['open_handle'].append(self.psutil_wrapper(p, 'num_handles', None))
 
             ioinfo = self.psutil_wrapper(p, 'io_counters', ['read_count', 'write_count', 'read_bytes', 'write_bytes'])
             st['r_count'].append(ioinfo.get('read_count'))
