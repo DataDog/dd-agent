@@ -779,9 +779,16 @@ class MongoDb(AgentCheck):
                     )
 
                 # Submit the metric
+                metrics_tags = (
+                    tags +
+                    [
+                        u"cluster:db:{0}".format(st),  # FIXME 6.0 - keep for backward compatibility
+                        u"db:{0}".format(st),
+                    ]
+                )
+
                 submit_method, metric_name_alias = \
                     self._resolve_metric(metric_name, metrics_to_collect)
-                metrics_tags = tags + ['cluster:db:%s' % st]
                 submit_method(self, metric_name_alias, val, tags=metrics_tags)
 
         # Report the usage metrics for dbs/collections
