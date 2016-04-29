@@ -44,6 +44,7 @@ class MongoDb(AgentCheck):
     * `mongodb.replica_set_member_state`
       Disposition of the member replica set state.
     """
+    # Source
     SOURCE_TYPE_NAME = 'mongodb'
 
     # Service check
@@ -440,7 +441,7 @@ class MongoDb(AgentCheck):
 
         self.event({
             'timestamp': int(time.time()),
-            'event_type': 'Mongo',
+            'source_type_name': self.SOURCE_TYPE_NAME,
             'api_key': agentConfig.get('api_key', ''),
             'msg_title': msg_title,
             'msg_text': msg,
