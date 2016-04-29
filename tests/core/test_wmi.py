@@ -385,7 +385,7 @@ class TestUnitWMISampler(TestCommonWMI):
         """
         WMI connections are not be shared among WMISampler objects.
         """
-        from win32com.client import Dispatch
+        from win32com.client import Dispatch  # noqa
 
         wmi_sampler_1 = WMISampler("Win32_PerfRawData_PerfOS_System", ["ProcessorQueueLength"])
         wmi_sampler_2 = WMISampler("Win32_OperatingSystem", ["TotalVisibleMemorySize"])
