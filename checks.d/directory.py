@@ -6,9 +6,12 @@
 
 # stdlib
 from fnmatch import fnmatch
-from os import stat, walk
+from os import stat
 from os.path import abspath, exists, join
 import time
+
+# 3p
+from scandir import walk
 
 # project
 from checks import AgentCheck
@@ -44,13 +47,14 @@ class DirectoryCheck(AgentCheck):
         dirtagname = instance.get("dirtagname", "name")
         filetagname = instance.get("filetagname", "filename")
         filegauges = _is_affirmative(instance.get("filegauges", False))
+        countonly = _is_affirmative(instance.get("countonly", False))
 
         if not exists(abs_directory):
             raise Exception("DirectoryCheck: the directory (%s) does not exist" % abs_directory)
 
-        self._get_stats(abs_directory, name, dirtagname, filetagname, filegauges, pattern, recursive)
+        self._get_stats(abs_directory, name, dirtagname, filetagname, filegauges, pattern, recursive, countonly)
 
-    def _get_stats(self, directory, name, dirtagname, filetagname, filegauges, pattern, recursive):
+    def _get_stats(self, directory, name, dirtagname, filetagname, filegauges, pattern, recursive, countonly):
         dirtags = [dirtagname + ":%s" % name]
         directory_bytes = 0
         directory_files = 0
@@ -60,6 +64,13 @@ class DirectoryCheck(AgentCheck):
                 # check if it passes our filter
                 if not fnmatch(filename, pattern):
                     continue
+
+                directory_files += 1
+
+                # We're just looking to count the files, don't stat it as well
+                if countonly:
+                    continue
+
                 try:
                     file_stat = stat(filename)
 
@@ -67,7 +78,6 @@ class DirectoryCheck(AgentCheck):
                     self.warning("DirectoryCheck: could not stat file %s - %s" % (filename, ose))
                 else:
                     # file specific metrics
-                    directory_files += 1
                     directory_bytes += file_stat.st_size
                     if filegauges and directory_files <= 20:
                         filetags = list(dirtags)
@@ -89,4 +99,5 @@ class DirectoryCheck(AgentCheck):
         # number of files
         self.gauge("system.disk.directory.files", directory_files, tags=dirtags)
         # total file size
-        self.gauge("system.disk.directory.bytes", directory_bytes, tags=dirtags)
+        if not countonly:
+            self.gauge("system.disk.directory.bytes", directory_bytes, tags=dirtags)

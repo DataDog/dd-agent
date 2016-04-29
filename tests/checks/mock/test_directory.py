@@ -93,9 +93,14 @@ class DirectoryTestCase(AgentCheckTest):
         Directory metric coverage
         """
         config_stubs = self.get_config_stubs(self.temp_dir)
+        countonly_stubs = self.get_config_stubs(self.temp_dir)
+
+        # Try all the configurations in countonly mode as well
+        for stub in countonly_stubs:
+            stub['countonly'] = True
 
         config = {
-            'instances': config_stubs
+            'instances': config_stubs + countonly_stubs
         }
 
         self.run_check(config)
