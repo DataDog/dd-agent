@@ -56,12 +56,6 @@ class Marathon(AgentCheck):
                     if attr in app:
                         self.gauge('marathon.' + attr, app[attr], tags=tags)
 
-                query_url = urljoin(url, "/v2/apps/{0}/versions".format(app['id']))
-                versions_reply = self.get_json(query_url, timeout, auth)
-
-                if versions_reply is not None:
-                    self.gauge('marathon.versions', len(versions_reply['versions']), tags=tags)
-
     def get_json(self, url, timeout, auth):
         try:
             r = requests.get(url, timeout=timeout, auth=auth)
