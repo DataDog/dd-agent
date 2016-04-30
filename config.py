@@ -917,9 +917,9 @@ def load_check_directory(agentConfig, hostname):
         else:
             pass
 
-        # Look for the per-check config, which *must* exist
+        # Look for the per-check config.
         if not check_config.get('instances'):
-            log.error("Config %s is missing 'instances'" % conf_path)
+            log.info('No instances defined for %s' % check_name)
             continue
 
         # Init all of the check's classes with

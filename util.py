@@ -159,13 +159,14 @@ def check_yaml(conf_path):
         assert 'instances' in check_config, "No 'instances' section found"
 
         valid_instances = True
-        if check_config['instances'] is None or not isinstance(check_config['instances'], list):
-            valid_instances = False
-        else:
+        if isinstance(check_config['instances'], list):
             for i in check_config['instances']:
                 if not isinstance(i, dict):
                     valid_instances = False
                     break
+        elif check_config['instances'] is not None:
+            valid_instances = False
+
         if not valid_instances:
             raise Exception('You need to have at least one instance defined in the YAML file for this check')
         else:
