@@ -92,6 +92,7 @@ if sys.platform == 'win32':
         'checks.libs.vmware.*',
         'httplib2',
         'utils.containers',
+        'scandir',
 
         # pup
         'tornado.websocket',
