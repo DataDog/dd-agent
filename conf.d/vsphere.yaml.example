@@ -39,6 +39,13 @@ instances:
     # optional
     # vm_include_only_regex: ".*\.sql\.datadoghq\.com"
 
+    # Set to true if you'd like to only collect metrics on vSphere VMs which
+    # are marked by a custom field with the value 'DatadogMonitored'
+    # To set this custom field with PowerCLI, use the follow command: 
+    #   Get-VM <MyVMName> | Set-CustomField -Name "DatadogMonitored" -Value "DatadogMonitored"
+    # optional
+    # include_only_marked: false
+
     # When set to true, this will collect EVERY metric
     # from vCenter, which means a LOT of metrics you probably
     # do not care about. We have selected a set of metrics

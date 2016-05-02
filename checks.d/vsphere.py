@@ -17,6 +17,7 @@ from pyVim import connect
 from pyVmomi import vim # pylint: disable=E0611
 
 # project
+from config import _is_affirmative
 from checks import AgentCheck
 from checks.libs.thread_pool import Pool
 from checks.libs.vmware.basic_metrics import BASIC_METRICS
@@ -26,6 +27,8 @@ from util import Timer
 SOURCE_TYPE = 'vsphere'
 REAL_TIME_INTERVAL = 20  # Default vCenter sampling interval
 
+# Metrics are only collected on vSphere VMs marked by custom field value
+VM_MONITORING_FLAG = 'DatadogMonitored'
 # The size of the ThreadPool used to process the request queue
 DEFAULT_SIZE_POOL = 4
 # The interval in seconds between two refresh of the entities list
@@ -455,6 +458,8 @@ class VSphereCheck(AgentCheck):
 
         if i_key not in self.server_instances:
             try:
+                # Object returned by SmartConnect is a ServerInstance
+                #   https://www.vmware.com/support/developer/vc-sdk/visdk2xpubs/ReferenceGuide/vim.ServiceInstance.html
                 server_instance = connect.SmartConnect(
                     host = instance.get('host'),
                     user = instance.get('username'),
@@ -519,7 +524,7 @@ class VSphereCheck(AgentCheck):
         return external_host_tags
 
     @atomic_method
-    def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags, regexes=None):
+    def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags, regexes=None, include_only_marked=False):
         """ Compute tags for a single node in the vCenter rootFolder
         and queue other such jobs for children nodes.
         Usual hierarchy:
@@ -549,7 +554,7 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'datacenter', datacenter, tags_copy, regexes)
+                    args=(i_key, 'datacenter', datacenter, tags_copy, regexes, include_only_marked)
                 )
 
         elif obj_type == 'datacenter':
@@ -561,7 +566,7 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'compute_resource', compute_resource, tags_copy, regexes)
+                    args=(i_key, 'compute_resource', compute_resource, tags_copy, regexes, include_only_marked)
                 )
 
         elif obj_type == 'compute_resource':
@@ -574,7 +579,7 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'host', host, tags_copy, regexes)
+                    args=(i_key, 'host', host, tags_copy, regexes, include_only_marked)
                 )
 
         elif obj_type == 'host':
@@ -593,7 +598,7 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'vm', vm, tags_copy, regexes)
+                    args=(i_key, 'vm', vm, tags_copy, regexes, include_only_marked)
                 )
 
         elif obj_type == 'vm':
@@ -602,6 +607,18 @@ class VSphereCheck(AgentCheck):
                 if not match:
                     self.log.debug(u"Filtered out VM {0} because of vm_include_only_regex".format(obj.name))
                     return
+            # Also, if include_only_marked is true, then check if there exists a
+            # custom field with the value DatadogMonitored
+            if _is_affirmative(include_only_marked):
+                monitored = False
+                for field in obj.customValue:
+                    if field.value == VM_MONITORING_FLAG:
+                        monitored = True
+                        break  # we shall monitor
+                if not monitored:
+                    self.log.debug(u"Filtered out VM {0} because of include_only_marked".format(obj.name))
+                    return
+
             watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:vm'])
             self.morlist_raw[i_key].append(watched_mor)
 
@@ -633,9 +650,10 @@ class VSphereCheck(AgentCheck):
             'host_include': instance.get('host_include_only_regex'),
             'vm_include': instance.get('vm_include_only_regex')
         }
+        include_only_marked = instance.get('include_only_marked', False)
         self.pool.apply_async(
             self._cache_morlist_raw_atomic,
-            args=(i_key, 'rootFolder', root_folder, [instance_tag], regexes)
+            args=(i_key, 'rootFolder', root_folder, [instance_tag], regexes, include_only_marked)
         )
         self.cache_times[i_key][MORLIST][LAST] = time.time()
 
