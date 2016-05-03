@@ -818,7 +818,8 @@ class ForwarderStatus(AgentStatus):
             'hidden_username': self.hidden_username,
             'hidden_password': self.hidden_password,
             'too_big_count': self.too_big_count,
-
+            'transactions_received': self.transactions_received,
+            'transactions_flushed': self.transactions_flushed
         })
         return status_info
 
