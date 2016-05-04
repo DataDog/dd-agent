@@ -295,8 +295,8 @@ class WMISampler(object):
 
                 NOTE: If we just provide a value we defailt to '=' comparison operator.
                 Otherwise, specify the operator in a tuple as above: (comp_op, value)
-                If we detect a wildcard character such as '*' or '%' we will override
-                the operator to use LIKE
+                If we detect a wildcard character ('%') we will override the operator
+                to use LIKE
         """
         def build_where_clause(fltr):
             f = fltr.pop()
