@@ -426,7 +426,7 @@ class DockerDaemon(AgentCheck):
             if self._are_tags_filtered(container_tags):
                 container_name = DockerUtil.container_name_extractor(container)[0]
                 self._filtered_containers.add(container_name)
-                self.log.debug("Container {0} is filtered".format(container["Names"][0]))
+                self.log.debug("Container {0} is filtered".format(container_name))
 
 
     def _are_tags_filtered(self, tags):
