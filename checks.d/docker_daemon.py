@@ -762,9 +762,9 @@ class DockerDaemon(AgentCheck):
                 else:
                     continue
 
-                match = CONTAINER_ID_RE.search(cpuacct)
-                if match:
-                    container_id = match.group(0)
+                matches = re.findall(CONTAINER_ID_RE, cpuacct)
+                if matches:
+                    container_id = matches[-1]
                     if container_id not in container_dict:
                         self.log.debug("Container %s not in container_dict, it's likely excluded", container_id)
                         continue
