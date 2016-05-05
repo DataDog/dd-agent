@@ -754,6 +754,27 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(fourth['check'], 'check.4')
         nt.assert_equal(fourth['tags'], sorted(['t1', 't2:v2', 't3', 't4']))
 
+    def test_service_check_tag_key_ends_with_m(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit_packets('_sc|check.1|0|#keym:value')
+        stats.submit_packets('_sc|check.2|0|#key2m:value|m:fakeout')
+        stats.submit_packets('_sc|check.3|0|#key:valuem:value2,key2:value2|m:fakeoutm\:|h:#5')
+
+        service_checks = self.sort_service_checks(stats.flush_service_checks())
+
+        assert len(service_checks) == 3
+        first, second, third = service_checks
+
+        nt.assert_equal(first['check'], 'check.1')
+        nt.assert_equal(first['tags'], ['keym:value'])
+        nt.assert_not_in('message', first)
+        nt.assert_equal(second['check'], 'check.2')
+        nt.assert_equal(second['tags'], ['key2m:value'])
+        nt.assert_equal(second['message'], 'fakeout')
+        nt.assert_equal(third['check'], 'check.3')
+        nt.assert_equal(third['tags'], sorted(['key:valuem:value2', 'key2:value2']))
+        nt.assert_equal(third['message'], 'fakeoutm:|h:#5')
+
     def test_recent_point_threshold(self):
         threshold = 100
         # The min is not enabled by default
