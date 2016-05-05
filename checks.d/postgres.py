@@ -423,6 +423,7 @@ SELECT s.schemaname,
             self.CONNECTION_METRICS,
             self.LOCK_METRICS,
             self.COUNT_METRICS,
+            self.FUNCTION_METRICS,
         ]
 
         if function_metrics:
