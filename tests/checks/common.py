@@ -300,7 +300,7 @@ WARNINGS
             untested_events=pformat(untested_events),
         ))
 
-        if os.getenv('COVERAGE'):
+        if not os.getenv('NO_COVERAGE'):
             self.assertEquals(coverage_metrics, 100.0)
             self.assertEquals(coverage_events, 100.0)
             self.assertEquals(coverage_sc, 100.0)

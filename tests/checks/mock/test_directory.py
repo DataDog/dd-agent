@@ -125,7 +125,7 @@ class DirectoryTestCase(AgentCheckTest):
                 # 12 files in 'temp_dir'
                 self.assertMetric("system.disk.directory.files", tags=dir_tags, count=1, value=12)
 
-        # Raises when COVERAGE=true and coverage < 100%
+        # Raises when coverage < 100%
         self.coverage_report()
 
     def test_file_metrics(self):
@@ -169,5 +169,5 @@ class DirectoryTestCase(AgentCheckTest):
             for mname in self.COMMON_METRICS:
                 self.assertMetric(mname, tags=dir_tags, count=1)
 
-        # Raises when COVERAGE=true and coverage < 100%
+        # Raises when coverage < 100%
         self.coverage_report()

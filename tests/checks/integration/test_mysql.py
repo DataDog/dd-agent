@@ -382,7 +382,7 @@ class TestMySql(AgentCheckTest):
                                      + self.OPTIONAL_STATUS_VARS
                                      + self.OPTIONAL_STATUS_VARS_5_6_6), 1)
 
-        # Raises when COVERAGE=true and coverage < 100%
+        # Raises when coverage < 100%
         self.coverage_report()
 
     def test_connection_failure(self):

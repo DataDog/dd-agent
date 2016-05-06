@@ -7,7 +7,6 @@ environment:
   VOLATILE_DIR: c:\projects
   NOSE_FILTER: windows
   FLAVORS: windows
-  COVERAGE: true
   PYWIN_PATH: C:\projects\dd-agent\.cache\pywin32-py2.7.exe
   matrix:
   - PYTHON: C:\\Python27
