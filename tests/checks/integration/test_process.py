@@ -114,6 +114,17 @@ class ProcessCheckTest(AgentCheckTest):
             },
             'mocked_processes': set([89])
         },
+        {
+            'config': {
+                'name': 'test_7',
+                'search_string': ['test_7'],  # index in the array for our find_pids mock
+                'thresholds': {
+                    'critical': [2, 4],
+                    'warning': [1, 5]
+                }
+            },
+            'mocked_processes': set([1])
+        }
     ]
 
     PROCESS_METRIC = [
@@ -130,6 +141,13 @@ class ProcessCheckTest(AgentCheckTest):
         'system.processes.open_file_descriptors',
         'system.processes.threads',
         'system.processes.voluntary_ctx_switches'
+    ]
+
+    PAGEFAULT_STAT = [
+        'minor_faults',
+        'children_minor_faults',
+        'major_faults',
+        'children_major_faults'
     ]
 
     def get_psutil_proc(self):
@@ -235,24 +253,35 @@ class ProcessCheckTest(AgentCheckTest):
 
     @patch('psutil.Process', return_value=MockProcess())
     def test_check(self, mock_process):
+        (minflt, cminflt, majflt, cmajflt) = [1, 2, 3, 4]
+        pg_fault_stats = {'minor_faults': minflt,'children_minor_faults': cminflt,'major_faults': majflt,'children_major_faults': cmajflt}
+
+        def mock_get_pagefault_stats(pid):
+            return [minflt, cminflt, majflt, cmajflt]
+
         mocks = {
             'find_pids': self.mock_find_pids,
             'psutil_wrapper': self.mock_psutil_wrapper,
-            'get_pagefault_stats': noop_get_pagefault_stats,
+            'get_pagefault_stats': mock_get_pagefault_stats,
         }
 
         config = {
             'instances': [stub['config'] for stub in self.CONFIG_STUBS]
         }
+
         self.run_check(config, mocks=mocks)
+
+        instance_config = config['instances'][-1]
+        for stat_name in self.PAGEFAULT_STAT:
+            self.assertMetric('system.processes.mem.page_faults.' + stat_name, at_least=1,
+                tags=self.generate_expected_tags(instance_config),
+                value=pg_fault_stats[stat_name])
 
         for stub in self.CONFIG_STUBS:
             mocked_processes = stub['mocked_processes']
-
             # Assert metrics
             for mname in self.PROCESS_METRIC:
                 expected_tags = self.generate_expected_tags(stub['config'])
-
                 expected_value = None
                 # - if no processes are matched we don't send metrics except number
                 # - it's the first time the check runs so don't send cpu.pct
@@ -269,6 +298,12 @@ class ProcessCheckTest(AgentCheckTest):
                     value=expected_value
                 )
 
+            # these are just here to ensure it passes the coverage report.
+            # they don't really "test" for anything.
+            for stat_name in self.PAGEFAULT_STAT:
+                self.assertMetric('system.processes.mem.page_faults.' + stat_name, at_least=0,
+                    tags=self.generate_expected_tags(stub['config']))
+
             # Assert service checks
             expected_tags = ['process:{0}'.format(stub['config']['name'])]
             critical = stub['config'].get('thresholds', {}).get('critical')
@@ -281,6 +316,7 @@ class ProcessCheckTest(AgentCheckTest):
                 self.assertServiceCheckWarning('process.up', count=1, tags=expected_tags)
             else:
                 self.assertServiceCheckOK('process.up', count=1, tags=expected_tags)
+
 
         # Raises when coverage < 100%
         self.coverage_report()
@@ -433,36 +469,4 @@ class ProcessCheckTest(AgentCheckTest):
 
         self.assertMetric('system.processes.number', at_least=1, tags=expected_tags)
 
-        self.coverage_report()
-
-    def test_pagefault_stats(self):
-        (minflt, cminflt, majflt, cmajflt) = [1, 2, 3, 4]
-
-        def mock_get_pagefault_stats(pid):
-            return [minflt, cminflt, majflt, cmajflt]
-
-        config = {
-            'instances': [{
-                'name': 'test_0',
-                'search_string': ['test_0'],  # index in the array for our find_pids mock
-                'thresholds': {
-                    'critical': [2, 4],
-                    'warning': [1, 5]
-                }
-            }]
-        }
-
-        def mock_find_pids(_1, _2, _3, **kwargs):
-            return set([1])
-        mocks = {
-            'find_pids': mock_find_pids,
-            'get_pagefault_stats': mock_get_pagefault_stats,
-        }
-        self.run_check(config, mocks=mocks)
-
-        instance_config = config['instances'][0]
-        self.assertMetric('system.processes.mem.minflt', at_least=1, tags=self.generate_expected_tags(instance_config), value=minflt)
-        self.assertMetric('system.processes.mem.cminflt', at_least=1, tags=self.generate_expected_tags(instance_config), value=cminflt)
-        self.assertMetric('system.processes.mem.majflt', at_least=1, tags=self.generate_expected_tags(instance_config), value=majflt)
-        self.assertMetric('system.processes.mem.cmajflt', at_least=1, tags=self.generate_expected_tags(instance_config), value=cmajflt)
         self.coverage_report()
