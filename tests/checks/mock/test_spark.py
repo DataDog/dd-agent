@@ -19,7 +19,6 @@ RM_URI = 'http://localhost:8088'
 # URL Paths
 YARN_APPS_PATH = 'ws/v1/cluster/apps'
 SPARK_REST_PATH = 'api/v1/applications'
-INFO_PATH = 'ws/v1/cluster/info'
 
 # Service Check Names
 YARN_SERVICE_CHECK = 'spark.resource_manager.can_connect'
@@ -37,7 +36,6 @@ def join_url_dir(url, *args):
     return url
 
 # Service URLs
-CLUSTER_INFO_URL = urljoin(RM_URI, INFO_PATH)
 YARN_APP_URL = urljoin(RM_URI, YARN_APPS_PATH) + '?states=RUNNING&applicationTypes=SPARK'
 SPARK_APP_URL = join_url_dir(RM_URI, 'proxy', YARN_APP_ID, SPARK_REST_PATH)
 SPARK_JOB_URL = join_url_dir(RM_URI, 'proxy', YARN_APP_ID, SPARK_REST_PATH, SPARK_APP_ID, 'jobs')
@@ -59,12 +57,7 @@ def requests_get_mock(*args, **kwargs):
         def raise_for_status(self):
             return True
 
-    if args[0] == CLUSTER_INFO_URL:
-        with open(Fixtures.file('cluster_info'), 'r') as f:
-            body = f.read()
-            return MockResponse(body, 200)
-
-    elif args[0] == YARN_APP_URL:
+    if args[0] == YARN_APP_URL:
         with open(Fixtures.file('apps_metrics'), 'r') as f:
             body = f.read()
             return MockResponse(body, 200)
@@ -105,15 +98,15 @@ class SparkCheck(AgentCheckTest):
 
     SPARK_JOB_RUNNING_METRIC_VALUES = {
         'spark.job.count': 2,
-        'spark.job.num_tasks.max': 20,
-        'spark.job.num_active_tasks.max': 30,
-        'spark.job.num_completed_tasks.max': 40,
-        'spark.job.num_skipped_tasks.max': 50,
-        'spark.job.num_failed_tasks.max': 60,
-        'spark.job.num_active_stages.max': 70,
-        'spark.job.num_completed_stages.max': 80,
-        'spark.job.num_skipped_stages.max': 90,
-        'spark.job.num_failed_stages.max': 100
+        'spark.job.num_tasks': 20,
+        'spark.job.num_active_tasks': 30,
+        'spark.job.num_completed_tasks': 40,
+        'spark.job.num_skipped_tasks': 50,
+        'spark.job.num_failed_tasks': 60,
+        'spark.job.num_active_stages': 70,
+        'spark.job.num_completed_stages': 80,
+        'spark.job.num_skipped_stages': 90,
+        'spark.job.num_failed_stages': 100
     }
 
     SPARK_JOB_RUNNING_METRIC_TAGS = [
@@ -122,18 +115,17 @@ class SparkCheck(AgentCheckTest):
         'status:running',
     ]
 
-
     SPARK_JOB_SUCCEEDED_METRIC_VALUES = {
         'spark.job.count': 3,
-        'spark.job.num_tasks.max': 1000,
-        'spark.job.num_active_tasks.max': 2000,
-        'spark.job.num_completed_tasks.max': 3000,
-        'spark.job.num_skipped_tasks.max': 4000,
-        'spark.job.num_failed_tasks.max': 5000,
-        'spark.job.num_active_stages.max': 6000,
-        'spark.job.num_completed_stages.max': 7000,
-        'spark.job.num_skipped_stages.max': 8000,
-        'spark.job.num_failed_stages.max': 9000
+        'spark.job.num_tasks': 1000,
+        'spark.job.num_active_tasks': 2000,
+        'spark.job.num_completed_tasks': 3000,
+        'spark.job.num_skipped_tasks': 4000,
+        'spark.job.num_failed_tasks': 5000,
+        'spark.job.num_active_stages': 6000,
+        'spark.job.num_completed_stages': 7000,
+        'spark.job.num_skipped_stages': 8000,
+        'spark.job.num_failed_stages': 9000
     }
 
     SPARK_JOB_SUCCEEDED_METRIC_TAGS = [
@@ -144,20 +136,20 @@ class SparkCheck(AgentCheckTest):
 
     SPARK_STAGE_RUNNING_METRIC_VALUES = {
         'spark.stage.count': 3,
-        'spark.stage.num_active_tasks.max': 3,
-        'spark.stage.num_complete_tasks.max': 4,
-        'spark.stage.num_failed_tasks.max': 5,
-        'spark.stage.executor_run_time.max': 6,
-        'spark.stage.input_bytes.max': 7,
-        'spark.stage.input_records.max': 8,
-        'spark.stage.output_bytes.max': 9,
-        'spark.stage.output_records.max': 10,
-        'spark.stage.shuffle_read_bytes.max': 11,
-        'spark.stage.shuffle_read_records.max': 12,
-        'spark.stage.shuffle_write_bytes.max': 13,
-        'spark.stage.shuffle_write_records.max': 14,
-        'spark.stage.memory_bytes_spilled.max': 15,
-        'spark.stage.disk_bytes_spilled.max': 16,
+        'spark.stage.num_active_tasks': 3*3,
+        'spark.stage.num_complete_tasks': 4*3,
+        'spark.stage.num_failed_tasks': 5*3,
+        'spark.stage.executor_run_time': 6*3,
+        'spark.stage.input_bytes': 7*3,
+        'spark.stage.input_records': 8*3,
+        'spark.stage.output_bytes': 9*3,
+        'spark.stage.output_records': 10*3,
+        'spark.stage.shuffle_read_bytes': 11*3,
+        'spark.stage.shuffle_read_records': 12*3,
+        'spark.stage.shuffle_write_bytes': 13*3,
+        'spark.stage.shuffle_write_records': 14*3,
+        'spark.stage.memory_bytes_spilled': 15*3,
+        'spark.stage.disk_bytes_spilled': 16*3,
     }
 
     SPARK_STAGE_RUNNING_METRIC_TAGS = [
@@ -168,20 +160,20 @@ class SparkCheck(AgentCheckTest):
 
     SPARK_STAGE_COMPLETE_METRIC_VALUES = {
         'spark.stage.count': 2,
-        'spark.stage.num_active_tasks.max': 100,
-        'spark.stage.num_complete_tasks.max': 101,
-        'spark.stage.num_failed_tasks.max': 102,
-        'spark.stage.executor_run_time.max': 103,
-        'spark.stage.input_bytes.max': 104,
-        'spark.stage.input_records.max': 105,
-        'spark.stage.output_bytes.max': 106,
-        'spark.stage.output_records.max': 107,
-        'spark.stage.shuffle_read_bytes.max': 108,
-        'spark.stage.shuffle_read_records.max': 109,
-        'spark.stage.shuffle_write_bytes.max': 110,
-        'spark.stage.shuffle_write_records.max': 111,
-        'spark.stage.memory_bytes_spilled.max': 112,
-        'spark.stage.disk_bytes_spilled.max': 113,
+        'spark.stage.num_active_tasks': 100*2,
+        'spark.stage.num_complete_tasks': 101*2,
+        'spark.stage.num_failed_tasks': 102*2,
+        'spark.stage.executor_run_time': 103*2,
+        'spark.stage.input_bytes': 104*2,
+        'spark.stage.input_records': 105*2,
+        'spark.stage.output_bytes': 106*2,
+        'spark.stage.output_records': 107*2,
+        'spark.stage.shuffle_read_bytes': 108*2,
+        'spark.stage.shuffle_read_records': 109*2,
+        'spark.stage.shuffle_write_bytes': 110*2,
+        'spark.stage.shuffle_write_records': 111*2,
+        'spark.stage.memory_bytes_spilled': 112*2,
+        'spark.stage.disk_bytes_spilled': 113*2,
     }
 
     SPARK_STAGE_COMPLETE_METRIC_TAGS = [
@@ -207,26 +199,26 @@ class SparkCheck(AgentCheckTest):
 
     SPARK_EXECUTOR_METRIC_VALUES = {
         'spark.executor.count': 2,
-        'spark.executor.rdd_blocks.max': 1,
-        'spark.executor.memory_used.max': 2,
-        'spark.executor.disk_used.max': 3,
-        'spark.executor.active_tasks.max': 4,
-        'spark.executor.failed_tasks.max': 5,
-        'spark.executor.completed_tasks.max': 6,
-        'spark.executor.total_tasks.max': 7,
-        'spark.executor.total_duration.max': 8,
-        'spark.executor.total_input_bytes.max': 9,
-        'spark.executor.total_shuffle_read.max': 10,
-        'spark.executor.total_shuffle_write.max': 11,
-        'spark.executor.max_memory.max': 555755765,
+        'spark.executor.rdd_blocks': 1,
+        'spark.executor.memory_used': 2,
+        'spark.executor.disk_used': 3,
+        'spark.executor.active_tasks': 4,
+        'spark.executor.failed_tasks': 5,
+        'spark.executor.completed_tasks': 6,
+        'spark.executor.total_tasks': 7,
+        'spark.executor.total_duration': 8,
+        'spark.executor.total_input_bytes': 9,
+        'spark.executor.total_shuffle_read': 10,
+        'spark.executor.total_shuffle_write': 11,
+        'spark.executor.max_memory': 555755765,
     }
 
     SPARK_RDD_METRIC_VALUES = {
         'spark.rdd.count': 1,
-        'spark.rdd.num_partitions.max': 2,
-        'spark.rdd.num_cached_partitions.max': 2,
-        'spark.rdd.memory_used.max': 284,
-        'spark.rdd.disk_used.max': 0,
+        'spark.rdd.num_partitions': 2,
+        'spark.rdd.num_cached_partitions': 2,
+        'spark.rdd.memory_used': 284,
+        'spark.rdd.disk_used': 0,
     }
 
     SPARK_METRIC_TAGS = [

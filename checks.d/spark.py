@@ -86,7 +86,6 @@ YARN_SERVICE_CHECK = 'spark.resource_manager.can_connect'
 SPARK_SERVICE_CHECK = 'spark.application_master.can_connect'
 
 # URL Paths
-INFO_PATH = 'ws/v1/cluster/info'
 YARN_APPS_PATH = 'ws/v1/cluster/apps'
 SPARK_APPS_PATH = 'api/v1/applications'
 
@@ -95,37 +94,36 @@ YARN_APPLICATION_TYPES = 'SPARK'
 YARN_APPLICATION_STATES = 'RUNNING'
 
 # Metric types
-HISTOGRAM = 'histogram'
 INCREMENT = 'increment'
 
 # Metrics to collect
 SPARK_JOB_METRICS = {
-    'numTasks': ('spark.job.num_tasks', HISTOGRAM),
-    'numActiveTasks': ('spark.job.num_active_tasks', HISTOGRAM),
-    'numCompletedTasks': ('spark.job.num_completed_tasks', HISTOGRAM),
-    'numSkippedTasks': ('spark.job.num_skipped_tasks', HISTOGRAM),
-    'numFailedTasks': ('spark.job.num_failed_tasks', HISTOGRAM),
-    'numActiveStages': ('spark.job.num_active_stages', HISTOGRAM),
-    'numCompletedStages': ('spark.job.num_completed_stages', HISTOGRAM),
-    'numSkippedStages': ('spark.job.num_skipped_stages', HISTOGRAM),
-    'numFailedStages': ('spark.job.num_failed_stages', HISTOGRAM)
+    'numTasks': ('spark.job.num_tasks', INCREMENT),
+    'numActiveTasks': ('spark.job.num_active_tasks', INCREMENT),
+    'numCompletedTasks': ('spark.job.num_completed_tasks', INCREMENT),
+    'numSkippedTasks': ('spark.job.num_skipped_tasks', INCREMENT),
+    'numFailedTasks': ('spark.job.num_failed_tasks', INCREMENT),
+    'numActiveStages': ('spark.job.num_active_stages', INCREMENT),
+    'numCompletedStages': ('spark.job.num_completed_stages', INCREMENT),
+    'numSkippedStages': ('spark.job.num_skipped_stages', INCREMENT),
+    'numFailedStages': ('spark.job.num_failed_stages', INCREMENT)
 }
 
 SPARK_STAGE_METRICS = {
-    'numActiveTasks': ('spark.stage.num_active_tasks', HISTOGRAM),
-    'numCompleteTasks': ('spark.stage.num_complete_tasks', HISTOGRAM),
-    'numFailedTasks': ('spark.stage.num_failed_tasks', HISTOGRAM),
-    'executorRunTime': ('spark.stage.executor_run_time', HISTOGRAM),
-    'inputBytes': ('spark.stage.input_bytes', HISTOGRAM),
-    'inputRecords': ('spark.stage.input_records', HISTOGRAM),
-    'outputBytes': ('spark.stage.output_bytes', HISTOGRAM),
-    'outputRecords': ('spark.stage.output_records', HISTOGRAM),
-    'shuffleReadBytes': ('spark.stage.shuffle_read_bytes', HISTOGRAM),
-    'shuffleReadRecords': ('spark.stage.shuffle_read_records', HISTOGRAM),
-    'shuffleWriteBytes': ('spark.stage.shuffle_write_bytes', HISTOGRAM),
-    'shuffleWriteRecords': ('spark.stage.shuffle_write_records', HISTOGRAM),
-    'memoryBytesSpilled': ('spark.stage.memory_bytes_spilled', HISTOGRAM),
-    'diskBytesSpilled': ('spark.stage.disk_bytes_spilled', HISTOGRAM)
+    'numActiveTasks': ('spark.stage.num_active_tasks', INCREMENT),
+    'numCompleteTasks': ('spark.stage.num_complete_tasks', INCREMENT),
+    'numFailedTasks': ('spark.stage.num_failed_tasks', INCREMENT),
+    'executorRunTime': ('spark.stage.executor_run_time', INCREMENT),
+    'inputBytes': ('spark.stage.input_bytes', INCREMENT),
+    'inputRecords': ('spark.stage.input_records', INCREMENT),
+    'outputBytes': ('spark.stage.output_bytes', INCREMENT),
+    'outputRecords': ('spark.stage.output_records', INCREMENT),
+    'shuffleReadBytes': ('spark.stage.shuffle_read_bytes', INCREMENT),
+    'shuffleReadRecords': ('spark.stage.shuffle_read_records', INCREMENT),
+    'shuffleWriteBytes': ('spark.stage.shuffle_write_bytes', INCREMENT),
+    'shuffleWriteRecords': ('spark.stage.shuffle_write_records', INCREMENT),
+    'memoryBytesSpilled': ('spark.stage.memory_bytes_spilled', INCREMENT),
+    'diskBytesSpilled': ('spark.stage.disk_bytes_spilled', INCREMENT)
 }
 
 SPARK_DRIVER_METRICS = {
@@ -144,25 +142,25 @@ SPARK_DRIVER_METRICS = {
 }
 
 SPARK_EXECUTOR_METRICS = {
-    'rddBlocks': ('spark.executor.rdd_blocks', HISTOGRAM),
-    'memoryUsed': ('spark.executor.memory_used', HISTOGRAM),
-    'diskUsed': ('spark.executor.disk_used', HISTOGRAM),
-    'activeTasks': ('spark.executor.active_tasks', HISTOGRAM),
-    'failedTasks': ('spark.executor.failed_tasks', HISTOGRAM),
-    'completedTasks': ('spark.executor.completed_tasks', HISTOGRAM),
-    'totalTasks': ('spark.executor.total_tasks', HISTOGRAM),
-    'totalDuration': ('spark.executor.total_duration', HISTOGRAM),
-    'totalInputBytes': ('spark.executor.total_input_bytes', HISTOGRAM),
-    'totalShuffleRead': ('spark.executor.total_shuffle_read', HISTOGRAM),
-    'totalShuffleWrite': ('spark.executor.total_shuffle_write', HISTOGRAM),
-    'maxMemory': ('spark.executor.max_memory', HISTOGRAM)
+    'rddBlocks': ('spark.executor.rdd_blocks', INCREMENT),
+    'memoryUsed': ('spark.executor.memory_used', INCREMENT),
+    'diskUsed': ('spark.executor.disk_used', INCREMENT),
+    'activeTasks': ('spark.executor.active_tasks', INCREMENT),
+    'failedTasks': ('spark.executor.failed_tasks', INCREMENT),
+    'completedTasks': ('spark.executor.completed_tasks', INCREMENT),
+    'totalTasks': ('spark.executor.total_tasks', INCREMENT),
+    'totalDuration': ('spark.executor.total_duration', INCREMENT),
+    'totalInputBytes': ('spark.executor.total_input_bytes', INCREMENT),
+    'totalShuffleRead': ('spark.executor.total_shuffle_read', INCREMENT),
+    'totalShuffleWrite': ('spark.executor.total_shuffle_write', INCREMENT),
+    'maxMemory': ('spark.executor.max_memory', INCREMENT)
 }
 
 SPARK_RDD_METRICS = {
-    'numPartitions': ('spark.rdd.num_partitions', HISTOGRAM),
-    'numCachedPartitions': ('spark.rdd.num_cached_partitions', HISTOGRAM),
-    'memoryUsed': ('spark.rdd.memory_used', HISTOGRAM),
-    'diskUsed': ('spark.rdd.disk_used', HISTOGRAM)
+    'numPartitions': ('spark.rdd.num_partitions', INCREMENT),
+    'numCachedPartitions': ('spark.rdd.num_cached_partitions', INCREMENT),
+    'memoryUsed': ('spark.rdd.memory_used', INCREMENT),
+    'diskUsed': ('spark.rdd.disk_used', INCREMENT)
 }
 
 
@@ -366,9 +364,7 @@ class SparkCheck(AgentCheck):
         '''
         Set a metric
         '''
-        if metric_type == HISTOGRAM:
-            self.histogram(metric_name, value, tags=tags)
-        elif metric_type == INCREMENT:
+        if metric_type == INCREMENT:
             self.increment(metric_name, value, tags=tags)
         else:
             self.log.error('Metric type "%s" unknown' % (metric_type))
