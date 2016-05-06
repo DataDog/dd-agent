@@ -90,6 +90,14 @@ rake ci:run[bone]
 
 To create rake tasks for a new flavor you can use this [skeleton file](../ci/skeleton.rb).
 
+# Coverage
+
+We like to see that the metrics being generated are actually covered by tests. For the integration tests you can call the method self.coverage_report() in your test to see how many of the metrics you're actually looking at.
+
+Note, however, that Travis and Appveyor enforce coverage. It will fail the test if you don't have 100% coverage.
+
+But, since the we also know that the coverage report is very verbose, and that it can be annoying to fail a test for this, we don't enforce it being called where it doesn't make sense. And we also allow you to turn off the failure locally by setting the environment variable: `NO_COVERAGE=true`.
+
 
 # Travis
 

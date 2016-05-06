@@ -67,7 +67,7 @@ class TestSupervisordCheck(AgentCheckTest):
             self.assertServiceCheck("supervisord.can_connect", status=AgentCheck.OK,
                                     tags=instance_tags, count=1)
 
-            # Raises when COVERAGE=true and coverage < 100%
+            # Raises when coverage < 100%
             self.coverage_report()
 
             # Sleep 10s to give enough time to processes to terminate

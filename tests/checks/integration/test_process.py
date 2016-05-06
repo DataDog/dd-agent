@@ -279,7 +279,7 @@ class ProcessCheckTest(AgentCheckTest):
             else:
                 self.assertServiceCheckOK('process.up', count=1, tags=expected_tags)
 
-        # Raises when COVERAGE=true and coverage < 100%
+        # Raises when coverage < 100%
         self.coverage_report()
 
         # Run the check a second time and check that `cpu_pct` is there
