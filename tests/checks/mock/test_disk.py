@@ -61,7 +61,7 @@ class TestCheckDisk(AgentCheckTest):
     def test_device_exclusion_logic(self):
         self.run_check({'instances': [{'use_mount': 'no',
                                        'excluded_filesystems': ['aaaaaa'],
-                                       'excluded_mountpoint_re': '^/z+$',
+                                       'excluded_mountpoint_re': '^/run$',
                                        'excluded_disks': ['bbbbbb'],
                                        'excluded_disk_re': '^tev+$'}]},
                        mocks={'collect_metrics': lambda: None})
@@ -86,15 +86,27 @@ class TestCheckDisk(AgentCheckTest):
         self.assertTrue(exclude_disk(MockPart(device='tevvv')))
         self.assertFalse(exclude_disk(MockPart(device='tevvs')))
 
-        # excluded mountpoint regex
-        self.assertTrue(exclude_disk(MockPart(device='sdz', mountpoint='/zz')))
-        self.assertFalse(exclude_disk(MockPart(device='sdz', mountpoint='/zy')))
-
         # and now with all_partitions
         self.check._all_partitions = True
         self.assertFalse(exclude_disk(MockPart(device='')))
         self.assertFalse(exclude_disk(MockPart(device='none')))
         self.assertFalse(exclude_disk(MockPart(device='udev')))
+
+        # excluded mountpoint regex
+        self.assertTrue(exclude_disk(MockPart(device='sdz', mountpoint='/run')))
+        self.assertFalse(exclude_disk(MockPart(device='sdz', mountpoint='/run/shm')))
+
+    def test_device_exclusion_logic_no_name(self):
+        """
+        Same as above but with default configuration values and device='' to expose a bug in #2359
+        """
+        self.run_check({'instances': [{'use_mount': 'yes',
+                                       'excluded_mountpoint_re': '^/run$',
+                                       'all_partitions': 'yes'}]},
+                       mocks={'collect_metrics': lambda: None}, force_reload=True)
+        exclude_disk = self.check._exclude_disk_psutil
+        self.assertTrue(exclude_disk(MockPart(device='', mountpoint='/run')))
+        self.assertFalse(exclude_disk(MockPart(device='', mountpoint='/run/shm')))
 
     @mock.patch('psutil.disk_partitions', return_value=[MockPart()])
     @mock.patch('psutil.disk_usage', return_value=MockDiskMetrics())
