@@ -150,7 +150,7 @@ class Disk(AgentCheck):
         # device name matches `excluded_disk_re`
         elif not name_empty and self._excluded_disk_re.match(name):
             return True
-        # device name matches `excluded_mountpoint_re`
+        # device mountpoint matches `excluded_mountpoint_re`
         elif self._excluded_mountpoint_re.match(mountpoint):
             return True
         # fs is listed in `excluded_filesystems`
