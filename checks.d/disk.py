@@ -135,13 +135,30 @@ class Disk(AgentCheck):
                                           part.fstype == '')) or
                 self._exclude_disk(part.device, part.fstype, part.mountpoint))
 
-    # We don't want all those incorrect devices
     def _exclude_disk(self, name, filesystem, mountpoint):
-        return (((not name or name == 'none') and not self._all_partitions) or
-                name in self._excluded_disks or
-                self._excluded_disk_re.match(name) or
-                self._excluded_mountpoint_re.match(mountpoint) or
-                filesystem in self._excluded_filesystems)
+        """
+        Return True for disks we don't want or that match regex in the config file
+        """
+        name_empty = not name or name == 'none'
+
+        # allow empty names if `all_partitions` is `yes` so we can evaluate mountpoints
+        if name_empty and not self._all_partitions:
+            return True
+        # device is listed in `excluded_disks`
+        elif not name_empty and name in self._excluded_disks:
+            return True
+        # device name matches `excluded_disk_re`
+        elif not name_empty and self._excluded_disk_re.match(name):
+            return True
+        # device mountpoint matches `excluded_mountpoint_re`
+        elif self._excluded_mountpoint_re.match(mountpoint):
+            return True
+        # fs is listed in `excluded_filesystems`
+        elif filesystem in self._excluded_filesystems:
+            return True
+        # all good, don't exclude the disk
+        else:
+            return False
 
     def _collect_part_metrics(self, part, usage):
         metrics = {}
