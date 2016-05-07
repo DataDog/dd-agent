@@ -2,3 +2,15 @@ init_config:
 
 instances:
     -   resourcemanager_uri: http://localhost:8088
+
+    # By default, the plugin will tag application metrics with cluster_id and application_name. You can define
+    # here optional tags to add like queue or user.
+    #
+    # application_tags:
+    #   - key:value
+    #
+    # Configure which tasks you want to monitor based on task state. By default the plugin will send metrics for all
+    # states
+    #
+    # task_states:
+    #   - TASK_STATE
