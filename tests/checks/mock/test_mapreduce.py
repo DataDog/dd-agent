@@ -8,19 +8,18 @@ import json
 from tests.checks.common import AgentCheckTest, Fixtures
 
 # ID
-CLUSTER_ID = '1453738555560'
 APP_ID = 'application_1453738555560_0001'
 APP_NAME = 'WordCount'
 JOB_ID = 'job_1453738555560_0001'
 JOB_NAME = 'WordCount'
 USER_NAME = 'vagrant'
 TASK_ID = 'task_1453738555560_0001_m_000000'
+CLUSTER_NAME = 'MapReduceCluster'
 
 # Resource manager URI
 RM_URI = 'http://localhost:8088'
 
 # URL Paths
-INFO_PATH = 'ws/v1/cluster/info'
 YARN_APPS_PATH = 'ws/v1/cluster/apps'
 MAPREDUCE_JOBS_PATH = 'ws/v1/mapreduce/jobs'
 
@@ -40,7 +39,6 @@ def join_url_dir(url, *args):
 
 
 # Service URLs
-CLUSTER_INFO_URL = urljoin(RM_URI, INFO_PATH)
 YARN_APPS_URL = urljoin(RM_URI, YARN_APPS_PATH) + '?states=RUNNING&applicationTypes=MAPREDUCE'
 MR_JOBS_URL = join_url_dir(RM_URI, 'proxy', APP_ID, MAPREDUCE_JOBS_PATH)
 MR_JOB_COUNTERS_URL = join_url_dir(MR_JOBS_URL, JOB_ID, 'counters')
@@ -60,13 +58,7 @@ def requests_get_mock(*args, **kwargs):
         def raise_for_status(self):
             return True
 
-
-    if args[0] == CLUSTER_INFO_URL:
-        with open(Fixtures.file('cluster_info'), 'r') as f:
-            body = f.read()
-            return MockResponse(body, 200)
-
-    elif args[0] == YARN_APPS_URL:
+    if args[0] == YARN_APPS_URL:
         with open(Fixtures.file('apps_metrics'), 'r') as f:
             body = f.read()
             return MockResponse(body, 200)
@@ -91,7 +83,8 @@ class MapReduceCheck(AgentCheckTest):
     CHECK_NAME = 'mapreduce'
 
     MR_CONFIG = {
-        'resourcemanager_uri': 'http://localhost:8088'
+        'resourcemanager_uri': 'http://localhost:8088',
+        'cluster_name': CLUSTER_NAME
     }
 
     INIT_CONFIG = {
@@ -147,7 +140,7 @@ class MapReduceCheck(AgentCheckTest):
     }
 
     MAPREDUCE_JOB_METRIC_TAGS = [
-        'cluster_id:' + CLUSTER_ID,
+        'cluster_name:' + CLUSTER_NAME,
         'app_name:' + APP_NAME,
         'job_name:' + JOB_NAME,
         'user_name:' + USER_NAME
@@ -159,7 +152,7 @@ class MapReduceCheck(AgentCheckTest):
     }
 
     MAPREDUCE_MAP_TASK_METRIC_TAGS = [
-        'cluster_id:' + CLUSTER_ID,
+        'cluster_name:' + CLUSTER_NAME,
         'app_name:' + APP_NAME,
         'job_name:' + JOB_NAME,
         'user_name:' + USER_NAME,
@@ -172,7 +165,7 @@ class MapReduceCheck(AgentCheckTest):
     }
 
     MAPREDUCE_REDUCE_TASK_METRIC_TAGS = [
-        'cluster_id:' + CLUSTER_ID,
+        'cluster_name:' + CLUSTER_NAME,
         'app_name:' + APP_NAME,
         'job_name:' + JOB_NAME,
         'user_name:' + USER_NAME,
@@ -192,7 +185,7 @@ class MapReduceCheck(AgentCheckTest):
     }
 
     MAPREDUCE_JOB_COUNTER_METRIC_TAGS = [
-        'cluster_id:' + CLUSTER_ID,
+        'cluster_name:' + CLUSTER_NAME,
         'app_name:' + APP_NAME,
         'job_name:' + JOB_NAME,
         'user_name:' + USER_NAME
