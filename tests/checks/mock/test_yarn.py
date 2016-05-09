@@ -7,19 +7,15 @@ import json
 
 from tests.checks.common import AgentCheckTest, Fixtures
 
-# Resource manager address
+# IDs
+CLUSTER_NAME = 'SparkCluster'
+
+# Resource manager URI
 RM_ADDRESS = 'http://localhost:8088'
 
-# Path to retrieve cluster info
-INFO_URL = urljoin(RM_ADDRESS, '/ws/v1/cluster/info')
-
-# Path to retrieve cluster metrics
+# Service URLs
 YARN_CLUSTER_METRICS_URL = urljoin(RM_ADDRESS, '/ws/v1/cluster/metrics')
-
-# Path to retrieve YARN APPS
-YARN_APPS_URL = urljoin(RM_ADDRESS, '/ws/v1/cluster/apps')
-
-# Path to retrieve node statistics
+YARN_APPS_URL = urljoin(RM_ADDRESS, '/ws/v1/cluster/apps') + '?states=RUNNING'
 YARN_NODES_URL = urljoin(RM_ADDRESS, '/ws/v1/cluster/nodes')
 
 
@@ -36,13 +32,7 @@ def requests_get_mock(*args, **kwargs):
         def raise_for_status(self):
             return True
 
-
-    if args[0] == INFO_URL:
-        with open(Fixtures.file('cluster_info'), 'r') as f:
-            body = f.read()
-            return MockResponse(body, 200)
-
-    elif args[0] == YARN_CLUSTER_METRICS_URL:
+    if args[0] == YARN_CLUSTER_METRICS_URL:
         with open(Fixtures.file('cluster_metrics'), 'r') as f:
             body = f.read()
             return MockResponse(body, 200)
@@ -62,7 +52,8 @@ class YARNCheck(AgentCheckTest):
     CHECK_NAME = 'yarn'
 
     YARN_CONFIG = {
-        'resourcemanager_uri': 'http://localhost:8088'
+        'resourcemanager_uri': 'http://localhost:8088',
+        'cluster_name': CLUSTER_NAME
     }
 
     YARN_CLUSTER_METRICS_VALUES = {
@@ -91,7 +82,7 @@ class YARNCheck(AgentCheckTest):
         'yarn.metrics.rebooted_nodes': 0,
     }
 
-    YARN_CLUSTER_METRICS_TAGS = ['cluster_id:1324053971963']
+    YARN_CLUSTER_METRICS_TAGS = ['cluster_name:%s' % CLUSTER_NAME]
 
     YARN_APP_METRICS_VALUES = {
         'yarn.apps.progress': 100,
@@ -105,7 +96,10 @@ class YARNCheck(AgentCheckTest):
         'yarn.apps.vcore_seconds': 103,
     }
 
-    YARN_APP_METRICS_TAGS = ['cluster_id:1326815542473', 'app_id:application_1326815542473_0001']
+    YARN_APP_METRICS_TAGS = [
+        'cluster_name:%s' % CLUSTER_NAME,
+        'app_name:word count'
+    ]
 
     YARN_NODE_METRICS_VALUES = {
         'yarn.node.last_health_update': 1324056895432,
@@ -116,7 +110,10 @@ class YARNCheck(AgentCheckTest):
         'yarn.node.num_containers': 0,
     }
 
-    YARN_NODE_METRICS_TAGS = ['cluster_id:1324053971963', 'node_id:h2:1235']
+    YARN_NODE_METRICS_TAGS = [
+        'cluster_name:%s' % CLUSTER_NAME,
+        'node_id:h2:1235'
+    ]
 
     @mock.patch('requests.get', side_effect=requests_get_mock)
     def test_check(self, mock_requests):

@@ -52,9 +52,10 @@ yarn.node.numContainers          The total number of containers currently runnin
 
 '''
 # stdlib
-from urlparse import urljoin
+from urlparse import urljoin, urlsplit, urlunsplit
 
 # 3rd party
+from requests.exceptions import Timeout, HTTPError, InvalidURL, ConnectionError
 import requests
 
 # Project
@@ -63,9 +64,7 @@ from checks import AgentCheck
 # Default settings
 DEFAULT_RM_URI = 'http://localhost:8088'
 DEFAULT_TIMEOUT = 5
-
-# Path to retrieve cluster info
-INFO_URI = '/ws/v1/cluster/info'
+DEFAULT_CUSTER_NAME = 'default_cluster'
 
 # Path to retrieve cluster metrics
 YARN_CLUSTER_METRICS_PATH = '/ws/v1/cluster/metrics'
@@ -78,9 +77,13 @@ YARN_NODES_PATH = '/ws/v1/cluster/nodes'
 
 # Metric types
 GAUGE = 'gauge'
+INCREMENT = 'increment'
 
 # Name of the service check
 SERVICE_CHECK_NAME = 'yarn.can_connect'
+
+# Application states to collect
+YARN_APPLICATION_STATES = 'RUNNING'
 
 # Cluster metrics identifier
 YARN_CLUSTER_METRICS_ELEMENT = 'clusterMetrics'
@@ -114,15 +117,15 @@ YARN_CLUSTER_METRICS = {
 
 # Application metrics for YARN
 YARN_APP_METRICS = {
-    'progress': ('yarn.apps.progress', GAUGE),
-    'startedTime': ('yarn.apps.started_time', GAUGE),
-    'finishedTime': ('yarn.apps.finished_time', GAUGE),
-    'elapsedTime': ('yarn.apps.elapsed_time', GAUGE),
-    'allocatedMB': ('yarn.apps.allocated_mb', GAUGE),
-    'allocatedVCores': ('yarn.apps.allocated_vcores', GAUGE),
-    'runningContainers': ('yarn.apps.running_containers', GAUGE),
-    'memorySeconds': ('yarn.apps.memory_seconds', GAUGE),
-    'vcoreSeconds': ('yarn.apps.vcore_seconds', GAUGE),
+    'progress': ('yarn.apps.progress', INCREMENT),
+    'startedTime': ('yarn.apps.started_time', INCREMENT),
+    'finishedTime': ('yarn.apps.finished_time', INCREMENT),
+    'elapsedTime': ('yarn.apps.elapsed_time', INCREMENT),
+    'allocatedMB': ('yarn.apps.allocated_mb', INCREMENT),
+    'allocatedVCores': ('yarn.apps.allocated_vcores', INCREMENT),
+    'runningContainers': ('yarn.apps.running_containers', INCREMENT),
+    'memorySeconds': ('yarn.apps.memory_seconds', INCREMENT),
+    'vcoreSeconds': ('yarn.apps.vcore_seconds', INCREMENT),
 }
 
 # Node metrics for YARN
@@ -146,45 +149,46 @@ class YarnCheck(AgentCheck):
         # Get properties from conf file
         rm_address = instance.get('resourcemanager_uri', DEFAULT_RM_URI)
 
-        # Get the cluster ID from Yarn
-        cluster_id = self._get_cluster_id(rm_address)
+        # Get additional tags from the conf file
+        tags = instance.get('tags', [])
+        if tags is None:
+            tags = []
+        else:
+            tags = list(set(tags))
+
+        # Get the cluster name from the conf file
+        cluster_name = instance.get('cluster_name')
+        if cluster_name is None:
+            self.warning("The cluster_name must be specified in the instance configuration, defaulting to '%s'" % (DEFAULT_CUSTER_NAME))
+            cluster_name = DEFAULT_CUSTER_NAME
+
+        tags.append('cluster_name:%s' % cluster_name)
 
         # Get metrics from the Resource Manager
-        self._yarn_cluster_metrics(cluster_id, rm_address)
-        self._yarn_app_metrics(rm_address)
-        self._yarn_node_metrics(cluster_id, rm_address)
+        self._yarn_cluster_metrics(rm_address, tags)
+        self._yarn_app_metrics(rm_address, tags)
+        self._yarn_node_metrics(rm_address, tags)
 
-    def _get_cluster_id(self, rm_address):
-        '''
-        Return the cluster ID, otherwise raise an exception
-        '''
-        info_json = self._rest_request_to_json(rm_address, INFO_URI)
-
-        cluster_id = info_json.get('clusterInfo', {}).get('id')
-        if cluster_id is not None:
-            return cluster_id
-
-        raise Exception('Unable to retrieve cluster ID from ResourceManger')
-
-    def _yarn_cluster_metrics(self, cluster_id, rm_address):
+    def _yarn_cluster_metrics(self, rm_address, addl_tags):
         '''
         Get metrics related to YARN cluster
         '''
         metrics_json = self._rest_request_to_json(rm_address, YARN_CLUSTER_METRICS_PATH)
 
         if metrics_json:
-            tags = ['cluster_id:' + str(cluster_id)]
 
             yarn_metrics = metrics_json[YARN_CLUSTER_METRICS_ELEMENT]
 
             if yarn_metrics is not None:
-                self._set_yarn_metrics_from_json(tags, yarn_metrics, YARN_CLUSTER_METRICS)
+                self._set_yarn_metrics_from_json(addl_tags, yarn_metrics, YARN_CLUSTER_METRICS)
 
-    def _yarn_app_metrics(self, rm_address):
+    def _yarn_app_metrics(self, rm_address, addl_tags):
         '''
-        Get metrics related to YARN applications
+        Get metrics for running applications
         '''
-        metrics_json = self._rest_request_to_json(rm_address, YARN_APPS_PATH)
+        metrics_json = self._rest_request_to_json(rm_address,
+            YARN_APPS_PATH,
+            states=YARN_APPLICATION_STATES)
 
         if metrics_json:
             if metrics_json['apps'] is not None:
@@ -192,15 +196,14 @@ class YarnCheck(AgentCheck):
 
                     for app_json in metrics_json['apps']['app']:
 
-                        cluster_id = app_json['clusterId']
-                        app_id = app_json['id']
+                        app_name = app_json['name']
 
-                        tags = ['cluster_id:' + str(cluster_id), 'app_id:' + str(app_id)]
+                        tags = ['app_name:%s' % str(app_name)]
+                        tags.extend(addl_tags)
 
                         self._set_yarn_metrics_from_json(tags, app_json, YARN_APP_METRICS)
 
-
-    def _yarn_node_metrics(self, cluster_id, rm_address):
+    def _yarn_node_metrics(self, rm_address, addl_tags):
         '''
         Get metrics related to YARN nodes
         '''
@@ -210,11 +213,11 @@ class YarnCheck(AgentCheck):
             if metrics_json['nodes'] is not None:
                 if metrics_json['nodes']['node'] is not None:
 
-                    tags = ['cluster_id:' + str(cluster_id)]
-
                     for node_json in metrics_json['nodes']['node']:
                         node_id = node_json['id']
-                        tags.append('node_id:' + str(node_id))
+
+                        tags = ['node_id:%s' % str(node_id)]
+                        tags.extend(addl_tags)
 
                         self._set_yarn_metrics_from_json(tags, node_json, YARN_NODE_METRICS)
 
@@ -237,34 +240,51 @@ class YarnCheck(AgentCheck):
         '''
         if metric_type == GAUGE:
             self.gauge(metric_name, value, tags=tags, device_name=device_name)
+        elif metric_type == INCREMENT:
+            self.increment(metric_name, value, tags=tags, device_name=device_name)
         else:
             self.log.error('Metric type "%s" unknown' % (metric_type))
 
-    def _rest_request_to_json(self, address, object_path):
+    def _rest_request_to_json(self, address, object_path, *args, **kwargs):
         '''
         Query the given URL and return the JSON response
         '''
         response_json = None
 
-        service_check_tags = ['instance:%s' % self.hostname]
+        service_check_tags = ['url:%s' % self._get_url_base(address)]
 
-        url = urljoin(address, object_path)
+        url = address
+
+        if object_path:
+            url = self._join_url_dir(url, object_path)
+
+        # Add args to the url
+        if args:
+            for directory in args:
+                url = self._join_url_dir(url, directory)
+
+        self.log.debug('Attempting to connect to "%s"' % url)
+
+        # Add kwargs as arguments
+        if kwargs:
+            query = '&'.join(['{0}={1}'.format(key, value) for key, value in kwargs.iteritems()])
+            url = urljoin(url, '?' + query)
 
         try:
             response = requests.get(url)
             response.raise_for_status()
             response_json = response.json()
 
-        except requests.exceptions.Timeout as e:
+        except Timeout as e:
             self.service_check(SERVICE_CHECK_NAME,
                 AgentCheck.CRITICAL,
                 tags=service_check_tags,
                 message="Request timeout: {0}, {1}".format(url, e))
             raise
 
-        except (requests.exceptions.HTTPError,
-                requests.exceptions.InvalidURL,
-                requests.exceptions.ConnectionError) as e:
+        except (HTTPError,
+                InvalidURL,
+                ConnectionError) as e:
             self.service_check(SERVICE_CHECK_NAME,
                 AgentCheck.CRITICAL,
                 tags=service_check_tags,
@@ -285,3 +305,20 @@ class YarnCheck(AgentCheck):
                 message='Connection to %s was successful' % url)
 
         return response_json
+
+    def _join_url_dir(self, url, *args):
+        '''
+        Join a URL with multiple directories
+        '''
+        for path in args:
+            url = url.rstrip('/') + '/'
+            url = urljoin(url, path.lstrip('/'))
+
+        return url
+
+    def _get_url_base(self, url):
+        '''
+        Return the base of a URL
+        '''
+        s = urlsplit(url)
+        return urlunsplit([s.scheme, s.netloc, '', '', ''])
