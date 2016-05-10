@@ -1,0 +1,7 @@
+init_config:
+
+instances:
+    - logfile: /var/log/syslog
+      # ignores:
+      #   - log4j
+      #   - status unknown error on node
