@@ -151,7 +151,10 @@ class MongoDb(AgentCheck):
         "oplog.logSizeMB": GAUGE,
         "oplog.usedSizeMB": GAUGE,
         "oplog.timeDiff": GAUGE,
+        "replSet.faultyCount": GAUGE,
         "replSet.health": GAUGE,
+        "replSet.healthyCount": GAUGE,
+        "replSet.memberCount": GAUGE,
         "replSet.replicationLag": GAUGE,
         "replSet.state": GAUGE,
         "stats.avgObjSize": GAUGE,
@@ -682,12 +685,17 @@ class MongoDb(AgentCheck):
                         message=message)
                     raise Exception(message)
 
-                # find nodes: master and current node (ourself)
+                # find master and current node, calculate aggregate health
+                healthyCount = 0
                 for member in replSet.get('members'):
+                    healthyCount += int(member['health'] + 0.1)  # health is a float, turn it to 0 or 1.
                     if member.get('self'):
                         current = member
                     if int(member.get('state')) == 1:
                         primary = member
+                data['memberCount'] = len(replSet.get('members'))
+                data['healthyCount'] = healthyCount
+                data['faultyCount'] = data['memberCount'] - healthyCount
 
                 # If we have both we can compute a lag time
                 if current is not None and primary is not None:
