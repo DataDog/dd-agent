@@ -2,7 +2,7 @@ instances:
   #
   # The MapReduce check retrieves metrics from YARN's ResourceManager. This
   # check must be run from the Master Node and the ResourceManager URI must
-  # be specified below. The ResourceManager URI is composed of the 
+  # be specified below. The ResourceManager URI is composed of the
   # ResourceManager's hostname and port.
   #
   # The ResourceManager hostname can be found in the yarn-site.xml conf file
@@ -15,6 +15,10 @@ instances:
 
     # A Required friendly name for the cluster.
     # cluster_name: MyMapReduceCluster
+
+    # Set to true to collect histograms on the elapsed time of
+    # map and reduce tasks (default: false)
+    # collect_task_metrics: false
 
     # Optional tags to be applied to every emitted metric.
     # tags:
