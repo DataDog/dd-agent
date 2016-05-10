@@ -2,10 +2,8 @@
 from hashlib import md5
 import logging
 import math
-import os
 import platform
 import re
-import signal
 import socket
 import sys
 import time
