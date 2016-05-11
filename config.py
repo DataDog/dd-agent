@@ -84,8 +84,6 @@ def get_parsed_args():
                       dest='dd_url')
     parser.add_option('-u', '--use-local-forwarder', action='store_true',
                       default=False, dest='use_forwarder')
-    parser.add_option('-n', '--disable-dd', action='store_true', default=False,
-                      dest="disable_dd")
     parser.add_option('-v', '--verbose', action='store_true', default=False,
                       dest='verbose',
                       help='Print out stacktraces for errors in checks')
@@ -98,7 +96,6 @@ def get_parsed_args():
         # Ignore parse errors
         options, args = Values({'autorestart': False,
                                 'dd_url': None,
-                                'disable_dd': False,
                                 'use_forwarder': False,
                                 'verbose': False,
                                 'profile': False}), []
@@ -370,19 +367,16 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         #
         # Core config
         #
-
-        # FIXME unnecessarily complex
-        agentConfig['use_forwarder'] = False
         if options is not None and options.use_forwarder:
             listen_port = 17123
             if config.has_option('Main', 'listen_port'):
                 listen_port = int(config.get('Main', 'listen_port'))
-            agentConfig['dd_url'] = "http://" + agentConfig['bind_host'] + ":" + str(listen_port)
+            agentConfig['dd_url'] = "http://{}:{}".format(agentConfig['bind_host'], listen_port)
             agentConfig['use_forwarder'] = True
-        elif options is not None and not options.disable_dd and options.dd_url:
-            agentConfig['dd_url'] = options.dd_url
         else:
-            agentConfig['dd_url'] = config.get('Main', 'dd_url')
+            agentConfig['use_forwarder'] = False
+            agentConfig['dd_url'] = options.dd_url or config.get('Main', 'dd_url')
+
         if agentConfig['dd_url'].endswith('/'):
             agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
 
