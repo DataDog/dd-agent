@@ -64,18 +64,17 @@ class WindowsService(WinWMICheck):
             self._process_services(wmi_sampler, services, tags)
 
     def _process_services(self, wmi_sampler, services, tags):
-        expected_services = set(services)
+        collected_services_by_names = {sc['Name'].lower(): sc for sc in wmi_sampler}
 
-        for wmi_obj in wmi_sampler:
-            service = wmi_obj['Name']
-            if service not in services:
-                continue
+        for service in services:
+            service_lower = service.lower()
+            if service_lower in collected_services_by_names:
+                wmi_obj = collected_services_by_names[service_lower]
+                sc_name = wmi_obj['Name']
+                status = self.STATE_TO_VALUE.get(wmi_obj["state"], AgentCheck.UNKNOWN)
+                self.service_check("windows_service.state", status,
+                               tags=tags + ['service:{0}'.format(sc_name)])
 
-            status = self.STATE_TO_VALUE.get(wmi_obj["state"], AgentCheck.UNKNOWN)
-            self.service_check("windows_service.state", status,
-                               tags=tags + ['service:{0}'.format(service)])
-            expected_services.remove(service)
-
-        for service in expected_services:
-            self.service_check("windows_service.state", AgentCheck.CRITICAL,
+            else:
+                self.service_check("windows_service.state", AgentCheck.CRITICAL,
                                tags=tags + ['service:{0}'.format(service)])
