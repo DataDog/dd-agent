@@ -6,3 +6,8 @@ instances:
   #   port: 11211 # If this line is not present, port will default to 11211
   #   tags:
   #     - optional_tag
+
+  #   options:
+  #     items: false  # set to true if you wish to collect items memcached stats.
+  #     slabs: false  # set to true if you wish to collect slabs memcached stats.
+
