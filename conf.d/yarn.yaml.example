@@ -17,6 +17,15 @@ instances:
     # A Required friendly name for the cluster.
     # cluster_name: MyYarnCluster
 
+    # Values from running applications response that will be applied as datadog tags, set as app_key:datadog_tag
+    # You can find the whole list keys on yarn api reference - application response body:
+    # https://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html#Cluster_Applications_API
+    # Example:
+    #   - queue:app_queue
+    #   - user:app_user
+     application_tags:
+       - name:app_name
+
     # Optional tags to be applied to every emitted metric.
     # tags:
     #   - key:value
