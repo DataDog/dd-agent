@@ -28,27 +28,30 @@ class TestKong(AgentCheckTest):
     ]
 
     GAUGES = [
-        'kong.server.total_requests',
-        'kong.server.connections_active',
-        'kong.server.connections_waiting',
-        'kong.server.connections_reading',
-        'kong.server.connections_accepted',
-        'kong.server.connections_writing',
-        'kong.server.connections_handled',
-        'kong.database.acls',
-        'kong.database.keyauth_credentials',
-        'kong.database.hmacauth_credentials',
-        'kong.database.oauth2_credentials',
-        'kong.database.consumers',
-        'kong.database.nodes',
-        'kong.database.response_ratelimiting_metrics',
-        'kong.database.ratelimiting_metrics',
-        'kong.database.oauth2_tokens',
-        'kong.database.plugins',
-        'kong.database.oauth2_authorization_codes',
-        'kong.database.apis',
-        'kong.database.jwt_secrets',
-        'kong.database.basicauth_credentials',
+        'kong.total_requests',
+        'kong.connections_active',
+        'kong.connections_waiting',
+        'kong.connections_reading',
+        'kong.connections_accepted',
+        'kong.connections_writing',
+        'kong.connections_handled',
+    ]
+
+    DATABASES = [
+        'acls',
+        'keyauth_credentials',
+        'hmacauth_credentials',
+        'oauth2_credentials',
+        'consumers',
+        'nodes',
+        'response_ratelimiting_metrics',
+        'ratelimiting_metrics',
+        'oauth2_tokens',
+        'plugins',
+        'oauth2_authorization_codes',
+        'apis',
+        'jwt_secrets',
+        'basicauth_credentials',
     ]
 
     def test_check(self):
@@ -60,9 +63,14 @@ class TestKong(AgentCheckTest):
 
         # Assert metrics
         for stub in self.CONFIG_STUBS:
-            for mname in self.GAUGES :
-                expected_tags = stub['tags']
+            expected_tags = stub['tags']
+            for mname in self.GAUGES:
                 self.assertMetric(mname, tags=expected_tags, count=1)
+
+            self.assertMetric('kong.table.count', len(self.DATABASES), tags=expected_tags, count=1)
+            for name in self.DATABASES:
+                tags = expected_tags + ['table:{}'.format(name)]
+                self.assertMetric('kong.table.items', tags=tags, count=1)
 
         # Assert service checks
         self.assertServiceCheck('kong.can_connect', status=AgentCheck.OK,

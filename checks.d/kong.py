@@ -11,6 +11,9 @@ from util import headers
 
 
 class Kong(AgentCheck):
+
+    METRIC_PREFIX = 'kong.'
+
     """ collects metrics for Kong """
     def check(self, instance):
         metrics = self._fetch_data(instance)
@@ -45,10 +48,10 @@ class Kong(AgentCheck):
         else:
             if response.status_code == 200:
                 self.service_check(service_check_name, AgentCheck.OK,
-                               tags=service_check_tags)
+                                   tags=service_check_tags)
             else:
                 self.service_check(service_check_name, AgentCheck.CRITICAL,
-                               tags=service_check_tags)
+                                   tags=service_check_tags)
 
         return self._parse_json(response.content, tags)
 
@@ -56,16 +59,17 @@ class Kong(AgentCheck):
         if tags is None:
             tags = []
         parsed = json.loads(raw)
-        metric_base = 'kong'
         output = []
-        tagged_keys = ['database', 'server']
-        for key in tagged_keys:
-            metric_prefix = '%s.%s' % (metric_base, key)
-            metric_list = []
-            for name, data in parsed.get(key).items():
-                metric_name = '%s.%s' % (metric_prefix, name)
-                metric_list.append((metric_name, data, tags))
 
-            output.extend(metric_list)
+        # First get the server stats
+        for name, value in parsed.get('server').items():
+            metric_name = self.METRIC_PREFIX + name
+            output.append((metric_name, value, tags))
+
+        # Then the database metrics
+        databases_metrics = parsed.get('database').items()
+        output.append((self.METRIC_PREFIX + 'table.count', len(databases_metrics), tags))
+        for name, items in databases_metrics:
+            output.append((self.METRIC_PREFIX + 'table.items', items, tags + ['table:{}'.format(name)]))
 
         return output
