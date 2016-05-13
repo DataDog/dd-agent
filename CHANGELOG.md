@@ -9,6 +9,7 @@ https://github.com/DataDog/dd-agent/compare/5.7.4...5.8.0
 
 ### New integrations
 * Kong
+* PowerDNS Recursor
 * Spark
 
 ### Updated integrations
@@ -29,6 +30,7 @@ https://github.com/DataDog/dd-agent/compare/5.7.4...5.8.0
 * Memcached
 * MongoDB
 * MySQL
+* Process
 * RabbitMQ
 * Riak
 * TeamCity
@@ -68,6 +70,17 @@ The collected metrics cover statistics about:
 
 See [#2407][].
 
+### PowerDNS Recursor integration
+The [PowerDNS Recursor](https://www.powerdns.com/) check retrieves metrics using the `/servers/localhost/statistics` endpoint part of [PowerDNS API](https://doc.powerdns.com/md/httpapi/README/) when the experimental web server is active.
+The collected metrics cover the Recursor statistics: (outgoing) queries, answers, cache and cache entries.
+A service check reflects the agent's ability to connect to the instance.
+
+For more details about the metrics collected, check out the PowerDNS documentation about [Recursor Statistics](https://doc.powerdns.com/md/recursor/stats/).
+
+See [#2108][], [#2490][].
+
+A big thank you [@AntoCard][], [@janeczku][] !
+
 ### MapReduce & YARN updates
 Hadoop MapReduce and YARN integrations have been updated to reduce and consolidate the metrics' tags.
 In particular:
@@ -94,6 +107,8 @@ See [#2377][].
 * [FEATURE] JMX: Add user tags to service checks. See [#96](https://github.com/DataDog/jmxfetch/pull/96)
 * [FEATURE] JMX: Allow group name substitutions in attribute/alias parameters. See [#94](https://github.com/DataDog/jmxfetch/pull/94), [#97](https://github.com/DataDog/jmxfetch/pull/97) (Thanks [@alz][])
 * [FEATURE] Kong: New check. See [#2241][], [Kong integration](#kong-integration) (Thanks [@shashiranjan84][])
+* [FEATURE] PowerDNS Recursor: New check. See [#2108][], [#2490][], [PowerDNS Recursor integration](#powerdns-recursor-integration) (Thanks [@AntoCard][], [@janeczku][])
+* [FEATURE] Process: Add pagefault statistics to process metrics. See [#2363][], [#2477][] (Thanks [@ovesh][])
 * [FEATURE] RabbitMQ: Tag queue based metrics with the queue name as `queue_family`. See [#2259][], [#2468][] (Thanks [@rhwlo][])
 * [FEATURE] Riak: Collect Riak Search metrics. See [#2243][] (Thanks [@gzysk8][])
 * [FEATURE] Service Discovery: Define configuration templates for a given Docker image in a configuration store, and to dynamically apply them to new containers on the fly. See [#2008][], [#2424][], [#2426][], [Service Discovery](#service-discovery)
@@ -111,19 +126,24 @@ See [#2377][].
 * [IMPROVEMENT] Kubernetes: Timeout on slow requests. See [#2345][]
 * [IMPROVEMENT] MapReduce: Consolidate and reduce the number of tags produced. See [#2474][], [MapReduce & YARN updates](#mapreduce--yarn-updates)
 * [IMPROVEMENT] Marathon: Remove versions metric to decrease the check collection runtime. See [#1861][], [#2443][] (Thanks [@Zarkantho][])
+* [IMPROVEMENT] MongoDB: Add additional tag on status change to make searching more precise. See [#2502][] (Thanks [@gphat][])
+* [IMPROVEMENT] MongoDB: Improve metric tagging. See [#2457][]
 * [IMPROVEMENT] MySQL: Improve accuracy for query run time averages. See [#2406][], [#2463][]
 * [IMPROVEMENT] YARN: Consolidate and reduce the number of tags produced. See [#2473][], [MapReduce & YARN updates](#mapreduce--yarn-updates)
 
 * [BUGFIX] Core: Fix DogStatsd's service check parsing when a tag key ends with `m`. See [#2373][], [#2472][]
 * [BUGFIX] Core: Restart the forwarder when a "pathological" activity is detected. See [#2322][]
+* [BUGFIX] Core: Retrieve EC2 instance ID on Windows. See [#2451][]
 * [BUGFIX] Docker: Fix container ID extraction for RancherOS. See [#2454][], [#2466][] (Thanks [@ricky26][])
 * [BUGFIX] Docker: Fix improper logging causing the check to raise an exception when excluding containers. See [#2464][] (Thanks [@yenif][])
 * [BUGFIX] Docker: Ignore mountpoints not accessible by Datadog Agent `dd-agent` user. See [#2427][] (Thanks [@c960657][])
 * [BUGFIX] Elasticsearch: Restrict the list of metrics to collect by version. See [#2186][], [#2232][] (Thanks [@bdharrington7][])
+* [BUGFIX] HTTP Check: Support `no_proxy` environment variable. See [#2448][]
 * [BUGFIX] JMX: Report properly beans with ':' in the name. See [#90](https://github.com/DataDog/jmxfetch/pull/90), [#91](https://github.com/DataDog/jmxfetch/pull/91), [#95](https://github.com/DataDog/jmxfetch/pull/95) (Thanks [@bluestix][])
 * [BUGFIX] JMX: Sanitize metric names and tags, i.e. remove illegal characters. See [#89](https://github.com/DataDog/jmxfetch/pull/89)
 * [BUGFIX] JMX: Support `javax.management.Attribute` attribute types. See [#92](https://github.com/DataDog/jmxfetch/pull/92) (Thanks [@nwillems][])
 * [BUGFIX] MongoDB: Attach the check's events with the integration in Datadog. See [#2456][]
+* [BUGFIX] Packaging: Exclude an operating-system-specific `.dll` from the MSI installer that was causing installation and runtime failures on Windows Server 2008. See [#2486][]
 * [BUGFIX] TokuMX: Fix `AttributeError` exceptions when collecting metrics from a replica. See [#2390][]
 * [BUGFIX] TokuMX: Support metric values with Int64 type. See [#2390][]
 * [BUGFIX] Windows Service: Make Windows service names case-insensitive. See [#2492][]
@@ -2846,6 +2866,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2098]: https://github.com/DataDog/dd-agent/issues/2098
 [#2100]: https://github.com/DataDog/dd-agent/issues/2100
 [#2106]: https://github.com/DataDog/dd-agent/issues/2106
+[#2108]: https://github.com/DataDog/dd-agent/issues/2108
 [#2109]: https://github.com/DataDog/dd-agent/issues/2109
 [#2111]: https://github.com/DataDog/dd-agent/issues/2111
 [#2112]: https://github.com/DataDog/dd-agent/issues/2112
@@ -2967,6 +2988,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2351]: https://github.com/DataDog/dd-agent/issues/2351
 [#2357]: https://github.com/DataDog/dd-agent/issues/2357
 [#2359]: https://github.com/DataDog/dd-agent/issues/2359
+[#2363]: https://github.com/DataDog/dd-agent/issues/2363
 [#2366]: https://github.com/DataDog/dd-agent/issues/2366
 [#2368]: https://github.com/DataDog/dd-agent/issues/2368
 [#2371]: https://github.com/DataDog/dd-agent/issues/2371
@@ -3008,8 +3030,11 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2441]: https://github.com/DataDog/dd-agent/issues/2441
 [#2443]: https://github.com/DataDog/dd-agent/issues/2443
 [#2447]: https://github.com/DataDog/dd-agent/issues/2447
+[#2448]: https://github.com/DataDog/dd-agent/issues/2448
+[#2451]: https://github.com/DataDog/dd-agent/issues/2451
 [#2454]: https://github.com/DataDog/dd-agent/issues/2454
 [#2456]: https://github.com/DataDog/dd-agent/issues/2456
+[#2457]: https://github.com/DataDog/dd-agent/issues/2457
 [#2463]: https://github.com/DataDog/dd-agent/issues/2463
 [#2464]: https://github.com/DataDog/dd-agent/issues/2464
 [#2466]: https://github.com/DataDog/dd-agent/issues/2466
@@ -3019,10 +3044,15 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2473]: https://github.com/DataDog/dd-agent/issues/2473
 [#2474]: https://github.com/DataDog/dd-agent/issues/2474
 [#2476]: https://github.com/DataDog/dd-agent/issues/2476
+[#2477]: https://github.com/DataDog/dd-agent/issues/2477
 [#2479]: https://github.com/DataDog/dd-agent/issues/2479
+[#2486]: https://github.com/DataDog/dd-agent/issues/2486
+[#2490]: https://github.com/DataDog/dd-agent/issues/2490
 [#2492]: https://github.com/DataDog/dd-agent/issues/2492
+[#2502]: https://github.com/DataDog/dd-agent/issues/2502
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
+[@AntoCard]: https://github.com/AntoCard
 [@CaptTofu]: https://github.com/CaptTofu
 [@EdRow]: https://github.com/EdRow
 [@GregBowyer]: https://github.com/GregBowyer
@@ -3080,6 +3110,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@ive]: https://github.com/ive
 [@jamesandariese]: https://github.com/jamesandariese
 [@jamescrowley]: https://github.com/jamescrowley
+[@janeczku]: https://github.com/janeczku
 [@jgmchan]: https://github.com/jgmchan
 [@jkoppe]: https://github.com/jkoppe
 [@joelvanvelden]: https://github.com/joelvanvelden
@@ -3115,6 +3146,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@oremj]: https://github.com/oremj
 [@orenmazor]: https://github.com/orenmazor
 [@ovaistariq]: https://github.com/ovaistariq
+[@ovesh]: https://github.com/ovesh
 [@pabrahamsson]: https://github.com/pabrahamsson
 [@patrickbcullen]: https://github.com/patrickbcullen
 [@patricknelson]: https://github.com/patricknelson
