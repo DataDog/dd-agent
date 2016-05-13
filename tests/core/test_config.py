@@ -21,19 +21,54 @@ DEFAULT_CHECKS = []
 
 
 class TestConfig(unittest.TestCase):
+    CONFIG_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'fixtures', 'config')
+
+    def get_config(self, name, parse_args=False):
+        """
+        Small helper function to load fixtures configs
+        """
+        return get_config(cfg_path=os.path.join(self.CONFIG_FOLDER, name), parse_args=parse_args)
+
     def testWhiteSpaceConfig(self):
         """Leading whitespace confuse ConfigParser
         """
-        agentConfig = get_config(cfg_path=os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                                       'fixtures', 'badconfig.conf'),
-                                 parse_args=False)
+        agentConfig = self.get_config('bad.conf')
+
         self.assertEquals(agentConfig["dd_url"], "https://app.datadoghq.com")
         self.assertEquals(agentConfig["api_key"], "1234")
         self.assertEquals(agentConfig["nagios_log"], "/var/log/nagios3/nagios.log")
         self.assertEquals(agentConfig["graphite_listen_port"], 17126)
         self.assertTrue("statsd_metric_namespace" in agentConfig)
 
-    def testGoodPidFie(self):
+    def test_one_endpoint(self):
+        agent_config = self.get_config('one_endpoint.conf')
+        self.assertEquals(agent_config["dd_url"], "https://app.datadoghq.com")
+        self.assertEquals(agent_config["api_key"], "1234")
+        endpoints = {'https://app.datadoghq.com': ['1234']}
+        self.assertEquals(agent_config['endpoints'], endpoints)
+
+    def test_multiple_endpoints(self):
+        agent_config = self.get_config('multiple_endpoints.conf')
+        self.assertEquals(agent_config["dd_url"], "https://app.datadoghq.com")
+        self.assertEquals(agent_config["api_key"], "1234")
+        endpoints = {
+            'https://app.datadoghq.com': ['1234'],
+            'https://app.example.com': ['5678', '901']
+        }
+        self.assertEquals(agent_config['endpoints'], endpoints)
+        with self.assertRaises(AssertionError):
+            self.get_config('multiple_endpoints_bad.conf')
+
+    def test_multiple_apikeys(self):
+        agent_config = self.get_config('multiple_apikeys.conf')
+        self.assertEquals(agent_config["dd_url"], "https://app.datadoghq.com")
+        self.assertEquals(agent_config["api_key"], "1234")
+        endpoints = {
+            'https://app.datadoghq.com': ['1234', '5678', '901']
+        }
+        self.assertEquals(agent_config['endpoints'], endpoints)
+
+    def testGoodPidFile(self):
         """Verify that the pid file succeeds and fails appropriately"""
 
         pid_dir = tempfile.mkdtemp()
