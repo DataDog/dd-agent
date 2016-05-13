@@ -1,0 +1,24 @@
+init_config:
+
+instances:
+  # The PowerDNS Recursor check retrieves metrics from the Recursor experimental
+  # web server.
+  # See https://doc.powerdns.com/3/recursor/settings/#experimental-webserver
+  # The API key has to be set as well:
+  # https://doc.powerdns.com/3/recursor/settings/#experimental-api-key
+  #
+  # This check works with PowerDNS Recursor 3.x.
+
+
+
+  # Host running the recursor.
+  - host: 127.0.0.1
+  # Recursor web server port.
+    port: 8082
+  # Recursor web server api key.
+    api_key: pdns_api_key
+
+  # Optional tags to be applied to every emitted metric.
+    # tags:
+    #   - key:value
+    #   - instance:production
