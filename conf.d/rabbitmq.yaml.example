@@ -45,3 +45,20 @@ instances:
     # vhosts:
     #   - vhost1
     #   - vhost2
+
+    # Additional metrics
+    # additional_metrics:
+    #   node:
+    #   -
+    #     - mem_limit
+    #     - mem_limit
+    #     - int
+    #   -
+    #     - "mem_used_details/rate"
+    #     - mem_user_rate
+    #     - float
+    #   -
+    #     - cluster_links
+    #     - cluster_links
+    #     - len
+    #   queue:
