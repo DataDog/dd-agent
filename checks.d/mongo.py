@@ -409,7 +409,7 @@ class MongoDb(AgentCheck):
         else:
             return 'UNKNOWN'
 
-    def _report_replica_set_state(self, state, clean_server_name, replSet, agentConfig):
+    def _report_replica_set_state(self, state, clean_server_name, replset_name, agentConfig):
         """
         Report the member's replica set state
         * Submit a service check.
@@ -418,7 +418,7 @@ class MongoDb(AgentCheck):
         last_state = self._last_state_by_server.get(clean_server_name, -1)
         self._last_state_by_server[clean_server_name] = state
         if last_state != state and last_state != -1:
-            return self.create_event(last_state, state, clean_server_name, replSet['set'], agentConfig)
+            return self.create_event(last_state, state, clean_server_name, replset_name, agentConfig)
 
     def hostname_for_event(self, clean_server_name, agentConfig):
         """Return a reasonable hostname for a replset membership event to mention."""
@@ -683,14 +683,23 @@ class MongoDb(AgentCheck):
                         message=message)
                     raise Exception(message)
 
-                # find nodes: master and current node (ourself)
+                # Replication set information
+                replset_name = replSet['set']
+                replset_state = self.get_state_name(replSet['myState']).lower()
+
+                tags.extend([
+                    u"replset_name:{0}".format(replset_name),
+                    u"replset_state:{0}".format(replset_state),
+                ])
+
+                # Find nodes: master and current node (ourself)
                 for member in replSet.get('members'):
                     if member.get('self'):
                         current = member
                     if int(member.get('state')) == 1:
                         primary = member
 
-                # If we have both we can compute a lag time
+                # Compute a lag time
                 if current is not None and primary is not None:
                     lag = primary['optimeDate'] - current['optimeDate']
                     data['replicationLag'] = total_seconds(lag)
@@ -699,13 +708,12 @@ class MongoDb(AgentCheck):
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
-                tags.append('replset_state:%s' % self.get_state_name(data['state']))
-                self._report_replica_set_state(
-                    data['state'],
-                    clean_server_name,
-                    replSet,
-                    self.agentConfig)
                 status['replSet'] = data
+
+                # Submit events
+                self._report_replica_set_state(
+                    data['state'], clean_server_name, replset_name, self.agentConfig
+                )
 
         except Exception as e:
             if "OperationFailure" in repr(e) and "replSetGetStatus" in str(e):
@@ -771,9 +779,16 @@ class MongoDb(AgentCheck):
                     )
 
                 # Submit the metric
+                metrics_tags = (
+                    tags +
+                    [
+                        u"cluster:db:{0}".format(st),  # FIXME 6.0 - keep for backward compatibility
+                        u"db:{0}".format(st),
+                    ]
+                )
+
                 submit_method, metric_name_alias = \
                     self._resolve_metric(metric_name, metrics_to_collect)
-                metrics_tags = tags + ['cluster:db:%s' % st]
                 submit_method(self, metric_name_alias, val, tags=metrics_tags)
 
         # Report the usage metrics for dbs/collections
