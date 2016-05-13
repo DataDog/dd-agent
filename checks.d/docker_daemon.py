@@ -22,7 +22,6 @@ from utils.service_discovery.sd_backend import get_sd_backend
 
 EVENT_TYPE = 'docker'
 SERVICE_CHECK_NAME = 'docker.service_up'
-DISK_METRICS_PREFIX = 'docker.disk.{0}'
 SIZE_REFRESH_RATE = 5  # Collect container sizes every 5 iterations of the check
 MAX_CGROUP_LISTING_RETRIES = 3
 CONTAINER_ID_RE = re.compile('[0-9a-f]{64}')
