@@ -447,6 +447,7 @@ class MongoDb(AgentCheck):
             'msg_text': msg,
             'host': hostname,
             'tags': [
+                'action:mongo_replset_member_status_change',
                 'member_status:' + short_status,
                 'previous_member_status:' + last_short_status,
                 'replset:' + replset_name,
