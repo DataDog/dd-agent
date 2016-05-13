@@ -224,8 +224,12 @@ def get_hostname(config=None):
             if unix_hostname and is_valid_hostname(unix_hostname):
                 hostname = unix_hostname
 
-    # if we have an ec2 default hostname, see if there's an instance-id available
-    if (Platform.is_ecs_instance()) or (hostname is not None and True in [hostname.lower().startswith(p) for p in [u'ip-', u'domu']]):
+    # if the host is an ECS worker, or has an EC2 hostname
+    # or it's a windows machine and the EC2 config service folder exists
+    # try and find an EC2 instance ID
+    if (Platform.is_ecs_instance()) or \
+       (hostname is not None and True in [hostname.lower().startswith(p) for p in [u'ip-', u'domu']]) or \
+       (os_name == 'windows' and os.path.exists('C:\Program Files\Amazon\Ec2ConfigService')):
         instanceid = EC2.get_instance_id(config)
         if instanceid:
             hostname = instanceid
