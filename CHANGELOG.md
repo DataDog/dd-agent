@@ -28,6 +28,7 @@ https://github.com/DataDog/dd-agent/compare/5.7.4...5.8.0
 * MapReduce
 * Marathon
 * Memcached
+* Mesos Master
 * MongoDB
 * MySQL
 * Process
@@ -147,6 +148,7 @@ See [#2377][].
 * [BUGFIX] TokuMX: Fix `AttributeError` exceptions when collecting metrics from a replica. See [#2390][]
 * [BUGFIX] TokuMX: Support metric values with Int64 type. See [#2390][]
 * [BUGFIX] Windows Service: Make Windows service names case-insensitive. See [#2492][]
+* [BUGFIX] Mesos Master: Fix key error when a metric is missing. See [#2500][] (Thanks [@gphat][])
 
 * [OTHER] Cassandra: Remove deprecated options from the `datadog.conf` configuration file. See [#2447][]
 * [OTHER] Core: Remove support of Python 2.6. See [#2377][], [Source install: end of Python 2.6 compatibility support](#source-install-end-of-python-26-compatibility-support)
@@ -3049,8 +3051,10 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2486]: https://github.com/DataDog/dd-agent/issues/2486
 [#2490]: https://github.com/DataDog/dd-agent/issues/2490
 [#2492]: https://github.com/DataDog/dd-agent/issues/2492
+[#2500]: https://github.com/DataDog/dd-agent/issues/2500
 [#2502]: https://github.com/DataDog/dd-agent/issues/2502
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
+
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
 [@CaptTofu]: https://github.com/CaptTofu
