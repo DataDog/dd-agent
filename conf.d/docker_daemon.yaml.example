@@ -101,6 +101,7 @@ instances:
     #   - docker_image: LEGACY. The full image name:tag string (example: "nginx:latest")
     #   - container_name: Name of the container (example: "boring_euclid")
     #   - container_command: Command ran by the container (example: "echo 1")
+    #   - container_id: Id of the container
     #
     # performance_tags: ["container_name", image_name", "image_tag", "docker_image"]
 

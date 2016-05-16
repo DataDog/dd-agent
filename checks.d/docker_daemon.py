@@ -104,6 +104,7 @@ TAG_EXTRACTORS = {
     "image_tag": lambda c: DockerUtil.image_tag_extractor(c, 1),
     "container_command": lambda c: [c["Command"]],
     "container_name": DockerUtil.container_name_extractor,
+    "container_id": lambda c: [c["Id"]],
 }
 
 CONTAINER = "container"
