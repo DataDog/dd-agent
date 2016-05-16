@@ -9,6 +9,9 @@ instances:
   # WARNING: Ensure the user account running the Agent (typically dd-agent) has read
   # access to the monitored directory and files.
   #
+  # NOTE: on windows, please make sure you escape back-slashes otherwise the YAML
+  #       parser will fail (eg. - directory: "C:\\Users\\foo\\Downloads").
+  #
   # Instances take the following parameters:
   # "directory" - string, the directory to monitor. Required
   # "name" - string, tag metrics with specified name. defaults to the "directory"
