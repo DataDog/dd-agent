@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 
 def get_conf_path(check_name):
-    """Return the yaml config file path for a given check name."""
+    """Return the yaml config file path for a given check name or raise an IOError."""
     from config import get_confd_path, PathNotFound
     confd_path = ''
 
@@ -26,8 +26,7 @@ def get_conf_path(check_name):
     if not os.path.exists(conf_path):
         default_conf_path = os.path.join(confd_path, '%s.yaml.default' % check_name)
         if not os.path.exists(default_conf_path):
-            log.error("Couldn't find any configuration file for the %s check." % check_name)
-            return None
+            raise IOError("Couldn't find any configuration file for the %s check." % check_name)
         else:
             conf_path = default_conf_path
     return conf_path
