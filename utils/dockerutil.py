@@ -60,7 +60,11 @@ class DockerUtil():
         from util import check_yaml
         from utils.checkfiles import get_conf_path
         init_config, instances = {}, []
-        conf_path = get_conf_path(CHECK_NAME)
+        try:
+            conf_path = get_conf_path(CHECK_NAME)
+        except IOError as ex:
+            log.debug(ex.message)
+            return init_config, {}
 
         if conf_path is not None and os.path.exists(conf_path):
             try:

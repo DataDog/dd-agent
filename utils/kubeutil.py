@@ -35,10 +35,14 @@ class KubeUtil():
     DEFAULT_MASTER_PORT = 8080
 
     def __init__(self):
-        config_file_path = get_conf_path(KUBERNETES_CHECK_NAME)
         try:
+            config_file_path = get_conf_path(KUBERNETES_CHECK_NAME)
             check_config = check_yaml(config_file_path)
             instance = check_config['instances'][0]
+        # kubernetes.yaml was not found
+        except IOError as ex:
+            log.error(ex.message)
+            instance = {}
         except Exception:
             log.error('Kubernetes configuration file is invalid. '
                       'Trying connecting to kubelet with default settings anyway...')
