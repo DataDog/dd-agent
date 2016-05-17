@@ -2,7 +2,6 @@
 # (C) Leif Walsh <leif.walsh@gmail.com> 2014
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
-0
 
 # stdlib
 import time
@@ -448,7 +447,7 @@ class TokuMX(AgentCheck):
                                     if type(value) in (types.IntType, types.LongType, types.FloatType):
                                         self.histogram('tokumx.stats.idx.%s' % k, idx_stats[k], tags=db_tags)
                                 for k in ['queries', 'nscanned', 'nscannedObjects', 'inserts', 'deletes']:
-                                    key = (dbname, collname, idx_stats['name'])
+                                    key = (dbname, collname, idx_stats['name'], k)
                                     self.submit_idx_rate('tokumx.statsd.idx.%s' % k, idx_stats[k], tags=db_tags, key=key)
                         # FIXME: here tokumx.stats.coll.* are potentially unbounded
                         elif type(v) in (types.IntType, types.LongType, types.FloatType):
