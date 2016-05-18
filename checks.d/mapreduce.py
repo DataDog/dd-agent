@@ -34,12 +34,10 @@ mapreduce.job.counter.total_counter_value    The counter value of all tasks
 MapReduce Map Task Metrics
 --------------------------
 mapreduce.job.map.task.progress     The distribution of all map task progresses
-mapreduce.job.map.task.elapsed_time The distribution of all map tasks elapsed time
 
 MapReduce Reduce Task Metrics
 --------------------------
 mapreduce.job.reduce.task.progress      The distribution of all reduce task progresses
-mapreduce.job.reduce.task.elapsed_time  The distribution of all reduce tasks elapsed time
 '''
 
 # stdlib
@@ -54,6 +52,8 @@ from simplejson import JSONDecodeError
 
 # Project
 from checks import AgentCheck
+from config import _is_affirmative
+
 
 # Default Settings
 DEFAULT_CUSTER_NAME = 'default_cluster'
@@ -72,45 +72,45 @@ YARN_APPLICATION_STATES = 'RUNNING'
 
 # Metric types
 HISTOGRAM = 'histogram'
+INCREMENT = 'increment'
 
 # Metrics to collect
 MAPREDUCE_JOB_METRICS = {
     'elapsedTime': ('mapreduce.job.elapsed_time', HISTOGRAM),
-    'mapsTotal': ('mapreduce.job.maps_total', HISTOGRAM),
-    'mapsCompleted': ('mapreduce.job.maps_completed', HISTOGRAM),
-    'reducesTotal': ('mapreduce.job.reduces_total', HISTOGRAM),
-    'reducesCompleted': ('mapreduce.job.reduces_completed', HISTOGRAM),
-    'mapsPending': ('mapreduce.job.maps_pending', HISTOGRAM),
-    'mapsRunning': ('mapreduce.job.maps_running', HISTOGRAM),
-    'reducesPending': ('mapreduce.job.reduces_pending', HISTOGRAM),
-    'reducesRunning': ('mapreduce.job.reduces_running', HISTOGRAM),
-    'newReduceAttempts': ('mapreduce.job.new_reduce_attempts', HISTOGRAM),
-    'runningReduceAttempts': ('mapreduce.job.running_reduce_attempts', HISTOGRAM),
-    'failedReduceAttempts': ('mapreduce.job.failed_reduce_attempts', HISTOGRAM),
-    'killedReduceAttempts': ('mapreduce.job.killed_reduce_attempts', HISTOGRAM),
-    'successfulReduceAttempts': ('mapreduce.job.successful_reduce_attempts', HISTOGRAM),
-    'newMapAttempts': ('mapreduce.job.new_map_attempts', HISTOGRAM),
-    'runningMapAttempts': ('mapreduce.job.running_map_attempts', HISTOGRAM),
-    'failedMapAttempts': ('mapreduce.job.failed_map_attempts', HISTOGRAM),
-    'killedMapAttempts': ('mapreduce.job.killed_map_attempts', HISTOGRAM),
-    'successfulMapAttempts': ('mapreduce.job.successful_map_attempts', HISTOGRAM),
+    'mapsTotal': ('mapreduce.job.maps_total', INCREMENT),
+    'mapsCompleted': ('mapreduce.job.maps_completed', INCREMENT),
+    'reducesTotal': ('mapreduce.job.reduces_total', INCREMENT),
+    'reducesCompleted': ('mapreduce.job.reduces_completed', INCREMENT),
+    'mapsPending': ('mapreduce.job.maps_pending', INCREMENT),
+    'mapsRunning': ('mapreduce.job.maps_running', INCREMENT),
+    'reducesPending': ('mapreduce.job.reduces_pending', INCREMENT),
+    'reducesRunning': ('mapreduce.job.reduces_running', INCREMENT),
+    'newReduceAttempts': ('mapreduce.job.new_reduce_attempts', INCREMENT),
+    'runningReduceAttempts': ('mapreduce.job.running_reduce_attempts', INCREMENT),
+    'failedReduceAttempts': ('mapreduce.job.failed_reduce_attempts', INCREMENT),
+    'killedReduceAttempts': ('mapreduce.job.killed_reduce_attempts', INCREMENT),
+    'successfulReduceAttempts': ('mapreduce.job.successful_reduce_attempts', INCREMENT),
+    'newMapAttempts': ('mapreduce.job.new_map_attempts', INCREMENT),
+    'runningMapAttempts': ('mapreduce.job.running_map_attempts', INCREMENT),
+    'failedMapAttempts': ('mapreduce.job.failed_map_attempts', INCREMENT),
+    'killedMapAttempts': ('mapreduce.job.killed_map_attempts', INCREMENT),
+    'successfulMapAttempts': ('mapreduce.job.successful_map_attempts', INCREMENT),
 }
 
 MAPREDUCE_JOB_COUNTER_METRICS = {
-    'reduceCounterValue': ('mapreduce.job.counter.reduce_counter_value', HISTOGRAM),
-    'mapCounterValue': ('mapreduce.job.counter.map_counter_value', HISTOGRAM),
-    'totalCounterValue': ('mapreduce.job.counter.total_counter_value', HISTOGRAM),
+    'reduceCounterValue': ('mapreduce.job.counter.reduce_counter_value', INCREMENT),
+    'mapCounterValue': ('mapreduce.job.counter.map_counter_value', INCREMENT),
+    'totalCounterValue': ('mapreduce.job.counter.total_counter_value', INCREMENT),
 }
 
 MAPREDUCE_MAP_TASK_METRICS = {
-    'progress': ('mapreduce.job.map.task.progress', HISTOGRAM),
     'elapsedTime': ('mapreduce.job.map.task.elapsed_time', HISTOGRAM)
 }
 
 MAPREDUCE_REDUCE_TASK_METRICS = {
-    'progress': ('mapreduce.job.reduce.task.progress', HISTOGRAM),
     'elapsedTime': ('mapreduce.job.reduce.task.elapsed_time', HISTOGRAM)
 }
+
 
 class MapReduceCheck(AgentCheck):
 
@@ -128,6 +128,8 @@ class MapReduceCheck(AgentCheck):
         rm_address = instance.get('resourcemanager_uri')
         if rm_address is None:
             raise Exception('The ResourceManager URL must be specified in the instance configuration')
+
+        collect_task_metrics = _is_affirmative(instance.get('collect_task_metrics', False))
 
         # Get additional tags from the conf file
         tags = instance.get('tags', [])
@@ -160,7 +162,8 @@ class MapReduceCheck(AgentCheck):
         self._mapreduce_job_counters_metrics(running_jobs, tags)
 
         # Get task metrics
-        self._mapreduce_task_metrics(running_jobs, tags)
+        if collect_task_metrics:
+            self._mapreduce_task_metrics(running_jobs, tags)
 
         # Report success after gathering all metrics from Application Master
         if running_jobs:
@@ -439,6 +442,8 @@ class MapReduceCheck(AgentCheck):
         '''
         if metric_type == HISTOGRAM:
             self.histogram(metric_name, value, tags=tags, device_name=device_name)
+        elif metric_type == INCREMENT:
+            self.increment(metric_name, value, tags=tags, device_name=device_name)
         else:
             self.log.error('Metric type "%s" unknown' % (metric_type))
 
