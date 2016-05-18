@@ -243,7 +243,7 @@ class Kubernetes(AgentCheck):
             node_name = pod['spec']['nodeName']
             try:
                 created_by = json.loads(pod['metadata']['annotations']['kubernetes.io/created-by'])
-                if created_by['reference']['kind'] == 'ReplicationController':
+                if (created_by['reference']['kind'] == 'ReplicationController') or (created_by['reference']['kind'] == 'ReplicaSet'):
                     controllers_map[created_by['reference']['name']].append(node_name)
             except KeyError:
                 continue
