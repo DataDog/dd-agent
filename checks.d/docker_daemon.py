@@ -25,7 +25,6 @@ SERVICE_CHECK_NAME = 'docker.service_up'
 SIZE_REFRESH_RATE = 5  # Collect container sizes every 5 iterations of the check
 MAX_CGROUP_LISTING_RETRIES = 3
 CONTAINER_ID_RE = re.compile('[0-9a-f]{64}')
-POD_NAME_LABEL = "io.kubernetes.pod.name"
 
 GAUGE = AgentCheck.gauge
 RATE = AgentCheck.rate
@@ -331,8 +330,8 @@ class DockerDaemon(AgentCheck):
         tags = list(self.custom_tags)
 
         # Collect pod names as tags on kubernetes
-        if self.is_k8s() and POD_NAME_LABEL not in self.collect_labels_as_tags:
-            self.collect_labels_as_tags.append(POD_NAME_LABEL)
+        if self.is_k8s() and KubeUtil.POD_NAME_LABEL not in self.collect_labels_as_tags:
+            self.collect_labels_as_tags.append(KubeUtil.POD_NAME_LABEL)
 
         if entity is not None:
             pod_name = None
@@ -343,22 +342,29 @@ class DockerDaemon(AgentCheck):
                 for k in self.collect_labels_as_tags:
                     if k in labels:
                         v = labels[k]
-                        if k == POD_NAME_LABEL and self.is_k8s():
+                        if k == KubeUtil.POD_NAME_LABEL and self.is_k8s():
                             pod_name = v
                             k = "pod_name"
                             if "-" in pod_name:
                                 replication_controller = "-".join(pod_name.split("-")[:-1])
-                                if "/" in replication_controller:
+                                if "/" in replication_controller: # k8s <= 1.1
                                     namespace, replication_controller = replication_controller.split("/", 1)
-                                    tags.append("kube_namespace:%s" % namespace)
 
+                                elif KubeUtil.NAMESPACE_LABEL in labels: # k8s >= 1.2
+                                    namespace = labels[KubeUtil.NAMESPACE_LABEL]
+                                    pod_name = "{0}/{1}".format(namespace, pod_name)
+
+                                tags.append("kube_namespace:%s" % namespace)
                                 tags.append("kube_replication_controller:%s" % replication_controller)
+                                tags.append("pod_name:%s" % pod_name)
 
-                        if not v:
+                        elif not v:
                             tags.append(k)
+
                         else:
                             tags.append("%s:%s" % (k,v))
-                    if k == POD_NAME_LABEL and self.is_k8s() and k not in labels:
+
+                    if k == KubeUtil.POD_NAME_LABEL and self.is_k8s() and k not in labels:
                         tags.append("pod_name:no_pod")
 
             # Get entity specific tags
