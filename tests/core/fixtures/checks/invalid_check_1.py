@@ -1,0 +1,2 @@
+class InvalidCheck(object):
+    pass
