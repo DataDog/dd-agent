@@ -609,7 +609,7 @@ class VSphereCheck(AgentCheck):
                     return
             # Also, if include_only_marked is true, then check if there exists a
             # custom field with the value DatadogMonitored
-            if _is_affirmative(include_only_marked):
+            if include_only_marked:
                 monitored = False
                 for field in obj.customValue:
                     if field.value == VM_MONITORING_FLAG:
@@ -650,7 +650,7 @@ class VSphereCheck(AgentCheck):
             'host_include': instance.get('host_include_only_regex'),
             'vm_include': instance.get('vm_include_only_regex')
         }
-        include_only_marked = instance.get('include_only_marked', False)
+        include_only_marked = _is_affirmative(instance.get('include_only_marked', False))
         self.pool.apply_async(
             self._cache_morlist_raw_atomic,
             args=(i_key, 'rootFolder', root_folder, [instance_tag], regexes, include_only_marked)
