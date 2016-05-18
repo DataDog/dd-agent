@@ -193,11 +193,10 @@ class SDDockerBackend(AbstractSDBackend):
 
             tpl = self._render_template(init_config_tpl or {}, instance_tpl or {}, var_values)
             if tpl and len(tpl) == 2:
-                if trace_config and len(tpl[1]) == 2:
-                    source, (init_config, instance) = tpl
+                init_config, instance = tpl
+                if trace_config:
                     check_configs.append((source, (check_name, init_config, instance)))
-                elif not trace_config:
-                    init_config, instance = tpl
+                else:
                     check_configs.append((check_name, init_config, instance))
 
         return check_configs
