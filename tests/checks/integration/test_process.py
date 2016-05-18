@@ -254,7 +254,6 @@ class ProcessCheckTest(AgentCheckTest):
     @patch('psutil.Process', return_value=MockProcess())
     def test_check(self, mock_process):
         (minflt, cminflt, majflt, cmajflt) = [1, 2, 3, 4]
-        pg_fault_stats = {'minor_faults': minflt,'children_minor_faults': cminflt,'major_faults': majflt,'children_major_faults': cmajflt}
 
         def mock_get_pagefault_stats(pid):
             return [minflt, cminflt, majflt, cmajflt]
@@ -269,13 +268,13 @@ class ProcessCheckTest(AgentCheckTest):
             'instances': [stub['config'] for stub in self.CONFIG_STUBS]
         }
 
-        self.run_check(config, mocks=mocks)
+        self.run_check_twice(config, mocks=mocks)
 
         instance_config = config['instances'][-1]
         for stat_name in self.PAGEFAULT_STAT:
-            self.assertMetric('system.processes.mem.page_faults.' + stat_name, at_least=1,
+            self.assertMetric('system.processes.mem.page_faults.' + stat_name,
                 tags=self.generate_expected_tags(instance_config),
-                value=pg_fault_stats[stat_name])
+                value=0)
 
         for stub in self.CONFIG_STUBS:
             mocked_processes = stub['mocked_processes']
@@ -285,8 +284,7 @@ class ProcessCheckTest(AgentCheckTest):
                 expected_value = None
                 # - if no processes are matched we don't send metrics except number
                 # - it's the first time the check runs so don't send cpu.pct
-                if (len(mocked_processes) == 0 and mname != 'system.processes.number')\
-                        or mname == 'system.processes.cpu.pct':
+                if (len(mocked_processes) == 0 and mname != 'system.processes.number'):
                     continue
 
                 if mname == 'system.processes.number':

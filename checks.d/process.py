@@ -33,11 +33,14 @@ ATTR_TO_METRIC = {
     'r_bytes':          'ioread_bytes',  # FIXME: namespace me correctly (6.x) io.w_count
     'w_bytes':          'iowrite_bytes',  # FIXME: namespace me correctly (6.x) io.w_bytes
     'ctx_swtch_vol':    'voluntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.voluntary
-    'ctx_swtch_invol':  'involuntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.involuntary
+    'ctx_swtch_invol':  'involuntary_ctx_switches'  # FIXME: namespace me correctly (6.x), ctx_swt.involuntary
+}
+
+ATTR_TO_METRIC_RATE = {
     'minflt':           'mem.page_faults.minor_faults',
     'cminflt':          'mem.page_faults.children_minor_faults',
     'majflt':           'mem.page_faults.major_faults',
-    'cmajflt':          'mem.page_faults.children_major_faults',
+    'cmajflt':          'mem.page_faults.children_major_faults'
 }
 
 
@@ -321,6 +324,11 @@ class ProcessCheck(AgentCheck):
             if vals:
                 # FIXME 6.x: change this prefix?
                 self.gauge('system.processes.%s' % mname, sum(vals), tags=tags)
+
+        for attr, mname in ATTR_TO_METRIC_RATE.iteritems():
+            vals = [x for x in proc_state[attr] if x is not None]
+            if vals:
+                self.rate('system.processes.%s' % mname, sum(vals), tags=tags)
 
         self._process_service_check(name, len(pids), instance.get('thresholds', None))
 
