@@ -40,6 +40,10 @@ from utils.jmx import JMXFiles
 from utils.platform import Platform
 from utils.subprocess_output import get_subprocess_output
 
+#debugging memleak
+import gc
+from pympler import tracker
+
 log = logging.getLogger(__name__)
 
 
@@ -235,6 +239,9 @@ class Collector(object):
 
         self._metrics_checks = []
 
+        # memory tracker
+        self._tracker = tracker.SummaryTracker()
+
         # Custom metric checks
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
             if len(module_spec) == 0:
@@ -353,6 +360,9 @@ class Collector(object):
             if cpuStats:
                 payload.update(cpuStats)
 
+        gc.collect()
+        log.debug("[memory] summary after system checks:\n%s" % str(self._tracker.print_diff()))
+
         # Run old-style checks
         gangliaData = self._ganglia.check(self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
@@ -376,6 +386,9 @@ class Collector(object):
         # metrics about the forwarder
         if ddforwarderData:
             payload['datadog'] = ddforwarderData
+
+        gc.collect()
+        log.debug("[memory] summary after old-style checks:\n%s" % str(self._tracker.print_diff()))
 
         # process collector of gohai (compliant with payload of legacy "resources checks")
         if not Platform.is_windows() and self._should_send_additional_data('processes'):
@@ -405,6 +418,9 @@ class Collector(object):
             res = metrics_check.check(self.agentConfig)
             if res:
                 metrics.extend(res)
+
+            gc.collect()
+            log.debug("[memory] summary after %s check:\n%s" % (metrics_check, str(self._tracker.print_diff())))
 
         # checks.d checks
         check_statuses = []
@@ -475,6 +491,9 @@ class Collector(object):
             check_run_time = time.time() - check_start_time
             log.debug("Check %s ran in %.2f s" % (check.name, check_run_time))
 
+            gc.collect()
+            log.debug("[memory] summary after %s check.d:\n%s" % (check.name, str(self._tracker.print_diff())))
+
             # Intrument check run timings if enabled.
             if self.check_timings:
                 metric = 'datadog.agent.check_run_time'
@@ -543,6 +562,9 @@ class Collector(object):
         else:
             log.debug("Finished run #%s. Collection time: %ss. Emit time: %ss" %
                       (self.run_count, round(collect_duration, 2), round(self.emit_duration, 2)))
+
+        gc.collect()
+        log.debug("[memory] summary after collector final tasks:\n%s" % str(self._tracker.print_diff()))
 
         return payload
 

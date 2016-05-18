@@ -49,3 +49,6 @@ psycopg2==2.6
 # It's a pure python module, it doesn't require anything to install,
 # but needs the pywin32 extension to work
 wmi==1.4.9
+
+# debugging memory
+pympler==0.4.2
