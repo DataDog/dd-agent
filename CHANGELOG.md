@@ -37,6 +37,7 @@ https://github.com/DataDog/dd-agent/compare/5.7.4...5.8.0
 * TeamCity
 * TokuMX
 * Varnish
+* vSphere
 * Windows
 * Windows Service
 * WMI
@@ -49,7 +50,7 @@ Service discovery makes it possible to define configuration templates for a give
 
 For more details on Datadog Agent's Service Discovery, check out the [wiki page](https://github.com/DataDog/dd-agent/wiki/Service-discovery).
 
-See [#2008][], [#2424][], [#2426][].
+See [#2008][], [#2424][], [#2426][], [#2514][].
 
 ### Kong integration
 [Kong](https://getkong.org/) is an open-source management layer for APIs.
@@ -88,7 +89,13 @@ In particular:
 * `cluster_name` tag replaces `cluster_id`
 * `app_name` tag replaces `app_id`
 
-See [#2473][], [#2474][].
+MapReduce metrics have received additional improvements and cleanups:
+* Metric type `rate` replaces `gauge` when applicable
+* The following metrics have been removed:
+  * `mapreduce.job.map.task.progress`
+  * `mapreduce.job.reduce.task.progress`
+
+See [#2473][], [#2474][], [#2487][].
 
 ### Source install: end of Python 2.6 compatibility support
 For source installation, the Datadog Agent uses system's Python. Starting with the 5.8.0 release, the Datadog Agent does not enforce compatibility with Python 2.6 anymore and requires Python 2.7. Tests and code sections used to maintain compability have been removed.
@@ -99,33 +106,42 @@ See [#2377][].
 
 ### Changes
 * [FEATURE] ActiveMQ: Add monitoring for standby hosts. See [#2023][], [#2430][] (Thanks [@joelvanvelden][])
-* [FEATURE] Directory: Add Windows support. See [#2410][]
+* [FEATURE] Directory: Add Windows support. See [#2410][], [#2508][]
 * [FEATURE] Disk: Add an option to exclude disks based on their mountpoints. See [#2359][], [#2476][] (Thanks [@rhwlo][])
-* [FEATURE] Docker: Add optional disk metrics. See [#2405][]
+* [FEATURE] Docker: Add optional disk metrics. See [#2405][], [#2405][]
+* [FEATURE] Docker: Add the possibility to tag by container ID. See [#2353][], [#2507][]
 * [FEATURE] Elasticsearch: Add support for SSL and Elasticsearch Shield. See [#2195][] (Thanks [@pabrahamsson][])
 * [FEATURE] Elasticsearch: Collect additional Thread Pool metrics. See [#2321][]
 * [FEATURE] HAProxy: Add option to disable SSL validation. See [#2393][].
 * [FEATURE] JMX: Add user tags to service checks. See [#96](https://github.com/DataDog/jmxfetch/pull/96)
 * [FEATURE] JMX: Allow group name substitutions in attribute/alias parameters. See [#94](https://github.com/DataDog/jmxfetch/pull/94), [#97](https://github.com/DataDog/jmxfetch/pull/97) (Thanks [@alz][])
 * [FEATURE] Kong: New check. See [#2241][], [Kong integration](#kong-integration) (Thanks [@shashiranjan84][])
+* [FEATURE] Kubernetes: Allow to blacklist labels. See [#2512][]
+* [FEATURE] Kubernetes: Tag pods metrics with replica sets. See [#2444][], [#2446][], [#2512][]
+* [FEATURE] Memcached: Add "items" statistic metrics as reported by the `stats items` command. See [#2491][]
 * [FEATURE] PowerDNS Recursor: New check. See [#2108][], [#2490][], [PowerDNS Recursor integration](#powerdns-recursor-integration) (Thanks [@AntoCard][], [@janeczku][])
 * [FEATURE] Process: Add pagefault statistics to process metrics. See [#2363][], [#2477][] (Thanks [@ovesh][])
 * [FEATURE] RabbitMQ: Tag queue based metrics with the queue name as `queue_family`. See [#2259][], [#2468][] (Thanks [@rhwlo][])
 * [FEATURE] Riak: Collect Riak Search metrics. See [#2243][] (Thanks [@gzysk8][])
-* [FEATURE] Service Discovery: Define configuration templates for a given Docker image in a configuration store, and to dynamically apply them to new containers on the fly. See [#2008][], [#2424][], [#2426][], [Service Discovery](#service-discovery)
+* [FEATURE] Service Discovery: Define configuration templates for a given Docker image in a configuration store, and to dynamically apply them to new containers on the fly. See [#2008][], [#2424][], [#2426][], [#2514][], [Service Discovery](#service-discovery)
 * [FEATURE] Spark: New check. See [#2407][], [#2479][], [Spark integration](#spark-integration)
 * [FEATURE] TeamCity: Support basic HTTP authentication. See [#2266][] (Thanks [@mderomph-coolblue][])
+* [FEATURE] vSphere: Add the ability to set a custom field from the vSphere PowerCLI to mark the VMs to monitor. See [#2459][]
 * [FEATURE] Windows Event Log: Add an optional `event_format` parameter to instruct the check to generate Datadog's event bodies with the specified list of event properties. See [#2441][]
 * [FEATURE] Windows: Add opened handles statistics to system metrics. See [#2403][]
 * [FEATURE] Windows: Add swap -pagefile- statistics to system metrics. See [#2422][]
 
 * [IMPROVEMENT] Core: Allow `AgentCheckTest` facilities to be used on SDK check modules. See [#2341][]
 * [IMPROVEMENT] Core: Gracefully handle responses with HTTP status code 413. See [#2418][]
+* [IMPROVEMENT] Core: Update the configuration logic to look for checks in a 3rd-party directory. See [#2273][], [#2467][]
 * [IMPROVEMENT] Directory: Speed up the file count in a directory. See [#2245][] (Thanks [@tebriel][])
 * [IMPROVEMENT] Gohai: Collect process resources and deprecate the corresponding Python check. See [#24](https://github.com/DataDog/gohai/pull/24), [#2218][]
 * [IMPROVEMENT] Gohai: Improve logging. See [#30](https://github.com/DataDog/gohai/pull/30)
+* [IMPROVEMENT] Kubernetes: Enable `kubelet` check by default. See [#2512][]
+* [IMPROVEMENT] Kubernetes: Improve support for Kubernetes >= `1.2`. See [#2388][], [#2494][], [#2512][]
 * [IMPROVEMENT] Kubernetes: Timeout on slow requests. See [#2345][]
 * [IMPROVEMENT] MapReduce: Consolidate and reduce the number of tags produced. See [#2474][], [MapReduce & YARN updates](#mapreduce--yarn-updates)
+* [IMPROVEMENT] MapReduce: Switch metric types from `gauge` to `rate` when applicable. See [#2487][], [MapReduce & YARN updates](#mapreduce--yarn-updates)
 * [IMPROVEMENT] Marathon: Remove versions metric to decrease the check collection runtime. See [#1861][], [#2443][] (Thanks [@Zarkantho][])
 * [IMPROVEMENT] MongoDB: Add additional tag on status change to make searching more precise. See [#2502][] (Thanks [@gphat][])
 * [IMPROVEMENT] MongoDB: Improve metric tagging. See [#2457][]
@@ -143,12 +159,15 @@ See [#2377][].
 * [BUGFIX] JMX: Report properly beans with ':' in the name. See [#90](https://github.com/DataDog/jmxfetch/pull/90), [#91](https://github.com/DataDog/jmxfetch/pull/91), [#95](https://github.com/DataDog/jmxfetch/pull/95) (Thanks [@bluestix][])
 * [BUGFIX] JMX: Sanitize metric names and tags, i.e. remove illegal characters. See [#89](https://github.com/DataDog/jmxfetch/pull/89)
 * [BUGFIX] JMX: Support `javax.management.Attribute` attribute types. See [#92](https://github.com/DataDog/jmxfetch/pull/92) (Thanks [@nwillems][])
+* [BUGFIX] JMX: Use `localhost` interface when StatsD is bound to all interfaces. See [#2516][]
+* [BUGFIX] Kubernetes: Handle case where no pods are running. See [#2263][], [#2512][]
+* [BUGFIX] Mesos Master: Fix key error when a metric is missing. See [#2500][] (Thanks [@gphat][])
 * [BUGFIX] MongoDB: Attach the check's events with the integration in Datadog. See [#2456][]
 * [BUGFIX] Packaging: Exclude an operating-system-specific `.dll` from the MSI installer that was causing installation and runtime failures on Windows Server 2008. See [#2486][]
 * [BUGFIX] TokuMX: Fix `AttributeError` exceptions when collecting metrics from a replica. See [#2390][]
+* [BUGFIX] TokuMX: Fix an issue among metrics collection causing rate metric values to be potentially wrong and `ZeroDivisionError` exceptions. See [#2510][]
 * [BUGFIX] TokuMX: Support metric values with Int64 type. See [#2390][]
 * [BUGFIX] Windows Service: Make Windows service names case-insensitive. See [#2492][]
-* [BUGFIX] Mesos Master: Fix key error when a metric is missing. See [#2500][] (Thanks [@gphat][])
 
 * [OTHER] Cassandra: Remove deprecated options from the `datadog.conf` configuration file. See [#2447][]
 * [OTHER] Core: Remove support of Python 2.6. See [#2377][], [Source install: end of Python 2.6 compatibility support](#source-install-end-of-python-26-compatibility-support)
@@ -2957,10 +2976,12 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2250]: https://github.com/DataDog/dd-agent/issues/2250
 [#2259]: https://github.com/DataDog/dd-agent/issues/2259
 [#2260]: https://github.com/DataDog/dd-agent/issues/2260
+[#2263]: https://github.com/DataDog/dd-agent/issues/2263
 [#2264]: https://github.com/DataDog/dd-agent/issues/2264
 [#2266]: https://github.com/DataDog/dd-agent/issues/2266
 [#2268]: https://github.com/DataDog/dd-agent/issues/2268
 [#2271]: https://github.com/DataDog/dd-agent/issues/2271
+[#2273]: https://github.com/DataDog/dd-agent/issues/2273
 [#2274]: https://github.com/DataDog/dd-agent/issues/2274
 [#2278]: https://github.com/DataDog/dd-agent/issues/2278
 [#2280]: https://github.com/DataDog/dd-agent/issues/2280
@@ -2988,6 +3009,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2345]: https://github.com/DataDog/dd-agent/issues/2345
 [#2349]: https://github.com/DataDog/dd-agent/issues/2349
 [#2351]: https://github.com/DataDog/dd-agent/issues/2351
+[#2353]: https://github.com/DataDog/dd-agent/issues/2353
 [#2357]: https://github.com/DataDog/dd-agent/issues/2357
 [#2359]: https://github.com/DataDog/dd-agent/issues/2359
 [#2363]: https://github.com/DataDog/dd-agent/issues/2363
@@ -3003,6 +3025,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2384]: https://github.com/DataDog/dd-agent/issues/2384
 [#2385]: https://github.com/DataDog/dd-agent/issues/2385
 [#2387]: https://github.com/DataDog/dd-agent/issues/2387
+[#2388]: https://github.com/DataDog/dd-agent/issues/2388
 [#2390]: https://github.com/DataDog/dd-agent/issues/2390
 [#2392]: https://github.com/DataDog/dd-agent/issues/2392
 [#2393]: https://github.com/DataDog/dd-agent/issues/2393
@@ -3031,15 +3054,19 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2432]: https://github.com/DataDog/dd-agent/issues/2432
 [#2441]: https://github.com/DataDog/dd-agent/issues/2441
 [#2443]: https://github.com/DataDog/dd-agent/issues/2443
+[#2444]: https://github.com/DataDog/dd-agent/issues/2444
+[#2446]: https://github.com/DataDog/dd-agent/issues/2446
 [#2447]: https://github.com/DataDog/dd-agent/issues/2447
 [#2448]: https://github.com/DataDog/dd-agent/issues/2448
 [#2451]: https://github.com/DataDog/dd-agent/issues/2451
 [#2454]: https://github.com/DataDog/dd-agent/issues/2454
 [#2456]: https://github.com/DataDog/dd-agent/issues/2456
 [#2457]: https://github.com/DataDog/dd-agent/issues/2457
+[#2459]: https://github.com/DataDog/dd-agent/issues/2459
 [#2463]: https://github.com/DataDog/dd-agent/issues/2463
 [#2464]: https://github.com/DataDog/dd-agent/issues/2464
 [#2466]: https://github.com/DataDog/dd-agent/issues/2466
+[#2467]: https://github.com/DataDog/dd-agent/issues/2467
 [#2468]: https://github.com/DataDog/dd-agent/issues/2468
 [#2469]: https://github.com/DataDog/dd-agent/issues/2469
 [#2472]: https://github.com/DataDog/dd-agent/issues/2472
@@ -3049,12 +3076,20 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2477]: https://github.com/DataDog/dd-agent/issues/2477
 [#2479]: https://github.com/DataDog/dd-agent/issues/2479
 [#2486]: https://github.com/DataDog/dd-agent/issues/2486
+[#2487]: https://github.com/DataDog/dd-agent/issues/2487
 [#2490]: https://github.com/DataDog/dd-agent/issues/2490
+[#2491]: https://github.com/DataDog/dd-agent/issues/2491
 [#2492]: https://github.com/DataDog/dd-agent/issues/2492
+[#2494]: https://github.com/DataDog/dd-agent/issues/2494
 [#2500]: https://github.com/DataDog/dd-agent/issues/2500
 [#2502]: https://github.com/DataDog/dd-agent/issues/2502
+[#2507]: https://github.com/DataDog/dd-agent/issues/2507
+[#2508]: https://github.com/DataDog/dd-agent/issues/2508
+[#2510]: https://github.com/DataDog/dd-agent/issues/2510
+[#2512]: https://github.com/DataDog/dd-agent/issues/2512
+[#2514]: https://github.com/DataDog/dd-agent/issues/2514
+[#2516]: https://github.com/DataDog/dd-agent/issues/2516
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
-
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
 [@CaptTofu]: https://github.com/CaptTofu
