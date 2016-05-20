@@ -108,7 +108,7 @@ See [#2377][].
 * [FEATURE] ActiveMQ: Add monitoring for standby hosts. See [#2023][], [#2430][] (Thanks [@joelvanvelden][])
 * [FEATURE] Directory: Add Windows support. See [#2410][], [#2508][]
 * [FEATURE] Disk: Add an option to exclude disks based on their mountpoints. See [#2359][], [#2476][] (Thanks [@rhwlo][])
-* [FEATURE] Docker: Add optional disk metrics. See [#2405][], [#2405][]
+* [FEATURE] Docker: Add optional disk metrics. See [#2405][]
 * [FEATURE] Docker: Add the possibility to tag by container ID. See [#2353][], [#2507][]
 * [FEATURE] Elasticsearch: Add support for SSL and Elasticsearch Shield. See [#2195][] (Thanks [@pabrahamsson][])
 * [FEATURE] Elasticsearch: Collect additional Thread Pool metrics. See [#2321][]
@@ -118,7 +118,7 @@ See [#2377][].
 * [FEATURE] Kong: New check. See [#2241][], [Kong integration](#kong-integration) (Thanks [@shashiranjan84][])
 * [FEATURE] Kubernetes: Allow to blacklist labels. See [#2512][]
 * [FEATURE] Kubernetes: Tag pods metrics with replica sets. See [#2444][], [#2446][], [#2512][]
-* [FEATURE] Memcached: Add "items" statistic metrics as reported by the `stats items` command. See [#2491][]
+* [FEATURE] Memcached: Add "items" and "slabs" statistic metrics as reported by the `stats` command. See [#2491][]
 * [FEATURE] PowerDNS Recursor: New check. See [#2108][], [#2490][], [PowerDNS Recursor integration](#powerdns-recursor-integration) (Thanks [@AntoCard][], [@janeczku][])
 * [FEATURE] Process: Add pagefault statistics to process metrics. See [#2363][], [#2477][] (Thanks [@ovesh][])
 * [FEATURE] RabbitMQ: Tag queue based metrics with the queue name as `queue_family`. See [#2259][], [#2468][] (Thanks [@rhwlo][])
