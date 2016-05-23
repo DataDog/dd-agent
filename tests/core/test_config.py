@@ -7,6 +7,9 @@ import mock
 import unittest
 from shutil import copyfile, rmtree
 
+# 3p
+import ntpath
+
 # project
 from config import get_config, load_check_directory, _conf_path_to_check_name
 from util import is_valid_hostname, windows_friendly_colon_split
@@ -158,15 +161,14 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         check_name = u"haproxy"
         unix_check_path = u"/etc/dd-agent/conf.d/haproxy.yaml"
         win_check_path = u"C:\\ProgramData\\Datadog\\conf.d\\haproxy.yaml"
-        
-        if Platform.is_win32():
-            self.assertEquals(
-                _conf_path_to_check_name(win_check_path), check_name
-            )
-        else:
-            self.assertEquals(
-                _conf_path_to_check_name(unix_check_path), check_name
-            )
+        with mock.patch('config.os.path.splitext', side_effect=ntpath.splitext):
+            with mock.patch('config.os.path.split', side_effect=ntpath.split):
+                self.assertEquals(
+                    _conf_path_to_check_name(win_check_path), check_name
+                )
+        self.assertEquals(
+            _conf_path_to_check_name(unix_check_path), check_name
+        )
 
     def testConfigNotFound(self, *args):
         copyfile('%s/valid_conf.yaml' % FIXTURE_PATH,
