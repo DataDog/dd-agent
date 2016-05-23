@@ -158,8 +158,7 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         check_name = u"haproxy"
         unix_check_path = u"/etc/dd-agent/conf.d/haproxy.yaml"
         win_check_path = u"C:\\ProgramData\\Datadog\\conf.d\\haproxy.yaml"
-        curr_os = os.name
-
+        
         if Platform.is_win32():
             self.assertEquals(
                 _conf_path_to_check_name(win_check_path), check_name
