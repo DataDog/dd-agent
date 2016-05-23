@@ -146,6 +146,7 @@ class HTTPCheck(NetworkCheck):
     SOURCE_TYPE_NAME = 'system'
     SC_STATUS = 'http.can_connect'
     SC_SSL_CERT = 'http.ssl_cert'
+    uptimes = {}
 
     def __init__(self, name, init_config, agentConfig, instances):
         self.ca_certs = init_config.get('ca_certs', get_ca_certs_path())
@@ -181,6 +182,7 @@ class HTTPCheck(NetworkCheck):
         url = instance.get('url')
         content_match = instance.get('content_match')
         response_time = _is_affirmative(instance.get('collect_response_time', True))
+        collect_uptime = _is_affirmative(instance.get('collect_uptime', True))
         if not url:
             raise Exception("Bad configuration. You must specify a url")
         include_content = _is_affirmative(instance.get('include_content', False))
@@ -191,14 +193,19 @@ class HTTPCheck(NetworkCheck):
         ignore_ssl_warning = _is_affirmative(instance.get('ignore_ssl_warning', False))
 
         return url, username, password, http_response_status_code, timeout, include_content,\
-            headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs,\
-            weakcipher, ignore_ssl_warning
+            headers, response_time, collect_uptime, content_match, tags, ssl, ssl_expire,\
+            instance_ca_certs, weakcipher, ignore_ssl_warning
 
     def _check(self, instance):
         addr, username, password, http_response_status_code, timeout, include_content, headers,\
-            response_time, content_match, tags, disable_ssl_validation,\
+            response_time, collect_uptime, content_match, tags, disable_ssl_validation,\
             ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning = self._load_conf(instance)
         start = time.time()
+
+        if addr not in self.uptimes:
+            self.uptimes[addr] = time.time()
+
+        uptime = time.time() - self.uptimes[addr]
 
         service_checks = []
         try:
@@ -224,6 +231,8 @@ class HTTPCheck(NetworkCheck):
 
         except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             length = int((time.time() - start) * 1000)
+            uptime = 0
+            self.uptimes[addr] = time.time()
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms"
                           % (addr, str(e), length))
             service_checks.append((
@@ -234,6 +243,8 @@ class HTTPCheck(NetworkCheck):
 
         except socket.error, e:
             length = int((time.time() - start) * 1000)
+            uptime = 0
+            self.uptimes[addr] = time.time()
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms"
                           % (addr, repr(e), length))
             service_checks.append((
@@ -256,6 +267,12 @@ class HTTPCheck(NetworkCheck):
             tags_list = list(tags)
             tags_list.append('url:%s' % addr)
             self.gauge('network.http.response_time', running_time, tags=tags_list)
+
+        if collect_uptime:
+            tags_list = list(tags)
+            tags_list.append('url:%s' % addr)
+            self.log.debug('Reporting uptime for %s' % addr)
+            self.gauge('network.http.uptime', uptime, tags=tags_list)
 
         # Check HTTP response status code
         if not (service_checks or re.match(http_response_status_code, str(r.status_code))):

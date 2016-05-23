@@ -48,6 +48,12 @@ instances:
     #
     # collect_response_time: true
 
+    # The (optional) collect_uptime parameter will instruct the check
+    # to create a metric 'network.http.uptime', tagged with the url, 
+    # reporting the uptime in seconds
+
+    # collect_uptime: true
+
     # The (optional) disable_ssl_validation will instruct the check
     # to skip the validation of the SSL certificate of the URL being tested.
     # This is mostly useful when checking SSL connections signed with
