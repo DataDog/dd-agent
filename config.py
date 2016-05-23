@@ -838,7 +838,7 @@ def _service_disco_configs(agentConfig):
 
 
 def _conf_path_to_check_name(conf_path):
-    return conf_path.rsplit('/', 1)[-1].split('.yaml')[0]
+    return os.path.splitext(os.path.split(conf_path)[1])[0]
 
 
 def get_checks_places(osname, agentConfig):
