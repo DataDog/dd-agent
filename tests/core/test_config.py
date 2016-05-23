@@ -7,8 +7,11 @@ import mock
 import unittest
 from shutil import copyfile, rmtree
 
+# 3p
+import ntpath
+
 # project
-from config import get_config, load_check_directory
+from config import get_config, load_check_directory, _conf_path_to_check_name
 from util import is_valid_hostname, windows_friendly_colon_split
 from utils.pidfile import PidFile
 from utils.platform import Platform
@@ -146,6 +149,26 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
             '%s/test_check.py' % TEMP_AGENT_CHECK_DIR)
         checks = load_check_directory({"additional_checksd": TEMP_ETC_CHECKS_DIR}, "foo")
         self.assertEquals(1, len(checks['init_failed_checks']))
+
+
+    def test_conf_path_to_check_name(self, *args):
+        """
+        Resolve the check name from the full path.
+
+        Note: Support Unix & Windows systems
+        """
+        # Samples
+        check_name = u"haproxy"
+        unix_check_path = u"/etc/dd-agent/conf.d/haproxy.yaml"
+        win_check_path = u"C:\\ProgramData\\Datadog\\conf.d\\haproxy.yaml"
+        with mock.patch('config.os.path.splitext', side_effect=ntpath.splitext):
+            with mock.patch('config.os.path.split', side_effect=ntpath.split):
+                self.assertEquals(
+                    _conf_path_to_check_name(win_check_path), check_name
+                )
+        self.assertEquals(
+            _conf_path_to_check_name(unix_check_path), check_name
+        )
 
     def testConfigNotFound(self, *args):
         copyfile('%s/valid_conf.yaml' % FIXTURE_PATH,
