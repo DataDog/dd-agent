@@ -836,10 +836,11 @@ def _service_disco_configs(agentConfig):
 
     return service_disco_configs
 
-
 def _conf_path_to_check_name(conf_path):
-    return os.path.splitext(os.path.split(conf_path)[1])[0]
-
+    f = os.path.splitext(os.path.split(conf_path)[1])
+    if f[1] and f[1] == ".default":
+        f = os.path.splitext(f[0])
+    return f[0]
 
 def get_checks_places(osname, agentConfig):
     """ Return a list of methods which, when called with a check name, will each return a check path to inspect
