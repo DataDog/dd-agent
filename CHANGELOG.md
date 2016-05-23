@@ -1,6 +1,15 @@
 Changes
 =======
 
+# 5.8.1 / Unreleased
+**Windows only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.8.0...5.8.1
+
+### Changes
+* [BUGFIX] Windows: Fix an issue that was preventing checks from loading properly. See [#2528][]
+
 # 5.8.0 / 05-23-2016
 **All platforms**
 
@@ -3089,6 +3098,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2512]: https://github.com/DataDog/dd-agent/issues/2512
 [#2514]: https://github.com/DataDog/dd-agent/issues/2514
 [#2516]: https://github.com/DataDog/dd-agent/issues/2516
+[#2528]: https://github.com/DataDog/dd-agent/issues/2528
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
