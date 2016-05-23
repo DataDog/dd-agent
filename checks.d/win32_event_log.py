@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 '''
 Monitor the Windows Event Log
 '''
@@ -13,22 +17,32 @@ from utils.timeout import TimeoutException
 SOURCE_TYPE_NAME = 'event viewer'
 EVENT_TYPE = 'win32_log_event'
 
+
 class Win32EventLogWMI(WinWMICheck):
+    # WMI information
     EVENT_PROPERTIES = [
-        "Message",
+        "EventCode",
         "SourceName",
         "TimeGenerated",
         "Type",
-        "User",
+    ]
+    EXTRA_EVENT_PROPERTIES = [
         "InsertionStrings",
-        "EventCode"
+        "Message",
+        "Logfile",
     ]
     NAMESPACE = "root\\CIMV2"
-    CLASS = "Win32_NTLogEvent"
+    EVENT_CLASS = "Win32_NTLogEvent"
 
     def __init__(self, name, init_config, agentConfig, instances=None):
-        WinWMICheck.__init__(self, name, init_config, agentConfig,
-                            instances=instances)
+        WinWMICheck.__init__(
+            self, name, init_config, agentConfig, instances=instances
+        )
+        # Settings
+        self._tag_event_id = init_config.get('tag_event_id', False)
+        self._verbose = init_config.get('verbose', True)
+
+        # State
         self.last_ts = {}
 
     def check(self, instance):
@@ -45,15 +59,25 @@ class Win32EventLogWMI(WinWMICheck):
         log_files = instance.get('log_file', [])
         event_ids = instance.get('event_id', [])
         message_filters = instance.get('message_filters', [])
+        event_format = instance.get('event_format')
 
         instance_hash = hash_mutable(instance)
-        instance_key = self._get_instance_key(host, self.NAMESPACE, self.CLASS, instance_hash)
+        instance_key = self._get_instance_key(host, self.NAMESPACE, self.EVENT_CLASS, instance_hash)
 
         # Store the last timestamp by instance
         if instance_key not in self.last_ts:
             self.last_ts[instance_key] = datetime.utcnow()
             return
 
+        # Event properties
+        event_properties = list(self.EVENT_PROPERTIES)
+
+        if event_format is not None:
+            event_properties.extend(list(set(self.EXTRA_EVENT_PROPERTIES) & set(event_format)))
+        else:
+            event_properties.extend(self.EXTRA_EVENT_PROPERTIES)
+
+        # Event filters
         query = {}
         filters = []
         last_ts = self.last_ts[instance_key]
@@ -89,7 +113,7 @@ class Win32EventLogWMI(WinWMICheck):
 
         wmi_sampler = self._get_wmi_sampler(
             instance_key,
-            self.CLASS, self.EVENT_PROPERTIES,
+            self.EVENT_CLASS, event_properties,
             filters=filters,
             host=host, namespace=self.NAMESPACE,
             username=username, password=password,
@@ -103,7 +127,7 @@ class Win32EventLogWMI(WinWMICheck):
                 u"[Win32EventLog] WMI query timed out."
                 u" class={wmi_class} - properties={wmi_properties} -"
                 u" filters={filters} - tags={tags}".format(
-                    wmi_class=self.CLASS, wmi_properties=self.EVENT_PROPERTIES,
+                    wmi_class=self.EVENT_CLASS, wmi_properties=event_properties,
                     filters=filters, tags=instance_tags
                 )
             )
@@ -111,8 +135,10 @@ class Win32EventLogWMI(WinWMICheck):
             for ev in wmi_sampler:
                 # for local events we dont need to specify a hostname
                 hostname = None if (host == "localhost" or host == ".") else host
-                log_ev = LogEvent(ev, hostname, instance_tags, notify,
-                                self.init_config.get('tag_event_id', False))
+                log_ev = LogEvent(
+                    ev, self.log, hostname, instance_tags, notify,
+                    self._tag_event_id, event_format
+                )
 
                 # Since WQL only compares on the date and NOT the time, we have to
                 # do a secondary check to make sure events are after the last
@@ -125,7 +151,6 @@ class Win32EventLogWMI(WinWMICheck):
             # Update the last time checked
             self.last_ts[instance_key] = datetime.utcnow()
 
-
     def _dt_to_wmi(self, dt):
         ''' A wrapper around wmi.from_time to get a WMI-formatted time from a
             time struct.
@@ -136,12 +161,14 @@ class Win32EventLogWMI(WinWMICheck):
 
 
 class LogEvent(object):
-    def __init__(self, ev, hostname, tags, notify_list, tag_event_id):
+    def __init__(self, ev, log, hostname, tags, notify_list, tag_event_id, event_format):
         self.event = ev
+        self.log = log
         self.hostname = hostname
         self.tags = self._tags(tags, self.event['EventCode']) if tag_event_id else tags
         self.notify_list = notify_list
         self.timestamp = self._wmi_to_ts(self.event['TimeGenerated'])
+        self._format = event_format
 
     @property
     def _msg_title(self):
@@ -151,12 +178,39 @@ class LogEvent(object):
 
     @property
     def _msg_text(self):
-        msg_text = ""
-        if 'Message' in self.event:
-            msg_text = "{message}\n".format(message=self.event['Message'])
-        elif 'InsertionStrings' in self.event:
-            msg_text = "\n".join([i_str for i_str in self.event['InsertionStrings']
-                                  if i_str.strip()])
+        """
+        Generate the event's body to send to Datadog.
+
+        Consider `event_format` parameter:
+        * Only use the specified list of event properties.
+        * If unspecified, default to the EventLog's `Message` or `InsertionStrings`.
+        """
+        msg_text = u""
+
+        if self._format:
+            msg_text_fields = ["%%%\n```"]
+
+            for event_property in self._format:
+                property_value = self.event.get(event_property)
+                if property_value is None:
+                    self.log.warning(u"Unrecognized `%s` event property.", event_property)
+                    continue
+                msg_text_fields.append(
+                    u"{property_name}: {property_value}".format(
+                        property_name=event_property, property_value=property_value
+                    )
+                )
+
+            msg_text_fields.append("```\n%%%")
+
+            msg_text = "\n".join(msg_text_fields)
+        else:
+            # Override when verbosity
+            if 'Message' in self.event:
+                msg_text = "{message}\n".format(message=self.event['Message'])
+            elif 'InsertionStrings' in self.event:
+                msg_text = "\n".join([i_str for i_str in self.event['InsertionStrings']
+                                      if i_str.strip()])
 
         if self.notify_list:
             msg_text += "\n{notify_list}".format(

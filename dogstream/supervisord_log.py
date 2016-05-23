@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2012-2016
+# (C) Robert Leftwich <rleftwich@lightkeeper.com> 2012
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 """
 Custom parser for supervisord log suitable for use by Datadog 'dogstreams'
 

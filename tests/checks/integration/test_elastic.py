@@ -383,6 +383,27 @@ class TestElastic(AgentCheckTest):
         self.assertEquals(c.service_check_tags,
                           ["host:192.168.42.42", "port:12999"])
 
+        instance = {
+            "username": "user",
+            "password": "pass",
+            "url": "https://foo.bar:9200",
+            "ssl_verify": "true",
+            "ssl_cert": "/path/to/cert.pem",
+            "ssl_key": "/path/to/cert.key",
+        }
+
+        c = check.get_instance_config(instance)
+        self.assertEquals(c.username, "user")
+        self.assertEquals(c.password, "pass")
+        self.assertEquals(c.cluster_stats, False)
+        self.assertEquals(c.url, "https://foo.bar:9200")
+        self.assertEquals(c.tags, ["url:https://foo.bar:9200"])
+        self.assertEquals(c.timeout, check.DEFAULT_TIMEOUT)
+        self.assertEquals(c.service_check_tags, ["host:foo.bar", "port:9200"])
+        self.assertEquals(c.ssl_verify, "true")
+        self.assertEquals(c.ssl_cert, "/path/to/cert.pem")
+        self.assertEquals(c.ssl_key, "/path/to/cert.key")
+
     def test_health_event(self):
         dummy_tags = ['foo:bar', 'elastique:recherche']
         config = {'instances': [

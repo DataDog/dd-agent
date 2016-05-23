@@ -1,0 +1,102 @@
+[
+  {
+    "jobId": 0,
+    "name": "saveAsTextFile at NativeMethodAccessorImpl.java:-2",
+    "submissionTime": "2016-03-31T03:05:43.301GMT",
+    "completionTime": "2016-03-31T03:05:47.080GMT",
+    "stageIds": [
+      0,
+      1
+    ],
+    "status": "RUNNING",
+    "numTasks": 20,
+    "numActiveTasks": 30,
+    "numCompletedTasks": 40,
+    "numSkippedTasks": 50,
+    "numFailedTasks": 60,
+    "numActiveStages": 70,
+    "numCompletedStages": 80,
+    "numSkippedStages": 90,
+    "numFailedStages": 100
+  },
+  {
+    "jobId": 0,
+    "name": "saveAsTextFile at NativeMethodAccessorImpl.java:-2",
+    "submissionTime": "2016-03-31T03:05:43.301GMT",
+    "completionTime": "2016-03-31T03:05:47.080GMT",
+    "stageIds": [
+      0,
+      1
+    ],
+    "status": "RUNNING",
+    "numTasks": 0,
+    "numActiveTasks": 0,
+    "numCompletedTasks": 0,
+    "numSkippedTasks": 0,
+    "numFailedTasks": 0,
+    "numActiveStages": 0,
+    "numCompletedStages": 0,
+    "numSkippedStages": 0,
+    "numFailedStages": 0
+  },
+  {
+    "jobId": 0,
+    "name": "saveAsTextFile at NativeMethodAccessorImpl.java:-2",
+    "submissionTime": "2016-03-31T03:05:43.301GMT",
+    "completionTime": "2016-03-31T03:05:47.080GMT",
+    "stageIds": [
+      0,
+      1
+    ],
+    "status": "SUCCEEDED",
+    "numTasks": 1000,
+    "numActiveTasks": 2000,
+    "numCompletedTasks": 3000,
+    "numSkippedTasks": 4000,
+    "numFailedTasks": 5000,
+    "numActiveStages": 6000,
+    "numCompletedStages": 7000,
+    "numSkippedStages": 8000,
+    "numFailedStages": 9000
+  },
+  {
+    "jobId": 0,
+    "name": "saveAsTextFile at NativeMethodAccessorImpl.java:-2",
+    "submissionTime": "2016-03-31T03:05:43.301GMT",
+    "completionTime": "2016-03-31T03:05:47.080GMT",
+    "stageIds": [
+      0,
+      1
+    ],
+    "status": "SUCCEEDED",
+    "numTasks": 0,
+    "numActiveTasks": 0,
+    "numCompletedTasks": 0,
+    "numSkippedTasks": 0,
+    "numFailedTasks": 0,
+    "numActiveStages": 0,
+    "numCompletedStages": 0,
+    "numSkippedStages": 0,
+    "numFailedStages": 0
+  },
+  {
+    "jobId": 0,
+    "name": "saveAsTextFile at NativeMethodAccessorImpl.java:-2",
+    "submissionTime": "2016-03-31T03:05:43.301GMT",
+    "completionTime": "2016-03-31T03:05:47.080GMT",
+    "stageIds": [
+      0,
+      1
+    ],
+    "status": "SUCCEEDED",
+    "numTasks": 0,
+    "numActiveTasks": 0,
+    "numCompletedTasks": 0,
+    "numSkippedTasks": 0,
+    "numFailedTasks": 0,
+    "numActiveStages": 0,
+    "numCompletedStages": 0,
+    "numSkippedStages": 0,
+    "numFailedStages": 0
+  }
+]

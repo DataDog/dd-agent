@@ -1,11 +1,15 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import copy
 import inspect
 from itertools import product
+import imp
 import logging
 import os
 from pprint import pformat
-import signal
 import sys
 import time
 import traceback
@@ -57,12 +61,16 @@ def load_class(check_name, class_name):
     raise Exception(u"Unable to import class {0} from the check module.".format(class_name))
 
 
-def load_check(name, config, agentConfig):
-    checksd_path = get_checksd_path(get_os())
-    if checksd_path not in sys.path:
-        sys.path.append(checksd_path)
+def load_check(name, config, agentConfig, is_sdk=False):
+    if not is_sdk:
+        checksd_path = get_checksd_path(get_os())
 
-    check_module = __import__(name)
+        # find (in checksd_path) and load the check module
+        fd, filename, desc = imp.find_module(name, [checksd_path])
+        check_module = imp.load_module(name, fd, filename, desc)
+    else:
+        check_module = __import__("check")
+
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
     for _, clsmember in classes:
@@ -88,22 +96,6 @@ def load_check(name, config, agentConfig):
         raise Exception("Check is using old API, {0}".format(e))
     except Exception:
         raise
-
-
-def kill_subprocess(process_obj):
-    try:
-        process_obj.terminate()
-    except AttributeError:
-        # py < 2.6 doesn't support process.terminate()
-        if get_os() == 'windows':
-            import ctypes
-            PROCESS_TERMINATE = 1
-            handle = ctypes.windll.kernel32.OpenProcess(PROCESS_TERMINATE, False,
-                                                        process_obj.pid)
-            ctypes.windll.kernel32.TerminateProcess(handle, -1)
-            ctypes.windll.kernel32.CloseHandle(handle)
-        else:
-            os.kill(process_obj.pid, signal.SIGKILL)
 
 
 class Fixtures(object):
@@ -150,12 +142,15 @@ class AgentCheckTest(unittest.TestCase):
 
         self.check = None
 
+    def is_sdk(self):
+        return "SDK_TESTING" in os.environ
+
     def is_travis(self):
         return "TRAVIS" in os.environ
 
     def load_check(self, config, agent_config=None):
         agent_config = agent_config or self.DEFAULT_AGENT_CONFIG
-        self.check = load_check(self.CHECK_NAME, config, agent_config)
+        self.check = load_check(self.CHECK_NAME, config, agent_config, is_sdk=self.is_sdk())
 
     def load_class(self, name):
         """
@@ -216,7 +211,7 @@ class AgentCheckTest(unittest.TestCase):
                 self.service_metadata.append(metadata)
 
         if error is not None:
-            raise error
+            raise error  # pylint: disable=E0702
 
     def print_current_state(self):
         log.debug("""++++++++ CURRENT STATE ++++++++
@@ -305,7 +300,7 @@ WARNINGS
             untested_events=pformat(untested_events),
         ))
 
-        if os.getenv('COVERAGE'):
+        if not os.getenv('NO_COVERAGE'):
             self.assertEquals(coverage_metrics, 100.0)
             self.assertEquals(coverage_events, 100.0)
             self.assertEquals(coverage_sc, 100.0)

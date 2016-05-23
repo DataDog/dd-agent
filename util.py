@@ -1,7 +1,11 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from hashlib import md5
 import logging
-import math
+import os
 import platform
 import re
 import socket
@@ -27,7 +31,7 @@ except ImportError:
 # if a user actually uses them in a custom check
 # If you're this user, please use utils.pidfile or utils.platform instead
 # FIXME: remove them at a point (6.x)
-from utils.dockerutil import get_hostname as get_docker_hostname, is_dockerized
+from utils.dockerutil import DockerUtil
 from utils.pidfile import PidFile  # noqa, see ^^^
 from utils.platform import Platform
 from utils.proxy import get_proxy
@@ -89,6 +93,7 @@ def headers(agentConfig):
         'Accept': 'text/html, */*',
     }
 
+
 def windows_friendly_colon_split(config_string):
     '''
     Perform a split by ':' on the config_string
@@ -99,26 +104,6 @@ def windows_friendly_colon_split(config_string):
         return COLON_NON_WIN_PATH.split(config_string)
     else:
         return config_string.split(':')
-
-def getTopIndex():
-    macV = None
-    if sys.platform == 'darwin':
-        macV = platform.mac_ver()
-
-    # Output from top is slightly modified on OS X 10.6 (case #28239)
-    if macV and macV[0].startswith('10.6.'):
-        return 6
-    else:
-        return 5
-
-
-def isnan(val):
-    if hasattr(math, 'isnan'):
-        return math.isnan(val)
-
-    # for py < 2.6, use a different check
-    # http://stackoverflow.com/questions/944700/how-to-check-for-nan-in-python
-    return str(val) == str(1e400*0)
 
 
 def cast_metric_val(val):
@@ -137,12 +122,15 @@ def cast_metric_val(val):
     return val
 
 _IDS = {}
+
+
 def get_next_id(name):
     global _IDS
     current_id = _IDS.get(name, 0)
     current_id += 1
     _IDS[name] = current_id
     return current_id
+
 
 def is_valid_hostname(hostname):
     if hostname.lower() in set([
@@ -160,6 +148,26 @@ def is_valid_hostname(hostname):
         log.warning("Hostname: %s is not complying with RFC 1123" % hostname)
         return False
     return True
+
+
+def check_yaml(conf_path):
+    with open(conf_path) as f:
+        check_config = yaml.load(f.read(), Loader=yLoader)
+        assert 'init_config' in check_config, "No 'init_config' section found"
+        assert 'instances' in check_config, "No 'instances' section found"
+
+        valid_instances = True
+        if check_config['instances'] is None or not isinstance(check_config['instances'], list):
+            valid_instances = False
+        else:
+            for i in check_config['instances']:
+                if not isinstance(i, dict):
+                    valid_instances = False
+                    break
+        if not valid_instances:
+            raise Exception('You need to have at least one instance defined in the YAML file for this check')
+        else:
+            return check_config
 
 
 def get_hostname(config=None):
@@ -191,8 +199,9 @@ def get_hostname(config=None):
                 return gce_hostname
 
     # Try to get the docker hostname
-    if hostname is None and is_dockerized():
-        docker_hostname = get_docker_hostname()
+    docker_util = DockerUtil()
+    if hostname is None and docker_util.is_dockerized():
+        docker_hostname = docker_util.get_hostname()
         if docker_hostname is not None and is_valid_hostname(docker_hostname):
             return docker_hostname
 
@@ -213,8 +222,12 @@ def get_hostname(config=None):
             if unix_hostname and is_valid_hostname(unix_hostname):
                 hostname = unix_hostname
 
-    # if we have an ec2 default hostname, see if there's an instance-id available
-    if (Platform.is_ecs_instance()) or (hostname is not None and True in [hostname.lower().startswith(p) for p in [u'ip-', u'domu']]):
+    # if the host is an ECS worker, or has an EC2 hostname
+    # or it's a windows machine and the EC2 config service folder exists
+    # try and find an EC2 instance ID
+    if (Platform.is_ecs_instance()) or \
+       (hostname is not None and True in [hostname.lower().startswith(p) for p in [u'ip-', u'domu']]) or \
+       (os_name == 'windows' and os.path.exists('C:\Program Files\Amazon\Ec2ConfigService')):
         instanceid = EC2.get_instance_id(config)
         if instanceid:
             hostname = instanceid

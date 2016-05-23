@@ -1,9 +1,13 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # 3p
 import ntplib
 
 # project
 from checks import AgentCheck
-from utils.ntp import get_ntp_args, set_user_ntp_settings
+from utils.ntp import NTPUtil
 
 DEFAULT_OFFSET_THRESHOLD = 60  # in seconds
 
@@ -20,9 +24,7 @@ class NtpCheck(AgentCheck):
         except (TypeError, ValueError):
             raise Exception('Must specify an integer value for offset_threshold. Configured value is %s' % repr(offset_threshold))
 
-        set_user_ntp_settings(dict(instance))
-
-        req_args = get_ntp_args()
+        req_args = NTPUtil().args
 
         self.log.debug("Using ntp host: {0}".format(req_args['host']))
 

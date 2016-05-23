@@ -48,6 +48,54 @@ RATES = [
     "listen_disabled_num"
 ]
 
+# Not all rates/gauges reported by memcached test instance.
+# This is the subset available with the default config/version.
+ITEMS_RATES = [
+    "evicted",
+    "evicted_nonzero",
+    "expired_unfetched",
+    "evicted_unfetched",
+    "outofmemory",
+    "tailrepairs",
+    "reclaimed",
+    "crawler_reclaimed",
+    "lrutail_reflocked",
+]
+
+ITEMS_GAUGES = [
+    "number",
+    "age",
+    "evicted_time",
+]
+
+SLABS_RATES = [
+    "get_hits",
+    "cmd_set",
+    "delete_hits",
+    "incr_hits",
+    "decr_hits",
+    "cas_hits",
+    "cas_badval",
+    "touch_hits",
+    "used_chunks",
+]
+
+SLABS_GAUGES = [
+    "chunk_size",
+    "chunks_per_page",
+    "total_pages",
+    "total_chunks",
+    "used_chunks",
+    "free_chunks",
+    "free_chunks_end",
+    "mem_requested",
+]
+
+SLABS_AGGREGATES = [
+    "active_slabs",
+    "total_malloced",
+]
+
 SERVICE_CHECK = 'memcache.can_connect'
 
 PORT = 11211
@@ -142,6 +190,62 @@ class TestMemCache(AgentCheckTest):
             self.run_check(new_conf)
             # Verify that the count is still 0
             self.assertEquals(self._countConnections(11211), 0)
+
+    def testOptionalItemsStats(self):
+        config = {
+            'init_config': {},
+            'instances': [
+                {'url': "localhost", 'port': PORT, 'tags': ['instance:mytag'], 'options': {'items': True}},
+            ]
+        }
+
+        tags = ["url:localhost:11211", "instance:mytag"]
+
+        self.run_check_twice(config, force_reload=True)
+        for m in GAUGES:
+            self.assertMetric("memcache.{0}".format(m), tags=tags, count=1)
+        for m in RATES:
+            self.assertMetric(
+                "memcache.{0}_rate".format(m), tags=tags, count=1)
+
+        for m in ITEMS_GAUGES:
+            self.assertMetric("memcache.items.{0}".format(m), tags=tags+["slab:1"], count=1)
+        for m in ITEMS_RATES:
+            self.assertMetric(
+                "memcache.items.{0}_rate".format(m), tags=tags+["slab:1"], count=1)
+
+        self.assertServiceCheck(SERVICE_CHECK, status=AgentCheck.OK, tags=['host:localhost', 'port:11211'], count=1)
+
+        self.coverage_report()
+
+    def testOptionalSlabsStats(self):
+        config = {
+            'init_config': {},
+            'instances': [
+                {'url': "localhost", 'port': PORT, 'tags': ['instance:mytag'], 'options': {'slabs': True}},
+            ]
+        }
+
+        tags = ["url:localhost:11211", "instance:mytag"]
+
+        self.run_check_twice(config, force_reload=True)
+        for m in GAUGES:
+            self.assertMetric("memcache.{0}".format(m), tags=tags, count=1)
+        for m in RATES:
+            self.assertMetric(
+                "memcache.{0}_rate".format(m), tags=tags, count=1)
+
+        for m in SLABS_GAUGES:
+            self.assertMetric("memcache.slabs.{0}".format(m), tags=tags+["slab:1"], count=1)
+        for m in SLABS_AGGREGATES:
+            self.assertMetric("memcache.slabs.{0}".format(m), tags=tags, count=1)
+        for m in SLABS_RATES:
+            self.assertMetric(
+                "memcache.slabs.{0}_rate".format(m), tags=tags+["slab:1"], count=1)
+
+        self.assertServiceCheck(SERVICE_CHECK, status=AgentCheck.OK, tags=['host:localhost', 'port:11211'], count=1)
+
+        self.coverage_report()
 
     def testMemoryLeak(self):
         config = {

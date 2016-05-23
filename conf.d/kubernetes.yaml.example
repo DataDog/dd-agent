@@ -22,8 +22,6 @@ instances:
   #
    use_histogram: True
   #
-  # Kubelet checks
-  # enable_kubelet_checks: true
   # kubelet_port: 10255
   #
   # We can define a whitelist of patterns that permit publishing raw metrics.

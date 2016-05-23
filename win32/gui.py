@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=E0401
 #
 # Copyright © 2009-2010 CEA
 # Pierre Raybaut
@@ -405,6 +406,7 @@ class HTMLWindow(QTextEdit):
                 platform=platform.platform(),
                 agent_version=get_version(),
                 python_version=platform.python_version(),
+                python_architecture=Platform.python_architecture(),
                 logger_info=logger_info(),
                 dogstatsd=dogstatsd_status.to_dict(),
                 forwarder=forwarder_status.to_dict(),

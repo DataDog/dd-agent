@@ -24,16 +24,10 @@ instances:
     # The (optional) `additional_metrics` parameter instructs the check to collect additional
     # metrics on specific topics.
     # Available options are:
-    # * `durability` - Journaling-related operations and performance
-    # * `locks` - Locks
     # * `metrics.commands` - Use of database commands
     # * `tcmalloc` -  TCMalloc memory allocator
     # * `top` - Usage statistics for each collection
-    # * `wiredtiger` - WiredTiger storage engine
     # additional_metrics:
-    #   - durability
-    #   - locks
     #   - metrics.commands
     #   - tcmalloc
     #   - top
-    #   - wiredtiger

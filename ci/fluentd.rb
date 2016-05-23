@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2014-2016
+# (C) Takumi Sakamoto <takumi.saka@gmail.com> 2014
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 require './ci/common'
 
 namespace :ci do
@@ -5,7 +10,7 @@ namespace :ci do
     task before_install: ['ci:common:before_install']
 
     task install: ['ci:common:install'] do
-      sh %(gem install fluentd --no-ri --no-rdoc)
+      sh %(gem install fluentd -v 0.12.22 --no-ri --no-rdoc)
     end
 
     task before_script: ['ci:common:before_script'] do

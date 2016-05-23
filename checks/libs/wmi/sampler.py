@@ -1,3 +1,4 @@
+# pylint: disable=E0401
 """
 A lightweight Python WMI module wrapper built on top of `pywin32` and `win32com` extensions.
 
@@ -294,8 +295,8 @@ class WMISampler(object):
 
                 NOTE: If we just provide a value we defailt to '=' comparison operator.
                 Otherwise, specify the operator in a tuple as above: (comp_op, value)
-                If we detect a wildcard character such as '*' or '%' we will override
-                the operator to use LIKE
+                If we detect a wildcard character ('%') we will override the operator
+                to use LIKE
         """
         def build_where_clause(fltr):
             f = fltr.pop()
@@ -363,7 +364,7 @@ class WMISampler(object):
 
         return " WHERE {clause}".format(clause=build_where_clause(filters))
 
-    def _query(self):
+    def _query(self): # pylint: disable=E0202
         """
         Query WMI using WMI Query Language (WQL) & parse the results.
 

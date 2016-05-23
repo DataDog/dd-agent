@@ -1,6 +1,11 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from datetime import datetime
 import os.path
+from os import environ
 import re
 import socket
 import ssl
@@ -146,9 +151,11 @@ class HTTPCheck(NetworkCheck):
     def __init__(self, name, init_config, agentConfig, instances):
         self.ca_certs = init_config.get('ca_certs', get_ca_certs_path())
         proxy_settings = get_proxy(agentConfig)
-        if not proxy_settings:
-            self.proxies = None
-        else:
+        self.proxies = {
+            "http": None,
+            "https": None,
+        }
+        if proxy_settings:
             uri = "{host}:{port}".format(
                 host=proxy_settings['host'],
                 port=proxy_settings['port'])
@@ -157,10 +164,15 @@ class HTTPCheck(NetworkCheck):
                     user=proxy_settings['user'],
                     password=proxy_settings['password'],
                     uri=uri)
-            self.proxies = {
-                'http': "http://{uri}".format(uri=uri),
-                'https': "https://{uri}".format(uri=uri)
-            }
+            self.proxies['http'] = "http://{uri}".format(uri=uri)
+            self.proxies['https'] = "https://{uri}".format(uri=uri)
+        else:
+            self.proxies['http'] = environ.get('HTTP_PROXY', None)
+            self.proxies['https'] = environ.get('HTTPS_PROXY', None)
+
+        self.proxies['no'] = environ.get('no_proxy',
+                                         environ.get('NO_PROXY', None)
+                                         )
 
         NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
 
@@ -185,15 +197,16 @@ class HTTPCheck(NetworkCheck):
         instance_ca_certs = instance.get('ca_certs', self.ca_certs)
         weakcipher = _is_affirmative(instance.get('weakciphers', False))
         ignore_ssl_warning = _is_affirmative(instance.get('ignore_ssl_warning', False))
+        skip_proxy = _is_affirmative(instance.get('no_proxy', False))
 
         return url, username, password, http_response_status_code, timeout, include_content,\
             headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs,\
-            weakcipher, ignore_ssl_warning
+            weakcipher, ignore_ssl_warning, skip_proxy
 
     def _check(self, instance):
         addr, username, password, http_response_status_code, timeout, include_content, headers,\
             response_time, content_match, tags, disable_ssl_validation,\
-            ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning = self._load_conf(instance)
+            ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning, skip_proxy = self._load_conf(instance)
         start = time.time()
 
         service_checks = []
@@ -204,18 +217,33 @@ class HTTPCheck(NetworkCheck):
                 self.warning("Skipping SSL certificate validation for %s based on configuration"
                              % addr)
 
+            instance_proxy = self.proxies.copy()
+
+            # disable proxy if necessary
+            if skip_proxy:
+                instance_proxy.pop('http')
+                instance_proxy.pop('https')
+            else:
+                for url in self.proxies['no'].replace(';',',').split(","):
+                    if url in parsed_uri.netloc:
+                        instance_proxy.pop('http')
+                        instance_proxy.pop('https')
+
+            self.log.debug("Proxies used for %s - %s", addr, instance_proxy)
+
             auth = None
             if username is not None and password is not None:
                 auth = (username, password)
 
             sess = requests.Session()
+            sess.trust_env = False
             if weakcipher:
                 base_addr = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_uri)
                 sess.mount(base_addr, WeakCiphersAdapter())
                 self.log.debug("Weak Ciphers will be used for {0}. Suppoted Cipherlist: {1}".format(
                     base_addr, WeakCiphersHTTPSConnection.SUPPORTED_CIPHERS))
 
-            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers, proxies = self.proxies,
+            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers, proxies = instance_proxy,
                              verify=False if disable_ssl_validation else instance_ca_certs)
 
         except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:

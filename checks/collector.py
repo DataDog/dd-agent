@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import collections
 import logging
@@ -515,6 +519,8 @@ class Collector(object):
                 log.debug("\n Agent developer mode stats: \n {0}".format(
                     Collector._stats_for_display(agent_stats))
                 )
+            # Flush metadata for the Agent Metrics check. Otherwise they'll just accumulate and leak.
+            self._agent_metrics.get_service_metadata()
 
         # Let's send our payload
         emitter_statuses = payload.emit(log, self.agentConfig, self.emitters,

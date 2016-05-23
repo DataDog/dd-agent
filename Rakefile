@@ -18,6 +18,7 @@ require './ci/fluentd'
 require './ci/gearman'
 require './ci/go_expvar'
 require './ci/haproxy'
+require './ci/kong'
 require './ci/lighttpd'
 require './ci/memcache'
 require './ci/mongo'
@@ -27,6 +28,7 @@ require './ci/nginx'
 require './ci/pgbouncer'
 require './ci/phpfpm'
 require './ci/postgres'
+require './ci/powerdns_recursor'
 require './ci/rabbitmq'
 require './ci/redis'
 require './ci/riak'
@@ -60,7 +62,7 @@ task 'setup_env' do
   `wget -O venv/virtualenv.py https://raw.github.com/pypa/virtualenv/1.11.6/virtualenv.py`
   `python venv/virtualenv.py  --no-site-packages --no-pip --no-setuptools venv/`
   `wget -O venv/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py`
-  `venv/bin/python venv/ez_setup.py`
+  `venv/bin/python venv/ez_setup.py --version="20.9.0"`
   `wget -O venv/get-pip.py https://bootstrap.pypa.io/get-pip.py`
   `venv/bin/python venv/get-pip.py`
   `venv/bin/pip install -r requirements.txt`

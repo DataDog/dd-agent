@@ -1,3 +1,9 @@
+# (C) Datadog, Inc. 2013-2016
+# (C)  Dan Crosta <dcrosta@late.am> 2013
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
+
 # 3rd party
 import snakebite.client
 import snakebite.version

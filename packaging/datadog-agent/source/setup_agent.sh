@@ -11,7 +11,7 @@ set -u
 # SCRIPT KNOBS
 #######################################################################
 # Update for new releases, will pull this tag in the repo
-DEFAULT_AGENT_VERSION="5.7.3"
+DEFAULT_AGENT_VERSION="5.8.0"
 # Pin pip version, in the past there was some buggy releases and get-pip.py
 # always pulls the latest version
 PIP_VERSION="6.1.1"
@@ -357,8 +357,8 @@ VENV_PYTHON_CMD="$DD_HOME/venv/bin/python"
 VENV_PIP_CMD="$DD_HOME/venv/bin/pip"
 
 print_console "* Setting up setuptools"
-$DOWNLOADER "$DD_HOME/ez_setup.py" https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py
-$VENV_PYTHON_CMD "$DD_HOME/ez_setup.py"
+$DOWNLOADER "$DD_HOME/ez_setup.py" https://bootstrap.pypa.io/ez_setup.py
+$VENV_PYTHON_CMD "$DD_HOME/ez_setup.py" --version="20.9.0"
 rm -f "$DD_HOME/ez_setup.py"
 rm -f "$DD_HOME/ez_setup.pyc"
 print_done

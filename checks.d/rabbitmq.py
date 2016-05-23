@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2013-2016
+# (C) Brett Langdon <brett@blangdon.com> 2013
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import re
 import time
@@ -9,6 +14,7 @@ import requests
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'rabbitmq'
 QUEUE_TYPE = 'queues'
@@ -70,6 +76,7 @@ TAGS_MAP = {
                 'name': 'queue',
                 'vhost': 'vhost',
                 'policy': 'policy',
+                'queue_family': 'queue_family',
     },
     NODE_TYPE: {
         'name': 'node',
@@ -198,7 +205,10 @@ class RabbitMQ(AgentCheck):
 
                 match_found = False
                 for p in regex_filters:
-                    if re.search(p, name):
+                    match = re.search(p, name)
+                    if match:
+                        if _is_affirmative(instance.get("tag_families", False)) and match.groups():
+                            data_line["queue_family"] = match.groups()[0]
                         matching_lines.append(data_line)
                         match_found = True
                         break
@@ -216,7 +226,10 @@ class RabbitMQ(AgentCheck):
                     continue
 
                 for p in regex_filters:
-                    if re.search(p, absolute_name):
+                    match = re.search(p, absolute_name)
+                    if match:
+                        if _is_affirmative(instance.get("tag_families", False)) and match.groups():
+                            data_line["queue_family"] = match.groups()[0]
                         matching_lines.append(data_line)
                         match_found = True
                         break

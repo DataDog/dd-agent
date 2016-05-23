@@ -1,0 +1,7 @@
+docker_images:
+  - httpd
+
+init_config:
+
+instances:
+  - apache_status_url: http://%%host%%/server-status?auto

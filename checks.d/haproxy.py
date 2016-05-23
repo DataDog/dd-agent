@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2012-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from collections import defaultdict
 import re
@@ -94,9 +98,11 @@ class HAProxy(AgentCheck):
         services_incl_filter = instance.get('services_include', [])
         services_excl_filter = instance.get('services_exclude', [])
 
+        verify = not _is_affirmative(instance.get('disable_ssl_validation', False))
+
         self.log.debug('Processing HAProxy data for %s' % url)
 
-        data = self._fetch_data(url, username, password)
+        data = self._fetch_data(url, username, password, verify)
 
         process_events = instance.get('status_check', self.init_config.get('status_check', False))
 
@@ -110,7 +116,7 @@ class HAProxy(AgentCheck):
             count_status_by_service=count_status_by_service,
         )
 
-    def _fetch_data(self, url, username, password):
+    def _fetch_data(self, url, username, password, verify):
         ''' Hit a given URL and return the parsed json '''
         # Try to fetch data from the stats URL
 
@@ -119,7 +125,7 @@ class HAProxy(AgentCheck):
 
         self.log.debug("HAProxy Fetching haproxy search data from: %s" % url)
 
-        r = requests.get(url, auth=auth, headers=headers(self.agentConfig))
+        r = requests.get(url, auth=auth, headers=headers(self.agentConfig), verify=verify)
         r.raise_for_status()
 
         return r.content.splitlines()

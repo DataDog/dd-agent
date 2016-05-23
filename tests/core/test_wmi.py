@@ -1,3 +1,4 @@
+# pylint: disable=E0401
 # stdlib
 from functools import partial
 import logging
@@ -194,7 +195,7 @@ class SWbemServices(object):
             results += load_fixture("win32_service_up", ("Name", "WinHttpAutoProxySvc"))
             results += load_fixture("win32_service_down", ("Name", "WSService"))
 
-        if query == ("Select Message,SourceName,TimeGenerated,Type,User,InsertionStrings,EventCode from Win32_NTLogEvent WHERE ( ( SourceName = 'MSSQLSERVER' ) "  # noqa
+        if query == ("Select EventCode,SourceName,TimeGenerated,Type,InsertionStrings,Message,Logfile from Win32_NTLogEvent WHERE ( ( SourceName = 'MSSQLSERVER' ) "  # noqa
                      "AND ( Type = 'Error' OR Type = 'Warning' ) AND TimeGenerated >= '20151224113047.000000-480' )"):  # noqa
             results += load_fixture("win32_ntlogevent")
 
@@ -384,7 +385,7 @@ class TestUnitWMISampler(TestCommonWMI):
         """
         WMI connections are not be shared among WMISampler objects.
         """
-        from win32com.client import Dispatch
+        from win32com.client import Dispatch  # noqa
 
         wmi_sampler_1 = WMISampler("Win32_PerfRawData_PerfOS_System", ["ProcessorQueueLength"])
         wmi_sampler_2 = WMISampler("Win32_OperatingSystem", ["TotalVisibleMemorySize"])

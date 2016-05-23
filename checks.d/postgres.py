@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 """PostgreSQL check
 
 Collects database-wide metrics and optionally per-relation metrics, custom metrics.

@@ -33,7 +33,8 @@ instances:
   # `filters` is a list of filters on the WMI query you may want. For example,
   # for a process-based WMI class you may want metrics for only certain
   # processes running on your machine, so you could add a filter for each
-  # process name. See below for an example of this case.
+  # process name. You can also use the '%' character as a wildcard.
+  # See below for examples.
   #
   #
   # `tag_by` optionally lets you tag each metric with a property from the

@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2010-2016
+# (C) Datadog, Inc. Patrick Galbraith <patg@patg.net> 2013
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import re
 import traceback
@@ -1183,7 +1188,7 @@ class MySql(AgentCheck):
         # Fetches the avg query execution time per schema and returns the
         # value in microseconds
 
-        sql_avg_query_run_time = """SELECT schema_name, SUM(count_star) cnt, ROUND(AVG(avg_timer_wait)/1000000) AS avg_us
+        sql_avg_query_run_time = """SELECT schema_name, ROUND((SUM(sum_timer_wait) / SUM(count_star)) / 1000000) AS avg_us
             FROM performance_schema.events_statements_summary_by_digest
             WHERE schema_name IS NOT NULL
             GROUP BY schema_name"""
@@ -1199,7 +1204,7 @@ class MySql(AgentCheck):
                 schema_query_avg_run_time = {}
                 for row in cursor.fetchall():
                     schema_name = str(row[0])
-                    avg_us = long(row[2])
+                    avg_us = long(row[1])
 
                     # set the tag as the dictionary key
                     schema_query_avg_run_time["schema:{0}".format(schema_name)] = avg_us

@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 """
 This module contains classes which are used to occasionally persist the status
 of checks.
@@ -22,7 +26,7 @@ import config
 from config import _is_affirmative, _windows_commondata_path, get_config
 from util import plural
 from utils.jmx import JMXFiles
-from utils.ntp import get_ntp_args, set_user_ntp_settings
+from utils.ntp import NTPUtil
 from utils.pidfile import PidFile
 from utils.platform import Platform
 from utils.profile import pretty_statistics
@@ -103,8 +107,7 @@ def logger_info():
 
 
 def get_ntp_info():
-    set_user_ntp_settings()
-    req_args = get_ntp_args()
+    req_args = NTPUtil().args
     ntp_offset = ntplib.NTPClient().request(**req_args).offset
     if abs(ntp_offset) > NTP_OFFSET_THRESHOLD:
         ntp_styles = ['red', 'bold']
@@ -165,7 +168,7 @@ class AgentStatus(object):
         # Don't indent the header
         lines = self._title_lines()
         if self.created_seconds_ago() > 120:
-            styles = ['red','bold']
+            styles = ['red', 'bold']
         else:
             styles = []
         # We color it in red if the status is too old
@@ -182,7 +185,9 @@ class AgentStatus(object):
         fields += [
             ("Pid", self.created_by_pid),
             ("Platform", platform.platform()),
-            ("Python Version", platform.python_version()),
+            ("Python Version", "%s, %s" % (
+                platform.python_version(),
+                Platform.python_architecture())),
             ("Logs", logger_info()),
         ]
 
@@ -210,7 +215,6 @@ class AgentStatus(object):
             ""
         ]
         return "\n".join(lines)
-
 
     @classmethod
     def remove_latest_status(cls):
@@ -369,7 +373,7 @@ class CollectorStatus(AgentStatus):
         if cs.init_failed_error:
             check_lines.append("    - initialize check class [%s]: %s" %
                                (style(STATUS_ERROR, 'red'),
-                               repr(cs.init_failed_error)))
+                                repr(cs.init_failed_error)))
             if cs.init_failed_traceback:
                 check_lines.extend('      ' + line for line in
                                    cs.init_failed_traceback.split('\n'))
@@ -397,12 +401,12 @@ class CollectorStatus(AgentStatus):
                         if not len(warn):
                             continue
                         check_lines.append(u"        %s: %s" %
-                            (style("Warning", 'yellow'), warn[0]))
+                                           (style("Warning", 'yellow'), warn[0]))
                         check_lines.extend(u"        %s" % l for l in
-                                    warn[1:])
+                                           warn[1:])
                 if s.traceback is not None:
                     check_lines.extend('      ' + line for line in
-                                   s.traceback.split('\n'))
+                                       s.traceback.split('\n'))
 
             check_lines += [
                 "    - Collected %s metric%s, %s event%s & %s service check%s" % (
@@ -514,7 +518,7 @@ class CollectorStatus(AgentStatus):
                 if cs.init_failed_error:
                     check_lines.append("    - initialize check class [%s]: %s" %
                                        (style(STATUS_ERROR, 'red'),
-                                       repr(cs.init_failed_error)))
+                                        repr(cs.init_failed_error)))
                     if self.verbose and cs.init_failed_traceback:
                         check_lines.extend('      ' + line for line in
                                            cs.init_failed_traceback.split('\n'))
@@ -542,12 +546,12 @@ class CollectorStatus(AgentStatus):
                                 if not len(warn):
                                     continue
                                 check_lines.append(u"        %s: %s" %
-                                    (style("Warning", 'yellow'), warn[0]))
+                                                   (style("Warning", 'yellow'), warn[0]))
                                 check_lines.extend(u"        %s" % l for l in
-                                            warn[1:])
+                                                   warn[1:])
                         if self.verbose and s.traceback is not None:
                             check_lines.extend('      ' + line for line in
-                                           s.traceback.split('\n'))
+                                               s.traceback.split('\n'))
 
                     check_lines += [
                         "    - Collected %s metric%s, %s event%s & %s service check%s" % (
@@ -716,7 +720,7 @@ class DogstatsdStatus(AgentStatus):
     NAME = 'Dogstatsd'
 
     def __init__(self, flush_count=0, packet_count=0, packets_per_second=0,
-            metric_count=0, event_count=0, service_check_count=0):
+                 metric_count=0, event_count=0, service_check_count=0):
         AgentStatus.__init__(self)
         self.flush_count = flush_count
         self.packet_count = packet_count
@@ -757,7 +761,7 @@ class ForwarderStatus(AgentStatus):
     NAME = 'Forwarder'
 
     def __init__(self, queue_length=0, queue_size=0, flush_count=0, transactions_received=0,
-            transactions_flushed=0):
+                 transactions_flushed=0, too_big_count=0):
         AgentStatus.__init__(self)
         self.queue_length = queue_length
         self.queue_size = queue_size
@@ -767,6 +771,7 @@ class ForwarderStatus(AgentStatus):
         self.proxy_data = get_config(parse_args=False).get('proxy_settings')
         self.hidden_username = None
         self.hidden_password = None
+        self.too_big_count = too_big_count
         if self.proxy_data and self.proxy_data.get('user'):
             username = self.proxy_data.get('user')
             hidden = len(username) / 2 if len(username) <= 7 else len(username) - 4
@@ -780,6 +785,7 @@ class ForwarderStatus(AgentStatus):
             "Flush Count: %s" % self.flush_count,
             "Transactions received: %s" % self.transactions_received,
             "Transactions flushed: %s" % self.transactions_flushed,
+            "Transactions rejected: %s" % self.too_big_count,
             ""
         ]
 
@@ -811,7 +817,9 @@ class ForwarderStatus(AgentStatus):
             'proxy_data': self.proxy_data,
             'hidden_username': self.hidden_username,
             'hidden_password': self.hidden_password,
-
+            'too_big_count': self.too_big_count,
+            'transactions_received': self.transactions_received,
+            'transactions_flushed': self.transactions_flushed
         })
         return status_info
 
@@ -871,7 +879,7 @@ def get_jmx_status():
         if os.path.exists(java_status_path):
             java_jmx_stats = yaml.load(file(java_status_path))
 
-            status_age = time.time() - java_jmx_stats.get('timestamp')/1000 # JMX timestamp is saved in milliseconds
+            status_age = time.time() - java_jmx_stats.get('timestamp')/1000  # JMX timestamp is saved in milliseconds
             jmx_checks = java_jmx_stats.get('checks', {})
 
             if status_age > 60:
@@ -918,7 +926,6 @@ def get_jmx_status():
             jmx_checks = python_jmx_stats.get('invalid_checks', {})
             for check_name, excep in jmx_checks.iteritems():
                 check_statuses.append(CheckStatus(check_name, [], init_failed_error=excep))
-
 
         return check_statuses
 

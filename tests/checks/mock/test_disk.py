@@ -61,6 +61,7 @@ class TestCheckDisk(AgentCheckTest):
     def test_device_exclusion_logic(self):
         self.run_check({'instances': [{'use_mount': 'no',
                                        'excluded_filesystems': ['aaaaaa'],
+                                       'excluded_mountpoint_re': '^/run$',
                                        'excluded_disks': ['bbbbbb'],
                                        'excluded_disk_re': '^tev+$'}]},
                        mocks={'collect_metrics': lambda: None})
@@ -91,6 +92,22 @@ class TestCheckDisk(AgentCheckTest):
         self.assertFalse(exclude_disk(MockPart(device='none')))
         self.assertFalse(exclude_disk(MockPart(device='udev')))
 
+        # excluded mountpoint regex
+        self.assertTrue(exclude_disk(MockPart(device='sdz', mountpoint='/run')))
+        self.assertFalse(exclude_disk(MockPart(device='sdz', mountpoint='/run/shm')))
+
+    def test_device_exclusion_logic_no_name(self):
+        """
+        Same as above but with default configuration values and device='' to expose a bug in #2359
+        """
+        self.run_check({'instances': [{'use_mount': 'yes',
+                                       'excluded_mountpoint_re': '^/run$',
+                                       'all_partitions': 'yes'}]},
+                       mocks={'collect_metrics': lambda: None}, force_reload=True)
+        exclude_disk = self.check._exclude_disk_psutil
+        self.assertTrue(exclude_disk(MockPart(device='', mountpoint='/run')))
+        self.assertFalse(exclude_disk(MockPart(device='', mountpoint='/run/shm')))
+
     @mock.patch('psutil.disk_partitions', return_value=[MockPart()])
     @mock.patch('psutil.disk_usage', return_value=MockDiskMetrics())
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
@@ -120,7 +137,7 @@ class TestCheckDisk(AgentCheckTest):
 
         self.coverage_report()
 
-    @mock.patch('disk.get_subprocess_output',
+    @mock.patch('utils.subprocess_output.get_subprocess_output',
                 return_value=(Fixtures.read_file('debian-df-Tk'), "", 0))
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
     def test_no_psutil_debian(self, mock_df_output, mock_statvfs):
@@ -136,7 +153,7 @@ class TestCheckDisk(AgentCheckTest):
 
         self.coverage_report()
 
-    @mock.patch('disk.get_subprocess_output',
+    @mock.patch('utils.subprocess_output.get_subprocess_output',
                 return_value=(Fixtures.read_file('freebsd-df-Tk'), "", 0))
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
     def test_no_psutil_freebsd(self, mock_df_output, mock_statvfs):

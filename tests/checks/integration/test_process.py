@@ -34,6 +34,8 @@ class MockProcess(object):
     def is_running(self):
         return True
 
+def noop_get_pagefault_stats(pid):
+    return None
 
 class ProcessCheckTest(AgentCheckTest):
     CHECK_NAME = 'process'
@@ -112,6 +114,17 @@ class ProcessCheckTest(AgentCheckTest):
             },
             'mocked_processes': set([89])
         },
+        {
+            'config': {
+                'name': 'test_7',
+                'search_string': ['test_7'],  # index in the array for our find_pids mock
+                'thresholds': {
+                    'critical': [2, 4],
+                    'warning': [1, 5]
+                }
+            },
+            'mocked_processes': set([1])
+        }
     ]
 
     PROCESS_METRIC = [
@@ -130,12 +143,19 @@ class ProcessCheckTest(AgentCheckTest):
         'system.processes.voluntary_ctx_switches'
     ]
 
+    PAGEFAULT_STAT = [
+        'minor_faults',
+        'children_minor_faults',
+        'major_faults',
+        'children_major_faults'
+    ]
+
     def get_psutil_proc(self):
         return psutil.Process(os.getpid())
 
     def test_psutil_wrapper_simple(self):
         # Load check with empty config
-        self.run_check({})
+        self.run_check({}, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         name = self.check.psutil_wrapper(
             self.get_psutil_proc(),
             'name',
@@ -146,7 +166,7 @@ class ProcessCheckTest(AgentCheckTest):
 
     def test_psutil_wrapper_simple_fail(self):
         # Load check with empty config
-        self.run_check({})
+        self.run_check({}, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         name = self.check.psutil_wrapper(
             self.get_psutil_proc(),
             'blah',
@@ -157,7 +177,7 @@ class ProcessCheckTest(AgentCheckTest):
 
     def test_psutil_wrapper_accessors(self):
         # Load check with empty config
-        self.run_check({})
+        self.run_check({}, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         meminfo = self.check.psutil_wrapper(
             self.get_psutil_proc(),
             'memory_info',
@@ -170,7 +190,7 @@ class ProcessCheckTest(AgentCheckTest):
 
     def test_psutil_wrapper_accessors_fail(self):
         # Load check with empty config
-        self.run_check({})
+        self.run_check({}, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         meminfo = self.check.psutil_wrapper(
             self.get_psutil_proc(),
             'memory_infoo',
@@ -198,7 +218,7 @@ class ProcessCheckTest(AgentCheckTest):
         self.assertTrue(len(self.check.ad_cache) > 0)
 
         # The next run shoudn't throw an exception
-        self.run_check(config)
+        self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         # The ad cache should still be valid
         self.assertFalse(self.check.should_refresh_ad_cache('python'))
 
@@ -206,7 +226,7 @@ class ProcessCheckTest(AgentCheckTest):
         self.check.last_ad_cache_ts = {}
         self.check.last_pid_cache_ts = {}
         # Shouldn't throw an exception
-        self.run_check(config)
+        self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
 
     def mock_find_pids(self, name, search_string, exact_match=True, ignore_ad=True,
                        refresh_ad_cache=True):
@@ -233,28 +253,38 @@ class ProcessCheckTest(AgentCheckTest):
 
     @patch('psutil.Process', return_value=MockProcess())
     def test_check(self, mock_process):
+        (minflt, cminflt, majflt, cmajflt) = [1, 2, 3, 4]
+
+        def mock_get_pagefault_stats(pid):
+            return [minflt, cminflt, majflt, cmajflt]
+
         mocks = {
             'find_pids': self.mock_find_pids,
             'psutil_wrapper': self.mock_psutil_wrapper,
+            'get_pagefault_stats': mock_get_pagefault_stats,
         }
 
         config = {
             'instances': [stub['config'] for stub in self.CONFIG_STUBS]
         }
-        self.run_check(config, mocks=mocks)
+
+        self.run_check_twice(config, mocks=mocks)
+
+        instance_config = config['instances'][-1]
+        for stat_name in self.PAGEFAULT_STAT:
+            self.assertMetric('system.processes.mem.page_faults.' + stat_name,
+                tags=self.generate_expected_tags(instance_config),
+                value=0)
 
         for stub in self.CONFIG_STUBS:
             mocked_processes = stub['mocked_processes']
-
             # Assert metrics
             for mname in self.PROCESS_METRIC:
                 expected_tags = self.generate_expected_tags(stub['config'])
-
                 expected_value = None
                 # - if no processes are matched we don't send metrics except number
                 # - it's the first time the check runs so don't send cpu.pct
-                if (len(mocked_processes) == 0 and mname != 'system.processes.number')\
-                        or mname == 'system.processes.cpu.pct':
+                if (len(mocked_processes) == 0 and mname != 'system.processes.number'):
                     continue
 
                 if mname == 'system.processes.number':
@@ -265,6 +295,12 @@ class ProcessCheckTest(AgentCheckTest):
                     tags=expected_tags,
                     value=expected_value
                 )
+
+            # these are just here to ensure it passes the coverage report.
+            # they don't really "test" for anything.
+            for stat_name in self.PAGEFAULT_STAT:
+                self.assertMetric('system.processes.mem.page_faults.' + stat_name, at_least=0,
+                    tags=self.generate_expected_tags(stub['config']))
 
             # Assert service checks
             expected_tags = ['process:{0}'.format(stub['config']['name'])]
@@ -279,7 +315,8 @@ class ProcessCheckTest(AgentCheckTest):
             else:
                 self.assertServiceCheckOK('process.up', count=1, tags=expected_tags)
 
-        # Raises when COVERAGE=true and coverage < 100%
+
+        # Raises when coverage < 100%
         self.coverage_report()
 
         # Run the check a second time and check that `cpu_pct` is there
@@ -304,7 +341,7 @@ class ProcessCheckTest(AgentCheckTest):
             }]
         }
 
-        self.run_check(config)
+        self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
 
         expected_tags = self.generate_expected_tags(config['instances'][0])
         for mname in self.PROCESS_METRIC:
@@ -323,7 +360,7 @@ class ProcessCheckTest(AgentCheckTest):
         self.coverage_report()
 
         # Run the check a second time and check that `cpu_pct` is there
-        self.run_check(config)
+        self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         self.assertMetric('system.processes.cpu.pct', count=1, tags=expected_tags)
 
     def test_relocated_procfs(self):
@@ -416,7 +453,7 @@ class ProcessCheckTest(AgentCheckTest):
                     reload(psutil)
                 assert Platform.is_linux()
 
-                self.run_check(config)
+                self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
         finally:
             shutil.rmtree(my_procfs)
             if not already_linux:

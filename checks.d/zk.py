@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 '''
 As of zookeeper 3.4.0, the `mntr` admin command is provided for easy parsing of zookeeper stats.
 This check first parses the `stat` admin command for a version number.
@@ -67,7 +71,7 @@ zk_max_file_descriptor_count    4096
 '''
 # stdlib
 from collections import defaultdict
-from distutils.version import LooseVersion
+from distutils.version import LooseVersion # pylint: disable=E0611,E0401
 from StringIO import StringIO
 import re
 import socket

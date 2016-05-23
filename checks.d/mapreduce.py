@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 '''
 MapReduce Job Metrics
 ---------------------
@@ -30,12 +34,10 @@ mapreduce.job.counter.total_counter_value    The counter value of all tasks
 MapReduce Map Task Metrics
 --------------------------
 mapreduce.job.map.task.progress     The distribution of all map task progresses
-mapreduce.job.map.task.elapsed_time The distribution of all map tasks elapsed time
 
 MapReduce Reduce Task Metrics
 --------------------------
 mapreduce.job.reduce.task.progress      The distribution of all reduce task progresses
-mapreduce.job.reduce.task.elapsed_time  The distribution of all reduce tasks elapsed time
 '''
 
 # stdlib
@@ -50,13 +52,17 @@ from simplejson import JSONDecodeError
 
 # Project
 from checks import AgentCheck
+from config import _is_affirmative
+
+
+# Default Settings
+DEFAULT_CUSTER_NAME = 'default_cluster'
 
 # Service Check Names
 YARN_SERVICE_CHECK = 'mapreduce.resource_manager.can_connect'
 MAPREDUCE_SERVICE_CHECK = 'mapreduce.application_master.can_connect'
 
 # URL Paths
-INFO_PATH = 'ws/v1/cluster/info'
 YARN_APPS_PATH = 'ws/v1/cluster/apps'
 MAPREDUCE_JOBS_PATH = 'ws/v1/mapreduce/jobs'
 
@@ -66,45 +72,45 @@ YARN_APPLICATION_STATES = 'RUNNING'
 
 # Metric types
 HISTOGRAM = 'histogram'
+INCREMENT = 'increment'
 
 # Metrics to collect
 MAPREDUCE_JOB_METRICS = {
     'elapsedTime': ('mapreduce.job.elapsed_time', HISTOGRAM),
-    'mapsTotal': ('mapreduce.job.maps_total', HISTOGRAM),
-    'mapsCompleted': ('mapreduce.job.maps_completed', HISTOGRAM),
-    'reducesTotal': ('mapreduce.job.reduces_total', HISTOGRAM),
-    'reducesCompleted': ('mapreduce.job.reduces_completed', HISTOGRAM),
-    'mapsPending': ('mapreduce.job.maps_pending', HISTOGRAM),
-    'mapsRunning': ('mapreduce.job.maps_running', HISTOGRAM),
-    'reducesPending': ('mapreduce.job.reduces_pending', HISTOGRAM),
-    'reducesRunning': ('mapreduce.job.reduces_running', HISTOGRAM),
-    'newReduceAttempts': ('mapreduce.job.new_reduce_attempts', HISTOGRAM),
-    'runningReduceAttempts': ('mapreduce.job.running_reduce_attempts', HISTOGRAM),
-    'failedReduceAttempts': ('mapreduce.job.failed_reduce_attempts', HISTOGRAM),
-    'killedReduceAttempts': ('mapreduce.job.killed_reduce_attempts', HISTOGRAM),
-    'successfulReduceAttempts': ('mapreduce.job.successful_reduce_attempts', HISTOGRAM),
-    'newMapAttempts': ('mapreduce.job.new_map_attempts', HISTOGRAM),
-    'runningMapAttempts': ('mapreduce.job.running_map_attempts', HISTOGRAM),
-    'failedMapAttempts': ('mapreduce.job.failed_map_attempts', HISTOGRAM),
-    'killedMapAttempts': ('mapreduce.job.killed_map_attempts', HISTOGRAM),
-    'successfulMapAttempts': ('mapreduce.job.successful_map_attempts', HISTOGRAM),
+    'mapsTotal': ('mapreduce.job.maps_total', INCREMENT),
+    'mapsCompleted': ('mapreduce.job.maps_completed', INCREMENT),
+    'reducesTotal': ('mapreduce.job.reduces_total', INCREMENT),
+    'reducesCompleted': ('mapreduce.job.reduces_completed', INCREMENT),
+    'mapsPending': ('mapreduce.job.maps_pending', INCREMENT),
+    'mapsRunning': ('mapreduce.job.maps_running', INCREMENT),
+    'reducesPending': ('mapreduce.job.reduces_pending', INCREMENT),
+    'reducesRunning': ('mapreduce.job.reduces_running', INCREMENT),
+    'newReduceAttempts': ('mapreduce.job.new_reduce_attempts', INCREMENT),
+    'runningReduceAttempts': ('mapreduce.job.running_reduce_attempts', INCREMENT),
+    'failedReduceAttempts': ('mapreduce.job.failed_reduce_attempts', INCREMENT),
+    'killedReduceAttempts': ('mapreduce.job.killed_reduce_attempts', INCREMENT),
+    'successfulReduceAttempts': ('mapreduce.job.successful_reduce_attempts', INCREMENT),
+    'newMapAttempts': ('mapreduce.job.new_map_attempts', INCREMENT),
+    'runningMapAttempts': ('mapreduce.job.running_map_attempts', INCREMENT),
+    'failedMapAttempts': ('mapreduce.job.failed_map_attempts', INCREMENT),
+    'killedMapAttempts': ('mapreduce.job.killed_map_attempts', INCREMENT),
+    'successfulMapAttempts': ('mapreduce.job.successful_map_attempts', INCREMENT),
 }
 
 MAPREDUCE_JOB_COUNTER_METRICS = {
-    'reduceCounterValue': ('mapreduce.job.counter.reduce_counter_value', HISTOGRAM),
-    'mapCounterValue': ('mapreduce.job.counter.map_counter_value', HISTOGRAM),
-    'totalCounterValue': ('mapreduce.job.counter.total_counter_value', HISTOGRAM),
+    'reduceCounterValue': ('mapreduce.job.counter.reduce_counter_value', INCREMENT),
+    'mapCounterValue': ('mapreduce.job.counter.map_counter_value', INCREMENT),
+    'totalCounterValue': ('mapreduce.job.counter.total_counter_value', INCREMENT),
 }
 
 MAPREDUCE_MAP_TASK_METRICS = {
-    'progress': ('mapreduce.job.map.task.progress', HISTOGRAM),
     'elapsedTime': ('mapreduce.job.map.task.elapsed_time', HISTOGRAM)
 }
 
 MAPREDUCE_REDUCE_TASK_METRICS = {
-    'progress': ('mapreduce.job.reduce.task.progress', HISTOGRAM),
     'elapsedTime': ('mapreduce.job.reduce.task.elapsed_time', HISTOGRAM)
 }
+
 
 class MapReduceCheck(AgentCheck):
 
@@ -123,8 +129,22 @@ class MapReduceCheck(AgentCheck):
         if rm_address is None:
             raise Exception('The ResourceManager URL must be specified in the instance configuration')
 
-        # Get the cluster ID from Yarn
-        cluster_id = self._get_cluster_id(rm_address)
+        collect_task_metrics = _is_affirmative(instance.get('collect_task_metrics', False))
+
+        # Get additional tags from the conf file
+        tags = instance.get('tags', [])
+        if tags is None:
+            tags = []
+        else:
+            tags = list(set(tags))
+
+        # Get the cluster name from the conf file
+        cluster_name = instance.get('cluster_name')
+        if cluster_name is None:
+            self.warning("The cluster_name must be specified in the instance configuration, defaulting to '%s'" % (DEFAULT_CUSTER_NAME))
+            cluster_name = DEFAULT_CUSTER_NAME
+
+        tags.append('cluster_name:%s' % cluster_name)
 
         # Get the running MR applications from YARN
         running_apps = self._get_running_app_ids(rm_address)
@@ -136,13 +156,14 @@ class MapReduceCheck(AgentCheck):
             message='Connection to ResourceManager "%s" was successful' % rm_address)
 
         # Get the applications from the application master
-        running_jobs = self._mapreduce_job_metrics(running_apps, cluster_id)
+        running_jobs = self._mapreduce_job_metrics(running_apps, tags)
 
         # # Get job counter metrics
-        self._mapreduce_job_counters_metrics(running_jobs, cluster_id)
+        self._mapreduce_job_counters_metrics(running_jobs, tags)
 
         # Get task metrics
-        self._mapreduce_task_metrics(running_jobs, cluster_id)
+        if collect_task_metrics:
+            self._mapreduce_task_metrics(running_jobs, tags)
 
         # Report success after gathering all metrics from Application Master
         if running_jobs:
@@ -248,16 +269,6 @@ class MapReduceCheck(AgentCheck):
 
         return job_counter
 
-    def _get_cluster_id(self, rm_address):
-        '''
-        Return the cluster ID, otherwise raise an exception
-        '''
-        info_json = self._rest_request_to_json(rm_address,
-            INFO_PATH,
-            YARN_SERVICE_CHECK)
-
-        return info_json.get('clusterInfo', {}).get('id')
-
     def _get_running_app_ids(self, rm_address, **kwargs):
         '''
         Return a dictionary of {app_id: (app_name, tracking_url)} for the running MapReduce applications
@@ -283,7 +294,7 @@ class MapReduceCheck(AgentCheck):
 
         return running_apps
 
-    def _mapreduce_job_metrics(self, running_apps, cluster_id):
+    def _mapreduce_job_metrics(self, running_apps, addl_tags):
         '''
         Get metrics for each MapReduce job.
         Return a dictionary for each MapReduce job
@@ -319,16 +330,17 @@ class MapReduceCheck(AgentCheck):
                                                     'user_name': str(user_name),
                                                     'tracking_url': self._join_url_dir(tracking_url, MAPREDUCE_JOBS_PATH, job_id)}
 
-                            tags = ['cluster_id:' + str(cluster_id),
-                                    'app_name:' + str(app_name),
+                            tags = ['app_name:' + str(app_name),
                                     'user_name:' + str(user_name),
                                     'job_name:' + str(job_name)]
+
+                            tags.extend(addl_tags)
 
                             self._set_metrics_from_json(tags, job_json, MAPREDUCE_JOB_METRICS)
 
         return running_jobs
 
-    def _mapreduce_job_counters_metrics(self, running_jobs, cluster_id):
+    def _mapreduce_job_counters_metrics(self, running_jobs, addl_tags):
         '''
         Get custom metrics specified for each counter
         '''
@@ -369,17 +381,18 @@ class MapReduceCheck(AgentCheck):
 
                                             # Check if the counter name is in the custom metrics for this group name
                                             if counter_name and counter_name in counter_metrics:
-                                                tags = ['cluster_id:' + str(cluster_id),
-                                                        'app_name:' + job_metrics.get('app_name'),
+                                                tags = ['app_name:' + job_metrics.get('app_name'),
                                                         'user_name:' + job_metrics.get('user_name'),
                                                         'job_name:' + job_name,
                                                         'counter_name:' + str(counter_name).lower()]
+
+                                                tags.extend(addl_tags)
 
                                                 self._set_metrics_from_json(tags,
                                                     counter,
                                                     MAPREDUCE_JOB_COUNTER_METRICS)
 
-    def _mapreduce_task_metrics(self, running_jobs, cluster_id):
+    def _mapreduce_task_metrics(self, running_jobs, addl_tags):
         '''
         Get metrics for each MapReduce task
         Return a dictionary of {task_id: 'tracking_url'} for each MapReduce task
@@ -397,12 +410,12 @@ class MapReduceCheck(AgentCheck):
                         task_type = task.get('type')
 
                         if task_type:
-                            tags = ['cluster_id:' + str(cluster_id),
-                                    'app_name:' + job_stats['app_name'],
+                            tags = ['app_name:' + job_stats['app_name'],
                                     'user_name:' + job_stats['user_name'],
                                     'job_name:' + job_stats['job_name'],
-                                    'task_type:' + str(task_type).lower()
-                                    ]
+                                    'task_type:' + str(task_type).lower()]
+
+                            tags.extend(addl_tags)
 
                             if task_type == 'MAP':
                                 self._set_metrics_from_json(tags, task, MAPREDUCE_MAP_TASK_METRICS)
@@ -429,6 +442,8 @@ class MapReduceCheck(AgentCheck):
         '''
         if metric_type == HISTOGRAM:
             self.histogram(metric_name, value, tags=tags, device_name=device_name)
+        elif metric_type == INCREMENT:
+            self.increment(metric_name, value, tags=tags, device_name=device_name)
         else:
             self.log.error('Metric type "%s" unknown' % (metric_type))
 

@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # set up logging before importing any other components
 if __name__ == '__main__':
     from config import initialize_logging  # noqa
@@ -229,6 +233,9 @@ class JMXFetch(object):
     def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path, custom_jar_paths, redirect_std_streams):
         if reporter is None:
             statsd_host = self.agentConfig.get('bind_host', 'localhost')
+            if statsd_host == "0.0.0.0":
+                # If statsd is bound to all interfaces, just use localhost for clients
+                statsd_host = "localhost"
             statsd_port = self.agentConfig.get('dogstatsd_port', "8125")
             reporter = "statsd:%s:%s" % (statsd_host, statsd_port)
 
