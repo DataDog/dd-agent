@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 5.8.1 / Unreleased
+# 5.8.1 / 05-23-2016
 **Windows only**
 
 ### Details
