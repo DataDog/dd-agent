@@ -10,15 +10,15 @@ from collections import defaultdict
 from fnmatch import fnmatch
 import numbers
 import re
-import simplejson as json
+import time
 
 # 3rd party
 import requests
+import simplejson as json
 
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-from utils.http import retrieve_json
 from utils.kubeutil import KubeUtil
 
 NAMESPACE = "kubernetes"
@@ -45,6 +45,8 @@ FUNC_MAP = {
     GAUGE: {True: HISTO, False: GAUGE},
     RATE: {True: HISTORATE, False: RATE}
 }
+
+EVENT_TYPE = 'kubernetes'
 
 
 class Kubernetes(AgentCheck):
@@ -107,11 +109,16 @@ class Kubernetes(AgentCheck):
         self.publish_rate = FUNC_MAP[RATE][self.use_histogram]
         self.publish_gauge = FUNC_MAP[GAUGE][self.use_histogram]
 
+        pods_list = self.kubeutil.retrieve_pods_list()
+
         # kubelet health checks
         self._perform_kubelet_checks(self.kubeutil.kube_health_url)
 
         # kubelet metrics
-        self._update_metrics(instance)
+        self._update_metrics(instance, pods_list)
+
+        # kubelet events
+        self._process_events(instance, pods_list)
 
     def _publish_raw_metrics(self, metric, dat, tags, depth=0):
         if depth >= self.max_depth:
@@ -187,7 +194,6 @@ class Kubernetes(AgentCheck):
 
         return tags
 
-
     def _update_container_metrics(self, instance, subcontainer, kube_labels):
         tags = list(instance.get('tags', []))  # add support for custom tags
 
@@ -235,12 +241,8 @@ class Kubernetes(AgentCheck):
                               sum(float(net[x]) for x in NET_ERRORS),
                               tags)
 
-    def _retrieve_metrics(self, url):
-        return retrieve_json(url)
-
-    def _update_metrics(self, instance):
-        pods_list = self.kubeutil.retrieve_pods_list()
-        metrics = self._retrieve_metrics(self.kubeutil.metrics_url)
+    def _update_metrics(self, instance, pods_list):
+        metrics = self.kubeutil.retrieve_metrics()
 
         excluded_labels = instance.get('excluded_labels')
         kube_labels = self.kubeutil.extract_kube_labels(pods_list, excluded_keys=excluded_labels)
@@ -281,3 +283,71 @@ class Kubernetes(AgentCheck):
             _tags = tags[:]  # copy base tags
             _tags.append('kube_replication_controller:{0}'.format(ctrl))
             self.publish_gauge(self, NAMESPACE + '.pods.running', pod_count, _tags)
+
+    def _process_events(self, instance, pods_list):
+        """
+        Retrieve a list of events from kubelet that is relevant for the host the
+        agent is running on.
+
+        At the moment there is no support to select events based on a timestamp query, so we
+        go through the whole list every time. This should be fine for now as events
+        have a TTL of one hour[1] but logic needs to improve as soon as they provide
+        query capabilities or at least pagination, see [2][3].
+
+        [1] https://github.com/kubernetes/kubernetes/blob/master/cmd/kube-apiserver/app/options/options.go#L50
+        [2] https://github.com/kubernetes/kubernetes/issues/4432
+        [3] https://github.com/kubernetes/kubernetes/issues/1362
+        """
+        node_ip, node_name = self.kubeutil.get_node_info()
+        self.log.debug('Processing events on {} [{}]'.format(node_name, node_ip))
+        pods = self.kubeutil.filter_pods_list(pods_list, node_ip)
+        pod_uids = self.kubeutil.extract_meta(pods, 'uid')
+
+        k8s_namespace = instance.get('namespace', 'default')
+        events_endpoint = '{}/namespaces/{}/events'.format(self.kubeutil.kubernetes_api_url, k8s_namespace)
+        self.log.debug('Kubernetes API endpoint to query events: %s' % events_endpoint)
+
+        events = self.kubeutil.retrieve_json_auth(events_endpoint, self.kubeutil.get_auth_token())
+        event_items = events.get('items') or []
+        last_read = self.kubeutil.last_event_collection_ts[k8s_namespace]
+        most_recent_read = 0
+
+        self.log.debug('Found {} events, filtering out using timestamp: {}'.format(len(event_items), last_read))
+
+        for event in event_items:
+            # skip if the event is from another node
+            involved_obj = event.get('involvedObject', {})
+            if involved_obj.get('uid') not in pod_uids:
+                self.log.debug('Pod {} is not running on this node, skip...'.format(involved_obj.get('uid')))
+                continue
+
+            # skip if the event is too old
+            event_ts = int(time.mktime(time.strptime(event.get('lastTimestamp'), '%Y-%m-%dT%H:%M:%SZ')))
+            if event_ts <= last_read:
+                continue
+
+            # compute the most recently seen event, without relying on items order
+            if event_ts > most_recent_read:
+                most_recent_read = event_ts
+
+            title = '{} {} on {}'.format(involved_obj.get('name'), event.get('reason'), node_name)
+            message = event.get('message')
+            source = event.get('source')
+            if source:
+                message += '\nSource: {} {}\n'.format(source.get('component', ''), source.get('host', ''))
+            msg_body = "%%%\n{}\n```\n{}\n```\n%%%".format(title, message)
+            dd_event = {
+                'timestamp': event_ts,
+                'host': node_ip,
+                'event_type': EVENT_TYPE,
+                'msg_title': title,
+                'msg_text': msg_body,
+                'source_type_name': EVENT_TYPE,
+                'event_object': 'kubernetes:{}'.format(involved_obj.get('name')),
+            }
+            self.log.debug('Posting event: {}'.format(dd_event))
+            self.event(dd_event)
+
+        if most_recent_read > 0:
+            self.kubeutil.last_event_collection_ts[k8s_namespace] = most_recent_read
+            self.log.debug('_last_event_collection_ts is now {}'.format(most_recent_read))
