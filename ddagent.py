@@ -213,12 +213,12 @@ class AgentTransaction(Transaction):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
             if url[0] == '/':
-              log.debug(
-                  u"For type %s endpoint %s at %s is missing a host specification. Continuing without flush.",
-                  self._type, endpoint, url
-              )
-              response = type('obj', (object,), {'error' : None})
-              self.on_response(response)
+                log.debug(
+                    u"For type %s endpoint %s at %s is missing a host specification. Continuing without flush.",
+                    self._type, endpoint, url
+                )
+                response = type('obj', (object,), {'error' : None})
+                self.on_response(response)
             else:
                 log.debug(
                     u"Sending %s to endpoint %s at %s",
