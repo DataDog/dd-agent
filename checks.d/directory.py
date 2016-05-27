@@ -34,7 +34,6 @@ class DirectoryCheck(AgentCheck):
         "histograms" - boolean, when true histograms for filesizes and times will be generated. default True
         "pattern" - string, the `fnmatch` pattern to use when reading the "directory"'s files. default "*"
         "recursive" - boolean, when true the stats will recurse into directories. default False
-        "recursive_limit" - integer, sets a limit for how deeply to recurse. default 100
     """
 
     SOURCE_TYPE_NAME = 'system'
