@@ -27,7 +27,7 @@ pull request.
 
 Required:
 - python 2.7
-- bundler
+- bundler (to get it: `gem install bundler`)
 
 ```
 # Clone the repository
