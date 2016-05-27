@@ -29,15 +29,20 @@ instances:
   # Some managed ElasticSearch services (e.g. AWS ElasticSearch) do not expose this endpoint.
   # Set `pending_task_stats` to false if you use such a service.
 
+  # `ca_bundle_file` can be used to specify the path to a CA_BUNDLE file,
+  # or a directory with certificates of trusted CAs
+
+
   - url: http://localhost:9200
-    # username: username
-    # password: password
+    # username: garner
+    # password: 1234
     # cluster_stats: false
     # pshard_stats: false
     # pending_task_stats: true
     # ssl_verify: false
     # ssl_cert: /path/to/cert.pem
     # ssl_key: /path/to/cert.key
+    # ca_bundle_file: /path/to/trusted_ca_bundle_file
     # tags:
     #   - 'tag1:key1'
     #   - 'tag2:key2'

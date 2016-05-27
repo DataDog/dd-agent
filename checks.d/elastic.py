@@ -34,6 +34,7 @@ ESInstanceConfig = namedtuple(
         'ssl_verify',
         'ssl_cert',
         'ssl_key',
+        'ca_bundle_file'
     ])
 
 
@@ -304,6 +305,7 @@ class ESCheck(AgentCheck):
             ssl_cert=instance.get('ssl_cert'),
             ssl_key=instance.get('ssl_key'),
             ssl_verify=instance.get('ssl_verify'),
+            ca_bundle_file=instance.get('ca_bundle_file'),
             tags=tags,
             timeout=timeout,
             url=url,
@@ -455,6 +457,8 @@ class ESCheck(AgentCheck):
         # ssl_verify can be a bool or a string (http://docs.python-requests.org/en/latest/user/advanced/#ssl-cert-verification)
         if isinstance(config.ssl_verify, bool) or isinstance(config.ssl_verify, str):
             verify = config.ssl_verify
+        elif config.ca_bundle_file:
+            verify = config.ca_bundle_file
         else:
             verify = None
         if config.ssl_cert and config.ssl_key:
