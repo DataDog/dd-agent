@@ -100,12 +100,10 @@ class RabbitMQ(AgentCheck):
         self.already_alerted = []
 
     def _get_config(self, instance):
-        # make sure 'rabbitmq_api_url; is present
-        if 'rabbitmq_api_url' not in instance:
+        # make sure 'rabbitmq_api_url' is present and get parameters
+        base_url = instance.get('rabbitmq_api_url', None)
+        if not base_url:
             raise Exception('Missing "rabbitmq_api_url" in RabbitMQ config.')
-
-        # get parameters
-        base_url = instance['rabbitmq_api_url']
         if not base_url.endswith('/'):
             base_url += '/'
         username = instance.get('rabbitmq_user', 'guest')
