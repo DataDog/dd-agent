@@ -34,8 +34,8 @@ instances:
 
 
   - url: http://localhost:9200
-    # username: garner
-    # password: 1234
+    # username: username
+    # password: password
     # cluster_stats: false
     # pshard_stats: false
     # pending_task_stats: true
