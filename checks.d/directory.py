@@ -48,7 +48,6 @@ class DirectoryCheck(AgentCheck):
         name = instance.get("name", directory)
         pattern = instance.get("pattern", "*")
         recursive = _is_affirmative(instance.get("recursive", False))
-        recursive_limit = instance.get("recursive_limit", 100)
         dirtagname = instance.get("dirtagname", "name")
         subdirtagname = instance.get("subdirtagname", "subdir")
         filetagname = instance.get("filetagname", "filename")
@@ -60,13 +59,13 @@ class DirectoryCheck(AgentCheck):
         if not exists(abs_directory):
             raise Exception("DirectoryCheck: the directory (%s) does not exist" % abs_directory)
 
-        self._get_stats(abs_directory, name, dirtagname, subdirtagname, filetagname, filegauges, subdirgauges, histograms, pattern, recursive, recursive_limit, countonly)
+        self._get_stats(abs_directory, name, dirtagname, subdirtagname, filetagname, filegauges, subdirgauges, histograms, pattern, recursive, countonly)
 
-    def _get_stats(self, directory, name, dirtagname, subdirtagname, filetagname, filegauges, subdirgauges, histograms, pattern, recursive, recursive_limit, countonly):
+    def _get_stats(self, directory, name, dirtagname, subdirtagname, filetagname, filegauges, subdirgauges, histograms, pattern, recursive, countonly):
         dirtags = [dirtagname + ":%s" % name]
         directory_bytes = 0
         directory_files = 0
-        recursive_count = 0
+        recurse_count = 0
         for root, dirs, files in walk(directory):
             subdir_bytes = 0
             subdirtags = [subdirtagname + ":%s" % root] + dirtags
@@ -102,15 +101,15 @@ class DirectoryCheck(AgentCheck):
                         self.histogram("system.disk.directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=dirtags)
                         self.histogram("system.disk.directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=dirtags)
 
-            if recursive_count > 0 and subdirgauges:
+            if recurse_count > 0 and subdirgauges:
                 # If we've descended in to a subdir then let's emit total for the subdir
                 self.gauge("system.disk.directory.bytes", subdir_bytes, tags=subdirtags)
 
             # os.walk gives us all sub-directories and their files
             # if we do not want to do this recursively and just want
             # the top level directory we gave it, then break
-            recursive_count += 1
-            if not recursive and recursive_count <= recursive_limit:
+            recurse_count += 1
+            if not recursive:
                 break
 
         # number of files
