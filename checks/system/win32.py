@@ -157,7 +157,7 @@ class Memory(Check):
                 u"Timeout while querying Win32_PerfRawData_PerfOS_Memory WMI class."
                 u" Memory metrics will be returned at next iteration."
             )
-            return
+            return []
 
         if not (len(self.mem_wmi_sampler)):
             self.logger.info('Missing Win32_PerfRawData_PerfOS_Memory WMI class.'
