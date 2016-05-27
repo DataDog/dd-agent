@@ -90,15 +90,15 @@ class DirectoryCheck(AgentCheck):
                     subdir_bytes += file_stat.st_size
                     directory_bytes += subdir_bytes
                     if filegauges and directory_files <= 20:
-                        filetags = list(dirtags)
+                        filetags = list(subdirtags)
                         filetags.append(filetagname + ":%s" % filename)
                         self.gauge("system.disk.directory.file.bytes", file_stat.st_size, tags=filetags)
                         self.gauge("system.disk.directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=filetags)
                         self.gauge("system.disk.directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=filetags)
                     elif not filegauges and histograms:
                         self.histogram("system.disk.directory.file.bytes", file_stat.st_size, tags=subdirtags)
-                        self.histogram("system.disk.directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=dirtags)
-                        self.histogram("system.disk.directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=dirtags)
+                        self.histogram("system.disk.directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=subdirtags)
+                        self.histogram("system.disk.directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=subdirtags)
 
             if recurse_count > 0 and subdirgauges:
                 # If we've descended in to a subdir then let's emit total for the subdir
