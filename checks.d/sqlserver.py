@@ -48,7 +48,7 @@ VALUE_AND_BASE_QUERY = '''select cntr_value
                           and instance_name=?
                           order by cntr_type;'''
 
-DATABASE_EXISTS_QUERY = 'select 1 from sys.databases where name=?;'
+DATABASE_EXISTS_QUERY = 'select name from sys.databases;'
 
 class SQLConnectionError(Exception):
     """
@@ -90,6 +90,7 @@ class SQLServer(AgentCheck):
             'rate' : self.rate,
             'histogram': self.histogram
         }
+        self.existing_databases = None
 
         # Pre-process the list of metrics to collect
         custom_metrics = init_config.get('custom_metrics', [])
@@ -98,12 +99,12 @@ class SQLServer(AgentCheck):
             try:
                 # check to see if the database exists before we try any connections to it
                 db_exists, context = self._check_db_exists(instance)
-
                 instance_key = self._conn_key(instance, db_key=DEFAULT_DB_KEY)
                 
                 if db_exists:
                     self.do_check[instance_key] = True
-                    self._make_metric_list_to_collect(instance, custom_metrics)
+                    if instance.get('stored_procedure') is None:
+                        self._make_metric_list_to_collect(instance, custom_metrics)
                 else:
                     
                     # How much do we care that the DB doesn't exist?
@@ -129,17 +130,25 @@ class SQLServer(AgentCheck):
         If not then we won't do any checks
         This allows the same config to be installed on many servers but fail gracefully
         """
-        cursor = self.get_cursor(instance, db_name='master')
+        
         host, username, password, database = self._get_access_info(instance, db_key=DEFAULT_DB_KEY)
         context = "%s - %s" % (host, database)
+        if self.existing_databases is None:
         
-        try:
-            cursor.execute(DATABASE_EXISTS_QUERY, (database, ))
-            result = cursor.fetchone()
-            return result is not None, context
-        except Exception, e:
-            self.log.error("Failed to check if database %s exists: %s" % (database, e))
-            return False, context
+            cursor = self.get_cursor(instance, db_name='master')
+        
+            try:
+                self.existing_databases = {}
+                cursor.execute(DATABASE_EXISTS_QUERY)
+                for row in cursor:
+                    self.existing_databases[row.name] = True
+
+                self.close_cursor(cursor)
+            except Exception, e:
+                self.log.error("Failed to check if database %s exists: %s" % (database, e))
+                return False, context
+        
+        return database in self.existing_databases, context
 
     def _make_metric_list_to_collect(self, instance, custom_metrics):
         """
@@ -272,8 +281,9 @@ class SQLServer(AgentCheck):
                 timeout = int(instance.get('command_timeout',
                                            self.DEFAULT_COMMAND_TIMEOUT))
                 conn = adodbapi.connect(self._conn_string(instance=instance, db_key=db_key, db_name=db_name),
-                                        timeout=timeout)
-                self.connections[conn_key] = {'conn': conn, 'timeout': timeout}
+                                        {'timeout':timeout, 'autocommit':True})
+                self.connections[conn_key] = {'conn': conn, 'timeout': timeout,
+                                              'autocommit':True}
                 self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                                    tags=service_check_tags)
             except Exception:
@@ -451,9 +461,11 @@ class SQLServer(AgentCheck):
                                    self.DEFAULT_COMMAND_TIMEOUT))
         try:
             rawconn = adodbapi.connect(self._conn_string(instance=instance, db_key=db_key),
-                                    timeout=timeout)
+                                    {'timeout':timeout, 'autocommit':True})
             if conn_key not in self.connections:
-                self.connections[conn_key] = {'conn': rawconn, 'timeout': timeout}
+                self.connections[conn_key] = {'conn': rawconn,
+                                              'timeout': timeout,
+                                              'autocommit': True}
             else:
                 try:
                     # explicitly trying to avoid leaks...
