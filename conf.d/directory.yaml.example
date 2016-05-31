@@ -16,8 +16,12 @@ instances:
   # "directory" - string, the directory to monitor. Required
   # "name" - string, tag metrics with specified name. defaults to the "directory"
   # "dirtagname" - string, the name of the tag used for the directory. defaults to "name"
+  # "tagsubdirs" - string, when true subdirs will be tagged on appropreiate metrics when recursing. default False
+  # "subdirtagname" - string, the name of the tag used for the subdirectory. defaults to "subdir"
   # "filetagname" - string, the name of the tag used for each file. defaults to "filename"
   # "filegauges" - boolean, when true stats will be an individual gauge per file (max. 20 files!) and not a histogram of the whole directory. default False
+  # "subdirgauges" - boolean, when true a total stat will be emitted for each subdirectory. default False
+  # "histograms" - boolean, when true histograms for filesizes and times will be generated. default True
   # "pattern" - string, the `fnmatch` pattern to use when reading the "directory"'s files. The pattern will be matched against the files' absolute paths. default "*"
   # "recursive" - boolean, when true the stats will recurse into directories. default False
   # "countonly" - boolean, when true the stats will only count the number of files matching the pattern. Useful for very large directories.
