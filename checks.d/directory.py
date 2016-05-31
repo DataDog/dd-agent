@@ -67,7 +67,9 @@ class DirectoryCheck(AgentCheck):
         recurse_count = 0
         for root, dirs, files in walk(directory):
             subdir_bytes = 0
-            subdirtags = [subdirtagname + ":%s" % root] + dirtags
+            if recursive and recurse_count > 0:
+                dirtags = [subdirtagname + ":%s" % root] + dirtags
+
             for filename in files:
                 filename = join(root, filename)
                 # check if it passes our filter
@@ -90,19 +92,19 @@ class DirectoryCheck(AgentCheck):
                     subdir_bytes += file_stat.st_size
                     directory_bytes += subdir_bytes
                     if filegauges and directory_files <= 20:
-                        filetags = list(subdirtags)
+                        filetags = list(dirtags)
                         filetags.append(filetagname + ":%s" % filename)
                         self.gauge("system.disk.directory.file.bytes", file_stat.st_size, tags=filetags)
                         self.gauge("system.disk.directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=filetags)
                         self.gauge("system.disk.directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=filetags)
                     elif not filegauges and histograms:
-                        self.histogram("system.disk.directory.file.bytes", file_stat.st_size, tags=subdirtags)
-                        self.histogram("system.disk.directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=subdirtags)
-                        self.histogram("system.disk.directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=subdirtags)
+                        self.histogram("system.disk.directory.file.bytes", file_stat.st_size, tags=dirtags)
+                        self.histogram("system.disk.directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=dirtags)
+                        self.histogram("system.disk.directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=dirtags)
 
             if recurse_count > 0 and subdirgauges:
                 # If we've descended in to a subdir then let's emit total for the subdir
-                self.gauge("system.disk.directory.bytes", subdir_bytes, tags=subdirtags)
+                self.gauge("system.disk.directory.bytes", subdir_bytes, tags=dirtags)
 
             # os.walk gives us all sub-directories and their files
             # if we do not want to do this recursively and just want
