@@ -393,7 +393,6 @@ class Collector(object):
                     payload['resources'] = {
                         'processes': processes_payload,
                         'meta': {
-                            'api_key': self.agentConfig['api_key'],
                             'host': payload['internalHostname'],
                         }
                     }
