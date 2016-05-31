@@ -31,7 +31,6 @@ from requests.packages.urllib3.packages.ssl_match_hostname import \
 from checks.network_checks import EventType, NetworkCheck, Status
 from config import _is_affirmative
 from util import headers as agent_headers
-from utils.proxy import get_proxy
 
 DEFAULT_EXPECTED_CODE = "(1|2|3)\d\d"
 CONTENT_LENGTH = 200
@@ -152,19 +151,19 @@ class HTTPCheck(NetworkCheck):
 
     def __init__(self, name, init_config, agentConfig, instances):
         self.ca_certs = init_config.get('ca_certs', get_ca_certs_path())
-        proxy_settings = get_proxy(agentConfig)
+
         self.proxies = {
             "http": None,
             "https": None,
         }
-        if proxy_settings:
+        if self.proxy_settings:
             uri = "{host}:{port}".format(
-                host=proxy_settings['host'],
-                port=proxy_settings['port'])
-            if proxy_settings['user'] and proxy_settings['password']:
+                host=self.proxy_settings['host'],
+                port=self.proxy_settings['port'])
+            if self.proxy_settings['user'] and self.proxy_settings['password']:
                 uri = "{user}:{password}@{uri}".format(
-                    user=proxy_settings['user'],
-                    password=proxy_settings['password'],
+                    user=self.proxy_settings['user'],
+                    password=self.proxy_settings['password'],
                     uri=uri)
             self.proxies['http'] = "http://{uri}".format(uri=uri)
             self.proxies['https'] = "https://{uri}".format(uri=uri)

@@ -30,6 +30,7 @@ import yaml
 # project
 from checks import check_status
 from util import get_hostname, get_next_id, yLoader
+from utils.proxy import get_proxy
 from utils.platform import Platform
 from utils.profile import pretty_statistics
 if Platform.is_windows():
@@ -346,6 +347,8 @@ class AgentCheck(object):
         self._instance_metadata = []
         self.svc_metadata = []
         self.historate_dict = {}
+        self.proxy_settings = get_proxy(self.agentConfig)
+
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """

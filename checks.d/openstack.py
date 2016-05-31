@@ -126,7 +126,7 @@ class OpenStackProjectScope(object):
         self.service_catalog = service_catalog
 
     @classmethod
-    def from_config(cls, init_config, instance_config):
+    def from_config(cls, init_config, instance_config, proxy_config=None):
         keystone_server_url = init_config.get("keystone_server_url")
         if not keystone_server_url:
             raise IncompleteConfig()
@@ -139,7 +139,7 @@ class OpenStackProjectScope(object):
 
         exception_msg = None
         try:
-            auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify)
+            auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify, proxy_config)
         except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
             exception_msg = "Failed kaystone auth with identity:{id} scope:{scope} @{url}".format(
                 id=identity,
@@ -154,7 +154,7 @@ class OpenStackProjectScope(object):
                     auth_scope['project']['domain']['name'] = auth_scope['project']['domain'].pop('id')
                 else:
                     auth_scope['project']['name'] = auth_scope['project'].pop('id')
-                auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify)
+                auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify, proxy_config)
             except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
                 exception_msg = "{msg} and also failed kaystone auth with identity:{id} scope:{scope} @{url}: {ex}".format(
                     msg=exception_msg,
@@ -238,12 +238,12 @@ class OpenStackProjectScope(object):
         return identity
 
     @classmethod
-    def request_auth_token(cls, auth_scope, identity, keystone_server_url, ssl_verify):
+    def request_auth_token(cls, auth_scope, identity, keystone_server_url, ssl_verify, proxy=None):
         payload = {"auth": {"scope": auth_scope, "identity": identity}}
         auth_url = urljoin(keystone_server_url, "{0}/auth/tokens".format(DEFAULT_KEYSTONE_API_VERSION))
         headers = {'Content-Type': 'application/json'}
 
-        resp = requests.post(auth_url, headers=headers, data=json.dumps(payload), verify=ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT)
+        resp = requests.post(auth_url, headers=headers, data=json.dumps(payload), verify=ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT, proxies=proxy)
         resp.raise_for_status()
 
         return resp
@@ -368,13 +368,31 @@ class OpenStackCheck(AgentCheck):
         # Mapping of Nova-managed servers to tags
         self.external_host_tags = {}
 
+        # Set proxy settings
+        self.proxies = {
+            "http": None,
+            "https": None,
+        }
+        if self.proxy_settings:
+            uri = "{host}:{port}".format(
+                host=self.proxy_settings['host'],
+                port=self.proxy_settings['port'])
+            if self.proxy_settings['user'] and self.proxy_settings['password']:
+                uri = "{user}:{password}@{uri}".format(
+                    user=self.proxy_settings['user'],
+                    password=self.proxy_settings['password'],
+                    uri=uri)
+            self.proxies['http'] = "http://{uri}".format(uri=uri)
+            self.proxies['https'] = "https://{uri}".format(uri=uri)
+
     def _make_request_with_auth_fallback(self, url, headers=None, verify=True, params=None):
         """
         Generic request handler for OpenStack API requests
         Raises specialized Exceptions for commonly encountered error codes
         """
         try:
-            resp = requests.get(url, headers=headers, verify=verify, params=params, timeout=DEFAULT_API_REQUEST_TIMEOUT)
+            resp = requests.get(url, headers=headers, verify=verify, params=params,
+                                timeout=DEFAULT_API_REQUEST_TIMEOUT, proxies=self.proxies)
             resp.raise_for_status()
         except requests.exceptions.HTTPError:
             if resp.status_code == 401:
@@ -689,23 +707,30 @@ class OpenStackCheck(AgentCheck):
         headers = {"X-Auth-Token": instance_scope.auth_token}
 
         try:
-            requests.get(instance_scope.service_catalog.nova_endpoint, headers=headers, verify=self._ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT)
-            self.service_check(self.COMPUTE_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+            requests.get(instance_scope.service_catalog.nova_endpoint, headers=headers,
+                         verify=self._ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT, proxies=self.proxies)
+            self.service_check(self.COMPUTE_API_SC, AgentCheck.OK,
+                               tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
         except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+            self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL,
+                               tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
 
         # Neutron
         try:
-            requests.get(instance_scope.service_catalog.neutron_endpoint, headers=headers, verify=self._ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT)
-            self.service_check(self.NETWORK_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+            requests.get(instance_scope.service_catalog.neutron_endpoint, headers=headers,
+                         verify=self._ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT, proxies=self.proxies)
+            self.service_check(self.NETWORK_API_SC, AgentCheck.OK,
+                               tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
         except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+            self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL,
+                               tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
 
     def ensure_auth_scope(self, instance):
         """
         Guarantees a valid auth scope for this instance, and returns it
 
-        Communicates with the identity server and initializes a new scope when one is absent, or has been forcibly removed due to token expiry
+        Communicates with the identity server and initializes a new scope when one is absent, or has been forcibly
+        removed due to token expiry
         """
         instance_scope = None
 
@@ -716,7 +741,7 @@ class OpenStackCheck(AgentCheck):
             # We're missing a project scope for this instance
             # Let's populate it now
             try:
-                instance_scope = OpenStackProjectScope.from_config(self.init_config, instance)
+                instance_scope = OpenStackProjectScope.from_config(self.init_config, instance, self.proxies)
                 self.service_check(self.IDENTITY_API_SC, AgentCheck.OK, tags=["server:%s" % self.init_config.get("keystone_server_url")])
             except KeystoneUnreachable as e:
                 self.warning("The agent could not contact the specified identity server at %s . Are you sure it is up at that address?" % self.init_config.get("keystone_server_url"))
