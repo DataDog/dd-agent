@@ -382,6 +382,9 @@ class ApiCheckRunHandler(tornado.web.RequestHandler):
 
 class Application(tornado.web.Application):
 
+    NO_PARALLELISM = 1
+    DEFAULT_PARALLELISM = 5
+
     def __init__(self, port, agentConfig, watchdog=True,
                  skip_ssl_validation=False, use_simple_http_client=False):
         self._port = int(port)
@@ -389,8 +392,15 @@ class Application(tornado.web.Application):
         self._metrics = {}
         AgentTransaction.set_application(self)
         AgentTransaction.set_endpoints(agentConfig['endpoints'])
+
+        max_parallelism = self.NO_PARALLELISM
+        # Multiple endpoints => enable parallelism
+        if len(agentConfig['endpoints']) > 1:
+            max_parallelism = self.DEFAULT_PARALLELISM
+
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
-                                              MAX_QUEUE_SIZE, THROTTLING_DELAY)
+                                              MAX_QUEUE_SIZE, THROTTLING_DELAY,
+                                              max_parallelism=max_parallelism)
         AgentTransaction.set_tr_manager(self._tr_manager)
 
         self._watchdog = None
