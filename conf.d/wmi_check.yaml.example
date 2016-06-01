@@ -18,7 +18,7 @@ instances:
   # `namespace` is the optionnal WMI namespace to connect to (default to `cimv2`).
   #
   # `provider` is the optional WMI provider (default to `32` on Datadog Agent 32-bit or `64`).
-  # Usefull to request WMI data from the non-default provider. Available options are: `32` or `64`.
+  # It is used to request WMI data from the non-default provider. Available options are: `32` or `64`.
   # For more information: https://msdn.microsoft.com/en-us/library/aa393067(v=vs.85).aspx
   #
   # `metrics` is a list of metrics you want to capture, with each item in the
