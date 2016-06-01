@@ -14,6 +14,7 @@ from config import initialize_logging  # noqa
 initialize_logging('forwarder')
 
 # stdlib
+import copy
 from datetime import timedelta
 import logging
 import os
@@ -154,7 +155,6 @@ class AgentTransaction(Transaction):
     _application = None
     _trManager = None
     _endpoints = {}
-    _n_api_calls = 0
     _emitter_manager = None
     _type = None
 
@@ -170,8 +170,6 @@ class AgentTransaction(Transaction):
     @classmethod
     def set_endpoints(cls, endpoints):
         cls._endpoints = endpoints
-        for endpoint in endpoints:
-            cls._n_api_calls += len(endpoints[endpoint])
 
     @classmethod
     def get_tr_manager(cls):
@@ -182,7 +180,6 @@ class AgentTransaction(Transaction):
         self._headers = headers
         self._headers['DD-Forwarder-Version'] = get_version()
         self._msg_type = msg_type
-        self._n_api_calls_made = 0
 
         # Call after data has been set (size is computed in Transaction's init)
         Transaction.__init__(self)
@@ -259,21 +256,15 @@ class AgentTransaction(Transaction):
             log.debug("Using SimpleHTTPClient")
         http = tornado.httpclient.AsyncHTTPClient()
 
-        for endpoint in self._endpoints:
-            for api_key in self._endpoints[endpoint]:
-                url = self.get_url(endpoint, api_key)
-                log.debug(
-                    u"Sending %s to endpoint %s at %s",
-                    self._type, endpoint, url
-                )
-                req = tornado.httpclient.HTTPRequest(url=url, **tornado_client_params)
-                http.fetch(req, callback=self.on_response)
+        url = self.get_url(self._endpoint, self._api_key)
+        log.debug(
+            u"Sending %s to endpoint %s at %s",
+            self._type, self._endpoint, url
+        )
+        req = tornado.httpclient.HTTPRequest(url=url, **tornado_client_params)
+        http.fetch(req, callback=self.on_response)
 
     def on_response(self, response):
-        self._n_api_calls_made += 1
-        # If there are still requests being made
-        if self._n_api_calls_made < self._n_api_calls:
-            return
         if response.error:
             log.error("Response: %s" % response)
             if response.code == 413:
