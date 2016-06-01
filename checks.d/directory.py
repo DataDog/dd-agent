@@ -71,7 +71,9 @@ class DirectoryCheck(AgentCheck):
         for root, dirs, files in walk(directory):
             subdir_bytes = 0
             if recursive and tagsubdirs and recurse_count > 0:
-                dirtags = [subdirtagname + ":%s" % root] + list(orig_dirtags)
+                dirtags = [subdirtagname + ":%s" % root, "is_subdir:true"] + list(orig_dirtags)
+            else:
+                dirtags = ["is_subdir:true"] + list(orig_dirtags)
 
             for filename in files:
                 filename = join(root, filename)
@@ -105,7 +107,7 @@ class DirectoryCheck(AgentCheck):
                         self.histogram("system.disk.directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=dirtags)
                         self.histogram("system.disk.directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=dirtags)
 
-            if recurse_count > 0 and subdirgauges:
+            if recurse_count > 0 and subdirgauges and not countonly:
                 # If we've descended in to a subdir then let's emit total for the subdir
                 self.gauge("system.disk.directory.bytes", subdir_bytes, tags=dirtags)
 
