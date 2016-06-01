@@ -65,14 +65,13 @@ class DirectoryCheck(AgentCheck):
 
     def _get_stats(self, directory, name, dirtagname, tagsubdirs, subdirtagname, filetagname, filegauges, subdirgauges, histograms, pattern, recursive, countonly):
         orig_dirtags = [dirtagname + ":%s" % name]
-        dirtags = list(orig_dirtags)
         directory_bytes = 0
         directory_files = 0
         recurse_count = 0
         for root, dirs, files in walk(directory):
             subdir_bytes = 0
             if recursive and tagsubdirs and recurse_count > 0:
-                dirtags = [subdirtagname + ":%s" % root] + dirtags
+                dirtags = [subdirtagname + ":%s" % root] + list(orig_dirtags)
 
             for filename in files:
                 filename = join(root, filename)
