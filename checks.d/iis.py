@@ -61,12 +61,12 @@ class IIS(WinWMICheck):
     def check(self, instance):
         # Connect to the WMI provider
         host = instance.get('host', "localhost")
+        provider = instance.get('provider')
         user = instance.get('username', "")
         password = instance.get('password', "")
         instance_tags = instance.get('tags', [])
         sites = instance.get('sites', ['_Total'])
         is_2008 = _is_affirmative(instance.get('is_2008', False))
-
 
         instance_hash = hash_mutable(instance)
         instance_key = self._get_instance_key(host, self.NAMESPACE, self.CLASS, instance_hash)
@@ -82,7 +82,7 @@ class IIS(WinWMICheck):
             instance_key,
             self.CLASS, properties,
             filters=filters,
-            host=host, namespace=self.NAMESPACE,
+            host=host, namespace=self.NAMESPACE, provider=provider,
             username=user, password=password
         )
 
