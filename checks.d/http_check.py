@@ -74,11 +74,11 @@ class WeakCiphersHTTPSConnection(urllib3.connection.VerifiedHTTPSConnection):
 
         # Wrap socket using verification with the root certs in trusted_root_certs
         self.sock = ssl_.ssl_wrap_socket(conn, self.key_file, self.cert_file,
-                                        cert_reqs=resolved_cert_reqs,
-                                        ca_certs=self.ca_certs,
-                                        server_hostname=hostname,
-                                        ssl_version=resolved_ssl_version,
-                                        ciphers=self.ciphers)
+                                         cert_reqs=resolved_cert_reqs,
+                                         ca_certs=self.ca_certs,
+                                         server_hostname=hostname,
+                                         ssl_version=resolved_ssl_version,
+                                         ciphers=self.ciphers)
 
         if self.assert_fingerprint:
             ssl_.assert_fingerprint(self.sock.getpeercert(binary_form=True), self.assert_fingerprint)
@@ -243,7 +243,7 @@ class HTTPCheck(NetworkCheck):
                 self.log.debug("Weak Ciphers will be used for {0}. Suppoted Cipherlist: {1}".format(
                     base_addr, WeakCiphersHTTPSConnection.SUPPORTED_CIPHERS))
 
-            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers, proxies = instance_proxy,
+            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers, proxies=instance_proxy,
                              verify=False if disable_ssl_validation else instance_ca_certs)
 
         except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
@@ -444,8 +444,11 @@ class HTTPCheck(NetworkCheck):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(float(timeout))
             sock.connect((host, port))
-            ssl_sock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED,
-                                       ca_certs=instance_ca_certs)
+            context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            context.verify_mode = ssl.CERT_REQUIRED
+            context.check_hostname = True
+            context.load_verify_locations(instance_ca_certs)
+            ssl_sock = context.wrap_socket(sock, server_hostname=host)
             cert = ssl_sock.getpeercert()
 
         except Exception as e:
