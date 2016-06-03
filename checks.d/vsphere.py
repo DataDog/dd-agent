@@ -844,12 +844,19 @@ class VSphereCheck(AgentCheck):
                 value = self._transform_value(instance, result.id.counterId, result.value[0])
 
                 # Metric types are absolute, delta, and rate
-                if ALL_METRICS[self.metrics_metadata[i_key][result.id.counterId]['name']]['s_type'] == 'rate':
+                metric_name = self.metrics_metadata[i_key][result.id.counterId]['name']
+
+                if metric_name not in ALL_METRICS:
+                    self.log.debug(u"Skipping unknown `%s` metric.", metric_name)
+                    continue
+
+                if ALL_METRICS[metric_name]['s_type'] == 'rate':
                     record_metric = self.rate
                 else:
                     record_metric = self.gauge
+
                 record_metric(
-                    "vsphere.%s" % self.metrics_metadata[i_key][result.id.counterId]['name'],
+                    "vsphere.%s" % metric_name,
                     value,
                     hostname=mor['hostname'],
                     tags=['instance:%s' % instance_name]
