@@ -159,12 +159,15 @@ def _windows_confd_path():
     common_data = _windows_commondata_path()
     return _confd_path(os.path.join(common_data, 'Datadog'))
 
+def _windows_extra_checksd_path():
+    common_data = _windows_commondata_path()
+    return _checksd_path(os.path.join(common_data, 'Datadog'))
 
 def _windows_checksd_path():
     if hasattr(sys, 'frozen'):
         # we're frozen - from py2exe
         prog_path = os.path.dirname(sys.executable)
-        return _checksd_path(os.path.join(prog_path, '..'))
+        return _checksd_path(os.path.normpath(os.path.join(prog_path, '..', 'agent')))
     else:
         cur_path = os.path.dirname(__file__)
         return _checksd_path(cur_path)
@@ -344,6 +347,8 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
     if Platform.is_mac():
         agentConfig['additional_checksd'] = '/opt/datadog-agent/etc/checks.d'
+    elif Platform.is_windows():
+        agentConfig['additional_checksd'] = _windows_extra_checksd_path()
 
     # Config handling
     try:
@@ -390,10 +395,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         # the linux directory is set by default
         if config.has_option('Main', 'additional_checksd'):
             agentConfig['additional_checksd'] = config.get('Main', 'additional_checksd')
-        elif get_os() == 'windows':
-            # default windows location
-            common_path = _windows_commondata_path()
-            agentConfig['additional_checksd'] = os.path.join(common_path, 'Datadog', 'checks.d')
 
         if config.has_option('Main', 'use_dogstatsd'):
             agentConfig['use_dogstatsd'] = config.get('Main', 'use_dogstatsd').lower() in ("yes", "true")
