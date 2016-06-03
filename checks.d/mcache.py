@@ -1,5 +1,6 @@
 # 3rd party
 import bmemcached
+import pkg_resources
 
 # project
 from checks import AgentCheck
@@ -162,7 +163,9 @@ class Memcache(AgentCheck):
     SERVICE_CHECK = 'memcache.can_connect'
 
     def get_library_versions(self):
-        return {"memcache": memcache.__version__}
+        return {
+            "memcache": pkg_resources.get_distribution("python-binary-memcached").version
+        }
 
     def _get_metrics(self, client, tags, service_check_tags=None):
         try:
