@@ -281,9 +281,16 @@ class TestKubernetes(AgentCheckTest):
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list',
                 side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False)))
     def test_events(self, *args):
+        # default value for collect_events is False
         config = {'instances': [{'host': 'foo'}]}
         self.run_check(config)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)
+
+        # again, with the feature enabled
+        config = {'instances': [{'host': 'bar', 'collect_events': True}]}
+        self.run_check(config, force_reload=True)
         self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=1, exact_match=False)
+
         # again, now the timestamp is set and the event is discarded b/c too old
         self.run_check(config)
         self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)

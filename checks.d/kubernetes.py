@@ -30,6 +30,7 @@ DEFAULT_ENABLED_RATES = [
     'diskio.io_service_bytes.stats.total',
     'network.??_bytes',
     'cpu.*.total']
+DEFAULT_COLLECT_EVENTS = False
 
 NET_ERRORS = ['rx_errors', 'tx_errors', 'rx_dropped', 'tx_dropped']
 
@@ -118,7 +119,8 @@ class Kubernetes(AgentCheck):
         self._update_metrics(instance, pods_list)
 
         # kubelet events
-        self._process_events(instance, pods_list)
+        if _is_affirmative(instance.get('collect_events', DEFAULT_COLLECT_EVENTS)):
+            self._process_events(instance, pods_list)
 
     def _publish_raw_metrics(self, metric, dat, tags, depth=0):
         if depth >= self.max_depth:

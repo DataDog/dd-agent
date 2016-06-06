@@ -15,13 +15,18 @@ instances:
   # method: http
  - port: 4194
 
-  # use_histogram controls whether we send detailed metrics, i.e. one per container.
+  # collect_events controls whether the agent should fetch events from the kubernetes API and
+  # ingest them in Datadog. To avoid duplicates, only one agent at a time across the entire
+  # cluster should have this feature enabled.
+   collect_events: False
+
+  # use_histogram controls whether we send detailed metrics, i.e. one per container. 
   # When false, we send detailed metrics corresponding to individual containers, tagging by container id
   # to keep them unique.
   # When true, we aggregate data based on container image.
   #
-  # use_histogram: True
-  #
+   use_histogram: True
+
   # kubelet_port: 10255
   #
   # We can define a whitelist of patterns that permit publishing raw metrics.
