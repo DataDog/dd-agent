@@ -99,7 +99,9 @@ class KubeUtil():
     @classmethod
     def _get_default_router(cls):
         try:
-            with open('/proc/net/route') as f:
+            from config import get_config
+            procfs_netroute = os.path.join(get_config(parse_args=True).get('procfs_path','/proc'), 'net', 'route')
+            with open(procfs_netroute) as f:
                 for line in f.readlines():
                     fields = line.strip().split()
                     if fields[1] == '00000000':

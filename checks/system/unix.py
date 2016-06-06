@@ -225,8 +225,10 @@ class Load(Check):
 
     def check(self, agentConfig):
         if Platform.is_linux():
+            proc_location = agentConfig.get('procfs_path', '/proc').rstrip('/')
             try:
-                with open('/proc/loadavg', 'r') as load_avg:
+                proc_loadavg = "{}/loadavg".format(proc_location)
+                with open(proc_loadavg, 'r') as load_avg:
                     uptime = load_avg.readline().strip()
             except Exception:
                 self.logger.exception('Cannot extract load')
@@ -286,11 +288,13 @@ class Memory(Check):
 
     def check(self, agentConfig):
         if Platform.is_linux():
+            proc_location = agentConfig.get('procfs_path', '/proc').rstrip('/')
             try:
-                with open('/proc/meminfo', 'r') as mem_info:
+                proc_meminfo = "{}/meminfo".format(proc_location)
+                with open(proc_meminfo, 'r') as mem_info:
                     lines = mem_info.readlines()
             except Exception:
-                self.logger.exception('Cannot get memory metrics from /proc/meminfo')
+                self.logger.exception('Cannot get memory metrics from %s', proc_meminfo)
                 return False
 
             # NOTE: not all of the stats below are present on all systems as
@@ -349,7 +353,7 @@ class Memory(Check):
                     if match is not None:
                         meminfo[match.group(1)] = match.group(2)
                 except Exception:
-                    self.logger.exception("Cannot parse /proc/meminfo")
+                    self.logger.exception("Cannot parse %s", proc_meminfo)
 
             memData = {}
 
@@ -374,7 +378,7 @@ class Memory(Check):
                 if memData['physTotal'] > 0:
                     memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
             except Exception:
-                self.logger.exception('Cannot compute stats from /proc/meminfo')
+                self.logger.exception('Cannot compute stats from %s', proc_meminfo)
 
             # Swap
             # FIXME units are in MB, we should use bytes instead
@@ -459,7 +463,7 @@ class Memory(Check):
                 if memData['physTotal'] > 0:
                     memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
             except Exception:
-                self.logger.exception('Cannot compute stats from /proc/meminfo')
+                self.logger.exception('Cannot compute stats from %s', proc_meminfo)
 
             # Swap
             try:

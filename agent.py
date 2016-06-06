@@ -144,7 +144,9 @@ class Agent(Daemon):
 
         self._agentConfig = self._set_agent_config_hostname(config)
         hostname = get_hostname(self._agentConfig)
-        systemStats = get_system_stats()
+        systemStats = get_system_stats(
+            proc_path=self._agentConfig.get('procfs_path', '/proc').rstrip('/')
+        )
         emitters = self._get_emitters()
 
         # Initialize service discovery

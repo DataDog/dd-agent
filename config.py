@@ -581,7 +581,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     return agentConfig
 
 
-def get_system_stats():
+def get_system_stats(proc_path=None):
     systemStats = {
         'machine': platform.machine(),
         'platform': sys.platform,
@@ -593,7 +593,10 @@ def get_system_stats():
 
     try:
         if Platform.is_linux(platf):
-            output, _, _ = get_subprocess_output(['grep', 'model name', '/proc/cpuinfo'], log)
+            if not proc_path:
+                proc_path = "/proc"
+            proc_cpuinfo = os.path.join(proc_path,'cpuinfo')
+            output, _, _ = get_subprocess_output(['grep', 'model name', proc_cpuinfo], log)
             systemStats['cpuCores'] = len(output.splitlines())
 
         if Platform.is_darwin(platf) or Platform.is_freebsd(platf):
