@@ -17,8 +17,8 @@ instances:
 
   # collect_events controls whether the agent should fetch events from the kubernetes API and
   # ingest them in Datadog. To avoid duplicates, only one agent at a time across the entire
-  # cluster should have this feature enabled.
-   collect_events: False
+  # cluster should have this feature enabled. To enable the feature, set the parameter to True.
+  # collect_events: False
 
   # use_histogram controls whether we send detailed metrics, i.e. one per container. 
   # When false, we send detailed metrics corresponding to individual containers, tagging by container id
