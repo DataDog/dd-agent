@@ -27,6 +27,9 @@ init_config:
       # need to set to false when using self-signed certs
       # ssl_verify: true
 
+     # Whether the dd-agent proxy should be used for openstack API requests (if set)
+     # use_agent_proxy: true
+
 instances:
     - name: instance_1 # A required unique identifier for this instance
 

@@ -355,6 +355,7 @@ class OpenStackCheck(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         self._ssl_verify = init_config.get("ssl_verify", True)
+        self._use_proxy = init_config.get("use_agent_proxy", True)
         self.keystone_server_url = init_config.get("keystone_server_url")
         if not self.keystone_server_url:
             raise IncompleteConfig()
@@ -373,7 +374,7 @@ class OpenStackCheck(AgentCheck):
             "http": None,
             "https": None,
         }
-        if self.proxy_settings:
+        if self.proxy_settings and self._use_proxy:
             uri = "{host}:{port}".format(
                 host=self.proxy_settings['host'],
                 port=self.proxy_settings['port'])
