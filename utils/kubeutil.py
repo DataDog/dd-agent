@@ -25,7 +25,7 @@ def is_k8s():
     return 'KUBERNETES_PORT' in os.environ
 
 
-class KubeUtil():
+class KubeUtil:
     __metaclass__ = Singleton
 
     DEFAULT_METHOD = 'http'
@@ -37,7 +37,6 @@ class KubeUtil():
     DEFAULT_MASTER_NAME = 'kubernetes'  # DNS name to reach the master from a pod.
     CA_CRT_PATH = '/run/secrets/kubernetes.io/serviceaccount/ca.crt'
     AUTH_TOKEN_PATH = '/run/secrets/kubernetes.io/serviceaccount/token'
-    NET_ROUTE_PATH = '/proc/net/route'
 
     POD_NAME_LABEL = "io.kubernetes.pod.name"
     NAMESPACE_LABEL = "io.kubernetes.pod.namespace"

@@ -4,6 +4,7 @@
 # stdlib
 import mock
 import unittest
+import os
 
 # 3p
 import simplejson as json
@@ -11,7 +12,7 @@ import simplejson as json
 # project
 from tests.checks.common import AgentCheckTest, Fixtures
 from checks import AgentCheck
-from utils.kubeutil import KubeUtil
+from utils.kubeutil import KubeUtil, is_k8s, get_procfs_netroute
 
 CPU = "CPU"
 MEM = "MEM"
@@ -423,11 +424,21 @@ class TestKubeutil(unittest.TestCase):
             self.assertEqual(self.kubeutil._node_name, 'gke-cluster-remi-62c0dd29-node-29lx')
 
     def test__get_default_router(self):
-        KubeUtil.NET_ROUTE_PATH = Fixtures.file('proc_net_route.txt')
-        self.assertEqual(KubeUtil._get_default_router(), '10.8.2.1')
+        with mock.patch('utils.kubeutil.get_procfs_netroute') as mock_procfs:
+            mock_procfs.return_value = Fixtures.file('proc_net_route.txt')
+            self.assertEqual(KubeUtil._get_default_router(), '10.8.2.1')
 
     def test_get_auth_token(self):
         KubeUtil.AUTH_TOKEN_PATH = '/foo/bar'
         self.assertIsNone(KubeUtil.get_auth_token())
         KubeUtil.AUTH_TOKEN_PATH = Fixtures.file('proc_net_route.txt')  # any file could do the trick
         self.assertIsNotNone(KubeUtil.get_auth_token())
+
+    def test_is_k8s(self):
+        os.unsetenv('KUBERNETES_PORT')
+        self.assertFalse(is_k8s())
+        os.environ['KUBERNETES_PORT'] = '999'
+        self.assertTrue(is_k8s())
+
+    def test_get_procfs_netroute(self):
+        self.assertEqual(get_procfs_netroute(), '/proc/net/route')
