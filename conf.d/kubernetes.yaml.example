@@ -25,7 +25,7 @@ instances:
   # to keep them unique.
   # When true, we aggregate data based on container image.
   #
-   use_histogram: True
+  # use_histogram: False
 
   # kubelet_port: 10255
   #
