@@ -27,13 +27,14 @@ CONFIG_RELOAD_STATUS = ['start', 'die', 'stop', 'kill']  # used to trigger servi
 log = logging.getLogger(__name__)
 
 
-class DockerUtil():
+class DockerUtil:
     __metaclass__ = Singleton
 
     DEFAULT_SETTINGS = {"version": DEFAULT_VERSION}
 
     def __init__(self, **kwargs):
         self._docker_root = None
+        self.events = []
 
         if 'init_config' in kwargs and 'instance' in kwargs:
             init_config = kwargs.get('init_config')
@@ -96,11 +97,14 @@ class DockerUtil():
                                              until=now, decode=True)
         self._latest_event_collection_ts = now
         for event in event_generator:
-            if event != '':
+            try:
+                if event.get('status') in CONFIG_RELOAD_STATUS:
+                    should_reload_conf = True
                 self.events.append(event)
-            if event.get('status') in CONFIG_RELOAD_STATUS:
-                should_reload_conf = True
-        return (self.events, should_reload_conf)
+            except AttributeError:
+                log.debug('Unable to parse Docker event: %s', event)
+
+        return self.events, should_reload_conf
 
     def get_hostname(self):
         """Return the `Name` param from `docker info` to use as the hostname"""
