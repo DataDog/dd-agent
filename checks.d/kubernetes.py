@@ -288,8 +288,7 @@ class Kubernetes(AgentCheck):
 
     def _process_events(self, instance, pods_list):
         """
-        Retrieve a list of events from kubelet that is relevant for the host the
-        agent is running on.
+        Retrieve a list of events from the kubernetes API.
 
         At the moment there is no support to select events based on a timestamp query, so we
         go through the whole list every time. This should be fine for now as events
@@ -302,8 +301,6 @@ class Kubernetes(AgentCheck):
         """
         node_ip, node_name = self.kubeutil.get_node_info()
         self.log.debug('Processing events on {} [{}]'.format(node_name, node_ip))
-        pods = self.kubeutil.filter_pods_list(pods_list, node_ip)
-        pod_uids = self.kubeutil.extract_meta(pods, 'uid')
 
         k8s_namespace = instance.get('namespace', 'default')
         events_endpoint = '{}/namespaces/{}/events'.format(self.kubeutil.kubernetes_api_url, k8s_namespace)
@@ -317,11 +314,7 @@ class Kubernetes(AgentCheck):
         self.log.debug('Found {} events, filtering out using timestamp: {}'.format(len(event_items), last_read))
 
         for event in event_items:
-            # skip if the event is from another node
             involved_obj = event.get('involvedObject', {})
-            if involved_obj.get('uid') not in pod_uids:
-                self.log.debug('Pod {} is not running on this node, skip...'.format(involved_obj.get('uid')))
-                continue
 
             # skip if the event is too old
             event_ts = int(time.mktime(time.strptime(event.get('lastTimestamp'), '%Y-%m-%dT%H:%M:%SZ')))
