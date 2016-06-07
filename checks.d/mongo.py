@@ -576,28 +576,27 @@ class MongoDb(AgentCheck):
         db_name = parsed.get('database')
         clean_server_name = server.replace(password, "*" * 5) if password is not None else server
 
-        additional_metrics = instance.get('additional_metrics', [])
+        if not db_name:
+            self.log.debug('No MongoDB database found in URI. Defaulting to admin.')
+            db_name = 'admin'
 
         tags = instance.get('tags', [])
+        # de-dupe tags to avoid a memory leak
+        tags = list(set(tags))
+        service_check_tags = [
+            "db:%s" % db_name
+        ]
+        service_check_tags.extend(tags)
+        # Add the `server` tag to the metrics' tags only (it's added in the backend for service checks)
         tags.append('server:%s' % clean_server_name)
 
         # Get the list of metrics to collect
+        additional_metrics = instance.get('additional_metrics', [])
         collect_tcmalloc_metrics = 'tcmalloc' in additional_metrics
         metrics_to_collect = self._get_metrics_to_collect(
             server,
             additional_metrics
         )
-
-        # de-dupe tags to avoid a memory leak
-        tags = list(set(tags))
-
-        if not db_name:
-            self.log.info('No MongoDB database found in URI. Defaulting to admin.')
-            db_name = 'admin'
-
-        service_check_tags = [
-            "db:%s" % db_name
-        ]
 
         nodelist = parsed.get('nodelist')
         if nodelist:
