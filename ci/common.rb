@@ -108,9 +108,9 @@ end
 if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
   cache = Cache.new(debug: ENV['DEBUG_CACHE'],
                     s3: {
-                      bucket: 'dd-agent-travis-cache',
-                      access_key_id: ENV['AWS_ACCESS_KEY_ID'],
-                      secret_access_key: ENV['AWS_SECRET_ACCESS_KEY']
+                      bucket: 'dd-agent-travis-cache-staging',
+                      access_key_id: ENV['AWS_ACCESS_KEY_ID_STAGING'],
+                      secret_access_key: ENV['AWS_SECRET_ACCESS_KEY_STAGING']
                     })
 end
 
