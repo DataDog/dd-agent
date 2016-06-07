@@ -18,6 +18,7 @@ from checks import AgentCheck, CheckException
 from config import _is_affirmative
 
 MAX_CUSTOM_RESULTS = 100
+TABLE_COUNT_LIMIT = 200
 
 
 class ShouldRestartException(Exception):
@@ -116,7 +117,6 @@ SELECT mode,
         'relation': False,
     }
 
-
     REL_METRICS = {
         'descriptors': [
             ('relname', 'table'),
@@ -193,10 +193,14 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
         },
         'relation': False,
         'query': """
-SELECT schemaname, count(*)
-FROM %s
-GROUP BY schemaname
-        """
+SELECT schemaname, count(*) FROM
+(
+  SELECT schemaname
+  FROM %s
+  ORDER BY schemaname, relname
+  LIMIT {table_count_limit}
+) AS subquery GROUP BY schemaname
+        """.format(table_count_limit=TABLE_COUNT_LIMIT)
     }
 
     REPLICATION_METRICS_9_1 = {
@@ -412,7 +416,7 @@ SELECT s.schemaname,
                 self.log.warn('Failed to parse config element=%s, check syntax' % str(element))
         return config
 
-    def _collect_stats(self, key, db, instance_tags, relations, custom_metrics, function_metrics):
+    def _collect_stats(self, key, db, instance_tags, relations, custom_metrics, function_metrics, count_metrics):
         """Query pg_stat_* for various metrics
         If relations is not an empty list, gather per-relation metrics
         on top of that.
@@ -422,11 +426,13 @@ SELECT s.schemaname,
         metric_scope = [
             self.CONNECTION_METRICS,
             self.LOCK_METRICS,
-            self.COUNT_METRICS,
         ]
 
         if function_metrics:
             metric_scope.append(self.FUNCTION_METRICS)
+
+        if count_metrics:
+            metric_scope.append(self.COUNT_METRICS)
 
         # These are added only once per PG server, thus the test
         db_instance_metrics = self._get_instance_metrics(key, db)
@@ -633,6 +639,8 @@ SELECT s.schemaname,
         relations = instance.get('relations', [])
         ssl = _is_affirmative(instance.get('ssl', False))
         function_metrics = _is_affirmative(instance.get('collect_function_metrics', False))
+        # Default value for `count_metrics` is True for backward compatibility
+        count_metrics = _is_affirmative(instance.get('collect_count_metrics', True))
 
         if relations and not dbname:
             self.warning('"dbname" parameter must be set when using the "relations" parameter.')
@@ -665,11 +673,11 @@ SELECT s.schemaname,
             db = self.get_connection(key, host, port, user, password, dbname, ssl)
             version = self._get_version(key, db)
             self.log.debug("Running check against version %s" % version)
-            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics)
+            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics, count_metrics)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, ssl, use_cached=False)
-            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics)
+            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics, count_metrics)
 
         if db is not None:
             service_check_tags = self._get_service_check_tags(host, port, dbname)
