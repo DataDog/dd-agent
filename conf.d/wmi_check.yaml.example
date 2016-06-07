@@ -1,7 +1,7 @@
 init_config:
 
 instances:
-  # Each WMI query has 2 required options, `class` and `metrics` and six 
+  # Each WMI query has 2 required options, `class` and `metrics` and six
   # optional options, `host`, `namespace`, `filters`, `tag_by`, `constant_tags` and `tag_queries`.
   #
   # `host` is the optional target of the WMI query, `localhost` is assumed by default
@@ -99,8 +99,7 @@ instances:
     metrics:
       - [IOReadBytesPerSec, proc.io.bytes_read, gauge]
     filters:
-      - Name: app1
-      - Name: app2
+      - Name: 'app%'
     tag_by: Name
     tag_queries:
       - [IDProcess, Win32_Process, Handle, CommandLine]

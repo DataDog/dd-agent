@@ -35,7 +35,7 @@ from utils.subprocess_output import (
 )
 
 # CONSTANTS
-AGENT_VERSION = "5.8.0"
+AGENT_VERSION = "5.9.0"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
 MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
@@ -582,7 +582,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     return agentConfig
 
 
-def get_system_stats():
+def get_system_stats(proc_path=None):
     systemStats = {
         'machine': platform.machine(),
         'platform': sys.platform,
@@ -594,7 +594,10 @@ def get_system_stats():
 
     try:
         if Platform.is_linux(platf):
-            output, _, _ = get_subprocess_output(['grep', 'model name', '/proc/cpuinfo'], log)
+            if not proc_path:
+                proc_path = "/proc"
+            proc_cpuinfo = os.path.join(proc_path,'cpuinfo')
+            output, _, _ = get_subprocess_output(['grep', 'model name', proc_cpuinfo], log)
             systemStats['cpuCores'] = len(output.splitlines())
 
         if Platform.is_darwin(platf) or Platform.is_freebsd(platf):
@@ -837,10 +840,11 @@ def _service_disco_configs(agentConfig):
 
     return service_disco_configs
 
-
 def _conf_path_to_check_name(conf_path):
-    return conf_path.rsplit('/', 1)[-1].split('.yaml')[0]
-
+    f = os.path.splitext(os.path.split(conf_path)[1])
+    if f[1] and f[1] == ".default":
+        f = os.path.splitext(f[0])
+    return f[0]
 
 def get_checks_places(osname, agentConfig):
     """ Return a list of methods which, when called with a check name, will each return a check path to inspect

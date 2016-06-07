@@ -111,6 +111,15 @@ use_mount: no
 # `/datadog/check_configs` key in the back-end. If you wish otherwise, uncomment this option
 # and modify its value.
 # sd_template_dir: /datadog/check_configs
+#
+# ========================================================================== #
+# Other                                                                      #
+# ========================================================================== #
+#
+# In some environments we may have the procfs file system mounted in a 
+# miscellaneous location. The procfs_path configuration paramenter allows
+# us to override the standard default location '/proc'
+# procfs_path: /proc
 
 # ========================================================================== #
 # DogStatsd configuration                                                    #

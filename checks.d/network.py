@@ -143,6 +143,7 @@ class Network(AgentCheck):
                     self.rate(metric, self._parse_value(value.group(1)))
 
     def _check_linux(self, instance):
+        proc_location = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
         if self._collect_cx_state:
             try:
                 self.log.debug("Using `ss` to collect connection state")
@@ -186,7 +187,8 @@ class Network(AgentCheck):
             except SubprocessOutputEmptyError:
                 self.log.exception("Error collecting connection stats.")
 
-        proc = open('/proc/net/dev', 'r')
+        proc_dev_path = "{}/net/dev".format(proc_location)
+        proc = open(proc_dev_path, 'r')
         try:
             lines = proc.readlines()
         finally:
@@ -213,7 +215,8 @@ class Network(AgentCheck):
                 self._submit_devicemetrics(iface, metrics)
 
         try:
-            proc = open('/proc/net/snmp', 'r')
+            proc_snmp_path = "{}/net/snmp".format(proc_location)
+            proc = open(proc_snmp_path, 'r')
 
             # IP:      Forwarding   DefaultTTL InReceives     InHdrErrors  ...
             # IP:      2            64         377145470      0            ...
@@ -271,7 +274,7 @@ class Network(AgentCheck):
 
         except IOError:
             # On Openshift, /proc/net/snmp is only readable by root
-            self.log.debug("Unable to read /proc/net/snmp.")
+            self.log.debug("Unable to read %s.", proc_snmp_path)
 
     # Parse the output of the command that retrieves the connection state (either `ss` or `netstat`)
     # Returns a dict metric_name -> value

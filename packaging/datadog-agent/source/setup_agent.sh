@@ -17,6 +17,7 @@ DEFAULT_AGENT_VERSION="5.8.0"
 PIP_VERSION="6.1.1"
 VIRTUALENV_VERSION="1.11.6"
 SUPERVISOR_VERSION="3.1.3"
+SETUPTOOLS_VERSION="20.9.0"
 
 #######################################################################
 # OVERRIDABLE VARIABLES:
@@ -358,7 +359,8 @@ VENV_PIP_CMD="$DD_HOME/venv/bin/pip"
 
 print_console "* Setting up setuptools"
 $DOWNLOADER "$DD_HOME/ez_setup.py" https://bootstrap.pypa.io/ez_setup.py
-$VENV_PYTHON_CMD "$DD_HOME/ez_setup.py" --version="20.9.0"
+$VENV_PYTHON_CMD "$DD_HOME/ez_setup.py" --version="$SETUPTOOLS_VERSION" --to-dir=$DD_HOME
+rm -f "$DD_HOME/setuptools-$SETUPTOOLS_VERSION.zip"
 rm -f "$DD_HOME/ez_setup.py"
 rm -f "$DD_HOME/ez_setup.pyc"
 print_done

@@ -39,6 +39,9 @@ class Disk(AgentCheck):
         # Windows and Mac will always have psutil
         # (we have packaged for both of them)
         if self._psutil():
+            if Platform.is_linux():
+                procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
+                psutil.PROCFS_PATH = procfs_path
             self.collect_metrics_psutil()
         else:
             # FIXME: implement all_partitions (df -a)

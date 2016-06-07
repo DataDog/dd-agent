@@ -15,6 +15,7 @@ import psutil
 
 # project
 from checks import AgentCheck
+from util import Platform
 
 
 class GUnicornCheck(AgentCheck):
@@ -36,6 +37,10 @@ class GUnicornCheck(AgentCheck):
     def check(self, instance):
         """ Collect metrics for the given gunicorn instance. """
         self.log.debug("Running instance: %s", instance)
+
+        if Platform.is_linux():
+            procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
+            psutil.PROCFS_PATH = procfs_path
 
         # Validate the config.
         if not instance or self.PROC_NAME not in instance:

@@ -113,6 +113,7 @@ class AgentMetrics(AgentCheck):
         return self._collector_payload, self._metric_context
 
     def check(self, instance):
+
         if self.in_developer_mode:
             stats, names_to_metric_types = self._psutil_config_to_stats(instance)
             self._register_psutil_metrics(stats, names_to_metric_types)
