@@ -197,7 +197,7 @@ SELECT schemaname, count(*) FROM
 (
   SELECT schemaname
   FROM %s
-  ORDER BY relname
+  ORDER BY schemaname, relname
   LIMIT {table_count_limit}
 ) AS subquery GROUP BY schemaname
         """.format(table_count_limit=TABLE_COUNT_LIMIT)
