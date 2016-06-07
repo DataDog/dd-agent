@@ -72,8 +72,6 @@ namespace :ci do
 
     task before_cache: :cleanup
 
-    task cache: ['ci:common:cache']
-
     task cleanup: ['ci:common:cleanup'] do
       sh %(kill `cat $VOLATILE_DIR/cass.pid`)
       sleep_for 3
@@ -86,7 +84,7 @@ namespace :ci do
       exception = nil
       begin
         %w(before_install install before_script
-           script before_cache cache).each do |t|
+           script before_cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end
       rescue => e

@@ -11,8 +11,6 @@ require 'timeout'
 # Colors don't work on Appveyor
 String.disable_colorization = true if Gem.win_platform?
 
-require './ci/resources/cache'
-
 def sleep_for(secs)
   puts "Sleeping for #{secs}s".blue
   sleep(secs)
@@ -103,27 +101,12 @@ class Wait
   end
 end
 
-# Initialize cache if in travis and in our repository
-# (no cache for external contributors)
-if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY_STAGING']
-  cache = Cache.new(debug: ENV['DEBUG_CACHE'],
-                    s3: {
-                      bucket: 'dd-agent-travis-cache-staging',
-                      access_key_id: ENV['AWS_ACCESS_KEY_ID_STAGING'],
-                      secret_access_key: ENV['AWS_SECRET_ACCESS_KEY_STAGING']
-                    })
-end
-
 namespace :ci do
   namespace :common do
     task :before_install do |t|
       section('BEFORE_INSTALL')
       # We use tempdir on Windows, no need to create it
       sh %(mkdir -p #{ENV['VOLATILE_DIR']}) unless Gem.win_platform?
-      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY_STAGING']
-        cache.directories = ["#{ENV['HOME']}/embedded"]
-        cache.setup
-      end
       t.reenable
     end
 
@@ -158,18 +141,8 @@ namespace :ci do
     end
 
     task :before_cache do |t|
-      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY_STAGING']
-        section('BEFORE_CACHE')
-        sh %(find #{ENV['INTEGRATIONS_DIR']}/ -type f -name '*.log*' -delete)
-      end
-      t.reenable
-    end
-
-    task :cache do |t|
-      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY_STAGING']
-        section('CACHE')
-        cache.push
-      end
+      section('BEFORE_CACHE')
+      sh %(find #{ENV['INTEGRATIONS_DIR']}/ -type f -name '*.log*' -delete)
       t.reenable
     end
 
