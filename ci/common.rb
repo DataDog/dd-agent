@@ -105,12 +105,12 @@ end
 
 # Initialize cache if in travis and in our repository
 # (no cache for external contributors)
-if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
+if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY_STAGING']
   cache = Cache.new(debug: ENV['DEBUG_CACHE'],
                     s3: {
-                      bucket: 'dd-agent-travis-cache',
-                      access_key_id: ENV['AWS_ACCESS_KEY_ID'],
-                      secret_access_key: ENV['AWS_SECRET_ACCESS_KEY']
+                      bucket: 'dd-agent-travis-cache-staging',
+                      access_key_id: ENV['AWS_ACCESS_KEY_ID_STAGING'],
+                      secret_access_key: ENV['AWS_SECRET_ACCESS_KEY_STAGING']
                     })
 end
 
@@ -120,7 +120,7 @@ namespace :ci do
       section('BEFORE_INSTALL')
       # We use tempdir on Windows, no need to create it
       sh %(mkdir -p #{ENV['VOLATILE_DIR']}) unless Gem.win_platform?
-      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
+      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY_STAGING']
         cache.directories = ["#{ENV['HOME']}/embedded"]
         cache.setup
       end
@@ -158,7 +158,7 @@ namespace :ci do
     end
 
     task :before_cache do |t|
-      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
+      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY_STAGING']
         section('BEFORE_CACHE')
         sh %(find #{ENV['INTEGRATIONS_DIR']}/ -type f -name '*.log*' -delete)
       end
@@ -166,7 +166,7 @@ namespace :ci do
     end
 
     task :cache do |t|
-      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
+      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY_STAGING']
         section('CACHE')
         cache.push
       end
