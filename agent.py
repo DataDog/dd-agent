@@ -421,7 +421,7 @@ def main():
     elif 'flare' == command:
         Flare.check_user_rights()
         case_id = int(args[1]) if len(args) > 1 else None
-        f = Flare(True, case_id)
+        f = Flare(True, case_id, options.flare_email, options.send_flare)
         f.collect()
         try:
             f.upload()

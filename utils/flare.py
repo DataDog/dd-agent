@@ -112,12 +112,14 @@ class Flare(object):
     MAX_UPLOAD_SIZE = 10485000
     TIMEOUT = 60
 
-    def __init__(self, cmdline=False, case_id=None):
+    def __init__(self, cmdline=False, case_id=None, email=None, send_flare=False):
         self._case_id = case_id
         self._cmdline = cmdline
+        self._email = email
         self._init_tarfile()
         self._init_permissions_file()
         self._save_logs_path()
+        self._send_flare = send_flare
         self._config = get_config()
         self._api_key = self._config.get('api_key')
         self._url = "{0}{1}".format(
@@ -200,12 +202,17 @@ class Flare(object):
     def upload(self, email=None):
         self._check_size()
 
-        if self._cmdline:
+        # If at command line, ask for confirmation
+        if self._cmdline and not self._send_flare:
             self._ask_for_confirmation()
 
-        if not email:
+        # Determine email for use in support case
+        if email is None:
+            email = self._email
+        if not email or self._email:
             email = self._ask_for_email()
 
+        # Build request for flare upload
         log.info("Uploading {0} to Datadog Support".format(self.tar_path))
         url = self._url
         if self._case_id:
@@ -221,6 +228,7 @@ class Flare(object):
             'timeout': self.TIMEOUT
         }
 
+        # Setup connection and make flare POST
         self.set_proxy(requests_options)
         self.set_ssl_validation(requests_options)
 

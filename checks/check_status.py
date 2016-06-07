@@ -13,6 +13,7 @@ import datetime
 import logging
 import os
 import platform
+import simplejson as json
 import sys
 import tempfile
 import time
@@ -23,7 +24,7 @@ import yaml
 
 # project
 import config
-from config import _is_affirmative, _windows_commondata_path, get_config
+from config import _is_affirmative, _windows_commondata_path, get_config, get_version
 from util import plural
 from utils.jmx import JMXFiles
 from utils.ntp import NTPUtil
@@ -142,6 +143,35 @@ class AgentStatus(object):
         except Exception:
             log.exception("Error persisting status")
 
+        # Also, persist to JSON for GUI compatibility
+        self.persist_json()
+
+    def persist_json(self):
+        agent_info = {'platform': platform.platform(),
+                      'agent_version': get_version(),
+                      'python_version': platform.python_version(),
+                      'python_architecture': Platform.python_architecture(),
+                      'logger_info': logger_info()}
+        agent_info = json.dumps(agent_info)
+        path = self._get_json_path()
+        info_path = "{0}AgentStatus.json".format(path.split(self.NAME)[0])
+
+        # Save agent info once in a while
+        if self.NAME == 'Collector':
+            log.debug("Persisting agent info to {0}".format(info_path))
+            with open(info_path, 'w') as f:
+                f.write(agent_info)
+
+        # Save module status
+        try:
+            log.debug("Persisting status to %s" % path)
+            with open(path, 'w') as f:
+                status = self.to_dict()
+                status = json.dumps(status)
+                f.write(status)
+        except Exception:
+            log.exception("Error persisting status")
+
     def created_seconds_ago(self):
         td = datetime.datetime.now() - self.created_at
         return td.seconds
@@ -221,6 +251,7 @@ class AgentStatus(object):
         log.debug("Removing latest status")
         try:
             os.remove(cls._get_pickle_path())
+            os.remove(cls._get_json_path())
         except OSError:
             pass
 
@@ -269,6 +300,16 @@ class AgentStatus(object):
         else:
             path = tempfile.gettempdir()
         return os.path.join(path, cls.__name__ + '.pickle')
+
+    @classmethod
+    def _get_json_path(cls):
+        if Platform.is_win32():
+            path = os.path.join(_windows_commondata_path(), 'Datadog')
+        elif os.path.isdir(PidFile.get_dir()):
+            path = PidFile.get_dir()
+        else:
+            path = tempfile.gettempdir()
+        return os.path.join(path, cls.__name__ + '.json')
 
 
 class InstanceStatus(object):

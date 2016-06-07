@@ -91,6 +91,10 @@ def get_parsed_args():
                       help='Print out stacktraces for errors in checks')
     parser.add_option('-p', '--profile', action='store_true', default=False,
                       dest='profile', help='Enable Developer Mode')
+    parser.add_option('-y', '--send-flare', action='store_true', default=False,
+                      dest='send_flare', help='Auto confirm send flare (suppresses output)')
+    parser.add_option('-e', '--flare-email', action='store', default=None,
+                      dest='flare_email')
 
     try:
         options, args = parser.parse_args()
@@ -101,7 +105,9 @@ def get_parsed_args():
                                 'disable_dd': False,
                                 'use_forwarder': False,
                                 'verbose': False,
-                                'profile': False}), []
+                                'profile': False,
+                                'send_flare': False,
+                                'flare_email': False}), []
     return options, args
 
 
