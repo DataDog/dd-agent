@@ -144,9 +144,9 @@ class RabbitMQ(AgentCheck):
 
         additional_metrics = instance.get('additional_metrics', [])
         if type(additional_metrics) == dict:
-          self.log.debug('RabbitMQ Additional Metrics defined')
-          self._parse_additional_metrics(additional_metrics, 'node', NODE_ATTRIBUTES)
-          self._parse_additional_metrics(additional_metrics, 'queue', QUEUE_ATTRIBUTES)
+            self.log.debug('RabbitMQ Additional Metrics defined')
+            self._parse_additional_metrics(additional_metrics, 'node', NODE_ATTRIBUTES)
+            self._parse_additional_metrics(additional_metrics, 'queue', QUEUE_ATTRIBUTES)
 
         auth = (username, password)
 
@@ -166,12 +166,12 @@ class RabbitMQ(AgentCheck):
         self._check_aliveness(base_url, vhosts, auth=auth)
 
     def _parse_additional_metrics(self, all_additional_metrics, type, existing_metrics):
-      additional_metrics = all_additional_metrics.get(type,[])
-      for attribute, metric_name, operation_name in additional_metrics:
-        operation = OPERATION_MAP[operation_name]
-        new_metric = (attribute, metric_name, operation)
-        self.log.debug(new_metric)
-        existing_metrics.append(new_metric)
+        additional_metrics = all_additional_metrics.get(type,[])
+        for attribute, metric_name, operation_name in additional_metrics:
+            operation = OPERATION_MAP[operation_name]
+            new_metric = (attribute, metric_name, operation)
+            self.log.debug(new_metric)
+            existing_metrics.append(new_metric)
 
     def _get_data(self, url, auth=None):
         try:
