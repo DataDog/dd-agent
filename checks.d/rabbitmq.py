@@ -158,7 +158,7 @@ class RabbitMQ(AgentCheck):
         except requests.exceptions.HTTPError as e:
             raise Exception(
                 'Cannot open RabbitMQ API url: %s %s' % (url, str(e)))
-        except ValueError, e:
+        except ValueError as e:
             raise Exception(
                 'Cannot parse JSON response from API url: %s %s' % (url, str(e)))
         return data
