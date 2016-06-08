@@ -60,8 +60,6 @@ namespace :ci do
 
     task before_cache: ['ci:common:before_cache']
 
-    task cache: ['ci:common:cache']
-
     task cleanup: ['ci:common:cleanup']
 
     task :execute do

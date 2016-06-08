@@ -76,8 +76,6 @@ namespace :ci do
       sh %(rm -f #{apache_rootdir}/conf/httpd.conf)
     end
 
-    task cache: ['ci:common:cache']
-
     task cleanup: ['ci:common:cleanup'] do
       sh %(#{apache_rootdir}/bin/apachectl stop)
     end
@@ -86,7 +84,7 @@ namespace :ci do
       exception = nil
       begin
         %w(before_install install before_script
-           script before_cache cache).each do |t|
+           script before_cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end
       rescue => e
