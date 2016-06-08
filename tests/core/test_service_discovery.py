@@ -63,9 +63,17 @@ def client_read(path):
 class TestServiceDiscovery(unittest.TestCase):
     docker_container_inspect = {
         u'Id': u'69ff25598b2314d1cdb7752cc3a659fb1c1352b32546af4f1454321550e842c0',
-        u'Image': u'6ffc02088cb870652eca9ccd4c4fb582f75b29af2879792ed09bb46fd1c898ef',
+        u'Image': u'nginx',
         u'Name': u'/nginx',
-        u'NetworkSettings': {u'IPAddress': u'172.17.0.21', u'Ports': {u'443/tcp': None, u'80/tcp': None}}
+        u'NetworkSettings': {u'IPAddress': u'172.17.0.21', u'Ports': {u'443/tcp': None, u'80/tcp': None}},
+        u'Labels': {}
+    }
+    docker_container_inspect_with_label = {
+        u'Id': u'69ff25598b2314d1cdb7752cc3a659fb1c1352b32546af4f1454321550e842c0',
+        u'Image': u'private-registry.com/nginx:production',
+        u'Name': u'/nginx',
+        u'NetworkSettings': {u'IPAddress': u'172.17.0.21', u'Ports': {u'443/tcp': None, u'80/tcp': None}},
+        u'Labels': {u'datadog_id': u'custom-nginx'}
     }
     kubernetes_container_inspect = {
         u'Id': u'389dc8a4361f3d6c866e9e9a7b6972b26a31c589c4e2f097375d55656a070bc9',
@@ -81,9 +89,10 @@ class TestServiceDiscovery(unittest.TestCase):
     }
     container_inspects = [
         # (inspect_dict, expected_ip, expected_port)
-        (docker_container_inspect, '172.17.0.21', ['80', '443']),
-        (kubernetes_container_inspect, None, ['6379']),  # arbitrarily defined in the mocked pod_list
-        (malformed_container_inspect, None, KeyError)
+        (docker_container_inspect, '172.17.0.21', ['80', '443'], 'nginx'),
+        (docker_container_inspect_with_label, '172.17.0.21', ['80', '443'], 'custom-nginx'),
+        (kubernetes_container_inspect, None, ['6379'], 'de309495e6c7b2071bc60c0b7e4405b0d65e33e3a4b732ad77615d90452dd827'),  # arbitrarily defined in the mocked pod_list
+        (malformed_container_inspect, None, KeyError, '6ffc02088cb870652eca9ccd4c4fb582f75b29af2879792ed09bb46fd1c898ef')
     ]
 
     # templates with variables already extracted
@@ -168,7 +177,7 @@ class TestServiceDiscovery(unittest.TestCase):
         mock_check_yaml.return_value = kubernetes_config
         mock_get.return_value = Response(pod_list)
 
-        for c_ins, expected_ip, _ in self.container_inspects:
+        for c_ins, expected_ip, _, _ in self.container_inspects:
             with mock.patch.object(AbstractConfigStore, '__init__', return_value=None):
                 with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
                     with mock.patch('utils.kubeutil.get_conf_path', return_value=None):
@@ -178,12 +187,19 @@ class TestServiceDiscovery(unittest.TestCase):
 
     def test_get_ports(self):
         with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
-            for c_ins, _, expected_ports in self.container_inspects:
+            for c_ins, _, expected_ports, _ in self.container_inspects:
                 sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
                 if isinstance(expected_ports, list):
                     self.assertEqual(sd_backend._get_ports(c_ins), expected_ports)
                 else:
                     self.assertRaises(expected_ports, sd_backend._get_ports, c_ins)
+                clear_singletons(self.auto_conf_agentConfig)
+
+    def test_get_config_ids(self):
+        with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
+            for c_ins, _, _, expected_config_id in self.container_inspects:
+                sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
+                self.assertEqual(sd_backend._get_config_id(c_ins), expected_config_id)
                 clear_singletons(self.auto_conf_agentConfig)
 
     @mock.patch('docker.Client.inspect_container', side_effect=_get_container_inspect)

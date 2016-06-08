@@ -131,11 +131,17 @@ class SDDockerBackend(AbstractSDBackend):
                 if c_id == status.get('containerID', '').split('//')[-1]:
                     return pod.get(key, {})
 
+    def _get_config_id(self, container):
+        config_id = container.get('Labels', {}).get('datadog_id', None)
+        if config_id is None or config_id == '':
+            config_id = container.get('Image').split(':')[0].split('/')[-1]
+        return config_id
+
     def get_configs(self):
         """Get the config for all docker containers running on the host."""
         configs = {}
         containers = [(
-            container.get('Image').split(':')[0].split('/')[-1],
+            self._get_config_id(container),
             container.get('Id'), container.get('Labels')
         ) for container in self.docker_client.containers()]
 
