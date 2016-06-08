@@ -233,7 +233,7 @@ def get_config_path(cfg_path=None, os_name=None):
         path = os.path.realpath(__file__)
         path = os.path.dirname(path)
         return _config_path(path)
-    except PathNotFound, e:
+    except PathNotFound as e:
         pass
 
     if os_name is None:
@@ -248,7 +248,7 @@ def get_config_path(cfg_path=None, os_name=None):
             return _mac_config_path()
         else:
             return _unix_config_path()
-    except PathNotFound, e:
+    except PathNotFound as e:
         if len(e.args) > 0:
             bad_path = e.args[0]
 
@@ -604,15 +604,15 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option("Main", "gce_updated_hostname"):
             agentConfig["gce_updated_hostname"] = _is_affirmative(config.get("Main", "gce_updated_hostname"))
 
-    except ConfigParser.NoSectionError, e:
+    except ConfigParser.NoSectionError as e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
 
-    except ConfigParser.ParsingError, e:
+    except ConfigParser.ParsingError as e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
 
-    except ConfigParser.NoOptionError, e:
+    except ConfigParser.NoOptionError as e:
         sys.stderr.write('There are some items missing from your config file, but nothing fatal [%s]' % e)
 
     # Storing proxy settings in the agentConfig
@@ -710,7 +710,7 @@ def get_confd_path(osname=None):
     try:
         cur_path = os.path.dirname(os.path.realpath(__file__))
         return _confd_path(cur_path)
-    except PathNotFound, e:
+    except PathNotFound as e:
         pass
 
     if not osname:
@@ -723,7 +723,7 @@ def get_confd_path(osname=None):
             return _mac_confd_path()
         else:
             return _unix_confd_path()
-    except PathNotFound, e:
+    except PathNotFound as e:
         if len(e.args) > 0:
             bad_path = e.args[0]
 
@@ -812,7 +812,7 @@ def _get_check_class(check_name, check_path):
     check_class = None
     try:
         check_module = imp.load_source('checksd_%s' % check_name, check_path)
-    except Exception, e:
+    except Exception as e:
         traceback_message = traceback.format_exc()
         # There is a configuration file for that check but the module can't be imported
         log.exception('Unable to import check module %s.py from checks.d' % check_name)
@@ -852,7 +852,7 @@ def _file_configs_paths(osname, agentConfig):
         confd_path = get_confd_path(osname)
         all_file_configs = glob.glob(os.path.join(confd_path, '*.yaml'))
         all_default_configs = glob.glob(os.path.join(confd_path, '*.yaml.default'))
-    except PathNotFound, e:
+    except PathNotFound as e:
         log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
         sys.exit(3)
 
@@ -901,7 +901,7 @@ def get_checks_places(osname, agentConfig):
     """
     try:
         checksd_path = get_checksd_path(osname)
-    except PathNotFound, e:
+    except PathNotFound as e:
         log.error(e.args[0])
         sys.exit(3)
 
@@ -927,7 +927,7 @@ def _load_file_config(config_path, check_name, agentConfig):
 
     try:
         check_config = check_yaml(config_path)
-    except Exception, e:
+    except Exception as e:
         log.exception("Unable to parse yaml config in %s" % config_path)
         traceback_message = traceback.format_exc()
         return False, None, {check_name: {'error': str(e), 'traceback': traceback_message}}
@@ -954,13 +954,13 @@ def _initialize_check(check_config, check_name, check_class, agentConfig):
         try:
             check = check_class(check_name, init_config=init_config,
                                 agentConfig=agentConfig, instances=instances)
-        except TypeError, e:
+        except TypeError as e:
             # Backwards compatibility for checks which don't support the
             # instances argument in the constructor.
             check = check_class(check_name, init_config=init_config,
                                 agentConfig=agentConfig)
             check.instances = instances
-    except Exception, e:
+    except Exception as e:
         log.exception('Unable to initialize check %s' % check_name)
         traceback_message = traceback.format_exc()
         return {}, {check_name: {'error': e, 'traceback': traceback_message}}
@@ -1219,7 +1219,7 @@ def initialize_logging(logger_name):
                 handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
                 root_log = logging.getLogger()
                 root_log.addHandler(handler)
-            except Exception, e:
+            except Exception as e:
                 sys.stderr.write("Error setting up syslog: '%s'\n" % str(e))
                 traceback.print_exc()
 
@@ -1232,11 +1232,11 @@ def initialize_logging(logger_name):
                 nt_event_handler.setLevel(logging.ERROR)
                 app_log = logging.getLogger(logger_name)
                 app_log.addHandler(nt_event_handler)
-            except Exception, e:
+            except Exception as e:
                 sys.stderr.write("Error setting up Event viewer logging: '%s'\n" % str(e))
                 traceback.print_exc()
 
-    except Exception, e:
+    except Exception as e:
         sys.stderr.write("Couldn't initialize logging: %s\n" % str(e))
         traceback.print_exc()
 

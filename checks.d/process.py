@@ -128,7 +128,7 @@ class ProcessCheck(AgentCheck):
                             found = True
                 except psutil.NoSuchProcess:
                     self.log.warning('Process disappeared while scanning')
-                except psutil.AccessDenied, e:
+                except psutil.AccessDenied as e:
                     ad_error_logger('Access denied to process with PID %s', proc.pid)
                     ad_error_logger('Error: %s', e)
                     if refresh_ad_cache:

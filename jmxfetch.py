@@ -222,7 +222,7 @@ class JMXFetch(object):
                             tools_jar_path = check_tools_jar_path
                         if check_custom_jar_paths:
                             custom_jar_paths.extend(check_custom_jar_paths)
-                except InvalidJMXConfiguration, e:
+                except InvalidJMXConfiguration as e:
                     log.error("%s check does not have a valid JMX configuration: %s" % (check_name, e))
                     # Make sure check_name is a string - Fix issues with Windows
                     check_name = check_name.encode('ascii', 'ignore')
@@ -454,7 +454,7 @@ def init(config_path=None):
     agentConfig = get_config(parse_args=False, cfg_path=config_path)
     try:
         confd_path = get_confd_path()
-    except PathNotFound, e:
+    except PathNotFound as e:
         log.error("No conf.d folder found at '%s' or in the directory where"
                   "the Agent is currently deployed.\n" % e.args[0])
 

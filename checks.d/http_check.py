@@ -256,7 +256,7 @@ class HTTPCheck(NetworkCheck):
                 "%s. Connection failed after %s ms" % (str(e), length)
             ))
 
-        except socket.error, e:
+        except socket.error as e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms"
                           % (addr, repr(e), length))
@@ -266,7 +266,7 @@ class HTTPCheck(NetworkCheck):
                 "Socket error: %s. Connection failed after %s ms" % (repr(e), length)
             ))
 
-        except Exception, e:
+        except Exception as e:
             length = int((time.time() - start) * 1000)
             self.log.error("Unhandled exception %s. Connection failed after %s ms"
                            % (str(e), length))

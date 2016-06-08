@@ -61,7 +61,7 @@ def get_proxy(agentConfig):
                 proxy_settings['host'], proxy_settings['port'])
             return proxy_settings
 
-    except Exception, e:
+    except Exception as e:
         log.debug("Error while trying to fetch proxy settings using urllib %s."
             "Proxy is probably not set", str(e))
 

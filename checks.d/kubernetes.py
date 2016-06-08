@@ -83,7 +83,7 @@ class Kubernetes(AgentCheck):
                     self.service_check(service_check_name, AgentCheck.CRITICAL)
                     is_ok = False
 
-        except Exception, e:
+        except Exception as e:
             self.log.warning('kubelet check failed: %s' % str(e))
             self.service_check(service_check_base, AgentCheck.CRITICAL,
                                message='Kubelet check failed: %s' % str(e))
@@ -251,7 +251,7 @@ class Kubernetes(AgentCheck):
         for subcontainer in metrics:
             try:
                 self._update_container_metrics(instance, subcontainer, kube_labels)
-            except Exception, e:
+            except Exception as e:
                 self.log.error("Unable to collect metrics for container: {0} ({1}".format(
                     subcontainer.get('name'), e))
 

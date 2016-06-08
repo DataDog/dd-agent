@@ -825,7 +825,7 @@ class MongoDb(AgentCheck):
                         submit_method, metric_name_alias = \
                             self._resolve_metric(m, metrics_to_collect, prefix="usage")
                         submit_method(self, metric_name_alias, value, tags=ns_tags)
-            except Exception, e:
+            except Exception as e:
                 self.log.warning('Failed to record `top` metrics %s' % str(e))
 
 

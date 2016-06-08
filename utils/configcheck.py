@@ -23,7 +23,7 @@ def configcheck():
         basename = os.path.basename(conf_path)
         try:
             check_yaml(conf_path)
-        except Exception, e:
+        except Exception as e:
             all_valid = False
             print "%s contains errors:\n    %s" % (basename, e)
         else:

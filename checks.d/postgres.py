@@ -491,7 +491,7 @@ SELECT s.schemaname,
                         cursor.execute(query.replace(r'%', r'%%'))
 
                     results = cursor.fetchall()
-                except ProgrammingError, e:
+                except ProgrammingError as e:
                     log_func("Not all metrics may be available: %s" % str(e))
                     continue
 
@@ -556,10 +556,10 @@ SELECT s.schemaname,
                         v[0][1](self, v[0][0], v[1], tags=tags)
 
             cursor.close()
-        except InterfaceError, e:
+        except InterfaceError as e:
             self.log.error("Connection error: %s" % str(e))
             raise ShouldRestartException
-        except socket.error, e:
+        except socket.error as e:
             self.log.error("Connection error: %s" % str(e))
             raise ShouldRestartException
 
@@ -687,5 +687,5 @@ SELECT s.schemaname,
             try:
                 # commit to close the current query transaction
                 db.commit()
-            except Exception, e:
+            except Exception as e:
                 self.log.warning("Unable to commit: {0}".format(e))

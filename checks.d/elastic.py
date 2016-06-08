@@ -357,7 +357,7 @@ class ESCheck(AgentCheck):
         try:
             data = self._get_data(config.url, config, send_sc=False)
             version = map(int, data['version']['number'].split('.')[0:3])
-        except Exception, e:
+        except Exception as e:
             self.warning(
                 "Error while trying to get Elasticsearch version "
                 "from %s %s"

@@ -635,7 +635,7 @@ class MySql(AgentCheck):
 
         try:
             mysql_version = self._get_version(db, host)
-        except Exception, e:
+        except Exception as e:
             self.warning("Cannot compute mysql version, assuming it's older.: %s"
                          % str(e))
             return False
