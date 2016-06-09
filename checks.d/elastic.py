@@ -473,6 +473,10 @@ class ESCheck(AgentCheck):
                 verify=verify,
                 cert=cert
             )
+
+            if resp.status_code != 200:
+                self.log.debug(resp.text)
+
             resp.raise_for_status()
         except Exception as e:
             if send_sc:
