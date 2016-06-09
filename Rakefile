@@ -54,6 +54,7 @@ unless ENV['CI']
   ENV['VOLATILE_DIR'] = '/tmp/dd-agent-testing'
   ENV['CONCURRENCY'] = ENV['CONCURRENCY'] || '2'
   ENV['NOSE_FILTER'] = 'not windows'
+  ENV['PYTHONWARNINGS'] = 'ignore:Unverified HTTPS request'
 end
 
 desc 'Setup a development environment for the Agent'

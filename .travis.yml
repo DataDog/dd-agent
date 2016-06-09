@@ -27,6 +27,7 @@ env:
     - SKIP_CLEANUP=true
     - VOLATILE_DIR=/tmp
     - DD_CASHER_DIR=/tmp/casher
+    - PYTHONWARNINGS="ignore:Unverified HTTPS request"
   matrix:
     - TRAVIS_FLAVOR=default
     - TRAVIS_FLAVOR=core_integration

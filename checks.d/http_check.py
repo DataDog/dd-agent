@@ -197,7 +197,7 @@ class HTTPCheck(NetworkCheck):
         instance_ca_certs = instance.get('ca_certs', self.ca_certs)
         weakcipher = _is_affirmative(instance.get('weakciphers', False))
         ignore_ssl_warning = _is_affirmative(instance.get('ignore_ssl_warning', False))
-        skip_proxy = _is_affirmative(instance.get('no_proxy', False))
+        skip_proxy = _is_affirmative(instance.get('no_proxy', True))
 
         return url, username, password, http_response_status_code, timeout, include_content,\
             headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs,\
@@ -234,6 +234,10 @@ class HTTPCheck(NetworkCheck):
             auth = None
             if username is not None and password is not None:
                 auth = (username, password)
+
+            if disable_ssl_validation:
+                from requests.packages.urllib3.exceptions import InsecureRequestWarning
+                requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
             sess = requests.Session()
             sess.trust_env = False
