@@ -105,6 +105,11 @@ instances:
     #
     # no_proxy: false
 
+    # The (optional) allow_redirects parameter can enable redirection.
+    # Defaults to True.
+    #
+    # allow_redirects: true
+
     # tags:
     #   - url:http://alternative.host.example.com
     #   - env:production
