@@ -21,6 +21,7 @@ class CheckSSH(AgentCheck):
         ('username', True, None, str),
         ('password', False, None, str),
         ('private_key_file', False, None, str),
+        ('private_key_type', False, 'rsa', str),
         ('sftp_check', False, True, bool),
         ('add_missing_keys', False, False, bool),
     ]
@@ -31,6 +32,7 @@ class CheckSSH(AgentCheck):
         'username',
         'password',
         'private_key_file',
+        'private_key_type',
         'sftp_check',
         'add_missing_keys',
     ])
@@ -54,7 +56,10 @@ class CheckSSH(AgentCheck):
         tags = ["instance:{0}-{1}".format(conf.host, conf.port)]
 
         try:
-            private_key = paramiko.RSAKey.from_private_key_file(conf.private_key_file)
+            if conf.private_key_type == 'ecdsa':
+                private_key = paramiko.ECDSAKey.from_private_key_file(conf.private_key_file)
+            else:
+                private_key = paramiko.RSAKey.from_private_key_file(conf.private_key_file)
         except Exception:
             self.warning("Private key could not be found")
             private_key = None
@@ -65,11 +70,11 @@ class CheckSSH(AgentCheck):
         client.load_system_host_keys()
 
         exception_message = None
-        #Service Availability to check status of SSH
+        # Service Availability to check status of SSH
         try:
             client.connect(conf.host, port=conf.port, username=conf.username,
                 password=conf.password, pkey=private_key)
-            self.service_check('ssh.can_connect', AgentCheck.OK,  tags=tags,
+            self.service_check('ssh.can_connect', AgentCheck.OK, tags=tags,
                 message=exception_message)
 
         except Exception as e:
@@ -82,7 +87,7 @@ class CheckSSH(AgentCheck):
                     message=exception_message)
             raise
 
-        #Service Availability to check status of SFTP
+        # Service Availability to check status of SFTP
         if conf.sftp_check:
             try:
                 sftp = client.open_sftp()
