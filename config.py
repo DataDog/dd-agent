@@ -427,6 +427,12 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         elif options is not None and options.dd_url is not None:
             agentConfig['dd_url'] = options.dd_url
 
+        # Forwarder timeout
+        agentConfig['forwarder_timeout'] = 20
+        if config.has_option('Main', 'forwarder_timeout'):
+            agentConfig['forwarder_timeout'] = int(config.get('Main', 'forwarder_timeout'))
+
+
         # Extra checks.d path
         # the linux directory is set by default
         if config.has_option('Main', 'additional_checksd'):

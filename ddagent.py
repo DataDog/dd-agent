@@ -157,6 +157,7 @@ class AgentTransaction(Transaction):
     _endpoints = {}
     _emitter_manager = None
     _type = None
+    _request_timeout = 20
 
     @classmethod
     def set_application(cls, app):
@@ -170,6 +171,10 @@ class AgentTransaction(Transaction):
     @classmethod
     def set_endpoints(cls, endpoints):
         cls._endpoints = endpoints
+
+    @classmethod
+    def set_request_timeout(cls, request_timeout):
+        cls._request_timeout = request_timeout
 
     @classmethod
     def get_tr_manager(cls):
@@ -215,6 +220,7 @@ class AgentTransaction(Transaction):
             'headers': self._headers,
             'validate_cert': not self._application.skip_ssl_validation,
             'allow_ipv6': True,
+            'request_timeout': self._request_timeout,
         }
 
         # Remove headers that were passed by the emitter. Those don't apply anymore
@@ -392,6 +398,7 @@ class Application(tornado.web.Application):
         self._metrics = {}
         AgentTransaction.set_application(self)
         AgentTransaction.set_endpoints(agentConfig['endpoints'])
+        AgentTransaction.set_request_timeout(agentConfig['forwarder_timeout'])
 
         max_parallelism = self.NO_PARALLELISM
         # Multiple endpoints => enable parallelism

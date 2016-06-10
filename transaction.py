@@ -159,7 +159,9 @@ class TransactionManager(object):
             else:
                 log.debug("Flushing %s transaction%s during flush #%s" % (count,plural(count), str(self._flush_count + 1)))
 
-            self._trs_to_flush = to_flush
+            # We sort them so that transactions in error go after new transactions
+            self._trs_to_flush = sorted(to_flush, key=lambda tr: tr._error_count)
+            self._flush_time = datetime.utcnow()
             self.flush_next()
         else:
             if should_log:
@@ -215,6 +217,9 @@ class TransactionManager(object):
         # (which corresponds to the last flush calling flush_next)
         elif self._running_flushes == 0:
             self._trs_to_flush = None
+            log.debug('Flush %s took %ss',
+                      self._flush_count,
+                      (datetime.utcnow() - self._flush_time).total_seconds())
         else:
             log.debug("Flush in progress, %s flushes running", self._running_flushes)
 
