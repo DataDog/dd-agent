@@ -173,7 +173,7 @@ class TestCheckDisk(AgentCheckTest):
         self.load_check({'instances': [{}]}, agent_config={'use_mount': 'yes'})
         self.assertTrue(self.check._use_mount)
 
-        # Then let's check that check option overrides datadog.cong
+        # Then let's check that check option overrides datadog.conf
         self.load_check({'instances': [{'use_mount': 'no'}]},
                         agent_config={'use_mount': 'yes'})
         self.assertFalse(self.check._use_mount)
