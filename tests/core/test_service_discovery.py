@@ -60,30 +60,42 @@ def client_read(path):
     return TestServiceDiscovery.mock_tpls.get(image)[0][config_parts.index(config_part)]
 
 
+def issue_read(identifier):
+    return TestServiceDiscovery.mock_tpls.get(identifier)
+
+
 class TestServiceDiscovery(unittest.TestCase):
     docker_container_inspect = {
         u'Id': u'69ff25598b2314d1cdb7752cc3a659fb1c1352b32546af4f1454321550e842c0',
-        u'Image': u'6ffc02088cb870652eca9ccd4c4fb582f75b29af2879792ed09bb46fd1c898ef',
+        u'Image': u'nginx',
         u'Name': u'/nginx',
         u'NetworkSettings': {u'IPAddress': u'172.17.0.21', u'Ports': {u'443/tcp': None, u'80/tcp': None}}
     }
+    docker_container_inspect_with_label = {
+        u'Id': u'69ff25598b2314d1cdb7752cc3a659fb1c1352b32546af4f1454321550e842c0',
+        u'Image': u'nginx',
+        u'Name': u'/nginx',
+        u'NetworkSettings': {u'IPAddress': u'172.17.0.21', u'Ports': {u'443/tcp': None, u'80/tcp': None}},
+        u'Labels': {'datadog_id': 'custom-nginx'}
+    }
     kubernetes_container_inspect = {
         u'Id': u'389dc8a4361f3d6c866e9e9a7b6972b26a31c589c4e2f097375d55656a070bc9',
-        u'Image': u'de309495e6c7b2071bc60c0b7e4405b0d65e33e3a4b732ad77615d90452dd827',
+        u'Image': u'foo',
         u'Name': u'/k8s_sentinel.38057ab9_redis-master_default_27b84e1e-a81c-11e5-8347-42010af00002_f70875a1',
         u'Config': {u'ExposedPorts': {u'6379/tcp': {}}},
         u'NetworkSettings': {u'IPAddress': u'', u'Ports': None}
     }
     malformed_container_inspect = {
         u'Id': u'69ff25598b2314d1cdb7752cc3a659fb1c1352b32546af4f1454321550e842c0',
-        u'Image': u'6ffc02088cb870652eca9ccd4c4fb582f75b29af2879792ed09bb46fd1c898ef',
+        u'Image': u'foo',
         u'Name': u'/nginx'
     }
     container_inspects = [
-        # (inspect_dict, expected_ip, expected_port)
-        (docker_container_inspect, '172.17.0.21', ['80', '443']),
-        (kubernetes_container_inspect, None, ['6379']),  # arbitrarily defined in the mocked pod_list
-        (malformed_container_inspect, None, KeyError)
+        # (inspect_dict, expected_ip, expected_port, expected_ident)
+        (docker_container_inspect, '172.17.0.21', ['80', '443'], 'nginx'),
+        (docker_container_inspect_with_label, '172.17.0.21', ['80', '443'], 'custom-nginx'),
+        (kubernetes_container_inspect, None, ['6379'], 'foo'),  # arbitrarily defined in the mocked pod_list
+        (malformed_container_inspect, None, KeyError, 'foo')
     ]
 
     # templates with variables already extracted
@@ -114,7 +126,12 @@ class TestServiceDiscovery(unittest.TestCase):
             [('check_2', {}, {"host": "%%host%%", "port": "%%port%%"})]),
         'bad_image_0': ((['invalid template']), []),
         'bad_image_1': (('invalid template'), []),
-        'bad_image_2': (None, [])
+        'bad_image_2': (None, []),
+        'nginx': ('["nginx"]', '[{}]', '[{"host": "localhost"}]'),
+        'nginx:latest': ('["nginx"]', '[{}]', '[{"host": "localhost", "tags": ["foo"]}]'),
+        'custom-nginx': ('["nginx"]', '[{}]', '[{"host": "localhost"}]'),
+        'repo/custom-nginx': ('["nginx"]', '[{}]', '[{"host": "localhost", "tags": ["bar"]}]'),
+        'repo/dir:5000/custom-nginx:latest': ('["nginx"]', '[{}]', '[{"host": "local", "tags": ["foobar"]}]')
     }
 
     bad_mock_templates = {
@@ -168,7 +185,7 @@ class TestServiceDiscovery(unittest.TestCase):
         mock_check_yaml.return_value = kubernetes_config
         mock_get.return_value = Response(pod_list)
 
-        for c_ins, expected_ip, _ in self.container_inspects:
+        for c_ins, expected_ip, _, _ in self.container_inspects:
             with mock.patch.object(AbstractConfigStore, '__init__', return_value=None):
                 with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
                     with mock.patch('utils.kubeutil.get_conf_path', return_value=None):
@@ -178,7 +195,7 @@ class TestServiceDiscovery(unittest.TestCase):
 
     def test_get_ports(self):
         with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
-            for c_ins, _, expected_ports in self.container_inspects:
+            for c_ins, _, expected_ports, _ in self.container_inspects:
                 sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
                 if isinstance(expected_ports, list):
                     self.assertEqual(sd_backend._get_ports(c_ins), expected_ports)
@@ -318,3 +335,29 @@ class TestServiceDiscovery(unittest.TestCase):
         for image in invalid_config:
             tpl = self.mock_tpls.get(image)[1]
             self.assertEquals(tpl, config_store.get_check_tpls(image))
+
+    def test_get_config_id(self):
+        """Test get_config_id"""
+        with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
+            for c_ins, _, _, expected_ident in self.container_inspects:
+                sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
+                self.assertEqual(
+                    sd_backend.get_config_id(c_ins.get('Image'), c_ins.get('Labels', {})),
+                    expected_ident)
+                clear_singletons(self.auto_conf_agentConfig)
+
+    @mock.patch.object(AbstractConfigStore, '_issue_read', side_effect=issue_read)
+    def test_read_config_from_store(self, issue_read):
+        """Test read_config_from_store"""
+        valid_idents = [('nginx', 'nginx'), ('nginx:latest', 'nginx:latest'),
+                        ('custom-nginx', 'custom-nginx'), ('custom-nginx:latest', 'custom-nginx'),
+                        ('repo/custom-nginx:latest', 'custom-nginx'),
+                        ('repo/dir:5000/custom-nginx:latest', 'repo/dir:5000/custom-nginx:latest')]
+        invalid_idents = ['foo']
+        config_store = get_config_store(self.auto_conf_agentConfig)
+        for ident, expected_key in valid_idents:
+            tpl = config_store.read_config_from_store(ident)
+            # source is added after reading from the store
+            self.assertEquals(tpl, ('template',) + self.mock_tpls.get(expected_key))
+        for ident in invalid_idents:
+            self.assertEquals(config_store.read_config_from_store(ident), [])

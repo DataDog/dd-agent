@@ -12,6 +12,7 @@ from utils.kubeutil import KubeUtil, is_k8s
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store, TRACE_CONFIG
 
+DATADOG_ID = 'datadog_id'
 log = logging.getLogger(__name__)
 
 
@@ -135,7 +136,7 @@ class SDDockerBackend(AbstractSDBackend):
         """Get the config for all docker containers running on the host."""
         configs = {}
         containers = [(
-            container.get('Image').split(':')[0].split('/')[-1],
+            container.get('Image'),
             container.get('Id'), container.get('Labels')
         ) for container in self.docker_client.containers()]
 
@@ -144,7 +145,9 @@ class SDDockerBackend(AbstractSDBackend):
 
         for image, cid, labels in containers:
             try:
-                check_configs = self._get_check_configs(cid, image, trace_config=trace_config) or []
+                # value of the DATADOG_ID tag or the image name if the label is missing
+                identifier = self.get_config_id(image, labels)
+                check_configs = self._get_check_configs(cid, identifier, trace_config=trace_config) or []
                 for conf in check_configs:
                     if trace_config and conf is not None:
                         source, conf = conf
@@ -172,13 +175,17 @@ class SDDockerBackend(AbstractSDBackend):
                               ' discovery failed, leaving it alone.' % (cid[:12], image))
         return configs
 
-    def _get_check_configs(self, c_id, image, trace_config=False):
+    def get_config_id(self, image, labels):
+        """Look for a DATADOG_ID label, return its value or the image name if missing"""
+        return labels.get(DATADOG_ID) if DATADOG_ID in labels else image
+
+    def _get_check_configs(self, c_id, identifier, trace_config=False):
         """Retrieve configuration templates and fill them with data pulled from docker and tags."""
         inspect = self.docker_client.inspect_container(c_id)
-        config_templates = self._get_config_templates(image, trace_config=trace_config)
+        config_templates = self._get_config_templates(identifier, trace_config=trace_config)
         if not config_templates:
-            log.debug('No config template for container %s with image %s. '
-                      'It will be left unconfigured.' % (c_id[:12], image))
+            log.debug('No config template for container %s with identifier %s. '
+                      'It will be left unconfigured.' % (c_id[:12], identifier))
             return None
 
         check_configs = []
@@ -201,8 +208,8 @@ class SDDockerBackend(AbstractSDBackend):
 
         return check_configs
 
-    def _get_config_templates(self, image_name, trace_config=False):
-        """Extract config templates for an image from a K/V store and returns it as a dict object."""
+    def _get_config_templates(self, identifier, trace_config=False):
+        """Extract config templates for an identifier from a K/V store and returns it as a dict object."""
         config_backend = self.agentConfig.get('sd_config_backend')
         templates = []
         if config_backend is None:
@@ -211,9 +218,10 @@ class SDDockerBackend(AbstractSDBackend):
         else:
             auto_conf = False
 
-        # format: [('image', {init_tpl}, {instance_tpl})] without trace_config
-        # or      [(source, ('image', {init_tpl}, {instance_tpl}))] with trace_config
-        raw_tpls = self.config_store.get_check_tpls(image_name, auto_conf=auto_conf, trace_config=trace_config)
+        # format: [('ident', {init_tpl}, {instance_tpl})] without trace_config
+        # or      [(source, ('ident', {init_tpl}, {instance_tpl}))] with trace_config
+        raw_tpls = self.config_store.get_check_tpls(
+            identifier, auto_conf=auto_conf, trace_config=trace_config)
         for tpl in raw_tpls:
             if trace_config and tpl is not None:
                 # each template can come from either auto configuration or user-supplied templates
@@ -221,7 +229,7 @@ class SDDockerBackend(AbstractSDBackend):
             if tpl is not None and len(tpl) == 3:
                 check_name, init_config_tpl, instance_tpl = tpl
             else:
-                log.debug('No template was found for image %s, leaving it alone.' % image_name)
+                log.debug('No template was found for identifier %s, leaving it alone.' % identifier)
                 return None
             try:
                 # build a list of all variables to replace in the template
@@ -234,7 +242,7 @@ class SDDockerBackend(AbstractSDBackend):
                     instance_tpl = json.loads(instance_tpl or '{}')
             except json.JSONDecodeError:
                 log.exception('Failed to decode the JSON template fetched for check {0}. Its configuration'
-                              ' by service discovery failed for {1}.'.format(check_name, image_name))
+                              ' by service discovery failed for ident  {1}.'.format(check_name, identifier))
                 return None
 
             if trace_config:
