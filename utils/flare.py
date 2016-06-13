@@ -35,7 +35,6 @@ import requests
 # DD imports
 from checks.check_status import CollectorStatus, DogstatsdStatus, ForwarderStatus
 from config import (
-    check_yaml,
     get_confd_path,
     get_config,
     get_config_path,
@@ -46,30 +45,9 @@ from jmxfetch import JMXFetch
 from util import get_hostname
 from utils.jmx import jmx_command, JMXFiles
 from utils.platform import Platform
-
+from utils.configcheck import configcheck, sd_configcheck
 # Globals
 log = logging.getLogger(__name__)
-
-
-def configcheck():
-    all_valid = True
-    for conf_path in glob.glob(os.path.join(get_confd_path(), "*.yaml")):
-        basename = os.path.basename(conf_path)
-        try:
-            check_yaml(conf_path)
-        except Exception, e:
-            all_valid = False
-            print "%s contains errors:\n    %s" % (basename, e)
-        else:
-            print "%s is valid" % basename
-    if all_valid:
-        print "All yaml files passed. You can now run the Datadog agent."
-        return 0
-    else:
-        print("Fix the invalid yaml files above in order to start the Datadog agent. "
-              "A useful external tool for yaml parsing can be found at "
-              "http://yaml-online-parser.appspot.com/")
-        return 1
 
 
 class Flare(object):
@@ -151,6 +129,8 @@ class Flare(object):
         self._add_conf_tar()
         log.info("  * datadog-agent configcheck output")
         self._add_command_output_tar('configcheck.log', configcheck)
+        log.info("  * service discovery configcheck output")
+        self._add_command_output_tar('sd_configcheck.log', sd_configcheck, agentConfig=self._config)
         log.info("  * datadog-agent status output")
         self._add_command_output_tar('status.log', self._supervisor_status)
         log.info("  * datadog-agent info output")
@@ -438,8 +418,8 @@ class Flare(object):
         return line, credential_found
 
     # Add output of the command to the tarfile
-    def _add_command_output_tar(self, name, command, command_desc=None):
-        out, err, _ = self._capture_output(command, print_exc_to_stderr=False)
+    def _add_command_output_tar(self, name, command, command_desc=None, **kwargs):
+        out, err, _ = self._capture_output(command, print_exc_to_stderr=False, **kwargs)
         fh, temp_path = tempfile.mkstemp(prefix='dd')
         with os.fdopen(fh, 'w') as temp_file:
             if command_desc:
@@ -457,7 +437,7 @@ class Flare(object):
 
     # Capture the output of a command (from both std streams and loggers) and the
     # value returned by the command
-    def _capture_output(self, command, print_exc_to_stderr=True):
+    def _capture_output(self, command, print_exc_to_stderr=True, **kwargs):
         backup_out, backup_err = sys.stdout, sys.stderr
         out, err = StringIO.StringIO(), StringIO.StringIO()
         backup_handlers = logging.root.handlers[:]
@@ -465,7 +445,7 @@ class Flare(object):
         sys.stdout, sys.stderr = out, err
         return_value = None
         try:
-            return_value = command()
+            return_value = command(**kwargs)
         except Exception:
             # Print the exception to either stderr or `err`
             traceback.print_exc(file=backup_err if print_exc_to_stderr else err)
