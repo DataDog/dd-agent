@@ -206,9 +206,9 @@ class LogEvent(object):
             msg_text = "\n".join(msg_text_fields)
         else:
             # Override when verbosity
-            if 'Message' in self.event:
+            if self.event.get('Message'):
                 msg_text = "{message}\n".format(message=self.event['Message'])
-            elif 'InsertionStrings' in self.event:
+            elif self.event.get('InsertionStrings'):
                 msg_text = "\n".join([i_str for i_str in self.event['InsertionStrings']
                                       if i_str.strip()])
 
