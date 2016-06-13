@@ -226,6 +226,7 @@ class AgentTransaction(Transaction):
                 'body': self._data,
                 'headers': self._headers,
                 'validate_cert': not self._application.skip_ssl_validation,
+                'allow_ipv6': True,
             }
 
             # Remove headers that were passed by the emitter. Those don't apply anymore
