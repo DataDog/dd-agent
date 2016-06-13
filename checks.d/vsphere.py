@@ -507,18 +507,25 @@ class VSphereCheck(AgentCheck):
 
         return wanted_metrics
 
-
     def get_external_host_tags(self):
         """ Returns a list of tags for every host that is detected by the vSphere
         integration.
         List of pairs (hostname, list_of_tags)
         """
-        self.log.info("Sending external_host_tags now")
+        self.log.debug(u"Sending external_host_tags now")
         external_host_tags = []
         for instance in self.instances:
             i_key = self._instance_key(instance)
-            mor_list = self.morlist[i_key].items()
-            for mor_name, mor in mor_list:
+            mor_by_mor_name = self.morlist.get(i_key)
+
+            if not mor_by_mor_name:
+                self.log.warning(
+                    u"Unable to extract hosts' tags for `%s` vSphere instance."
+                    u"Is the check failing on this instance?", instance
+                )
+                continue
+
+            for mor in mor_by_mor_name.itervalues():
                 external_host_tags.append((mor['hostname'], {SOURCE_TYPE: mor['tags']}))
 
         return external_host_tags
