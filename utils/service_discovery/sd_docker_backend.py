@@ -42,6 +42,10 @@ class SDDockerBackend(AbstractSDBackend):
         """Extract the host IP from a docker inspect object, or the kubelet API."""
         ip_addr = container_inspect.get('NetworkSettings', {}).get('IPAddress')
         if not ip_addr:
+            # overlay network case
+            nets = container_inspect.get('NetworkSettings', {}).get('Networks')
+            if nets: ip_addr = nets[nets.keys()[0]].get('IPAddress')
+        if not ip_addr:
             if not is_k8s():
                 return
             # kubernetes case
