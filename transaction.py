@@ -74,6 +74,7 @@ class TransactionManager(object):
         self._MAX_QUEUE_SIZE = max_queue_size
         self._THROTTLING_DELAY = throttling_delay
         self._MAX_PARALLELISM = max_parallelism
+        self._MAX_ENDPOINT_ERRORS = 4
 
         self._flush_without_ioloop = False # useful for tests
 
@@ -93,6 +94,10 @@ class TransactionManager(object):
 
         self._trs_to_flush = None # Current transactions being flushed
         self._last_flush = datetime.utcnow() # Last flush (for throttling)
+
+        # Error management
+        self._endpoints_errors = {}
+        self._finished_flushes = 0
 
         # Track an initial status message.
         ForwarderStatus().persist()
@@ -159,8 +164,11 @@ class TransactionManager(object):
             else:
                 log.debug("Flushing %s transaction%s during flush #%s" % (count,plural(count), str(self._flush_count + 1)))
 
-            # We sort them so that transactions in error go after new transactions
-            self._trs_to_flush = sorted(to_flush, key=lambda tr: tr._error_count)
+            self._endpoints_errors = {}
+            self._finished_flushes = 0
+
+            # We sort LIFO-style, taking into account errors
+            self._trs_to_flush = sorted(to_flush, key=lambda tr: (- tr._error_count, tr._id))
             self._flush_time = datetime.utcnow()
             self.flush_next()
         else:
@@ -192,7 +200,7 @@ class TransactionManager(object):
                 tr = self._trs_to_flush.pop()
                 self._running_flushes += 1
                 self._last_flush = datetime.utcnow()
-                log.debug("Flushing transaction %d" % tr.get_id())
+                log.debug("Flushing transaction %d", tr.get_id())
                 try:
                     tr.flush()
                 except Exception as e:
@@ -217,25 +225,47 @@ class TransactionManager(object):
         # (which corresponds to the last flush calling flush_next)
         elif self._running_flushes == 0:
             self._trs_to_flush = None
-            log.debug('Flush %s took %ss',
+            log.debug('Flush %s took %ss (%s transactions)',
                       self._flush_count,
-                      (datetime.utcnow() - self._flush_time).total_seconds())
+                      (datetime.utcnow() - self._flush_time).total_seconds(),
+                      self._finished_flushes)
         else:
             log.debug("Flush in progress, %s flushes running", self._running_flushes)
 
     def tr_error(self, tr):
         self._running_flushes -= 1
+        self._finished_flushes += 1
         tr.inc_error_count()
         tr.compute_next_flush(self._MAX_WAIT_FOR_REPLAY)
-        log.warn("Transaction %d in error (%s error%s), it will be replayed after %s" %
-          (tr.get_id(), tr.get_error_count(), plural(tr.get_error_count()),
-           tr.get_next_flush()))
+        log.warn("Transaction %d in error (%s error%s), it will be replayed after %s",
+                 tr.get_id(),
+                 tr.get_error_count(),
+                 plural(tr.get_error_count()),
+                 tr.get_next_flush())
+        self._endpoints_errors[tr._endpoint] = self._endpoints_errors.get(tr._endpoint, 0) + 1
+        # Endpoint failed too many times, it's probably an enpoint issue
+        # Let's avoid blocking on it
+        if self._endpoints_errors[tr._endpoint] == self._MAX_ENDPOINT_ERRORS:
+            new_trs_to_flush = []
+            for transaction in self._trs_to_flush:
+                if transaction._endpoint != tr._endpoint:
+                    new_trs_to_flush.append(transaction)
+                else:
+                    transaction.compute_next_flush(self._MAX_WAIT_FOR_REPLAY)
+            log.debug('Endpoint %s seems down, removed %s transaction from current flush',
+                      tr._endpoint,
+                      len(self._trs_to_flush) - len(new_trs_to_flush))
+
+            self._trs_to_flush = new_trs_to_flush
 
     def tr_error_too_big(self, tr):
         self._running_flushes -= 1
+        self._finished_flushes += 1
         tr.inc_error_count()
-        log.warn("Transaction %d is %sKB, it has been rejected as too large. \
-          It will not be replayed." % (tr.get_id(), tr.get_size() / 1024))
+        log.warn("Transaction %d is %sKB, it has been rejected as too large. "
+                 "It will not be replayed.",
+                 tr.get_id(),
+                 tr.get_size() / 1024)
         self._transactions.remove(tr)
         self._total_count -= 1
         self._total_size -= tr.get_size()
@@ -251,8 +281,9 @@ class TransactionManager(object):
             too_big_count=self._too_big_count).persist()
 
     def tr_success(self, tr):
-        log.debug("Transaction %d completed" % tr.get_id())
         self._running_flushes -= 1
+        self._finished_flushes += 1
+        log.debug("Transaction %d completed",  tr.get_id())
         self._transactions.remove(tr)
         self._total_count -= 1
         self._total_size -= tr.get_size()
