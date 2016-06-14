@@ -69,12 +69,13 @@ class TransactionManager(object):
     """Holds any transaction derived object list and make sure they
        are all commited, without exceeding parameters (throttling, memory consumption) """
 
-    def __init__(self, max_wait_for_replay, max_queue_size, throttling_delay, max_parallelism=1):
+    def __init__(self, max_wait_for_replay, max_queue_size, throttling_delay,
+                 max_parallelism=1, max_endpoint_errors=4):
         self._MAX_WAIT_FOR_REPLAY = max_wait_for_replay
         self._MAX_QUEUE_SIZE = max_queue_size
         self._THROTTLING_DELAY = throttling_delay
         self._MAX_PARALLELISM = max_parallelism
-        self._MAX_ENDPOINT_ERRORS = 4
+        self._MAX_ENDPOINT_ERRORS = max_endpoint_errors
 
         self._flush_without_ioloop = False # useful for tests
 

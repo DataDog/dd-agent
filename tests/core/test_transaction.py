@@ -1,5 +1,7 @@
 # stdlib
 from datetime import datetime, timedelta
+import threading
+import time
 import unittest
 
 # 3rd party
@@ -26,10 +28,37 @@ class memTransaction(Transaction):
         self._trManager = manager
         self._size = size
         self._flush_count = 0
+        self._endpoint = 'https://example.com'
+        self._api_key = 'a' * 32
 
         self.is_flushable = False
 
     def flush(self):
+        self._flush_count = self._flush_count + 1
+        if self.is_flushable:
+            self._trManager.tr_success(self)
+        else:
+            self._trManager.tr_error(self)
+
+        self._trManager.flush_next()
+
+
+class SleepingTransaction(Transaction):
+    def __init__(self, manager, delay=0.5):
+        Transaction.__init__(self)
+        self._trManager = manager
+        self._size = 1
+        self._flush_count = 0
+        self._endpoint = 'https://example.com'
+        self._api_key = 'a' * 32
+        self.delay = delay
+
+        self.is_flushable = False
+
+    def flush(self):
+        threading.Timer(self.delay, self.post_flush).start()
+
+    def post_flush(self):
         self._flush_count = self._flush_count + 1
         if self.is_flushable:
             self._trManager.tr_success(self)
@@ -49,13 +78,13 @@ class TestTransaction(unittest.TestCase):
         """Test memory limit as well as simple flush"""
 
         # No throttling, no delay for replay
-        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE, timedelta(seconds=0))
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
+                                       timedelta(seconds=0), max_endpoint_errors=100)
 
         step = 10
         oneTrSize = (MAX_QUEUE_SIZE / step) - 1
         for i in xrange(step):
-            tr = memTransaction(oneTrSize, trManager)
-            trManager.append(tr)
+            trManager.append(memTransaction(oneTrSize, trManager))
 
         trManager.flush()
 
@@ -66,8 +95,7 @@ class TestTransaction(unittest.TestCase):
             self.assertEqual(tr._flush_count, 1)
 
         # Try to add one more
-        tr = memTransaction(oneTrSize + 10, trManager)
-        trManager.append(tr)
+        trManager.append(memTransaction(oneTrSize + 10, trManager))
 
         # At this point, transaction one (the oldest) should have been removed from the list
         self.assertEqual(len(trManager._transactions), step)
@@ -92,7 +120,8 @@ class TestTransaction(unittest.TestCase):
         """Test throttling while flushing"""
 
         # No throttling, no delay for replay
-        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
+                                       THROTTLING_DELAY, max_endpoint_errors=100)
         trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
 
         # Add 3 transactions, make sure no memory limit is in the way
@@ -123,7 +152,8 @@ class TestTransaction(unittest.TestCase):
         app._agentConfig = config
         app.use_simple_http_client = True
 
-        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
+                                       THROTTLING_DELAY, max_endpoint_errors=100)
         trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
         MetricTransaction._trManager = trManager
         MetricTransaction.set_application(app)
@@ -156,7 +186,8 @@ class TestTransaction(unittest.TestCase):
         app._agentConfig = config
         app.use_simple_http_client = True
 
-        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
+                                       THROTTLING_DELAY, max_endpoint_errors=100)
         trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
         MetricTransaction._trManager = trManager
         MetricTransaction.set_application(app)
@@ -209,3 +240,99 @@ class TestTransaction(unittest.TestCase):
             r = requests.post(url, data=json.dumps({'check': 'test', 'status': 0}),
                               headers={'Content-Type': "application/json"})
             r.raise_for_status()
+
+    def test_endpoint_error(self):
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
+                                       timedelta(seconds=0), max_endpoint_errors=2)
+
+        step = 10
+        oneTrSize = (MAX_QUEUE_SIZE / step) - 1
+        for i in xrange(step):
+            trManager.append(memTransaction(oneTrSize, trManager))
+
+        trManager.flush()
+
+        # There should be exactly step transaction in the list,
+        # and only 2 of them with a flush count of 1
+        self.assertEqual(len(trManager._transactions), step)
+        flush_count = 0
+        for tr in trManager._transactions:
+            flush_count += tr._flush_count
+        self.assertEqual(flush_count, 2)
+
+        # If we retry to flush, two OTHER transactions should be tried
+        trManager.flush()
+
+        self.assertEqual(len(trManager._transactions), step)
+        flush_count = 0
+        for tr in trManager._transactions:
+            flush_count += tr._flush_count
+            self.assertIn(tr._flush_count, [0, 1])
+        self.assertEqual(flush_count, 4)
+
+        # Finally when it's possible to flush, everything should go smoothly
+        for tr in trManager._transactions:
+            tr.is_flushable = True
+
+        trManager.flush()
+        self.assertEqual(len(trManager._transactions), 0)
+
+    def test_parallelism(self):
+        step = 4
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
+                                       timedelta(seconds=0), max_parallelism=step,
+                                       max_endpoint_errors=100)
+        for i in xrange(step):
+            trManager.append(SleepingTransaction(trManager))
+
+        trManager.flush()
+        self.assertEqual(trManager._running_flushes, step)
+        self.assertEqual(trManager._finished_flushes, 0)
+        # If _trs_to_flush != None, it means that it's still running as it should be
+        self.assertEqual(trManager._trs_to_flush, [])
+        time.sleep(1)
+
+        # It should be finished
+        self.assertEqual(trManager._running_flushes, 0)
+        self.assertEqual(trManager._finished_flushes, step)
+        self.assertIs(trManager._trs_to_flush, None)
+
+    def test_no_parallelism(self):
+        step = 2
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
+                                       timedelta(seconds=0), max_parallelism=1,
+                                       max_endpoint_errors=100)
+        for i in xrange(step):
+            trManager.append(SleepingTransaction(trManager, delay=1))
+        trManager.flush()
+        # Flushes should be sequential
+        for i in xrange(step):
+            self.assertEqual(trManager._running_flushes, 1)
+            self.assertEqual(trManager._finished_flushes, i)
+            self.assertEqual(len(trManager._trs_to_flush), step - (i + 1))
+            time.sleep(1)
+
+    def test_multiple_endpoints(self):
+        config = {
+            "endpoints": {
+                "https://app.datadoghq.com": ['api_key'],
+                "https://app.example.com":  ['api_key']
+            },
+            "dd_url": "https://app.datadoghq.com",
+            "api_key": 'api_key',
+            "use_dd": True
+        }
+        app = Application()
+        app.skip_ssl_validation = False
+        app._agentConfig = config
+        app.use_simple_http_client = True
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
+                                       THROTTLING_DELAY, max_endpoint_errors=100)
+        trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
+        MetricTransaction._trManager = trManager
+        MetricTransaction.set_application(app)
+        MetricTransaction.set_endpoints(config['endpoints'])
+
+        MetricTransaction({}, {})
+        # 2 endpoints = 2 transactions
+        self.assertEqual(len(trManager._transactions), 2)
