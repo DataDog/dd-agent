@@ -29,7 +29,7 @@ import yaml
 
 # project
 from checks import check_status
-from util import get_hostname, get_next_id, LaconicFilter, yLoader
+from util import get_hostname, get_next_id, yLoader
 from utils.platform import Platform
 from utils.profile import pretty_statistics
 if Platform.is_windows():
@@ -87,10 +87,6 @@ class Check(object):
         self._sample_store = {}
         self._counters = {}  # metric_name: bool
         self.logger = logger
-        try:
-            self.logger.addFilter(LaconicFilter())
-        except Exception:
-            self.logger.exception("Trying to install laconic log filter and failed")
 
     def normalize(self, metric, prefix=None):
         """Turn a metric into a well-formed metric name
