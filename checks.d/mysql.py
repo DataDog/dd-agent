@@ -529,17 +529,17 @@ class MySql(AgentCheck):
             # slaves will only be collected iff user has PROCESS privileges.
             slaves = self._collect_scalar('Slaves_connected', results)
 
-            if slave_running and slaves == 0:  # slave
-                if slave_running.lower().strip() == 'on':
-                    slave_running_status = AgentCheck.OK
-                else:
-                    slave_running_status = AgentCheck.CRITICAL
-            elif slaves or binlog_running:  # master
+            if self._is_master(slaves, binlog_running):  # master
                 if slaves > 0 and binlog_running:
                     slave_running_status = AgentCheck.OK
                 else:
                     slave_running_status = AgentCheck.WARNING
-            else:  # slave
+            elif slave_running:  # slave (or standalone)
+                if slave_running.lower().strip() == 'on':
+                    slave_running_status = AgentCheck.OK
+                else:
+                    slave_running_status = AgentCheck.CRITICAL
+            else:  # slave - with no `Slave_running`
                 # MySQL 5.7.x might not have 'Slave_running'. See: https://bugs.mysql.com/bug.php?id=78544
                 # look at replica vars collected at the top of if-block
                 if self._version_compatible(db, host, "5.7.0"):
@@ -591,6 +591,14 @@ class MySql(AgentCheck):
             if len(queries) > self.MAX_CUSTOM_QUERIES:
                 self.warning("Maximum number (%s) of custom queries reached.  Skipping the rest."
                              % self.MAX_CUSTOM_QUERIES)
+
+
+    def _is_master(self, slaves, binlog):
+        if slaves > 0 or binlog:
+            return True
+
+        return False
+
 
     def _collect_metadata(self, db, host):
         version = self._get_version(db, host)
