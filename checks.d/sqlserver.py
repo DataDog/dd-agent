@@ -303,6 +303,14 @@ class SQLServer(AgentCheck):
         conn_key = self._conn_key(instance)
         timeout = int(instance.get('command_timeout',
                                    self.DEFAULT_COMMAND_TIMEOUT))
+        connect_string = str(self._conn_string(instance=instance))
+        if 'Password=' in connect_string:  # clean out password before log
+            connect_string = (
+                connect_string[:connect_string.find('Password=')] + 'Password=******;'
+            )
+        self.log.debug(
+            "Will try connecting with connection_string: %s " % (connect_string,)
+        )
 
         host = instance.get('host')
         database = instance.get('database', self.DEFAULT_DATABASE)
