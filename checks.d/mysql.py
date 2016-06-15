@@ -525,7 +525,7 @@ class MySql(AgentCheck):
         if _is_affirmative(options.get('replication', False)):
             # Get replica stats
             results.update(self._get_replica_stats(db))
-            results.update(self._get_slave_status(db, performance_schema_enabled))
+            results.update(self._get_slave_status(db))
             metrics.update(REPLICA_VARS)
 
             # get slave running form global status page
@@ -535,17 +535,17 @@ class MySql(AgentCheck):
             # slaves will only be collected iff user has PROCESS privileges.
             slaves = self._collect_scalar('Slaves_connected', results)
 
-            if slave_running is not None:
+            if self._is_master(slaves, binlog_running):  # master
+                if slaves > 0 and binlog_running:
+                    slave_running_status = AgentCheck.OK
+                else:
+                    slave_running_status = AgentCheck.WARNING
+            elif slave_running:  # slave (or standalone)
                 if slave_running.lower().strip() == 'on':
                     slave_running_status = AgentCheck.OK
                 else:
                     slave_running_status = AgentCheck.CRITICAL
-            elif slaves or binlog_running:
-                if slaves and slaves > 0 and binlog_running:
-                    slave_running_status = AgentCheck.OK
-                else:
-                    slave_running_status = AgentCheck.WARNING
-            else:
+            else:  # slave - with no `Slave_running`
                 # MySQL 5.7.x might not have 'Slave_running'. See: https://bugs.mysql.com/bug.php?id=78544
                 # look at replica vars collected at the top of if-block
                 if self._version_compatible(db, host, "5.7.0"):
@@ -597,6 +597,14 @@ class MySql(AgentCheck):
             if len(queries) > self.MAX_CUSTOM_QUERIES:
                 self.warning("Maximum number (%s) of custom queries reached.  Skipping the rest."
                              % self.MAX_CUSTOM_QUERIES)
+
+
+    def _is_master(self, slaves, binlog):
+        if slaves > 0 or binlog:
+            return True
+
+        return False
+
 
     def _collect_metadata(self, db, host):
         version = self._get_version(db, host)
@@ -849,7 +857,7 @@ class MySql(AgentCheck):
             self.warning("Privileges error getting replication status (must grant REPLICATION CLIENT): %s" % str(e))
             return {}
 
-    def _get_slave_status(self, db, nonblocking=False):
+    def _get_slave_status(self, db, nonblocking=True):
         try:
             with closing(db.cursor()) as cursor:
                 # querying threads instead of PROCESSLIST to avoid mutex impact on
