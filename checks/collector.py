@@ -47,20 +47,6 @@ FLUSH_LOGGING_PERIOD = 10
 FLUSH_LOGGING_INITIAL = 5
 DD_CHECK_TAG = 'dd_check:{0}'
 
-# Description of the format of the `processes` resource check, identical to the legacy check.
-# Sent on the first run of the collector, on subsequent runs the resources payload is sent w/o this desc.
-# The exact behavior of the aggregation functions is defined in the backend
-PROCESSES_FORMAT_DESCRIPTION = [
-    # [format_version, metric_name, type, agg, time_agg, server_agg, server_time_agg, group_on, time_group_on]
-    [2, 'user', 'str', 'append', 'append', 'append', 'append', False, False],
-    [2, 'pct_cpu', 'float', 'sum', 'avg', 'sum', 'avg', False, False],
-    [2, 'pct_mem', 'float', 'sum', 'avg', 'sum', 'avg', False, False],
-    [2, 'vsz', 'int', 'sum', 'avg', 'sum', 'avg', False, False],
-    [2, 'rss', 'int', 'sum', 'avg', 'sum', 'avg', False, False],
-    [2, 'family', 'str', None, None, 'append', 'append', True, True],
-    [2, 'ps_count', 'int', 'sum', 'avg', 'sum', 'avg', False, False],
-]
-
 
 class AgentPayload(collections.MutableMapping):
     """
@@ -386,11 +372,8 @@ class Collector(object):
                     processes_snaps = gohai_processes_json.get('processes')
                     if processes_snaps:
                         processes_payload = {
-                            'snaps': [processes_snaps],
-                            'format_version': 1
+                            'snaps': [processes_snaps]
                         }
-                        if self._is_first_run():
-                            processes_payload['format_description'] = PROCESSES_FORMAT_DESCRIPTION
 
                         payload['resources'] = {
                             'processes': processes_payload,
