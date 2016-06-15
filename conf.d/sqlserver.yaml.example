@@ -34,6 +34,8 @@ init_config:
     #   tag_by: db
 
 instances:
+    # Currently all '%' characters must be escaped as '%%'.
+
   - host: HOST,PORT
     username: my_username
     password: my_password
