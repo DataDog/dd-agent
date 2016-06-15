@@ -383,19 +383,21 @@ class Collector(object):
             if gohai_processes:
                 try:
                     gohai_processes_json = json.loads(gohai_processes)
-                    processes_payload = {
-                        'snaps': [gohai_processes_json.get('processes')],
-                        'format_version': 1
-                    }
-                    if self._is_first_run():
-                        processes_payload['format_description'] = PROCESSES_FORMAT_DESCRIPTION
-
-                    payload['resources'] = {
-                        'processes': processes_payload,
-                        'meta': {
-                            'host': payload['internalHostname'],
+                    processes_snaps = gohai_processes_json.get('processes')
+                    if processes_snaps:
+                        processes_payload = {
+                            'snaps': [processes_snaps],
+                            'format_version': 1
                         }
-                    }
+                        if self._is_first_run():
+                            processes_payload['format_description'] = PROCESSES_FORMAT_DESCRIPTION
+
+                        payload['resources'] = {
+                            'processes': processes_payload,
+                            'meta': {
+                                'host': payload['internalHostname'],
+                            }
+                        }
                 except Exception:
                     log.exception("Error running gohai processes collection")
 
