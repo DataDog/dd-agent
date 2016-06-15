@@ -84,8 +84,6 @@ def get_parsed_args():
                       dest='dd_url')
     parser.add_option('-u', '--use-local-forwarder', action='store_true',
                       default=False, dest='use_forwarder')
-    parser.add_option('-n', '--disable-dd', action='store_true', default=False,
-                      dest="disable_dd")
     parser.add_option('-v', '--verbose', action='store_true', default=False,
                       dest='verbose',
                       help='Print out stacktraces for errors in checks')
@@ -98,7 +96,6 @@ def get_parsed_args():
         # Ignore parse errors
         options, args = Values({'autorestart': False,
                                 'dd_url': None,
-                                'disable_dd': False,
                                 'use_forwarder': False,
                                 'verbose': False,
                                 'profile': False}), []
@@ -320,6 +317,13 @@ def get_histogram_percentiles(configstr=None):
     return result
 
 
+def clean_dd_url(url):
+    url = url.strip()
+    if not url.startswith('http'):
+        url = 'https://' + url
+    return url[:-1] if url.endswith('/') else url
+
+
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
         options, _ = get_parsed_args()
@@ -369,22 +373,65 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         #
         # Core config
-        #
+        #ap
+        if not config.has_option('Main', 'api_key'):
+            log.warning(u"No API key was found. Aborting.")
+            sys.exit(2)
 
-        # FIXME unnecessarily complex
-        agentConfig['use_forwarder'] = False
-        if options is not None and options.use_forwarder:
+        if not config.has_option('Main', 'dd_url'):
+            log.warning(u"No dd_url was found. Aborting.")
+            sys.exit(2)
+
+        # Endpoints
+        dd_url = clean_dd_url(config.get('Main', 'dd_url'))
+        api_key = config.get('Main', 'api_key').strip()
+
+        # For collector and dogstatsd
+        agentConfig['api_key'] = api_key
+        agentConfig['dd_url'] = dd_url
+
+        # multiple endpoints
+        if config.has_option('Main', 'other_dd_urls'):
+            other_dd_urls = map(clean_dd_url, config.get('Main', 'other_dd_urls').split(','))
+        else:
+            other_dd_urls = []
+        if config.has_option('Main', 'other_api_keys'):
+            other_api_keys = map(lambda x: x.strip(), config.get('Main', 'other_api_keys').split(','))
+        else:
+            other_api_keys = []
+
+        # Forwarder endpoints logic
+        # endpoints is:
+        # {
+        #    'https://app.datadoghq.com': ['api_key_abc', 'api_key_def'],
+        #    'https://app.example.com': ['api_key_xyz']
+        # }
+        endpoints = {dd_url: [api_key]}
+        if len(other_dd_urls) == 0:
+            endpoints[dd_url] += other_api_keys
+        else:
+            assert len(other_dd_urls) == len(other_api_keys), 'Please provide one api_key for each url'
+            for i, other_dd_url in enumerate(other_dd_urls):
+                endpoints[other_dd_url] = endpoints.get(other_dd_url, []) + [other_api_keys[i]]
+
+        agentConfig['endpoints'] = endpoints
+
+        # Forwarder or not forwarder
+        agentConfig['use_forwarder'] = options is not None and options.use_forwarder
+        if agentConfig['use_forwarder']:
             listen_port = 17123
             if config.has_option('Main', 'listen_port'):
                 listen_port = int(config.get('Main', 'listen_port'))
-            agentConfig['dd_url'] = "http://" + agentConfig['bind_host'] + ":" + str(listen_port)
-            agentConfig['use_forwarder'] = True
-        elif options is not None and not options.disable_dd and options.dd_url:
+            agentConfig['dd_url'] = "http://{}:{}".format(agentConfig['bind_host'], listen_port)
+        # FIXME: Legacy dd_url command line switch
+        elif options is not None and options.dd_url is not None:
             agentConfig['dd_url'] = options.dd_url
-        else:
-            agentConfig['dd_url'] = config.get('Main', 'dd_url')
-        if agentConfig['dd_url'].endswith('/'):
-            agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
+
+        # Forwarder timeout
+        agentConfig['forwarder_timeout'] = 20
+        if config.has_option('Main', 'forwarder_timeout'):
+            agentConfig['forwarder_timeout'] = int(config.get('Main', 'forwarder_timeout'))
+
 
         # Extra checks.d path
         # the linux directory is set by default
@@ -414,9 +461,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig['use_web_info_page'] = config.get('Main', 'use_web_info_page').lower() in ("yes", "true")
         else:
             agentConfig['use_web_info_page'] = True
-
-        # Which API key to use
-        agentConfig['api_key'] = config.get('Main', 'api_key')
 
         # local traffic only? Default to no
         agentConfig['non_local_traffic'] = False
