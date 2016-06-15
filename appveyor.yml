@@ -5,7 +5,7 @@ environment:
   INTEGRATIONS_DIR: c:\projects\dd-agent\embedded
   PIP_CACHE: c:\projects\dd-agent\.cache\pip
   VOLATILE_DIR: c:\projects
-  NOSE_FILTER: windows
+  NOSE_FILTER: not unix
   FLAVORS: windows
   PYWIN_PATH: C:\projects\dd-agent\.cache\pywin32-py2.7.exe
   matrix:
