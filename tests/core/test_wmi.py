@@ -257,20 +257,13 @@ class TestCommonWMI(unittest.TestCase):
         """
         Mock WMI related Python packages, so it can be tested on any environment.
         """
-        global WMISampler
-        global ProviderArchitecture
-
-        self.patcher = patch.dict('sys.modules',{
+        self.patcher = patch.dict('sys.modules', {
             'pywintypes': Mock(),
             'pythoncom': Mock(),
             'win32com': Mock(),
             'win32com.client': Mock(Dispatch=Dispatch),
         })
         self.patcher.start()
-
-        from checks.libs.wmi import sampler
-        WMISampler = partial(sampler.WMISampler, log)
-        ProviderArchitecture = sampler.ProviderArchitecture
 
     def tearDown(self):
         """
@@ -373,6 +366,19 @@ class TestUnitWMISampler(TestCommonWMI):
     """
     Unit tests for WMISampler.
     """
+    def setUp(self):
+        TestCommonWMI.setUp(self)
+
+        global WMISampler
+        global ProviderArchitecture
+
+        # Reload to apply the mocking if the module was already loaded
+        from checks.libs.wmi import sampler
+        reload(sampler)
+
+        WMISampler = partial(sampler.WMISampler, log)
+        ProviderArchitecture = sampler.ProviderArchitecture
+
     def test_wmi_connection(self):
         """
         Establish a WMI connection to the specified host/namespace, with the right credentials.
