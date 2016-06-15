@@ -530,40 +530,43 @@ class MySql(AgentCheck):
 
             # get slave running form global status page
             slave_running_status = AgentCheck.UNKNOWN
-            slave_running = self._collect_string('Slave_running', results)
+
+            if self._version_compatible(db, host, "5.7.0"):
+                # MySQL 5.7.x might not have 'Slave_running'. See: https://bugs.mysql.com/bug.php?id=78544
+                # look at replica vars collected at the top of if-block
+                slave_io_running = self._collect_string('Slave_IO_Running', results)
+                slave_sql_running = self._collect_string('Slave_SQL_Running', results)
+                if slave_io_running:
+                    slave_io_running = (slave_io_running.lower().strip() == "yes")
+                if slave_sql_running:
+                    slave_sql_running = (slave_sql_running.lower().strip() == "yes")
+
+                if not (slave_io_running is None and slave_sql_running is None):
+                    if slave_io_running and slave_sql_running:
+                        slave_running_status = AgentCheck.OK
+                    elif not slave_io_running and not slave_sql_running:
+                        slave_running_status = AgentCheck.CRITICAL
+                    else:
+                        # not everything is running smoothly
+                        slave_running_status = AgentCheck.WARNING
+            else:
+                slave_running = self._collect_string('Slave_running', results)
+
+                if slave_running is not None:
+                    if slave_running.lower().strip() == 'on':
+                        slave_running_status = AgentCheck.OK
+                    else:
+                        slave_running_status = AgentCheck.CRITICAL
+
             binlog_running = results.get('Binlog_enabled', False)
             # slaves will only be collected iff user has PROCESS privileges.
             slaves = self._collect_scalar('Slaves_connected', results)
 
-            if slave_running is not None:
-                if slave_running.lower().strip() == 'on':
-                    slave_running_status = AgentCheck.OK
-                else:
-                    slave_running_status = AgentCheck.CRITICAL
-            elif slaves or binlog_running:
+            if slave_running_status == AgentCheck.UNKNOWN and (slaves or binlog_running):
                 if slaves and slaves > 0 and binlog_running:
                     slave_running_status = AgentCheck.OK
                 else:
                     slave_running_status = AgentCheck.WARNING
-            else:
-                # MySQL 5.7.x might not have 'Slave_running'. See: https://bugs.mysql.com/bug.php?id=78544
-                # look at replica vars collected at the top of if-block
-                if self._version_compatible(db, host, "5.7.0"):
-                    slave_io_running = self._collect_string('Slave_IO_Running', results)
-                    slave_sql_running = self._collect_string('Slave_SQL_Running', results)
-                    if slave_io_running:
-                        slave_io_running = (slave_io_running.lower().strip() == "yes")
-                    if slave_sql_running:
-                        slave_sql_running = (slave_sql_running.lower().strip() == "yes")
-
-                    if not (slave_io_running is None and slave_sql_running is None):
-                        if slave_io_running and slave_sql_running:
-                            slave_running_status = AgentCheck.OK
-                        elif not slave_io_running and not slave_sql_running:
-                            slave_running_status = AgentCheck.CRITICAL
-                        else:
-                            # not everything is running smoothly
-                            slave_running_status = AgentCheck.WARNING
 
             # deprecated in favor of service_check("mysql.replication.slave_running")
             self.gauge(self.SLAVE_SERVICE_CHECK_NAME, (1 if slave_running_status == AgentCheck.OK else 0), tags=tags)
