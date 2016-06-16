@@ -124,6 +124,13 @@ class ProcessCheckTest(AgentCheckTest):
                 }
             },
             'mocked_processes': set([1])
+        },
+        {
+            'config': {
+                'name': 'test_8',
+                'pid_file': '/var/run/test_8',  # index in the array for our find_pids mock
+            },
+            'mocked_processes': set([1])
         }
     ]
 
@@ -228,9 +235,12 @@ class ProcessCheckTest(AgentCheckTest):
         # Shouldn't throw an exception
         self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
 
-    def mock_find_pids(self, name, search_string, exact_match=True, ignore_ad=True,
+    def mock_find_pids(self, name, search_string=None, exact_match=True, pid_file=None, ignore_ad=True,
                        refresh_ad_cache=True):
-        idx = search_string[0].split('_')[1]
+        if search_string is not None:
+            idx = search_string[0].split('_')[1]
+        elif pid_file is not None:
+            idx = pid_file.split('_')[1]
         return self.CONFIG_STUBS[int(idx)]['mocked_processes']
 
     def mock_psutil_wrapper(self, process, method, accessors, *args, **kwargs):

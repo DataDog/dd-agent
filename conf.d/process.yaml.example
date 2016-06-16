@@ -12,10 +12,11 @@ instances:
 # for more than 30 seconds. Do not expect its value to be accurate for shorter-lived processes.
 #
 #  - name: (required) STRING. It will be used to uniquely identify your metrics as they will be tagged with this name
-#    search_string: (required) LIST OF STRINGS. If one of the elements in the list matches,
+#    search_string: (or pid_file is required) LIST OF STRINGS. If one of the elements in the list matches,
 #                    return the counter of all the processes that contain the string
+#    pid_file: (or search_string is required) Pid od file
 #    exact_match: (optional) Boolean. Default to True, if you want to look for an arbitrary
-#                 string, use exact_match: False
+#                 string only use search_string, use exact_match: False
 #    ignore_denied_access: (optional) Boolean. Default to True, when getting the number of files descriptors, dd-agent user might
 #    get a denied access. Set this to true to not issue a warning if that happens.
 #    thresholds: (optional) Two ranges: critical and warning
@@ -32,6 +33,7 @@ instances:
 
   - name: ssh
     search_string: ['ssh', 'sshd']
+    # pid_file: /var/run/sshd.pid
     # tags:
     #   - env:staging
     #   - cluster:big-data

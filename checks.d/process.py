@@ -92,10 +92,10 @@ class ProcessCheck(AgentCheck):
         now = time.time()
         return now - self.last_pid_cache_ts.get(name, 0) > self.pid_cache_duration
 
-    def find_pids(self, name, search_string, exact_match, ignore_ad=True):
+    def find_pids(self, name, search_string=None, exact_match=True, pid_file=None, ignore_ad=True):
         """
         Create a set of pids of selected processes.
-        Search for search_string
+        Search for search_string or pid_file
         """
         if not self.should_refresh_pid_cache(name):
             return self.pid_cache[name]
@@ -114,33 +114,41 @@ class ProcessCheck(AgentCheck):
                 continue
 
             found = False
-            for string in search_string:
-                try:
-                    # FIXME 6.x: All has been deprecated from the doc, should be removed
-                    if string == 'All':
-                        found = True
-                    if exact_match:
-                        if proc.name() == string:
+
+            try:
+                if search_string is not None:
+                    for string in search_string:
+                        # FIXME 6.x: All has been deprecated from the doc, should be removed
+                        if string == 'All':
                             found = True
-                    else:
-                        cmdline = proc.cmdline()
-                        if string in ' '.join(cmdline):
+                        if exact_match:
+                            if proc.name() == string:
+                                found = True
+                        else:
+                            cmdline = proc.cmdline()
+                            if string in ' '.join(cmdline):
+                                found = True
+
+                elif pid_file is not None:
+                    for pid in open(pid_file):
+                        if proc.pid == int(pid.rstrip("\r\n")):
                             found = True
-                except psutil.NoSuchProcess:
-                    self.log.warning('Process disappeared while scanning')
-                except psutil.AccessDenied, e:
-                    ad_error_logger('Access denied to process with PID %s', proc.pid)
-                    ad_error_logger('Error: %s', e)
-                    if refresh_ad_cache:
-                        self.ad_cache.add(proc.pid)
-                    if not ignore_ad:
-                        raise
-                else:
-                    if refresh_ad_cache:
-                        self.ad_cache.discard(proc.pid)
-                    if found:
-                        matching_pids.add(proc.pid)
-                        break
+
+            except psutil.NoSuchProcess:
+                self.log.warning('Process disappeared while scanning')
+            except psutil.AccessDenied, e:
+                ad_error_logger('Access denied to process with PID %s', proc.pid)
+                ad_error_logger('Error: %s', e)
+                if refresh_ad_cache:
+                    self.ad_cache.add(proc.pid)
+                if not ignore_ad:
+                    raise
+            else:
+                if refresh_ad_cache:
+                    self.ad_cache.discard(proc.pid)
+                if found:
+                    matching_pids.add(proc.pid)
+                    break
 
         self.pid_cache[name] = matching_pids
         self.last_pid_cache_ts[name] = time.time()
@@ -288,27 +296,30 @@ class ProcessCheck(AgentCheck):
         tags = instance.get('tags', [])
         exact_match = _is_affirmative(instance.get('exact_match', True))
         search_string = instance.get('search_string', None)
+        pid_file = instance.get('pid_file', None)
         ignore_ad = _is_affirmative(instance.get('ignore_denied_access', True))
-
-        if not isinstance(search_string, list):
-            raise KeyError('"search_string" parameter should be a list')
-
-        # FIXME 6.x remove me
-        if "All" in search_string:
-            self.warning('Deprecated: Having "All" in your search_string will'
-                         'greatly reduce the performance of the check and '
-                         'will be removed in a future version of the agent.')
 
         if name is None:
             raise KeyError('The "name" of process groups is mandatory')
 
-        if search_string is None:
-            raise KeyError('The "search_string" is mandatory')
+        if search_string is None and pid_file is None:
+            raise KeyError('The "search_string" or "pid_file" is mandatory')
+
+        if search_string is not None:
+            # FIXME 6.x remove me
+            if "All" in search_string:
+                self.warning('Deprecated: Having "All" in your search_string will'
+                             'greatly reduce the performance of the check and '
+                             'will be removed in a future version of the agent.')
+
+            if not isinstance(search_string, list):
+                raise KeyError('"search_string" parameter should be a list')
 
         pids = self.find_pids(
             name,
-            search_string,
-            exact_match,
+            search_string=search_string,
+            exact_match=exact_match,
+            pid_file=pid_file,
             ignore_ad=ignore_ad
         )
 
