@@ -27,6 +27,14 @@ class Services(object):
         'up', 'open', 'down', 'maint', 'nolb'
     )
 
+    STATUS_MAP = {
+        'up': 'up',
+        'open': 'up',
+        'down': 'down',
+        'maint': 'down',
+        'nolb': 'down'
+    }
+
     STATUSES_TO_SERVICE_CHECK = {
         'UP': AgentCheck.OK,
         'DOWN': AgentCheck.CRITICAL,
@@ -91,6 +99,17 @@ class HAProxy(AgentCheck):
             instance.get('count_status_by_service', True)
         )
 
+        collate_status_tags_per_host = _is_affirmative(
+            instance.get('collate_status_tags_per_host', False)
+        )
+
+        if collate_status_tags_per_host and not collect_status_metrics_by_host:
+            self.log.warning(
+                u"Status tags collation (`collate_status_tags_per_host`) has no effect when status "
+                u"metrics collection per host (`collect_status_metrics_by_host`) is disabled."
+            )
+            collate_status_tags_per_host = False
+
         tag_service_check_by_host = _is_affirmative(
             instance.get('tag_service_check_by_host', False)
         )
@@ -114,6 +133,7 @@ class HAProxy(AgentCheck):
             services_incl_filter=services_incl_filter,
             services_excl_filter=services_excl_filter,
             count_status_by_service=count_status_by_service,
+            collate_status_tags_per_host=collate_status_tags_per_host
         )
 
     def _fetch_data(self, url, username, password, verify):
@@ -133,7 +153,8 @@ class HAProxy(AgentCheck):
     def _process_data(self, data, collect_aggregates_only, process_events, url=None,
                       collect_status_metrics=False, collect_status_metrics_by_host=False,
                       tag_service_check_by_host=False, services_incl_filter=None,
-                      services_excl_filter=None, count_status_by_service=True):
+                      services_excl_filter=None, count_status_by_service=True,
+                      collate_status_tags_per_host=False):
         ''' Main data-processing loop. For each piece of useful data, we'll
         either save a metric, save an event or both. '''
 
@@ -190,7 +211,8 @@ class HAProxy(AgentCheck):
                 self.hosts_statuses, collect_status_metrics_by_host,
                 services_incl_filter=services_incl_filter,
                 services_excl_filter=services_excl_filter,
-                count_status_by_service=count_status_by_service
+                count_status_by_service=count_status_by_service,
+                collate_status_tags_per_host=collate_status_tags_per_host
             )
 
             self._process_backend_hosts_metric(
@@ -303,7 +325,7 @@ class HAProxy(AgentCheck):
 
     def _process_status_metric(self, hosts_statuses, collect_status_metrics_by_host,
                                services_incl_filter=None, services_excl_filter=None,
-                               count_status_by_service=True):
+                               count_status_by_service=True, collate_status_tags_per_host=False):
         agg_statuses = defaultdict(lambda: {'available': 0, 'unavailable': 0})
 
         # use a counter unless we have a unique tag set to gauge
@@ -329,10 +351,16 @@ class HAProxy(AgentCheck):
             if collect_status_metrics_by_host:
                 tags.append('backend:%s' % hostname)
 
-            self._gauge_all_statuses(
-                "haproxy.count_per_status",
-                count, status, tags, counter
-            )
+            if collate_status_tags_per_host:
+                self._gauge_collated_statuses(
+                    "haproxy.count_per_status",
+                    count, status, tags, counter
+                )
+            else:
+                self._gauge_all_statuses(
+                    "haproxy.count_per_status",
+                    count, status, tags, counter
+                )
 
             if 'up' in status or 'open' in status:
                 agg_statuses[service]['available'] += count
@@ -364,6 +392,21 @@ class HAProxy(AgentCheck):
         for state in Services.ALL_STATUSES:
             if state != status:
                 self.gauge(metric_name, 0, tags + ['status:%s' % state.replace(" ", "_")])
+
+    def _gauge_collated_statuses(self, metric_name, count, status, tags, counter):
+        collated_status = Services.STATUS_MAP.get(status)
+        if not collated_status:
+            # We can't properly collate this guy, because it's a status we don't expect,
+            # let's abandon collation
+            self.log.warning("Unexpected status found %s", status)
+            self._gauge_all_statuses(metric_name, count, status, tags, counter)
+            return
+
+        self.gauge(metric_name, count, tags + ['status:%s' % collated_status])
+
+        for state in ['up', 'down']:
+            if collated_status != state:
+                self.gauge(metric_name, 0, tags + ['status:%s' % state])
 
     def _process_metrics(self, data, url, services_incl_filter=None,
                          services_excl_filter=None):
