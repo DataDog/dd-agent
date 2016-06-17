@@ -60,7 +60,7 @@ class Transaction(object):
         self._next_flush = newdate.replace(microsecond=0)
 
     def time_to_flush(self,now = datetime.utcnow()):
-        return self._next_flush < now
+        return self._next_flush <= now
 
     def flush(self):
         raise NotImplementedError("To be implemented in a subclass")
