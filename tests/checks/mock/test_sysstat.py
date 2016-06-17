@@ -138,7 +138,7 @@ sda               0.00     0.00    0.00    1.00     0.00     4.00     8.00     0
 dm-0              0.00     0.00    0.00    1.00     0.00     4.00     8.00     0.00    0.00    0.00    0.00   0.00   0.00
 dm-1              0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00    0.00    0.00   0.00   0.00
 """
-        results = checker._parse_linux2(centos_iostat_output)
+        results = checker._parse_linux2(linux_output_dashes)
         self.assertTrue(sorted(results.keys()) == ['dm-0', 'dm-1', 'sda'])
 
     def testNetwork(self):
