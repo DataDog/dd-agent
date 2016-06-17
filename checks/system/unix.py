@@ -35,7 +35,7 @@ class IO(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
         self.header_re = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
-        self.item_re = re.compile(r'^([a-zA-Z0-9\/]+)')
+        self.item_re = re.compile(r'^([\-a-zA-Z0-9\/]+)')
         self.value_re = re.compile(r'\d+\.\d+')
 
     def _parse_linux2(self, output):
