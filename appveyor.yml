@@ -6,8 +6,8 @@ environment:
   PIP_CACHE: c:\projects\dd-agent\.cache\pip
   VOLATILE_DIR: c:\projects
   NOSE_FILTER: not unix
-  FLAVORS: windows
   PYWIN_PATH: C:\projects\dd-agent\.cache\pywin32-py2.7.exe
+  SKIP_LINT: true
   matrix:
   - PYTHON: C:\\Python27
     PYTHON_VERSION: 2.7.9
@@ -31,4 +31,6 @@ install:
 build: off
 test_script:
   - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
-  - bundle exec rake ci:run[%FLAVORS%]
+  - bundle exec rake ci:run[default]
+  - bundle exec rake ci:run[core_integration]
+  - bundle exec rake ci:run[windows]

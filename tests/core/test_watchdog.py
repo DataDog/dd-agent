@@ -26,6 +26,7 @@ class WatchdogKill(Exception):
     pass
 
 
+@attr('unix')
 @attr(requires='core_integration')
 class TestWatchdog(unittest.TestCase):
     """

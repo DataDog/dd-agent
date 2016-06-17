@@ -277,6 +277,7 @@ class TestTransaction(unittest.TestCase):
         trManager.flush()
         self.assertEqual(len(trManager._transactions), 0)
 
+    @attr('unix')
     def test_parallelism(self):
         step = 4
         trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
@@ -297,6 +298,7 @@ class TestTransaction(unittest.TestCase):
         self.assertEqual(trManager._finished_flushes, step)
         self.assertIs(trManager._trs_to_flush, None)
 
+    @attr('unix')
     def test_no_parallelism(self):
         step = 2
         trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,

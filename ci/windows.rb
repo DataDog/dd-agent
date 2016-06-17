@@ -14,7 +14,6 @@ namespace :ci do
 
     task script: ['ci:common:script'] do
       this_provides = [
-        'default',
         'windows'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
