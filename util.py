@@ -4,7 +4,6 @@
 
 # stdlib
 from collections import deque
-from hashlib import md5
 import logging
 import os
 import platform
@@ -558,33 +557,6 @@ class Watchdog(object):
         log.debug("Resetting watchdog for %d" % self._duration)
         signal.alarm(self._duration)
 
-
-class LaconicFilter(logging.Filter):
-    """
-    Filters messages, only print them once while keeping memory under control
-    """
-    LACONIC_MEM_LIMIT = 1024
-
-    def __init__(self, name=""):
-        logging.Filter.__init__(self, name)
-        self.hashed_messages = {}
-
-    def hash(self, msg):
-        return md5(msg).hexdigest()
-
-    def filter(self, record):
-        try:
-            h = self.hash(record.getMessage())
-            if h in self.hashed_messages:
-                return 0
-            else:
-                # Don't blow up our memory
-                if len(self.hashed_messages) >= LaconicFilter.LACONIC_MEM_LIMIT:
-                    self.hashed_messages.clear()
-                self.hashed_messages[h] = True
-                return 1
-        except Exception:
-            return 1
 
 class Timer(object):
     """ Helper class """

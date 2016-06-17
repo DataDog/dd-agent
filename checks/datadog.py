@@ -13,7 +13,6 @@ import time
 import traceback
 
 # project
-from checks import LaconicFilter
 import modules
 from util import windows_friendly_colon_split
 from utils.tailfile import TailFile
@@ -157,9 +156,6 @@ class Dogstream(object):
     def __init__(self, logger, log_path, parse_func=None, parse_args=(), class_based=False):
         self.logger = logger
         self.class_based = class_based
-
-        # Apply LaconicFilter to avoid log flooding
-        self.logger.addFilter(LaconicFilter("dogstream"))
 
         self.log_path = log_path
         self.parse_func = parse_func or self._default_line_parser

@@ -40,7 +40,7 @@ DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
 MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
-LOGGING_MAX_BYTES = 5 * 1024 * 1024
+LOGGING_MAX_BYTES = 10 * 1024 * 1024
 
 log = logging.getLogger(__name__)
 
