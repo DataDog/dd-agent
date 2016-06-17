@@ -154,9 +154,9 @@ class SDDockerBackend(AbstractSDBackend):
             idx = tpl_parts[-1]
             return ports[int(idx)]
         except ValueError:
-            log.error("Index is not an integer. Using the last element instead.")
+            log.error("Port index is not an integer. Using the last element instead.")
         except IndexError:
-            log.error("Index is out of range. Using the last element instead.")
+            log.error("Port index is out of range. Using the last element instead.")
         return ports[-1]
 
     def get_tags(self, c_inspect):
