@@ -39,6 +39,7 @@ from config import (
     get_config,
     get_config_path,
     get_logging_config,
+    get_ssl_certificate,
     get_url_endpoint,
 )
 from jmxfetch import JMXFetch
@@ -124,7 +125,12 @@ class Flare(object):
         if not self._api_key:
             raise Exception('No api_key found')
         log.info("Collecting logs and configuration files:")
+        with self._open_tarfile():
+            self._collect()
+            log.info("Saving all files to {0}".format(self.tar_path))
 
+    # Actual collection. The tar file must be open
+    def _collect(self):
         self._add_logs_tar()
         self._add_conf_tar()
         log.info("  * datadog-agent configcheck output")
@@ -144,9 +150,6 @@ class Flare(object):
         self._permissions_file.close()
         self._add_file_tar(self._permissions_file.name, 'permissions.log',
                            log_permissions=False)
-
-        log.info("Saving all files to {0}".format(self.tar_path))
-        self._tar.close()
 
     # Set the proxy settings, if they exist
     def set_proxy(self, options):
@@ -170,11 +173,7 @@ class Flare(object):
         if self._config.get('skip_ssl_validation', False):
             options['verify'] = False
         elif Platform.is_windows():
-            options['verify'] = os.path.realpath(os.path.join(
-                os.path.dirname(os.path.realpath(__file__)),
-                os.pardir, os.pardir,
-                'datadog-cert.pem'
-            ))
+            options['verify'] = get_ssl_certificate('windows', 'datadog-cert.pem')
 
     # Upload the tar file
     def upload(self, email=None):
@@ -208,7 +207,7 @@ class Flare(object):
         self._analyse_result()
         return self._case_id
 
-    # Start by creating the tar file which will contain everything
+    # Start by preparing the tar file which will contain everything
     def _init_tarfile(self):
         # Default temp path
         self.tar_path = os.path.join(
@@ -218,7 +217,11 @@ class Flare(object):
 
         if os.path.exists(self.tar_path):
             os.remove(self.tar_path)
+
+    # Open the tar file (context manager) and return it
+    def _open_tarfile(self):
         self._tar = tarfile.open(self.tar_path, 'w:bz2')
+        return self._tar
 
     # Create a file to log permissions on collected files and write header line
     def _init_permissions_file(self):
