@@ -228,7 +228,6 @@ class Kubernetes(AgentCheck):
             # They are top aggregate views and don't have the previous metadata.
             tags.append("pod_name:no_pod")
 
-
         stats = subcontainer['stats'][-1]  # take the latest
         self._publish_raw_metrics(NAMESPACE, stats, tags)
 
@@ -243,6 +242,8 @@ class Kubernetes(AgentCheck):
                               sum(float(net[x]) for x in NET_ERRORS),
                               tags)
 
+        return tags
+
     def _update_metrics(self, instance, pods_list):
         metrics = self.kubeutil.retrieve_metrics()
 
@@ -252,12 +253,61 @@ class Kubernetes(AgentCheck):
         if not metrics:
             raise Exception('No metrics retrieved cmd=%s' % self.metrics_cmd)
 
+        # container metrics from Cadvisor
+        container_tags = {}
         for subcontainer in metrics:
+            c_id = subcontainer.get('id')
             try:
-                self._update_container_metrics(instance, subcontainer, kube_labels)
-            except Exception as e:
-                self.log.error("Unable to collect metrics for container: {0} ({1}".format(
-                    subcontainer.get('name'), e))
+                tags = self._update_container_metrics(instance, subcontainer, kube_labels)
+                if c_id:
+                    container_tags[c_id] = tags
+                # also store tags for aliases
+                for alias in subcontainer.get('aliases', []):
+                    container_tags[alias] = tags
+            except Exception, e:
+                self.log.error("Unable to collect metrics for container: {0} ({1}".format(c_id, e))
+
+        # container metrics from kubernetes API: limits and requests
+        for pod in pods_list['items']:
+            try:
+                containers = pod['spec']['containers']
+                name2id = {}
+                for cs in pod['status'].get('containerStatuses', []):
+                    c_id = cs.get('containerID', '').split('//')[-1]
+                    name = cs.get('name')
+                    if name:
+                        name2id[name] = c_id
+            except KeyError:
+                self.log.debug("Pod %s does not have containers specs, skipping...", pod['metadata'].get('name'))
+                continue
+
+            for container in containers:
+                c_name = container.get('name')
+                _tags = container_tags.get(name2id.get(c_name), [])
+
+                # limits
+                try:
+                    for limit, value_str in container['resources']['limits'].iteritems():
+                        values = [float(s) for s in re.findall(r'[-+]?\d+[\.]?\d*', value_str)]
+                        if len(values) != 1:
+                            self.log.warning("Error parsing limits value string: %s", value_str)
+                            continue
+                        self.publish_gauge(self, '{}.{}.limits'.format(NAMESPACE, limit), values[0], _tags)
+                except (KeyError, AttributeError) as e:
+                    self.log.error("Unable to retrieve container limits for %s: %s", c_name, e)
+                    self.log.debug(container)
+
+                # requests
+                try:
+                    for request, value_str in container['resources']['requests'].iteritems():
+                        values = [float(s) for s in re.findall(r'[-+]?\d+[\.]?\d*', value_str)]
+                        if len(values) != 1:
+                            self.log.warning("Error parsing requests value string: %s", value_str)
+                            continue
+                        self.publish_gauge(self, '{}.{}.requests'.format(NAMESPACE, request), values[0], _tags)
+                except (KeyError, AttributeError) as e:
+                    self.log.error("Unable to retrieve container requests for %s: %s", c_id, e)
+                    self.log.debug(container)
 
         self._update_pods_metrics(instance, pods_list)
 
@@ -277,7 +327,8 @@ class Kubernetes(AgentCheck):
                 kind = created_by['reference']['kind']
                 if kind in supported_kinds:
                     controllers_map[created_by['reference']['name']] += 1
-            except KeyError:
+            except (KeyError, ValueError) as e:
+                self.log.debug("Unable to retrieve pod kind for pod %s: %s", pod, e)
                 continue
 
         tags = instance.get('tags', [])

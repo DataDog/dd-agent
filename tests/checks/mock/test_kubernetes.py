@@ -22,6 +22,8 @@ NET_ERRORS = "net_errors"
 DISK = "disk"
 DISK_USAGE = "disk_usage"
 PODS = "pods"
+LIM = "limits"
+REQ = "requests"
 
 METRICS = [
     ('kubernetes.memory.usage', MEM),
@@ -35,6 +37,10 @@ METRICS = [
     ('kubernetes.filesystem.usage_pct', DISK_USAGE),
     ('kubernetes.filesystem.usage', DISK_USAGE),
     ('kubernetes.pods.running', PODS),
+    ('kubernetes.cpu.limits', LIM),
+    ('kubernetes.cpu.requests', REQ),
+    ('kubernetes.memory.limits', LIM),
+    ('kubernetes.memory.requests', REQ),
 ]
 
 
@@ -198,25 +204,16 @@ class TestKubernetes(AgentCheckTest):
 
         expected_tags = [
             (['container_name:/kubelet', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
-            (['container_name:k8s_POD.e2764897_kube-dns-v11-63tae_kube-system_5754714c-0054-11e6-9a89-42010af00098_c33e4b64', 'pod_name:kube-system/kube-dns-v11-63tae', 'kube_namespace:kube-system', 'kube_k8s-app:kube-dns', 'kube_version:v11', 'kube_kubernetes.io/cluster-service:true', 'kube_replication_controller:kube-dns-v11'], [MEM, CPU, FS, NET, NET_ERRORS]),
-            (['container_name:k8s_dd-agent.67c1e3c5_dd-agent-idydc_default_adecdd57-f5c3-11e5-8f7c-42010af00098_5154bb06', 'pod_name:default/dd-agent-idydc', 'kube_namespace:default', 'kube_app:dd-agent', 'kube_replication_controller:dd-agent'], [MEM, CPU, FS, NET, DISK]),
+            (['container_name:k8s_POD.35220667_dd-agent-1rxlh_default_12c7be82-33ca-11e6-ac8f-42010af00003_f5cf585f',
+              'pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent',
+              'kube_replication_controller:dd-agent'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['container_name:/', 'pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
-            (['container_name:/docker-daemon', 'pod_name:no_pod'], [MEM, CPU, DISK, NET]),
-            (['container_name:k8s_skydns.7ad23ad1_kube-dns-v11-63tae_kube-system_5754714c-0054-11e6-9a89-42010af00098_b082387b', 'pod_name:kube-system/kube-dns-v11-63tae', 'kube_namespace:kube-system', 'kube_k8s-app:kube-dns', 'kube_version:v11', 'kube_kubernetes.io/cluster-service:true', 'kube_replication_controller:kube-dns-v11'], [MEM, CPU, FS, NET]),
-
-            ([u'container_name:/system', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
-
-            ([u'kube_k8s-app:kube-dns', u'kube_namespace:kube-system', u'kube_kubernetes.io/cluster-service:true', u'kube_replication_controller:kube-dns-v11', u'pod_name:kube-system/kube-dns-v11-63tae', u'kube_version:v11', u'container_name:k8s_kube2sky.8cbc016c_kube-dns-v11-63tae_kube-system_5754714c-0054-11e6-9a89-42010af00098_d6df3862'], [MEM, CPU, FS, NET]),
-            ([u'kube_namespace:default', u'kube_app:dd-agent', u'kube_replication_controller:dd-agent', u'container_name:k8s_POD.35220667_dd-agent-idydc_default_adecdd57-f5c3-11e5-8f7c-42010af00098_e2c005a0', u'pod_name:default/dd-agent-idydc'], [MEM, CPU, FS, NET, NET_ERRORS]),
-            ([u'kube_k8s-app:kube-dns', u'kube_namespace:kube-system', u'kube_kubernetes.io/cluster-service:true', u'kube_replication_controller:kube-dns-v11', u'pod_name:kube-system/kube-dns-v11-63tae', u'kube_version:v11', u'container_name:k8s_etcd.81a33530_kube-dns-v11-63tae_kube-system_5754714c-0054-11e6-9a89-42010af00098_e811864e'], [MEM, CPU, FS, DISK, NET]),
-            ([u'kube_namespace:kube-system', u'pod_name:kube-system/kube-proxy-gke-cluster-remi-62c0dd29-node-29lx', u'container_name:k8s_kube-proxy.cf23f4be_kube-proxy-gke-cluster-remi-62c0dd29-node-29lx_kube-system_f70c43857a22d5495bf204918d5ab984_4e315ef3', u'kube_replication_controller:kube-proxy-gke-cluster-remi-62c0dd29-node'], [MEM, CPU, FS, NET, DISK]),
-            ([u'kube_namespace:kube-system', u'pod_name:kube-system/fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node-29lx', u'kube_k8s-app:fluentd-logging', u'container_name:k8s_fluentd-cloud-logging.fe59dd68_fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node-29lx_kube-system_da7e41ef0372c29c65a24b417b5dd69f_3cacfb32', u'kube_replication_controller:fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node'], [MEM, CPU, FS, NET]),
-            ([u'kube_namespace:kube-system', u'container_name:k8s_POD.6059dfa2_kube-proxy-gke-cluster-remi-62c0dd29-node-29lx_kube-system_f70c43857a22d5495bf204918d5ab984_e17ace7a', u'pod_name:kube-system/kube-proxy-gke-cluster-remi-62c0dd29-node-29lx', u'kube_replication_controller:kube-proxy-gke-cluster-remi-62c0dd29-node'], [MEM, CPU, FS, NET, NET_ERRORS]),
-            ([u'kube_k8s-app:kube-dns', u'kube_namespace:kube-system', u'kube_kubernetes.io/cluster-service:true', u'container_name:k8s_healthz.4039147e_kube-dns-v11-63tae_kube-system_5754714c-0054-11e6-9a89-42010af00098_d8e1d132', u'kube_replication_controller:kube-dns-v11', u'pod_name:kube-system/kube-dns-v11-63tae', u'kube_version:v11'], [MEM, CPU, FS, NET]),
-            ([u'kube_namespace:kube-system', u'pod_name:kube-system/fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node-29lx', u'kube_k8s-app:fluentd-logging', u'container_name:k8s_POD.6059dfa2_fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node-29lx_kube-system_da7e41ef0372c29c65a24b417b5dd69f_b4d7ed62', u'kube_replication_controller:fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node'], [MEM, CPU, FS, NET, NET_ERRORS]),
-
-            (['kube_replication_controller:kube-dns-v11'], [PODS]),
+            (['container_name:/system', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
+            (['container_name:k8s_dd-agent.7b520f3f_dd-agent-1rxlh_default_12c7be82-33ca-11e6-ac8f-42010af00003_321fecb4',
+              'pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent',
+              'kube_replication_controller:dd-agent'], [LIM, REQ, MEM, CPU, NET, DISK, DISK_USAGE]),
             (['kube_replication_controller:dd-agent'], [PODS]),
+            ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
 
         for m, _type in METRICS:
@@ -252,16 +249,8 @@ class TestKubernetes(AgentCheckTest):
         metric_suffix = ["count", "avg", "median", "max", "95percentile"]
 
         expected_tags = [
-            (['pod_name:kube-system/kube-dns-v11-63tae', 'kube_namespace:kube-system', 'kube_k8s-app:kube-dns', 'kube_version:v11', 'kube_kubernetes.io/cluster-service:true', 'kube_replication_controller:kube-dns-v11'], [MEM, CPU, FS, DISK, NET, NET_ERRORS]),
-            (['pod_name:default/dd-agent-idydc', 'kube_namespace:default', 'kube_app:dd-agent', 'kube_replication_controller:dd-agent'], [MEM, CPU, FS, NET, DISK]),
-            (['pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
-
-            ([u'kube_namespace:default', u'kube_app:dd-agent', u'kube_replication_controller:dd-agent', u'pod_name:default/dd-agent-idydc'], [MEM, CPU, FS, NET, NET_ERRORS]),
-            ([u'kube_namespace:kube-system', u'pod_name:kube-system/kube-proxy-gke-cluster-remi-62c0dd29-node-29lx', u'kube_replication_controller:kube-proxy-gke-cluster-remi-62c0dd29-node'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
-            ([u'kube_namespace:kube-system', u'pod_name:kube-system/fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node-29lx', u'kube_k8s-app:fluentd-logging', u'kube_replication_controller:fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node'], [MEM, CPU, FS, NET, NET_ERRORS]),
-
-            (['kube_replication_controller:kube-dns-v11'], [PODS]),
-            (['kube_replication_controller:dd-agent'], [PODS]),
+            (['pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent',
+              'kube_replication_controller:dd-agent'], [MEM, CPU, NET, DISK, NET_ERRORS]),
         ]
 
         for m, _type in METRICS:
