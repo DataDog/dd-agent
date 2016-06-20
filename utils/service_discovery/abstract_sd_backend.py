@@ -41,7 +41,7 @@ class AbstractSDBackend(object):
             for key in tpl:
                 # iterate over template variables found in the templates
                 for var in self.PLACEHOLDER_REGEX.findall(str(tpl[key])):
-                    var_value = variables[var.strip('%')]
+                    var_value = variables.get(var.strip('%'))
                     if var_value is not None:
                         # if the variable is found in a list (for example {'tags': ['%%tags%%', 'env:prod']})
                         # we need to iterate over its elements

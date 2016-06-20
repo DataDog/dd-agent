@@ -62,22 +62,21 @@ class SDDockerBackend(AbstractSDBackend):
         if ip_addr:
             return ip_addr
 
-        else:
-            if is_k8s():
-                # kubernetes case
-                log.debug("Couldn't find the IP address for container %s (%s), "
-                          "using the kubernetes way." % (c_id[:12], c_img))
-                pod_list = self.kubeutil.retrieve_pods_list().get('items', [])
-                for pod in pod_list:
-                    pod_ip = pod.get('status', {}).get('podIP')
-                    if pod_ip is None:
-                        continue
-                    else:
-                        c_statuses = pod.get('status', {}).get('containerStatuses', [])
-                        for status in c_statuses:
-                            # compare the container id with those of containers in the current pod
-                            if c_id == status.get('containerID', '').split('//')[-1]:
-                                return pod_ip
+        if is_k8s():
+            # kubernetes case
+            log.debug("Couldn't find the IP address for container %s (%s), "
+                      "using the kubernetes way." % (c_id[:12], c_img))
+            pod_list = self.kubeutil.retrieve_pods_list().get('items', [])
+            for pod in pod_list:
+                pod_ip = pod.get('status', {}).get('podIP')
+                if pod_ip is None:
+                    continue
+                else:
+                    c_statuses = pod.get('status', {}).get('containerStatuses', [])
+                    for status in c_statuses:
+                        # compare the container id with those of containers in the current pod
+                        if c_id == status.get('containerID', '').split('//')[-1]:
+                            return pod_ip
 
         log.error("No IP address was found for container %s (%s)" % (c_id[:12], c_img))
         return None
@@ -88,29 +87,27 @@ class SDDockerBackend(AbstractSDBackend):
             return None
         tpl_parts = tpl_var.split('_')
 
-        # no specifier, try to pick the bridge key, falls back to the value of the last key
+        # no specifier
         if len(tpl_parts) < 2:
-            log.debug("No key was passed for template variable %s." % tpl_var)
-            if 'bridge' in ip_dict:
-                log.debug("Using the bridge network instead.")
-                return ip_dict['bridge']
-            else:
-                last_key = sorted(ip_dict.iterkeys())[-1]
-                log.debug("Trying with the last key: '%s' instead." % last_key)
-                return ip_dict[last_key]
+            log.warning("No key was passed for template variable %s." % tpl_var)
+            return self._get_fallback_ip(ip_dict)
         else:
             res = ip_dict.get(tpl_parts[-1])
             if res is None:
                 log.warning("The key passed for template variable %s was not found." % tpl_var)
-                if 'bridge' in ip_dict:
-                    log.warning("Using the bridge network instead.")
-                    return ip_dict['bridge']
-                else:
-                    last_key = sorted(ip_dict.iterkeys())[-1]
-                    log.warning("Trying with the last key: '%s' instead." % last_key)
-                    return ip_dict[last_key]
+                return self._get_fallback_ip(ip_dict)
             else:
                 return res
+
+    def _get_fallback_ip(self, ip_dict):
+        """try to pick the bridge key, falls back to the value of the last key"""
+        if 'bridge' in ip_dict:
+            log.warning("Using the bridge network.")
+            return ip_dict['bridge']
+        else:
+            last_key = sorted(ip_dict.iterkeys())[-1]
+            log.warning("Trying with the last key: '%s'." % last_key)
+            return ip_dict[last_key]
 
     def _get_port(self, container_inspect, tpl_var):
         """Extract a port from a container_inspect or the k8s API given a template variable."""
@@ -184,7 +181,7 @@ class SDDockerBackend(AbstractSDBackend):
 
         return tags
 
-    def _get_additional_tags(self, container_inspect, tpl_var):
+    def _get_additional_tags(self, container_inspect, *args):
         tags = []
         if is_k8s():
             pod_metadata = self._get_kube_config(container_inspect.get('Id'), 'metadata')
