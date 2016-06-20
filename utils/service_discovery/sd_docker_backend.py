@@ -12,7 +12,7 @@ from utils.kubeutil import KubeUtil, is_k8s
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store, TRACE_CONFIG
 
-DATADOG_ID = 'datadog_id'
+DATADOG_ID = 'com.datadoghq.sd.check.id'
 log = logging.getLogger(__name__)
 
 
