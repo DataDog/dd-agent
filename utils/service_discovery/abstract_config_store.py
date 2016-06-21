@@ -106,7 +106,7 @@ class AbstractConfigStore(object):
 
         if len(check_names) != len(init_config_tpls) or len(check_names) != len(instance_tpls):
             log.error('Malformed configuration template: check_names, init_configs '
-                      'and instances are not all the same length. Container with identifier {0} '
+                      'and instances are not all the same length. Container with identifier {} '
                       'will not be configured by the service discovery'.format(identifier))
             return []
 
@@ -125,7 +125,7 @@ class AbstractConfigStore(object):
                 source = CONFIG_FROM_TEMPLATE
                 check_names, init_config_tpls, instance_tpls = res
             else:
-                log.debug("Could not find directory {0} in the config store, "
+                log.debug("Could not find directory {} in the config store, "
                           "trying to convert to the old format...".format(identifier))
                 legacy_ident = identifier.split(':')[0].split('/')[-1]
                 res = self._issue_read(legacy_ident)
@@ -137,7 +137,7 @@ class AbstractConfigStore(object):
         except (KeyError, TimeoutError, json.JSONDecodeError) as ex:
             # this is kind of expected, it means that no template was provided for this container
             if isinstance(ex, KeyError):
-                log.debug("Could not find directory {0} in the config store, "
+                log.debug("Could not find directory {} in the config store, "
                           "trying to auto-configure a check...".format(identifier))
             # this case is not expected, the agent can't reach the config store
             if isinstance(ex, TimeoutError):

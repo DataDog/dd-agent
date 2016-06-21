@@ -160,7 +160,7 @@ class SDDockerBackend(AbstractSDBackend):
                         else:
                             configs[check_name] = (init_config, [instance])
                     else:
-                        conflict_init_msg = 'Different versions of `init_config` found for check {0}. ' \
+                        conflict_init_msg = 'Different versions of `init_config` found for check {}. ' \
                             'Keeping the first one found.'
                         if trace_config:
                             if configs[check_name][1][0] != init_config:
@@ -177,7 +177,7 @@ class SDDockerBackend(AbstractSDBackend):
 
     def get_config_id(self, image, labels):
         """Look for a DATADOG_ID label, return its value or the image name if missing"""
-        return labels.get(DATADOG_ID) if DATADOG_ID in labels else image
+        return labels.get(DATADOG_ID) or image
 
     def _get_check_configs(self, c_id, identifier, trace_config=False):
         """Retrieve configuration templates and fill them with data pulled from docker and tags."""
