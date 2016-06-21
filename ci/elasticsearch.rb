@@ -12,12 +12,18 @@ def es_rootdir
   "#{ENV['INTEGRATIONS_DIR']}/es_#{es_version}"
 end
 
+def es_bin
+  "#{es_rootdir}/bin/elasticsearch"
+end
+
 namespace :ci do
   namespace :elasticsearch do |flavor|
     task before_install: ['ci:common:before_install']
 
     task install: ['ci:common:install'] do
-      unless Dir.exist? File.expand_path(es_rootdir)
+      unless File.exist? es_bin
+        # cleanup dirty states
+        sh %(rm -rf #{es_rootdir})
         # Downloads
         # https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-#{es_version}.tar.gz
         sh %(curl -s -L\
@@ -35,7 +41,7 @@ namespace :ci do
       Process.detach(pid)
       sh %(echo #{pid} > $VOLATILE_DIR/elasticsearch.pid)
       # Waiting for elaticsearch to start
-      Wait.for 'http://localhost:9200', 15
+      Wait.for 'http://localhost:9200', 20
       # Create an index in ES
       http = Net::HTTP.new('localhost', 9200)
       resp = http.send_request('PUT', '/datadog/')
