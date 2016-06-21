@@ -111,6 +111,7 @@ class TestKubernetes(AgentCheckTest):
             (['kube_replication_controller:redis-slave'], [PODS]),
             (['kube_replication_controller:frontend'], [PODS]),
             (['kube_replication_controller:heapster-v11'], [PODS]),
+            ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
         for m, _type in METRICS:
             for tags, types in expected_tags:
@@ -157,6 +158,7 @@ class TestKubernetes(AgentCheckTest):
             (['kube_replication_controller:redis-slave'], [PODS]),
             (['kube_replication_controller:frontend'], [PODS]),
             (['kube_replication_controller:heapster-v11'], [PODS]),
+            ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
 
         for m, _type in METRICS:
@@ -205,13 +207,13 @@ class TestKubernetes(AgentCheckTest):
         expected_tags = [
             (['container_name:/kubelet', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
             (['container_name:k8s_POD.35220667_dd-agent-1rxlh_default_12c7be82-33ca-11e6-ac8f-42010af00003_f5cf585f',
-              'pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent',
-              'kube_replication_controller:dd-agent'], [MEM, CPU, FS, NET, NET_ERRORS]),
+              'pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar',
+              'kube_bar:baz', 'kube_replication_controller:dd-agent'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['container_name:/', 'pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['container_name:/system', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
             (['container_name:k8s_dd-agent.7b520f3f_dd-agent-1rxlh_default_12c7be82-33ca-11e6-ac8f-42010af00003_321fecb4',
-              'pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent',
-              'kube_replication_controller:dd-agent'], [LIM, REQ, MEM, CPU, NET, DISK, DISK_USAGE]),
+              'pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar',
+              'kube_bar:baz', 'kube_replication_controller:dd-agent'], [LIM, REQ, MEM, CPU, NET, DISK, DISK_USAGE]),
             (['kube_replication_controller:dd-agent'], [PODS]),
             ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
@@ -249,8 +251,12 @@ class TestKubernetes(AgentCheckTest):
         metric_suffix = ["count", "avg", "median", "max", "95percentile"]
 
         expected_tags = [
-            (['pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent',
-              'kube_replication_controller:dd-agent'], [MEM, CPU, NET, DISK, NET_ERRORS]),
+            (['pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar',
+              'kube_bar:baz',
+              'kube_replication_controller:dd-agent'], [MEM, CPU, NET, DISK, NET_ERRORS, DISK_USAGE, LIM, REQ]),
+            (['pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
+            (['kube_replication_controller:dd-agent'], [PODS]),
+            ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
 
         for m, _type in METRICS:
@@ -315,7 +321,7 @@ class TestKubeutil(unittest.TestCase):
         pods = json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))
         res = self.kubeutil.extract_kube_labels(pods, ['foo'])
         labels = set(inn for out in res.values() for inn in out)
-        self.assertEqual(len(labels), 5)
+        self.assertEqual(len(labels), 3)
         res = self.kubeutil.extract_kube_labels(pods, ['k8s-app'])
         labels = set(inn for out in res.values() for inn in out)
         self.assertEqual(len(labels), 3)
@@ -365,8 +371,8 @@ class TestKubeutil(unittest.TestCase):
         self.assertEqual(len(res.get('items')), 0)
 
         pods = json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))
-        res = self.kubeutil.filter_pods_list(pods, '10.142.0.4')
-        self.assertEqual(len(res.get('items')), 2)
+        res = self.kubeutil.filter_pods_list(pods, '10.240.0.5')
+        self.assertEqual(len(res.get('items')), 1)
 
         pods = json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))
         res = self.kubeutil.filter_pods_list(pods, 'foo')
@@ -400,17 +406,17 @@ class TestKubeutil(unittest.TestCase):
         Test with both 1.1 and 1.2 version payloads
         """
         with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list') as mock_pods:
-            self.kubeutil.host_name = 'kube-dns-v11-63tae'
-
+            self.kubeutil.host_name = 'dd-agent-1rxlh'
             mock_pods.return_value = json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))
             self.kubeutil._fetch_host_data()
-            self.assertEqual(self.kubeutil._node_ip, '10.142.0.4')
-            self.assertEqual(self.kubeutil._node_name, 'gke-cluster-remi-62c0dd29-node-29lx')
+            self.assertEqual(self.kubeutil._node_ip, '10.240.0.9')
+            self.assertEqual(self.kubeutil._node_name, 'kubernetes-massi-minion-k23m')
 
+            self.kubeutil.host_name = 'heapster-v11-l8sh1'
             mock_pods.return_value = json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False))
             self.kubeutil._fetch_host_data()
-            self.assertEqual(self.kubeutil._node_ip, '10.142.0.4')
-            self.assertEqual(self.kubeutil._node_name, 'gke-cluster-remi-62c0dd29-node-29lx')
+            self.assertEqual(self.kubeutil._node_ip, '10.240.0.9')
+            self.assertEqual(self.kubeutil._node_name, 'gke-cluster-1-8046fdfa-node-ld35')
 
     def test__get_default_router(self):
         with mock.patch('utils.kubeutil.get_procfs_netroute') as mock_procfs:
