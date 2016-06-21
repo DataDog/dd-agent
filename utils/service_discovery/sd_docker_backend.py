@@ -34,9 +34,20 @@ class SDDockerBackend(AbstractSDBackend):
         self.VAR_MAPPING = {
             'host': self._get_host,
             'port': self._get_ports,
+            'hport': self._get_host_ports,
             'tags': self._get_additional_tags,
         }
         AbstractSDBackend.__init__(self, agentConfig)
+
+    def _get_host_ports(self, container_inspect):
+        hports = []
+        for p in self._get_ports(container_inspect):
+            ps = container_inspect['NetworkSettings']['Ports'].get('%s/tcp' % p)
+            if ps:
+                hports.append(ps[0].get('HostPort'))
+            else:
+                hports.append(None)
+        return hports
 
     def _get_host(self, container_inspect):
         """Extract the host IP from a docker inspect object, or the kubelet API."""
