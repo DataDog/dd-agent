@@ -76,7 +76,7 @@ class TestServiceDiscovery(unittest.TestCase):
         u'Image': u'nginx',
         u'Name': u'/nginx',
         u'NetworkSettings': {u'IPAddress': u'172.17.0.21', u'Ports': {u'443/tcp': None, u'80/tcp': None}},
-        u'Labels': {'datadog_id': 'custom-nginx'}
+        u'Labels': {'com.datadoghq.sd.check.id': 'custom-nginx'}
     }
     kubernetes_container_inspect = {
         u'Id': u'389dc8a4361f3d6c866e9e9a7b6972b26a31c589c4e2f097375d55656a070bc9',
