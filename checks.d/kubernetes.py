@@ -306,7 +306,7 @@ class Kubernetes(AgentCheck):
                             continue
                         self.publish_gauge(self, '{}.{}.requests'.format(NAMESPACE, request), values[0], _tags)
                 except (KeyError, AttributeError) as e:
-                    self.log.error("Unable to retrieve container requests for %s: %s", c_id, e)
+                    self.log.error("Unable to retrieve container requests for %s: %s", c_name, e)
                     self.log.debug(container)
 
         self._update_pods_metrics(instance, pods_list)
