@@ -108,12 +108,10 @@ class DockerUtil:
 
     def get_hostname(self):
         """Return the `Name` param from `docker info` to use as the hostname"""
-        if self.is_dockerized():
-            try:
-                return self.client.info().get("Name")
-            except Exception:
-                log.critical("Unable to find docker host hostname")
-
+        try:
+            return self.client.info().get("Name")
+        except Exception:
+            log.critical("Unable to find docker host hostname")
         return None
 
     @property
