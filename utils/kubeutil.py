@@ -93,15 +93,6 @@ class KubeUtil():
 
         return kube_labels
 
-    def get_pod_annotations(self, pod_name):
-        """Return the annotations for a pod."""
-        if pod_name:
-            pod_list = self.retrieve_pods_list()
-            for pod in pod_list.get('items') or []:
-                if pod.get('metadata').get('name') == pod_name:
-                    return pod.get('metadata', {}).get('annotations', {})
-        return {}
-
     def retrieve_pods_list(self):
         return retrieve_json(self.pods_list_url)
 

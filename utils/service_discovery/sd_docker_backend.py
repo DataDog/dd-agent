@@ -13,7 +13,6 @@ from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store, TRACE_CONFIG
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
-POD_NAME_LABEL = 'io.kubernetes.pod.name'
 log = logging.getLogger(__name__)
 
 
@@ -147,7 +146,7 @@ class SDDockerBackend(AbstractSDBackend):
         for image, cid, labels in containers:
             try:
                 # value of the DATADOG_ID tag or the image name if the label is missing
-                identifier = self.get_config_id(cid, image, labels)
+                identifier = self.get_config_id(image, labels)
                 check_configs = self._get_check_configs(cid, identifier, trace_config=trace_config) or []
                 for conf in check_configs:
                     if trace_config and conf is not None:
@@ -176,13 +175,8 @@ class SDDockerBackend(AbstractSDBackend):
                               ' discovery failed, leaving it alone.' % (cid[:12], image))
         return configs
 
-    def get_config_id(self, cid, image, labels):
+    def get_config_id(self, image, labels):
         """Look for a DATADOG_ID label, return its value or the image name if missing"""
-        # in kubernetes this must be set in annotations as labels can't be set to containers
-        if is_k8s():
-            pod_name = labels.get(POD_NAME_LABEL)
-            annotations = self.kubeutil.get_pod_annotations(pod_name)
-            return annotations.get(DATADOG_ID) or image
         return labels.get(DATADOG_ID) or image
 
     def _get_check_configs(self, c_id, identifier, trace_config=False):
