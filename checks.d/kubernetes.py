@@ -46,6 +46,7 @@ FUNC_MAP = {
     RATE: {True: HISTORATE, False: RATE}
 }
 
+
 class Kubernetes(AgentCheck):
     """ Collect metrics and events from kubelet """
 
