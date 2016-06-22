@@ -120,7 +120,14 @@ class AbstractConfigStore(object):
     def read_config_from_store(self, identifier):
         """Try to read from the config store, falls back to auto-config in case of failure."""
         try:
-            res = self._issue_read(identifier)
+            try:
+                res = self._issue_read(identifier)
+            except KeyNotFound:
+                log.debug("Could not find directory {} in the config store, "
+                          "trying to convert to the old format.".format(identifier))
+                legacy_ident = identifier.split(':')[0].split('/')[-1]
+                res = self._issue_read(legacy_ident)
+
             if res and len(res) == 3:
                 source = CONFIG_FROM_TEMPLATE
                 check_names, init_config_tpls, instance_tpls = res
@@ -134,9 +141,9 @@ class AbstractConfigStore(object):
                     check_names, init_config_tpls, instance_tpls = res
                 else:
                     raise KeyError
-        except (KeyError, TimeoutError, json.JSONDecodeError) as ex:
+        except (KeyError, KeyNotFound, TimeoutError, json.JSONDecodeError) as ex:
             # this is kind of expected, it means that no template was provided for this container
-            if isinstance(ex, KeyError):
+            if isinstance(ex, KeyError) or isinstance(ex, KeyNotFound):
                 log.debug("Could not find directory {} in the config store, "
                           "trying to auto-configure a check...".format(identifier))
             # this case is not expected, the agent can't reach the config store
