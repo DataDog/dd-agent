@@ -44,6 +44,8 @@ from config import get_config, get_version
 from daemon import AgentSupervisor, Daemon
 from util import chunks, get_hostname, get_uuid, plural
 from utils.pidfile import PidFile
+from utils.net import inet_pton
+from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
 
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")
@@ -129,6 +131,48 @@ def serialize_metrics(metrics, hostname):
 
 def serialize_event(event):
     return json.dumps(event)
+
+
+def mapto_v6(addr):
+    """
+    Map an IPv4 address to an IPv6 one.
+    If the address is already an IPv6 one, just return it.
+    Return None if the IP address is not valid.
+    """
+    try:
+        inet_pton(socket.AF_INET, addr)
+        return '::ffff:{}'.format(addr)
+    except socket.error:
+        try:
+            inet_pton(socket.AF_INET6, addr)
+            return addr
+        except socket.error:
+            log.debug('%s is not a valid IP address.', addr)
+
+    return None
+
+
+def get_socket_address(host, port):
+    """
+    Gather informations to open the server socket.
+    Try to resolve the name giving precedence to IPv6, fallback to
+    IPv4, still mapping the host to an IPv6 address.
+    """
+    try:
+        info = socket.getaddrinfo(host, port, socket.AF_INET6, socket.SOCK_DGRAM)
+    except socket.gaierror:
+        try:
+            info = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_DGRAM)
+        except socket.gaierror as e:
+            log.error('Error processing host %s and port %s: %s', host, port, e)
+            return None
+
+    # we get the first item of the list and map the address for IPv4 hosts
+    sockaddr = info[0][-1]
+    if info[0][0] == socket.AF_INET:
+        mapped_host = mapto_v6(sockaddr[0])
+        sockaddr = (mapped_host, sockaddr[1], 0, 0)
+    return sockaddr
 
 
 class Reporter(threading.Thread):
@@ -292,11 +336,9 @@ class Server(object):
     """
     A statsd udp server.
     """
-
     def __init__(self, metrics_aggregator, host, port, forward_to_host=None, forward_to_port=None):
-        self.host = host
-        self.port = int(port)
-        self.address = (self.host, self.port)
+        self.sockaddr = get_socket_address(host, int(port))
+        self.socket = None
         self.metrics_aggregator = metrics_aggregator
         self.buffer_size = 1024 * 8
 
@@ -318,20 +360,22 @@ class Server(object):
                 log.exception("Error while setting up connection to external statsd server")
 
     def start(self):
-        """ Run the server. """
-        # Bind to the UDP socket.
-        # IPv4 only
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        """
+        Run the server.
+        """
+        # Bind to the UDP socket in IPv4 and IPv6 compatibility mode
+        self.socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        # Configure the socket so that it accepts connections from both
+        # IPv4 and IPv6 networks in a portable manner.
+        self.socket.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
         self.socket.setblocking(0)
-        try:
-            self.socket.bind(self.address)
-        except socket.gaierror:
-            if self.address[0] == 'localhost':
-                log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
-                self.address = ('127.0.0.1', self.address[1])
-                self.socket.bind(self.address)
 
-        log.info('Listening on host & port: %s' % str(self.address))
+        try:
+            self.socket.bind(self.sockaddr)
+        except TypeError:
+            log.error('Unable to start Dogstatsd server loop.')
+
+        log.info('Listening on socket address: %s', str(self.sockaddr))
 
         # Inline variables for quick look-up.
         buffer_size = self.buffer_size
