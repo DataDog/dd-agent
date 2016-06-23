@@ -41,14 +41,25 @@ class AbstractSDBackend(object):
             for key in tpl:
                 # iterate over template variables found in the templates
                 for var in self.PLACEHOLDER_REGEX.findall(str(tpl[key])):
-                    if var.strip('%') in variables and variables[var.strip('%')]:
+                    var_value = variables.get(var.strip('%'))
+                    if var_value is not None:
                         # if the variable is found in a list (for example {'tags': ['%%tags%%', 'env:prod']})
                         # we need to iterate over its elements
                         if isinstance(tpl[key], list):
-                            for idx, val in enumerate(tpl[key]):
-                                tpl[key][idx] = val.replace(var, variables[var.strip('%')])
+                            # if the variable is also a list we can just combine both lists
+                            if isinstance(var_value, list):
+                                tpl[key].remove(var)
+                                tpl[key] += var_value
+                                # remove dups
+                                tpl[key] = list(set(tpl[key]))
+                            else:
+                                for idx, val in enumerate(tpl[key]):
+                                    tpl[key][idx] = val.replace(var, var_value)
                         else:
-                            tpl[key] = tpl[key].replace(var, variables[var.strip('%')])
+                            if isinstance(var_value, list):
+                                tpl[key] = var_value
+                            else:
+                                tpl[key] = tpl[key].replace(var, var_value)
                     else:
                         log.warning('Failed to interpolate variable {0} for the {1} parameter.'
                                     ' Dropping this configuration.'.format(var, key))
