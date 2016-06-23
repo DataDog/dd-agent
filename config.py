@@ -876,18 +876,24 @@ def _service_disco_configs(agentConfig):
     """ Retrieve all the service disco configs and return their conf dicts
     """
     if agentConfig.get('service_discovery') and agentConfig.get('service_discovery_backend') in SD_BACKENDS:
-        sd_backend = get_sd_backend(agentConfig=agentConfig)
-        service_disco_configs = sd_backend.get_configs()
+        try:
+            log.info("Fetching service discovery check configurations.")
+            sd_backend = get_sd_backend(agentConfig=agentConfig)
+            service_disco_configs = sd_backend.get_configs()
+        except Exception:
+            log.exception("Loading service discovery configurations failed.")
     else:
         service_disco_configs = {}
 
     return service_disco_configs
+
 
 def _conf_path_to_check_name(conf_path):
     f = os.path.splitext(os.path.split(conf_path)[1])
     if f[1] and f[1] == ".default":
         f = os.path.splitext(f[0])
     return f[0]
+
 
 def get_checks_places(osname, agentConfig):
     """ Return a list of methods which, when called with a check name, will each return a check path to inspect

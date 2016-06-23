@@ -173,16 +173,3 @@ class AbstractConfigStore(object):
             self.previous_config_index = config_index
             return True
         return False
-
-
-class StubStore(AbstractConfigStore):
-    """Used when no valid config store was found. Allow to use auto_config."""
-    def _extract_settings(self, config):
-        pass
-
-    def get_client(self):
-        pass
-
-    def crawl_config_template(self):
-        # There is no user provided templates in auto_config mode
-        return False

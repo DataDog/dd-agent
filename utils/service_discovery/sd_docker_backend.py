@@ -32,23 +32,41 @@ class SDDockerBackend(AbstractSDBackend):
             self.config_store = get_config_store(agentConfig=agentConfig)
 
         self.VAR_MAPPING = {
-            'host': self._get_host,
-            'port': self._get_ports,
+            'host': self._get_host_address,
+            'port': self._get_port,
             'tags': self._get_additional_tags,
         }
+
         AbstractSDBackend.__init__(self, agentConfig)
 
-    def _get_host(self, container_inspect):
-        """Extract the host IP from a docker inspect object, or the kubelet API."""
-        ip_addr = container_inspect.get('NetworkSettings', {}).get('IPAddress')
-        if not ip_addr:
-            if not is_k8s():
-                return
+    def _get_host_address(self, c_inspect, tpl_var):
+        """Extract the container IP from a docker inspect object, or the kubelet API."""
+        c_id, c_img = c_inspect.get('Id', ''), c_inspect.get('Config', {}).get('Image', '')
+        tpl_parts = tpl_var.split('_')
+
+        # a specifier was given
+        if len(tpl_parts) > 1:
+            networks = c_inspect.get('NetworkSettings', {}).get('Networks') or {}
+            ip_dict = {}
+            for net_name, net_desc in networks.iteritems():
+                ip = net_desc.get('IPAddress')
+                if ip:
+                    ip_dict[net_name] = ip
+            ip_addr = self._extract_ip_from_networks(ip_dict, tpl_var)
+            if ip_addr:
+                return ip_addr
+
+        # try to get the bridge IP address
+        log.debug("No network found for container %s (%s), trying with IPAddress field" % (c_id[:12], c_img))
+        ip_addr = c_inspect.get('NetworkSettings', {}).get('IPAddress')
+        if ip_addr:
+            return ip_addr
+
+        if is_k8s():
             # kubernetes case
-            log.debug("Didn't find the IP address for container %s (%s), using the kubernetes way." %
-                      (container_inspect.get('Id', '')[:12], container_inspect.get('Config', {}).get('Image', '')))
+            log.debug("Couldn't find the IP address for container %s (%s), "
+                      "using the kubernetes way." % (c_id[:12], c_img))
             pod_list = self.kubeutil.retrieve_pods_list().get('items', [])
-            c_id = container_inspect.get('Id')
             for pod in pod_list:
                 pod_ip = pod.get('status', {}).get('podIP')
                 if pod_ip is None:
@@ -58,23 +76,53 @@ class SDDockerBackend(AbstractSDBackend):
                     for status in c_statuses:
                         # compare the container id with those of containers in the current pod
                         if c_id == status.get('containerID', '').split('//')[-1]:
-                            ip_addr = pod_ip
+                            return pod_ip
 
-        return ip_addr
+        log.error("No IP address was found for container %s (%s)" % (c_id[:12], c_img))
+        return None
 
-    def _get_ports(self, container_inspect):
-        """Extract a list of available ports from a docker inspect object. Sort them numerically."""
+    def _extract_ip_from_networks(self, ip_dict, tpl_var):
+        """Extract a single IP from a dictionary made of network names and IPs."""
+        if not ip_dict:
+            return None
+        tpl_parts = tpl_var.split('_')
+
+        # no specifier
+        if len(tpl_parts) < 2:
+            log.warning("No key was passed for template variable %s." % tpl_var)
+            return self._get_fallback_ip(ip_dict)
+        else:
+            res = ip_dict.get(tpl_parts[-1])
+            if res is None:
+                log.warning("The key passed for template variable %s was not found." % tpl_var)
+                return self._get_fallback_ip(ip_dict)
+            else:
+                return res
+
+    def _get_fallback_ip(self, ip_dict):
+        """try to pick the bridge key, falls back to the value of the last key"""
+        if 'bridge' in ip_dict:
+            log.warning("Using the bridge network.")
+            return ip_dict['bridge']
+        else:
+            last_key = sorted(ip_dict.iterkeys())[-1]
+            log.warning("Trying with the last key: '%s'." % last_key)
+            return ip_dict[last_key]
+
+    def _get_port(self, container_inspect, tpl_var):
+        """Extract a port from a container_inspect or the k8s API given a template variable."""
         c_id = container_inspect.get('Id', '')
+
         try:
             ports = map(lambda x: x.split('/')[0], container_inspect['NetworkSettings']['Ports'].keys())
         except (IndexError, KeyError, AttributeError):
-            log.debug("Didn't find the port for container %s (%s), trying the kubernetes way." %
-                      (c_id[:12], container_inspect.get('Config', {}).get('Image', '')))
-            # first we try to get it from the docker API
-            # it works if the image has an EXPOSE instruction
+            # try to get ports from the docker API. Works if the image has an EXPOSE instruction
             ports = map(lambda x: x.split('/')[0], container_inspect['Config'].get('ExposedPorts', {}).keys())
+
             # if it failed, try with the kubernetes API
             if not ports and is_k8s():
+                log.debug("Didn't find the port for container %s (%s), trying the kubernetes way." %
+                          (c_id[:12], container_inspect.get('Config', {}).get('Image', '')))
                 co_statuses = self._get_kube_config(c_id, 'status').get('containerStatuses', [])
                 c_name = None
                 for co in co_statuses:
@@ -86,7 +134,27 @@ class SDDockerBackend(AbstractSDBackend):
                     if co.get('name') == c_name:
                         ports = map(lambda x: str(x.get('containerPort')), co.get('ports', []))
         ports = sorted(ports, key=lambda x: int(x))
-        return ports
+        return self._extract_port_from_list(ports, tpl_var)
+
+    def _extract_port_from_list(self, ports, tpl_var):
+        if not ports:
+            return None
+
+        tpl_parts = tpl_var.split('_')
+
+        if len(tpl_parts) == 1:
+            log.debug("No index was passed for template variable %s. "
+                      "Trying with the last element." % tpl_var)
+            return ports[-1]
+
+        try:
+            idx = tpl_parts[-1]
+            return ports[int(idx)]
+        except ValueError:
+            log.error("Port index is not an integer. Using the last element instead.")
+        except IndexError:
+            log.error("Port index is out of range. Using the last element instead.")
+        return ports[-1]
 
     def get_tags(self, c_inspect):
         """Extract useful tags from docker or platform APIs. These are collected by default."""
@@ -113,11 +181,15 @@ class SDDockerBackend(AbstractSDBackend):
 
         return tags
 
-    def _get_additional_tags(self, container_inspect):
+    def _get_additional_tags(self, container_inspect, *args):
         tags = []
         if is_k8s():
             pod_metadata = self._get_kube_config(container_inspect.get('Id'), 'metadata')
             pod_spec = self._get_kube_config(container_inspect.get('Id'), 'spec')
+            if pod_metadata is None or pod_spec is None:
+                log.warning("Failed to fetch pod metadata or pod spec for container %s."
+                            " Additional Kubernetes tags may be missing." % container_inspect.get('Id', '')[:12])
+                return []
             tags.append('node_name:%s' % pod_spec.get('nodeName'))
             tags.append('pod_name:%s' % pod_metadata.get('name'))
         return tags
@@ -168,8 +240,8 @@ class SDDockerBackend(AbstractSDBackend):
                                 log.warning(conflict_init_msg.format(check_name))
                             configs[check_name][1].append(instance)
             except Exception:
-                log.exception('Building config for container %s based on image %s using service'
-                              ' discovery failed, leaving it alone.' % (cid[:12], image))
+                log.exception('Building config for container %s based on image %s using service '
+                              'discovery failed, leaving it alone.' % (cid[:12], image))
         return configs
 
     def _get_check_configs(self, c_id, image, trace_config=False):
@@ -245,34 +317,30 @@ class SDDockerBackend(AbstractSDBackend):
         return templates
 
     def _fill_tpl(self, inspect, instance_tpl, variables, tags=None):
-        """Add container tags to instance templates and build a """
-        """dict from template variable names and their values."""
+        """Add container tags to instance templates and build a
+           dict from template variable names and their values."""
         var_values = {}
+        c_id, c_image = inspect.get('Id', ''), inspect.get('Config', {}).get('Image', '')
 
         # add default tags to the instance
         if tags:
-            tags += instance_tpl.get('tags', [])
+            tpl_tags = instance_tpl.get('tags', [])
+            tags += tpl_tags if isinstance(tpl_tags, list) else [tpl_tags]
             instance_tpl['tags'] = list(set(tags))
 
-        for v in variables:
-            # variables can be suffixed with an index in case a list is found
-            var_parts = v.split('_')
-            if var_parts[0] in self.VAR_MAPPING:
+        for var in variables:
+            # variables can be suffixed with an index in case several values are found
+            if var.split('_')[0] in self.VAR_MAPPING:
                 try:
-                    res = self.VAR_MAPPING[var_parts[0]](inspect)
-                    if not res:
-                        raise ValueError("Invalid value for variable %s." % var_parts[0])
-                    # if an index is found in the variable, use it to select a value
-                    if len(var_parts) > 1 and isinstance(res, list) and int(var_parts[-1]) < len(res):
-                        var_values[v] = res[int(var_parts[-1])]
-                    # if no valid index was found but we have a list, return the last element
-                    elif isinstance(res, list):
-                        var_values[v] = res[-1]
-                    else:
-                        var_values[v] = res
+                    res = self.VAR_MAPPING[var.split('_')[0]](inspect, var)
+                    if res is None:
+                        raise ValueError("Invalid value for variable %s." % var)
+                    var_values[var] = res
                 except Exception as ex:
-                    log.error("Could not find a value for the template variable %s: %s" % (v, str(ex)))
+                    log.error("Could not find a value for the template variable %s for container %s "
+                              "(%s): %s" % (var, c_id[:12], c_image, str(ex)))
             else:
-                log.error("No method was found to interpolate template variable %s." % v)
+                log.error("No method was found to interpolate template variable %s for container %s "
+                          "(%s)." % (var, c_id[:12], c_image))
 
         return instance_tpl, var_values
