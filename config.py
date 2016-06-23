@@ -784,6 +784,7 @@ def get_win32service_file(osname, filename):
 
 def get_ssl_certificate(osname, filename):
     # The SSL certificate is needed by tornado in case of connection through a proxy
+    # Also used by flare's requests on Windows
     if osname == 'windows':
         if hasattr(sys, 'frozen'):
             # we're frozen - from py2exe

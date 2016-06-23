@@ -46,12 +46,16 @@ namespace :ci do
     task before_script: ['ci:common:before_script']
 
     task lint: ['rubocop'] do
-      sh %(echo "PWD IS")
-      sh %(pwd)
-      sh %(flake8)
-      sh %(find . -name '*.py' -not\
-             \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' -or -path '*.git*' \\)\
-             | xargs -n 1 pylint --rcfile=./.pylintrc)
+      if ENV['SKIP_LINT']
+        puts 'Skipping lint'.yellow
+      else
+        sh %(echo "PWD IS")
+        sh %(pwd)
+        sh %(flake8)
+        sh %(find . -name '*.py' -not\
+               \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' -or -path '*.git*' \\)\
+               | xargs -n 1 pylint --rcfile=./.pylintrc)
+      end
     end
 
     task script: ['ci:common:script', :coverage, :lint] do

@@ -885,5 +885,8 @@ class TestUnitDogStatsd(unittest.TestCase):
         # Clear the env variables set
         del env["http_proxy"]
         del env["https_proxy"]
-        del env["HTTP_PROXY"]
-        del env["HTTPS_PROXY"]
+        if 'HTTP_PROXY' in env:
+            # on some platforms (e.g. Windows) env var names are case-insensitive, so we have to avoid
+            # deleting the same key twice
+            del env["HTTP_PROXY"]
+            del env["HTTPS_PROXY"]

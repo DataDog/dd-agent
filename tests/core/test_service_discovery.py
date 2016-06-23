@@ -3,6 +3,9 @@ import copy
 import mock
 import unittest
 
+# 3p
+from nose.plugins.attrib import attr
+
 # project
 from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.consul_config_store import ConsulStore
@@ -64,6 +67,7 @@ def issue_read(identifier):
     return TestServiceDiscovery.mock_tpls.get(identifier)
 
 
+@attr('unix')
 class TestServiceDiscovery(unittest.TestCase):
     docker_container_inspect = {
         u'Id': u'69ff25598b2314d1cdb7752cc3a659fb1c1352b32546af4f1454321550e842c0',
