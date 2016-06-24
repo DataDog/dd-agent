@@ -201,7 +201,7 @@ class DockerDaemon(AgentCheck):
 
             self.ecs_tags = {}
 
-        except Exception, e:
+        except Exception as e:
             self.log.critical(e)
             self.warning("Initialization failed. Will retry at next iteration")
         else:
@@ -261,7 +261,7 @@ class DockerDaemon(AgentCheck):
             if self.collect_image_size:
                 self._report_image_size(active_images)
 
-        except Exception, e:
+        except Exception as e:
             # It's not an important metric, keep going if it fails
             self.warning("Failed to count Docker images. Exception: {0}".format(e))
 
@@ -277,7 +277,7 @@ class DockerDaemon(AgentCheck):
 
         try:
             containers = self.docker_client.containers(all=True, size=must_query_size)
-        except Exception, e:
+        except Exception as e:
             message = "Unable to list Docker containers: {0}".format(e)
             self.service_check(SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                                message=message)
@@ -561,7 +561,7 @@ class DockerDaemon(AgentCheck):
                         m_func(self, "docker.net.bytes_rcvd", long(x[0]), tags)
                         m_func(self, "docker.net.bytes_sent", long(x[8]), tags)
                         break
-        except Exception, e:
+        except Exception as e:
             # It is possible that the container got stopped between the API call and now
             self.warning("Failed to report IO metrics from file {0}. Exception: {1}".format(proc_net_file, e))
 
@@ -577,7 +577,7 @@ class DockerDaemon(AgentCheck):
         except (socket.timeout, urllib2.URLError):
             self.warning('Timeout when collecting events. Events will be missing.')
             return
-        except Exception, e:
+        except Exception as e:
             self.warning("Unexpected exception when collecting events: {0}. "
                          "Events will be missing".format(e))
             return
@@ -792,12 +792,12 @@ class DockerDaemon(AgentCheck):
                 path = os.path.join(proc_path, folder, 'cgroup')
                 with open(path, 'r') as f:
                     content = [line.strip().split(':') for line in f.readlines()]
-            except IOError, e:
+            except IOError as e:
                 #  Issue #2074
                 self.log.debug("Cannot read %s, "
                                "process likely raced to finish : %s" %
                                (path, str(e)))
-            except Exception, e:
+            except Exception as e:
                 self.warning("Cannot read %s : %s" % (path, str(e)))
                 continue
 
@@ -817,7 +817,7 @@ class DockerDaemon(AgentCheck):
                         continue
                     container_dict[container_id]['_pid'] = folder
                     container_dict[container_id]['_proc_root'] = os.path.join(proc_path, folder)
-            except Exception, e:
+            except Exception as e:
                 self.warning("Cannot parse %s content: %s" % (path, str(e)))
                 continue
         return container_dict

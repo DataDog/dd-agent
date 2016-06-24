@@ -183,7 +183,7 @@ class Dogstream(object):
                 self._gen.next()
                 self.logger.debug("Done dogstream check for file {0}".format(self.log_path))
                 self.logger.debug("Found {0} metric points".format(len(self._values)))
-            except StopIteration, e:
+            except StopIteration as e:
                 self.logger.exception(e)
                 self.logger.warn("Can't tail %s file" % self.log_path)
 
@@ -370,7 +370,7 @@ class DdForwarder(object):
                 ts, count, size = m.groups()
                 self._add_metric(self.QUEUE_SIZE, size, round(float(ts)))
                 self._add_metric(self.QUEUE_COUNT, count, round(float(ts)))
-        except Exception, e:
+        except Exception as e:
             self.logger.exception(e)
 
     def check(self, agentConfig, move_end=True):
@@ -389,7 +389,7 @@ class DdForwarder(object):
             try:
                 self._gen.next()
                 self.logger.debug("Done ddforwarder check for file %s" % self.log_path)
-            except StopIteration, e:
+            except StopIteration as e:
                 self.logger.exception(e)
                 self.logger.warn("Can't tail %s file" % self.log_path)
 

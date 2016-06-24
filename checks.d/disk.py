@@ -94,7 +94,7 @@ class Disk(AgentCheck):
             # Get disk metrics here to be able to exclude on total usage
             try:
                 disk_usage = psutil.disk_usage(part.mountpoint)
-            except Exception, e:
+            except Exception as e:
                 self.log.debug("Unable to get disk metrics for %s: %s",
                                part.mountpoint, e)
                 continue

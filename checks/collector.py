@@ -148,7 +148,7 @@ class AgentPayload(collections.MutableMapping):
                 emitter_status = EmitterStatus(name)
                 try:
                     emitter(payload, log, config, endpoint)
-                except Exception, e:
+                except Exception as e:
                     log.exception("Error running emitter: %s"
                                   % emitter.__name__)
                     emitter_status = EmitterStatus(name, e)
@@ -600,7 +600,7 @@ class Collector(object):
             emitter_status = EmitterStatus(name)
             try:
                 emitter(payload, log, self.agentConfig)
-            except Exception, e:
+            except Exception as e:
                 log.exception("Error running emitter: %s" % emitter.__name__)
                 emitter_status = EmitterStatus(name, e)
             statuses.append(emitter_status)

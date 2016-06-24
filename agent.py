@@ -413,7 +413,7 @@ def main():
         f.collect()
         try:
             f.upload()
-        except Exception, e:
+        except Exception as e:
             print 'The upload failed:\n{0}'.format(str(e))
 
     return 0

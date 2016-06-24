@@ -204,7 +204,7 @@ class TransactionManager(object):
                 log.debug("Flushing transaction %d", tr.get_id())
                 try:
                     tr.flush()
-                except Exception as e:
+                except Exception as e :
                     log.exception(e)
                     self.tr_error(tr)
                 self.flush_next()

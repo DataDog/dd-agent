@@ -194,7 +194,7 @@ class AgentCheckTest(unittest.TestCase):
                 self.check.check(copy.deepcopy(instance))
                 # FIXME: This should be called within the `run` method only
                 self.check._roll_up_instance_metadata()
-            except Exception, e:
+            except Exception as e:
                 # Catch error before re-raising it to be able to get service_checks
                 print "Exception {0} during check".format(e)
                 print traceback.format_exc()
