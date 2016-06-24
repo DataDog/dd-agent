@@ -190,21 +190,23 @@ class Flare(object):
         if self._case_id:
             url = '{0}/{1}'.format(self._url, str(self._case_id))
         url = "{0}?api_key={1}".format(url, self._api_key)
-        requests_options = {
-            'data': {
-                'case_id': self._case_id,
-                'hostname': self._hostname,
-                'email': email
-            },
-            'files': {'flare_file': open(self.tar_path, 'rb')},
-            'timeout': self.TIMEOUT
-        }
+        with open(self.tar_path, 'rb') as flare_file:
+            requests_options = {
+                'data': {
+                    'case_id': self._case_id,
+                    'hostname': self._hostname,
+                    'email': email
+                },
+                'files': {'flare_file': flare_file},
+                'timeout': self.TIMEOUT
+            }
 
-        self.set_proxy(requests_options)
-        self.set_ssl_validation(requests_options)
+            self.set_proxy(requests_options)
+            self.set_ssl_validation(requests_options)
 
-        self._resp = requests.post(url, **requests_options)
-        self._analyse_result()
+            self._resp = requests.post(url, **requests_options)
+            self._analyse_result()
+
         return self._case_id
 
     # Start by preparing the tar file which will contain everything
