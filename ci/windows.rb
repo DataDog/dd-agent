@@ -10,7 +10,15 @@ namespace :ci do
 
     task install: ['ci:common:install']
 
-    task before_script: ['ci:common:before_script']
+    task before_script: ['ci:common:before_script'] do
+      # Set up an IIS website
+      site_name = 'Test-Website-1'
+      site_folder = File.join(ENV['INTEGRATIONS_DIR'], "iis_#{site_name}")
+      sh %(powershell New-Item -ItemType Directory -Force #{site_folder})
+      sh %(powershell Import-Module WebAdministration)
+      # Create the new website
+      sh %(powershell New-Website -Name #{site_name} -Port 8080 -PhysicalPath #{site_folder})
+    end
 
     task script: ['ci:common:script'] do
       this_provides = [

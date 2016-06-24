@@ -21,7 +21,11 @@ cache:
   - C:\projects\dd-agent\.cache
   - C:\projects\dd-agent\vendor\cache
   - C:\projects\dd-agent\embedded
+services:
+  - iis
 install:
+  # Use the 64-bit ruby so that all the Powershell classes are accessible when running shell commands from ruby
+  - set PATH=C:\Ruby22-x64\bin;%PATH%
   - gem install bundler --quiet --no-ri --no-rdoc
   - bundle install
   - bundle package
