@@ -384,7 +384,7 @@ class JMXFetch(object):
 
                 if conf is None:
                     log.warning("%s doesn't have a 'conf' section. Only basic JVM metrics"
-                                " will be collected. %s" % (inst, LINK_TO_DOC))
+                                " will be collected. %s" % (check_name, LINK_TO_DOC))
                 else:
                     if type(conf) != list or len(conf) == 0:
                         raise InvalidJMXConfiguration("'conf' section should be a list"
