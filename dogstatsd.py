@@ -159,10 +159,10 @@ def get_socket_address(host, port):
     IPv4, still mapping the host to an IPv6 address.
     """
     try:
-        info = socket.getaddrinfo(host, port, socket.AF_INET6, socket.SOCK_DGRAM)
+        info = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_DGRAM)
     except socket.gaierror:
         try:
-            info = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_DGRAM)
+            info = socket.getaddrinfo(host, port, socket.AF_INET6, socket.SOCK_DGRAM)
         except socket.gaierror as e:
             log.error('Error processing host %s and port %s: %s', host, port, e)
             return None
@@ -373,7 +373,8 @@ class Server(object):
         try:
             self.socket.bind(self.sockaddr)
         except TypeError:
-            log.error('Unable to start Dogstatsd server loop.')
+            log.error('Unable to start Dogstatsd server loop, exiting...')
+            return
 
         log.info('Listening on socket address: %s', str(self.sockaddr))
 

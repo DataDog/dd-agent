@@ -52,6 +52,10 @@ class TestServer(TestCase):
         s2.start()
         self.assertEqual(s2.socket.family, socket.AF_INET6)
 
+        s2 = Server(mock.MagicMock(), 'foo', '80')
+        s2.start()
+        self.assertFalse(s2.running)
+
     def _get_socket(self, addr, port):
         sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         sock.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
