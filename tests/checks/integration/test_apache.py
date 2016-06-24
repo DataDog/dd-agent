@@ -32,7 +32,11 @@ class TestCheckApache(AgentCheckTest):
         'apache.performance.cpu_load',
         'apache.performance.uptime',
         'apache.net.bytes',
-        'apache.net.hits'
+        'apache.net.hits',
+        'apache.conns_total',
+        'apache.conns_async_writing',
+        'apache.conns_async_keep_alive',
+        'apache.conns_async_closing'
     ]
 
     APACHE_RATES = [
