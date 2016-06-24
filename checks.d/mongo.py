@@ -702,8 +702,9 @@ class MongoDb(AgentCheck):
 
                 # Compute a lag time
                 if current is not None and primary is not None:
-                    lag = primary['optimeDate'] - current['optimeDate']
-                    data['replicationLag'] = total_seconds(lag)
+                    if 'optimeDate' in primary and 'optimeDate' in current:
+                        lag = primary['optimeDate'] - current['optimeDate']
+                        data['replicationLag'] = total_seconds(lag)
 
                 if current is not None:
                     data['health'] = current['health']
