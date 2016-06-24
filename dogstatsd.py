@@ -155,8 +155,8 @@ def mapto_v6(addr):
 def get_socket_address(host, port):
     """
     Gather informations to open the server socket.
-    Try to resolve the name giving precedence to IPv6, fallback to
-    IPv4, still mapping the host to an IPv6 address.
+    Try to resolve the name giving precedence to IPv4 for retro compatibility
+    but still mapping the host to an IPv6 address, fallback to IPv6.
     """
     try:
         info = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_DGRAM)
