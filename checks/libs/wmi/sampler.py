@@ -201,7 +201,6 @@ class WMISampler(object):
 
         try:
             if self.is_raw_perf_class and not self._previous_sample:
-                self.logger.debug(u"Querying for initial sample for raw performance counter.")
                 self._current_sample = self._query()
 
             self._previous_sample = self._current_sample
@@ -215,7 +214,6 @@ class WMISampler(object):
             raise
         else:
             self._sampling = False
-            self.logger.debug(u"Sample: {0}".format(self._current_sample))
 
     def __len__(self):
         """
