@@ -3,7 +3,7 @@ Changes
 
 # 5.8.3 / Unreleased
 ### Details
-https://github.com/DataDog/dd-agent/compare/5.8.3...5.8.4
+https://github.com/DataDog/dd-agent/compare/5.8.2...5.8.3
 
 ### Changes
 * [BUGFIX] Docker: Handles buggy responses from docker api better. See: [#2608][]
