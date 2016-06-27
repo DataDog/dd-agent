@@ -6,22 +6,22 @@ Changes
 https://github.com/DataDog/dd-agent/compare/5.8.3...5.8.4
 
 ### Changes
-* [BUGFIX] Docker: Handles buggy responses from docker api better.
-* [BUGFIX] Core: A bug prevented ipv6 from being used in some circumstances. This fixes that, and defaults to ipv6 and falls back to ipv4.
-* [Flare] Adds configcheck output to flare command.
-* [BUGFIX] Postgres: Adds a hard limit on postgres.table.count metric, as this can be very expensive.
-* [BUGFIX] vSphere: Enhances topology support, skip unknown metrics.
-* [BUGFIX] Mongo: Only collect ReplicationInfo when it's possible to do so, rather than erroring out.
-* [BUGFIX] Win32: When memory check collection times out, it causes an error in the collector. Instead, it should recover from this.
-* [BUGFIX] vSphere: The whole check shouldn't fail just because the check failed on a certain instance.
-* [BUGFIX] PowerDNS Recursor: The configuration file needed to be renamed from `powerdns.conf` to `powerdns_recursor.conf`.
-* [BUGFIX] SQLServer: Send service checks after every run, rather than only at the beginning.
-* [BUFIX] HAProxy: Add `collate_status_tags_per_host` flag
-* [BUGFIX] WMI: Allows user to set a profider in request data.
-* [IMPROVEMENT] Docker: Bump docker-py to 1.8.1 for network features support
-* [BUGFIX] Service Discovery: use get_identifier instead of buggy image name extraction
-* [BUGFIX] Service Discovery: use docker hostname rather than default route to query cadvisor and kublet
-* [BUGFIX] Service Discovery: improvements for testing, logging and service variable interpolation
+* [BUGFIX] Docker: Handles buggy responses from docker api better. See: [#2608][]
+* [BUGFIX] Core: A bug prevented ipv6 from being used in some circumstances. This fixes that, and defaults to ipv6 and falls back to ipv4. See: [#2592][]
+* [Flare] Adds configcheck output to flare command. See: [#2588][]
+* [BUGFIX] Postgres: Adds a hard limit on postgres.table.count metric, as this can be very expensive. See: [#2575][]
+* [BUGFIX] vSphere: Enhances topology support, skip unknown metrics. See: [#2560][]
+* [BUGFIX] Mongo: Only collect ReplicationInfo when it's possible to do so, rather than erroring out. See: [#2559][]
+* [BUGFIX] Win32: When memory check collection times out, it causes an error in the collector. Instead, it should recover from this. See: [#2553][]
+* [BUGFIX] vSphere: The whole check shouldn't fail just because the check failed on a certain instance. See: [#2548][]
+* [BUGFIX] PowerDNS Recursor: The configuration file needed to be renamed from `powerdns.conf` to `powerdns_recursor.conf`. See: [#2538][]
+* [BUGFIX] SQLServer: Send service checks after every run, rather than only at the beginning. See: [#2515][]
+* [BUFIX] HAProxy: Add `collate_status_tags_per_host` flag See: [#2590][]
+* [BUGFIX] WMI: Allows user to set a profider in request data. See: [#2565][], [#2369][]
+* [IMPROVEMENT] Docker: Bump docker-py to 1.8.1 for network features support. See: [#2556][]
+* [BUGFIX] Service Discovery: use get_identifier instead of buggy image name extraction. See: [#2593][]
+* [BUGFIX] Service Discovery: use docker hostname rather than default route to query cadvisor and kublet. See: [#2609][]
+* [BUGFIX] Service Discovery: improvements for testing, logging and service variable interpolation. See: [#2573][]
 
 
 
@@ -3060,6 +3060,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2363]: https://github.com/DataDog/dd-agent/issues/2363
 [#2366]: https://github.com/DataDog/dd-agent/issues/2366
 [#2368]: https://github.com/DataDog/dd-agent/issues/2368
+[#2369]: https://github.com/DataDog/dd-agent/issues/2369
 [#2371]: https://github.com/DataDog/dd-agent/issues/2371
 [#2372]: https://github.com/DataDog/dd-agent/issues/2372
 [#2373]: https://github.com/DataDog/dd-agent/issues/2373
@@ -3133,9 +3134,25 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2510]: https://github.com/DataDog/dd-agent/issues/2510
 [#2512]: https://github.com/DataDog/dd-agent/issues/2512
 [#2514]: https://github.com/DataDog/dd-agent/issues/2514
+[#2515]: https://github.com/DataDog/dd-agent/issues/2515
 [#2516]: https://github.com/DataDog/dd-agent/issues/2516
 [#2528]: https://github.com/DataDog/dd-agent/issues/2528
 [#2535]: https://github.com/DataDog/dd-agent/issues/2535
+[#2538]: https://github.com/DataDog/dd-agent/issues/2538
+[#2548]: https://github.com/DataDog/dd-agent/issues/2548
+[#2553]: https://github.com/DataDog/dd-agent/issues/2553
+[#2556]: https://github.com/DataDog/dd-agent/issues/2556
+[#2559]: https://github.com/DataDog/dd-agent/issues/2559
+[#2560]: https://github.com/DataDog/dd-agent/issues/2560
+[#2565]: https://github.com/DataDog/dd-agent/issues/2565
+[#2573]: https://github.com/DataDog/dd-agent/issues/2573
+[#2575]: https://github.com/DataDog/dd-agent/issues/2575
+[#2588]: https://github.com/DataDog/dd-agent/issues/2588
+[#2590]: https://github.com/DataDog/dd-agent/issues/2590
+[#2592]: https://github.com/DataDog/dd-agent/issues/2592
+[#2593]: https://github.com/DataDog/dd-agent/issues/2593
+[#2608]: https://github.com/DataDog/dd-agent/issues/2608
+[#2609]: https://github.com/DataDog/dd-agent/issues/2609
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
