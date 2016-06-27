@@ -546,9 +546,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         except ConfigParser.NoOptionError:
             pass
 
-        if config.has_option('datadog', 'ddforwarder_log'):
-            agentConfig['has_datadog'] = True
-
         # Dogstream config
         if config.has_option("Main", "dogstream_log"):
             # Older version, single log support

@@ -22,7 +22,7 @@ from checks.check_status import (
     STATUS_ERROR,
     STATUS_OK,
 )
-from checks.datadog import DdForwarder, Dogstreams
+from checks.datadog import Dogstreams
 from checks.ganglia import Ganglia
 from config import get_system_stats, get_version
 import checks.system.unix as u
@@ -226,9 +226,8 @@ class Collector(object):
         }
 
         # Old-style metric checks
-        self._ganglia = Ganglia(log)
-        self._dogstream = Dogstreams.init(log, self.agentConfig)
-        self._ddforwarder = DdForwarder(log, self.agentConfig)
+        self._ganglia = Ganglia(log) if self.agentConfig.get('ganglia_host', '') != '' else None
+        self._dogstream = None if self.agentConfig.get('dogstreams') is None else Dogstreams.init(log, self.agentConfig)
 
         # Agent performance metrics check
         self._agent_metrics = None
@@ -354,15 +353,10 @@ class Collector(object):
                 payload.update(cpuStats)
 
         # Run old-style checks
-        gangliaData = self._ganglia.check(self.agentConfig)
-        dogstreamData = self._dogstream.check(self.agentConfig)
-        ddforwarderData = self._ddforwarder.check(self.agentConfig)
-
-        if gangliaData is not False and gangliaData is not None:
-            payload['ganglia'] = gangliaData
-
-        # dogstream
-        if dogstreamData:
+        if self._ganglia is not None:
+            payload['ganglia'] = self._ganglia.check(self.agentConfig)
+        if self._dogstream is not None:
+            dogstreamData = self._dogstream.check(self.agentConfig)
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
             if dogstreamEvents:
                 if 'dogstream' in payload['events']:
@@ -372,10 +366,6 @@ class Collector(object):
                 del dogstreamData['dogstreamEvents']
 
             payload.update(dogstreamData)
-
-        # metrics about the forwarder
-        if ddforwarderData:
-            payload['datadog'] = ddforwarderData
 
         # process collector of gohai (compliant with payload of legacy "resources checks")
         if not Platform.is_windows() and self._should_send_additional_data('processes'):

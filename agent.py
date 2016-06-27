@@ -176,8 +176,6 @@ class Agent(Daemon):
 
         # Run the main loop.
         while self.run_forever:
-            log.debug("Found {num_checks} checks".format(num_checks=len(self._checksd['initialized_checks'])))
-
             # Setup profiling if necessary
             if self.in_developer_mode and not profiled:
                 try:
