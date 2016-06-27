@@ -22,7 +22,7 @@ from checks.check_status import (
     STATUS_ERROR,
     STATUS_OK,
 )
-from checks.datadog import DdForwarder, Dogstreams
+from checks.datadog import Dogstreams
 from checks.ganglia import Ganglia
 from config import get_system_stats, get_version
 import checks.system.unix as u
@@ -228,7 +228,6 @@ class Collector(object):
         # Old-style metric checks
         self._ganglia = Ganglia(log) if self.agentConfig.get('ganglia_host', '') != '' else None
         self._dogstream = None if self.agentConfig.get('dogstreams') is None else Dogstreams.init(log, self.agentConfig)
-        self._ddforwarder = DdForwarder(log, self.agentConfig)
 
         # Agent performance metrics check
         self._agent_metrics = None
@@ -367,11 +366,6 @@ class Collector(object):
                 del dogstreamData['dogstreamEvents']
 
             payload.update(dogstreamData)
-        ddforwarderData = self._ddforwarder.check(self.agentConfig)
-
-        # metrics about the forwarder
-        if ddforwarderData:
-            payload['datadog'] = ddforwarderData
 
         # process collector of gohai (compliant with payload of legacy "resources checks")
         if not Platform.is_windows() and self._should_send_additional_data('processes'):

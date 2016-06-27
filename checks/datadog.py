@@ -7,8 +7,6 @@ from datetime import datetime
 import glob
 from itertools import groupby
 import os
-import re
-import sys
 import time
 import traceback
 
@@ -16,6 +14,7 @@ import traceback
 import modules
 from util import windows_friendly_colon_split
 from utils.tailfile import TailFile
+
 
 def partition(s, sep):
     pos = s.find(sep)
@@ -117,6 +116,7 @@ class Dogstreams(object):
             except Exception:
                 self.logger.exception("Error in parsing %s" % (dogstream.log_path))
         return output
+
 
 class Dogstream(object):
 
@@ -333,87 +333,3 @@ class Dogstream(object):
             return {"dogstream": output}
         else:
             return {}
-
-
-# Allow a smooth uninstall of previous version
-class RollupLP:
-    pass
-
-
-class DdForwarder(object):
-
-    QUEUE_SIZE = "queue_size"
-    QUEUE_COUNT = "queue_count"
-
-    RE_QUEUE_STAT = re.compile(r"\[.*\] Queue size: at (.*), (\d+) transaction\(s\), (\d+) KB")
-
-    def __init__(self, logger, config):
-        self.log_path = config.get('ddforwarder_log', '/var/log/ddforwarder.log')
-        self.logger = logger
-        self._gen = None
-
-    def _init_metrics(self):
-        self.metrics = {}
-
-    def _add_metric(self, name, value, ts):
-
-        if name in self.metrics:
-            self.metrics[name].append((ts, value))
-        else:
-            self.metrics[name] = [(ts, value)]
-
-    def _parse_line(self, line):
-
-        try:
-            m = self.RE_QUEUE_STAT.match(line)
-            if m is not None:
-                ts, count, size = m.groups()
-                self._add_metric(self.QUEUE_SIZE, size, round(float(ts)))
-                self._add_metric(self.QUEUE_COUNT, count, round(float(ts)))
-        except Exception as e:
-            self.logger.exception(e)
-
-    def check(self, agentConfig, move_end=True):
-
-        if self.log_path and os.path.isfile(self.log_path):
-
-            #reset metric points
-            self._init_metrics()
-
-            # Build our tail -f
-            if self._gen is None:
-                self._gen = TailFile(self.logger, self.log_path, self._parse_line).tail(line_by_line=False,
-                    move_end=move_end)
-
-            # read until the end of file
-            try:
-                self._gen.next()
-                self.logger.debug("Done ddforwarder check for file %s" % self.log_path)
-            except StopIteration as e:
-                self.logger.exception(e)
-                self.logger.warn("Can't tail %s file" % self.log_path)
-
-            return {'ddforwarder': self.metrics}
-        else:
-            self.logger.debug("Can't tail datadog forwarder log file: %s" % self.log_path)
-            return {}
-
-
-def testddForwarder():
-    import logging
-
-    logger = logging.getLogger("ddagent.checks.datadog")
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(logging.StreamHandler())
-
-    config = {'api_key':'my_apikey', 'ddforwarder_log': sys.argv[1]}
-    dd = DdForwarder(logger, config)
-    m = dd.check(config, move_end=False)
-    while True:
-        print m
-        time.sleep(5)
-        m = dd.check(config)
-
-
-if __name__ == '__main__':
-    testddForwarder()
