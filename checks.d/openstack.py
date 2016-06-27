@@ -254,7 +254,7 @@ class KeystoneCatalog(object):
 
         neutron_endpoint = None
         for entry in catalog:
-            if entry['name'] == match:
+            if entry['name'] == match or 'Networking' in entry['name']:
                 valid_endpoints = {}
                 for ep in entry['endpoints']:
                     interface = ep.get('interface','')
@@ -283,7 +283,7 @@ class KeystoneCatalog(object):
         nova_match = 'novav21' if nova_version == 'v2.1' else 'nova'
 
         for entry in catalog:
-            if entry['name'] == nova_match:
+            if entry['name'] == nova_match or 'Compute' in entry['name']:
                 # Collect any endpoints on the public or internal interface
                 valid_endpoints = {}
                 for ep in entry['endpoints']:
