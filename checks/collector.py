@@ -378,7 +378,7 @@ class Collector(object):
                         payload['resources'] = {
                             'processes': processes_payload,
                             'meta': {
-                                'host': payload['internalHostname'],
+                                'host': self.hostname,
                             }
                         }
                 except Exception:
@@ -626,7 +626,7 @@ class Collector(object):
             # Also post an event in the newsfeed
             payload['events']['System'] = [{
                 'api_key': self.agentConfig['api_key'],
-                'host': payload['internalHostname'],
+                'host': self.hostname,
                 'timestamp': now,
                 'event_type':'Agent Startup',
                 'msg_text': 'Version %s' % get_version()
