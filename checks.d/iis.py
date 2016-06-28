@@ -102,8 +102,10 @@ class IIS(WinWMICheck):
             )
         except pythoncom.com_error as e:
             if '0x80041017' in str(e):
-                self.warning("You may be running IIS6/7 which reports metrics a \
-                             little differently. Try enabling the is_2008 flag for this instance.")
+                self.warning(
+                    u"You may be running IIS6/7 which reports metrics a "
+                    u"little differently. Try enabling the is_2008 flag for this instance."
+                )
             raise e
         else:
             self._submit_events(wmi_sampler, sites)
@@ -126,7 +128,7 @@ class IIS(WinWMICheck):
         for wmi_obj in wmi_sampler:
             tags = list(tags) if tags else []
 
-            # get site name
+            # Get site name
             sitename = wmi_obj['Name']
 
             # Skip any sites we don't specifically want.
@@ -137,7 +139,10 @@ class IIS(WinWMICheck):
 
             # Tag with `tag_queries` parameter
             for wmi_property, wmi_value in wmi_obj.iteritems():
-                # Tag with `tag_by` parameter
+                # No metric extraction on 'Name' property
+                if wmi_property == 'name':
+                    continue
+
                 try:
                     metrics.append(WMIMetric(wmi_property, float(wmi_value), tags))
                 except ValueError:
@@ -164,7 +169,6 @@ class IIS(WinWMICheck):
         for site in expected_sites:
             self.service_check(self.SERVICE_CHECK, AgentCheck.CRITICAL,
                                tags=['site:{0}'.format(self.normalize(site))])
-
 
     def _submit_metrics(self, wmi_metrics, metrics_by_property):
         for m in wmi_metrics:

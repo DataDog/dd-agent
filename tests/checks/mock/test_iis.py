@@ -1,4 +1,8 @@
+# stdlib
 import re
+
+# 3p
+from mock import Mock
 
 # project
 from checks import AgentCheck
@@ -53,18 +57,19 @@ class IISTestCase(AgentCheckTest, TestCommonWMI):
         """
         Returns the right metrics and service checks
         """
-        # Run check
+        # Set up & run the check
         config = {
             'instances': [self.WIN_SERVICES_CONFIG]
         }
+        logger = Mock()
 
-        self.run_check_twice(config)
+        self.run_check_twice(config, mocks={'log': logger})
 
         # Test metrics
-
-        # normalize site-names
+        # ... normalize site-names
         ok_site_name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", config['instances'][0]['sites'][0])
         fail_site_name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", config['instances'][0]['sites'][1])
+
         for mname in self.IIS_METRICS:
             self.assertMetric(mname, tags=["mytag1", "mytag2", "site:{0}".format(ok_site_name)], count=1)
 
@@ -73,6 +78,9 @@ class IISTestCase(AgentCheckTest, TestCommonWMI):
                                 tags=["site:{0}".format(ok_site_name)], count=1)
         self.assertServiceCheck('iis.site_up', status=AgentCheck.CRITICAL,
                                 tags=["site:{0}".format(fail_site_name)], count=1)
+
+        # Check completed with no warnings
+        self.assertFalse(logger.warning.called)
 
         self.coverage_report()
 
@@ -90,7 +98,7 @@ class IISTestCase(AgentCheckTest, TestCommonWMI):
 
         # Test metrics
 
-        # normalize site-names
+        # Normalize site-names
         ok_site_name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", config['instances'][0]['sites'][0])
         fail_site_name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", config['instances'][0]['sites'][1])
         for mname in self.IIS_METRICS:
