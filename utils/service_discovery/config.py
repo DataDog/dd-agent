@@ -14,8 +14,9 @@ log = logging.getLogger(__name__)
 
 def extract_agent_config(config):
     # get merged into the real agentConfig
+    
     agentConfig = {}
-
+    import pdb; pdb.set_trace()
     backend = config.get('Main', 'service_discovery_backend')
     agentConfig['service_discovery'] = True
 
