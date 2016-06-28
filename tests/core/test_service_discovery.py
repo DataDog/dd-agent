@@ -3,6 +3,9 @@ import copy
 import mock
 import unittest
 
+# 3p
+from nose.plugins.attrib import attr
+
 # project
 from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.consul_config_store import ConsulStore
@@ -64,6 +67,7 @@ def issue_read(identifier):
     return TestServiceDiscovery.mock_tpls.get(identifier)
 
 
+@attr('unix')
 class TestServiceDiscovery(unittest.TestCase):
     docker_container_inspect = {
         u'Id': u'69ff25598b2314d1cdb7752cc3a659fb1c1352b32546af4f1454321550e842c0',
@@ -91,11 +95,11 @@ class TestServiceDiscovery(unittest.TestCase):
         u'Name': u'/nginx'
     }
     container_inspects = [
-        # (inspect_dict, expected_ip, expected_port, expected_ident)
-        (docker_container_inspect, '172.17.0.21', ['80', '443'], 'nginx'),
-        (docker_container_inspect_with_label, '172.17.0.21', ['80', '443'], 'custom-nginx'),
-        (kubernetes_container_inspect, None, ['6379'], 'foo'),  # arbitrarily defined in the mocked pod_list
-        (malformed_container_inspect, None, KeyError, 'foo')
+        # (inspect_dict, expected_ip, tpl_var, expected_port, expected_ident)
+        (docker_container_inspect, '172.17.0.21', 'port', '443', 'nginx'),
+        (docker_container_inspect_with_label, '172.17.0.21', 'port', '443', 'custom-nginx'),
+        (kubernetes_container_inspect, None, 'port', '6379', 'foo'),  # arbitrarily defined in the mocked pod_list
+        (malformed_container_inspect, None, 'port', KeyError, 'foo')
     ]
 
     # templates with variables already extracted
@@ -224,22 +228,22 @@ class TestServiceDiscovery(unittest.TestCase):
         mock_check_yaml.return_value = kubernetes_config
         mock_get.return_value = Response(pod_list)
 
-        for c_ins, expected_ip, _, _ in self.container_inspects:
+        for c_ins, tpl_var, expected_ip in ip_address_inspects:
             with mock.patch.object(AbstractConfigStore, '__init__', return_value=None):
                 with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
                     with mock.patch('utils.kubeutil.get_conf_path', return_value=None):
                         sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
-                        self.assertEqual(sd_backend._get_host(c_ins), expected_ip)
+                        self.assertEquals(sd_backend._get_host_address(c_ins, tpl_var), expected_ip)
                         clear_singletons(self.auto_conf_agentConfig)
 
     def test_get_port(self):
         with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
-            for c_ins, _, expected_ports, _ in self.container_inspects:
+            for c_ins, _, var_tpl, expected_ports, _ in self.container_inspects:
                 sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
-                if isinstance(expected_ports, list):
-                    self.assertEqual(sd_backend._get_ports(c_ins), expected_ports)
+                if isinstance(expected_ports, str):
+                    self.assertEquals(sd_backend._get_port(c_ins, var_tpl), expected_ports)
                 else:
-                    self.assertRaises(expected_ports, sd_backend._get_ports, c_ins)
+                    self.assertRaises(expected_ports, sd_backend._get_port, c_ins, var_tpl)
                 clear_singletons(self.auto_conf_agentConfig)
 
     @mock.patch('docker.Client.inspect_container', side_effect=_get_container_inspect)
@@ -519,7 +523,7 @@ class TestServiceDiscovery(unittest.TestCase):
     def test_get_config_id(self):
         """Test get_config_id"""
         with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
-            for c_ins, _, _, expected_ident in self.container_inspects:
+            for c_ins, _, _, _, expected_ident in self.container_inspects:
                 sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
                 self.assertEqual(
                     sd_backend.get_config_id(c_ins.get('Image'), c_ins.get('Labels', {})),
