@@ -323,7 +323,7 @@ def get_histogram_percentiles(configstr=None):
     return result
 
 
-def get_config(parse_args=True, cfg_path=None, options=None):
+def get_config(parse_args=True, cfg_path=None, options=None, can_write_conf=False):
     if parse_args:
         options, _ = get_parsed_args()
 
@@ -579,7 +579,60 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     else:
         agentConfig['ssl_certificate'] = agentConfig['ca_certs']
 
+    if agentConfig['api_key'] == 'APIKEYHERE' and Platform.is_windows():
+        log.debug('Querying registry to get missing config options')
+        registry_conf = get_registry_conf(agentConfig)
+        agentConfig.update(registry_conf)
+        # If it's the collector, conf is updated
+        if can_write_conf and registry_conf:
+            log.debug('Updating conf file options: %s', registry_conf.keys())
+            update_conf_file(registry_conf, config_path)
+
     return agentConfig
+
+
+def get_registry_conf(agentConfig):
+    registry_conf = {}
+    try:
+        import _winreg
+        with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
+                             "SOFTWARE\\Datadog\\Datadog Agent") as reg_key:
+            for attribute in ['api_key', 'tags', 'hostname']:
+                option = _winreg.QueryValueEx(reg_key, attribute)[0]
+                if option != '':
+                    registry_conf[attribute] = option
+    except (ImportError, WindowsError) as e:
+        log.error('Unable to get config keys from Registry: %s', e)
+
+    return registry_conf
+
+
+def update_conf_file(registry_conf, config_path):
+    buffer = ''
+    try:
+        with open(config_path, 'r') as config_file:
+            for line in config_file:
+                matched = False
+                for attribute in registry_conf:
+                    # Is it the line configuring the attribute ?
+                    if conf_match(line, attribute):
+                        buffer += '{}: {}\n'.format(attribute, registry_conf[attribute])
+                        matched = True
+                if not matched:
+                    buffer += line
+    except Exception as e:
+        log.error('An exception happened while updating the conf file. No change has been done.'
+                  ' Error: %s', e)
+    else:
+        with open(config_path, 'w') as config_file:
+            config_file.write(buffer)
+
+
+def conf_match(line, attribute):
+    attribute += ':'
+    return (line.startswith(attribute) or
+            line.startswith('#' + attribute) or
+            line.startswith('# ' + attribute))
 
 
 def get_system_stats(proc_path=None):

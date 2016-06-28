@@ -142,7 +142,7 @@ class Agent(Daemon):
 
         # Intialize the collector.
         if not config:
-            config = get_config(parse_args=True)
+            config = get_config(parse_args=True, can_write_conf=True)
 
         self._agentConfig = self._set_agent_config_hostname(config)
         hostname = get_hostname(self._agentConfig)
