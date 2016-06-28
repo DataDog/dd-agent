@@ -102,6 +102,10 @@ class DockerUtil:
                     should_reload_conf = True
                 self.events.append(event)
             except AttributeError:
+                # due to [0] it might happen that the returned `event` is not a dict as expected but a string,
+                # making `event.get` fail with an `AttributeError`.
+                #
+                # [0]: https://github.com/docker/docker-py/pull/1082
                 log.debug('Unable to parse Docker event: %s', event)
 
         return self.events, should_reload_conf
