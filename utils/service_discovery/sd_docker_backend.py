@@ -13,6 +13,7 @@ from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store, TRACE_CONFIG
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
+DATADOG_TAGS = 'com.datadoghq.sd.check.tags'
 log = logging.getLogger(__name__)
 
 
@@ -160,6 +161,14 @@ class SDDockerBackend(AbstractSDBackend):
     def get_tags(self, c_inspect):
         """Extract useful tags from docker or platform APIs. These are collected by default."""
         tags = []
+        # not sure about Config.Labels availability for k8s
+        try: 
+            n = len(DATADOG_TAGS)
+            labels = filter(lambda l: l[0:n]==DATADOG_TAGS,c_inspect['Config']['Labels'].keys())
+            tags = map(lambda l: "%s:%s" % (l[n+1:],c_inspect['Config']['Labels'].get(l)),labels)
+            tags.append("container:%s" % c_inspect.get('Name','').split('/')[-1])
+        except:
+            pass
         if is_k8s():
             pod_metadata = self._get_kube_config(c_inspect.get('Id'), 'metadata')
 
