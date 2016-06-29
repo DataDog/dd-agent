@@ -5,3 +5,7 @@ instances:
     - hostname: www.example.org
       nameserver: 127.0.0.1
       timeout: 8
+
+      # Specify an (optional) `record_type` to customize the record type
+      # queried by the check
+      # record_type: A
