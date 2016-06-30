@@ -11,17 +11,3 @@ instances:
 # to your sudoers file, and uncomment the below option.
 #
 #    use_sudo: True
-#
-# For use ceph-api instead local bin, uncomment the below option.
-#
-#    use_api: True
-#
-# API endpoint of your ceph instance
-#
-#    url: "http://server:port"
-#
-# Change the time to wait on an ceph API request
-#
-#    timeout: 5
-#
-# 

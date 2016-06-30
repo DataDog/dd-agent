@@ -10,7 +10,7 @@ class TestCeph(AgentCheckTest):
 
     def test_simple_metrics(self):
         mocks = {
-            '_collect_raw': lambda x: json.loads(Fixtures.read_file('raw.json')),
+            '_collect_raw': lambda x,y: json.loads(Fixtures.read_file('raw.json')),
         }
         config = {
             'instances': [{'host': 'foo'}]
@@ -28,7 +28,7 @@ class TestCeph(AgentCheckTest):
 
     def test_tagged_metrics(self):
         mocks = {
-            '_collect_raw': lambda x: json.loads(Fixtures.read_file('raw.json')),
+            '_collect_raw': lambda x,y: json.loads(Fixtures.read_file('raw.json')),
         }
         config = {
             'instances': [{'host': 'foo'}]

@@ -16,61 +16,42 @@ from config import _is_affirmative
 
 # third party
 import simplejson as json
-import requests
 
 class Ceph(AgentCheck):
     """ Collect metrics and events from ceph """
 
     DEFAULT_CEPH_CMD = '/usr/bin/ceph'
-    DEFAULT_CEPH_API_URL = 'http://localhost:5000'
-    DEFAULT_CEPH_API_TIMEOUT = 5
     NAMESPACE = "ceph"
 
-    def _collect_raw(self, instance):
-        use_api = _is_affirmative(instance.get('use_api', False))
-        raw = {}
-        if use_api:
-            ceph_url = instance.get('url') or self.DEFAULT_CEPH_API_URL
-            timeout = instance.get('timeout') or self.DEFAULT_CEPH_API_TIMEOUT
-            for cmd in ('mon_status', 'status', 'df detail', 'osd pool stats', 'osd perf'):
-                try:
-                    url = ceph_url + '/api/v0.1/' + cmd.replace(' ', '/').replace('df/detail', 'df')
-                    res = self._get_self_metric(url, timeout)
-                except Exception as e:
-                    self.log.warning('Unable to get data from url=%s' % (url))
-                    continue
-
-                name = cmd.replace(' ', '_')
-                raw[name] = res
+    def _collect_raw(self, ceph_cmd, instance):
+        use_sudo = _is_affirmative(instance.get('use_sudo', False))
+        ceph_args = []
+        if use_sudo:
+            test_sudo = os.system('setsid sudo -l < /dev/null')
+            if test_sudo != 0:
+                raise Exception('The dd-agent user does not have sudo access')
+            ceph_args = ['sudo', ceph_cmd]
         else:
-            ceph_cmd = instance.get('ceph_cmd') or self.DEFAULT_CEPH_CMD
-            use_sudo = _is_affirmative(instance.get('use_sudo', False))
-            ceph_args = []
-            if use_sudo:
-                test_sudo = os.system('setsid sudo -l < /dev/null')
-                if test_sudo != 0:
-                    raise Exception('The dd-agent user does not have sudo access')
-                ceph_args = ['sudo', ceph_cmd]
-            else:
-                ceph_args = [ceph_cmd]
+            ceph_args = [ceph_cmd]
 
-            args = ceph_args + ['version']
+        args = ceph_args + ['version']
+        try:
+            output,_,_ = get_subprocess_output(args, self.log)
+        except Exception as e:
+            raise Exception('Unable to run cmd=%s: %s' % (' '.join(args), str(e)))
+
+        raw = {}
+        for cmd in ('mon_status', 'status', 'df detail', 'osd pool stats', 'osd perf'):
             try:
+                args = ceph_args + cmd.split() + ['-fjson']
                 output,_,_ = get_subprocess_output(args, self.log)
+                res = json.loads(output)
             except Exception as e:
-                raise Exception('Unable to run cmd=%s: %s' % (' '.join(args), str(e)))
+                self.log.warning('Unable to parse data from cmd=%s: %s' % (cmd, str(e)))
+                continue
 
-            for cmd in ('mon_status', 'status', 'df detail', 'osd pool stats', 'osd perf'):
-                try:
-                    args = ceph_args + cmd.split() + ['-fjson']
-                    output,_,_ = get_subprocess_output(args, self.log)
-                    res = json.loads(output)
-                except Exception as e:
-                    self.log.warning('Unable to parse data from cmd=%s: %s' % (cmd, str(e)))
-                    continue
-
-                name = cmd.replace(' ', '_')
-                raw[name] = res
+            name = cmd.replace(' ', '_')
+            raw[name] = res
 
         return raw
 
@@ -168,25 +149,8 @@ class Ceph(AgentCheck):
             self.service_check(self.NAMESPACE + '.overall_status', status)
 
     def check(self, instance):
-        raw = self._collect_raw(instance)
+        ceph_cmd = instance.get('ceph_cmd') or self.DEFAULT_CEPH_CMD
+        raw = self._collect_raw(ceph_cmd, instance)
         tags = self._extract_tags(raw, instance)
         self._extract_metrics(raw, tags)
         self._perform_service_checks(raw, tags)
-
-    def _get_self_metric(self, url, timeout):
-        try:
-            headers = {'Accept': 'application/json'}
-            r = requests.get(url, timeout=timeout, headers=headers)
-        except requests.exceptions.Timeout:
-            # If there's a timeout
-            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                               message="Timeout when hitting %s" % url,
-                               tags=["url:{0}".format(url)])
-            raise
-
-        if r.status_code != 200:
-            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                               message="Got %s when hitting %s" % (r.status_code, url),
-                               tags=["url:{0}".format(url)])
-            raise Exception("Http status code {0} on url {1}".format(r.status_code, url))
-        return r.json()['output']
