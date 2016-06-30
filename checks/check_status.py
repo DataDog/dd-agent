@@ -630,7 +630,17 @@ class CollectorStatus(AgentStatus):
                     line += ": %s" % es.error
                 lines.append(line)
 
-        return lines
+        unicode_lines = []
+        for line in lines:
+            unicode_line = line
+            if type(line) == str:
+                try:
+                    unicode_line = line.decode('utf-8')
+                except UnicodeError as e:
+                    unicode_line = unicode(e)
+            unicode_lines.append(unicode_line)
+
+        return unicode_lines
 
     def to_dict(self):
         status_info = AgentStatus.to_dict(self)
