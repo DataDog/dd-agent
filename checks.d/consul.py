@@ -41,6 +41,7 @@ class ConsulCheck(AgentCheck):
         self._local_config = None
         self._last_config_fetch_time = None
         self._last_known_leader = None
+        self._we_are_leader = False
 
     def consul_request(self, instance, endpoint):
         url = urljoin(instance.get('url'), endpoint)
@@ -94,7 +95,7 @@ class ConsulCheck(AgentCheck):
     def _is_instance_leader(self, instance):
         try:
             agent_url = self._get_agent_url(instance)
-            leader = self._last_known_leader or self._get_cluster_leader(instance)
+            leader = self._get_cluster_leader(instance)
             self.log.debug("Consul agent lives at %s . Consul Leader lives at %s" % (agent_url,leader))
             return agent_url == leader
 
@@ -102,7 +103,6 @@ class ConsulCheck(AgentCheck):
             return False
 
     def _check_for_leader_change(self, instance):
-        agent_dc = self._get_agent_datacenter(instance)
         leader = self._get_cluster_leader(instance)
 
         if not leader:
@@ -122,22 +122,28 @@ class ConsulCheck(AgentCheck):
             self.log.info(('Leader change from {0} to {1}. Sending new leader event').format(
                 self._last_known_leader, leader))
 
-            self.event({
-                "timestamp": int(datetime.now().strftime("%s")),
-                "event_type": "consul.new_leader",
-                "source_type_name": self.SOURCE_TYPE_NAME,
-                "msg_title": "New Consul Leader Elected in consul_datacenter:{0}".format(agent_dc),
-                "aggregation_key": "consul.new_leader",
-                "msg_text": "The Node at {0} is the new leader of the consul datacenter {1}".format(
-                    leader,
-                    agent_dc
-                ),
-                "tags": ["prev_consul_leader:{0}".format(self._last_known_leader),
-                         "curr_consul_leader:{0}".format(leader),
-                         "consul_datacenter:{0}".format(agent_dc)]
-            })
+            self._emit_leader_change(instance, leader)
 
         self._last_known_leader = leader
+
+    def _emit_leader_change(self, instance, leader):
+        agent_dc = self._get_agent_datacenter(instance)
+
+        tags = ["curr_consul_leader:{0}".format(leader), "consul_datacenter:{0}".format(agent_dc)]
+        if self._last_known_leader:
+            tags.append("prev_consul_leader:{0}".format(self._last_known_leader))
+        self.event({
+            "timestamp": int(datetime.now().strftime("%s")),
+            "event_type": "consul.new_leader",
+            "source_type_name": self.SOURCE_TYPE_NAME,
+            "msg_title": "New Consul Leader Elected in consul_datacenter:{0}".format(agent_dc),
+            "aggregation_key": "consul.new_leader",
+            "msg_text": "The Node at {0} is the new leader of the consul datacenter {1}".format(
+                leader,
+                agent_dc
+            ),
+            "tags": tags
+        })
 
     ### Consul Catalog Accessors
     def get_peers_in_cluster(self, instance):
@@ -167,10 +173,16 @@ class ConsulCheck(AgentCheck):
         return services
 
     def check(self, instance):
+        perform_self_leader_check = instance.get('self_leader_check',
+                                                 self.init_config.get('self_leader_check', False))
         perform_new_leader_checks = instance.get('new_leader_checks',
                                                  self.init_config.get('new_leader_checks', False))
         if perform_new_leader_checks:
-            self._check_for_leader_change(instance)
+            if perform_self_leader_check:
+                self.log.warn('Both perform_self_leader_check and perform_new_leader_checks are set, '
+                              'ignoring perform_new_leader_checks')
+            else:
+                self._check_for_leader_change(instance)
 
         peers = self.get_peers_in_cluster(instance)
         main_tags = []
@@ -180,12 +192,21 @@ class ConsulCheck(AgentCheck):
             main_tags.append('consul_datacenter:{0}'.format(agent_dc))
 
         if not self._is_instance_leader(instance):
+            self._we_are_leader = False
             self.gauge("consul.peers", len(peers), tags=main_tags + ["mode:follower"])
             self.log.debug("This consul agent is not the cluster leader." +
                            "Skipping service and catalog checks for this instance")
             return
         else:
             self.gauge("consul.peers", len(peers), tags=main_tags + ["mode:leader"])
+
+        if perform_self_leader_check and not self._we_are_leader:
+            # we just became the leader, and are configured to emit the event
+            leader = self._get_cluster_leader(instance)
+            self._emit_leader_change(instance, leader)
+
+        # we are now the leader
+        self._we_are_leader = True
 
         service_check_tags = ['consul_url:{0}'.format(instance.get('url'))]
         perform_catalog_checks = instance.get('catalog_checks',

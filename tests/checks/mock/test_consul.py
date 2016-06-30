@@ -28,6 +28,15 @@ MOCK_CONFIG_LEADER_CHECK = {
     }]
 }
 
+MOCK_CONFIG_SELF_LEADER_CHECK = {
+    'init_config': {},
+    'instances' : [{
+        'url': 'http://localhost:8500',
+        'catalog_checks': True,
+        'self_leader_check': True
+    }]
+}
+
 MOCK_BAD_CONFIG = {
     'init_config': {},
     'instances' : [{ # Multiple instances should cause it to fail
@@ -37,7 +46,8 @@ MOCK_BAD_CONFIG = {
     }, {
         'url': 'http://localhost:8501',
         'catalog_checks': True,
-        'new_leader_checks': True
+        'new_leader_checks': True,
+        'self_leader_check': True
     }]
 }
 
@@ -370,3 +380,37 @@ class TestCheckConsul(AgentCheckTest):
         self.assertEqual(event['event_type'], 'consul.new_leader')
         self.assertIn('prev_consul_leader:My Old Leader', event['tags'])
         self.assertIn('curr_consul_leader:My New Leader', event['tags'])
+
+    def testn_self_leader_event(self):
+        self.check = load_check(self.CHECK_NAME, MOCK_CONFIG_SELF_LEADER_CHECK, self.DEFAULT_AGENT_CONFIG)
+        self.check._we_are_leader = False
+
+        mocks = self._get_consul_mocks()
+
+        # We become the leader
+        mocks['_get_cluster_leader'] = self.mock_get_cluster_leader_A
+        self.run_check(MOCK_CONFIG_SELF_LEADER_CHECK, mocks=mocks)
+        self.assertEqual(len(self.events), 1)
+        self.assertTrue(self.check._we_are_leader)
+        event = self.events[0]
+        self.assertEqual(event['event_type'], 'consul.new_leader')
+        self.assertIn('curr_consul_leader:10.0.2.15:8300', event['tags'])
+
+        # We are already the leader, no new events
+        self.run_check(MOCK_CONFIG_SELF_LEADER_CHECK, mocks=mocks)
+        self.assertEqual(len(self.events), 0)
+
+        # We lose the leader, no new events
+        mocks['_get_cluster_leader'] = self.mock_get_cluster_leader_B
+        self.run_check(MOCK_CONFIG_SELF_LEADER_CHECK, mocks=mocks)
+        self.assertEqual(len(self.events), 0)
+        self.assertFalse(self.check._we_are_leader)
+
+        # We regain the leadership
+        mocks['_get_cluster_leader'] = self.mock_get_cluster_leader_A
+        self.run_check(MOCK_CONFIG_SELF_LEADER_CHECK, mocks=mocks)
+        self.assertEqual(len(self.events), 1)
+        self.assertTrue(self.check._we_are_leader)
+        event = self.events[0]
+        self.assertEqual(event['event_type'], 'consul.new_leader')
+        self.assertIn('curr_consul_leader:10.0.2.15:8300', event['tags'])
