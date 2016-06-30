@@ -79,6 +79,11 @@ class Flare(object):
             'api_key'
         ),
         CredentialPattern(
+            re.compile('^other_api_keys:( *\w+(\w{5}),?)+$'),
+            lambda matchobj:  'other_api_keys: ' + ', '.join(map(lambda key: '*' * 26 + key[-5:], matchobj.string.split(':')[1].split(','))),
+            'other_api_keys'
+        ),
+        CredentialPattern(
             re.compile('^(proxy_user|proxy_password): *.+'),
             r'\1: ********',
             'proxy credentials'

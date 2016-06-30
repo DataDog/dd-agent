@@ -45,13 +45,13 @@ def get_mocked_temp():
     )
 
 mock_cfgs = {
-    'uri_password' : 'password_uri.yaml',
+    'uri_password': 'password_uri.yaml',
 }
 
 password_tests = {
-    'uri_password' : '      -   server: mongodb://datadog:V3pZC7ghx1ne82XkyqLnOW36@localhost:27017/admin',
-    'uri_password_2' : '      -   server: mongodb://datadog:V3!pZC7ghx1ne8#-2XkyqLnOW36!?@localhost:27017/admin',
-    'uri_password_expected' : '      -   server: mongodb://datadog:********@localhost:27017/admin',
+    'uri_password': '      -   server: mongodb://datadog:V3pZC7ghx1ne82XkyqLnOW36@localhost:27017/admin',
+    'uri_password_2': '      -   server: mongodb://datadog:V3!pZC7ghx1ne8#-2XkyqLnOW36!?@localhost:27017/admin',
+    'uri_password_expected': '      -   server: mongodb://datadog:********@localhost:27017/admin',
 }
 
 
@@ -195,6 +195,26 @@ class FlareTest(unittest.TestCase):
         self.assertEqual(
             credentials_log,
             " - this file contains a credential (password in a uri) which has been removed in the collected version"
+        )
+
+    @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
+    @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
+    @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
+    def test_api_keys_regex(self, mock_config, mock_tempdir, mock_strftime):
+        f = Flare()
+        file_path, _ = f._strip_credentials(
+            os.path.join(get_mocked_temp(), 'apikeys.conf'),
+            f.MAIN_CREDENTIALS
+        )
+        with open(file_path) as f:
+            contents = f.read()
+
+        self.assertEqual(
+            contents,
+            """api_key: *************************aaaaa
+other_api_keys: **************************bbbbb, **************************ccccc, **************************dddd
+
+"""
         )
 
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
