@@ -38,7 +38,7 @@ kazoo==1.3.1
 # checks.d/ssh_check.py
 winrandom-ctypes
 # Require a compiler because pycrypto is a dep
-paramiko==2.0.0
+paramiko==1.15.2
 
 # checks.d/pgbouncer.py
 # Require libpq
