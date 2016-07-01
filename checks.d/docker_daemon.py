@@ -718,9 +718,10 @@ class DockerDaemon(AgentCheck):
             total = stats.get('docker.{0}.total'.format(mtype))
             free = stats.get('docker.{0}.free'.format(mtype))
             if used and total and free and ceil(total) < free + used:
-                self.log.error('used, free, and total disk metrics may be wrong, '
-                               'unable to calculate percentage.')
-                return {}
+                self.log.debug('used, free, and total disk metrics may be wrong, '
+                               'used: %s, free: %s, total: %s',
+                               used, free, total)
+                total = used + free
             try:
                 if isinstance(used, int):
                     percs['docker.{0}.percent'.format(mtype)] = round(100 * float(used) / float(total), 2)
