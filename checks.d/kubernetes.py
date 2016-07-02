@@ -1,10 +1,16 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 """kubernetes check
 Collects metrics from cAdvisor instance
 """
 # stdlib
-import numbers
+from collections import defaultdict
 from fnmatch import fnmatch
+import numbers
 import re
+import simplejson as json
 
 # 3rd party
 import requests
@@ -12,8 +18,8 @@ import requests
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-from utils.kubeutil import set_kube_settings, get_kube_settings, get_kube_labels
 from utils.http import retrieve_json
+from utils.kubeutil import KubeUtil
 
 NAMESPACE = "kubernetes"
 DEFAULT_MAX_DEPTH = 10
@@ -40,6 +46,7 @@ FUNC_MAP = {
     RATE: {True: HISTORATE, False: RATE}
 }
 
+
 class Kubernetes(AgentCheck):
     """ Collect metrics and events from kubelet """
 
@@ -49,7 +56,9 @@ class Kubernetes(AgentCheck):
         if instances is not None and len(instances) > 1:
             raise Exception('Kubernetes check only supports one configured instance.')
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
-        self.kube_settings = set_kube_settings(instances[0])
+        self.kubeutil = KubeUtil()
+        if not self.kubeutil.host:
+            raise Exception('Unable to get default router and host parameter is not set')
 
     def _perform_kubelet_checks(self, url):
         service_check_base = NAMESPACE + '.kubelet.check'
@@ -74,10 +83,10 @@ class Kubernetes(AgentCheck):
                     self.service_check(service_check_name, AgentCheck.CRITICAL)
                     is_ok = False
 
-        except Exception, e:
+        except Exception as e:
             self.log.warning('kubelet check failed: %s' % str(e))
             self.service_check(service_check_base, AgentCheck.CRITICAL,
-                message='Kubelet check failed: %s' % str(e))
+                               message='Kubelet check failed: %s' % str(e))
 
         else:
             if is_ok:
@@ -85,31 +94,7 @@ class Kubernetes(AgentCheck):
             else:
                 self.service_check(service_check_base, AgentCheck.CRITICAL)
 
-    def _perform_master_checks(self, url):
-        try:
-            r = requests.get(url)
-            r.raise_for_status()
-            for nodeinfo in r.json()['items']:
-                nodename = nodeinfo['name']
-                service_check_name = "{0}.master.{1}.check".format(NAMESPACE, nodename)
-                cond = nodeinfo['status'][-1]['type']
-                minion_name = nodeinfo['metadata']['name']
-                tags = ["minion_name:{0}".format(minion_name)]
-                if cond != 'Ready':
-                    self.service_check(service_check_name, AgentCheck.CRITICAL,
-                        tags=tags, message=cond)
-                else:
-                    self.service_check(service_check_name, AgentCheck.OK, tags=tags)
-        except Exception, e:
-            self.service_check(service_check_name, AgentCheck.CRITICAL, message=str(e))
-            self.log.warning('master checks url=%s exception=%s' % (url, str(e)))
-            raise
-
-
     def check(self, instance):
-        kube_settings = get_kube_settings()
-        if not kube_settings.get("host"):
-            raise Exception('Unable to get default router and host parameter is not set')
 
         self.max_depth = instance.get('max_depth', DEFAULT_MAX_DEPTH)
         enabled_gauges = instance.get('enabled_gauges', DEFAULT_ENABLED_GAUGES)
@@ -122,18 +107,11 @@ class Kubernetes(AgentCheck):
         self.publish_rate = FUNC_MAP[RATE][self.use_histogram]
         self.publish_gauge = FUNC_MAP[GAUGE][self.use_histogram]
 
-        # master health checks
-        if instance.get('enable_master_checks', False):
-            master_url = kube_settings["master_url_nodes"]
-            self._perform_master_checks(master_url)
-
         # kubelet health checks
-        if instance.get('enable_kubelet_checks', True):
-            kube_health_url = kube_settings["kube_health_url"]
-            self._perform_kubelet_checks(kube_health_url)
+        self._perform_kubelet_checks(self.kubeutil.kube_health_url)
 
         # kubelet metrics
-        self._update_metrics(instance, kube_settings)
+        self._update_metrics(instance)
 
     def _publish_raw_metrics(self, metric, dat, tags, depth=0):
         if depth >= self.max_depth:
@@ -147,7 +125,7 @@ class Kubernetes(AgentCheck):
                 self.publish_gauge(self, metric, float(dat), tags)
 
         elif isinstance(dat, dict):
-            for k,v in dat.iteritems():
+            for k, v in dat.iteritems():
                 self._publish_raw_metrics(metric + '.%s' % k.lower(), v, tags, depth + 1)
 
         elif isinstance(dat, list):
@@ -158,8 +136,60 @@ class Kubernetes(AgentCheck):
         # shorten docker image id
         return re.sub('([0-9a-fA-F]{64,})', lambda x: x.group(1)[0:12], name)
 
+    def _get_post_1_2_tags(self, cont_labels, subcontainer, kube_labels):
+        tags = []
+
+        pod_name = cont_labels[KubeUtil.POD_NAME_LABEL]
+        pod_namespace = cont_labels[KubeUtil.NAMESPACE_LABEL]
+        tags.append(u"pod_name:{0}/{1}".format(pod_namespace, pod_name))
+        tags.append(u"kube_namespace:{0}".format(pod_namespace))
+
+        kube_labels_key = "{0}/{1}".format(pod_namespace, pod_name)
+
+        pod_labels = kube_labels.get(kube_labels_key)
+        if pod_labels:
+            tags += list(pod_labels)
+
+        if "-" in pod_name:
+            replication_controller = "-".join(pod_name.split("-")[:-1])
+            tags.append("kube_replication_controller:%s" % replication_controller)
+
+        if self.publish_aliases and subcontainer.get("aliases"):
+            for alias in subcontainer['aliases'][1:]:
+                # we don't add the first alias as it will be the container_name
+                tags.append('container_alias:%s' % (self._shorten_name(alias)))
+
+        return tags
+
+    def _get_pre_1_2_tags(self, cont_labels, subcontainer, kube_labels):
+
+        tags = []
+
+        pod_name = cont_labels[KubeUtil.POD_NAME_LABEL]
+        tags.append(u"pod_name:{0}".format(pod_name))
+
+        pod_labels = kube_labels.get(pod_name)
+        if pod_labels:
+            tags.extend(list(pod_labels))
+
+        if "-" in pod_name:
+            replication_controller = "-".join(pod_name.split("-")[:-1])
+            if "/" in replication_controller:
+                namespace, replication_controller = replication_controller.split("/", 1)
+                tags.append(u"kube_namespace:%s" % namespace)
+
+            tags.append(u"kube_replication_controller:%s" % replication_controller)
+
+        if self.publish_aliases and subcontainer.get("aliases"):
+            for alias in subcontainer['aliases'][1:]:
+                # we don't add the first alias as it will be the container_name
+                tags.append(u"container_alias:%s" % (self._shorten_name(alias)))
+
+        return tags
+
+
     def _update_container_metrics(self, instance, subcontainer, kube_labels):
-        tags = instance.get('tags', []) # add support for custom tags
+        tags = list(instance.get('tags', []))  # add support for custom tags
 
         if len(subcontainer.get('aliases', [])) >= 1:
             # The first alias seems to always match the docker container name
@@ -170,35 +200,26 @@ class Kubernetes(AgentCheck):
 
         tags.append('container_name:%s' % container_name)
 
-        pod_name_set = False
         try:
-            for label_name,label in subcontainer['spec']['labels'].iteritems():
-                label_name = label_name.replace('io.kubernetes.pod.name', 'pod_name')
-                if label_name == "pod_name":
-                    pod_name_set = True
-                    pod_labels = kube_labels.get(label)
-                    if pod_labels:
-                        tags.extend(list(pod_labels))
-
-                    if "-" in label:
-                        replication_controller = "-".join(
-                            label.split("-")[:-1])
-                        if "/" in replication_controller:
-                            namespace, replication_controller = replication_controller.split("/", 1)
-                            tags.append("kube_namespace:%s" % namespace)
-
-                        tags.append("kube_replication_controller:%s" % replication_controller)
-                tags.append('%s:%s' % (label_name, label))
+            cont_labels = subcontainer['spec']['labels']
         except KeyError:
-            pass
+            self.log.debug("Subcontainer, doesn't have any labels")
+            cont_labels = {}
 
-        if not pod_name_set:
+        # Collect pod names, namespaces, rc...
+        if KubeUtil.NAMESPACE_LABEL in cont_labels and KubeUtil.POD_NAME_LABEL in cont_labels:
+            # Kubernetes >= 1.2
+            tags += self._get_post_1_2_tags(cont_labels, subcontainer, kube_labels)
+
+        elif KubeUtil.POD_NAME_LABEL in cont_labels:
+            # Kubernetes <= 1.1
+            tags += self._get_pre_1_2_tags(cont_labels, subcontainer, kube_labels)
+
+        else:
+            # Those are containers that are not part of a pod.
+            # They are top aggregate views and don't have the previous metadata.
             tags.append("pod_name:no_pod")
 
-        if self.publish_aliases and subcontainer.get("aliases"):
-            for alias in subcontainer['aliases'][1:]:
-                    # we don't add the first alias as it will be the container_name
-                    tags.append('container_alias:%s' % (self._shorten_name(alias)))
 
         stats = subcontainer['stats'][-1]  # take the latest
         self._publish_raw_metrics(NAMESPACE, stats, tags)
@@ -217,19 +238,46 @@ class Kubernetes(AgentCheck):
     def _retrieve_metrics(self, url):
         return retrieve_json(url)
 
-    def _retrieve_kube_labels(self):
-        return get_kube_labels()
+    def _update_metrics(self, instance):
+        pods_list = self.kubeutil.retrieve_pods_list()
+        metrics = self._retrieve_metrics(self.kubeutil.metrics_url)
 
+        excluded_labels = instance.get('excluded_labels')
+        kube_labels = self.kubeutil.extract_kube_labels(pods_list, excluded_keys=excluded_labels)
 
-    def _update_metrics(self, instance, kube_settings):
-        metrics = self._retrieve_metrics(kube_settings["metrics_url"])
-        kube_labels = self._retrieve_kube_labels()
         if not metrics:
             raise Exception('No metrics retrieved cmd=%s' % self.metrics_cmd)
 
         for subcontainer in metrics:
             try:
                 self._update_container_metrics(instance, subcontainer, kube_labels)
-            except Exception, e:
+            except Exception as e:
                 self.log.error("Unable to collect metrics for container: {0} ({1}".format(
                     subcontainer.get('name'), e))
+
+        self._update_pods_metrics(instance, pods_list)
+
+    def _update_pods_metrics(self, instance, pods):
+        supported_kinds = [
+            "DaemonSet",
+            "Deployment",
+            "Job",
+            "ReplicationController",
+            "ReplicaSet",
+        ]
+
+        controllers_map = defaultdict(int)
+        for pod in pods['items']:
+            try:
+                created_by = json.loads(pod['metadata']['annotations']['kubernetes.io/created-by'])
+                kind = created_by['reference']['kind']
+                if kind in supported_kinds:
+                    controllers_map[created_by['reference']['name']] += 1
+            except KeyError:
+                continue
+
+        tags = instance.get('tags', [])
+        for ctrl, pod_count in controllers_map.iteritems():
+            _tags = tags[:]  # copy base tags
+            _tags.append('kube_replication_controller:{0}'.format(ctrl))
+            self.publish_gauge(self, NAMESPACE + '.pods.running', pod_count, _tags)

@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2010-2016
+# (C) Jon Glick <jglick@basho.com> 2014
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from collections import defaultdict
 
@@ -72,7 +77,7 @@ class RiakCs(AgentCheck):
 
         try:
             s3 = S3Connection(**s3_settings)
-        except Exception, e:
+        except Exception as e:
             self.log.error("Error connecting to {0}: {1}".format(aggregation_key, e))
             self.service_check(
                 self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
@@ -92,7 +97,7 @@ class RiakCs(AgentCheck):
             stats_str = key.get_contents_as_string()
             stats = self.load_json(stats_str)
 
-        except Exception, e:
+        except Exception as e:
             self.log.error("Error retrieving stats from {0}: {1}".format(aggregation_key, e))
             self.service_check(
                 self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,

@@ -33,13 +33,6 @@ instances:
     # This defaults to 1xx, 2xx and 3xx HTTP status code: (1|2|3)\d\d.
     # http_response_status_code: 401
 
-    # The (optional) window and threshold parameters allow you to trigger
-    # alerts only if the check fails x times within the last y attempts
-    # where x is the threshold and y is the window.
-    #
-    # threshold: 3
-    # window: 5
-
     # The (optional) include_content parameter will instruct the check
     # to include the first 200 characters of the HTTP response body
     # in notifications sent by this plugin. This is best used with
@@ -104,6 +97,13 @@ instances:
     # This default to False.
     #
     skip_event: true
+
+    # The (optional) no_proxy parameter would bypass any proxy settings enabled
+    # and attempt to reach the the URL directly.
+    # If no proxy is defined at any level, this flag bears no effect.
+    # Defaults to False.
+    #
+    # no_proxy: false
 
     # tags:
     #   - url:http://alternative.host.example.com

@@ -1,3 +1,11 @@
+######################## WARNING ##########################
+# This file currently determines the python deps installed
+# for the dev env, the source install and the Win build.
+# It is NOT used for the DEB/RPM packages and the OS X
+# build. For these please update:
+# https://github.com/DataDog/omnibus-software
+###########################################################
+
 ###########################################################
 # These modules are the deps needed by the
 # agent core, meaning every module that is
@@ -8,7 +16,7 @@
 # fails, so they shouldn't have too many deps
 ###########################################################
 
-boto==2.36.0
+boto==2.39.0
 ntplib==0.3.3
 # the libyaml bindings are optional
 pyyaml==3.11
@@ -60,7 +68,11 @@ pyvmomi==6.0.0
 snakebite==1.3.11
 
 # utils/platform.py
-docker-py==1.3.1
+docker-py==1.8.1
 
 # checks.d/dns_check.py
 dnspython==1.12.0
+
+# utils/service_discovery/config_stores.py
+python-etcd==0.4.2
+python-consul==0.4.7

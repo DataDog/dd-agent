@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import cPickle as pickle
 import logging
@@ -40,7 +44,7 @@ class GraphiteConnection(object):
             size = struct.unpack("!L", data)[0]
             log.debug("Receiving a string of size:" + str(size))
             self.stream.read_bytes(size, self._on_read_line)
-        except Exception, e:
+        except Exception as e:
             log.error(e)
 
     def _on_read_line(self, data):
@@ -99,7 +103,7 @@ class GraphiteConnection(object):
         for (metric, datapoint) in datapoints:
             try:
                 datapoint = (float(datapoint[0]), float(datapoint[1]))
-            except Exception, e:
+            except Exception as e:
                 log.error(e)
                 continue
 

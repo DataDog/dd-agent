@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import os
 import re
@@ -35,6 +39,9 @@ class Disk(AgentCheck):
         # Windows and Mac will always have psutil
         # (we have packaged for both of them)
         if self._psutil():
+            if Platform.is_linux():
+                procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
+                psutil.PROCFS_PATH = procfs_path
             self.collect_metrics_psutil()
         else:
             # FIXME: implement all_partitions (df -a)
@@ -47,6 +54,8 @@ class Disk(AgentCheck):
     def _load_conf(self, instance):
         self._excluded_filesystems = instance.get('excluded_filesystems', [])
         self._excluded_disks = instance.get('excluded_disks', [])
+        self._excluded_mountpoint_re = re.compile(
+            instance.get('excluded_mountpoint_re', '^$'))
         self._tag_by_filesystem = _is_affirmative(
             instance.get('tag_by_filesystem', False))
         self._all_partitions = _is_affirmative(
@@ -85,7 +94,7 @@ class Disk(AgentCheck):
             # Get disk metrics here to be able to exclude on total usage
             try:
                 disk_usage = psutil.disk_usage(part.mountpoint)
-            except Exception, e:
+            except Exception as e:
                 self.log.debug("Unable to get disk metrics for %s: %s",
                                part.mountpoint, e)
                 continue
@@ -127,14 +136,32 @@ class Disk(AgentCheck):
         # and all the other excluded disks
         return ((Platform.is_win32() and ('cdrom' in part.opts or
                                           part.fstype == '')) or
-                self._exclude_disk(part.device, part.fstype))
+                self._exclude_disk(part.device, part.fstype, part.mountpoint))
 
-    # We don't want all those incorrect devices
-    def _exclude_disk(self, name, filesystem):
-        return (((not name or name == 'none') and not self._all_partitions) or
-                name in self._excluded_disks or
-                self._excluded_disk_re.match(name) or
-                filesystem in self._excluded_filesystems)
+    def _exclude_disk(self, name, filesystem, mountpoint):
+        """
+        Return True for disks we don't want or that match regex in the config file
+        """
+        name_empty = not name or name == 'none'
+
+        # allow empty names if `all_partitions` is `yes` so we can evaluate mountpoints
+        if name_empty and not self._all_partitions:
+            return True
+        # device is listed in `excluded_disks`
+        elif not name_empty and name in self._excluded_disks:
+            return True
+        # device name matches `excluded_disk_re`
+        elif not name_empty and self._excluded_disk_re.match(name):
+            return True
+        # device mountpoint matches `excluded_mountpoint_re`
+        elif self._excluded_mountpoint_re.match(mountpoint):
+            return True
+        # fs is listed in `excluded_filesystems`
+        elif filesystem in self._excluded_filesystems:
+            return True
+        # all good, don't exclude the disk
+        else:
+            return False
 
     def _collect_part_metrics(self, part, usage):
         metrics = {}
@@ -215,7 +242,7 @@ class Disk(AgentCheck):
         # and finally filter out fake devices
         return (device and len(device) > 1 and
                 device[2].isdigit() and
-                not self._exclude_disk(device[0], device[1]))
+                not self._exclude_disk(device[0], device[1], device[6]))
 
     def _flatten_devices(self, devices):
         # Some volumes are stored on their own line. Rejoin them here.

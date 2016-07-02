@@ -1,7 +1,10 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
-from hashlib import md5
+from collections import deque
 import logging
-import math
 import os
 import platform
 import re
@@ -29,7 +32,7 @@ except ImportError:
 # if a user actually uses them in a custom check
 # If you're this user, please use utils.pidfile or utils.platform instead
 # FIXME: remove them at a point (6.x)
-from utils.dockerutil import get_hostname as get_docker_hostname, is_dockerized
+from utils.dockerutil import DockerUtil
 from utils.pidfile import PidFile  # noqa, see ^^^
 from utils.platform import Platform
 from utils.proxy import get_proxy
@@ -91,6 +94,7 @@ def headers(agentConfig):
         'Accept': 'text/html, */*',
     }
 
+
 def windows_friendly_colon_split(config_string):
     '''
     Perform a split by ':' on the config_string
@@ -101,26 +105,6 @@ def windows_friendly_colon_split(config_string):
         return COLON_NON_WIN_PATH.split(config_string)
     else:
         return config_string.split(':')
-
-def getTopIndex():
-    macV = None
-    if sys.platform == 'darwin':
-        macV = platform.mac_ver()
-
-    # Output from top is slightly modified on OS X 10.6 (case #28239)
-    if macV and macV[0].startswith('10.6.'):
-        return 6
-    else:
-        return 5
-
-
-def isnan(val):
-    if hasattr(math, 'isnan'):
-        return math.isnan(val)
-
-    # for py < 2.6, use a different check
-    # http://stackoverflow.com/questions/944700/how-to-check-for-nan-in-python
-    return str(val) == str(1e400*0)
 
 
 def cast_metric_val(val):
@@ -139,12 +123,15 @@ def cast_metric_val(val):
     return val
 
 _IDS = {}
+
+
 def get_next_id(name):
     global _IDS
     current_id = _IDS.get(name, 0)
     current_id += 1
     _IDS[name] = current_id
     return current_id
+
 
 def is_valid_hostname(hostname):
     if hostname.lower() in set([
@@ -162,6 +149,26 @@ def is_valid_hostname(hostname):
         log.warning("Hostname: %s is not complying with RFC 1123" % hostname)
         return False
     return True
+
+
+def check_yaml(conf_path):
+    with open(conf_path) as f:
+        check_config = yaml.load(f.read(), Loader=yLoader)
+        assert 'init_config' in check_config, "No 'init_config' section found"
+        assert 'instances' in check_config, "No 'instances' section found"
+
+        valid_instances = True
+        if check_config['instances'] is None or not isinstance(check_config['instances'], list):
+            valid_instances = False
+        else:
+            for i in check_config['instances']:
+                if not isinstance(i, dict):
+                    valid_instances = False
+                    break
+        if not valid_instances:
+            raise Exception('You need to have at least one instance defined in the YAML file for this check')
+        else:
+            return check_config
 
 
 def get_hostname(config=None):
@@ -193,8 +200,9 @@ def get_hostname(config=None):
                 return gce_hostname
 
     # Try to get the docker hostname
-    if hostname is None and is_dockerized():
-        docker_hostname = get_docker_hostname()
+    docker_util = DockerUtil()
+    if hostname is None and docker_util.is_dockerized():
+        docker_hostname = docker_util.get_hostname()
         if docker_hostname is not None and is_valid_hostname(docker_hostname):
             return docker_hostname
 
@@ -469,20 +477,27 @@ class EC2(object):
 
 
 class Watchdog(object):
-    """Simple signal-based watchdog that will scuttle the current process
-    if it has not been reset every N seconds, or if the processes exceeds
-    a specified memory threshold.
+    """
+    Simple signal-based watchdog. Restarts the process when:
+    * no reset was made for more than a specified duration
+    * (optional) a specified memory threshold is exceeded
+    * (optional) a suspicious high activity is detected, i.e. too many resets for a given timeframe.
+
+    **Warning**: Not thread-safe.
     Can only be invoked once per process, so don't use with multiple threads.
     If you instantiate more than one, you're also asking for trouble.
     """
-    def __init__(self, duration, max_mem_mb = None):
+    # Activity history timeframe
+    _RESTART_TIMEFRAME = 60
+
+    def __init__(self, duration, max_mem_mb=None, max_resets=None):
         import resource
 
-        #Set the duration
+        # Set the duration
         self._duration = int(duration)
         signal.signal(signal.SIGALRM, Watchdog.self_destruct)
 
-        # cap memory usage
+        # Set memory usage threshold
         if max_mem_mb is not None:
             self._max_mem_kb = 1024 * max_mem_mb
             max_mem_bytes = 1024 * self._max_mem_kb
@@ -491,8 +506,15 @@ class Watchdog(object):
         else:
             self.memory_limit_enabled = False
 
+        # Set high activity monitoring
+        self._restarts = deque([])
+        self._max_resets = max_resets
+
     @staticmethod
     def self_destruct(signum, frame):
+        """
+        Kill the process. It will be eventually restarted.
+        """
         try:
             import traceback
             log.error("Self-destructing...")
@@ -500,44 +522,41 @@ class Watchdog(object):
         finally:
             os.kill(os.getpid(), signal.SIGKILL)
 
+    def _is_frenetic(self):
+        """
+        Detect suspicious high activity, i.e. the number of resets exceeds the maximum limit set
+        on the watchdog timeframe.
+        Flush old activity history
+        """
+        now = time.time()
+        while(self._restarts and self._restarts[0] < now - self._RESTART_TIMEFRAME):
+            self._restarts.popleft()
+
+        return len(self._restarts) > self._max_resets
 
     def reset(self):
-        # self destruct if using too much memory, as tornado will swallow MemoryErrors
+        """
+        Reset the watchdog state, i.e.
+        * re-arm alarm signal
+        * (optional) check memory consumption
+        * (optional) save reset history, flush old entries and check frequency
+        """
+        # Check memory consumption: restart if too high as tornado will swallow MemoryErrors
         if self.memory_limit_enabled:
             mem_usage_kb = int(os.popen('ps -p %d -o %s | tail -1' % (os.getpid(), 'rss')).read())
             if mem_usage_kb > (0.95 * self._max_mem_kb):
                 Watchdog.self_destruct(signal.SIGKILL, sys._getframe(0))
 
+        # Check activity
+        if self._max_resets:
+            self._restarts.append(time.time())
+            if self._is_frenetic():
+                Watchdog.self_destruct(signal.SIGKILL, sys._getframe(0))
+
+        # Re arm alarm signal
         log.debug("Resetting watchdog for %d" % self._duration)
         signal.alarm(self._duration)
 
-
-class LaconicFilter(logging.Filter):
-    """
-    Filters messages, only print them once while keeping memory under control
-    """
-    LACONIC_MEM_LIMIT = 1024
-
-    def __init__(self, name=""):
-        logging.Filter.__init__(self, name)
-        self.hashed_messages = {}
-
-    def hash(self, msg):
-        return md5(msg).hexdigest()
-
-    def filter(self, record):
-        try:
-            h = self.hash(record.getMessage())
-            if h in self.hashed_messages:
-                return 0
-            else:
-                # Don't blow up our memory
-                if len(self.hashed_messages) >= LaconicFilter.LACONIC_MEM_LIMIT:
-                    self.hashed_messages.clear()
-                self.hashed_messages[h] = True
-                return 1
-        except Exception:
-            return 1
 
 class Timer(object):
     """ Helper class """

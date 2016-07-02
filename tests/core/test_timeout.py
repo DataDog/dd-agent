@@ -33,7 +33,7 @@ class MyClass(object):
         """
         self.make_sum = timeout(0.2)(self.make_sum)
 
-    def make_sum(self, a, b, sleep=0, raise_exception=False):
+    def make_sum(self, a, b, sleep=0, raise_exception=False): # pylint: disable=E0202
         """Sleep, sum and return `a` with `b`"""
         global count
         count += 1

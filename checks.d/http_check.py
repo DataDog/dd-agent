@@ -1,6 +1,11 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from datetime import datetime
 import os.path
+from os import environ
 import re
 import socket
 import ssl
@@ -29,6 +34,8 @@ from util import headers as agent_headers
 from utils.proxy import get_proxy
 
 DEFAULT_EXPECTED_CODE = "(1|2|3)\d\d"
+CONTENT_LENGTH = 200
+
 
 class WeakCiphersHTTPSConnection(urllib3.connection.VerifiedHTTPSConnection):
 
@@ -69,11 +76,11 @@ class WeakCiphersHTTPSConnection(urllib3.connection.VerifiedHTTPSConnection):
 
         # Wrap socket using verification with the root certs in trusted_root_certs
         self.sock = ssl_.ssl_wrap_socket(conn, self.key_file, self.cert_file,
-                                        cert_reqs=resolved_cert_reqs,
-                                        ca_certs=self.ca_certs,
-                                        server_hostname=hostname,
-                                        ssl_version=resolved_ssl_version,
-                                        ciphers=self.ciphers)
+                                         cert_reqs=resolved_cert_reqs,
+                                         ca_certs=self.ca_certs,
+                                         server_hostname=hostname,
+                                         ssl_version=resolved_ssl_version,
+                                         ciphers=self.ciphers)
 
         if self.assert_fingerprint:
             ssl_.assert_fingerprint(self.sock.getpeercert(binary_form=True), self.assert_fingerprint)
@@ -146,9 +153,11 @@ class HTTPCheck(NetworkCheck):
     def __init__(self, name, init_config, agentConfig, instances):
         self.ca_certs = init_config.get('ca_certs', get_ca_certs_path())
         proxy_settings = get_proxy(agentConfig)
-        if not proxy_settings:
-            self.proxies = None
-        else:
+        self.proxies = {
+            "http": None,
+            "https": None,
+        }
+        if proxy_settings:
             uri = "{host}:{port}".format(
                 host=proxy_settings['host'],
                 port=proxy_settings['port'])
@@ -157,10 +166,15 @@ class HTTPCheck(NetworkCheck):
                     user=proxy_settings['user'],
                     password=proxy_settings['password'],
                     uri=uri)
-            self.proxies = {
-                'http': "http://{uri}".format(uri=uri),
-                'https': "https://{uri}".format(uri=uri)
-            }
+            self.proxies['http'] = "http://{uri}".format(uri=uri)
+            self.proxies['https'] = "https://{uri}".format(uri=uri)
+        else:
+            self.proxies['http'] = environ.get('HTTP_PROXY', None)
+            self.proxies['https'] = environ.get('HTTPS_PROXY', None)
+
+        self.proxies['no'] = environ.get('no_proxy',
+                                         environ.get('NO_PROXY', None)
+                                         )
 
         NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
 
@@ -185,15 +199,16 @@ class HTTPCheck(NetworkCheck):
         instance_ca_certs = instance.get('ca_certs', self.ca_certs)
         weakcipher = _is_affirmative(instance.get('weakciphers', False))
         ignore_ssl_warning = _is_affirmative(instance.get('ignore_ssl_warning', False))
+        skip_proxy = _is_affirmative(instance.get('no_proxy', False))
 
         return url, username, password, http_response_status_code, timeout, include_content,\
             headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs,\
-            weakcipher, ignore_ssl_warning
+            weakcipher, ignore_ssl_warning, skip_proxy
 
     def _check(self, instance):
         addr, username, password, http_response_status_code, timeout, include_content, headers,\
             response_time, content_match, tags, disable_ssl_validation,\
-            ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning = self._load_conf(instance)
+            ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning, skip_proxy = self._load_conf(instance)
         start = time.time()
 
         service_checks = []
@@ -204,18 +219,33 @@ class HTTPCheck(NetworkCheck):
                 self.warning("Skipping SSL certificate validation for %s based on configuration"
                              % addr)
 
+            instance_proxy = self.proxies.copy()
+
+            # disable proxy if necessary
+            if skip_proxy:
+                instance_proxy.pop('http')
+                instance_proxy.pop('https')
+            else:
+                for url in self.proxies['no'].replace(';', ',').split(","):
+                    if url in parsed_uri.netloc:
+                        instance_proxy.pop('http')
+                        instance_proxy.pop('https')
+
+            self.log.debug("Proxies used for %s - %s", addr, instance_proxy)
+
             auth = None
             if username is not None and password is not None:
                 auth = (username, password)
 
             sess = requests.Session()
+            sess.trust_env = False
             if weakcipher:
                 base_addr = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_uri)
                 sess.mount(base_addr, WeakCiphersAdapter())
                 self.log.debug("Weak Ciphers will be used for {0}. Suppoted Cipherlist: {1}".format(
                     base_addr, WeakCiphersHTTPSConnection.SUPPORTED_CIPHERS))
 
-            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers, proxies = self.proxies,
+            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers, proxies=instance_proxy,
                              verify=False if disable_ssl_validation else instance_ca_certs)
 
         except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
@@ -228,7 +258,7 @@ class HTTPCheck(NetworkCheck):
                 "%s. Connection failed after %s ms" % (str(e), length)
             ))
 
-        except socket.error, e:
+        except socket.error as e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms"
                           % (addr, repr(e), length))
@@ -238,7 +268,7 @@ class HTTPCheck(NetworkCheck):
                 "Socket error: %s. Connection failed after %s ms" % (repr(e), length)
             ))
 
-        except Exception, e:
+        except Exception as e:
             length = int((time.time() - start) * 1000)
             self.log.error("Unhandled exception %s. Connection failed after %s ms"
                            % (str(e), length))
@@ -260,8 +290,10 @@ class HTTPCheck(NetworkCheck):
             else:
                 expected_code = http_response_status_code
 
-            message = "Incorrect HTTP return code for url %s. Expected %s, got %s" % (
+            message = "Incorrect HTTP return code for url %s. Expected %s, got %s." % (
                 addr, expected_code, str(r.status_code))
+            if include_content:
+                message += '\nContent: {}'.format(r.content[:CONTENT_LENGTH])
 
             self.log.info(message)
 
@@ -284,10 +316,13 @@ class HTTPCheck(NetworkCheck):
                 else:
                     self.log.info("%s not found in content" % content_match)
                     self.log.debug("Content returned:\n%s" % content)
+                    message = 'Content "%s" not found in response.' % content_match
+                    if include_content:
+                        message += '\nContent: {}'.format(content[:CONTENT_LENGTH])
                     service_checks.append((
                         self.SC_STATUS,
                         Status.DOWN,
-                        'Content "%s" not found in response' % content_match
+                        message
                     ))
             else:
                 self.log.debug("%s is UP" % addr)
@@ -416,8 +451,11 @@ class HTTPCheck(NetworkCheck):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(float(timeout))
             sock.connect((host, port))
-            ssl_sock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED,
-                                       ca_certs=instance_ca_certs)
+            context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            context.verify_mode = ssl.CERT_REQUIRED
+            context.check_hostname = True
+            context.load_verify_locations(instance_ca_certs)
+            ssl_sock = context.wrap_socket(sock, server_hostname=host)
             cert = ssl_sock.getpeercert()
 
         except Exception as e:

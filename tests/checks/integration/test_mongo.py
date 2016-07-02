@@ -41,14 +41,25 @@ class TestMongoUnit(AgentCheckTest):
 
         self.load_check(config)
         setattr(self.check, "log", Mock())
+
         build_metric_list = self.check._build_metric_list_to_collect
 
         # Default metric list
-        DEFAULT_METRICS = self.check.BASE_METRICS
+        DEFAULT_METRICS = {
+            m_name: m_type for d in [
+                self.check.BASE_METRICS, self.check.DURABILITY_METRICS,
+                self.check.LOCKS_METRICS, self.check.WIREDTIGER_METRICS]
+            for m_name, m_type in d.iteritems()
+        }
 
         # No option
         no_additional_metrics = build_metric_list([])
         self.assertEquals(len(no_additional_metrics), len(DEFAULT_METRICS))
+
+        # Deprecate option, i.e. collected by default
+        default_metrics = build_metric_list(['wiredtiger'])
+        self.assertEquals(len(default_metrics), len(DEFAULT_METRICS))
+        self.assertEquals(self.check.log.warning.call_count, 1)
 
         # One correct option
         default_and_tcmalloc_metrics = build_metric_list(['tcmalloc'])
@@ -63,7 +74,7 @@ class TestMongoUnit(AgentCheckTest):
             len(default_and_tcmalloc_metrics),
             len(DEFAULT_METRICS) + len(self.check.TOP_METRICS)
         )
-        self.assertEquals(self.check.log.warning.called, 1)
+        self.assertEquals(self.check.log.warning.call_count, 2)
 
     def test_metric_resolution(self):
         """
@@ -120,6 +131,26 @@ class TestMongoUnit(AgentCheckTest):
         self.assertEquals((RATE, 'mongodb.foobar.intent_exclusiveps'), resolve_metric('foobar.w', metrics_to_collect))  # noqa
         self.assertEquals((GAUGE, 'mongodb.foobar.exclusive'), resolve_metric('foobar.W', metrics_to_collect))  # noqa
 
+    def test_state_translation(self):
+        """
+        Check that resolving replset member state IDs match to names and descriptions properly.
+        """
+        # Initialize check
+        config = {
+            'instances': [self.MONGODB_CONFIG]
+        }
+        self.load_check(config)
+
+        self.assertEquals('STARTUP2', self.check.get_state_name(5))
+        self.assertEquals('PRIMARY', self.check.get_state_name(1))
+
+        self.assertEquals('Starting Up', self.check.get_state_description(0))
+        self.assertEquals('Recovering', self.check.get_state_description(3))
+
+        # Unknown states:
+        self.assertEquals('UNKNOWN', self.check.get_state_name(500))
+        unknown_desc = self.check.get_state_description(500)
+        self.assertTrue(unknown_desc.find('500') != -1)
 
 @attr(requires='mongo')
 class TestMongo(unittest.TestCase):

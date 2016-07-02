@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from collections import namedtuple
 from fnmatch import fnmatch
@@ -231,9 +235,3 @@ class Cacti(AgentCheck):
         if m_name[0:11] in ('system.mem.', 'system.disk'):
             return val / 1024
         return val
-
-
-    '''
-        For backwards compatability with pre-checks.d configuration.
-        Convert old-style config to new-style config.
-    '''

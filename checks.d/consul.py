@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -137,7 +141,7 @@ class ConsulCheck(AgentCheck):
 
     ### Consul Catalog Accessors
     def get_peers_in_cluster(self, instance):
-        return self.consul_request(instance, '/v1/status/peers')
+        return self.consul_request(instance, '/v1/status/peers') or []
 
     def get_services_in_cluster(self, instance):
         return self.consul_request(instance, '/v1/catalog/services')

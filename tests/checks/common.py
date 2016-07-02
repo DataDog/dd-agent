@@ -1,11 +1,15 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import copy
 import inspect
 from itertools import product
+import imp
 import logging
 import os
 from pprint import pformat
-import signal
 import sys
 import time
 import traceback
@@ -57,12 +61,16 @@ def load_class(check_name, class_name):
     raise Exception(u"Unable to import class {0} from the check module.".format(class_name))
 
 
-def load_check(name, config, agentConfig):
-    checksd_path = get_checksd_path(get_os())
-    if checksd_path not in sys.path:
-        sys.path.append(checksd_path)
+def load_check(name, config, agentConfig, is_sdk=False):
+    if not is_sdk:
+        checksd_path = get_checksd_path(get_os())
 
-    check_module = __import__(name)
+        # find (in checksd_path) and load the check module
+        fd, filename, desc = imp.find_module(name, [checksd_path])
+        check_module = imp.load_module(name, fd, filename, desc)
+    else:
+        check_module = __import__("check")
+
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
     for _, clsmember in classes:
@@ -90,22 +98,6 @@ def load_check(name, config, agentConfig):
         raise
 
 
-def kill_subprocess(process_obj):
-    try:
-        process_obj.terminate()
-    except AttributeError:
-        # py < 2.6 doesn't support process.terminate()
-        if get_os() == 'windows':
-            import ctypes
-            PROCESS_TERMINATE = 1
-            handle = ctypes.windll.kernel32.OpenProcess(PROCESS_TERMINATE, False,
-                                                        process_obj.pid)
-            ctypes.windll.kernel32.TerminateProcess(handle, -1)
-            ctypes.windll.kernel32.CloseHandle(handle)
-        else:
-            os.kill(process_obj.pid, signal.SIGKILL)
-
-
 class Fixtures(object):
     @staticmethod
     def integration_name():
@@ -128,9 +120,12 @@ class Fixtures(object):
         return os.path.join(Fixtures.directory(), file_name)
 
     @staticmethod
-    def read_file(file_name):
+    def read_file(file_name, string_escape=True):
         with open(Fixtures.file(file_name)) as f:
-            return f.read().decode('string-escape').decode("utf-8")
+            contents = f.read()
+            if string_escape:
+                contents = contents.decode('string-escape')
+            return contents.decode("utf-8")
 
 
 class AgentCheckTest(unittest.TestCase):
@@ -147,12 +142,15 @@ class AgentCheckTest(unittest.TestCase):
 
         self.check = None
 
+    def is_sdk(self):
+        return "SDK_TESTING" in os.environ
+
     def is_travis(self):
         return "TRAVIS" in os.environ
 
     def load_check(self, config, agent_config=None):
         agent_config = agent_config or self.DEFAULT_AGENT_CONFIG
-        self.check = load_check(self.CHECK_NAME, config, agent_config)
+        self.check = load_check(self.CHECK_NAME, config, agent_config, is_sdk=self.is_sdk())
 
     def load_class(self, name):
         """
@@ -196,7 +194,7 @@ class AgentCheckTest(unittest.TestCase):
                 self.check.check(copy.deepcopy(instance))
                 # FIXME: This should be called within the `run` method only
                 self.check._roll_up_instance_metadata()
-            except Exception, e:
+            except Exception as e:
                 # Catch error before re-raising it to be able to get service_checks
                 print "Exception {0} during check".format(e)
                 print traceback.format_exc()
@@ -213,7 +211,7 @@ class AgentCheckTest(unittest.TestCase):
                 self.service_metadata.append(metadata)
 
         if error is not None:
-            raise error
+            raise error  # pylint: disable=E0702
 
     def print_current_state(self):
         log.debug("""++++++++ CURRENT STATE ++++++++
@@ -302,7 +300,7 @@ WARNINGS
             untested_events=pformat(untested_events),
         ))
 
-        if os.getenv('COVERAGE'):
+        if not os.getenv('NO_COVERAGE'):
             self.assertEquals(coverage_metrics, 100.0)
             self.assertEquals(coverage_events, 100.0)
             self.assertEquals(coverage_sc, 100.0)

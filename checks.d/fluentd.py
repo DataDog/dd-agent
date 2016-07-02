@@ -1,3 +1,9 @@
+# (C) Datadog, Inc. 2015-2016
+# (C) Takumi Sakamoto <takumi.saka@gmail.com> 2014
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
+
 # stdlib
 import urlparse
 
@@ -52,7 +58,7 @@ class Fluentd(AgentCheck):
                     # Filter unspecified plugins to keep backward compatibility.
                     if len(plugin_ids) == 0 or p.get('plugin_id') in plugin_ids:
                         self.gauge('fluentd.%s' % (m), p.get(m), [tag])
-        except Exception, e:
+        except Exception as e:
             msg = "No stats could be retrieved from %s : %s" % (url, str(e))
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                                tags=service_check_tags, message=msg)

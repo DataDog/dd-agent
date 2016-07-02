@@ -1,3 +1,4 @@
+# pylint: disable=E0401
 """
 A lightweight Python WMI module wrapper built on top of `pywin32` and `win32com` extensions.
 
@@ -19,14 +20,13 @@ Credits to @TheCloudlessSky (https://github.com/TheCloudlessSky)
 """
 
 # stdlib
-from contextlib import contextmanager
 from copy import deepcopy
 from itertools import izip
 import pywintypes
 
 # 3p
-from win32com.client import Dispatch
 import pythoncom
+from win32com.client import Dispatch
 
 # project
 from checks.libs.wmi.counter_type import get_calculator, get_raw, UndefinedCalculator
@@ -47,21 +47,57 @@ class CaseInsensitiveDict(dict):
         return super(CaseInsensitiveDict, self).get(key.lower())
 
 
+class ProviderArchitectureMeta(type):
+    """
+    Metaclass for ProviderArchitecture.
+    """
+    def __contains__(cls, provider):
+        """
+        Support `Enum` style `contains`.
+        """
+        return provider in cls._AVAILABLE_PROVIDER_ARCHITECTURES
+
+
+class ProviderArchitecture(object):
+    """
+    Enumerate WMI Provider Architectures.
+    """
+    __metaclass__ = ProviderArchitectureMeta
+
+    # Available Provider Architecture(s)
+    DEFAULT = 0
+    _32BIT = 32
+    _64BIT = 64
+    _AVAILABLE_PROVIDER_ARCHITECTURES = frozenset([DEFAULT, _32BIT, _64BIT])
+
+
 class WMISampler(object):
     """
     WMI Sampler.
     """
-    # Shared resources
-    _wmi_locators = {}
-    _wmi_last_connections = {}
+    # Properties
+    _provider = None
+    _formatted_filters = None
+
+    # Type resolution state
+    _property_counter_types = None
+
+    # Samples
+    _current_sample = None
+    _previous_sample = None
+
+    # Sampling state
+    _sampling = False
 
     def __init__(self, logger, class_name, property_names, filters="", host="localhost",
-                 namespace="root\\cimv2", username="", password="", and_props=[], timeout_duration=10):
+                 namespace="root\\cimv2", provider=None,
+                 username="", password="", and_props=[], timeout_duration=10):
         self.logger = logger
 
         # Connection information
         self.host = host
         self.namespace = namespace
+        self.provider = provider
         self.username = username
         self.password = password
 
@@ -84,21 +120,45 @@ class WMISampler(object):
                 #   - Frequency_PerfTime
                 #   - Frequency_Object"
             ])
+
         self.class_name = class_name
         self.property_names = property_names
         self.filters = filters
         self._and_props = and_props
-        self._formatted_filters = None
-        self.property_counter_types = None
         self._timeout_duration = timeout_duration
         self._query = timeout(timeout_duration)(self._query)
 
-        # Samples
-        self.current_sample = None
-        self.previous_sample = None
+    @property
+    def provider(self):
+        """
+        Return the WMI provider.
+        """
+        return self._provider
 
-        # Sampling state
-        self._sampling = False
+    @provider.setter
+    def provider(self, value):
+        """
+        Validate and set a WMI provider. Default to `ProviderArchitecture.DEFAULT`
+        """
+        result = None
+
+        # `None` defaults to `ProviderArchitecture.DEFAULT`
+        defaulted_value = value or ProviderArchitecture.DEFAULT
+
+        try:
+            parsed_value = int(defaulted_value)
+        except ValueError:
+            pass
+        else:
+            if parsed_value in ProviderArchitecture:
+                result = parsed_value
+
+        if result is None:
+            self.logger.error(
+                u"Invalid '%s' WMI Provider Architecture. The parameter is ignored.", value
+            )
+
+        self._provider = result or ProviderArchitecture.DEFAULT
 
     @property
     def connection(self):
@@ -140,12 +200,11 @@ class WMISampler(object):
         self._sampling = True
 
         try:
-            if self.is_raw_perf_class and not self.previous_sample:
-                self.logger.debug(u"Querying for initial sample for raw performance counter.")
-                self.current_sample = self._query()
+            if self.is_raw_perf_class and not self._previous_sample:
+                self._current_sample = self._query()
 
-            self.previous_sample = self.current_sample
-            self.current_sample = self._query()
+            self._previous_sample = self._current_sample
+            self._current_sample = self._query()
         except TimeoutException:
             self.logger.debug(
                 u"Query timeout after {timeout}s".format(
@@ -155,7 +214,6 @@ class WMISampler(object):
             raise
         else:
             self._sampling = False
-            self.logger.debug(u"Sample: {0}".format(self.current_sample))
 
     def __len__(self):
         """
@@ -167,7 +225,7 @@ class WMISampler(object):
                 u"Sampling `WMISampler` object has no len()"
             )
 
-        return len(self.current_sample)
+        return len(self._current_sample)
 
     def __iter__(self):
         """
@@ -182,7 +240,7 @@ class WMISampler(object):
         if self.is_raw_perf_class:
             # Format required
             for previous_wmi_object, current_wmi_object in \
-                    izip(self.previous_sample, self.current_sample):
+                    izip(self._previous_sample, self._current_sample):
                 formatted_wmi_object = self._format_property_values(
                     previous_wmi_object,
                     current_wmi_object
@@ -190,7 +248,7 @@ class WMISampler(object):
                 yield formatted_wmi_object
         else:
             #  No format required
-            for wmi_object in self.current_sample:
+            for wmi_object in self._current_sample:
                 yield wmi_object
 
     def __getitem__(self, index):
@@ -198,27 +256,27 @@ class WMISampler(object):
         Get the specified formatted WMI Object from the current sample.
         """
         if self.is_raw_perf_class:
-            previous_wmi_object = self.previous_sample[index]
-            current_wmi_object = self.current_sample[index]
+            previous_wmi_object = self._previous_sample[index]
+            current_wmi_object = self._current_sample[index]
             formatted_wmi_object = self._format_property_values(
                 previous_wmi_object,
                 current_wmi_object
             )
             return formatted_wmi_object
         else:
-            return self.current_sample[index]
+            return self._current_sample[index]
 
     def __eq__(self, other):
         """
         Equality operator is based on the current sample.
         """
-        return self.current_sample == other
+        return self._current_sample == other
 
     def __str__(self):
         """
         Stringify the current sample's WMI Objects.
         """
-        return str(self.current_sample)
+        return str(self._current_sample)
 
     def _get_property_calculator(self, counter_type):
         """
@@ -247,7 +305,7 @@ class WMISampler(object):
         formatted_wmi_object = CaseInsensitiveDict()
 
         for property_name, property_raw_value in current.iteritems():
-            counter_type = self.property_counter_types.get(property_name)
+            counter_type = self._property_counter_types.get(property_name)
             property_formatted_value = property_raw_value
 
             if counter_type:
@@ -258,35 +316,37 @@ class WMISampler(object):
 
         return formatted_wmi_object
 
-    @contextmanager
     def get_connection(self):
         """
-        Return an existing, available WMI connection or create a new one.
-
-        Release, i.e. mark as available at exit.
+        Create a new WMI connection
         """
         self.logger.debug(
             u"Connecting to WMI server "
-            u"(host={host}, namespace={namespace}, username={username}).".format(
-                host=self.host,
-                namespace=self.namespace,
-                username=self.username
+            u"(host={host}, namespace={namespace}, provider={provider}, username={username})."
+            .format(
+                host=self.host, namespace=self.namespace,
+                provider=self.provider, username=self.username
             )
         )
 
+        # Initialize COM for the current thread
+        # WARNING: any python COM object (locator, connection, etc) created in a thread
+        # shouldn't be used in other threads (can lead to memory/handle leaks if done
+        # without a deep knowledge of COM's threading model). Because of this and given
+        # that we run each query in its own thread, we don't cache connections
+        context = None
         pythoncom.CoInitialize()
+
+        if self.provider != ProviderArchitecture.DEFAULT:
+            context = Dispatch("WbemScripting.SWbemNamedValueSet")
+            context.Add("__ProviderArchitecture", self.provider)
+
         locator = Dispatch("WbemScripting.SWbemLocator")
         connection = locator.ConnectServer(
-            self.host, self.namespace,
-            self.username, self.password
+            self.host, self.namespace, self.username, self.password, None, "", 128, context
         )
 
-        # Yield the connection
-        yield connection
-        self._wmi_last_connections[self.connection_key] = connection
-
-    def get_last_connection(self):
-        return self._wmi_last_connections.get(self.connection_key, None)
+        return connection
 
     @staticmethod
     def _format_filter(filters, and_props=[]):
@@ -300,8 +360,8 @@ class WMISampler(object):
 
                 NOTE: If we just provide a value we defailt to '=' comparison operator.
                 Otherwise, specify the operator in a tuple as above: (comp_op, value)
-                If we detect a wildcard character such as '*' or '%' we will override
-                the operator to use LIKE
+                If we detect a wildcard character ('%') we will override the operator
+                to use LIKE
         """
         def build_where_clause(fltr):
             f = fltr.pop()
@@ -369,7 +429,7 @@ class WMISampler(object):
 
         return " WHERE {clause}".format(clause=build_where_clause(filters))
 
-    def _query(self):
+    def _query(self): # pylint: disable=E0202
         """
         Query WMI using WMI Query Language (WQL) & parse the results.
 
@@ -393,13 +453,12 @@ class WMISampler(object):
 
             # For the first query, cache the qualifiers to determine each
             # propertie's "CounterType"
-            includes_qualifiers = self.is_raw_perf_class and self.property_counter_types is None
+            includes_qualifiers = self.is_raw_perf_class and self._property_counter_types is None
             if includes_qualifiers:
-                self.property_counter_types = CaseInsensitiveDict()
+                self._property_counter_types = CaseInsensitiveDict()
                 query_flags |= flag_use_amended_qualifiers
 
-            with self.get_connection() as connection:
-                raw_results = connection.ExecQuery(wql, "WQL", query_flags)
+            raw_results = self.get_connection().ExecQuery(wql, "WQL", query_flags)
 
             results = self._parse_results(raw_results, includes_qualifiers=includes_qualifiers)
 
@@ -441,7 +500,7 @@ class WMISampler(object):
                 # if the "CounterType" hasn't already been cached.
                 should_get_qualifier_type = (
                     includes_qualifiers and
-                    wmi_property.Name not in self.property_counter_types
+                    wmi_property.Name not in self._property_counter_types
                 )
 
                 if should_get_qualifier_type:
@@ -455,7 +514,7 @@ class WMISampler(object):
                     # Therefore, they're ignored.
                     if "CounterType" in qualifiers:
                         counter_type = qualifiers["CounterType"]
-                        self.property_counter_types[wmi_property.Name] = counter_type
+                        self._property_counter_types[wmi_property.Name] = counter_type
 
                         self.logger.debug(
                             u"Caching property qualifier CounterType: "

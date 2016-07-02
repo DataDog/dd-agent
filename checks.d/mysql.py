@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2010-2016
+# (C) Datadog, Inc. Patrick Galbraith <patg@patg.net> 2013
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import re
 import traceback
@@ -15,6 +20,7 @@ except ImportError:
 # project
 from config import _is_affirmative
 from checks import AgentCheck
+from util import Platform
 
 GAUGE = "gauge"
 RATE = "rate"
@@ -250,7 +256,7 @@ GALERA_VARS = {
 }
 
 PERFORMANCE_VARS = {
-    'query_run_time_avg' : ('mysql.performance.query_run_time.avg', GAUGE),
+    'query_run_time_avg': ('mysql.performance.query_run_time.avg', GAUGE),
     'perf_digest_95th_percentile_avg_us': ('mysql.performance.digest_95th_percentile.avg_us', GAUGE),
 }
 
@@ -268,6 +274,7 @@ SYNTHETIC_VARS = {
     'Qcache_instant_utilization': ('mysql.performance.qcache.utilization.instant', GAUGE),
 }
 
+
 class MySql(AgentCheck):
     SERVICE_CHECK_NAME = 'mysql.can_connect'
     SLAVE_SERVICE_CHECK_NAME = 'mysql.replication.slave_running'
@@ -282,6 +289,11 @@ class MySql(AgentCheck):
         return {"pymysql": pymysql.__version__}
 
     def check(self, instance):
+
+        if Platform.is_linux() and PSUTIL_AVAILABLE:
+            procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
+            psutil.PROCFS_PATH = procfs_path
+
         host, port, user, password, mysql_sock, defaults_file, tags, options, queries, ssl = \
             self._get_config(instance)
 
@@ -314,7 +326,7 @@ class MySql(AgentCheck):
         self.defaults_file = instance.get('defaults_file', '')
         user = instance.get('user', '')
         password = instance.get('pass', '')
-        tags = instance.get('tags', None)
+        tags = instance.get('tags', [])
         options = instance.get('options', {})
         queries = instance.get('queries', [])
         ssl = instance.get('ssl', {})
@@ -409,7 +421,7 @@ class MySql(AgentCheck):
         results = self._get_stats_from_status(db)
         results.update(self._get_stats_from_variables(db))
 
-        if self._is_innodb_engine_enabled(db):
+        if (not _is_affirmative(options.get('disable_innodb_metrics', False)) and self._is_innodb_engine_enabled(db)):
             results.update(self._get_stats_from_innodb_status(db))
 
             innodb_keys = [
@@ -480,7 +492,6 @@ class MySql(AgentCheck):
         except TypeError as e:
             self.log.error("Not all Key metrics are available, unable to compute: {0}".format(e))
 
-
         metrics.update(VARIABLES_VARS)
         metrics.update(INNODB_VARS)
         metrics.update(BINLOG_VARS)
@@ -514,7 +525,7 @@ class MySql(AgentCheck):
         if _is_affirmative(options.get('replication', False)):
             # Get replica stats
             results.update(self._get_replica_stats(db))
-            results.update(self._get_slave_status(db, performance_schema_enabled))
+            results.update(self._get_slave_status(db))
             metrics.update(REPLICA_VARS)
 
             # get slave running form global status page
@@ -524,35 +535,37 @@ class MySql(AgentCheck):
             # slaves will only be collected iff user has PROCESS privileges.
             slaves = self._collect_scalar('Slaves_connected', results)
 
-            if slave_running is not None:
-                if slave_running.lower().strip() == 'on':
-                    slave_running_status = AgentCheck.OK
-                else:
-                    slave_running_status = AgentCheck.CRITICAL
-            elif slaves or binlog_running:
-                if slaves and slaves > 0 and binlog_running:
-                    slave_running_status = AgentCheck.OK
-                else:
-                    slave_running_status = AgentCheck.WARNING
-            else:
-                # MySQL 5.7.x might not have 'Slave_running'. See: https://bugs.mysql.com/bug.php?id=78544
-                # look at replica vars collected at the top of if-block
-                if self._version_compatible(db, host, "5.7.0"):
-                    slave_io_running = self._collect_string('Slave_IO_Running', results)
-                    slave_sql_running = self._collect_string('Slave_SQL_Running', results)
-                    if slave_io_running:
-                        slave_io_running = (slave_io_running.lower().strip() == "yes")
-                    if slave_sql_running:
-                        slave_sql_running = (slave_sql_running.lower().strip() == "yes")
+            # MySQL 5.7.x might not have 'Slave_running'. See: https://bugs.mysql.com/bug.php?id=78544
+            # look at replica vars collected at the top of if-block
+            if self._version_compatible(db, host, "5.7.0"):
+                slave_io_running = self._collect_string('Slave_IO_Running', results)
+                slave_sql_running = self._collect_string('Slave_SQL_Running', results)
+                if slave_io_running:
+                    slave_io_running = (slave_io_running.lower().strip() == "yes")
+                if slave_sql_running:
+                    slave_sql_running = (slave_sql_running.lower().strip() == "yes")
 
-                    if not (slave_io_running is None and slave_sql_running is None):
-                        if slave_io_running and slave_sql_running:
-                            slave_running_status = AgentCheck.OK
-                        elif not slave_io_running and not slave_sql_running:
-                            slave_running_status = AgentCheck.CRITICAL
-                        else:
-                            # not everything is running smoothly
-                            slave_running_status = AgentCheck.WARNING
+                if not (slave_io_running is None and slave_sql_running is None):
+                    if slave_io_running and slave_sql_running:
+                        slave_running_status = AgentCheck.OK
+                    elif not slave_io_running and not slave_sql_running:
+                        slave_running_status = AgentCheck.CRITICAL
+                    else:
+                        # not everything is running smoothly
+                        slave_running_status = AgentCheck.WARNING
+
+            # if we don't yet have a status - inspect
+            if slave_running_status == AgentCheck.UNKNOWN:
+                if self._is_master(slaves, binlog_running):  # master
+                    if slaves > 0 and binlog_running:
+                        slave_running_status = AgentCheck.OK
+                    else:
+                        slave_running_status = AgentCheck.WARNING
+                elif slave_running:  # slave (or standalone)
+                    if slave_running.lower().strip() == 'on':
+                        slave_running_status = AgentCheck.OK
+                    else:
+                        slave_running_status = AgentCheck.CRITICAL
 
             # deprecated in favor of service_check("mysql.replication.slave_running")
             self.gauge(self.SLAVE_SERVICE_CHECK_NAME, (1 if slave_running_status == AgentCheck.OK else 0), tags=tags)
@@ -567,7 +580,7 @@ class MySql(AgentCheck):
             if k not in results:
                 metrics.pop(k, None)
 
-        #add duped metrics - reporting some as both rate and gauge
+        # add duped metrics - reporting some as both rate and gauge
         dupes = [('Table_locks_waited', 'Table_locks_waited_rate'),
                  ('Table_locks_immediate', 'Table_locks_immediate_rate')]
         for src, dst in dupes:
@@ -586,6 +599,14 @@ class MySql(AgentCheck):
             if len(queries) > self.MAX_CUSTOM_QUERIES:
                 self.warning("Maximum number (%s) of custom queries reached.  Skipping the rest."
                              % self.MAX_CUSTOM_QUERIES)
+
+
+    def _is_master(self, slaves, binlog):
+        if slaves > 0 or binlog:
+            return True
+
+        return False
+
 
     def _collect_metadata(self, db, host):
         version = self._get_version(db, host)
@@ -614,7 +635,7 @@ class MySql(AgentCheck):
 
         try:
             mysql_version = self._get_version(db, host)
-        except Exception, e:
+        except Exception as e:
             self.warning("Cannot compute mysql version, assuming it's older.: %s"
                          % str(e))
             return False
@@ -707,7 +728,7 @@ class MySql(AgentCheck):
                                     "Received value is None for index %d" % col_idx)
                         except ValueError:
                             self.log.exception("Cannot find %s in the columns %s"
-                                            % (field, cursor.description))
+                                               % (field, cursor.description))
         except Exception:
             self.warning("Error while running %s\n%s" %
                          (query, traceback.format_exc()))
@@ -730,7 +751,6 @@ class MySql(AgentCheck):
 
                     ucpu = proc.cpu_times()[0]
                     scpu = proc.cpu_times()[1]
-
 
                 if ucpu and scpu:
                     self.rate("mysql.performance.user_time", ucpu, tags=tags)
@@ -807,13 +827,18 @@ class MySql(AgentCheck):
         # Whether InnoDB engine is available or not can be found out either
         # from the output of SHOW ENGINES or from information_schema.ENGINES
         # table. Later is choosen because that involves no string parsing.
-        with closing(db.cursor()) as cursor:
-            cursor.execute(
-                "select engine from information_schema.ENGINES where engine='InnoDB'")
+        try:
+            with closing(db.cursor()) as cursor:
+                cursor.execute(
+                    "select engine from information_schema.ENGINES where engine='InnoDB' and \
+                    support != 'no' and support != 'disabled'"
+                )
 
-            return_val = True if cursor.rowcount > 0 else False
+                return (cursor.rowcount > 0)
 
-            return return_val
+        except (pymysql.err.InternalError, pymysql.err.OperationalError, pymysql.err.NotSupportedError) as e:
+            self.warning("Possibly innodb stats unavailable - error querying engines table: %s" % str(e))
+            return False
 
     def _get_replica_stats(self, db):
         try:
@@ -834,7 +859,7 @@ class MySql(AgentCheck):
             self.warning("Privileges error getting replication status (must grant REPLICATION CLIENT): %s" % str(e))
             return {}
 
-    def _get_slave_status(self, db, nonblocking=False):
+    def _get_slave_status(self, db, nonblocking=True):
         try:
             with closing(db.cursor()) as cursor:
                 # querying threads instead of PROCESSLIST to avoid mutex impact on
@@ -865,8 +890,9 @@ class MySql(AgentCheck):
                 cursor.execute("SHOW /*!50000 ENGINE*/ INNODB STATUS")
                 innodb_status = cursor.fetchone()
                 innodb_status_text = innodb_status[2]
-        except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
-            self.warning("Privilege error accessing the INNODB status tables (must grant PROCESS): %s" % str(e))
+        except (pymysql.err.InternalError, pymysql.err.OperationalError, pymysql.err.NotSupportedError) as e:
+            self.warning("Privilege error or engine unavailable accessing the INNODB status \
+                         tables (must grant PROCESS): %s" % str(e))
             return {}
 
         results = defaultdict(int)
@@ -970,7 +996,7 @@ class MySql(AgentCheck):
                     results['Innodb_pending_normal_aio_reads'] = (long(row[4]) + long(row[5]) +
                                                                   long(row[6]) + long(row[7]))
                     results['Innodb_pending_normal_aio_writes'] = (long(row[11]) + long(row[12]) +
-                                                                  long(row[13]) + long(row[14]))
+                                                                   long(row[13]) + long(row[14]))
                 elif len(row) == 18:
                     results['Innodb_pending_normal_aio_reads'] = long(row[4])
                     results['Innodb_pending_normal_aio_writes'] = long(row[12])
@@ -1178,7 +1204,7 @@ class MySql(AgentCheck):
         # Fetches the avg query execution time per schema and returns the
         # value in microseconds
 
-        sql_avg_query_run_time = """SELECT schema_name, SUM(count_star) cnt, ROUND(AVG(avg_timer_wait)/1000000) AS avg_us
+        sql_avg_query_run_time = """SELECT schema_name, ROUND((SUM(sum_timer_wait) / SUM(count_star)) / 1000000) AS avg_us
             FROM performance_schema.events_statements_summary_by_digest
             WHERE schema_name IS NOT NULL
             GROUP BY schema_name"""
@@ -1194,7 +1220,7 @@ class MySql(AgentCheck):
                 schema_query_avg_run_time = {}
                 for row in cursor.fetchall():
                     schema_name = str(row[0])
-                    avg_us = long(row[2])
+                    avg_us = long(row[1])
 
                     # set the tag as the dictionary key
                     schema_query_avg_run_time["schema:{0}".format(schema_name)] = avg_us

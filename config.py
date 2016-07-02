@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import ConfigParser
 from cStringIO import StringIO
@@ -18,32 +22,31 @@ import sys
 import traceback
 from urlparse import urlparse
 
-# 3p
-import yaml
-
 # project
-from util import get_os, yLoader
+from util import check_yaml, get_os
 from utils.platform import Platform
 from utils.proxy import get_proxy
+from utils.service_discovery.config import extract_agent_config
+from utils.service_discovery.config_stores import CONFIG_FROM_FILE, TRACE_CONFIG
+from utils.service_discovery.sd_backend import get_sd_backend, AUTO_CONFIG_DIR, SD_BACKENDS
 from utils.subprocess_output import (
     get_subprocess_output,
     SubprocessOutputEmptyError,
 )
 
-
 # CONSTANTS
-AGENT_VERSION = "5.7.0"
+AGENT_VERSION = "5.9.0"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
 MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
-LOGGING_MAX_BYTES = 5 * 1024 * 1024
+LOGGING_MAX_BYTES = 10 * 1024 * 1024
 
 log = logging.getLogger(__name__)
 
 OLD_STYLE_PARAMETERS = [
     ('apache_status_url', "apache"),
-    ('cacti_mysql_server' , "cacti"),
+    ('cacti_mysql_server', "cacti"),
     ('couchdb_server', "couchdb"),
     ('elasticsearch', "elasticsearch"),
     ('haproxy_url', "haproxy"),
@@ -81,8 +84,6 @@ def get_parsed_args():
                       dest='dd_url')
     parser.add_option('-u', '--use-local-forwarder', action='store_true',
                       default=False, dest='use_forwarder')
-    parser.add_option('-n', '--disable-dd', action='store_true', default=False,
-                      dest="disable_dd")
     parser.add_option('-v', '--verbose', action='store_true', default=False,
                       dest='verbose',
                       help='Print out stacktraces for errors in checks')
@@ -95,7 +96,6 @@ def get_parsed_args():
         # Ignore parse errors
         options, args = Values({'autorestart': False,
                                 'dd_url': None,
-                                'disable_dd': False,
                                 'use_forwarder': False,
                                 'verbose': False,
                                 'profile': False}), []
@@ -120,6 +120,7 @@ def get_url_endpoint(default_url, endpoint_type='app'):
             get_version().replace(".", "-"),
             endpoint_type))
 
+
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
     return StringIO("\n".join(map(string.strip, f.readlines())))
@@ -137,9 +138,9 @@ def _windows_commondata_path():
 
     _SHGetFolderPath = windll.shell32.SHGetFolderPathW
     _SHGetFolderPath.argtypes = [wintypes.HWND,
-                                ctypes.c_int,
-                                wintypes.HANDLE,
-                                wintypes.DWORD, wintypes.LPCWSTR]
+                                 ctypes.c_int,
+                                 wintypes.HANDLE,
+                                 wintypes.DWORD, wintypes.LPCWSTR]
 
     path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
     _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
@@ -232,7 +233,7 @@ def get_config_path(cfg_path=None, os_name=None):
         path = os.path.realpath(__file__)
         path = os.path.dirname(path)
         return _config_path(path)
-    except PathNotFound, e:
+    except PathNotFound as e:
         pass
 
     if os_name is None:
@@ -247,12 +248,13 @@ def get_config_path(cfg_path=None, os_name=None):
             return _mac_config_path()
         else:
             return _unix_config_path()
-    except PathNotFound, e:
+    except PathNotFound as e:
         if len(e.args) > 0:
             bad_path = e.args[0]
 
     # If all searches fail, exit the agent with an error
-    sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
+    sys.stderr.write("Please supply a configuration file at %s or in the directory where "
+                     "the Agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
 
@@ -287,6 +289,7 @@ def get_histogram_aggregates(configstr=None):
 
     return result
 
+
 def get_histogram_percentiles(configstr=None):
     if configstr is None:
         return None
@@ -302,16 +305,24 @@ def get_histogram_percentiles(configstr=None):
                     raise ValueError
                 if len(val) > 4:
                     log.warning("Histogram percentiles are rounded to 2 digits: {0} rounded"
-                        .format(floatval))
+                                .format(floatval))
                 result.append(float(val[0:4]))
             except ValueError:
                 log.warning("Bad histogram percentile value {0}, must be float in ]0;1[, skipping"
-                    .format(val))
+                            .format(val))
     except Exception:
         log.exception("Error when parsing histogram percentiles, skipping")
         return None
 
     return result
+
+
+def clean_dd_url(url):
+    url = url.strip()
+    if not url.startswith('http'):
+        url = 'https://' + url
+    return url[:-1] if url.endswith('/') else url
+
 
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
@@ -362,22 +373,65 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         #
         # Core config
-        #
+        #ap
+        if not config.has_option('Main', 'api_key'):
+            log.warning(u"No API key was found. Aborting.")
+            sys.exit(2)
 
-        # FIXME unnecessarily complex
-        agentConfig['use_forwarder'] = False
-        if options is not None and options.use_forwarder:
+        if not config.has_option('Main', 'dd_url'):
+            log.warning(u"No dd_url was found. Aborting.")
+            sys.exit(2)
+
+        # Endpoints
+        dd_url = clean_dd_url(config.get('Main', 'dd_url'))
+        api_key = config.get('Main', 'api_key').strip()
+
+        # For collector and dogstatsd
+        agentConfig['api_key'] = api_key
+        agentConfig['dd_url'] = dd_url
+
+        # multiple endpoints
+        if config.has_option('Main', 'other_dd_urls'):
+            other_dd_urls = map(clean_dd_url, config.get('Main', 'other_dd_urls').split(','))
+        else:
+            other_dd_urls = []
+        if config.has_option('Main', 'other_api_keys'):
+            other_api_keys = map(lambda x: x.strip(), config.get('Main', 'other_api_keys').split(','))
+        else:
+            other_api_keys = []
+
+        # Forwarder endpoints logic
+        # endpoints is:
+        # {
+        #    'https://app.datadoghq.com': ['api_key_abc', 'api_key_def'],
+        #    'https://app.example.com': ['api_key_xyz']
+        # }
+        endpoints = {dd_url: [api_key]}
+        if len(other_dd_urls) == 0:
+            endpoints[dd_url] += other_api_keys
+        else:
+            assert len(other_dd_urls) == len(other_api_keys), 'Please provide one api_key for each url'
+            for i, other_dd_url in enumerate(other_dd_urls):
+                endpoints[other_dd_url] = endpoints.get(other_dd_url, []) + [other_api_keys[i]]
+
+        agentConfig['endpoints'] = endpoints
+
+        # Forwarder or not forwarder
+        agentConfig['use_forwarder'] = options is not None and options.use_forwarder
+        if agentConfig['use_forwarder']:
             listen_port = 17123
             if config.has_option('Main', 'listen_port'):
                 listen_port = int(config.get('Main', 'listen_port'))
-            agentConfig['dd_url'] = "http://" + agentConfig['bind_host'] + ":" + str(listen_port)
-            agentConfig['use_forwarder'] = True
-        elif options is not None and not options.disable_dd and options.dd_url:
+            agentConfig['dd_url'] = "http://{}:{}".format(agentConfig['bind_host'], listen_port)
+        # FIXME: Legacy dd_url command line switch
+        elif options is not None and options.dd_url is not None:
             agentConfig['dd_url'] = options.dd_url
-        else:
-            agentConfig['dd_url'] = config.get('Main', 'dd_url')
-        if agentConfig['dd_url'].endswith('/'):
-            agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
+
+        # Forwarder timeout
+        agentConfig['forwarder_timeout'] = 20
+        if config.has_option('Main', 'forwarder_timeout'):
+            agentConfig['forwarder_timeout'] = int(config.get('Main', 'forwarder_timeout'))
+
 
         # Extra checks.d path
         # the linux directory is set by default
@@ -393,14 +447,20 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         else:
             agentConfig['use_dogstatsd'] = True
 
+        # Service discovery
+        if config.has_option('Main', 'service_discovery_backend'):
+            try:
+                additional_config = extract_agent_config(config)
+                agentConfig.update(additional_config)
+            except:
+                log.error('Failed to load the agent configuration related to '
+                          'service discovery. It will not be used.')
+
         # Concerns only Windows
         if config.has_option('Main', 'use_web_info_page'):
             agentConfig['use_web_info_page'] = config.get('Main', 'use_web_info_page').lower() in ("yes", "true")
         else:
             agentConfig['use_web_info_page'] = True
-
-        # Which API key to use
-        agentConfig['api_key'] = config.get('Main', 'api_key')
 
         # local traffic only? Default to no
         agentConfig['non_local_traffic'] = False
@@ -486,9 +546,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         except ConfigParser.NoOptionError:
             pass
 
-        if config.has_option('datadog', 'ddforwarder_log'):
-            agentConfig['has_datadog'] = True
-
         # Dogstream config
         if config.has_option("Main", "dogstream_log"):
             # Older version, single log support
@@ -544,15 +601,15 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option("Main", "gce_updated_hostname"):
             agentConfig["gce_updated_hostname"] = _is_affirmative(config.get("Main", "gce_updated_hostname"))
 
-    except ConfigParser.NoSectionError, e:
+    except ConfigParser.NoSectionError as e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
 
-    except ConfigParser.ParsingError, e:
+    except ConfigParser.ParsingError as e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
 
-    except ConfigParser.NoOptionError, e:
+    except ConfigParser.NoOptionError as e:
         sys.stderr.write('There are some items missing from your config file, but nothing fatal [%s]' % e)
 
     # Storing proxy settings in the agentConfig
@@ -565,7 +622,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     return agentConfig
 
 
-def get_system_stats():
+def get_system_stats(proc_path=None):
     systemStats = {
         'machine': platform.machine(),
         'platform': sys.platform,
@@ -577,7 +634,10 @@ def get_system_stats():
 
     try:
         if Platform.is_linux(platf):
-            output, _, _ = get_subprocess_output(['grep', 'model name', '/proc/cpuinfo'], log)
+            if not proc_path:
+                proc_path = "/proc"
+            proc_cpuinfo = os.path.join(proc_path,'cpuinfo')
+            output, _, _ = get_subprocess_output(['grep', 'model name', proc_cpuinfo], log)
             systemStats['cpuCores'] = len(output.splitlines())
 
         if Platform.is_darwin(platf) or Platform.is_freebsd(platf):
@@ -618,7 +678,7 @@ def set_win32_cert_path():
     else:
         cur_path = os.path.dirname(__file__)
         crt_path = os.path.join(cur_path, 'packaging', 'datadog-agent', 'win32',
-                'install_files', 'ca-certificates.crt')
+                                'install_files', 'ca-certificates.crt')
     import tornado.simple_httpclient
     log.info("Windows certificate path: %s" % crt_path)
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
@@ -647,7 +707,7 @@ def get_confd_path(osname=None):
     try:
         cur_path = os.path.dirname(os.path.realpath(__file__))
         return _confd_path(cur_path)
-    except PathNotFound, e:
+    except PathNotFound as e:
         pass
 
     if not osname:
@@ -660,7 +720,7 @@ def get_confd_path(osname=None):
             return _mac_confd_path()
         else:
             return _unix_confd_path()
-    except PathNotFound, e:
+    except PathNotFound as e:
         if len(e.args) > 0:
             bad_path = e.args[0]
 
@@ -676,6 +736,24 @@ def get_checksd_path(osname=None):
         return _mac_checksd_path()
     else:
         return _unix_checksd_path()
+
+
+def get_3rd_party_path(osname=None):
+    if not osname:
+        osname = get_os()
+    if osname in ['windows', 'mac']:
+        raise PathNotFound()
+
+    cur_path = os.path.dirname(os.path.realpath(__file__))
+    path = os.path.join(cur_path, '../3rd-party')
+    if os.path.exists(path):
+        return path
+    raise PathNotFound(path)
+
+
+def get_auto_confd_path(osname=None):
+    """Used for service discovery which only works for Unix"""
+    return os.path.join(get_confd_path(osname), AUTO_CONFIG_DIR)
 
 
 def get_win32service_file(osname, filename):
@@ -703,6 +781,7 @@ def get_win32service_file(osname, filename):
 
 def get_ssl_certificate(osname, filename):
     # The SSL certificate is needed by tornado in case of connection through a proxy
+    # Also used by flare's requests on Windows
     if osname == 'windows':
         if hasattr(sys, 'frozen'):
             # we're frozen - from py2exe
@@ -720,191 +799,285 @@ def get_ssl_certificate(osname, filename):
         if os.path.exists(path):
             return path
 
-
     log.info("Certificate file NOT found at %s" % str(path))
     return None
 
-def check_yaml(conf_path):
-    with open(conf_path) as f:
-        check_config = yaml.load(f.read(), Loader=yLoader)
-        assert 'init_config' in check_config, "No 'init_config' section found"
-        assert 'instances' in check_config, "No 'instances' section found"
 
-        valid_instances = True
-        if check_config['instances'] is None or not isinstance(check_config['instances'], list):
-            valid_instances = False
-        else:
-            for i in check_config['instances']:
-                if not isinstance(i, dict):
-                    valid_instances = False
-                    break
-        if not valid_instances:
-            raise Exception('You need to have at least one instance defined in the YAML file for this check')
-        else:
-            return check_config
+def _get_check_class(check_name, check_path):
+    '''Return the corresponding check class for a check name if available.'''
+    from checks import AgentCheck
+    check_class = None
+    try:
+        check_module = imp.load_source('checksd_%s' % check_name, check_path)
+    except Exception as e:
+        traceback_message = traceback.format_exc()
+        # There is a configuration file for that check but the module can't be imported
+        log.exception('Unable to import check module %s.py from checks.d' % check_name)
+        return {'error': e, 'traceback': traceback_message}
+
+    # We make sure that there is an AgentCheck class defined
+    check_class = None
+    classes = inspect.getmembers(check_module, inspect.isclass)
+    for _, clsmember in classes:
+        if clsmember == AgentCheck:
+            continue
+        if issubclass(clsmember, AgentCheck):
+            check_class = clsmember
+            if AgentCheck in clsmember.__bases__:
+                continue
+            else:
+                break
+    return check_class
+
+
+def _deprecated_configs(agentConfig):
+    """ Warn about deprecated configs
+    """
+    deprecated_checks = {}
+    deprecated_configs_enabled = [v for k, v in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
+    for deprecated_config in deprecated_configs_enabled:
+        msg = "Configuring %s in datadog.conf is not supported anymore. Please use conf.d" % deprecated_config
+        deprecated_checks[deprecated_config] = {'error': msg, 'traceback': None}
+        log.error(msg)
+    return deprecated_checks
+
+
+def _file_configs_paths(osname, agentConfig):
+    """ Retrieve all the file configs and return their paths
+    """
+    try:
+        confd_path = get_confd_path(osname)
+        all_file_configs = glob.glob(os.path.join(confd_path, '*.yaml'))
+        all_default_configs = glob.glob(os.path.join(confd_path, '*.yaml.default'))
+    except PathNotFound as e:
+        log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
+        sys.exit(3)
+
+    if all_default_configs:
+        current_configs = set([_conf_path_to_check_name(conf) for conf in all_file_configs])
+        for default_config in all_default_configs:
+            if not _conf_path_to_check_name(default_config) in current_configs:
+                all_file_configs.append(default_config)
+
+    # Compatibility code for the Nagios checks if it's still configured
+    # in datadog.conf
+    # FIXME: 6.x, should be removed
+    if not any('nagios' in config for config in itertools.chain(*all_file_configs)):
+        # check if it's configured in datadog.conf the old way
+        if any([nagios_key in agentConfig for nagios_key in NAGIOS_OLD_CONF_KEYS]):
+            all_file_configs.append('deprecated/nagios')
+
+    return all_file_configs
+
+
+def _service_disco_configs(agentConfig):
+    """ Retrieve all the service disco configs and return their conf dicts
+    """
+    if agentConfig.get('service_discovery') and agentConfig.get('service_discovery_backend') in SD_BACKENDS:
+        try:
+            log.info("Fetching service discovery check configurations.")
+            sd_backend = get_sd_backend(agentConfig=agentConfig)
+            service_disco_configs = sd_backend.get_configs()
+        except Exception:
+            log.exception("Loading service discovery configurations failed.")
+    else:
+        service_disco_configs = {}
+
+    return service_disco_configs
+
+
+def _conf_path_to_check_name(conf_path):
+    f = os.path.splitext(os.path.split(conf_path)[1])
+    if f[1] and f[1] == ".default":
+        f = os.path.splitext(f[0])
+    return f[0]
+
+
+def get_checks_places(osname, agentConfig):
+    """ Return a list of methods which, when called with a check name, will each return a check path to inspect
+    """
+    try:
+        checksd_path = get_checksd_path(osname)
+    except PathNotFound as e:
+        log.error(e.args[0])
+        sys.exit(3)
+
+    places = [lambda name: os.path.join(agentConfig['additional_checksd'], '%s.py' % name)]
+
+    try:
+        third_party_path = get_3rd_party_path(osname)
+        places.append(lambda name: os.path.join(third_party_path, name, 'check.py'))
+    except PathNotFound:
+        log.debug('No 3rd-party path found')
+
+    places.append(lambda name: os.path.join(checksd_path, '%s.py' % name))
+    return places
+
+
+def _load_file_config(config_path, check_name, agentConfig):
+    if config_path == 'deprecated/nagios':
+        log.warning("Configuring Nagios in datadog.conf is deprecated "
+                    "and will be removed in a future version. "
+                    "Please use conf.d")
+        check_config = {'instances': [dict((key, value) for (key, value) in agentConfig.iteritems() if key in NAGIOS_OLD_CONF_KEYS)]}
+        return True, check_config, {}
+
+    try:
+        check_config = check_yaml(config_path)
+    except Exception as e:
+        log.exception("Unable to parse yaml config in %s" % config_path)
+        traceback_message = traceback.format_exc()
+        return False, None, {check_name: {'error': str(e), 'traceback': traceback_message}}
+    return True, check_config, {}
+
+
+def get_valid_check_class(check_name, check_path):
+    check_class = _get_check_class(check_name, check_path)
+
+    if not check_class:
+        log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
+        return False, None, {}
+    # this means we are actually looking at a load failure
+    elif isinstance(check_class, dict):
+        return False, None, {check_name: check_class}
+
+    return True, check_class, {}
+
+
+def _initialize_check(check_config, check_name, check_class, agentConfig):
+    init_config = check_config.get('init_config') or {}
+    instances = check_config['instances']
+    try:
+        try:
+            check = check_class(check_name, init_config=init_config,
+                                agentConfig=agentConfig, instances=instances)
+        except TypeError as e:
+            # Backwards compatibility for checks which don't support the
+            # instances argument in the constructor.
+            check = check_class(check_name, init_config=init_config,
+                                agentConfig=agentConfig)
+            check.instances = instances
+    except Exception as e:
+        log.exception('Unable to initialize check %s' % check_name)
+        traceback_message = traceback.format_exc()
+        return {}, {check_name: {'error': e, 'traceback': traceback_message}}
+    else:
+        return {check_name: check}, {}
+
+
+def _update_python_path(check_config):
+    # Add custom pythonpath(s) if available
+    if 'pythonpath' in check_config:
+        pythonpath = check_config['pythonpath']
+        if not isinstance(pythonpath, list):
+            pythonpath = [pythonpath]
+        sys.path.extend(pythonpath)
+
+
+def load_check_from_places(check_config, check_name, checks_places, agentConfig):
+    '''Find a check named check_name in the given checks_places and try to initialize it with the given check_config.
+    A failure (`load_failure`) can happen when the check class can't be validated or when the check can't be initialized. '''
+    load_success, load_failure = {}, {}
+    for check_path_builder in checks_places:
+        check_path = check_path_builder(check_name)
+        if not os.path.exists(check_path):
+            continue
+
+        check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path)
+        if not check_is_valid:
+            continue
+
+        load_success, load_failure = _initialize_check(
+            check_config, check_name, check_class, agentConfig
+        )
+
+        _update_python_path(check_config)
+
+        log.debug('Loaded %s' % check_path)
+        break  # we successfully initialized this check
+
+    return load_success, load_failure
+
 
 def load_check_directory(agentConfig, hostname):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
-    from checks import AgentCheck, AGENT_METRICS_CHECK_NAME
+    from checks import AGENT_METRICS_CHECK_NAME
 
     initialized_checks = {}
     init_failed_checks = {}
     deprecated_checks = {}
     agentConfig['checksd_hostname'] = hostname
-
-    deprecated_configs_enabled = [v for k,v in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
-    for deprecated_config in deprecated_configs_enabled:
-        msg = "Configuring %s in datadog.conf is not supported anymore. Please use conf.d" % deprecated_config
-        deprecated_checks[deprecated_config] = {'error': msg, 'traceback': None}
-        log.error(msg)
-
     osname = get_os()
-    checks_paths = [glob.glob(os.path.join(agentConfig['additional_checksd'], '*.py'))]
 
-    try:
-        checksd_path = get_checksd_path(osname)
-        checks_paths.append(glob.glob(os.path.join(checksd_path, '*.py')))
-    except PathNotFound, e:
-        log.error(e.args[0])
-        sys.exit(3)
+    # the TRACE_CONFIG flag is used by the configcheck to trace config object loading and
+    # where they come from (service discovery, auto config or config file)
+    if agentConfig.get(TRACE_CONFIG):
+        configs_and_sources = {
+            # check_name: (config_source, config)
+        }
 
-    try:
-        confd_path = get_confd_path(osname)
-    except PathNotFound, e:
-        log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
-        sys.exit(3)
+    deprecated_checks.update(_deprecated_configs(agentConfig))
 
-    # We don't support old style configs anymore
-    # So we iterate over the files in the checks.d directory
-    # If there is a matching configuration file in the conf.d directory
-    # then we import the check
-    for check in itertools.chain(*checks_paths):
-        check_name = os.path.basename(check).split('.')[0]
-        check_config = None
+    checks_places = get_checks_places(osname, agentConfig)
+
+    for config_path in _file_configs_paths(osname, agentConfig):
+        # '/etc/dd-agent/checks.d/my_check.py' -> 'my_check'
+        check_name = _conf_path_to_check_name(config_path)
+
+        conf_is_valid, check_config, invalid_check = _load_file_config(config_path, check_name, agentConfig)
+        init_failed_checks.update(invalid_check)
+        if not conf_is_valid:
+            continue
+
+        if agentConfig.get(TRACE_CONFIG):
+            configs_and_sources[check_name] = (CONFIG_FROM_FILE, check_config)
+
+        # load the check
+        load_success, load_failure = load_check_from_places(check_config, check_name, checks_places, agentConfig)
+
+        initialized_checks.update(load_success)
+        init_failed_checks.update(load_failure)
+
+    for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
+        # ignore this config from service disco if the check has been loaded through a file config
         if check_name in initialized_checks or check_name in init_failed_checks:
-            log.debug('Skipping check %s because it has already been loaded from another location', check)
             continue
 
-        # Let's see if there is a conf.d for this check
-        conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
-        conf_exists = False
-
-        if os.path.exists(conf_path):
-            conf_exists = True
+        # if TRACE_CONFIG is set, service_disco_check_config looks like:
+        # (config_src, (sd_init_config, sd_instances)) instead of
+        # (sd_init_config, sd_instances)
+        if agentConfig.get(TRACE_CONFIG):
+            sd_init_config, sd_instances = service_disco_check_config[1]
+            configs_and_sources[check_name] = (
+                service_disco_check_config[0],
+                {'init_config': sd_init_config, 'instances': sd_instances})
         else:
-            log.debug("No configuration file for %s. Looking for defaults" % check_name)
+            sd_init_config, sd_instances = service_disco_check_config
 
-            # Default checks read their config from the "[CHECKNAME].yaml.default" file
-            default_conf_path = os.path.join(confd_path, '%s.yaml.default' % check_name)
-            if not os.path.exists(default_conf_path):
-                log.debug("Default configuration file {0} is missing. Skipping check".format(default_conf_path))
-                continue
-            conf_path = default_conf_path
-            conf_exists = True
+        check_config = {'init_config': sd_init_config, 'instances': sd_instances}
 
-        if conf_exists:
-            try:
-                check_config = check_yaml(conf_path)
-            except Exception, e:
-                log.exception("Unable to parse yaml config in %s" % conf_path)
-                traceback_message = traceback.format_exc()
-                init_failed_checks[check_name] = {'error': str(e), 'traceback': traceback_message}
-                continue
-        else:
-            # Compatibility code for the Nagios checks if it's still configured
-            # in datadog.conf
-            # FIXME: 6.x, should be removed
-            if check_name == 'nagios':
-                if any([nagios_key in agentConfig for nagios_key in NAGIOS_OLD_CONF_KEYS]):
-                    log.warning("Configuring Nagios in datadog.conf is deprecated "
-                                "and will be removed in a future version. "
-                                "Please use conf.d")
-                    check_config = {'instances':[dict((key, agentConfig[key]) for key in agentConfig if key in NAGIOS_OLD_CONF_KEYS)]}
-                else:
-                    continue
-            else:
-                log.debug("No configuration file for %s" % check_name)
-                continue
+        # load the check
+        load_success, load_failure = load_check_from_places(check_config, check_name, checks_places, agentConfig)
 
-        # If we are here, there is a valid matching configuration file.
-        # Let's try to import the check
-        try:
-            check_module = imp.load_source('checksd_%s' % check_name, check)
-        except Exception, e:
-            traceback_message = traceback.format_exc()
-            # There is a configuration file for that check but the module can't be imported
-            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
-            log.exception('Unable to import check module %s.py from checks.d' % check_name)
-            continue
-
-        # We make sure that there is an AgentCheck class defined
-        check_class = None
-        classes = inspect.getmembers(check_module, inspect.isclass)
-        for _, clsmember in classes:
-            if clsmember == AgentCheck:
-                continue
-            if issubclass(clsmember, AgentCheck):
-                check_class = clsmember
-                if AgentCheck in clsmember.__bases__:
-                    continue
-                else:
-                    break
-
-        if not check_class:
-            log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
-            continue
-
-        # Look for the per-check config, which *must* exist
-        if not check_config.get('instances'):
-            log.error("Config %s is missing 'instances'" % conf_path)
-            continue
-
-        # Init all of the check's classes with
-        init_config = check_config.get('init_config', {})
-        # init_config: in the configuration triggers init_config to be defined
-        # to None.
-        if init_config is None:
-            init_config = {}
-
-        instances = check_config['instances']
-        try:
-            try:
-                c = check_class(check_name, init_config=init_config,
-                                agentConfig=agentConfig, instances=instances)
-            except TypeError, e:
-                # Backwards compatibility for checks which don't support the
-                # instances argument in the constructor.
-                c = check_class(check_name, init_config=init_config,
-                                agentConfig=agentConfig)
-                c.instances = instances
-        except Exception, e:
-            log.exception('Unable to initialize check %s' % check_name)
-            traceback_message = traceback.format_exc()
-            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
-        else:
-            initialized_checks[check_name] = c
-
-        # Add custom pythonpath(s) if available
-        if 'pythonpath' in check_config:
-            pythonpath = check_config['pythonpath']
-            if not isinstance(pythonpath, list):
-                pythonpath = [pythonpath]
-            sys.path.extend(pythonpath)
-
-        log.debug('Loaded check.d/%s.py' % check_name)
+        initialized_checks.update(load_success)
+        init_failed_checks.update(load_failure)
 
     init_failed_checks.update(deprecated_checks)
     log.info('initialized checks.d checks: %s' % [k for k in initialized_checks.keys() if k != AGENT_METRICS_CHECK_NAME])
     log.info('initialization failed checks.d checks: %s' % init_failed_checks.keys())
-    return {'initialized_checks':initialized_checks.values(),
-            'init_failed_checks':init_failed_checks,
-            }
 
+    if agentConfig.get(TRACE_CONFIG):
+        return configs_and_sources
+
+    return {'initialized_checks': initialized_checks.values(),
+            'init_failed_checks': init_failed_checks,
+            }
 
 #
 # logging
+
 
 def get_log_date_format():
     return "%Y-%m-%d %H:%M:%S %Z"
@@ -1001,7 +1174,6 @@ def get_logging_config(cfg_path=None):
     return logging_config
 
 
-
 def initialize_logging(logger_name):
     try:
         logging_config = get_logging_config()
@@ -1044,7 +1216,7 @@ def initialize_logging(logger_name):
                 handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
                 root_log = logging.getLogger()
                 root_log.addHandler(handler)
-            except Exception, e:
+            except Exception as e:
                 sys.stderr.write("Error setting up syslog: '%s'\n" % str(e))
                 traceback.print_exc()
 
@@ -1052,16 +1224,16 @@ def initialize_logging(logger_name):
         if get_os() == 'windows' and logging_config['log_to_event_viewer']:
             try:
                 from logging.handlers import NTEventLogHandler
-                nt_event_handler = NTEventLogHandler(logger_name,get_win32service_file('windows', 'win32service.pyd'), 'Application')
+                nt_event_handler = NTEventLogHandler(logger_name, get_win32service_file('windows', 'win32service.pyd'), 'Application')
                 nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
                 nt_event_handler.setLevel(logging.ERROR)
                 app_log = logging.getLogger(logger_name)
                 app_log.addHandler(nt_event_handler)
-            except Exception, e:
+            except Exception as e:
                 sys.stderr.write("Error setting up Event viewer logging: '%s'\n" % str(e))
                 traceback.print_exc()
 
-    except Exception, e:
+    except Exception as e:
         sys.stderr.write("Couldn't initialize logging: %s\n" % str(e))
         traceback.print_exc()
 

@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from collections import defaultdict
 import itertools
@@ -58,7 +62,7 @@ class SupervisordCheck(AgentCheck):
         # Gather all process information
         try:
             processes = supe.getAllProcessInfo()
-        except xmlrpclib.Fault, error:
+        except xmlrpclib.Fault as error:
             raise Exception(
                 'An error occurred while reading process information: %s %s'
                 % (error.faultCode, error.faultString)
@@ -82,7 +86,7 @@ class SupervisordCheck(AgentCheck):
 
             raise Exception(msg)
 
-        except xmlrpclib.ProtocolError, e:
+        except xmlrpclib.ProtocolError as e:
             if e.errcode == 401:  # authorization error
                 msg = 'Username or password to %s are incorrect.' % server_name
             else:

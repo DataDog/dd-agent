@@ -26,8 +26,8 @@ pull request.
 ## Setup your environment
 
 Required:
-- python 2.6 or 2.7
-- bundler
+- python 2.7
+- bundler (to get it: `gem install bundler`)
 
 ```
 # Clone the repository

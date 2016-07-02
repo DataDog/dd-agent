@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # set up logging before importing any other components
 if __name__ == '__main__':
     from config import initialize_logging  # noqa
@@ -218,7 +222,7 @@ class JMXFetch(object):
                             tools_jar_path = check_tools_jar_path
                         if check_custom_jar_paths:
                             custom_jar_paths.extend(check_custom_jar_paths)
-                except InvalidJMXConfiguration, e:
+                except InvalidJMXConfiguration as e:
                     log.error("%s check does not have a valid JMX configuration: %s" % (check_name, e))
                     # Make sure check_name is a string - Fix issues with Windows
                     check_name = check_name.encode('ascii', 'ignore')
@@ -227,9 +231,13 @@ class JMXFetch(object):
         return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path, custom_jar_paths)
 
     def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path, custom_jar_paths, redirect_std_streams):
-        statsd_port = self.agentConfig.get('dogstatsd_port', "8125")
         if reporter is None:
-            reporter = "statsd:%s" % str(statsd_port)
+            statsd_host = self.agentConfig.get('bind_host', 'localhost')
+            if statsd_host == "0.0.0.0":
+                # If statsd is bound to all interfaces, just use localhost for clients
+                statsd_host = "localhost"
+            statsd_port = self.agentConfig.get('dogstatsd_port', "8125")
+            reporter = "statsd:%s:%s" % (statsd_host, statsd_port)
 
         log.info("Starting jmxfetch:")
         try:
@@ -376,7 +384,7 @@ class JMXFetch(object):
 
                 if conf is None:
                     log.warning("%s doesn't have a 'conf' section. Only basic JVM metrics"
-                                " will be collected. %s" % (inst, LINK_TO_DOC))
+                                " will be collected. %s" % (check_name, LINK_TO_DOC))
                 else:
                     if type(conf) != list or len(conf) == 0:
                         raise InvalidJMXConfiguration("'conf' section should be a list"
@@ -446,7 +454,7 @@ def init(config_path=None):
     agentConfig = get_config(parse_args=False, cfg_path=config_path)
     try:
         confd_path = get_confd_path()
-    except PathNotFound, e:
+    except PathNotFound as e:
         log.error("No conf.d folder found at '%s' or in the directory where"
                   "the Agent is currently deployed.\n" % e.args[0])
 

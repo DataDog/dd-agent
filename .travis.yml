@@ -7,13 +7,13 @@ branches:
 
 language: python
 python:
-  - "2.6"
   - "2.7"
 
 cache:
   directories:
     - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION.9
     - vendor/cache
+    - $HOME/embedded
 
 matrix:
   fast_finish: true
@@ -21,7 +21,6 @@ matrix:
 env:
   global:
     - CONCURRENCY=2
-    - COVERAGE=true
     - NOSE_FILTER="not windows"
     - INTEGRATIONS_DIR=$HOME/embedded
     - PIP_CACHE=$HOME/.cache/pip
@@ -46,6 +45,8 @@ env:
     - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.5.2
     - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.6.2
     - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.7.4
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=2.0.2
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=2.1.1
     - TRAVIS_FLAVOR=etcd
     - TRAVIS_FLAVOR=fluentd
     - TRAVIS_FLAVOR=go_expvar
@@ -55,6 +56,7 @@ env:
     - TRAVIS_FLAVOR=haproxy FLAVOR_VERSION=1.3.27
     - TRAVIS_FLAVOR=haproxy FLAVOR_VERSION=1.4.26
     - TRAVIS_FLAVOR=haproxy FLAVOR_VERSION=1.5.11
+    - TRAVIS_FLAVOR=kong FLAVOR_VERSION=0.8.1
     - TRAVIS_FLAVOR=lighttpd
     - TRAVIS_FLAVOR=memcache
     - TRAVIS_FLAVOR=mongo FLAVOR_VERSION=2.6.9
@@ -70,6 +72,7 @@ env:
     - TRAVIS_FLAVOR=postgres FLAVOR_VERSION=9.2.10
     - TRAVIS_FLAVOR=postgres FLAVOR_VERSION=9.3.6
     - TRAVIS_FLAVOR=postgres FLAVOR_VERSION=9.4.1
+    - TRAVIS_FLAVOR=powerdns_recursor
     - TRAVIS_FLAVOR=rabbitmq
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.4.18
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.6.17

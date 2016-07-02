@@ -25,6 +25,12 @@ instances:
     # This only applies if `collect_status_metrics` is True.
     # collect_status_metrics_by_host: False
     #
+    # The (optional) `collate_status_tags_per_host` parameter will collate
+    # `status` tags for `haproxy.count_per_status` up to one of (`available`, `unavailable`)
+    # for each discovered backend.
+    # This only applies if `collect_status_metrics_by_host` is True.
+    # collate_status_tags_per_host: False
+    #
     # The (optional) `count_status_by_service` parameter will instruct the check
     # to tag the status counts it collects by service in addition to by host.
     # This only applies if `collect_status_metrics` is True.
@@ -34,6 +40,12 @@ instances:
     # check to tag the service check status by host on top of other tags.
     # The default case will only tag by backend and service.
     # tag_service_check_by_host: False
+    #
+    # The (optional) disable_ssl_validation will instruct the check
+    # to skip the validation of the SSL certificate of the URL being tested.
+    # Defaults to false, set to true if you want to disable SSL certificate validation.
+    #
+    # disable_ssl_validation: false
     #
     # (Optional) Filter metrics by services.
     # How it works: if a tag matches an exclude rule, it won't be included

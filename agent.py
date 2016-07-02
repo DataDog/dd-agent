@@ -1,16 +1,16 @@
 #!/opt/datadog-agent/embedded/bin/python
-'''
+"""
     Datadog
     www.datadoghq.com
     ----
-    Make sense of your IT Data
+    Cloud-Scale Monitoring. Monitoring that tracks your dynamic infrastructure.
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
-    (C) Datadog, Inc. 2010-2014 all rights reserved
-'''
+    (C) Datadog, Inc. 2010-2016 all rights reserved
+"""
 # set up logging before importing any other components
-from config import get_version, initialize_logging # noqa
+from config import get_version, initialize_logging  # noqa
 initialize_logging('collector')
 
 # stdlib
@@ -39,10 +39,13 @@ from util import (
     get_hostname,
     Watchdog,
 )
-from utils.flare import configcheck, Flare
+from utils.flare import Flare
+from utils.configcheck import configcheck, sd_configcheck
 from utils.jmx import jmx_command
 from utils.pidfile import PidFile
 from utils.profile import AgentProfiler
+from utils.service_discovery.config_stores import get_config_store
+from utils.service_discovery.sd_backend import get_sd_backend
 
 # Constants
 PID_NAME = "dd-agent"
@@ -74,6 +77,7 @@ class Agent(Daemon):
         self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
         self.check_frequency = None
         self.configs_reloaded = False
+        self.sd_backend = None
 
     def _handle_sigterm(self, signum, frame):
         """Handles SIGTERM and SIGINT, which gracefully stops the agent."""
@@ -140,8 +144,14 @@ class Agent(Daemon):
 
         self._agentConfig = self._set_agent_config_hostname(config)
         hostname = get_hostname(self._agentConfig)
-        systemStats = get_system_stats()
+        systemStats = get_system_stats(
+            proc_path=self._agentConfig.get('procfs_path', '/proc').rstrip('/')
+        )
         emitters = self._get_emitters()
+
+        # Initialize service discovery
+        if self._agentConfig.get('service_discovery'):
+            self.sd_backend = get_sd_backend(self._agentConfig)
 
         # Load the checks.d checks
         self._checksd = load_check_directory(self._agentConfig, hostname)
@@ -166,8 +176,6 @@ class Agent(Daemon):
 
         # Run the main loop.
         while self.run_forever:
-            log.debug("Found {num_checks} checks".format(num_checks=len(self._checksd['initialized_checks'])))
-
             # Setup profiling if necessary
             if self.in_developer_mode and not profiled:
                 try:
@@ -181,8 +189,33 @@ class Agent(Daemon):
             self.collector.run(checksd=self._checksd,
                                start_event=self.start_event,
                                configs_reloaded=self.configs_reloaded)
-            if self.configs_reloaded:
-                self.configs_reloaded = False
+
+            # This flag is used to know if the check configs have been reloaded at the current
+            # run of the agent yet or not. It's used by the collector to know if it needs to
+            # look for the AgentMetrics check and pop it out.
+            # See: https://github.com/DataDog/dd-agent/blob/5.6.x/checks/collector.py#L265-L272
+            self.configs_reloaded = False
+
+            # Look for change in the config template store.
+            # The self.sd_backend.reload_check_configs flag is set
+            # to True if a config reload is needed.
+            if self._agentConfig.get('service_discovery') and self.sd_backend and \
+               not self.sd_backend.reload_check_configs:
+                try:
+                    self.sd_backend.reload_check_configs = get_config_store(
+                        self._agentConfig).crawl_config_template()
+                except Exception as e:
+                    log.warn('Something went wrong while looking for config template changes: %s' % str(e))
+
+            # Check if we should run service discovery
+            # The `reload_check_configs` flag can be set through the docker_daemon check or
+            # using ConfigStore.crawl_config_template
+            if self._agentConfig.get('service_discovery') and self.sd_backend and \
+               self.sd_backend.reload_check_configs:
+                self.reload_configs()
+                self.configs_reloaded = True
+                self.sd_backend.reload_check_configs = False
+
             if profiled:
                 if collector_profiled_runs >= self.collector_profile_interval:
                     try:
@@ -366,6 +399,7 @@ def main():
 
     elif 'configcheck' == command or 'configtest' == command:
         configcheck()
+        sd_configcheck(agentConfig)
 
     elif 'jmx' == command:
         jmx_command(args[1:], agentConfig)
@@ -377,7 +411,7 @@ def main():
         f.collect()
         try:
             f.upload()
-        except Exception, e:
+        except Exception as e:
             print 'The upload failed:\n{0}'.format(str(e))
 
     return 0

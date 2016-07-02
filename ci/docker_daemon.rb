@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 require './ci/common'
 
 namespace :ci do
@@ -15,15 +19,13 @@ namespace :ci do
 
     task before_cache: ['ci:common:before_cache']
 
-    task cache: ['ci:common:cache']
-
     task cleanup: ['ci:common:cleanup']
 
     task :execute do
       exception = nil
       begin
         %w(before_install before_script
-           script before_cache cache).each do |t|
+           script before_cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end
       rescue => e

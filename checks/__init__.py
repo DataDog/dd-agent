@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 """Base class for Checks.
 
 If you are writing your own checks you should subclass the AgentCheck class.
@@ -25,7 +29,7 @@ import yaml
 
 # project
 from checks import check_status
-from util import get_hostname, get_next_id, LaconicFilter, yLoader
+from util import get_hostname, get_next_id, yLoader
 from utils.platform import Platform
 from utils.profile import pretty_statistics
 if Platform.is_windows():
@@ -83,10 +87,6 @@ class Check(object):
         self._sample_store = {}
         self._counters = {}  # metric_name: bool
         self.logger = logger
-        try:
-            self.logger.addFilter(LaconicFilter())
-        except Exception:
-            self.logger.exception("Trying to install laconic log filter and failed")
 
     def normalize(self, metric, prefix=None):
         """Turn a metric into a well-formed metric name
@@ -157,7 +157,7 @@ class Check(object):
             raise CheckException("Saving a sample for an undefined metric: %s" % metric)
         try:
             value = cast_metric_val(value)
-        except ValueError, ve:
+        except ValueError as ve:
             raise NaN(ve)
 
         # Sort and validate tags
@@ -202,7 +202,7 @@ class Check(object):
             raise
         except UnknownValue:
             raise
-        except Exception, e:
+        except Exception as e:
             raise NaN(e)
 
     def get_sample_with_timestamp(self, metric, tags=None, device_name=None, expire=True):
@@ -332,6 +332,10 @@ class AgentCheck(object):
             histogram_aggregates=agentConfig.get('histogram_aggregates'),
             histogram_percentiles=agentConfig.get('histogram_percentiles')
         )
+
+        if Platform.is_linux() and psutil is not None:
+            procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
+            psutil.PROCFS_PATH = procfs_path
 
         self.events = []
         self.service_checks = []
@@ -499,7 +503,6 @@ class AgentCheck(object):
 
         self.historate_dict[context] = (value, now)
 
-
     def set(self, metric, value, tags=None, hostname=None, device_name=None):
         """
         Sample a set value, with optional tags, hostname and device name.
@@ -522,7 +525,6 @@ class AgentCheck(object):
             {
                 "timestamp": int, the epoch timestamp for the event,
                 "event_type": string, the event time name,
-                "api_key": string, the api key of the account to associate the event with,
                 "msg_title": string, the title of the event,
                 "msg_text": string, the text body of the event,
                 "alert_type": (optional) string, one of ('error', 'warning', 'success', 'info').
@@ -532,8 +534,6 @@ class AgentCheck(object):
                 "tags": (optional) list, a list of tags to associate with this event
             }
         """
-        if event.get('api_key') is None:
-            event['api_key'] = self.agentConfig['api_key']
         self.events.append(event)
 
     def service_check(self, check_name, status, tags=None, timestamp=None,
@@ -759,7 +759,7 @@ class AgentCheck(object):
                         i, check_status.STATUS_OK,
                         instance_check_stats=instance_check_stats
                     )
-            except Exception, e:
+            except Exception as e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
                 instance_status = check_status.InstanceStatus(
                     i, check_status.STATUS_ERROR,

@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import logging
 from time import time
@@ -554,7 +558,7 @@ class Aggregator(object):
                 'status': int(status)
             }
 
-            message_delimiter = '|m:' if '|m:' in metadata else 'm:'
+            message_delimiter = 'm:' if metadata.startswith('m:') else '|m:'
             if message_delimiter in metadata:
                 meta, message = metadata.rsplit(message_delimiter, 1)
                 service_check['message'] = self._unescape_sc_content(message)

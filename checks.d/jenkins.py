@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from collections import defaultdict
 from glob import glob
@@ -133,7 +137,7 @@ class Jenkins(AgentCheck):
                     # If it not a new build, stop here
                     else:
                         break
-        except Exception, e:
+        except Exception as e:
             self.log.error("Error while working on job %s, exception: %s" % (job_name, e))
 
     def check(self, instance, create_event=True):

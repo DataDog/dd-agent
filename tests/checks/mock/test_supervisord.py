@@ -251,7 +251,7 @@ instances:
                 try:
                     # Run the check
                     check.check(instance)
-                except Exception, e:
+                except Exception as e:
                     if 'error_message' in tc:  # excepted error
                         self.assertEquals(str(e), tc['error_message'])
                     else:

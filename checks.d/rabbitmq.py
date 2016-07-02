@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2013-2016
+# (C) Brett Langdon <brett@blangdon.com> 2013
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import re
 import time
@@ -9,6 +14,7 @@ import requests
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'rabbitmq'
 QUEUE_TYPE = 'queues'
@@ -70,6 +76,7 @@ TAGS_MAP = {
                 'name': 'queue',
                 'vhost': 'vhost',
                 'policy': 'policy',
+                'queue_family': 'queue_family',
     },
     NODE_TYPE: {
         'name': 'node',
@@ -93,12 +100,10 @@ class RabbitMQ(AgentCheck):
         self.already_alerted = []
 
     def _get_config(self, instance):
-        # make sure 'rabbitmq_api_url; is present
-        if 'rabbitmq_api_url' not in instance:
+        # make sure 'rabbitmq_api_url' is present and get parameters
+        base_url = instance.get('rabbitmq_api_url', None)
+        if not base_url:
             raise Exception('Missing "rabbitmq_api_url" in RabbitMQ config.')
-
-        # get parameters
-        base_url = instance['rabbitmq_api_url']
         if not base_url.endswith('/'):
             base_url += '/'
         username = instance.get('rabbitmq_user', 'guest')
@@ -153,7 +158,7 @@ class RabbitMQ(AgentCheck):
         except requests.exceptions.HTTPError as e:
             raise Exception(
                 'Cannot open RabbitMQ API url: %s %s' % (url, str(e)))
-        except ValueError, e:
+        except ValueError as e:
             raise Exception(
                 'Cannot parse JSON response from API url: %s %s' % (url, str(e)))
         return data
@@ -198,7 +203,10 @@ class RabbitMQ(AgentCheck):
 
                 match_found = False
                 for p in regex_filters:
-                    if re.search(p, name):
+                    match = re.search(p, name)
+                    if match:
+                        if _is_affirmative(instance.get("tag_families", False)) and match.groups():
+                            data_line["queue_family"] = match.groups()[0]
                         matching_lines.append(data_line)
                         match_found = True
                         break
@@ -216,7 +224,10 @@ class RabbitMQ(AgentCheck):
                     continue
 
                 for p in regex_filters:
-                    if re.search(p, absolute_name):
+                    match = re.search(p, absolute_name)
+                    if match:
+                        if _is_affirmative(instance.get("tag_families", False)) and match.groups():
+                            data_line["queue_family"] = match.groups()[0]
                         matching_lines.append(data_line)
                         match_found = True
                         break

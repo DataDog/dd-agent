@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2013-2016
+# (C) Josiah C Webb <rootkix@gmail.com> 2013
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import os
 

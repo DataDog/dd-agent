@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 from threading import Thread
 import functools
 
@@ -29,7 +33,7 @@ class ThreadMethod(Thread):
     def run(self):
         try:
             self.result = self.target(*self.args, **self.kwargs)
-        except Exception, e:
+        except Exception as e:
             self.exception = e
         else:
             self.exception = None

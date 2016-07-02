@@ -1,4 +1,9 @@
 #!/opt/datadog-agent/embedded/bin/python
+
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 """
 A Python Statsd implementation with some datadog special sauce.
 """
@@ -350,7 +355,7 @@ class Server(object):
 
                     if should_forward:
                         forward_udp_sock.send(message)
-            except select_error, se:
+            except select_error as se:
                 # Ignore interrupted system calls from sigterm.
                 errno = se[0]
                 if errno != 4:
@@ -389,7 +394,7 @@ class Dogstatsd(Daemon):
         try:
             try:
                 self.server.start()
-            except Exception, e:
+            except Exception as e:
                 log.exception('Error starting server')
                 raise e
         finally:

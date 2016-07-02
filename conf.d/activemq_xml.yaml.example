@@ -6,6 +6,7 @@ instances:
     # the agent check will append /admin/xml/queues.jsp to the url 
     # username: username
     # password: password
+    # suppress_errors: false # suppress connection errors if url is expected to be sometimes offline (eg standby host)
        
     #detailed_queues: # Optional. If you have more than 300 queues you need to list the ones you want to track
       # - queue1

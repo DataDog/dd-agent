@@ -41,11 +41,11 @@ class TestWin32Agent(unittest.TestCase):
         WatchDog does not exceed a maximum number of restarts per timeframe.
         """
         # Limit the restart timeframe for test purpose
-        ProcessWatchDog._RESTART_TIMEFRAME = 1  # noqa
+        ProcessWatchDog._RESTART_TIMEFRAME = 1  # noqa pylint: disable=E0602
 
         # Create a WatchDog with a mock process
         process = MockProcess("MyConfig", "MyHostname", foo="bar")
-        process_watchdog = ProcessWatchDog("MyProcess", process, max_restarts=2)  # noqa
+        process_watchdog = ProcessWatchDog("MyProcess", process, max_restarts=2)  # noqa pylint: disable=E0602
 
         # Can restart 2 times
         for x in xrange(0, 2):
@@ -56,7 +56,7 @@ class TestWin32Agent(unittest.TestCase):
         self.assertFalse(process_watchdog._can_restart())
 
         # Can restart after the timeframe is expired
-        time.sleep(1)
+        time.sleep(1.1)
         self.assertTrue(process_watchdog._can_restart())
 
     def test_watchdog_restart(self):
@@ -65,7 +65,7 @@ class TestWin32Agent(unittest.TestCase):
         """
         # Create a WatchDog with a mock process
         process = MockProcess("MyConfig", "MyHostname", foo="bar")
-        process_watchdog = ProcessWatchDog("MyProcess", process)  # noqa
+        process_watchdog = ProcessWatchDog("MyProcess", process)  # noqa pylint: disable=E0602
 
         # Restart the process
         process_watchdog.restart()

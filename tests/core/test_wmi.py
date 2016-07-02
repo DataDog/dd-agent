@@ -1,5 +1,5 @@
+# pylint: disable=E0401
 # stdlib
-from collections import defaultdict
 from functools import partial
 import logging
 import time
@@ -16,6 +16,7 @@ from utils.timeout import TimeoutException
 log = logging.getLogger(__name__)
 
 WMISampler = None
+ProviderArchitecture = None
 
 
 def load_fixture(f, args=None):
@@ -87,38 +88,44 @@ class SWbemServices(object):
     _exec_query_call_count = Counter()
     _exec_query_run_time = 0
 
+    # Class attr to save the last wmi query and flags
+    _last_wmi_query = None
+    _last_wmi_flags = None
+
     def __init__(self, wmi_conn_args):
         super(SWbemServices, self).__init__()
         self._wmi_conn_args = wmi_conn_args
-        self._last_wmi_query = None
-        self._last_wmi_flags = None
 
     @classmethod
     def reset(cls):
         """
         Dirty patch to reset `SWbemServices.ExecQuery.call_count` and
-        `SWbemServices._exec_query_run_time` to 0.
+        `SWbemServices._exec_query_run_time` to 0, and the wmi query params
         """
         cls._exec_query_call_count.reset()
         cls._exec_query_run_time = 0
+        cls._last_wmi_query = None
+        cls._last_wmi_flags = None
+
+    @classmethod
+    def get_last_wmi_query(cls):
+        """
+        Return the last WMI query submitted via the WMI connection.
+        """
+        return cls._last_wmi_query
+
+    @classmethod
+    def get_last_wmi_flags(cls):
+        """
+        Return the last WMI flags submitted via the WMI connection.
+        """
+        return cls._last_wmi_flags
 
     def get_conn_args(self):
         """
         Return parameters used to set up the WMI connection.
         """
         return self._wmi_conn_args
-
-    def get_last_wmi_query(self):
-        """
-        Return the last WMI query submitted via the WMI connection.
-        """
-        return self._last_wmi_query
-
-    def get_last_wmi_flags(self):
-        """
-        Return the last WMI flags submitted via the WMI connection.
-        """
-        return self._last_wmi_flags
 
     def ExecQuery(self, query, query_language, flags):
         """
@@ -129,8 +136,8 @@ class SWbemServices(object):
         time.sleep(self._exec_query_run_time)
 
         # Save last passed parameters
-        self._last_wmi_query = query
-        self._last_wmi_flags = flags
+        SWbemServices._last_wmi_query = query
+        SWbemServices._last_wmi_flags = flags
 
         # Mock a result
         results = []
@@ -176,11 +183,20 @@ class SWbemServices(object):
                      "TotalISAPIExtensionRequests from Win32_PerfFormattedData_W3SVC_WebService WHERE ( Name = 'Failing site' ) OR ( Name = 'Default Web Site' )"):  # noqa
             results += load_fixture("win32_perfformatteddata_w3svc_webservice", ("Name", "Default Web Site"))  # noqa
 
+        if query == ("Select ServiceUptime,TotalBytesSent,TotalBytesReceived,TotalBytesTransferred,CurrentConnections,TotalFilesSent,TotalFilesReceived,"  # noqa
+                     "TotalConnectionAttemptsAllInstances,TotalGetRequests,TotalPostRequests,TotalHeadRequests,TotalPutRequests,TotalDeleteRequests,"  # noqa
+                     "TotalOptionsRequests,TotalTraceRequests,TotalNotFoundErrors,TotalLockedErrors,TotalAnonymousUsers,TotalNonAnonymousUsers,TotalCGIRequests,"  # noqa
+                     "TotalISAPIExtensionRequests from Win32_PerfFormattedData_W3SVC_WebService WHERE ( Name = '_Total' )"):  # noqa
+            results += load_fixture("win32_perfformatteddata_w3svc_webservice", ("Name", "_Total"))  # noqa
+
+        if query == ("Select * from Win32_PerfFormattedData_W3SVC_WebService WHERE ( Name = 'Failing site' ) OR ( Name = 'Default Web Site' )"):  # noqa
+            results += load_fixture("win32_perfformatteddata_w3svc_webservice_2008", ("Name", "Default Web Site"))  # noqa
+
         if query == ("Select Name,State from Win32_Service WHERE ( Name = 'WSService' ) OR ( Name = 'WinHttpAutoProxySvc' )"):  # noqa
             results += load_fixture("win32_service_up", ("Name", "WinHttpAutoProxySvc"))
             results += load_fixture("win32_service_down", ("Name", "WSService"))
 
-        if query == ("Select Message,SourceName,TimeGenerated,Type,User,InsertionStrings,EventCode from Win32_NTLogEvent WHERE ( ( SourceName = 'MSSQLSERVER' ) "  # noqa
+        if query == ("Select EventCode,SourceName,TimeGenerated,Type,InsertionStrings,Message,Logfile from Win32_NTLogEvent WHERE ( ( SourceName = 'MSSQLSERVER' ) "  # noqa
                      "AND ( Type = 'Error' OR Type = 'Warning' ) AND TimeGenerated >= '20151224113047.000000-480' )"):  # noqa
             results += load_fixture("win32_ntlogevent")
 
@@ -205,6 +221,12 @@ class Dispatch(object):
         """
         cls._connect_call_count.reset()
 
+    def Add(self, *args, **kwargs):
+        """
+        Add context information.
+        """
+        pass
+
     def ConnectServer(self, *args, **kwargs):
         """
         Return a WMI connection, a.k.a. a SWbemServices object.
@@ -215,14 +237,17 @@ class Dispatch(object):
 
     ConnectServer.call_count = _connect_call_count
 
+
 def to_time(wmi_ts):
     "Just return any time struct"
     return (2015, 12, 24, 11, 30, 47, 0, 0)
 
+
 def from_time(year=0, month=0, day=0, hours=0, minutes=0,
-            seconds=0, microseconds=0, timezone=0):
+              seconds=0, microseconds=0, timezone=0):
     "Just return any WMI date"
     return "20151224113047.000000-480"
+
 
 class TestCommonWMI(unittest.TestCase):
     """
@@ -232,9 +257,7 @@ class TestCommonWMI(unittest.TestCase):
         """
         Mock WMI related Python packages, so it can be tested on any environment.
         """
-        global WMISampler
-
-        self.patcher = patch.dict('sys.modules',{
+        self.patcher = patch.dict('sys.modules', {
             'pywintypes': Mock(),
             'pythoncom': Mock(),
             'win32com': Mock(),
@@ -242,21 +265,13 @@ class TestCommonWMI(unittest.TestCase):
         })
         self.patcher.start()
 
-        from checks.libs.wmi import sampler
-        WMISampler = partial(sampler.WMISampler, log)
-
     def tearDown(self):
         """
-        Reset Mock counters, flush samplers and connections
+        Reset Mock counters
         """
         # Reset counters
         Dispatch.reset()
         SWbemServices.reset()
-
-        # Flush cache
-        from checks.libs.wmi.sampler import WMISampler
-        WMISampler._wmi_locators = {}
-        WMISampler._wmi_connections = defaultdict(list)
 
     def assertWMIConn(self, wmi_sampler, param=None):
         """
@@ -265,7 +280,7 @@ class TestCommonWMI(unittest.TestCase):
         """
 
         if param:
-            connection = wmi_sampler.get_last_connection()
+            connection = wmi_sampler.get_connection()
             wmi_conn_args, wmi_conn_kwargs = connection.get_conn_args()
             if isinstance(param, tuple):
                 key, value = param
@@ -274,17 +289,16 @@ class TestCommonWMI(unittest.TestCase):
             else:
                 self.assertIn(param, wmi_conn_args)
 
-    def assertWMIQuery(self, wmi_sampler, query=None, flags=None):
+    def assertWMIQuery(self, query=None, flags=None):
         """
         Helper, assert that the given WMI query and flags were submitted.
         """
-        connection = wmi_sampler.get_last_connection()
         if query:
-            last_wmi_query = connection.get_last_wmi_query()
+            last_wmi_query = SWbemServices.get_last_wmi_query()
             self.assertEquals(last_wmi_query, query)
 
         if flags:
-            last_wmi_flags = connection.get_last_wmi_flags()
+            last_wmi_flags = SWbemServices.get_last_wmi_flags()
             self.assertEquals(last_wmi_flags, flags)
 
     def assertWMIObject(self, wmi_obj, properties):
@@ -352,6 +366,19 @@ class TestUnitWMISampler(TestCommonWMI):
     """
     Unit tests for WMISampler.
     """
+    def setUp(self):
+        TestCommonWMI.setUp(self)
+
+        global WMISampler
+        global ProviderArchitecture
+
+        # Reload to apply the mocking if the module was already loaded
+        from checks.libs.wmi import sampler
+        reload(sampler)
+
+        WMISampler = partial(sampler.WMISampler, log)
+        ProviderArchitecture = sampler.ProviderArchitecture
+
     def test_wmi_connection(self):
         """
         Establish a WMI connection to the specified host/namespace, with the right credentials.
@@ -362,22 +389,51 @@ class TestUnitWMISampler(TestCommonWMI):
             host="myhost",
             namespace="some/namespace",
             username="datadog",
-            password="password"
+            password="password",
+            provider=32,
         )
 
         # Request a connection but do nothing
-        with wmi_sampler.get_connection():
-            pass
+        wmi_sampler.get_connection()
 
         # Connection was established with the right parameters
         self.assertWMIConn(wmi_sampler, param="myhost")
         self.assertWMIConn(wmi_sampler, param="some/namespace")
 
-    def test_wmi_connection_pooling(self):
+    def test_wmi_provider_architecture(self):
         """
-        Until caching is enabled WMI connections will not be shared among WMISampler objects.
+        Validate and set a WMI Provider Architecture.
         """
-        from win32com.client import Dispatch
+        # No provider given, default
+        wmi_sampler = WMISampler("Win32_PerfRawData_PerfOS_System", ["ProcessorQueueLength"])
+        self.assertEquals(wmi_sampler.provider, ProviderArchitecture.DEFAULT)
+
+        # Invalid provider, default
+        wmi_sampler1 = WMISampler(
+            "Win32_PerfRawData_PerfOS_System", ["ProcessorQueueLength"], provider="foo"
+        )
+        wmi_sampler2 = WMISampler(
+            "Win32_PerfRawData_PerfOS_System", ["ProcessorQueueLength"], provider=123
+        )
+        self.assertEquals(wmi_sampler1.provider, ProviderArchitecture.DEFAULT)
+        self.assertEquals(wmi_sampler2.provider, ProviderArchitecture.DEFAULT)
+
+        # Valid providers
+        wmi_sampler32 = WMISampler(
+            "Win32_PerfRawData_PerfOS_System", ["ProcessorQueueLength"], provider=32
+        )
+        wmi_sampler64 = WMISampler(
+            "Win32_PerfRawData_PerfOS_System", ["ProcessorQueueLength"], provider="64"
+        )
+
+        self.assertEquals(wmi_sampler32.provider, ProviderArchitecture._32BIT)
+        self.assertEquals(wmi_sampler64.provider, ProviderArchitecture._64BIT)
+
+    def test_no_wmi_connection_pooling(self):
+        """
+        WMI connections are not be shared among WMISampler objects.
+        """
+        from win32com.client import Dispatch  # noqa
 
         wmi_sampler_1 = WMISampler("Win32_PerfRawData_PerfOS_System", ["ProcessorQueueLength"])
         wmi_sampler_2 = WMISampler("Win32_OperatingSystem", ["TotalVisibleMemorySize"])
@@ -386,12 +442,12 @@ class TestUnitWMISampler(TestCommonWMI):
         wmi_sampler_1.sample()
         wmi_sampler_2.sample()
 
-        # one connection, two samples
+        # 3 conns have been opened, 2 for the raw sampler and 1 for the other sampler
         self.assertEquals(Dispatch.ConnectServer.call_count, 3, Dispatch.ConnectServer.call_count)
 
         wmi_sampler_3.sample()
 
-        # two connection, three samples
+        # 5 conns now
         self.assertEquals(Dispatch.ConnectServer.call_count, 5, Dispatch.ConnectServer.call_count)
 
     def test_wql_filtering(self):
@@ -538,7 +594,6 @@ class TestUnitWMISampler(TestCommonWMI):
         wmi_sampler.sample()
 
         self.assertWMIQuery(
-            wmi_sampler,
             "Select AvgDiskBytesPerWrite,FreeMegabytes"
             " from Win32_PerfFormattedData_PerfDisk_LogicalDisk"
         )
@@ -550,7 +605,6 @@ class TestUnitWMISampler(TestCommonWMI):
         wmi_sampler.sample()
 
         self.assertWMIQuery(
-            wmi_sampler,
             "Select AvgDiskBytesPerWrite,FreeMegabytes"
             " from Win32_PerfFormattedData_PerfDisk_LogicalDisk"
             " WHERE ( Name = 'C:' )"
@@ -563,7 +617,6 @@ class TestUnitWMISampler(TestCommonWMI):
         wmi_sampler.sample()
 
         self.assertWMIQuery(
-            wmi_sampler,
             "Select AvgDiskBytesPerWrite,FreeMegabytes"
             " from Win32_PerfFormattedData_PerfDisk_LogicalDisk"
             " WHERE ( Name = 'C:' AND Id = '123' )"
@@ -677,15 +730,15 @@ class TestUnitWMISampler(TestCommonWMI):
         wmi_raw_sampler = WMISampler("Win32_PerfRawData_PerfOS_System", ["CounterRawCount", "CounterCounter"])  # noqa
         wmi_raw_sampler._query()
 
-        self.assertWMIQuery(wmi_raw_sampler, flags=131120)
+        self.assertWMIQuery(flags=131120)
 
         wmi_raw_sampler._query()
-        self.assertWMIQuery(wmi_raw_sampler, flags=48)
+        self.assertWMIQuery(flags=48)
 
         # Qualifiers are cached
-        self.assertTrue(wmi_raw_sampler.property_counter_types)
-        self.assertIn('CounterRawCount', wmi_raw_sampler.property_counter_types)
-        self.assertIn('CounterCounter', wmi_raw_sampler.property_counter_types)
+        self.assertTrue(wmi_raw_sampler._property_counter_types)
+        self.assertIn('CounterRawCount', wmi_raw_sampler._property_counter_types)
+        self.assertIn('CounterCounter', wmi_raw_sampler._property_counter_types)
 
     def test_raw_properties_formatting(self):
         """

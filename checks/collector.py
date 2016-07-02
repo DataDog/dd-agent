@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import collections
 import logging
@@ -5,6 +9,9 @@ import pprint
 import socket
 import sys
 import time
+
+# 3p
+import simplejson as json
 
 # project
 from checks import AGENT_METRICS_CHECK_NAME, AgentCheck, create_service_check
@@ -15,10 +22,9 @@ from checks.check_status import (
     STATUS_ERROR,
     STATUS_OK,
 )
-from checks.datadog import DdForwarder, Dogstreams
+from checks.datadog import Dogstreams
 from checks.ganglia import Ganglia
 from config import get_system_stats, get_version
-from resources.processes import Processes as ResProcesses
 import checks.system.unix as u
 import checks.system.win32 as w32
 import modules
@@ -128,7 +134,7 @@ class AgentPayload(collections.MutableMapping):
                 emitter_status = EmitterStatus(name)
                 try:
                     emitter(payload, log, config, endpoint)
-                except Exception, e:
+                except Exception as e:
                     log.exception("Error running emitter: %s"
                                   % emitter.__name__)
                     emitter_status = EmitterStatus(name, e)
@@ -173,6 +179,10 @@ class Collector(object):
                 'start': time.time(),
                 'interval': int(agentConfig.get('agent_checks_interval', 10 * 60))
             },
+            'processes': {
+                'start': time.time(),
+                'interval': int(agentConfig.get('processes_interval', 60))
+            }
         }
         socket.setdefaulttimeout(15)
         self.run_count = 0
@@ -202,9 +212,8 @@ class Collector(object):
         }
 
         # Old-style metric checks
-        self._ganglia = Ganglia(log)
-        self._dogstream = Dogstreams.init(log, self.agentConfig)
-        self._ddforwarder = DdForwarder(log, self.agentConfig)
+        self._ganglia = Ganglia(log) if self.agentConfig.get('ganglia_host', '') != '' else None
+        self._dogstream = None if self.agentConfig.get('dogstreams') is None else Dogstreams.init(log, self.agentConfig)
 
         # Agent performance metrics check
         self._agent_metrics = None
@@ -221,11 +230,6 @@ class Collector(object):
                 log.warning("Old format custom checks are deprecated. They should be moved to the checks.d interface as old custom checks will be removed in a next version")
             except Exception:
                 log.exception('Unable to load custom check module %s' % module_spec)
-
-        # Resource Checks
-        self._resources_checks = [
-            ResProcesses(log, self.agentConfig)
-        ]
 
     def stop(self):
         """
@@ -335,15 +339,10 @@ class Collector(object):
                 payload.update(cpuStats)
 
         # Run old-style checks
-        gangliaData = self._ganglia.check(self.agentConfig)
-        dogstreamData = self._dogstream.check(self.agentConfig)
-        ddforwarderData = self._ddforwarder.check(self.agentConfig)
-
-        if gangliaData is not False and gangliaData is not None:
-            payload['ganglia'] = gangliaData
-
-        # dogstream
-        if dogstreamData:
+        if self._ganglia is not None:
+            payload['ganglia'] = self._ganglia.check(self.agentConfig)
+        if self._dogstream is not None:
+            dogstreamData = self._dogstream.check(self.agentConfig)
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
             if dogstreamEvents:
                 if 'dogstream' in payload['events']:
@@ -354,35 +353,26 @@ class Collector(object):
 
             payload.update(dogstreamData)
 
-        # metrics about the forwarder
-        if ddforwarderData:
-            payload['datadog'] = ddforwarderData
-
-        # Resources checks
-        if not Platform.is_windows():
-            has_resource = False
-            for resources_check in self._resources_checks:
+        # process collector of gohai (compliant with payload of legacy "resources checks")
+        if not Platform.is_windows() and self._should_send_additional_data('processes'):
+            gohai_processes = self._run_gohai_processes()
+            if gohai_processes:
                 try:
-                    resources_check.check()
-                    snaps = resources_check.pop_snapshots()
-                    if snaps:
-                        has_resource = True
-                        res_value = {
-                            'snaps': snaps,
-                            'format_version': resources_check.get_format_version()
+                    gohai_processes_json = json.loads(gohai_processes)
+                    processes_snaps = gohai_processes_json.get('processes')
+                    if processes_snaps:
+                        processes_payload = {
+                            'snaps': [processes_snaps]
                         }
-                        res_format = resources_check.describe_format_if_needed()
-                        if res_format is not None:
-                            res_value['format_description'] = res_format
-                        payload['resources'][resources_check.RESOURCE_KEY] = res_value
-                except Exception:
-                    log.exception("Error running resource check %s" % resources_check.RESOURCE_KEY)
 
-            if has_resource:
-                payload['resources']['meta'] = {
-                    'api_key': self.agentConfig['api_key'],
-                    'host': payload['internalHostname'],
-                }
+                        payload['resources'] = {
+                            'processes': processes_payload,
+                            'meta': {
+                                'host': self.hostname,
+                            }
+                        }
+                except Exception:
+                    log.exception("Error running gohai processes collection")
 
         # newer-style checks (not checks.d style)
         for metrics_check in self._metrics_checks:
@@ -503,6 +493,8 @@ class Collector(object):
                 log.debug("\n Agent developer mode stats: \n {0}".format(
                     Collector._stats_for_display(agent_stats))
                 )
+            # Flush metadata for the Agent Metrics check. Otherwise they'll just accumulate and leak.
+            self._agent_metrics.get_service_metadata()
 
         # Let's send our payload
         emitter_statuses = payload.emit(log, self.agentConfig, self.emitters,
@@ -583,7 +575,7 @@ class Collector(object):
             emitter_status = EmitterStatus(name)
             try:
                 emitter(payload, log, self.agentConfig)
-            except Exception, e:
+            except Exception as e:
                 log.exception("Error running emitter: %s" % emitter.__name__)
                 emitter_status = EmitterStatus(name, e)
             statuses.append(emitter_status)
@@ -624,7 +616,7 @@ class Collector(object):
             # Also post an event in the newsfeed
             payload['events']['System'] = [{
                 'api_key': self.agentConfig['api_key'],
-                'host': payload['internalHostname'],
+                'host': self.hostname,
                 'timestamp': now,
                 'event_type':'Agent Startup',
                 'msg_text': 'Version %s' % get_version()
@@ -633,24 +625,13 @@ class Collector(object):
         # Periodically send the host metadata.
         if self._should_send_additional_data('host_metadata'):
             # gather metadata with gohai
-            try:
-                if not Platform.is_windows():
-                    command = "gohai"
-                else:
-                    command = "gohai\gohai.exe"
-                gohai_metadata, gohai_err, _ = get_subprocess_output([command], log)
+            gohai_metadata = self._run_gohai_metadata()
+            if gohai_metadata:
                 payload['gohai'] = gohai_metadata
-                if gohai_err:
-                    log.warning("GOHAI LOG | {0}".format(gohai_err))
-            except OSError as e:
-                if e.errno == 2:  # file not found, expected when install from source
-                    log.info("gohai file not found")
-                else:
-                    log.warning("Unexpected OSError when running gohai %s", e)
-            except Exception as e:
-                log.warning("gohai command failed with error %s" % str(e))
 
-            payload['systemStats'] = get_system_stats()
+            payload['systemStats'] = get_system_stats(
+                proc_path=self.agentConfig.get('procfs_path', '/proc').rstrip('/')
+            )
             payload['meta'] = self._get_hostname_metadata()
 
             self.hostname_metadata_cache = payload['meta']
@@ -753,7 +734,7 @@ class Collector(object):
             pass
 
         metadata["hostname"] = self.hostname
-        metadata["timezones"] = time.tzname
+        metadata["timezones"] = sanitize_tzname(time.tzname)
 
         # Add cloud provider aliases
         host_aliases = GCE.get_host_aliases(self.agentConfig)
@@ -773,3 +754,39 @@ class Collector(object):
             return True
 
         return False
+
+    def _run_gohai_metadata(self):
+        return self._run_gohai(['--exclude', 'processes'])
+
+    def _run_gohai_processes(self):
+        return self._run_gohai(['--only', 'processes'])
+
+    def _run_gohai(self, options):
+        output = None
+        try:
+            if not Platform.is_windows():
+                command = "gohai"
+            else:
+                command = "gohai\gohai.exe"
+            output, err, _ = get_subprocess_output([command] + options, log)
+            if err:
+                log.warning("GOHAI LOG | {0}".format(err))
+        except OSError as e:
+            if e.errno == 2:  # file not found, expected when install from source
+                log.info("gohai file not found")
+            else:
+                log.warning("Unexpected OSError when running gohai %s", e)
+        except Exception as e:
+            log.warning("gohai command failed with error %s", e)
+
+        return output
+
+
+def sanitize_tzname(tzname):
+    """ Returns the tzname given, and deals with Japanese encoding issue
+    """
+    if tzname[0] == '\x93\x8c\x8b\x9e (\x95W\x8f\x80\x8e\x9e)':
+        log.debug('tzname from TOKYO detected and converted')
+        return ('JST', 'JST')
+    else:
+        return tzname

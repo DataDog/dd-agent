@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 import re
 import urlparse
@@ -49,7 +53,7 @@ class Nginx(AgentCheck):
                 name, value, tags, metric_type = row
                 func = funcs[metric_type]
                 func(name, value, tags)
-            except Exception, e:
+            except Exception as e:
                 self.log.error(u'Could not submit metric: %s: %s' % (repr(row), str(e)))
 
     def _get_data(self, instance):

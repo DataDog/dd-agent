@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 require './ci/common'
 
 namespace :ci do
@@ -42,7 +46,16 @@ namespace :ci do
     task before_script: ['ci:common:before_script']
 
     task lint: ['rubocop'] do
-      sh %(flake8)
+      if ENV['SKIP_LINT']
+        puts 'Skipping lint'.yellow
+      else
+        sh %(echo "PWD IS")
+        sh %(pwd)
+        sh %(flake8)
+        sh %(find . -name '*.py' -not\
+               \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' -or -path '*.git*' \\)\
+               | xargs -n 1 pylint --rcfile=./.pylintrc)
+      end
     end
 
     task script: ['ci:common:script', :coverage, :lint] do
@@ -50,8 +63,6 @@ namespace :ci do
     end
 
     task before_cache: ['ci:common:before_cache']
-
-    task cache: ['ci:common:cache']
 
     task cleanup: ['ci:common:cleanup']
 

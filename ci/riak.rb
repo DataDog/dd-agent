@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 require './ci/common'
 
 def riak_version
@@ -56,8 +60,6 @@ namespace :ci do
       Rake::Task['ci:riak:cleanup'].invoke
     end
 
-    task cache: ['ci:common:cache']
-
     task cleanup: ['ci:common:cleanup'] do
       %w(dev1 dev2).each do |dev|
         sh %(#{riak_rootdir}/#{dev}/bin/riak stop)
@@ -73,7 +75,7 @@ namespace :ci do
       else
         begin
           %w(before_install install before_script
-             script before_cache cache).each do |t|
+             script before_cache).each do |t|
             Rake::Task["#{flavor.scope.path}:#{t}"].invoke
           end
         rescue => e

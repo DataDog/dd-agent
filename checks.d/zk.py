@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 '''
 As of zookeeper 3.4.0, the `mntr` admin command is provided for easy parsing of zookeeper stats.
 This check first parses the `stat` admin command for a version number.
@@ -67,7 +71,7 @@ zk_max_file_descriptor_count    4096
 '''
 # stdlib
 from collections import defaultdict
-from distutils.version import LooseVersion
+from distutils.version import LooseVersion # pylint: disable=E0611,E0401
 from StringIO import StringIO
 import re
 import socket
@@ -93,6 +97,11 @@ class ZKMetric(tuple):
 
 
 class ZookeeperCheck(AgentCheck):
+    """
+    ZooKeeper AgentCheck.
+
+    Parse content from `stat` and `mntr`(if available) commmands to retrieve health cluster metrics.
+    """
     version_pattern = re.compile(r'Zookeeper version: ([^.]+)\.([^.]+)\.([^-]+)', flags=re.I)
 
     SOURCE_TYPE_NAME = 'zookeeper'
@@ -106,6 +115,14 @@ class ZookeeperCheck(AgentCheck):
         'inactive',
     ]
 
+    # `mntr` information to report as `rate`
+    _MNTR_RATES = set(
+        [
+            'zk_packets_received',
+            'zk_packets_sent',
+        ]
+    )
+
     def check(self, instance):
         host = instance.get('host', 'localhost')
         port = int(instance.get('port', 2181))
@@ -117,7 +134,7 @@ class ZookeeperCheck(AgentCheck):
         hostname = get_hostname(self.agentConfig)
         report_instance_mode = instance.get("report_instance_mode", True)
 
-        zk_version = None # parse_stat will parse and set version string
+        zk_version = None  # parse_stat will parse and set version string
 
         # Send a service check based on the `ruok` response.
         # Set instance status to down if not ok.
@@ -141,8 +158,9 @@ class ZookeeperCheck(AgentCheck):
                 status = AgentCheck.WARNING
             message = u'Response from the server: %s' % ruok
         finally:
-            self.service_check('zookeeper.ruok', status, message=message,
-                    tags=sc_tags)
+            self.service_check(
+                'zookeeper.ruok', status, message=message, tags=sc_tags
+            )
 
         # Read metrics from the `stat` output.
         try:
@@ -182,7 +200,6 @@ class ZookeeperCheck(AgentCheck):
                 self.service_check('zookeeper.mode', status, message=message,
                                    tags=sc_tags)
 
-
         # Read metrics from the `mntr` output
         if zk_version and LooseVersion(zk_version) > LooseVersion("3.4.0"):
             try:
@@ -202,12 +219,12 @@ class ZookeeperCheck(AgentCheck):
                 metrics, mode = self.parse_mntr(mntr_out)
                 mode_tag = "mode:%s" % mode
                 if mode != 'inactive':
-                    for name in metrics:
-                        self.gauge(name, metrics[name], tags=tags + [mode_tag])
+                    for metric, value, m_type in metrics:
+                        submit_metric = getattr(self, m_type)
+                        submit_metric(metric, value, tags=tags + [mode_tag])
 
                 if report_instance_mode:
                     self.report_instance_mode(hostname, mode, tags)
-
 
     def report_instance_mode(self, hostname, mode, tags):
         gauges = defaultdict(int)
@@ -218,7 +235,7 @@ class ZookeeperCheck(AgentCheck):
         self.set('zookeeper.instances', hostname, tags=tags)
         gauges[mode] = 1
 
-        for k,v in gauges.iteritems():
+        for k, v in gauges.iteritems():
             gauge_name = 'zookeeper.instances.%s' % k
             self.gauge(gauge_name, v)
 
@@ -252,7 +269,6 @@ class ZookeeperCheck(AgentCheck):
         finally:
             sock.close()
         return buf
-
 
     def parse_stat(self, buf):
         ''' `buf` is a readable file-like object
@@ -295,16 +311,10 @@ class ZookeeperCheck(AgentCheck):
         # Received: 101032173
         _, value = buf.readline().split(':')
         metrics.append(ZKMetric('zookeeper.bytes_received', long(value.strip())))
-        metrics.append(
-            ZKMetric('zookeeper.packets_received', long(value.strip()), "rate")
-        )
 
         # Sent: 1324
         _, value = buf.readline().split(':')
         metrics.append(ZKMetric('zookeeper.bytes_sent', long(value.strip())))
-        metrics.append(
-            ZKMetric('zookeeper.packets_sent', long(value.strip()), "rate")
-        )
 
         if has_connections_val:
             # Connections: 1
@@ -348,31 +358,48 @@ class ZookeeperCheck(AgentCheck):
         return metrics, tags, mode, version
 
     def parse_mntr(self, buf):
-        ''' `buf` is a readable file-like object
-            Returns: a tuple (metrics, mode)
-            if mode == 'inactive', metrics will be None
         '''
+        Parse `mntr` command's content.
+        `buf` is a readable file-like object
 
+        Returns: a tuple (metrics, mode)
+        if mode == 'inactive', metrics will be None
+        '''
         buf.seek(0)
-        first = buf.readline() # first is version string or error
+        first = buf.readline()  # First is version string or error
         if first == 'This ZooKeeper instance is not currently serving requests':
             return (None, 'inactive')
 
-        metrics = {}
+        metrics = []
+        mode = 'inactive'
 
         for line in buf:
             try:
                 key, value = line.split()
-                name = self._normalize_metric_label(key)
-                metrics[name] = value
-            except Exception as e:
-                raise Exception("Data not in 'key value' format, error: %s" % e)
 
-        # mode is a string {'standalone', 'leader', 'follower', 'observer'}
-        mode = metrics.pop('zookeeper.server_state').lower()
+                if key == "zk_server_state":
+                    mode = value.lower()
+                    continue
 
-        for key in metrics: # everything else is an int
-            metrics[key] = int(metrics[key])
+                metric_name = self._normalize_metric_label(key)
+                metric_type = "rate" if key in self._MNTR_RATES else "gauge"
+                metric_value = int(value)
+                metrics.append(ZKMetric(metric_name, metric_value, metric_type))
+
+            except ValueError:
+                self.log.warning(
+                    u"Cannot format `mntr` value. key={key}, value{value}".format(
+                        key=key, value=value
+                    )
+                )
+                continue
+            except Exception:
+                self.log.exception(
+                    u"Unexpected exception occurred while parsing `mntr` command content:\n"
+                    u"{buf}".format(
+                        buf=buf
+                    )
+                )
 
         return (metrics, mode)
 

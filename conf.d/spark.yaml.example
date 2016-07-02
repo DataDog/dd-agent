@@ -1,0 +1,23 @@
+init_config:
+
+instances:
+  #
+  # The Spark check retrieves metrics from YARN's ResourceManager. This
+  # check must be run from the Master Node and the ResourceManager URI must
+  # be specified below. The ResourceManager URI is composed of the 
+  # ResourceManager's hostname and port.
+  #
+  # The ResourceManager hostname can be found in the yarn-site.xml conf file
+  # under the property yarn.resourcemanager.address
+  #
+  # The ResourceManager port can be found in the yarn-site.xml conf file under
+  # the property yarn.resourcemanager.webapp.address
+  - resourcemanager_uri: http://localhost:8088
+
+    # A Required friendly name for the cluster.
+    # cluster_name: MySparkCluster
+
+    # Optional tags to be applied to every emitted metric.
+    # tags:
+    #   - key:value
+    #   - instance:production

@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 """Pgbouncer check
 
 Collects metrics from the pgbouncer database.
@@ -88,7 +92,7 @@ class PgBouncer(AgentCheck):
                     cursor.execute(query)
 
                     results = cursor.fetchall()
-                except pg.Error, e:
+                except pg.Error as e:
                     self.log.warning("Not all metrics may be available: %s" % str(e))
                     continue
 
@@ -112,7 +116,7 @@ class PgBouncer(AgentCheck):
                 self.warning('No results were found for query: "%s"' % query)
 
             cursor.close()
-        except pg.Error, e:
+        except pg.Error as e:
             self.log.error("Connection error: %s" % str(e))
             raise ShouldRestartException
 

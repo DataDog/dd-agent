@@ -16,7 +16,7 @@ from checks import (
 from checks.collector import Collector
 from tests.checks.common import load_check
 from util import get_hostname
-from utils.ntp import get_ntp_args
+from utils.ntp import NTPUtil
 from utils.proxy import get_proxy
 
 logger = logging.getLogger()
@@ -240,8 +240,11 @@ class TestCore(unittest.TestCase):
         # Clear the env variables set
         del env["http_proxy"]
         del env["https_proxy"]
-        del env["HTTP_PROXY"]
-        del env["HTTPS_PROXY"]
+        if "HTTP_PROXY" in env:
+            # on some platforms (e.g. Windows) env var names are case-insensitive, so we have to avoid
+            # deleting the same key twice
+            del env["HTTP_PROXY"]
+            del env["HTTPS_PROXY"]
 
     def test_get_proxy(self):
 
@@ -337,6 +340,9 @@ class TestCore(unittest.TestCase):
         self.assertTrue(len(metrics) > 0, metrics)
 
     def test_ntp_global_settings(self):
+        # Clear any existing ntp config
+        NTPUtil._drop()
+
         config = {'instances': [{
             "host": "foo.com",
             "port": "bar",
@@ -349,23 +355,29 @@ class TestCore(unittest.TestCase):
             'api_key': 'toto'
         }
 
+        # load this config in the ntp singleton
+        ntp_util = NTPUtil(config)
+
         # default min collection interval for that check was 20sec
         check = load_check('ntp', config, agentConfig)
         check.run()
 
-        ntp_args = get_ntp_args()
+        self.assertEqual(ntp_util.args["host"], "foo.com")
+        self.assertEqual(ntp_util.args["port"], "bar")
+        self.assertEqual(ntp_util.args["version"], 42)
+        self.assertEqual(ntp_util.args["timeout"], 13.37)
 
-        self.assertEqual(ntp_args["host"], "foo.com")
-        self.assertEqual(ntp_args["port"], "bar")
-        self.assertEqual(ntp_args["version"], 42)
-        self.assertEqual(ntp_args["timeout"], 13.37)
+        # Clear the singleton to prepare for next config
+        NTPUtil._drop()
 
         config = {'instances': [{}], 'init_config': {}}
-
         agentConfig = {
             'version': '0.1',
             'api_key': 'toto'
         }
+
+        # load the new config
+        ntp_util = NTPUtil(config)
 
         # default min collection interval for that check was 20sec
         check = load_check('ntp', config, agentConfig)
@@ -374,13 +386,12 @@ class TestCore(unittest.TestCase):
         except Exception:
             pass
 
-        ntp_args = get_ntp_args()
+        self.assertTrue(ntp_util.args["host"].endswith("datadog.pool.ntp.org"))
+        self.assertEqual(ntp_util.args["port"], "ntp")
+        self.assertEqual(ntp_util.args["version"], 3)
+        self.assertEqual(ntp_util.args["timeout"], 1.0)
 
-        self.assertTrue(ntp_args["host"].endswith("datadog.pool.ntp.org"))
-        self.assertEqual(ntp_args["port"], "ntp")
-        self.assertEqual(ntp_args["version"], 3)
-        self.assertEqual(ntp_args["timeout"], 1.0)
-
+        NTPUtil._drop()
 
 
 class TestAggregator(unittest.TestCase):

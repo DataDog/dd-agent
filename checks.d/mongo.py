@@ -7,7 +7,7 @@ import pymongo
 
 # project
 from checks import AgentCheck
-from util import get_hostname
+from urlparse import urlsplit
 
 DEFAULT_TIMEOUT = 30
 GAUGE = AgentCheck.gauge
@@ -15,34 +15,42 @@ RATE = AgentCheck.rate
 
 
 class MongoDb(AgentCheck):
-    SERVICE_CHECK_NAME = 'mongodb.can_connect'
+    """
+    MongoDB agent check.
+
+    # Metrics
+    Metric available for collection are listed by topic as `MongoDb` class variables.
+
+    Various metric topics are collected by default. Others require the
+    corresponding option enabled in the check configuration file.
+
+    ## Format
+    Metrics are listed with the following format:
+        ```
+        metric_name -> metric_type
+        ```
+        or
+        ```
+        metric_name -> (metric_type, alias)*
+        ```
+
+    * `alias` parameter is optional, if unspecified, MongoDB metrics are reported
+       with their original metric names.
+
+    # Service checks
+    Available service checks:
+    * `mongodb.can_connect`
+      Connectivity health to the instance.
+    * `mongodb.replica_set_member_state`
+      Disposition of the member replica set state.
+    """
+    # Source
     SOURCE_TYPE_NAME = 'mongodb'
 
-    """
-    MongoDB replica set states, as documented at
-    https://docs.mongodb.org/manual/reference/replica-states/
-    """
-    REPLSET_STATES = {
-        0: 'startup',
-        1: 'primary',
-        2: 'secondary',
-        3: 'recovering',
-        5: 'startup2',
-        6: 'unknown',
-        7: 'arbiter',
-        8: 'down',
-        9: 'rollback',
-        10: 'removed'
-    }
+    # Service check
+    SERVICE_CHECK_NAME = 'mongodb.can_connect'
 
-    # METRIC LIST DEFINITION
-    #
-    # Format
-    # ------
-    #   metric_name -> (metric_type, alias)
-    # or
-    #   metric_name -> metric_type *
-    # * by default MongoDB metrics are reported under their original metric names
+    # Metrics
     """
     Core metrics collected by default.
     """
@@ -141,6 +149,9 @@ class MongoDb(AgentCheck):
         "opcountersRepl.insert": RATE,
         "opcountersRepl.query": RATE,
         "opcountersRepl.update": RATE,
+        "oplog.logSizeMB": GAUGE,
+        "oplog.usedSizeMB": GAUGE,
+        "oplog.timeDiff": GAUGE,
         "replSet.health": GAUGE,
         "replSet.replicationLag": GAUGE,
         "replSet.state": GAUGE,
@@ -277,7 +288,6 @@ class MongoDb(AgentCheck):
 
     """
     WiredTiger storage engine.
-
     """
     WIREDTIGER_METRICS = {
         "wiredTiger.cache.bytes currently in the cache": (GAUGE, "wiredTiger.cache.bytes_currently_in_cache"),  # noqa
@@ -285,9 +295,12 @@ class MongoDb(AgentCheck):
         "wiredTiger.cache.in-memory page splits": GAUGE,
         "wiredTiger.cache.maximum bytes configured": GAUGE,
         "wiredTiger.cache.maximum page size at eviction": GAUGE,
+        "wiredTiger.cache.modified pages evicted": GAUGE,
         "wiredTiger.cache.pages currently held in the cache": (GAUGE, "wiredTiger.cache.pages_currently_held_in_cache"),  # noqa
         "wiredTiger.cache.pages evicted because they exceeded the in-memory maximum": (RATE, "wiredTiger.cache.pages_evicted_exceeding_the_in-memory_maximum"),  # noqa
         "wiredTiger.cache.pages evicted by application threads": RATE,
+        "wiredTiger.cache.tracked dirty bytes in the cache": (GAUGE, "wiredTiger.cache.tracked_dirty_bytes_in_cache"),  # noqa
+        "wiredTiger.cache.unmodified pages evicted": GAUGE,
         "wiredTiger.concurrentTransactions.read.available": GAUGE,
         "wiredTiger.concurrentTransactions.read.out": GAUGE,
         "wiredTiger.concurrentTransactions.read.totalTickets": GAUGE,
@@ -335,68 +348,109 @@ class MongoDb(AgentCheck):
     }
 
     """
-    Associates with the metric list to collect.
+    Metrics collected by default.
     """
-    AVAILABLE_METRICS = {
+    DEFAULT_METRICS = {
+        'base': BASE_METRICS,
         'durability': DURABILITY_METRICS,
         'locks': LOCKS_METRICS,
+        'wiredtiger': WIREDTIGER_METRICS,
+    }
+
+    """
+    Additional metrics by category.
+    """
+    AVAILABLE_METRICS = {
         'metrics.commands': COMMANDS_METRICS,
         'tcmalloc': TCMALLOC_METRICS,
-        'wiredtiger': WIREDTIGER_METRICS,
         'top': TOP_METRICS,
+    }
+
+    # Replication states
+    """
+    MongoDB replica set states, as documented at
+    https://docs.mongodb.org/manual/reference/replica-states/
+    """
+    REPLSET_MEMBER_STATES = {
+        0: ('STARTUP', 'Starting Up'),
+        1: ('PRIMARY', 'Primary'),
+        2: ('SECONDARY', 'Secondary'),
+        3: ('RECOVERING', 'Recovering'),
+        4: ('Fatal', 'Fatal'),   # MongoDB docs don't list this state
+        5: ('STARTUP2', 'Starting up (forking threads)'),
+        6: ('UNKNOWN', 'Unknown to this replset member'),
+        7: ('ARBITER', 'Arbiter'),
+        8: ('DOWN', 'Down'),
+        9: ('ROLLBACK', 'Rollback'),
+        10: ('REMOVED', 'Removed'),
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+
+        # Members' last replica set states
         self._last_state_by_server = {}
+
+        # List of metrics to collect per instance
         self.metrics_to_collect_by_instance = {}
 
     def get_library_versions(self):
         return {"pymongo": pymongo.version}
 
-    def check_last_state(self, state, clean_server_name, agentConfig):
-        if self._last_state_by_server.get(clean_server_name, -1) != state:
-            self._last_state_by_server[clean_server_name] = state
-            return self.create_event(state, clean_server_name, agentConfig)
+    def get_state_description(self, state):
+        if state in self.REPLSET_MEMBER_STATES:
+            return self.REPLSET_MEMBER_STATES[state][1]
+        else:
+            return 'Replset state %d is unknown to the Datadog agent' % state
 
-    def create_event(self, state, clean_server_name, agentConfig):
+    def get_state_name(self, state):
+        if state in self.REPLSET_MEMBER_STATES:
+            return self.REPLSET_MEMBER_STATES[state][0]
+        else:
+            return 'UNKNOWN'
+
+    def _report_replica_set_state(self, state, clean_server_name, replset_name, agentConfig):
+        """
+        Report the member's replica set state
+        * Submit a service check.
+        * Create an event on state change.
+        """
+        last_state = self._last_state_by_server.get(clean_server_name, -1)
+        self._last_state_by_server[clean_server_name] = state
+        if last_state != state and last_state != -1:
+            return self.create_event(last_state, state, clean_server_name, replset_name, agentConfig)
+
+    def hostname_for_event(self, clean_server_name, agentConfig):
+        """Return a reasonable hostname for a replset membership event to mention."""
+        uri = urlsplit(clean_server_name)
+        hostname = uri.netloc.split(':')[0]
+        if hostname == 'localhost':
+            hostname = self.hostname
+        return hostname
+
+    def create_event(self, last_state, state, clean_server_name, replset_name, agentConfig):
         """Create an event with a message describing the replication
             state of a mongo node"""
 
-        def get_state_description(state):
-            if state == 0:
-                return 'Starting Up'
-            elif state == 1:
-                return 'Primary'
-            elif state == 2:
-                return 'Secondary'
-            elif state == 3:
-                return 'Recovering'
-            elif state == 4:
-                return 'Fatal'
-            elif state == 5:
-                return 'Starting up (forking threads)'
-            elif state == 6:
-                return 'Unknown'
-            elif state == 7:
-                return 'Arbiter'
-            elif state == 8:
-                return 'Down'
-            elif state == 9:
-                return 'Rollback'
-
-        status = get_state_description(state)
-        hostname = get_hostname(agentConfig)
-        msg_title = "%s is %s" % (clean_server_name, status)
-        msg = "MongoDB %s just reported as %s" % (clean_server_name, status)
+        status = self.get_state_description(state)
+        short_status = self.get_state_name(state)
+        last_short_status = self.get_state_name(last_state)
+        hostname = self.hostname_for_event(clean_server_name, agentConfig)
+        msg_title = "%s is %s for %s" % (hostname, short_status, replset_name)
+        msg = "MongoDB %s (%s) just reported as %s (%s) for %s; it was %s before." % (hostname, clean_server_name, status, short_status, replset_name, last_short_status)
 
         self.event({
             'timestamp': int(time.time()),
-            'event_type': 'Mongo',
-            'api_key': agentConfig.get('api_key', ''),
+            'source_type_name': self.SOURCE_TYPE_NAME,
             'msg_title': msg_title,
             'msg_text': msg,
-            'host': hostname
+            'host': hostname,
+            'tags': [
+                'action:mongo_replset_member_status_change',
+                'member_status:' + short_status,
+                'previous_member_status:' + last_short_status,
+                'replset:' + replset_name,
+            ]
         })
 
     def _build_metric_list_to_collect(self, additional_metrics):
@@ -406,26 +460,28 @@ class MongoDb(AgentCheck):
         metrics_to_collect = {}
 
         # Defaut metrics
-        metrics_to_collect.update(self.BASE_METRICS)
+        for default_metrics in self.DEFAULT_METRICS.itervalues():
+            metrics_to_collect.update(default_metrics)
 
         # Additional metrics metrics
         for option in additional_metrics:
             additional_metrics = self.AVAILABLE_METRICS.get(option)
-
             if not additional_metrics:
-                self.log.warning(
-                    u"Failed to extend the list of metrics to collect:"
-                    " unrecognized {option} option".format(
-                        option=option
+                if option in self.DEFAULT_METRICS:
+                    self.log.warning(
+                        u"`%s` option is deprecated."
+                        u" The corresponding metrics are collected by default.", option
                     )
-                )
+                else:
+                    self.log.warning(
+                        u"Failed to extend the list of metrics to collect:"
+                        u" unrecognized `%s` option", option
+                    )
                 continue
 
             self.log.debug(
-                u"Adding `{option}` corresponding metrics to the list"
-                " of metrics to collect.".format(
-                    option=option
-                )
+                u"Adding `%s` corresponding metrics to the list"
+                u" of metrics to collect.", option
             )
             metrics_to_collect.update(additional_metrics)
 
@@ -457,9 +513,9 @@ class MongoDb(AgentCheck):
             if isinstance(metrics_to_collect[original_metric_name], tuple) \
             else original_metric_name
 
-        return submit_method, self.normalize(metric_name, submit_method, prefix)
+        return submit_method, self._normalize(metric_name, submit_method, prefix)
 
-    def normalize(self, metric_name, submit_method, prefix):
+    def _normalize(self, metric_name, submit_method, prefix):
         """
         Replace case-sensitive metric name characters, normalize the metric name,
         prefix and suffix according to its type.
@@ -473,7 +529,7 @@ class MongoDb(AgentCheck):
 
         # Normalize, and wrap
         return u"{metric_prefix}{normalized_metric_name}{metric_suffix}".format(
-            normalized_metric_name=super(MongoDb, self).normalize(metric_name.lower()),
+            normalized_metric_name=self.normalize(metric_name.lower()),
             metric_prefix=metric_prefix, metric_suffix=metric_suffix
         )
 
@@ -482,6 +538,20 @@ class MongoDb(AgentCheck):
         Returns a dictionary that looks a lot like what's sent back by
         db.serverStatus()
         """
+
+        def total_seconds(td):
+            """
+            Returns total seconds of a timedelta in a way that's safe for
+            Python < 2.7
+            """
+            if hasattr(td, 'total_seconds'):
+                return td.total_seconds()
+            else:
+                return (
+                    lag.microseconds +
+                    (lag.seconds + lag.days * 24 * 3600) * 10**6
+                ) / 10.0**6
+
         if 'server' not in instance:
             raise Exception("Missing 'server' in mongo config")
 
@@ -613,35 +683,37 @@ class MongoDb(AgentCheck):
                         message=message)
                     raise Exception(message)
 
-                # find nodes: master and current node (ourself)
+                # Replication set information
+                replset_name = replSet['set']
+                replset_state = self.get_state_name(replSet['myState']).lower()
+
+                tags.extend([
+                    u"replset_name:{0}".format(replset_name),
+                    u"replset_state:{0}".format(replset_state),
+                ])
+
+                # Find nodes: master and current node (ourself)
                 for member in replSet.get('members'):
                     if member.get('self'):
                         current = member
                     if int(member.get('state')) == 1:
                         primary = member
 
-                # If we have both we can compute a lag time
+                # Compute a lag time
                 if current is not None and primary is not None:
                     lag = primary['optimeDate'] - current['optimeDate']
-                    # Python 2.7 has this built in, python < 2.7 don't...
-                    if hasattr(lag, 'total_seconds'):
-                        data['replicationLag'] = lag.total_seconds()
-                    else:
-                        data['replicationLag'] = (
-                            lag.microseconds +
-                            (lag.seconds + lag.days * 24 * 3600) * 10**6
-                        ) / 10.0**6
+                    data['replicationLag'] = total_seconds(lag)
 
                 if current is not None:
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
-                tags.append('replset_state:%s' % self.REPLSET_STATES[data['state']])
-                self.check_last_state(
-                    data['state'],
-                    clean_server_name,
-                    self.agentConfig)
                 status['replSet'] = data
+
+                # Submit events
+                self._report_replica_set_state(
+                    data['state'], clean_server_name, replset_name, self.agentConfig
+                )
 
         except Exception as e:
             if "OperationFailure" in repr(e) and "replSetGetStatus" in str(e):
@@ -707,9 +779,16 @@ class MongoDb(AgentCheck):
                     )
 
                 # Submit the metric
+                metrics_tags = (
+                    tags +
+                    [
+                        u"cluster:db:{0}".format(st),  # FIXME 6.0 - keep for backward compatibility
+                        u"db:{0}".format(st),
+                    ]
+                )
+
                 submit_method, metric_name_alias = \
                     self._resolve_metric(metric_name, metrics_to_collect)
-                metrics_tags = tags + ['cluster:db:%s' % st]
                 submit_method(self, metric_name_alias, val, tags=metrics_tags)
 
         # Report the usage metrics for dbs/collections
@@ -746,5 +825,52 @@ class MongoDb(AgentCheck):
                         submit_method, metric_name_alias = \
                             self._resolve_metric(m, metrics_to_collect, prefix="usage")
                         submit_method(self, metric_name_alias, value, tags=ns_tags)
-            except Exception, e:
+            except Exception as e:
                 self.log.warning('Failed to record `top` metrics %s' % str(e))
+
+
+        if 'local' in dbnames: # it might not be if we are connectiing through mongos
+            # Fetch information analogous to Mongo's db.getReplicationInfo()
+            localdb = cli['local']
+
+            oplog_data = {}
+
+            for ol_collection_name in ("oplog.rs", "oplog.$main"):
+                ol_metadata = localdb.system.namespaces.find_one({"name": "local.%s" % ol_collection_name})
+                if ol_metadata:
+                    break
+
+            if ol_metadata:
+                try:
+                    oplog_data['logSizeMB'] = round(
+                        ol_metadata['options']['size'] / 2.0 ** 20, 2
+                    )
+
+                    oplog = localdb[ol_collection_name]
+
+                    oplog_data['usedSizeMB'] = round(
+                        localdb.command("collstats", ol_collection_name)['size'] / 2.0 ** 20, 2
+                    )
+
+                    op_asc_cursor = oplog.find().sort("$natural", pymongo.ASCENDING).limit(1)
+                    op_dsc_cursor = oplog.find().sort("$natural", pymongo.DESCENDING).limit(1)
+
+                    try:
+                        first_timestamp = op_asc_cursor[0]['ts'].as_datetime()
+                        last_timestamp = op_dsc_cursor[0]['ts'].as_datetime()
+                        oplog_data['timeDiff'] = total_seconds(last_timestamp - first_timestamp)
+                    except (IndexError, KeyError):
+                        # if the oplog collection doesn't have any entries
+                        # if an object in the collection doesn't have a ts value, we ignore it
+                        pass
+                except KeyError:
+                    # encountered an error trying to access options.size for the oplog collection
+                    self.log.warning(u"Failed to record `ReplicationInfo` metrics.")
+
+            for (m, value) in oplog_data.iteritems():
+                submit_method, metric_name_alias = \
+                    self._resolve_metric('oplog.%s' % m, metrics_to_collect)
+                submit_method(self, metric_name_alias, value, tags=tags)
+
+        else:
+            self.log.debug('"local" database not in dbnames. Not collecting ReplicationInfo metrics')

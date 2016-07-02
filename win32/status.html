@@ -138,7 +138,7 @@
           <dl>
             <dt>Agent version</dt>    <dd>{{ agent_version }}</dd>
             <dt>Platform</dt>         <dd>{{ platform }}</dd>
-            <dt>Python version</dt>   <dd>{{ python_version }}</dd>
+            <dt>Python version</dt>   <dd>{{ python_version }}, {{ python_architecture }}</dd>
             <dt>Logger</dt>           <dd>{{ logger_info }}</dd>
           </dl>
 
@@ -242,20 +242,10 @@
             <dt>Flush count</dt>        <dd>{{ forwarder['flush_count'] }}</dd>
             <dt>Queue size</dt>         <dd>{{ forwarder['queue_size'] }} bytes</dd>
             <dt>Queue length</dt>       <dd>{{ forwarder['queue_length'] }}</dd>
+            <dt>Transactions received</dt> <dd>{{ forwarder['transactions_received'] }}</dd>
+            <dt>Transactions flushed</dt> <dd>{{ forwarder['transactions_flushed'] }}</dd>
+            <dt>Transactions rejected</dt>       <dd>{{ forwarder['too_big_count'] }}</dd>
           </dl>
-
-          {% if forwarder['proxy_data'] %}
-          <h3>Proxy</h3>
-
-          <dl>
-            <dt>Host</dt>     <dd>{{ forwarder['proxy_data']['host'] }}</dd>
-            <dt>Port</dt>     <dd>{{ forwarder['proxy_data']['port'] }}</dd>
-            {% if forwarder.get('hidden_username') %}
-            <dt>Username</dt>     <dd>{{ forwarder['hidden_username'] }}</dd>
-            <dt>Password</dt>     <dd>{{ forwarder['hidden_password'] }}</dd>
-            {% end %}
-          </dl>
-          {% end %}
 
           <!-- Dogstatsd -->
           <h2>DogstatsD</h2>

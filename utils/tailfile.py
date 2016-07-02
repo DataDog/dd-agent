@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 import binascii
 import os
 from stat import ST_INO, ST_SIZE
@@ -96,7 +100,7 @@ class TailFile(object):
                     assert pos == self._f.tell()
                     self._open_file(move_end=False, pos=pos)
 
-        except Exception, e:
+        except Exception as e:
             # log but survive
             self._log.exception(e)
             raise StopIteration(e)

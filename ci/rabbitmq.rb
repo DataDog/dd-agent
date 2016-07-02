@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 require './ci/common'
 
 # TODO: make this available in the matrix
@@ -50,8 +54,6 @@ namespace :ci do
       sh %(rm -rf #{rabbitmq_rootdir}/var/lib/rabbitmq/mnesia)
     end
 
-    task cache: ['ci:common:cache']
-
     task cleanup: ['ci:common:cleanup'] do
       sh %(#{rabbitmq_rootdir}/sbin/rabbitmqctl stop)
     end
@@ -60,7 +62,7 @@ namespace :ci do
       exception = nil
       begin
         %w(before_install install before_script
-           script before_cache cache).each do |t|
+           script before_cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end
       rescue => e

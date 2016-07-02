@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2015-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 """Mesos Master check
 
 Collects metrics from mesos master node, only the leader is sending metrics.
@@ -225,7 +229,8 @@ class MesosMaster(AgentCheck):
                                self.CLUSTER_FRAMEWORK_METRICS, self.STATS_METRICS]
                 for m in metrics:
                     for key_name, (metric_name, metric_func) in m.iteritems():
-                        metric_func(self, metric_name, stats_metrics[key_name], tags=tags)
+                        if key_name in stats_metrics:
+                            metric_func(self, metric_name, stats_metrics[key_name], tags=tags)
 
 
         self.service_check_needed = True

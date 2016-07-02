@@ -1,3 +1,9 @@
+# (C) Datadog, Inc. 2014-2016
+# (C)  graemej <graeme.johnson@jadedpixel.com> 2014
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
+
 # stdlib
 from urlparse import urljoin
 
@@ -49,12 +55,6 @@ class Marathon(AgentCheck):
                 for attr in self.APP_METRICS:
                     if attr in app:
                         self.gauge('marathon.' + attr, app[attr], tags=tags)
-
-                query_url = urljoin(url, "/v2/apps/{0}/versions".format(app['id']))
-                versions_reply = self.get_json(query_url, timeout, auth)
-
-                if versions_reply is not None:
-                    self.gauge('marathon.versions', len(versions_reply['versions']), tags=tags)
 
     def get_json(self, url, timeout, auth):
         try:

@@ -1,3 +1,8 @@
+# (C) Datadog, Inc. 2010-2016
+# (C) Luca Cipriani <luca@c9.io> 2013
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 # stdlib
 from collections import defaultdict
 import time
@@ -22,12 +27,20 @@ ATTR_TO_METRIC = {
     'vms':              'mem.vms',
     'real':             'mem.real',
     'open_fd':          'open_file_descriptors',
+    'open_handle':      'open_handles',  # win32 only
     'r_count':          'ioread_count',  # FIXME: namespace me correctly (6.x), io.r_count
     'w_count':          'iowrite_count',  # FIXME: namespace me correctly (6.x) io.r_bytes
     'r_bytes':          'ioread_bytes',  # FIXME: namespace me correctly (6.x) io.w_count
     'w_bytes':          'iowrite_bytes',  # FIXME: namespace me correctly (6.x) io.w_bytes
     'ctx_swtch_vol':    'voluntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.voluntary
-    'ctx_swtch_invol':  'involuntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.involuntary
+    'ctx_swtch_invol':  'involuntary_ctx_switches'  # FIXME: namespace me correctly (6.x), ctx_swt.involuntary
+}
+
+ATTR_TO_METRIC_RATE = {
+    'minflt':           'mem.page_faults.minor_faults',
+    'cminflt':          'mem.page_faults.children_minor_faults',
+    'majflt':           'mem.page_faults.major_faults',
+    'cmajflt':          'mem.page_faults.children_major_faults'
 }
 
 
@@ -63,8 +76,10 @@ class ProcessCheck(AgentCheck):
 
         if Platform.is_linux():
             procfs_path = init_config.get('procfs_path')
-            if procfs_path:
-                psutil.PROCFS_PATH = procfs_path
+            if not procfs_path:
+                procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
+
+            psutil.PROCFS_PATH = procfs_path
 
         # Process cache, indexed by instance
         self.process_cache = defaultdict(dict)
@@ -113,7 +128,7 @@ class ProcessCheck(AgentCheck):
                             found = True
                 except psutil.NoSuchProcess:
                     self.log.warning('Process disappeared while scanning')
-                except psutil.AccessDenied, e:
+                except psutil.AccessDenied as e:
                     ad_error_logger('Access denied to process with PID %s', proc.pid)
                     ad_error_logger('Error: %s', e)
                     if refresh_ad_cache:
@@ -152,6 +167,8 @@ class ProcessCheck(AgentCheck):
                 and (Platform.is_win32() or Platform.is_solaris()):
             return result
         elif method == 'num_fds' and not Platform.is_unix():
+            return result
+        elif method == 'num_handles' and not Platform.is_win32():
             return result
 
         try:
@@ -225,6 +242,7 @@ class ProcessCheck(AgentCheck):
                 st['cpu'].append(cpu_percent)
 
             st['open_fd'].append(self.psutil_wrapper(p, 'num_fds', None))
+            st['open_handle'].append(self.psutil_wrapper(p, 'num_handles', None))
 
             ioinfo = self.psutil_wrapper(p, 'io_counters', ['read_count', 'write_count', 'read_bytes', 'write_bytes'])
             st['r_count'].append(ioinfo.get('read_count'))
@@ -232,7 +250,38 @@ class ProcessCheck(AgentCheck):
             st['r_bytes'].append(ioinfo.get('read_bytes'))
             st['w_bytes'].append(ioinfo.get('write_bytes'))
 
+            pagefault_stats = self.get_pagefault_stats(pid)
+            if pagefault_stats is not None:
+                (minflt, cminflt, majflt, cmajflt) = pagefault_stats
+                st['minflt'].append(minflt)
+                st['cminflt'].append(cminflt)
+                st['majflt'].append(majflt)
+                st['cmajflt'].append(cmajflt)
+            else:
+                st['minflt'].append(None)
+                st['cminflt'].append(None)
+                st['majflt'].append(None)
+                st['cmajflt'].append(None)
+
         return st
+
+    def get_pagefault_stats(self, pid):
+        if not Platform.is_linux():
+            return None
+
+        def file_to_string(path):
+            with open(path, 'r') as f:
+                res = f.read()
+            return res
+
+        # http://man7.org/linux/man-pages/man5/proc.5.html
+        try:
+            data = file_to_string('/proc/%s/stat' % pid)
+        except Exception:
+            self.log.debug('error getting proc stats: file_to_string failed for /proc/%s/stat' % pid)
+            return None
+
+        return map(lambda i: int(i), data.split()[9:13])
 
     def check(self, instance):
         name = instance.get('name', None)
@@ -240,28 +289,32 @@ class ProcessCheck(AgentCheck):
         exact_match = _is_affirmative(instance.get('exact_match', True))
         search_string = instance.get('search_string', None)
         ignore_ad = _is_affirmative(instance.get('ignore_denied_access', True))
+        pid = instance.get('pid')
 
-        if not isinstance(search_string, list):
+        if not isinstance(search_string, list) and pid is None:
             raise KeyError('"search_string" parameter should be a list')
 
         # FIXME 6.x remove me
-        if "All" in search_string:
-            self.warning('Deprecated: Having "All" in your search_string will'
+        if pid is None:
+            if "All" in search_string:
+                self.warning('Deprecated: Having "All" in your search_string will'
                          'greatly reduce the performance of the check and '
                          'will be removed in a future version of the agent.')
 
         if name is None:
             raise KeyError('The "name" of process groups is mandatory')
 
-        if search_string is None:
-            raise KeyError('The "search_string" is mandatory')
-
-        pids = self.find_pids(
-            name,
-            search_string,
-            exact_match,
-            ignore_ad=ignore_ad
-        )
+        if search_string is not None:
+            pids = self.find_pids(
+                name,
+                search_string,
+                exact_match,
+                ignore_ad=ignore_ad
+            )
+        elif pid is not None:
+            pids = [psutil.Process(pid)]
+        else:
+            raise ValueError('The "search_string" or "pid" options are required for process identification')
 
         proc_state = self.get_process_state(name, pids)
 
@@ -277,6 +330,11 @@ class ProcessCheck(AgentCheck):
             if vals:
                 # FIXME 6.x: change this prefix?
                 self.gauge('system.processes.%s' % mname, sum(vals), tags=tags)
+
+        for attr, mname in ATTR_TO_METRIC_RATE.iteritems():
+            vals = [x for x in proc_state[attr] if x is not None]
+            if vals:
+                self.rate('system.processes.%s' % mname, sum(vals), tags=tags)
 
         self._process_service_check(name, len(pids), instance.get('thresholds', None))
 

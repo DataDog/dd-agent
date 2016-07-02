@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 import traceback
 
 def shell():
@@ -12,7 +16,7 @@ Datadog Agent v%s - Python Shell
         cmd = raw_input('>>> ')
         try:
             exec(cmd)
-        except Exception, e:
+        except Exception as e:
             print traceback.format_exc(e)
 
 if __name__ == "__main__":

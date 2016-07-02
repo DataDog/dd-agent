@@ -1,0 +1,11 @@
+[
+  {
+    "id": 6,
+    "name": "PythonRDD",
+    "numPartitions": 2,
+    "numCachedPartitions": 2,
+    "storageLevel": "Memory Serialized 1x Replicated",
+    "memoryUsed": 284,
+    "diskUsed": 0
+  }
+]

@@ -1,4 +1,8 @@
+# stdlib
 import re
+
+# 3p
+from mock import Mock
 
 # project
 from checks import AgentCheck
@@ -8,6 +12,11 @@ from tests.checks.common import AgentCheckTest
 
 class IISTestCase(AgentCheckTest, TestCommonWMI):
     CHECK_NAME = 'iis'
+
+    WIN_SERVICES_MINIMAL_CONFIG = {
+        'host': ".",
+        'tags': ["mytag1", "mytag2"]
+    }
 
     WIN_SERVICES_CONFIG = {
         'host': ".",
@@ -48,16 +57,48 @@ class IISTestCase(AgentCheckTest, TestCommonWMI):
         """
         Returns the right metrics and service checks
         """
+        # Set up & run the check
+        config = {
+            'instances': [self.WIN_SERVICES_CONFIG]
+        }
+        logger = Mock()
+
+        self.run_check_twice(config, mocks={'log': logger})
+
+        # Test metrics
+        # ... normalize site-names
+        ok_site_name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", config['instances'][0]['sites'][0])
+        fail_site_name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", config['instances'][0]['sites'][1])
+
+        for mname in self.IIS_METRICS:
+            self.assertMetric(mname, tags=["mytag1", "mytag2", "site:{0}".format(ok_site_name)], count=1)
+
+        # Test service checks
+        self.assertServiceCheck('iis.site_up', status=AgentCheck.OK,
+                                tags=["site:{0}".format(ok_site_name)], count=1)
+        self.assertServiceCheck('iis.site_up', status=AgentCheck.CRITICAL,
+                                tags=["site:{0}".format(fail_site_name)], count=1)
+
+        # Check completed with no warnings
+        self.assertFalse(logger.warning.called)
+
+        self.coverage_report()
+
+    def test_check_2008(self):
+        """
+        Returns the right metrics and service checks for 2008 IIS
+        """
         # Run check
         config = {
             'instances': [self.WIN_SERVICES_CONFIG]
         }
+        config['instances'][0]['is_2008'] = True
 
         self.run_check_twice(config)
 
         # Test metrics
 
-        # normalize site-names
+        # Normalize site-names
         ok_site_name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", config['instances'][0]['sites'][0])
         fail_site_name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", config['instances'][0]['sites'][1])
         for mname in self.IIS_METRICS:
@@ -69,4 +110,19 @@ class IISTestCase(AgentCheckTest, TestCommonWMI):
         self.assertServiceCheck('iis.site_up', status=AgentCheck.CRITICAL,
                                 tags=["site:{0}".format(fail_site_name)], count=1)
 
+    def test_check_without_sites_specified(self):
+        """
+        Returns the right metrics and service checks for the `_Total` site
+        """
+        # Run check
+        config = {
+            'instances': [self.WIN_SERVICES_MINIMAL_CONFIG]
+        }
+        self.run_check_twice(config)
+
+        for mname in self.IIS_METRICS:
+            self.assertMetric(mname, tags=["mytag1", "mytag2"], count=1)
+
+        self.assertServiceCheck('iis.site_up', status=AgentCheck.OK,
+                                tags=["site:{0}".format('Total')], count=1)
         self.coverage_report()

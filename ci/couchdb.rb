@@ -1,3 +1,7 @@
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
+
 require './ci/common'
 
 def couchdb_version
@@ -94,13 +98,7 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task before_cache: ['ci:common:before_cache'] do
-      # It's the pid file which changes eveytime,
-      # so let's actually cleanup before cache
-      Rake::Task['ci:couchdb:cleanup'].invoke
-    end
-
-    task cache: ['ci:common:cache']
+    task before_cache: :cleanup
 
     task cleanup: ['ci:common:cleanup'] do
       sh %(#{couchdb_rootdir}/bin/couchdb -k)
@@ -111,7 +109,7 @@ namespace :ci do
       exception = nil
       begin
         %w(before_install install before_script
-           script before_cache cache).each do |t|
+           script before_cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end
       rescue => e

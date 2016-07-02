@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=E0401
 #
 # Copyright © 2009-2010 CEA
 # Pierre Raybaut
@@ -198,7 +199,7 @@ class EditorFile(object):
             f.write(content)
             self.content = content
             info_popup("File saved.")
-        except Exception, e:
+        except Exception as e:
             warning_popup("Unable to save file: \n %s" % str(e))
             raise
 
@@ -401,6 +402,7 @@ class HTMLWindow(QTextEdit):
                 platform=platform.platform(),
                 agent_version=get_version(),
                 python_version=platform.python_version(),
+                python_architecture=Platform.python_architecture(),
                 logger_info=logger_info(),
                 dogstatsd=dogstatsd_status.to_dict(),
                 forwarder=forwarder_status.to_dict(),
@@ -601,7 +603,7 @@ class Menu(QMenu):
             output = check_output(['osascript', '-e',
                                    self.SYSTEM_EVENTS_CMD.format('get the path of every login item whose name is "Datadog Agent"')])
             return 'Disable' if 'Datadog' in output else 'Enable'
-        except CalledProcessError, e:
+        except CalledProcessError as e:
             log.warning('Get login item failed with output:{0}'.format(e.output))
             return 'Disable'
 
@@ -618,7 +620,7 @@ class Menu(QMenu):
             self.add_option(self.MAC_LOGIN.format(self.enable_or_disable_mac()),
                             lambda: self.enable_or_disable_login())
             self.add_option(self.EXIT, lambda: sys.exit(0))
-        except Exception, e:
+        except Exception as e:
             log.warning('Exception during Mac item login {0}: {1}'.format(previous, e))
 
     def update_options(self):
@@ -696,7 +698,7 @@ def save_file(properties):
 def check_yaml_syntax(content):
     try:
         yaml.load(content, Loader=yLoader)
-    except Exception, e:
+    except Exception as e:
         warning_popup("Unable to parse yaml: \n %s" % str(e))
         raise
 
@@ -709,7 +711,7 @@ def service_manager(action):
             win32serviceutil.StartService(DATADOG_SERVICE)
         elif action == 'restart':
             win32serviceutil.RestartService(DATADOG_SERVICE)
-    except Exception, e:
+    except Exception as e:
         warning_popup("Couldn't %s service: \n %s" % (action, str(e)))
 
 
@@ -725,7 +727,7 @@ def service_manager_status():
 def osx_manager(action):
     try:
         check_call(['datadog-agent', action])
-    except Exception, e:
+    except Exception as e:
         warning_popup("Couldn't execute datadog-agent %s: \n %s" % (action, str(e)))
 
 
@@ -733,7 +735,7 @@ def osx_manager_status():
     try:
         check_output(['datadog-agent', 'status'])
         return AGENT_RUNNING
-    except CalledProcessError, e:
+    except CalledProcessError as e:
         if 'not running' in e.output:
             return AGENT_STOPPED
         elif 'STARTING' in e.output:
@@ -787,7 +789,7 @@ def windows_flare():
         case_id = f.upload(email=str(email))
         info_popup("Your logs were successfully uploaded. For future reference,"
                    " your internal case id is {0}".format(case_id))
-    except Exception, e:
+    except Exception as e:
         warning_popup('The upload failed. Please send the following file by email'
                       ' to support: {0}\n\n{1}'.format(f.tar_path, str(e)))
     finally:
@@ -833,7 +835,7 @@ def kill_old_process():
     try:
         with open(pidfile, 'w+') as fp:
             fp.write(str(pid))
-    except Exception, e:
+    except Exception as e:
         msg = "Unable to write pidfile: %s %s" % (pidfile, str(e))
         log.exception(msg)
         sys.stderr.write(msg + "\n")

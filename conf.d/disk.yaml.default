@@ -1,3 +1,7 @@
+# This file is overwritten upon Agent upgrade.
+# To make modifications to the check configuration, please copy this file
+# to `disk.yaml` and make your changes on that file.
+
 init_config:
 
 instances:
@@ -17,11 +21,15 @@ instances:
     #
     # The (optional) excluded_disk_re parameter will instruct the check to
     # ignore all disks matching this regex
-    # excluded_disk_re: /dev/sde*
+    # excluded_disk_re: /dev/sde.*
     #
     # The (optional) tag_by_filesystem parameter will instruct the check to
     # tag all disks with their filesystem (for ex: filesystem:nfs)
     # tag_by_filesystem: no
+    #
+    # The (optional) excluded_mountpoint_re parameter will instruct the check to
+    # ignore all mountpoints matching this regex
+    # excluded_mountpoint_re: /mnt/somebody-elses-problem.*
     #
     # The (optional) all_partitions parameter will instruct the check to
     # get metrics for all partitions. use_mount should be set to yes (to avoid
