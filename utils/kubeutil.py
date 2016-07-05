@@ -13,6 +13,7 @@ from util import check_yaml
 from utils.checkfiles import get_conf_path
 from utils.http import retrieve_json
 from utils.singleton import Singleton
+from utils.dockerutil import DockerUtil
 
 import requests
 
@@ -41,20 +42,21 @@ class KubeUtil:
     POD_NAME_LABEL = "io.kubernetes.pod.name"
     NAMESPACE_LABEL = "io.kubernetes.pod.namespace"
 
-    def __init__(self):
+    def __init__(self, instance=None):
         self.docker_util = DockerUtil()
-        try:
-            config_file_path = get_conf_path(KUBERNETES_CHECK_NAME)
-            check_config = check_yaml(config_file_path)
-            instance = check_config['instances'][0]
-        # kubernetes.yaml was not found
-        except IOError as ex:
-            log.error(ex.message)
-            instance = {}
-        except Exception:
-            log.error('Kubernetes configuration file is invalid. '
-                      'Trying connecting to kubelet with default settings anyway...')
-            instance = {}
+        if instance is None:
+            try:
+                config_file_path = get_conf_path(KUBERNETES_CHECK_NAME)
+                check_config = check_yaml(config_file_path)
+                instance = check_config['instances'][0]
+            # kubernetes.yaml was not found
+            except IOError as ex:
+                log.error(ex.message)
+                instance = {}
+            except Exception:
+                log.error('Kubernetes configuration file is invalid. '
+                          'Trying connecting to kubelet with default settings anyway...')
+                instance = {}
 
         self.method = instance.get('method', KubeUtil.DEFAULT_METHOD)
         self.host = instance.get("host") or self.docker_util.get_hostname()

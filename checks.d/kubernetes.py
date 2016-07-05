@@ -58,10 +58,13 @@ class Kubernetes(AgentCheck):
     def __init__(self, name, init_config, agentConfig, instances=None):
         if instances is not None and len(instances) > 1:
             raise Exception('Kubernetes check only supports one configured instance.')
+
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
-        self.kubeutil = KubeUtil()
+
+        inst = instances[0] if instances is not None else None
+        self.kubeutil = KubeUtil(instance=inst)
         if not self.kubeutil.host:
-            raise Exception('Unable to get default router and host parameter is not set')
+            raise Exception('Unable to retrieve Docker hostname and host parameter is not set')
 
     def _perform_kubelet_checks(self, url):
         service_check_base = NAMESPACE + '.kubelet.check'

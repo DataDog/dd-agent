@@ -12,7 +12,7 @@ import simplejson as json
 # project
 from tests.checks.common import AgentCheckTest, Fixtures
 from checks import AgentCheck
-from utils.kubeutil import KubeUtil, is_k8s, get_procfs_netroute
+from utils.kubeutil import KubeUtil, is_k8s
 
 CPU = "CPU"
 MEM = "MEM"
@@ -279,7 +279,7 @@ class TestKubernetes(AgentCheckTest):
     def test_events(self, *args):
         # default value for collect_events is False
         config = {'instances': [{'host': 'foo'}]}
-        self.run_check(config)
+        self.run_check(config, force_reload=True)
         self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)
 
         # again, with the feature enabled
@@ -418,15 +418,10 @@ class TestKubeutil(unittest.TestCase):
             self.assertEqual(self.kubeutil._node_ip, '10.240.0.9')
             self.assertEqual(self.kubeutil._node_name, 'gke-cluster-1-8046fdfa-node-ld35')
 
-    def test__get_default_router(self):
-        with mock.patch('utils.kubeutil.get_procfs_netroute') as mock_procfs:
-            mock_procfs.return_value = Fixtures.file('proc_net_route.txt')
-            self.assertEqual(KubeUtil._get_default_router(), '10.8.2.1')
-
     def test_get_auth_token(self):
         KubeUtil.AUTH_TOKEN_PATH = '/foo/bar'
         self.assertIsNone(KubeUtil.get_auth_token())
-        KubeUtil.AUTH_TOKEN_PATH = Fixtures.file('proc_net_route.txt')  # any file could do the trick
+        KubeUtil.AUTH_TOKEN_PATH = Fixtures.file('events.json')  # any file could do the trick
         self.assertIsNotNone(KubeUtil.get_auth_token())
 
     def test_is_k8s(self):
@@ -434,6 +429,3 @@ class TestKubeutil(unittest.TestCase):
         self.assertFalse(is_k8s())
         os.environ['KUBERNETES_PORT'] = '999'
         self.assertTrue(is_k8s())
-
-    def test_get_procfs_netroute(self):
-        self.assertEqual(get_procfs_netroute(), '/proc/net/route')
