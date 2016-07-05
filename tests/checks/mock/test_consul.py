@@ -383,18 +383,22 @@ class TestCheckConsul(AgentCheckTest):
 
     def testn_self_leader_event(self):
         self.check = load_check(self.CHECK_NAME, MOCK_CONFIG_SELF_LEADER_CHECK, self.DEFAULT_AGENT_CONFIG)
-        self.check._we_are_leader = False
+        self.check._last_known_leader = 'My Old Leader'
 
         mocks = self._get_consul_mocks()
+
+        our_url = self.mock_get_cluster_leader_A(None)
+        other_url = self.mock_get_cluster_leader_B(None)
 
         # We become the leader
         mocks['_get_cluster_leader'] = self.mock_get_cluster_leader_A
         self.run_check(MOCK_CONFIG_SELF_LEADER_CHECK, mocks=mocks)
         self.assertEqual(len(self.events), 1)
-        self.assertTrue(self.check._we_are_leader)
+        self.assertEqual(our_url, self.check._last_known_leader)
         event = self.events[0]
         self.assertEqual(event['event_type'], 'consul.new_leader')
-        self.assertIn('curr_consul_leader:10.0.2.15:8300', event['tags'])
+        self.assertIn('prev_consul_leader:My Old Leader', event['tags'])
+        self.assertIn('curr_consul_leader:%s' % our_url, event['tags'])
 
         # We are already the leader, no new events
         self.run_check(MOCK_CONFIG_SELF_LEADER_CHECK, mocks=mocks)
@@ -404,13 +408,14 @@ class TestCheckConsul(AgentCheckTest):
         mocks['_get_cluster_leader'] = self.mock_get_cluster_leader_B
         self.run_check(MOCK_CONFIG_SELF_LEADER_CHECK, mocks=mocks)
         self.assertEqual(len(self.events), 0)
-        self.assertFalse(self.check._we_are_leader)
+        self.assertEqual(other_url, self.check._last_known_leader)
 
         # We regain the leadership
         mocks['_get_cluster_leader'] = self.mock_get_cluster_leader_A
         self.run_check(MOCK_CONFIG_SELF_LEADER_CHECK, mocks=mocks)
         self.assertEqual(len(self.events), 1)
-        self.assertTrue(self.check._we_are_leader)
+        self.assertEqual(our_url, self.check._last_known_leader)
         event = self.events[0]
         self.assertEqual(event['event_type'], 'consul.new_leader')
-        self.assertIn('curr_consul_leader:10.0.2.15:8300', event['tags'])
+        self.assertIn('prev_consul_leader:%s' % other_url, event['tags'])
+        self.assertIn('curr_consul_leader:%s' % our_url, event['tags'])
