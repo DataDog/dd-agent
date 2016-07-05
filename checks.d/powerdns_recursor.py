@@ -13,6 +13,7 @@ class PowerDNSRecursorCheck(AgentCheck):
     GAUGE_METRICS = [
         'cache-entries',
         'concurrent-queries',
+        'negcache-entries',
     ]
     RATE_METRICS = [
         'all-outqueries',
@@ -23,12 +24,28 @@ class PowerDNSRecursorCheck(AgentCheck):
         'answers100-1000',
         'cache-hits',
         'cache-misses',
+        'dont-outqueries',
+        'ipv6-outqueries',
+        'ipv6-questions',
         'noerror-answers',
+        'nxdomain-answers',
         'outgoing-timeouts',
+        'over-capacity-drops',
+        'packetcache-entries',
+        'packetcache-hits',
+        'packetcache-misses',
         'questions',
         'servfail-answers',
+        'tcp-client-overflow',
+        'tcp-clients',
         'tcp-outqueries',
         'tcp-questions',
+        'throttle-entries',
+        'throttled-out',
+        'throttled-outqueries',
+        'unauthorized-tcp',
+        'unauthorized-udp',
+        'unexpected-packets',
     ]
 
     SERVICE_CHECK_NAME = 'powerdns.recursor.can_connect'
