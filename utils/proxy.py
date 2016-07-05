@@ -9,11 +9,14 @@ from urlparse import urlparse
 
 log = logging.getLogger(__name__)
 
+
 def set_no_proxy_settings():
-    # Starting with Agent 5.0.0, there should always be a local forwarder
-    # running and all payloads should go through it. So we should make sure
-    # that we pass the no_proxy environment variable that will be used by requests
-    # See: https://github.com/kennethreitz/requests/pull/945
+    """
+    Starting with Agent 5.0.0, there should always be a local forwarder
+    running and all payloads should go through it. So we should make sure
+    that we pass the no_proxy environment variable that will be used by requests
+    See: https://github.com/kennethreitz/requests/pull/945
+    """
     to_add = ["127.0.0.1", "localhost", "169.254.169.254"]
     no_proxy = os.environ.get("no_proxy", "")
     if not no_proxy.strip():
@@ -26,6 +29,7 @@ def set_no_proxy_settings():
             no_proxy.append(host)
 
     os.environ['no_proxy'] = ','.join(no_proxy)
+
 
 def get_proxy(agentConfig):
     proxy_settings = {}
@@ -63,7 +67,7 @@ def get_proxy(agentConfig):
 
     except Exception as e:
         log.debug("Error while trying to fetch proxy settings using urllib %s."
-            "Proxy is probably not set", str(e))
+                  "Proxy is probably not set", str(e))
 
     log.debug("No proxy configured")
 
