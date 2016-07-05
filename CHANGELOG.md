@@ -2,27 +2,31 @@ Changes
 =======
 
 # 5.8.3 / 07-05-2016
-**Windows, Linux and source install**
+**Windows, Linux and Source Install**
+
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.8.2...5.8.3
 
 ### Changes
-* [BUGFIX] Docker: Handles buggy responses from docker api better. See: [#2608][]
-* [BUGFIX] Core: A bug prevented ipv6 from being used in some circumstances. This fixes that, and defaults to ipv6 and falls back to ipv4. See: [#2592][]
-* [Flare] Adds configcheck output to flare command. See: [#2588][]
-* [BUGFIX] Postgres: Adds a hard limit on postgres.table.count metric, as this can be very expensive. See: [#2575][]
-* [BUGFIX] vSphere: Enhances topology support, skip unknown metrics. See: [#2560][]
-* [BUGFIX] Mongo: Only collect ReplicationInfo when it's possible to do so, rather than erroring out. See: [#2559][]
-* [BUGFIX] Win32: When memory check collection times out, it causes an error in the collector. Instead, it should recover from this. See: [#2553][]
-* [BUGFIX] vSphere: The whole check shouldn't fail just because the check failed on a certain instance. See: [#2548][]
-* [BUGFIX] PowerDNS Recursor: The configuration file needed to be renamed from `powerdns.conf` to `powerdns_recursor.conf`. See: [#2538][]
-* [BUGFIX] SQLServer: Send service checks after every run, rather than only at the beginning. See: [#2515][]
-* [BUFIX] HAProxy: Add `collate_status_tags_per_host` flag See: [#2590][]
-* [BUGFIX] WMI: Allows user to set a profider in request data. See: [#2565][], [#2369][]
-* [IMPROVEMENT] Docker: Bump docker-py to 1.8.1 for network features support. See: [#2556][]
-* [BUGFIX] Service Discovery: use get_identifier instead of buggy image name extraction. See: [#2593][]
-* [BUGFIX] Service Discovery: use docker hostname rather than default route to query cadvisor and kublet. See: [#2609][]
-* [BUGFIX] Service Discovery: improvements for testing, logging and service variable interpolation. See: [#2573][]
+* [FEATURE] Flare: Adds configcheck output to flare command. See [#2588][]
+
+* [IMPROVEMENT] Docker: Bump docker-py to 1.8.1 for network features support. See [#2556][]
+
+* [BUFIX] HAProxy: Add `collate_status_tags_per_host` flag See [#2590][]
+* [BUGFIX] Core: A bug prevented ipv6 from being used in some circumstances. This fixes that, and defaults to ipv6 and falls back to ipv4. See [#2592][]
+* [BUGFIX] Docker: Handles buggy responses from docker api better. See [#2608][]
+* [BUGFIX] MongoDB: Only collect ReplicationInfo when it's possible to do so, rather than erroring out. See [#2559][]
+* [BUGFIX] Postgres: Adds a hard limit on postgres.table.count metric, as this can be very expensive. See [#2575][]
+* [BUGFIX] PowerDNS Recursor: The configuration file needed to be renamed from `powerdns.conf` to `powerdns_recursor.conf`. See [#2538][]
+* [BUGFIX] Service Discovery: Improvements for testing, logging and service variable interpolation. See [#2573][]
+* [BUGFIX] Service Discovery: Yse docker hostname rather than default route to query cadvisor and kublet. See [#2609][]
+* [BUGFIX] Service Discovery: Use get_identifier instead of buggy image name extraction. See [#2593][]
+* [BUGFIX] SQLServer: Send service checks after every run, rather than only at the beginning. See [#2515][]
+* [BUGFIX] vSphere: Enhances topology support, skip unknown metrics. See [#2560][]
+* [BUGFIX] vSphere: The whole check shouldn't fail just because the check failed on a certain instance. See [#2548][]
+* [BUGFIX] Win32: When memory check collection times out, it causes an error in the collector. Instead, it should recover from this. See [#2553][]
+* [BUGFIX] WMI: Allows user to set a profider in request data. See [#2565][], [#2369][]
+
 
 
 
