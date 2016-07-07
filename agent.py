@@ -103,6 +103,10 @@ class Agent(Daemon):
         """Reloads the agent configuration and checksd configurations."""
         log.info("Attempting a configuration reload...")
 
+        # Stop checks
+        for check in self._checksd.get('initialized_checks', []):
+            check.stop()
+
         # Reload checksd configs
         hostname = get_hostname(self._agentConfig)
         self._checksd = load_check_directory(self._agentConfig, hostname)
