@@ -132,7 +132,7 @@ use_mount: no
 # Other                                                                      #
 # ========================================================================== #
 #
-# In some environments we may have the procfs file system mounted in a 
+# In some environments we may have the procfs file system mounted in a
 # miscellaneous location. The procfs_path configuration paramenter allows
 # us to override the standard default location '/proc'
 # procfs_path: /proc
@@ -148,12 +148,12 @@ use_mount: no
 # usage information, check out http://docs.datadoghq.com/guides/dogstatsd/
 
 #  Make sure your client is sending to the same port.
-# dogstatsd_port : 8125
+# dogstatsd_port: 8125
 
 # By default dogstatsd will post aggregate metrics to the Agent (which handles
 # errors/timeouts/retries/etc). To send directly to the datadog api, set this
 # to https://app.datadoghq.com.
-# dogstatsd_target : http://localhost:17123
+# dogstatsd_target: http://localhost:17123
 
 # If you want to forward every packet received by the dogstatsd server
 # to another statsd server, uncomment these lines.
