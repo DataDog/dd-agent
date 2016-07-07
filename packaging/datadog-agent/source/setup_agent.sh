@@ -16,7 +16,8 @@ DEFAULT_AGENT_VERSION="5.7.4"
 # always pulls the latest version
 PIP_VERSION="6.1.1"
 VIRTUALENV_VERSION="1.11.6"
-SUPERVISOR_VERSION="3.1.3"
+SUPERVISOR_VERSION="3.3.0"
+SETUPTOOLS_VERSION="20.9.0"
 
 #######################################################################
 # OVERRIDABLE VARIABLES:
