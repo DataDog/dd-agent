@@ -1,6 +1,20 @@
 Changes
 =======
 
+# 5.8.4 / 07-08-2016
+**Windows, Linux and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.8.3...5.8.4
+
+### Changes
+* [IMPROVEMENT] Core: Upgrades supervisord to 3.3.0 See [#2667][], [#2669][]
+
+* [BUGFIX] MySQL: Fixes MySQL slave detection. See [#2610][]
+* [BUGFIX] MySQL: Fixes MySQL replication service check. See [#2603][]
+* [BUGFIX] Core: Fixes a bug that caused the thread pool to leak threads. See [#2666][]
+
+
 # 5.8.3 / 07-05-2016
 **Windows, Linux and Source Install**
 
