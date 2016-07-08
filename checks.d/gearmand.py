@@ -31,6 +31,12 @@ class Gearman(AgentCheck):
             queued += stat['queued']
             workers += stat['workers']
 
+            task_tags = tags[:]
+            task_tags.append("task:{}".format(stat['task']))
+            self.gauge("gearman.running_by_task", running, tags=task_tags)
+            self.gauge("gearman.queued_by_task", queued, tags=task_tags)
+            self.gauge("gearman.workers_by_task", workers, tags=task_tags)
+
         unique_tasks = len(data)
 
         self.gauge("gearman.unique_tasks", unique_tasks, tags=tags)
