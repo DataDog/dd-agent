@@ -152,7 +152,7 @@ class RabbitMQ(AgentCheck):
 
     def _get_data(self, url, auth=None):
         try:
-            r = requests.get(url, auth=auth)
+            r = requests.get(url, auth=auth, timeout=self.default_integration_http_timeout)
             r.raise_for_status()
             data = r.json()
         except requests.exceptions.HTTPError as e:

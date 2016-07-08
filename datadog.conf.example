@@ -31,6 +31,11 @@ api_key:
 # It will only be deleted if the forwarder queue becomes too big. (30 MB by default)
 # forwarder_timeout: 20
 
+# Set timeout in seconds for integrations that use HTTP to fetch metrics, since
+# unbounded timeouts can potentially block the collector indefinitely and cause
+# problems!
+# default_integration_http_timeout: 9
+
 # Add one "dd_check:checkname" tag per running check. It makes it possible to slice
 # and dice per monitored app (= running Agent Check) on Datadog's backend.
 # create_dd_check_tags: no
@@ -132,7 +137,7 @@ use_mount: no
 # Other                                                                      #
 # ========================================================================== #
 #
-# In some environments we may have the procfs file system mounted in a 
+# In some environments we may have the procfs file system mounted in a
 # miscellaneous location. The procfs_path configuration paramenter allows
 # us to override the standard default location '/proc'
 # procfs_path: /proc
