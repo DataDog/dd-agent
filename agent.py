@@ -76,7 +76,7 @@ class Agent(Daemon):
         self._checksd = []
         self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
         self.check_frequency = None
-        self.configs_reloaded = False
+        self.reload_configs_flag = False
         self.sd_backend = None
 
     def _handle_sigterm(self, signum, frame):
@@ -95,9 +95,8 @@ class Agent(Daemon):
 
     def _handle_sighup(self, signum, frame):
         """Handles SIGHUP, which signals a configuration reload."""
-        log.info("SIGHUP caught!")
-        self.reload_configs()
-        self.configs_reloaded = True
+        log.info("SIGHUP caught! Scheduling configuration reload before next collection run.")
+        self.reload_configs_flag = True
 
     def reload_configs(self):
         """Reloads the agent configuration and checksd configurations."""
@@ -189,16 +188,16 @@ class Agent(Daemon):
                 except Exception as e:
                     log.warn("Cannot enable profiler: %s" % str(e))
 
-            # Do the work.
+            if self.reload_configs_flag:
+                self.reload_configs()
+
+            # Do the work. Pass `configs_reloaded` to let the collector know if it needs to
+            # look for the AgentMetrics check and pop it out.
             self.collector.run(checksd=self._checksd,
                                start_event=self.start_event,
-                               configs_reloaded=self.configs_reloaded)
+                               configs_reloaded=self.reload_configs_flag)
 
-            # This flag is used to know if the check configs have been reloaded at the current
-            # run of the agent yet or not. It's used by the collector to know if it needs to
-            # look for the AgentMetrics check and pop it out.
-            # See: https://github.com/DataDog/dd-agent/blob/5.6.x/checks/collector.py#L265-L272
-            self.configs_reloaded = False
+            self.reload_configs_flag = False
 
             # Look for change in the config template store.
             # The self.sd_backend.reload_check_configs flag is set
@@ -216,8 +215,7 @@ class Agent(Daemon):
             # using ConfigStore.crawl_config_template
             if self._agentConfig.get('service_discovery') and self.sd_backend and \
                self.sd_backend.reload_check_configs:
-                self.reload_configs()
-                self.configs_reloaded = True
+                self.reload_configs_flag = True
                 self.sd_backend.reload_check_configs = False
 
             if profiled:
