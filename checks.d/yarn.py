@@ -196,9 +196,11 @@ class YarnCheck(AgentCheck):
 
                     for app_json in metrics_json['apps']['app']:
 
-                        app_name = app_json['name']
+                        queue_name = app_json['queue']
+                        user_name  = app_json['user']
+                        app_name   = app_json['name']
 
-                        tags = ['app_name:%s' % str(app_name)]
+                        tags = ['queue_name:' + str(queue_name), 'user_name:' + str(user_name), 'app_name:' + str(app_name)]
                         tags.extend(addl_tags)
 
                         self._set_yarn_metrics_from_json(tags, app_json, YARN_APP_METRICS)
