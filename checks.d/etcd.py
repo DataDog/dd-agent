@@ -101,7 +101,7 @@ class Etcd(AgentCheck):
         if self_response is not None:
             for key in self.SELF_HEALTH:
                 if key in self_response:
-                    val = 1 if self_response[key]=='true' else 0
+                    val = 1 if self_response[key] == 'true' else 0
                     self.gauge(self.SELF_HEALTH[key], val, tags=instance_tags)
                 else:
                     self.log.warn("Missing key {0} in stats.".format(key))
