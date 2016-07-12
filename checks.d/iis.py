@@ -111,7 +111,7 @@ class IIS(WinWMICheck):
             self._submit_events(wmi_sampler, sites)
             self._submit_metrics(metrics, metrics_by_property)
 
-    def _extract_metrics(self, wmi_sampler, sites, tags):
+    def _extract_metrics(self, wmi_sampler, sites, instance_tags):
         """
         Extract and tag metrics from the WMISampler.
 
@@ -126,7 +126,7 @@ class IIS(WinWMICheck):
         metrics = []
 
         for wmi_obj in wmi_sampler:
-            tags = list(tags) if tags else []
+            tags = list(instance_tags) if instance_tags else []
 
             # Get site name
             sitename = wmi_obj['Name']
