@@ -19,6 +19,7 @@ b,i-5,0,0,0,1,,1,1,0,,0,,0,0,0,0,MAINT,1,1,0,0,0,1,0,,1,3,3,,70,,2,0,,1,1,,0,,,,
 b,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,,,,,,,,,,,0,0,
 c,i-1,0,0,0,1,,1,1,0,,0,,0,0,0,0,UP,1,1,0,0,1,1,30,,1,3,1,,70,,2,0,,1,1,,0,,,,,,,0,,,,0,0,
 c,i-2,0,0,0,1,,1,1,0,,0,,0,0,0,0,DOWN,1,1,0,0,1,1,30,,1,3,1,,70,,2,0,,1,1,,0,,,,,,,0,,,,0,0,
+c,i-3,0,0,0,1,,1,1,0,,0,,0,0,0,0,NO CHECK,1,1,0,0,1,1,30,,1,3,1,,70,,2,0,,1,1,,0,,,,,,,0,,,,0,0,
 c,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,,,,,,,,,,,0,0,
 """
 
@@ -27,12 +28,12 @@ AGG_STATUSES_BY_SERVICE = (
     (['status:available', 'service:b'], 4),
     (['status:unavailable', 'service:b'], 2),
     (['status:available', 'service:c'], 1),
-    (['status:unavailable', 'service:c'], 1)
+    (['status:unavailable', 'service:c'], 2)
 )
 
 AGG_STATUSES = (
     (['status:available'], 6),
-    (['status:unavailable'], 3)
+    (['status:unavailable'], 4)
 )
 
 
@@ -70,6 +71,7 @@ class TestCheckHAProxy(AgentCheckTest):
         self.assertMetric('haproxy.count_per_status', value=2, tags=['status:down'])
         self.assertMetric('haproxy.count_per_status', value=1, tags=['status:maint'])
         self.assertMetric('haproxy.count_per_status', value=0, tags=['status:nolb'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:no_check'])
 
         self._assert_agg_statuses(count_status_by_service=False)
 
@@ -84,6 +86,7 @@ class TestCheckHAProxy(AgentCheckTest):
         self.assertMetric('haproxy.count_per_status', value=1, tags=['status:maint', 'service:b'])
         self.assertMetric('haproxy.count_per_status', value=1, tags=['status:up', 'service:c'])
         self.assertMetric('haproxy.count_per_status', value=1, tags=['status:down', 'service:c'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:no_check', 'service:c'])
 
         self._assert_agg_statuses()
 
@@ -101,6 +104,7 @@ class TestCheckHAProxy(AgentCheckTest):
         self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-5', 'status:maint', 'service:b'])
         self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-1', 'status:up', 'service:c'])
         self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-2', 'status:down', 'service:c'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-3', 'status:no_check', 'service:c'])
 
         self._assert_agg_statuses()
 
@@ -119,6 +123,7 @@ class TestCheckHAProxy(AgentCheckTest):
         self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-5', 'status:unavailable', 'service:b'])
         self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-1', 'status:available', 'service:c'])
         self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-2', 'status:unavailable', 'service:c'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-3', 'status:unavailable', 'service:c'])
 
         self._assert_agg_statuses(collate_status_tags_per_host=True)
 
@@ -135,6 +140,7 @@ class TestCheckHAProxy(AgentCheckTest):
         self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-2', 'status:available'])
         self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-2', 'status:unavailable'])
         self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-3', 'status:available'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-3', 'status:unavailable'])
         self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-4', 'status:unavailable'])
         self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-5', 'status:unavailable'])
 

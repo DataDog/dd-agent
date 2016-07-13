@@ -4,6 +4,7 @@
 
 # stdlib
 from collections import defaultdict
+import copy
 import re
 import time
 
@@ -324,10 +325,15 @@ class HAProxy(AgentCheck):
                                collate_status_tags_per_host=False, count_status_by_service=True):
         agg_statuses_counter = defaultdict(lambda: {status: 0 for status in Services.COLLATED_STATUSES})
 
+        # Initialize `statuses_counter`: every value is a defaultdict initialized with the correct
+        # keys, which depends on the `collate_status_tags_per_host` option
         reported_statuses = Services.ALL_STATUSES
         if collate_status_tags_per_host:
             reported_statuses = Services.COLLATED_STATUSES
-        statuses_counter = defaultdict(lambda: {status: 0 for status in reported_statuses})
+        reported_statuses_dict = defaultdict(int)
+        for reported_status in reported_statuses:
+            reported_statuses_dict[reported_status] = 0
+        statuses_counter = defaultdict(lambda: copy.copy(reported_statuses_dict))
 
         for host_status, count in hosts_statuses.iteritems():
             hostname = None
@@ -338,7 +344,7 @@ class HAProxy(AgentCheck):
                     self.warning('`collect_status_metrics_by_host` is enabled but no host info\
                                  could be extracted from HAProxy stats endpoint for {0}'.format(service))
                 service, status = host_status
-            status = status.lower()
+            status = status.lower().replace(" ", "_")
 
             if self._is_service_excl_filtered(service, services_incl_filter, services_excl_filter):
                 continue
@@ -351,7 +357,8 @@ class HAProxy(AgentCheck):
 
             counter_status = status
             if collate_status_tags_per_host:
-                counter_status = Services.STATUS_MAP.get(status, status)
+                # An unknown status will be sent as UNAVAILABLE
+                counter_status = Services.STATUS_MAP.get(status, Services.UNAVAILABLE)
             statuses_counter[tuple(tags)][counter_status] += count
 
             # Compute aggregates with collated statuses. If collate_status_tags_per_host is enabled we
@@ -360,7 +367,8 @@ class HAProxy(AgentCheck):
                 agg_tags = []
                 if count_status_by_service:
                     agg_tags.append('service:%s' % service)
-                agg_statuses_counter[tuple(agg_tags)][Services.STATUS_MAP.get(status, status)] += count
+                # An unknown status will be sent as UNAVAILABLE
+                agg_statuses_counter[tuple(agg_tags)][Services.STATUS_MAP.get(status, Services.UNAVAILABLE)] += count
 
         for tags, count_per_status in statuses_counter.iteritems():
             for status, count in count_per_status.iteritems():
