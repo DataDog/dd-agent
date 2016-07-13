@@ -440,7 +440,8 @@ class Dogstatsd(Daemon):
             try:
                 self.server.start()
             except Exception as e:
-                log.exception('Error starting server')
+                log.exception(
+                    'Error starting dogstatsd server on %s', self.server.sockaddr)
                 raise e
         finally:
             # The server will block until it's done. Once we're here, shutdown
