@@ -16,8 +16,10 @@ import simplejson as json
 
 SOURCE_TYPE = 'openstack'
 
+V21_NOVA_API_VERSION = 'v2.1'
+
 DEFAULT_KEYSTONE_API_VERSION = 'v3'
-DEFAULT_NOVA_API_VERSION = 'v2.1'
+DEFAULT_NOVA_API_VERSION = V21_NOVA_API_VERSION
 DEFAULT_NEUTRON_API_VERSION = 'v2.0'
 
 DEFAULT_API_REQUEST_TIMEOUT = 5 # seconds
@@ -302,7 +304,7 @@ class KeystoneCatalog(object):
         nova_version = nova_api_version or DEFAULT_NOVA_API_VERSION
         catalog = json_resp.get('token', {}).get('catalog', [])
 
-        nova_match = 'novav21' if nova_version == 'v2.1' else 'nova'
+        nova_match = 'novav21' if nova_version == V21_NOVA_API_VERSION else 'nova'
 
         for entry in catalog:
             if entry['name'] == nova_match or 'Compute' in entry['name']:
@@ -526,7 +528,7 @@ class OpenStackCheck(AgentCheck):
 
     def get_all_hypervisor_ids(self, filter_by_host=None):
         nova_version = self.init_config.get("nova_api_version", DEFAULT_NOVA_API_VERSION)
-        if nova_version == "v2.1":
+        if nova_version >= V21_NOVA_API_VERSION:
             url = '{0}/os-hypervisors'.format(self.get_nova_endpoint())
             headers = {'X-Auth-Token': self.get_auth_token()}
 
