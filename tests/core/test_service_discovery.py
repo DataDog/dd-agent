@@ -499,6 +499,7 @@ class TestServiceDiscovery(unittest.TestCase):
             'consul': ('consul', None, {
                 "url": "http://%%host%%:%%port%%", "catalog_checks": True, "new_leader_checks": True
             }),
+            'redis:v1': ('redisdb', None, {"host": "%%host%%", "port": "%%port%%"}),
             'foobar': None
         }
 
