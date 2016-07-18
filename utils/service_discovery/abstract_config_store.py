@@ -62,9 +62,9 @@ class AbstractConfigStore(object):
         raise NotImplementedError()
 
     def _get_auto_config(self, image_name):
-        # use the image name, ignore the tag
-        if image_name.split(':')[0] in self.auto_conf_images:
-            check_name = self.auto_conf_images[image_name]
+        ident = self._get_image_ident(image_name)
+        if ident in self.auto_conf_images:
+            check_name = self.auto_conf_images[ident]
 
             # get the check class to verify it matches
             check = get_check_class(self.agentConfig, check_name)
@@ -125,8 +125,8 @@ class AbstractConfigStore(object):
             except KeyNotFound:
                 log.debug("Could not find directory {} in the config store, "
                           "trying to convert to the old format.".format(identifier))
-                legacy_ident = identifier.split(':')[0].split('/')[-1]
-                res = self._issue_read(legacy_ident)
+                image_ident = self._get_image_ident(identifier)
+                res = self._issue_read(image_ident)
 
             if res and len(res) == 3:
                 source = CONFIG_FROM_TEMPLATE
@@ -134,8 +134,8 @@ class AbstractConfigStore(object):
             else:
                 log.debug("Could not find directory {} in the config store, "
                           "trying to convert to the old format...".format(identifier))
-                legacy_ident = identifier.split(':')[0].split('/')[-1]
-                res = self._issue_read(legacy_ident)
+                image_ident = self._get_image_ident(identifier)
+                res = self._issue_read(image_ident)
                 if res and len(res) == 3:
                     source = CONFIG_FROM_TEMPLATE
                     check_names, init_config_tpls, instance_tpls = res
@@ -170,6 +170,15 @@ class AbstractConfigStore(object):
                 'will not be configured by the service discovery. Error: {1}'.format(identifier, str(ex)))
             return []
         return source, check_names, init_config_tpls, instance_tpls
+
+    def _get_image_ident(self, ident):
+        """Extract an identifier from the image"""
+        # if a custom image store is used there can be a port which adds a colon
+        if ident.count(':') > 1:
+            return ident.split(':')[1].split('/')[-1]
+        # otherwise we just strip the tag and keep the image name
+        else:
+            return ident.split(':')[0].split('/')[-1]
 
     def _issue_read(self, identifier):
         try:
