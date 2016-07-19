@@ -169,12 +169,11 @@ b,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,
                                  collect_status_metrics_by_host=False)
 
         expected_hosts_statuses = defaultdict(int)
-        expected_hosts_statuses[('b', 'OPEN')] = 1
-        expected_hosts_statuses[('b', 'UP')] = 1
-        expected_hosts_statuses[('b', 'UP 1/2')] = 2
-        expected_hosts_statuses[('b', 'DOWN')] = 1
-        expected_hosts_statuses[('b', 'MAINT')] = 1
-        expected_hosts_statuses[('a', 'OPEN')] = 1
+        expected_hosts_statuses[('b', 'open')] = 1
+        expected_hosts_statuses[('b', 'up')] = 3
+        expected_hosts_statuses[('b', 'down')] = 1
+        expected_hosts_statuses[('b', 'maint')] = 1
+        expected_hosts_statuses[('a', 'open')] = 1
         self.assertEquals(self.check.hosts_statuses, expected_hosts_statuses)
 
         # backend hosts
@@ -194,13 +193,13 @@ b,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,
         self.check._process_data(data, True, False, collect_status_metrics=True,
                                  collect_status_metrics_by_host=True)
         expected_hosts_statuses = defaultdict(int)
-        expected_hosts_statuses[('b', 'FRONTEND', 'OPEN')] = 1
-        expected_hosts_statuses[('a', 'FRONTEND', 'OPEN')] = 1
-        expected_hosts_statuses[('b', 'i-1', 'UP 1/2')] = 1
-        expected_hosts_statuses[('b', 'i-2', 'UP 1/2')] = 1
-        expected_hosts_statuses[('b', 'i-3', 'UP')] = 1
-        expected_hosts_statuses[('b', 'i-4', 'DOWN')] = 1
-        expected_hosts_statuses[('b', 'i-5', 'MAINT')] = 1
+        expected_hosts_statuses[('b', 'FRONTEND', 'open')] = 1
+        expected_hosts_statuses[('a', 'FRONTEND', 'open')] = 1
+        expected_hosts_statuses[('b', 'i-1', 'up')] = 1
+        expected_hosts_statuses[('b', 'i-2', 'up')] = 1
+        expected_hosts_statuses[('b', 'i-3', 'up')] = 1
+        expected_hosts_statuses[('b', 'i-4', 'down')] = 1
+        expected_hosts_statuses[('b', 'i-5', 'maint')] = 1
         self.assertEquals(self.check.hosts_statuses, expected_hosts_statuses)
 
         self.check._process_data(data, True, True, collect_status_metrics=True,
