@@ -229,6 +229,9 @@ class HAProxy(AgentCheck):
                 except Exception:
                     pass
                 data_dict[fields[i]] = val
+        # extract the standard status value
+        if 'status' in data_dict:
+            data_dict['status'] = data_dict['status'].split(' ')[0]
         return data_dict
 
     def _update_data_dict(self, data_dict, back_or_front):
