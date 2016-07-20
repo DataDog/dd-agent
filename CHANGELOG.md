@@ -3170,8 +3170,13 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2590]: https://github.com/DataDog/dd-agent/issues/2590
 [#2592]: https://github.com/DataDog/dd-agent/issues/2592
 [#2593]: https://github.com/DataDog/dd-agent/issues/2593
+[#2603]: https://github.com/DataDog/dd-agent/issues/2603
 [#2608]: https://github.com/DataDog/dd-agent/issues/2608
 [#2609]: https://github.com/DataDog/dd-agent/issues/2609
+[#2610]: https://github.com/DataDog/dd-agent/issues/2610
+[#2666]: https://github.com/DataDog/dd-agent/issues/2666
+[#2667]: https://github.com/DataDog/dd-agent/issues/2667
+[#2669]: https://github.com/DataDog/dd-agent/issues/2669
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
