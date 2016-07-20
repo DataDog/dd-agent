@@ -41,6 +41,7 @@ UNIX_CONFIG_PATH = '/etc/dd-agent'
 MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 10 * 1024 * 1024
+SDK_INTEGRATIONS_DIR = 'integrations'
 
 log = logging.getLogger(__name__)
 
@@ -738,14 +739,14 @@ def get_checksd_path(osname=None):
         return _unix_checksd_path()
 
 
-def get_3rd_party_path(osname=None):
+def get_sdk_integrations_path(osname=None):
     if not osname:
         osname = get_os()
     if osname in ['windows', 'mac']:
         raise PathNotFound()
 
     cur_path = os.path.dirname(os.path.realpath(__file__))
-    path = os.path.join(cur_path, '../3rd-party')
+    path = os.path.join(cur_path, '..', SDK_INTEGRATIONS_DIR)
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
@@ -905,10 +906,10 @@ def get_checks_places(osname, agentConfig):
     places = [lambda name: os.path.join(agentConfig['additional_checksd'], '%s.py' % name)]
 
     try:
-        third_party_path = get_3rd_party_path(osname)
-        places.append(lambda name: os.path.join(third_party_path, name, 'check.py'))
+        sdk_integrations = get_sdk_integrations_path(osname)
+        places.append(lambda name: os.path.join(sdk_integrations, name, 'check.py'))
     except PathNotFound:
-        log.debug('No 3rd-party path found')
+        log.debug('No sdk integrations path found')
 
     places.append(lambda name: os.path.join(checksd_path, '%s.py' % name))
     return places
