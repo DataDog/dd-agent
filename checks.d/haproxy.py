@@ -4,6 +4,7 @@
 
 # stdlib
 from collections import defaultdict
+import copy
 import re
 import time
 
@@ -23,26 +24,37 @@ class Services(object):
     BACKEND = 'BACKEND'
     FRONTEND = 'FRONTEND'
     ALL = (BACKEND, FRONTEND)
+
+    # Statuses that we normalize to and that are reported by
+    # `haproxy.count_per_status` by default (unless `collate_status_tags_per_host` is enabled)
     ALL_STATUSES = (
         'up', 'open', 'down', 'maint', 'nolb'
     )
+
     AVAILABLE = 'available'
     UNAVAILABLE = 'unavailable'
     COLLATED_STATUSES = (AVAILABLE, UNAVAILABLE)
 
-    STATUS_MAP = {
+    BACKEND_STATUS_TO_COLLATED = {
+        'up': AVAILABLE,
+        'down': UNAVAILABLE,
+        'maint': UNAVAILABLE,
+        'nolb': UNAVAILABLE,
+    }
+
+    STATUS_TO_COLLATED = {
         'up': AVAILABLE,
         'open': AVAILABLE,
         'down': UNAVAILABLE,
         'maint': UNAVAILABLE,
-        'nolb': UNAVAILABLE
+        'nolb': UNAVAILABLE,
     }
 
-    STATUSES_TO_SERVICE_CHECK = {
-        'UP': AgentCheck.OK,
-        'DOWN': AgentCheck.CRITICAL,
-        'no check': AgentCheck.UNKNOWN,
-        'MAINT': AgentCheck.OK,
+    STATUS_TO_SERVICE_CHECK = {
+        'up': AgentCheck.OK,
+        'down': AgentCheck.CRITICAL,
+        'no_check': AgentCheck.UNKNOWN,
+        'maint': AgentCheck.OK,
     }
 
 
@@ -229,6 +241,10 @@ class HAProxy(AgentCheck):
                 except Exception:
                     pass
                 data_dict[fields[i]] = val
+
+        if 'status' in data_dict:
+            data_dict['status'] = self._normalize_status(data_dict['status'])
+
         return data_dict
 
     def _update_data_dict(self, data_dict, back_or_front):
@@ -287,9 +303,23 @@ class HAProxy(AgentCheck):
                 return True
         return False
 
+    @staticmethod
+    def _normalize_status(status):
+        """
+        Try to normalize the HAProxy status as one of the statuses defined in `ALL_STATUSES`,
+        if it can't be matched return the status as-is in a tag-friendly format
+        ex: 'UP 1/2' -> 'up'
+            'no check' -> 'no_check'
+        """
+        formatted_status = status.lower().replace(" ", "_")
+        for normalized_status in Services.ALL_STATUSES:
+            if formatted_status.startswith(normalized_status):
+                return normalized_status
+        return formatted_status
+
     def _process_backend_hosts_metric(self, hosts_statuses, services_incl_filter=None,
                                       services_excl_filter=None):
-        agg_statuses = defaultdict(lambda: {'available': 0, 'unavailable': 0})
+        agg_statuses = defaultdict(lambda: {status: 0 for status in Services.COLLATED_STATUSES})
         for host_status, count in hosts_statuses.iteritems():
             try:
                 service, hostname, status = host_status
@@ -298,11 +328,10 @@ class HAProxy(AgentCheck):
 
             if self._is_service_excl_filtered(service, services_incl_filter, services_excl_filter):
                 continue
-            status = status.lower()
-            if 'up' in status:
-                agg_statuses[service]['available'] += count
-            elif 'down' in status or 'maint' in status or 'nolb' in status:
-                agg_statuses[service]['unavailable'] += count
+
+            collated_status = Services.BACKEND_STATUS_TO_COLLATED.get(status)
+            if collated_status:
+                agg_statuses[service][collated_status] += count
             else:
                 # create the entries for this service anyway
                 agg_statuses[service]
@@ -311,11 +340,11 @@ class HAProxy(AgentCheck):
             tags = ['service:%s' % service]
             self.gauge(
                 'haproxy.backend_hosts',
-                agg_statuses[service]['available'],
+                agg_statuses[service][Services.AVAILABLE],
                 tags=tags + ['available:true'])
             self.gauge(
                 'haproxy.backend_hosts',
-                agg_statuses[service]['unavailable'],
+                agg_statuses[service][Services.UNAVAILABLE],
                 tags=tags + ['available:false'])
         return agg_statuses
 
@@ -324,10 +353,15 @@ class HAProxy(AgentCheck):
                                collate_status_tags_per_host=False, count_status_by_service=True):
         agg_statuses_counter = defaultdict(lambda: {status: 0 for status in Services.COLLATED_STATUSES})
 
+        # Initialize `statuses_counter`: every value is a defaultdict initialized with the correct
+        # keys, which depends on the `collate_status_tags_per_host` option
         reported_statuses = Services.ALL_STATUSES
         if collate_status_tags_per_host:
             reported_statuses = Services.COLLATED_STATUSES
-        statuses_counter = defaultdict(lambda: {status: 0 for status in reported_statuses})
+        reported_statuses_dict = defaultdict(int)
+        for reported_status in reported_statuses:
+            reported_statuses_dict[reported_status] = 0
+        statuses_counter = defaultdict(lambda: copy.copy(reported_statuses_dict))
 
         for host_status, count in hosts_statuses.iteritems():
             hostname = None
@@ -338,7 +372,6 @@ class HAProxy(AgentCheck):
                     self.warning('`collect_status_metrics_by_host` is enabled but no host info\
                                  could be extracted from HAProxy stats endpoint for {0}'.format(service))
                 service, status = host_status
-            status = status.lower()
 
             if self._is_service_excl_filtered(service, services_incl_filter, services_excl_filter):
                 continue
@@ -351,7 +384,8 @@ class HAProxy(AgentCheck):
 
             counter_status = status
             if collate_status_tags_per_host:
-                counter_status = Services.STATUS_MAP.get(status, status)
+                # An unknown status will be sent as UNAVAILABLE
+                counter_status = Services.STATUS_TO_COLLATED.get(status, Services.UNAVAILABLE)
             statuses_counter[tuple(tags)][counter_status] += count
 
             # Compute aggregates with collated statuses. If collate_status_tags_per_host is enabled we
@@ -360,7 +394,8 @@ class HAProxy(AgentCheck):
                 agg_tags = []
                 if count_status_by_service:
                     agg_tags.append('service:%s' % service)
-                agg_statuses_counter[tuple(agg_tags)][Services.STATUS_MAP.get(status, status)] += count
+                # An unknown status will be sent as UNAVAILABLE
+                agg_statuses_counter[tuple(agg_tags)][Services.STATUS_TO_COLLATED.get(status, Services.UNAVAILABLE)] += count
 
         for tags, count_per_status in statuses_counter.iteritems():
             for status, count in count_per_status.iteritems():
@@ -421,7 +456,7 @@ class HAProxy(AgentCheck):
             self.host_status[url][key] = data['status']
             return
 
-        if status != data['status'] and data['status'] in ('UP', 'DOWN'):
+        if status != data['status'] and data['status'] in ('up', 'down'):
             # If the status of a host has changed, we trigger an event
             try:
                 lastchg = int(data['lastchg'])
@@ -440,15 +475,15 @@ class HAProxy(AgentCheck):
 
     def _create_event(self, status, hostname, lastchg, service_name, back_or_front):
         HAProxy_agent = self.hostname.decode('utf-8')
-        if status == "DOWN":
+        if status == 'down':
             alert_type = "error"
-            title = "%s reported %s:%s %s" % (HAProxy_agent, service_name, hostname, status)
+            title = "%s reported %s:%s %s" % (HAProxy_agent, service_name, hostname, status.upper())
         else:
-            if status == "UP":
+            if status == "up":
                 alert_type = "success"
             else:
                 alert_type = "info"
-            title = "%s reported %s:%s back and %s" % (HAProxy_agent, service_name, hostname, status)
+            title = "%s reported %s:%s back and %s" % (HAProxy_agent, service_name, hostname, status.upper())
 
         tags = ["service:%s" % service_name]
         if back_or_front == Services.BACKEND:
@@ -467,7 +502,7 @@ class HAProxy(AgentCheck):
     def _process_service_check(self, data, url, tag_by_host=False,
                                services_incl_filter=None, services_excl_filter=None):
         ''' Report a service check, tagged by the service and the backend.
-            Statuses are defined in `STATUSES_TO_SERVICE_CHECK` mapping.
+            Statuses are defined in `STATUS_TO_SERVICE_CHECK` mapping.
         '''
         service_name = data['pxname']
         status = data['status']
@@ -478,13 +513,13 @@ class HAProxy(AgentCheck):
                                           services_excl_filter):
             return
 
-        if status in Services.STATUSES_TO_SERVICE_CHECK:
+        if status in Services.STATUS_TO_SERVICE_CHECK:
             service_check_tags = ["service:%s" % service_name]
             hostname = data['svname']
             if data['back_or_front'] == Services.BACKEND:
                 service_check_tags.append('backend:%s' % hostname)
 
-            status = Services.STATUSES_TO_SERVICE_CHECK[status]
+            status = Services.STATUS_TO_SERVICE_CHECK[status]
             message = "%s reported %s:%s %s" % (haproxy_hostname, service_name,
                                                 hostname, status)
             self.service_check(self.SERVICE_CHECK_NAME, status,  message=message,
