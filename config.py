@@ -738,14 +738,14 @@ def get_checksd_path(osname=None):
         return _unix_checksd_path()
 
 
-def get_3rd_party_path(osname=None):
+def get_dd_integrations_path(osname=None):
     if not osname:
         osname = get_os()
     if osname in ['windows', 'mac']:
         raise PathNotFound()
 
     cur_path = os.path.dirname(os.path.realpath(__file__))
-    path = os.path.join(cur_path, '../3rd-party')
+    path = os.path.join(cur_path, '../dd-integrations')
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
@@ -905,10 +905,10 @@ def get_checks_places(osname, agentConfig):
     places = [lambda name: os.path.join(agentConfig['additional_checksd'], '%s.py' % name)]
 
     try:
-        third_party_path = get_3rd_party_path(osname)
-        places.append(lambda name: os.path.join(third_party_path, name, 'check.py'))
+        dd_integrations = get_dd_integrations_path(osname)
+        places.append(lambda name: os.path.join(dd_integrations, name, 'check.py'))
     except PathNotFound:
-        log.debug('No 3rd-party path found')
+        log.debug('No dd-integrations path found')
 
     places.append(lambda name: os.path.join(checksd_path, '%s.py' % name))
     return places
