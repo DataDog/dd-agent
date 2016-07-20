@@ -1,3 +1,4 @@
+from collections import defaultdict
 import copy
 
 # 3p
@@ -149,7 +150,6 @@ class TestCheckHAProxy(AgentCheckTest):
     # This mock is only useful to make the first `run_check` run w/o errors (which in turn is useful only to initialize the check)
     @mock.patch('requests.get', return_value=mock.Mock(content=MOCK_DATA))
     def test_count_hosts_statuses(self, mock_requests):
-        from collections import defaultdict
         self.run_check(self.BASE_CONFIG)
 
         data = """# pxname,svname,qcur,qmax,scur,smax,slim,stot,bin,bout,dreq,dresp,ereq,econ,eresp,wretr,wredis,status,weight,act,bck,chkfail,chkdown,lastchg,downtime,qlimit,pid,iid,sid,throttle,lbtot,tracked,type,rate,rate_lim,rate_max,check_status,check_code,check_duration,hrsp_1xx,hrsp_2xx,hrsp_3xx,hrsp_4xx,hrsp_5xx,hrsp_other,hanafail,req_rate,req_rate_max,req_tot,cli_abrt,srv_abrt,
