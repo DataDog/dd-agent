@@ -36,6 +36,11 @@ namespace :ci do
     end
 
     task before_script: ['ci:common:before_script'] do
+      # Elasticsearch configuration
+      sh %(mkdir -p #{es_rootdir}/config)
+      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/elasticsearch/elasticsearch.yml\
+           #{es_rootdir}/config/)
+      # Elasticsearch data
       sh %(mkdir -p $VOLATILE_DIR/es_data)
       pid = spawn %(#{es_rootdir}/bin/elasticsearch --path.data=$VOLATILE_DIR/es_data)
       Process.detach(pid)

@@ -505,19 +505,29 @@ class ESCheck(AgentCheck):
 
     def _process_stats_data(self, nodes_url, data, stats_metrics, config):
         cluster_stats = config.cluster_stats
-        for node_name in data['nodes']:
-            node_data = data['nodes'][node_name]
-            # On newer version of ES it's "host" not "hostname"
-            node_hostname = node_data.get(
-                'hostname', node_data.get('host', None))
+        for node_data in data['nodes'].itervalues():
+            metric_hostname = None
+            metrics_tags = list(config.tags)
 
-            # Override the metric hostname if we're hitting an external cluster
-            metric_hostname = node_hostname if cluster_stats else None
+            # Resolve the node's name
+            node_name = node_data.get('name')
+            if node_name:
+                metrics_tags.append(
+                    u"node_name:{}".format(node_name)
+                )
+
+            # Resolve the node's hostname
+            if cluster_stats:
+                for k in ['hostname', 'host']:
+                    if k in node_data:
+                        metric_hostname = node_data[k]
+                        break
 
             for metric, desc in stats_metrics.iteritems():
                 self._process_metric(
-                    node_data, metric, *desc, tags=config.tags,
-                    hostname=metric_hostname)
+                    node_data, metric, *desc,
+                    tags=metrics_tags, hostname=metric_hostname
+                )
 
     def _process_pshard_stats_data(self, data, config, pshard_stats_metrics):
         for metric, desc in pshard_stats_metrics.iteritems():
