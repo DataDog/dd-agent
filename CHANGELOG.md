@@ -1,6 +1,23 @@
 Changes
 =======
 
+# 5.8.5 / Unreleased
+**Windows, Linux and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.8.4...5.8.5
+
+### Changes
+* [BUGFIX] Core: Use flag to signal config reload to avoid race conditions. See [#2670][]
+* [BUGFIX] Core: Don't use Docker hostname if it's an EC2 one. See [#2661][]
+* [BUGFIX] Docker: Fix disk metrics rounding issue. See [#2626][]
+* [BUGFIX] Haproxy: Fix `KeyError` when an unknown status is found. See [#2681][]
+* [BUGFIX] IIS: Remove warnings on 'Name' property. See [#2633][]
+* [BUGFIX] MongoDB: Fix case where optimeDate is not available. See [#2625][]
+* [BUGFIX] Service Discovery: Introduce _get_image_ident and fix a bug that needed it. See [#2684][]
+* [BUGFIX] Windows Event log: Support unicode messages. See [#2660][]
+
+
 # 5.8.4 / 07-08-2016
 **Windows, Linux and Source Install**
 
@@ -40,9 +57,6 @@ https://github.com/DataDog/dd-agent/compare/5.8.2...5.8.3
 * [BUGFIX] vSphere: The whole check shouldn't fail just because the check failed on a certain instance. See [#2548][]
 * [BUGFIX] Win32: When memory check collection times out, it causes an error in the collector. Instead, it should recover from this. See [#2553][]
 * [BUGFIX] WMI: Allows user to set a profider in request data. See [#2565][], [#2369][]
-
-
-
 
 
 # 5.8.2 / 05-24-2016
@@ -3174,9 +3188,17 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2608]: https://github.com/DataDog/dd-agent/issues/2608
 [#2609]: https://github.com/DataDog/dd-agent/issues/2609
 [#2610]: https://github.com/DataDog/dd-agent/issues/2610
+[#2625]: https://github.com/DataDog/dd-agent/issues/2625
+[#2626]: https://github.com/DataDog/dd-agent/issues/2626
+[#2633]: https://github.com/DataDog/dd-agent/issues/2633
+[#2660]: https://github.com/DataDog/dd-agent/issues/2660
+[#2661]: https://github.com/DataDog/dd-agent/issues/2661
 [#2666]: https://github.com/DataDog/dd-agent/issues/2666
 [#2667]: https://github.com/DataDog/dd-agent/issues/2667
 [#2669]: https://github.com/DataDog/dd-agent/issues/2669
+[#2670]: https://github.com/DataDog/dd-agent/issues/2670
+[#2681]: https://github.com/DataDog/dd-agent/issues/2681
+[#2684]: https://github.com/DataDog/dd-agent/issues/2684
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
