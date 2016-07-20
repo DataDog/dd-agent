@@ -27,7 +27,7 @@ init_config:
       # need to set to false when using self-signed certs
       # ssl_verify: true
 
-     # Whether the dd-agent proxy should be used for openstack API requests (if set)
+     # Whether the dd-agent proxy should also be used for openstack API requests (if set)
      # use_agent_proxy: true
 
 instances:

@@ -143,7 +143,7 @@ class OpenStackProjectScope(object):
         try:
             auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify, proxy_config)
         except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            exception_msg = "Failed kaystone auth with identity:{id} scope:{scope} @{url}".format(
+            exception_msg = "Failed keystone auth with identity:{id} scope:{scope} @{url}".format(
                 id=identity,
                 scope=auth_scope,
                 url=keystone_server_url)
@@ -357,7 +357,6 @@ class OpenStackCheck(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         self._ssl_verify = init_config.get("ssl_verify", True)
-        self._use_proxy = init_config.get("use_agent_proxy", True)
         self.keystone_server_url = init_config.get("keystone_server_url")
         if not self.keystone_server_url:
             raise IncompleteConfig()
@@ -370,23 +369,6 @@ class OpenStackCheck(AgentCheck):
 
         # Mapping of Nova-managed servers to tags
         self.external_host_tags = {}
-
-        # Set proxy settings
-        self.proxies = {
-            "http": None,
-            "https": None,
-        }
-        if self.proxy_settings and self._use_proxy:
-            uri = "{host}:{port}".format(
-                host=self.proxy_settings['host'],
-                port=self.proxy_settings['port'])
-            if self.proxy_settings['user'] and self.proxy_settings['password']:
-                uri = "{user}:{password}@{uri}".format(
-                    user=self.proxy_settings['user'],
-                    password=self.proxy_settings['password'],
-                    uri=uri)
-            self.proxies['http'] = "http://{uri}".format(uri=uri)
-            self.proxies['https'] = "https://{uri}".format(uri=uri)
 
     def _make_request_with_auth_fallback(self, url, headers=None, verify=True, params=None):
         """
