@@ -298,7 +298,6 @@ class TestTransaction(unittest.TestCase):
         self.assertEqual(trManager._finished_flushes, step)
         self.assertIs(trManager._trs_to_flush, None)
 
-    @attr('unix')
     def test_no_parallelism(self):
         step = 2
         trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
@@ -312,7 +311,11 @@ class TestTransaction(unittest.TestCase):
             self.assertEqual(trManager._running_flushes, 1)
             self.assertEqual(trManager._finished_flushes, i)
             self.assertEqual(len(trManager._trs_to_flush), step - (i + 1))
-            time.sleep(1)
+            time.sleep(1.3)
+        # Once it's finished
+        self.assertEqual(trManager._running_flushes, 0)
+        self.assertEqual(trManager._finished_flushes, 2)
+        self.assertIs(trManager._trs_to_flush, None)
 
     def test_multiple_endpoints(self):
         config = {
@@ -338,3 +341,5 @@ class TestTransaction(unittest.TestCase):
         MetricTransaction({}, {})
         # 2 endpoints = 2 transactions
         self.assertEqual(len(trManager._transactions), 2)
+        self.assertEqual(trManager._transactions[0]._endpoint, 'https://app.datadoghq.com')
+        self.assertEqual(trManager._transactions[1]._endpoint, 'https://app.example.com')
