@@ -36,9 +36,11 @@ class Disk(AgentCheck):
 
     def check(self, instance):
         """Get disk space/inode stats"""
+        use_df = Platform.is_unix() and _is_affirmative(instance.get('use_df', False))
+
         # Windows and Mac will always have psutil
         # (we have packaged for both of them)
-        if self._psutil():
+        if self._psutil() and not use_df:
             if Platform.is_linux():
                 procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
                 psutil.PROCFS_PATH = procfs_path

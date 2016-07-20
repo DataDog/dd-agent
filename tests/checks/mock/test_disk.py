@@ -137,6 +137,21 @@ class TestCheckDisk(AgentCheckTest):
 
         self.coverage_report()
 
+    def test_use_df(self):
+        """
+        `use_df` instructs the check to use the `df` command instead of
+        the `psutil` module.
+        """
+        # Set up the check, mock
+        collect_metrics_manually = mock.Mock()
+        self.run_check(
+            {'instances': [{'use_df': 'yes'}]},
+            mocks={'collect_metrics_manually': collect_metrics_manually}
+        )
+
+        # Metrics are collected "manually"
+        self.assertTrue(collect_metrics_manually.called)
+
     @mock.patch('utils.subprocess_output.get_subprocess_output',
                 return_value=(Fixtures.read_file('debian-df-Tk'), "", 0))
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
