@@ -32,7 +32,6 @@ except ImportError:
 # if a user actually uses them in a custom check
 # If you're this user, please use utils.pidfile or utils.platform instead
 # FIXME: remove them at a point (6.x)
-from utils.dockerutil import DockerUtil
 from utils.pidfile import PidFile  # noqa, see ^^^
 from utils.platform import Platform
 from utils.proxy import get_proxy
@@ -182,6 +181,7 @@ def get_hostname(config=None):
       * 'hostname -f' (on unix)
       * socket.gethostname()
     """
+    from utils.dockerutil import DockerUtil
     hostname = None
 
     # first, try the config
@@ -200,7 +200,7 @@ def get_hostname(config=None):
                 return gce_hostname
 
     # Try to get the docker hostname
-    docker_util = DockerUtil()
+    docker_util = DockerUtil(agentConfig=config)
     if hostname is None and docker_util.is_dockerized():
         docker_hostname = docker_util.get_hostname()
         if docker_hostname is not None and is_valid_hostname(docker_hostname):

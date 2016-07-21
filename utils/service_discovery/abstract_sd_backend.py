@@ -20,8 +20,9 @@ class AbstractSDBackend(object):
 
     def __init__(self, agentConfig=None):
         self.agentConfig = agentConfig
-        # this flag is used to know if check configs need to
+        # this variable is used to store the name of checks that need to
         # be reloaded at the end of the current collector run.
+        # If a full config reload is required, it is set to True.
         self.reload_check_configs = False
 
     @classmethod
