@@ -30,6 +30,7 @@ import yaml
 # project
 from checks import check_status
 from util import get_hostname, get_next_id, yLoader
+from utils.proxy import get_proxy
 from utils.platform import Platform
 from utils.profile import pretty_statistics
 if Platform.is_windows():
@@ -346,6 +347,25 @@ class AgentCheck(object):
         self._instance_metadata = []
         self.svc_metadata = []
         self.historate_dict = {}
+
+        # Set proxy settings
+        self.proxy_settings = get_proxy(self.agentConfig)
+        self._use_proxy = False if init_config is None else init_config.get("use_agent_proxy", True)
+        self.proxies = {
+            "http": None,
+            "https": None,
+        }
+        if self.proxy_settings and self._use_proxy:
+            uri = "{host}:{port}".format(
+                host=self.proxy_settings['host'],
+                port=self.proxy_settings['port'])
+            if self.proxy_settings['user'] and self.proxy_settings['password']:
+                uri = "{user}:{password}@{uri}".format(
+                    user=self.proxy_settings['user'],
+                    password=self.proxy_settings['password'],
+                    uri=uri)
+            self.proxies['http'] = "http://{uri}".format(uri=uri)
+            self.proxies['https'] = "https://{uri}".format(uri=uri)
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
