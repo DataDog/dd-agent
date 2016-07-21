@@ -142,9 +142,9 @@ class DockerDaemon(AgentCheck):
                             agentConfig, instances=instances)
 
         self.init_success = False
-        self.init()
         self._service_discovery = agentConfig.get('service_discovery') and \
             agentConfig.get('service_discovery_backend') == 'docker'
+        self.init()
         self._custom_cgroups = _is_affirmative(init_config.get('custom_cgroups', False))
 
     def is_k8s(self):
@@ -154,12 +154,17 @@ class DockerDaemon(AgentCheck):
         try:
             instance = self.instances[0]
 
-            # We configure the check with the right cgroup settings for this host
-            # Just needs to be done once
-            self.docker_util = DockerUtil()
+            # if service discovery is enabled dockerutil will need a reference
+            # to the config store. We need to pass it agentConfig for that
+            if self._service_discovery:
+                self.docker_util = DockerUtil(agentConfig=self.agentConfig)
+            else:
+                self.docker_util = DockerUtil()
             self.docker_client = self.docker_util.client
             if self.is_k8s():
                 self.kubeutil = KubeUtil()
+            # We configure the check with the right cgroup settings for this host
+            # Just needs to be done once
             self._mountpoints = self.docker_util.get_mountpoints(CGROUP_METRICS)
             self.cgroup_listing_retries = 0
             self._latest_size_query = 0
@@ -602,9 +607,9 @@ class DockerDaemon(AgentCheck):
 
     def _get_events(self):
         """Get the list of events."""
-        events, should_reload_conf = self.docker_util.get_events()
-        if should_reload_conf and self._service_discovery:
-            get_sd_backend(self.agentConfig).reload_check_configs = True
+        events, conf_reload_set = self.docker_util.get_events()
+        if conf_reload_set and self._service_discovery:
+            get_sd_backend(self.agentConfig).reload_check_configs = conf_reload_set
         return events
 
     def _pre_aggregate_events(self, api_events, containers_by_id):
