@@ -244,7 +244,7 @@ class TestElastic(AgentCheckTest):
             "api_key": "bar"
         }
 
-        tags = ['foo:bar', 'baz']
+        tags = [u"foo:bar", u"baz"]
         url = 'http://localhost:{0}'.format(port)
         bad_url = 'http://localhost:{0}'.format(bad_port)
 
@@ -262,7 +262,7 @@ class TestElastic(AgentCheckTest):
 
         default_tags = ["url:http://localhost:{0}".format(port)]
 
-        expected_metrics = STATS_METRICS
+        expected_metrics = dict(STATS_METRICS)
         CLUSTER_HEALTH_METRICS.update(CLUSTER_PENDING_TASKS)
         expected_metrics.update(CLUSTER_HEALTH_METRICS)
 
@@ -303,11 +303,19 @@ class TestElastic(AgentCheckTest):
             (local_hostname, default_tags)
         ]
 
+        stats_keys = (
+            set(expected_metrics.keys()) - set(CLUSTER_HEALTH_METRICS.keys()) -
+            set(CLUSTER_PENDING_TASKS.keys())
+        )
+
         for m_name, desc in expected_metrics.iteritems():
             for hostname, m_tags in contexts:
                 if (m_name in CLUSTER_HEALTH_METRICS
                         and hostname == local_hostname):
                     hostname = conf_hostname
+
+                if m_name in stats_keys:
+                    m_tags = m_tags + [u"node_name:batman"]
 
                 if desc[0] == "gauge":
                     self.assertMetric(
