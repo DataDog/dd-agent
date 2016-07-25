@@ -3,13 +3,14 @@ from unittest import TestCase
 import socket
 import threading
 import Queue
+from collections import defaultdict
 
 # 3p
 import mock
 
 # project
 from dogstatsd import mapto_v6, get_socket_address
-from dogstatsd import Server
+from dogstatsd import Server, init
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
 
 
@@ -28,6 +29,20 @@ class TestFunctions(TestCase):
             getaddrinfo.return_value = [(30, 2, 17, '', ('::1', 80, 0, 0))]
             self.assertEqual(get_socket_address('example.com', 80), ('::1', 80, 0, 0))
         self.assertIsNone(get_socket_address('foo', 80))
+
+    @mock.patch('dogstatsd.get_config')
+    @mock.patch('dogstatsd.Server')
+    def test_init(self, s, gc):
+        gc.return_value = defaultdict(str)
+        gc.return_value['non_local_traffic'] = True
+        gc.return_value['use_dogstatsd'] = True
+
+        init()
+
+        # if non_local_traffic was passed, use IPv4 wildcard
+        s.assert_called_once()
+        args, _ = s.call_args
+        self.assertEqual(args[1], '0.0.0.0')
 
 
 class TestServer(TestCase):

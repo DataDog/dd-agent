@@ -484,6 +484,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     forward_to_port = c.get('statsd_forward_port')
     event_chunk_size = c.get('event_chunk_size')
     recent_point_threshold = c.get('recent_point_threshold', None)
+    server_host = c['bind_host']
 
     target = c['dd_url']
     if use_forwarder:
@@ -508,12 +509,14 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, event_chunk_size)
 
-    # Start the server on an IPv4 stack
-    # Default to loopback
-    server_host = c['bind_host']
-    # If specified, bind to all addressses
+    # NOTICE: when `non_local_traffic` is passed we need to bind to any interface on the box. The forwarder uses
+    # Tornado which takes care of sockets creation (more than one socket can be used at once depending on the
+    # network settings), so it's enough to just pass an empty string '' to the library.
+    # In Dogstatsd we use a single, fullstack socket, so passing '' as the address doesn't work and we default to
+    # '0.0.0.0'. If someone needs to bind Dogstatsd to the IPv6 '::', they need to turn off `non_local_traffic` and
+    # use the '::' meta address as `bind_host`.
     if non_local_traffic:
-        server_host = ''
+        server_host = '0.0.0.0'
 
     server = Server(aggregator, server_host, port, forward_to_host=forward_to_host, forward_to_port=forward_to_port)
 
