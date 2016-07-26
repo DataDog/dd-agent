@@ -8,6 +8,8 @@ Changes
 https://github.com/DataDog/dd-agent/compare/5.8.4...5.8.5
 
 ### Changes
+* [IMPROVEMENT] Elasticsearch: Take into account node `name` for cluster stats. See [#2696][]
+
 * [BUGFIX] Core: Use flag to signal config reload to avoid race conditions. See [#2670][]
 * [BUGFIX] Core: Don't use Docker hostname if it's an EC2 one. See [#2661][]
 * [BUGFIX] Docker: Fix disk metrics rounding issue. See [#2626][]
@@ -43,7 +45,7 @@ https://github.com/DataDog/dd-agent/compare/5.8.2...5.8.3
 
 * [IMPROVEMENT] Docker: Bump docker-py to 1.8.1 for network features support. See [#2556][]
 
-* [BUFIX] HAProxy: Add `collate_status_tags_per_host` flag See [#2590][]
+* [BUGFIX] HAProxy: Add `collate_status_tags_per_host` flag See [#2590][]
 * [BUGFIX] Core: A bug prevented ipv6 from being used in some circumstances. This fixes that, and defaults to ipv6 and falls back to ipv4. See [#2592][]
 * [BUGFIX] Docker: Handles buggy responses from docker api better. See [#2608][]
 * [BUGFIX] MongoDB: Only collect ReplicationInfo when it's possible to do so, rather than erroring out. See [#2559][]
@@ -3199,6 +3201,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2670]: https://github.com/DataDog/dd-agent/issues/2670
 [#2681]: https://github.com/DataDog/dd-agent/issues/2681
 [#2684]: https://github.com/DataDog/dd-agent/issues/2684
+[#2696]: https://github.com/DataDog/dd-agent/issues/2696
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
