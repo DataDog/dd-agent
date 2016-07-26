@@ -322,25 +322,28 @@ class ESCheck(AgentCheck):
         health_url, nodes_url, stats_url, pshard_stats_url, pending_tasks_url, stats_metrics, \
             pshard_stats_metrics = self._define_params(version, config.cluster_stats)
 
+        # Strip trailing slash from the ES url
+        es_url = config.url.strip('/')
+
         # Load clusterwise data
         if config.pshard_stats:
-            pshard_stats_url = urlparse.urljoin(config.url, pshard_stats_url)
+            pshard_stats_url = es_url + pshard_stats_url
             pshard_stats_data = self._get_data(pshard_stats_url, config)
             self._process_pshard_stats_data(pshard_stats_data, config, pshard_stats_metrics)
 
         # Load stats data.
-        stats_url = urlparse.urljoin(config.url, stats_url)
+        stats_url = es_url + stats_url
         stats_data = self._get_data(stats_url, config)
         self._process_stats_data(nodes_url, stats_data, stats_metrics, config)
 
         # Load the health data.
-        health_url = urlparse.urljoin(config.url, health_url)
+        health_url = es_url + health_url
         health_data = self._get_data(health_url, config)
         self._process_health_data(health_data, config)
 
         if config.pending_task_stats:
             # Load the pending_tasks data.
-            pending_tasks_url = urlparse.urljoin(config.url, pending_tasks_url)
+            pending_tasks_url = es_url + pending_tasks_url
             pending_tasks_data = self._get_data(pending_tasks_url, config)
             self._process_pending_tasks_data(pending_tasks_data, config)
 
