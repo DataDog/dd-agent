@@ -44,7 +44,7 @@ pyro4==4.35 # required by adodbapi
 httplib2==0.9
 
 # checks.d/kafka_consumer.py
-kafka-python==0.9.3
+kafka-python==1.2.5
 
 # checks.d/postgres.py
 pg8000==1.10.1
