@@ -525,7 +525,7 @@ class MySql(AgentCheck):
             # report table size to Datadog
             for schema_name, tables_size in self._query_size_per_table(db).iteritems():
                 for table_name, table_size in tables_size.iteritems():
-                    table_size = { 'information_table_size' : table_size}
+                    table_size = {'information_table_size' : table_size}
                     tags_extra = set(["schema:{0}".format(schema_name), "table:{0}".format(table_name)])
                     self.log.debug("table_size_metrics tags: %s %s" % (str(tags),str(tags_extra)))
                     self._submit_metrics(TABLE_VARS,table_size, set(tags) | tags_extra)
@@ -1302,7 +1302,7 @@ class MySql(AgentCheck):
 
                     # set the tag as the dictionary key
                     if "{0}".format(schema_name) not in schema_table_size:
-                         schema_table_size["{0}".format(schema_name)] = {}
+                        schema_table_size["{0}".format(schema_name)] = {}
 
                     schema_table_size["{0}".format(schema_name)]["{0}".format(table_name)] = long(size)
 
