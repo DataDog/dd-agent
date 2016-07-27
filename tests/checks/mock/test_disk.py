@@ -112,6 +112,10 @@ class TestCheckDisk(AgentCheckTest):
     @mock.patch('psutil.disk_usage', return_value=MockDiskMetrics())
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
     def test_psutil(self, mock_partitions, mock_usage, mock_inodes):
+        # Mocking
+        mock_usage.__name__ = "foo"
+
+        # Run check
         for tag_by in ['yes', 'no']:
             self.run_check({'instances': [{'tag_by_filesystem': tag_by}]},
                            force_reload=True)
@@ -128,6 +132,10 @@ class TestCheckDisk(AgentCheckTest):
     @mock.patch('psutil.disk_usage', return_value=MockDiskMetrics())
     @mock.patch('os.statvfs', return_value=MockInodesMetrics())
     def test_use_mount(self, mock_partitions, mock_usage, mock_inodes):
+        # Mocking
+        mock_usage.__name__ = "foo"
+
+        # Run check
         self.run_check({'instances': [{'use_mount': 'yes'}]})
 
         # Assert metrics
