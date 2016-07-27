@@ -8,6 +8,7 @@ Changes
 https://github.com/DataDog/dd-agent/compare/5.8.4...5.8.5
 
 ### Changes
+* [IMPROVEMENT] Core: Upgrade embedded python to `2.7.12`. See [omnibus-software-63](https://github.com/DataDog/omnibus-software/pull/63)
 * [IMPROVEMENT] Elasticsearch: Take into account node `name` for cluster stats. See [#2696][]
 
 * [BUGFIX] Core: Use flag to signal config reload to avoid race conditions. See [#2670][]
