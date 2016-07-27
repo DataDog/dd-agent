@@ -7,9 +7,32 @@ Changes
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.8.4...5.8.5
 
+### Future rotation of the APT signing key
+
+In preparation for a future rotation of our package signing keys, the `5.8.5` DEB package will, on install, import a new
+trusted APT key:
+
+```
+pub   4096R/382E94DE 2016-06-29 [expires: 2022-06-28]
+uid                  Datadog, Inc <package@datadoghq.com>
+```
+
+During the package install, the DEB package will output the following:
+
+```
+Prepare Datadog Agent keys rotation
+  Add the new 'Datadog, Inc <package@datadoghq.com>' key to the list of APT trusted keys. ... OK
+```
+
+The signing key of the Agent hasn't changed yet but will be switched to this new key in a future release.
+
+See [dd-agent-omnibus-81](https://github.com/DataDog/dd-agent-omnibus/pull/81)
+
 ### Changes
 * [IMPROVEMENT] Core: Upgrade embedded python to `2.7.12`. See [omnibus-software-63](https://github.com/DataDog/omnibus-software/pull/63)
 * [IMPROVEMENT] Elasticsearch: Take into account node `name` for cluster stats. See [#2696][]
+* [IMPROVEMENT] RPM package: Add runtime dependency on the `initscripts` package. See [dd-agent-omnibus-82](https://github.com/DataDog/dd-agent-omnibus/pull/82)
+* [IMPROVEMENT] RPM package: Don't delete `dd-agent` user and group on uninstall. See [dd-agent-omnibus-84](https://github.com/DataDog/dd-agent-omnibus/pull/84)
 
 * [BUGFIX] Core: Use flag to signal config reload to avoid race conditions. See [#2670][]
 * [BUGFIX] Core: Don't use Docker hostname if it's an EC2 one. See [#2661][]
