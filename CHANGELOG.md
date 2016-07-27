@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 5.8.5 / Unreleased
+# 5.8.5 / 07-27-2016
 **Windows, Linux and Source Install**
 
 ### Details
