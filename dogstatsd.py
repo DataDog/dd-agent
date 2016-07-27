@@ -473,8 +473,6 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         sleep(4)
         sys.exit(0)
 
-    log.debug("Configuring dogstatsd")
-
     port = c['dogstatsd_port']
     interval = DOGSTATSD_FLUSH_INTERVAL
     api_key = c['api_key']

@@ -350,7 +350,6 @@ def main():
         return Agent.info(verbose=options.verbose)
 
     elif 'foreground' == command:
-        logging.info('Running in foreground')
         if autorestart:
             # Set-up the supervisor callbacks and fork it.
             logging.info('Running Agent with auto-restart ON')
