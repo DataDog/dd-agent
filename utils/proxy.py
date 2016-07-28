@@ -47,7 +47,7 @@ def get_proxy(agentConfig):
         proxy_settings['user'] = agentConfig.get('proxy_user')
         proxy_settings['password'] = agentConfig.get('proxy_password')
         log.debug("Proxy Settings: %s:*****@%s:%s", proxy_settings['user'],
-            proxy_settings['host'], proxy_settings['port'])
+                  proxy_settings['host'], proxy_settings['port'])
         return proxy_settings
 
     # If no proxy configuration was specified in datadog.conf
@@ -62,13 +62,11 @@ def get_proxy(agentConfig):
             proxy_settings['password'] = parse.password
 
             log.debug("Proxy Settings: %s:*****@%s:%s", proxy_settings['user'],
-                proxy_settings['host'], proxy_settings['port'])
+                      proxy_settings['host'], proxy_settings['port'])
             return proxy_settings
 
     except Exception as e:
         log.debug("Error while trying to fetch proxy settings using urllib %s."
                   "Proxy is probably not set", str(e))
-
-    log.debug("No proxy configured")
 
     return None
