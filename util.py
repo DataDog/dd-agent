@@ -3,10 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 # stdlib
-from collections import deque
-from hashlib import md5
 import logging
-import os
 import platform
 import re
 import socket

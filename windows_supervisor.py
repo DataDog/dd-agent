@@ -202,7 +202,7 @@ class ProcessWatchDog(object):
         return self._process.is_alive()
 
     def is_enabled(self):
-        return self._process.is_enabled
+        return self._process.is_enabled()
 
     def _can_restart(self):
         now = time.time()
@@ -219,7 +219,7 @@ class ProcessWatchDog(object):
                 .format(self._name, len(self._restarts),
                         self._RESTART_TIMEFRAME, self._max_restarts)
             )
-            self._process.is_enabled = False
+            self._process.enabled = False
             return
 
         self._restarts.append(time.time())
@@ -235,11 +235,11 @@ class DDProcess(object):
     def __init__(self, name, command, enable=True):
         self.name = name
         self.command = command
-        self.is_enabled = enable
+        self.enabled = enable
         self.proc = None
 
     def start(self):
-        if self.is_enabled:
+        if self.is_enabled():
             env = os.environ.copy()
             if env['PATH'][-1] != ';':
                 env['PATH'] += ';'
@@ -274,12 +274,12 @@ class DDProcess(object):
         return self.proc is not None and self.proc.is_running()
 
     def is_enabled(self):
-        return self.is_enabled
+        return self.enabled
 
 
 class JMXFetchProcess(DDProcess):
     def start(self):
-        if self.is_enabled:
+        if self.is_enabled():
             JMXFiles.clean_exit_file()
             super(JMXFetchProcess, self).start()
 

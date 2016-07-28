@@ -83,7 +83,7 @@ class WatchdogPosix(object):
     def __init__(self, duration, max_mem_mb=None, max_resets=None):
         # Set the duration
         self._duration = int(duration)
-        signal.signal(signal.SIGALRM, Watchdog.self_destruct)
+        signal.signal(signal.SIGALRM, WatchdogPosix.self_destruct)
 
         # Set memory usage threshold
         if max_mem_mb is not None:
