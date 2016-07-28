@@ -128,7 +128,7 @@ class ProcessCheck(AgentCheck):
                             found = True
                 except psutil.NoSuchProcess:
                     self.log.warning('Process disappeared while scanning')
-                except psutil.AccessDenied, e:
+                except psutil.AccessDenied as e:
                     ad_error_logger('Access denied to process with PID %s', proc.pid)
                     ad_error_logger('Error: %s', e)
                     if refresh_ad_cache:
@@ -289,28 +289,32 @@ class ProcessCheck(AgentCheck):
         exact_match = _is_affirmative(instance.get('exact_match', True))
         search_string = instance.get('search_string', None)
         ignore_ad = _is_affirmative(instance.get('ignore_denied_access', True))
+        pid = instance.get('pid')
 
-        if not isinstance(search_string, list):
+        if not isinstance(search_string, list) and pid is None:
             raise KeyError('"search_string" parameter should be a list')
 
         # FIXME 6.x remove me
-        if "All" in search_string:
-            self.warning('Deprecated: Having "All" in your search_string will'
+        if pid is None:
+            if "All" in search_string:
+                self.warning('Deprecated: Having "All" in your search_string will'
                          'greatly reduce the performance of the check and '
                          'will be removed in a future version of the agent.')
 
         if name is None:
             raise KeyError('The "name" of process groups is mandatory')
 
-        if search_string is None:
-            raise KeyError('The "search_string" is mandatory')
-
-        pids = self.find_pids(
-            name,
-            search_string,
-            exact_match,
-            ignore_ad=ignore_ad
-        )
+        if search_string is not None:
+            pids = self.find_pids(
+                name,
+                search_string,
+                exact_match,
+                ignore_ad=ignore_ad
+            )
+        elif pid is not None:
+            pids = [psutil.Process(pid)]
+        else:
+            raise ValueError('The "search_string" or "pid" options are required for process identification')
 
         proc_state = self.get_process_state(name, pids)
 

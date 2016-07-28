@@ -25,6 +25,12 @@ instances:
     # This only applies if `collect_status_metrics` is True.
     # collect_status_metrics_by_host: False
     #
+    # The (optional) `collate_status_tags_per_host` parameter will collate
+    # `status` tags for `haproxy.count_per_status` up to one of (`available`, `unavailable`)
+    # for each discovered backend.
+    # This only applies if `collect_status_metrics_by_host` is True.
+    # collate_status_tags_per_host: False
+    #
     # The (optional) `count_status_by_service` parameter will instruct the check
     # to tag the status counts it collects by service in addition to by host.
     # This only applies if `collect_status_metrics` is True.

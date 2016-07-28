@@ -5,7 +5,7 @@
 require './ci/common'
 
 def supervisor_version
-  ENV['FLAVOR_VERSION'] || '3.1.3'
+  ENV['FLAVOR_VERSION'] || '3.3.0'
 end
 
 def supervisor_rootdir
@@ -50,8 +50,6 @@ namespace :ci do
 
     task before_cache: ['ci:common:before_cache']
 
-    task cache: ['ci:common:cache']
-
     task cleanup: ['ci:common:cleanup'] do
       sh %(kill `cat $VOLATILE_DIR/supervisor/supervisord.pid`)
       sh %(rm -rf $VOLATILE_DIR/supervisor)
@@ -61,7 +59,7 @@ namespace :ci do
       exception = nil
       begin
         %w(before_install install before_script
-           script before_cache cache).each do |t|
+           script before_cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end
       rescue => e

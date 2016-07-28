@@ -51,7 +51,7 @@ class EtcdStore(AbstractConfigStore):
                 return res.value
         except EtcdKeyNotFound:
             raise KeyNotFound("The key %s was not found in etcd" % path)
-        except TimeoutError, e:
+        except TimeoutError as e:
             raise e
 
     def dump_directory(self, path, **kwargs):
@@ -65,7 +65,7 @@ class EtcdStore(AbstractConfigStore):
             )
         except EtcdKeyNotFound:
             raise KeyNotFound("The key %s was not found in etcd" % path)
-        except TimeoutError, e:
+        except TimeoutError as e:
             raise e
         for leaf in directory.leaves:
             image = leaf.key.split('/')[-2]

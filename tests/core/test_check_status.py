@@ -1,4 +1,5 @@
-# stdlib
+# 3p
+from nose.plugins.attrib import attr
 import nose.tools as nt
 
 # project
@@ -47,6 +48,7 @@ def test_check_status_pass():
         assert i.status == STATUS_OK
 
 
+@attr(requires='core_integration')
 def test_persistence():
     i1 = InstanceStatus(1, STATUS_OK)
     chk1 = CheckStatus("dummy", [i1], 1, 2)
@@ -62,6 +64,7 @@ def test_persistence():
     assert chk2.event_count == 2
 
 
+@attr(requires='core_integration')
 def test_persistence_fail():
 
     # Assert remove doesn't crap out if a file doesn't exist.

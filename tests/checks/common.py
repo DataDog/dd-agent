@@ -24,6 +24,9 @@ from utils.debug import get_check  # noqa -  FIXME 5.5.0 AgentCheck tests should
 log = logging.getLogger('tests')
 
 
+def _is_sdk():
+    return "SDK_TESTING" in os.environ
+
 def get_check_class(name):
     checksd_path = get_checksd_path(get_os())
     if checksd_path not in sys.path:
@@ -61,8 +64,8 @@ def load_class(check_name, class_name):
     raise Exception(u"Unable to import class {0} from the check module.".format(class_name))
 
 
-def load_check(name, config, agentConfig, is_sdk=False):
-    if not is_sdk:
+def load_check(name, config, agentConfig):
+    if not _is_sdk():
         checksd_path = get_checksd_path(get_os())
 
         # find (in checksd_path) and load the check module
@@ -142,15 +145,12 @@ class AgentCheckTest(unittest.TestCase):
 
         self.check = None
 
-    def is_sdk(self):
-        return "SDK_TESTING" in os.environ
-
     def is_travis(self):
         return "TRAVIS" in os.environ
 
     def load_check(self, config, agent_config=None):
         agent_config = agent_config or self.DEFAULT_AGENT_CONFIG
-        self.check = load_check(self.CHECK_NAME, config, agent_config, is_sdk=self.is_sdk())
+        self.check = load_check(self.CHECK_NAME, config, agent_config)
 
     def load_class(self, name):
         """
@@ -194,7 +194,7 @@ class AgentCheckTest(unittest.TestCase):
                 self.check.check(copy.deepcopy(instance))
                 # FIXME: This should be called within the `run` method only
                 self.check._roll_up_instance_metadata()
-            except Exception, e:
+            except Exception as e:
                 # Catch error before re-raising it to be able to get service_checks
                 print "Exception {0} during check".format(e)
                 print traceback.format_exc()

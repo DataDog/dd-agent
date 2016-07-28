@@ -20,6 +20,9 @@ CONFIG_FROM_AUTOCONF = 'auto-configuration'
 CONFIG_FROM_FILE = 'YAML file'
 CONFIG_FROM_TEMPLATE = 'template'
 TRACE_CONFIG = 'trace_config'  # used for tracing config load by service discovery
+CHECK_NAMES = 'check_names'
+INIT_CONFIGS = 'init_configs'
+INSTANCES = 'instances'
 
 
 class KeyNotFound(Exception):
@@ -59,8 +62,9 @@ class AbstractConfigStore(object):
         raise NotImplementedError()
 
     def _get_auto_config(self, image_name):
-        if image_name in self.auto_conf_images:
-            check_name = self.auto_conf_images[image_name]
+        ident = self._get_image_ident(image_name)
+        if ident in self.auto_conf_images:
+            check_name = self.auto_conf_images[ident]
 
             # get the check class to verify it matches
             check = get_check_class(self.agentConfig, check_name)
@@ -75,26 +79,26 @@ class AbstractConfigStore(object):
 
         return None
 
-    def get_check_tpls(self, image, **kwargs):
-        """Retrieve template configs for an image from the config_store or auto configuration."""
-        # TODO: make mixing both sources possible
+    def get_check_tpls(self, identifier, **kwargs):
+        """Retrieve template configs for an identifier from the config_store or auto configuration."""
         templates = []
         trace_config = kwargs.get(TRACE_CONFIG, False)
 
         # this flag is used when no valid configuration store was provided
         # it makes the method skip directly to the auto_conf
         if kwargs.get('auto_conf') is True:
-            auto_config = self._get_auto_config(image)
+            # in auto config mode, identifier is the image name
+            auto_config = self._get_auto_config(identifier)
             if auto_config is not None:
                 source = CONFIG_FROM_AUTOCONF
                 if trace_config:
                     return [(source, auto_config)]
                 return [auto_config]
             else:
-                log.debug('No auto config was found for image %s, leaving it alone.' % image)
+                log.debug('No auto config was found for image %s, leaving it alone.' % identifier)
                 return []
         else:
-            config = self.read_config_from_store(image)
+            config = self.read_config_from_store(identifier)
             if config:
                 source, check_names, init_config_tpls, instance_tpls = config
             else:
@@ -102,8 +106,8 @@ class AbstractConfigStore(object):
 
         if len(check_names) != len(init_config_tpls) or len(check_names) != len(instance_tpls):
             log.error('Malformed configuration template: check_names, init_configs '
-                      'and instances are not all the same length. Image {0} '
-                      'will not be configured by the service discovery'.format(image))
+                      'and instances are not all the same length. Container with identifier {} '
+                      'will not be configured by the service discovery'.format(identifier))
             return []
 
         for idx, c_name in enumerate(check_names):
@@ -113,44 +117,80 @@ class AbstractConfigStore(object):
                 templates.append((c_name, init_config_tpls[idx], instance_tpls[idx]))
         return templates
 
-    def read_config_from_store(self, image):
+    def read_config_from_store(self, identifier):
         """Try to read from the config store, falls back to auto-config in case of failure."""
         try:
-            check_names = json.loads(
-                self.client_read(path.join(self.sd_template_dir, image, 'check_names').lstrip('/')))
-            init_config_tpls = json.loads(
-                self.client_read(path.join(self.sd_template_dir, image, 'init_configs').lstrip('/')))
-            instance_tpls = json.loads(
-                self.client_read(path.join(self.sd_template_dir, image, 'instances').lstrip('/')))
-            source = CONFIG_FROM_TEMPLATE
-        except (KeyNotFound, TimeoutError, json.JSONDecodeError) as ex:
-            # first case is kind of expected, it means that no template was provided for this container
-            if isinstance(ex, KeyNotFound):
-                log.debug("Could not find directory {0} in the config store, "
-                          "trying to auto-configure a check...".format(image))
+            try:
+                res = self._issue_read(identifier)
+            except KeyNotFound:
+                log.debug("Could not find directory {} in the config store, "
+                          "trying to convert to the old format.".format(identifier))
+                image_ident = self._get_image_ident(identifier)
+                res = self._issue_read(image_ident)
+
+            if res and len(res) == 3:
+                source = CONFIG_FROM_TEMPLATE
+                check_names, init_config_tpls, instance_tpls = res
+            else:
+                log.debug("Could not find directory {} in the config store, "
+                          "trying to convert to the old format...".format(identifier))
+                image_ident = self._get_image_ident(identifier)
+                res = self._issue_read(image_ident)
+                if res and len(res) == 3:
+                    source = CONFIG_FROM_TEMPLATE
+                    check_names, init_config_tpls, instance_tpls = res
+                else:
+                    raise KeyError
+        except (KeyError, KeyNotFound, TimeoutError, json.JSONDecodeError) as ex:
+            # this is kind of expected, it means that no template was provided for this container
+            if isinstance(ex, KeyError) or isinstance(ex, KeyNotFound):
+                log.debug("Could not find directory {} in the config store, "
+                          "trying to auto-configure a check...".format(identifier))
             # this case is not expected, the agent can't reach the config store
-            elif isinstance(ex, TimeoutError):
+            if isinstance(ex, TimeoutError):
                 log.warning("Connection to the config backend timed out. Is it reachable?\n"
-                            "Trying to auto-configure a check for the image %s..." % image)
+                            "Trying to auto-configure a check for the container with ident %s." % identifier)
             # the template is reachable but invalid
             elif isinstance(ex, json.JSONDecodeError):
-                log.error('Could not decode the JSON configuration template. '
-                          'Trying to auto-configure a check for the image %s...' % image)
-            # In any case cases we try to read from auto-config templates
-            auto_config = self._get_auto_config(image)
+                log.error('Could not decode the JSON configuration template '
+                          'for the container with ident %s...' % identifier)
+                return []
+            # try to read from auto-config templates
+            auto_config = self._get_auto_config(identifier)
             if auto_config is not None:
                 # create list-format config based on an autoconf template
                 check_names, init_config_tpls, instance_tpls = map(lambda x: [x], auto_config)
                 source = CONFIG_FROM_AUTOCONF
             else:
-                log.debug('No auto config was found for image %s, leaving it alone.' % image)
+                log.debug('No config was found for container with ident %s, leaving it alone.' % identifier)
                 return []
         except Exception as ex:
             log.warning(
                 'Fetching the value for {0} in the config store failed, this check '
-                'will not be configured by the service discovery. Error: {1}'.format(image, str(ex)))
+                'will not be configured by the service discovery. Error: {1}'.format(identifier, str(ex)))
             return []
         return source, check_names, init_config_tpls, instance_tpls
+
+    def _get_image_ident(self, ident):
+        """Extract an identifier from the image"""
+        # if a custom image store is used there can be a port which adds a colon
+        if ident.count(':') > 1:
+            return ident.split(':')[1].split('/')[-1]
+        # otherwise we just strip the tag and keep the image name
+        else:
+            return ident.split(':')[0].split('/')[-1]
+
+    def _issue_read(self, identifier):
+        try:
+            check_names = json.loads(
+                self.client_read(path.join(self.sd_template_dir, identifier, CHECK_NAMES).lstrip('/')))
+            init_config_tpls = json.loads(
+                self.client_read(path.join(self.sd_template_dir, identifier, INIT_CONFIGS).lstrip('/')))
+            instance_tpls = json.loads(
+                self.client_read(path.join(self.sd_template_dir, identifier, INSTANCES).lstrip('/')))
+            return [check_names, init_config_tpls, instance_tpls]
+        except KeyError:
+            return None
 
     def crawl_config_template(self):
         """Return whether or not configuration templates have changed since the previous crawl"""
@@ -172,17 +212,4 @@ class AbstractConfigStore(object):
             log.info('Detected an update in config template, reloading check configs...')
             self.previous_config_index = config_index
             return True
-        return False
-
-
-class StubStore(AbstractConfigStore):
-    """Used when no valid config store was found. Allow to use auto_config."""
-    def _extract_settings(self, config):
-        pass
-
-    def get_client(self):
-        pass
-
-    def crawl_config_template(self):
-        # There is no user provided templates in auto_config mode
         return False

@@ -9,6 +9,7 @@ from nose.plugins.attrib import attr
 
 # project
 from utils.flare import Flare
+from utils.platform import Platform
 
 
 def get_mocked_config():
@@ -44,13 +45,13 @@ def get_mocked_temp():
     )
 
 mock_cfgs = {
-    'uri_password' : 'password_uri.yaml',
+    'uri_password': 'password_uri.yaml',
 }
 
 password_tests = {
-    'uri_password' : '      -   server: mongodb://datadog:V3pZC7ghx1ne82XkyqLnOW36@localhost:27017/admin',
-    'uri_password_2' : '      -   server: mongodb://datadog:V3!pZC7ghx1ne8#-2XkyqLnOW36!?@localhost:27017/admin',
-    'uri_password_expected' : '      -   server: mongodb://datadog:********@localhost:27017/admin',
+    'uri_password': '      -   server: mongodb://datadog:V3pZC7ghx1ne82XkyqLnOW36@localhost:27017/admin',
+    'uri_password_2': '      -   server: mongodb://datadog:V3!pZC7ghx1ne8#-2XkyqLnOW36!?@localhost:27017/admin',
+    'uri_password_expected': '      -   server: mongodb://datadog:********@localhost:27017/admin',
 }
 
 
@@ -92,6 +93,8 @@ class FlareTest(unittest.TestCase):
     def test_upload_with_case(self, mock_config, mock_tempdir, mock_stfrtime, mock_version, mock_requests):
         f = Flare(case_id=1337)
         f._ask_for_email = lambda: 'test@example.com'
+        f._open_tarfile()
+        f._tar.close()
 
         assert not mock_requests.called
         f.upload()
@@ -117,6 +120,8 @@ class FlareTest(unittest.TestCase):
     def test_upload_no_case(self, mock_config, mock_tempdir, mock_stfrtime, mock_version, mock_requests):
         f = Flare()
         f._ask_for_email = lambda: 'test@example.com'
+        f._open_tarfile()
+        f._tar.close()
 
         assert not mock_requests.called
         f.upload()
@@ -142,6 +147,8 @@ class FlareTest(unittest.TestCase):
     def test_upload_with_case_proxy(self, mock_config, mock_tempdir, mock_stfrtime, mock_version, mock_requests):
         f = Flare(case_id=1337)
         f._ask_for_email = lambda: 'test@example.com'
+        f._open_tarfile()
+        f._tar.close()
 
         assert not mock_requests.called
         f.upload()
@@ -168,13 +175,14 @@ class FlareTest(unittest.TestCase):
     def test_endpoint(self, mock_config, mock_temp, mock_stfrtime):
         f = Flare()
         f._ask_for_email = lambda: None
-        try:
-            f.upload()
-            raise Exception('Should fail before')
-        except Exception, e:
-            self.assertEqual(str(e), "Your request is incorrect: Invalid inputs: 'API key unknown'")
+        f._open_tarfile()
+        f._tar.close()
 
-    @attr(requires='core_integration')
+        with self.assertRaises(Exception) as cm:
+            f.upload()
+
+        self.assertEqual(str(cm.exception), "Your request is incorrect: Invalid inputs: 'API key unknown'")
+
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
@@ -189,7 +197,26 @@ class FlareTest(unittest.TestCase):
             " - this file contains a credential (password in a uri) which has been removed in the collected version"
         )
 
-    @attr(requires='core_integration')
+    @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
+    @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
+    @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
+    def test_api_keys_regex(self, mock_config, mock_tempdir, mock_strftime):
+        f = Flare()
+        file_path, _ = f._strip_credentials(
+            os.path.join(get_mocked_temp(), 'apikeys.conf'),
+            f.MAIN_CREDENTIALS
+        )
+        with open(file_path) as f:
+            contents = f.read()
+
+        self.assertEqual(
+            contents,
+            """api_key: *************************aaaaa
+other_api_keys: **************************bbbbb, **************************ccccc, **************************dddd
+
+"""
+        )
+
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
@@ -212,7 +239,6 @@ class FlareTest(unittest.TestCase):
             password_tests['uri_password_expected']
         )
 
-    @attr(requires='core_integration')
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config_with_proxy)
@@ -223,7 +249,6 @@ class FlareTest(unittest.TestCase):
         expected = 'http://proxy_user:proxy_pass@proxy.host.com:3128'
         self.assertEqual(expected, request_options['proxies']['https'])
 
-    @attr(requires='core_integration')
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config_with_proxy)
@@ -233,7 +258,6 @@ class FlareTest(unittest.TestCase):
         f.set_ssl_validation(request_options)
         self.assertFalse(request_options['verify'])
 
-    @attr(requires='core_integration')
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
@@ -241,4 +265,13 @@ class FlareTest(unittest.TestCase):
         f = Flare()
         request_options = {}
         f.set_ssl_validation(request_options)
-        self.assertEquals(request_options.get('verify'), None)
+
+        expected_verify = None
+        if Platform.is_windows():
+            expected_verify = os.path.realpath(os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                os.pardir, os.pardir,
+                'datadog-cert.pem'
+            ))
+
+        self.assertEquals(request_options.get('verify'), expected_verify)

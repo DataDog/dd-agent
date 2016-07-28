@@ -60,7 +60,7 @@ class Transaction(object):
         self._next_flush = newdate.replace(microsecond=0)
 
     def time_to_flush(self,now = datetime.utcnow()):
-        return self._next_flush < now
+        return self._next_flush <= now
 
     def flush(self):
         raise NotImplementedError("To be implemented in a subclass")
@@ -69,10 +69,13 @@ class TransactionManager(object):
     """Holds any transaction derived object list and make sure they
        are all commited, without exceeding parameters (throttling, memory consumption) """
 
-    def __init__(self, max_wait_for_replay, max_queue_size, throttling_delay):
+    def __init__(self, max_wait_for_replay, max_queue_size, throttling_delay,
+                 max_parallelism=1, max_endpoint_errors=4):
         self._MAX_WAIT_FOR_REPLAY = max_wait_for_replay
         self._MAX_QUEUE_SIZE = max_queue_size
         self._THROTTLING_DELAY = throttling_delay
+        self._MAX_PARALLELISM = max_parallelism
+        self._MAX_ENDPOINT_ERRORS = max_endpoint_errors
 
         self._flush_without_ioloop = False # useful for tests
 
@@ -80,6 +83,7 @@ class TransactionManager(object):
         self._total_count = 0  # Maintain size/count not to recompute it everytime
         self._total_size = 0
         self._flush_count = 0
+        self._running_flushes = 0
         self._transactions_received = 0
         self._transactions_flushed = 0
 
@@ -91,6 +95,10 @@ class TransactionManager(object):
 
         self._trs_to_flush = None # Current transactions being flushed
         self._last_flush = datetime.utcnow() # Last flush (for throttling)
+
+        # Error management
+        self._endpoints_errors = {}
+        self._finished_flushes = 0
 
         # Track an initial status message.
         ForwarderStatus().persist()
@@ -157,7 +165,12 @@ class TransactionManager(object):
             else:
                 log.debug("Flushing %s transaction%s during flush #%s" % (count,plural(count), str(self._flush_count + 1)))
 
-            self._trs_to_flush = to_flush
+            self._endpoints_errors = {}
+            self._finished_flushes = 0
+
+            # We sort LIFO-style, taking into account errors
+            self._trs_to_flush = sorted(to_flush, key=lambda tr: (- tr._error_count, tr._id))
+            self._flush_time = datetime.utcnow()
             self.flush_next()
         else:
             if should_log:
@@ -180,49 +193,80 @@ class TransactionManager(object):
 
     def flush_next(self):
 
-        if len(self._trs_to_flush) > 0:
-
+        if self._trs_to_flush is not None and len(self._trs_to_flush) > 0:
             td = self._last_flush + self._THROTTLING_DELAY - datetime.utcnow()
-            # Python 2.7 has this built in, python < 2.7 don't...
-            if hasattr(td,'total_seconds'):
-                delay = td.total_seconds()
-            else:
-                delay = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10.0**6
+            delay = td.total_seconds()
 
-            if delay <= 0:
+            if delay <= 0 and self._running_flushes < self._MAX_PARALLELISM:
                 tr = self._trs_to_flush.pop()
+                self._running_flushes += 1
                 self._last_flush = datetime.utcnow()
-                log.debug("Flushing transaction %d" % tr.get_id())
+                log.debug("Flushing transaction %d", tr.get_id())
                 try:
                     tr.flush()
-                except Exception,e :
+                except Exception as e:
                     log.exception(e)
                     self.tr_error(tr)
-                    self.flush_next()
-            else:
+                self.flush_next()
+            # Every running flushes relaunches a flush once it's finished
+            # If we are already at MAX_PARALLELISM, do nothing
+            # Otherwise, schedule a flush as soon as possible (throttling)
+            elif self._running_flushes < self._MAX_PARALLELISM:
                 # Wait a little bit more
                 tornado_ioloop = get_tornado_ioloop()
                 if tornado_ioloop._running:
                     tornado_ioloop.add_timeout(time.time() + delay,
-                        lambda: self.flush_next())
+                                               lambda: self.flush_next())
                 elif self._flush_without_ioloop:
                     # Tornado is no started (ie, unittests), do it manually: BLOCKING
                     time.sleep(delay)
                     self.flush_next()
-        else:
+        # Setting self._trs_to_flush to None means the flush is over.
+        # So it is oly set when there is no more running flushes.
+        # (which corresponds to the last flush calling flush_next)
+        elif self._running_flushes == 0:
             self._trs_to_flush = None
+            log.debug('Flush %s took %ss (%s transactions)',
+                      self._flush_count,
+                      (datetime.utcnow() - self._flush_time).total_seconds(),
+                      self._finished_flushes)
+        else:
+            log.debug("Flush in progress, %s flushes running", self._running_flushes)
 
-    def tr_error(self,tr):
+    def tr_error(self, tr):
+        self._running_flushes -= 1
+        self._finished_flushes += 1
         tr.inc_error_count()
         tr.compute_next_flush(self._MAX_WAIT_FOR_REPLAY)
-        log.warn("Transaction %d in error (%s error%s), it will be replayed after %s" %
-          (tr.get_id(), tr.get_error_count(), plural(tr.get_error_count()),
-           tr.get_next_flush()))
+        log.warn("Transaction %d in error (%s error%s), it will be replayed after %s",
+                 tr.get_id(),
+                 tr.get_error_count(),
+                 plural(tr.get_error_count()),
+                 tr.get_next_flush())
+        self._endpoints_errors[tr._endpoint] = self._endpoints_errors.get(tr._endpoint, 0) + 1
+        # Endpoint failed too many times, it's probably an enpoint issue
+        # Let's avoid blocking on it
+        if self._endpoints_errors[tr._endpoint] == self._MAX_ENDPOINT_ERRORS:
+            new_trs_to_flush = []
+            for transaction in self._trs_to_flush:
+                if transaction._endpoint != tr._endpoint:
+                    new_trs_to_flush.append(transaction)
+                else:
+                    transaction.compute_next_flush(self._MAX_WAIT_FOR_REPLAY)
+            log.debug('Endpoint %s seems down, removed %s transaction from current flush',
+                      tr._endpoint,
+                      len(self._trs_to_flush) - len(new_trs_to_flush))
 
-    def tr_error_too_big(self,tr):
+            self._trs_to_flush = new_trs_to_flush
+
+    def tr_error_too_big(self, tr):
+        self._running_flushes -= 1
+        self._finished_flushes += 1
         tr.inc_error_count()
-        log.warn("Transaction %d is %sKB, it has been rejected as too large. \
-          It will not be replayed." % (tr.get_id(), tr.get_size() / 1024))
+        log.warn("Transaction %d is %sKB, it has been rejected as too large. "
+                 "It will not be replayed.",
+                 tr.get_id(),
+                 tr.get_size() / 1024)
         self._transactions.remove(tr)
         self._total_count -= 1
         self._total_size -= tr.get_size()
@@ -237,8 +281,10 @@ class TransactionManager(object):
             transactions_flushed=self._transactions_flushed,
             too_big_count=self._too_big_count).persist()
 
-    def tr_success(self,tr):
-        log.debug("Transaction %d completed" % tr.get_id())
+    def tr_success(self, tr):
+        self._running_flushes -= 1
+        self._finished_flushes += 1
+        log.debug("Transaction %d completed",  tr.get_id())
         self._transactions.remove(tr)
         self._total_count -= 1
         self._total_size -= tr.get_size()

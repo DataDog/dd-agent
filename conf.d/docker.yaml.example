@@ -12,6 +12,12 @@ init_config:
   # Timeout on Docker socket connection. You may have to increase it if you have many containers.
   # socket_timeout: 5
 
+  # Do you use custom cgroups for your containers? Also relevant if using systemd-docker.
+  # Note: enabling this option modifies the way in which we inspect the containers and causes
+  #       some overhead - if you run a high volume of containers we may timeout. Please only
+  #       enable if absolutely necessary.
+  # custom_cgroups: false
+
 instances:
     # URL of the Docker daemon socket to reach the Docker API. HTTP also works.
   - url: "unix://var/run/docker.sock"
@@ -54,6 +60,13 @@ instances:
     # Create events whenever a container status change.
     #
     # collect_events: true
+    #
+    #
+    # Do you use custom cgroups for this particular instance? Overrides the init_config setting.
+    # Note: enabling this option modifies the way in which we inspect the containers and causes
+    #       some overhead - if you run a high volume of containers we may timeout. Please only
+    #       enable if absolutely necessary.
+    # custom_cgroups: false
 
     # Collect disk usage per container with docker.disk.size metric.
     # Warning: This feature is broken in some version of Docker (such as 1.2).

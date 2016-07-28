@@ -35,7 +35,7 @@ class IO(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
         self.header_re = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
-        self.item_re = re.compile(r'^([a-zA-Z0-9\/]+)')
+        self.item_re = re.compile(r'^([\-a-zA-Z0-9\/]+)')
         self.value_re = re.compile(r'\d+\.\d+')
 
     def _parse_linux2(self, output):
@@ -347,13 +347,16 @@ class Memory(Check):
             regexp = re.compile(r'^(\w+):\s+([0-9]+)')  # We run this several times so one-time compile now
             meminfo = {}
 
+            parse_error = False
             for line in lines:
                 try:
                     match = re.search(regexp, line)
                     if match is not None:
                         meminfo[match.group(1)] = match.group(2)
                 except Exception:
-                    self.logger.exception("Cannot parse %s", proc_meminfo)
+                    parse_error = True
+            if parse_error:
+                self.logger.error("Error parsing %s", proc_meminfo)
 
             memData = {}
 
@@ -432,13 +435,16 @@ class Memory(Check):
             regexp = re.compile(r'^vm\.stats\.vm\.(\w+):\s+([0-9]+)')
             meminfo = {}
 
+            parse_error = False
             for line in sysctl:
                 try:
                     match = re.search(regexp, line)
                     if match is not None:
                         meminfo[match.group(1)] = match.group(2)
                 except Exception:
-                    self.logger.exception("Cannot parse sysctl vm.stats.vm output")
+                    parse_error = True
+            if parse_error:
+                self.logger.error("Error parsing vm.stats.vm output: %s", sysctl)
 
             memData = {}
 

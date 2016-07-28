@@ -26,6 +26,11 @@ api_key:
 # Set the host's tags
 #tags: mytag, env:prod, role:database
 
+# Set timeout in seconds for outgoing requests to Datadog. (default: 20)
+# When a request timeout, it will be retried after some time.
+# It will only be deleted if the forwarder queue becomes too big. (30 MB by default)
+# forwarder_timeout: 20
+
 # Add one "dd_check:checkname" tag per running check. It makes it possible to slice
 # and dice per monitored app (= running Agent Check) on Datadog's backend.
 # create_dd_check_tags: no
@@ -88,6 +93,17 @@ use_mount: no
 # histogram_aggregates: max, median, avg, count
 # histogram_percentiles: 0.95
 
+# Multiple endpoints/api_keys
+# If you want to send your data to multiple accounts,
+# add your extra api_keys here in a comma-separated list
+# (default: disabled)
+# other_api_keys: my_apikey, my_other_apikey
+# If you want to send your data to multiple endpoints,
+# add your extra api_keys here in a comma-separated list.
+# For each extra dd_url, an api_key must be specified in
+# other_api_keys (default: disabled)
+# other_dd_urls: https://app.example.com
+
 # ========================================================================== #
 # Service Discovery                                                          #
 # See https://github.com/DataDog/dd-agent/wiki/Service-Discovery for details #
@@ -116,7 +132,7 @@ use_mount: no
 # Other                                                                      #
 # ========================================================================== #
 #
-# In some environments we may have the procfs file system mounted in a 
+# In some environments we may have the procfs file system mounted in a
 # miscellaneous location. The procfs_path configuration paramenter allows
 # us to override the standard default location '/proc'
 # procfs_path: /proc
@@ -132,12 +148,12 @@ use_mount: no
 # usage information, check out http://docs.datadoghq.com/guides/dogstatsd/
 
 #  Make sure your client is sending to the same port.
-# dogstatsd_port : 8125
+# dogstatsd_port: 8125
 
 # By default dogstatsd will post aggregate metrics to the Agent (which handles
 # errors/timeouts/retries/etc). To send directly to the datadog api, set this
 # to https://app.datadoghq.com.
-# dogstatsd_target : http://localhost:17123
+# dogstatsd_target: http://localhost:17123
 
 # If you want to forward every packet received by the dogstatsd server
 # to another statsd server, uncomment these lines.

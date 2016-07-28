@@ -51,10 +51,10 @@ CONFIG = {
         'content_match': '(thereisnosuchword|github)'
     }, {
         'name': 'cnt_match_unicode',
-        'url': 'http://www.inter-locale.com/whitepaper/learn/learn-to-test.html',
+        'url': 'https://ja.wikipedia.org/',
         'timeout': 1,
         'check_certificate_expiration': False,
-        'content_match': 'ぶびばぱぴ'
+        'content_match': 'メインページ'
     }
     ]
 }
@@ -203,8 +203,7 @@ class HTTPCheckTest(AgentCheckTest):
         self.assertServiceCheckOK("http.can_connect", tags=tags, count=0)
         tags = ['url:https://github.com', 'instance:cnt_match']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
-        tags = ['url:http://www.inter-locale.com/whitepaper/learn/learn-to-test.html',
-                'instance:cnt_match_unicode']
+        tags = ['url:https://ja.wikipedia.org/', 'instance:cnt_match_unicode']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
 
         self.coverage_report()

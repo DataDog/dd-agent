@@ -238,7 +238,7 @@ class SQLServer(AgentCheck):
                 cursor.execute(BASE_NAME_QUERY, candidates)
                 base_name = cursor.fetchone().counter_name.strip()
                 self.log.debug("Got base metric: %s for metric: %s", base_name, counter_name)
-            except Exception, e:
+            except Exception as e:
                 self.log.warning("Could not get counter_name of base for metric: %s", e)
 
         self.close_cursor(cursor)
@@ -259,7 +259,7 @@ class SQLServer(AgentCheck):
         for metric in metrics_to_collect:
             try:
                 metric.fetch_metric(cursor, custom_tags)
-            except Exception, e:
+            except Exception as e:
                 self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
         self.close_cursor(cursor)
