@@ -45,7 +45,8 @@ class Processes(Check):
         self.wmi_sampler = WMISampler(
             logger,
             "Win32_PerfRawData_PerfOS_System",
-            ["ProcessorQueueLength", "Processes"]
+            ["ProcessorQueueLength", "Processes"],
+            provider='64'
         )
 
         self.gauge('system.proc.queue_length')
@@ -86,12 +87,15 @@ class Memory(Check):
         self.os_wmi_sampler = WMISampler(
             logger,
             "Win32_OperatingSystem",
-            ["TotalVisibleMemorySize", "FreePhysicalMemory"]
+            ["TotalVisibleMemorySize", "FreePhysicalMemory"],
+            provider='64'
         )
         self.mem_wmi_sampler = WMISampler(
             logger,
             "Win32_PerfRawData_PerfOS_Memory",
-            ["CacheBytes", "CommittedBytes", "PoolPagedBytes", "PoolNonpagedBytes"])
+            ["CacheBytes", "CommittedBytes", "PoolPagedBytes", "PoolNonpagedBytes"],
+            provider='64'
+        )
 
         self.gauge('system.mem.free')
         self.gauge('system.mem.used')
@@ -225,7 +229,8 @@ class Network(Check):
         self.wmi_sampler = WMISampler(
             logger,
             "Win32_PerfRawData_Tcpip_NetworkInterface",
-            ["Name", "BytesReceivedPerSec", "BytesSentPerSec"]
+            ["Name", "BytesReceivedPerSec", "BytesSentPerSec"],
+            provider='64'
         )
 
         self.gauge('system.net.bytes_rcvd')
@@ -270,7 +275,8 @@ class IO(Check):
             logger,
             "Win32_PerfRawData_PerfDisk_LogicalDisk",
             ["Name", "DiskWriteBytesPerSec", "DiskWritesPerSec", "DiskReadBytesPerSec",
-             "DiskReadsPerSec", "CurrentDiskQueueLength"]
+             "DiskReadsPerSec", "CurrentDiskQueueLength"],
+            provider='64'
         )
 
         self.gauge('system.io.wkb_s')
