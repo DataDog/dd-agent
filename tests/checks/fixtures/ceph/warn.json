@@ -1,0 +1,282 @@
+{
+    "df_detail": {
+        "pools": [
+            {
+                "id": 0,
+                "name": "rbd",
+                "stats": {
+                    "bytes_used": 0,
+                    "dirty": 0,
+                    "kb_used": 0,
+                    "max_avail": 183768246939,
+                    "objects": 0,
+                    "rd": 0,
+                    "rd_bytes": 0,
+                    "wr": 0,
+                    "wr_bytes": 0
+                }
+            },
+            {
+                "id": 1,
+                "name": "pool0",
+                "stats": {
+                    "bytes_used": 36266725508,
+                    "dirty": 8872,
+                    "kb_used": 35416725,
+                    "max_avail": 275652370408,
+                    "objects": 8872,
+                    "rd": 250612,
+                    "rd_bytes": 30539931648,
+                    "wr": 588776,
+                    "wr_bytes": 62512706560
+                }
+            }
+        ],
+        "stats": {
+            "total_avail_bytes": 556422717440,
+            "total_bytes": 627829063680,
+            "total_objects": 8872,
+            "total_used_bytes": 71406346240
+        }
+    },
+    "mon_status": {
+        "election_epoch": 38,
+        "extra_probe_peers": [
+            "10.240.0.9:6789/0",
+            "10.240.0.10:6789/0"
+        ],
+        "monmap": {
+            "created": "0.000000",
+            "epoch": 1,
+            "fsid": "e0efcf84-e8ed-4916-8ce1-9c70242d390a",
+            "modified": "0.000000",
+            "mons": [
+                {
+                    "addr": "10.240.0.9:6789/0",
+                    "name": "ceph1",
+                    "rank": 0
+                },
+                {
+                    "addr": "10.240.0.10:6789/0",
+                    "name": "ceph2",
+                    "rank": 1
+                },
+                {
+                    "addr": "10.240.0.11:6789/0",
+                    "name": "ceph3",
+                    "rank": 2
+                }
+            ]
+        },
+        "name": "ceph3",
+        "outside_quorum": [],
+        "quorum": [
+            0,
+            1,
+            2
+        ],
+        "rank": 2,
+        "state": "peon",
+        "sync_provider": []
+    },
+    "osd_perf": {
+        "osd_perf_infos": [
+            {
+                "id": 0,
+                "perf_stats": {
+                    "apply_latency_ms": 195,
+                    "commit_latency_ms": 137
+                }
+            },
+            {
+                "id": 1,
+                "perf_stats": {
+                    "apply_latency_ms": 107,
+                    "commit_latency_ms": 71
+                }
+            },
+            {
+                "id": 2,
+                "perf_stats": {
+                    "apply_latency_ms": 125,
+                    "commit_latency_ms": 85
+                }
+            }
+        ]
+    },
+    "osd_pool_stats": [
+        {
+            "client_io_rate": {},
+            "pool_id": 0,
+            "pool_name": "rbd",
+            "recovery": {},
+            "recovery_rate": {}
+        },
+        {
+            "client_io_rate": {
+                "op_per_sec": 996,
+                "read_bytes_sec": 259930926,
+                "write_bytes_sec": 378295
+            },
+            "pool_id": 1,
+            "pool_name": "pool0",
+            "recovery": {},
+            "recovery_rate": {}
+        }
+    ],
+    "status": {
+        "election_epoch": 38,
+        "fsid": "e0efcf84-e8ed-4916-8ce1-9c70242d390a",
+        "health": {
+            "detail": [],
+            "health": {
+                "health_services": [
+                    {
+                        "mons": [
+                            {
+                                "avail_percent": 67,
+                                "health": "HEALTH_OK",
+                                "kb_avail": 6903788,
+                                "kb_total": 10188088,
+                                "kb_used": 2743732,
+                                "last_updated": "2016-01-21 21:13:41.222169",
+                                "name": "ceph1",
+                                "store_stats": {
+                                    "bytes_log": 2817517,
+                                    "bytes_misc": 42214264,
+                                    "bytes_sst": 0,
+                                    "bytes_total": 45031781,
+                                    "last_updated": "0.000000"
+                                }
+                            },
+                            {
+                                "avail_percent": 81,
+                                "health": "HEALTH_OK",
+                                "kb_avail": 8254268,
+                                "kb_total": 10188088,
+                                "kb_used": 1393252,
+                                "last_updated": "2016-01-21 21:12:51.513343",
+                                "name": "ceph2",
+                                "store_stats": {
+                                    "bytes_log": 3712488,
+                                    "bytes_misc": 48652309,
+                                    "bytes_sst": 0,
+                                    "bytes_total": 52364797,
+                                    "last_updated": "0.000000"
+                                }
+                            },
+                            {
+                                "avail_percent": 81,
+                                "health": "HEALTH_OK",
+                                "kb_avail": 8338704,
+                                "kb_total": 10188088,
+                                "kb_used": 1308816,
+                                "last_updated": "2016-01-21 21:13:39.924037",
+                                "name": "ceph3",
+                                "store_stats": {
+                                    "bytes_log": 4221302,
+                                    "bytes_misc": 48642618,
+                                    "bytes_sst": 0,
+                                    "bytes_total": 52863920,
+                                    "last_updated": "0.000000"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "overall_status": "HEALTH_OK",
+            "summary": [],
+            "timechecks": {
+                "epoch": 38,
+                "mons": [
+                    {
+                        "health": "HEALTH_OK",
+                        "latency": 0.0,
+                        "name": "ceph1",
+                        "skew": 0.0
+                    },
+                    {
+                        "health": "HEALTH_OK",
+                        "latency": 0.000989,
+                        "name": "ceph2",
+                        "skew": -0.0
+                    },
+                    {
+                        "health": "HEALTH_OK",
+                        "latency": 0.003585,
+                        "name": "ceph3",
+                        "skew": -0.0
+                    }
+                ],
+                "round": 6258,
+                "round_status": "finished"
+            }
+        },
+        "mdsmap": {
+            "by_rank": [],
+            "epoch": 1,
+            "in": 0,
+            "max": 0,
+            "up": 0
+        },
+        "monmap": {
+            "created": "0.000000",
+            "epoch": 1,
+            "fsid": "e0efcf84-e8ed-4916-8ce1-9c70242d390a",
+            "modified": "0.000000",
+            "mons": [
+                {
+                    "addr": "10.240.0.9:6789/0",
+                    "name": "ceph1",
+                    "rank": 0
+                },
+                {
+                    "addr": "10.240.0.10:6789/0",
+                    "name": "ceph2",
+                    "rank": 1
+                },
+                {
+                    "addr": "10.240.0.11:6789/0",
+                    "name": "ceph3",
+                    "rank": 2
+                }
+            ]
+        },
+        "osdmap": {
+            "osdmap": {
+                "epoch": 30,
+                "full": false,
+                "nearfull": false,
+                "num_in_osds": 3,
+                "num_osds": 3,
+                "num_remapped_pgs": 0,
+                "num_up_osds": 3
+            }
+        },
+        "pgmap": {
+            "bytes_avail": 556422717440,
+            "bytes_total": 627829063680,
+            "bytes_used": 71406346240,
+            "data_bytes": 36266725508,
+            "num_pgs": 164,
+            "pgs_by_state": [
+                {
+                    "count": 164,
+                    "state_name": "active+clean"
+                }
+            ],
+            "version": 15055
+        },
+        "quorum": [
+            0,
+            1,
+            2
+        ],
+        "quorum_names": [
+            "ceph1",
+            "ceph2",
+            "ceph3"
+        ]
+    }
+}
