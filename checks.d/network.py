@@ -552,7 +552,7 @@ class Network(AgentCheck):
                     self.rate(metric, self._parse_value(ipext_metrics[key]))
 
         except IOError:
-            # On Openshift, /proc/net/netsta is only readable by root
+            # On Openshift, /proc/net/netstat is only readable by root
             self.log.debug("Unable to read %s.", proc_netstat_path)
 
     # Parse the output of the command that retrieves the connection state (either `ss` or `netstat`)
