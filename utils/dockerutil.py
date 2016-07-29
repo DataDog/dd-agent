@@ -8,12 +8,14 @@ import os
 import time
 
 # 3rd party
-from docker import Client
-from docker import tls
+from docker import Client, tls
+from docker.errors import NullResource
 
 # project
 from utils.singleton import Singleton
 from utils.service_discovery.config_stores import get_config_store
+
+DATADOG_ID = 'com.datadoghq.sd.check.id'
 
 
 class MountException(Exception):
@@ -110,8 +112,11 @@ class DockerUtil:
         for event in event_generator:
             try:
                 if self.config_store and event.get('status') in CONFIG_RELOAD_STATUS:
-                    image = event.get('from', '')
-                    checks = self._get_checks_from_image(image)
+                    try:
+                        inspect = self.client.inspect_container(event.get('id'))
+                    except NullResource:
+                        inspect = {}
+                    checks = self._get_checks_from_inspect(inspect)
                     if checks:
                         conf_reload_set.update(set(checks))
                 self.events.append(event)
@@ -124,9 +129,13 @@ class DockerUtil:
 
         return self.events, conf_reload_set
 
-    def _get_checks_from_image(self, image):
-        """Get the list of checks applied to an image from the image_to_checks cache in the config store"""
-        return self.config_store.image_to_checks[image]
+    def _get_checks_from_inspect(self, inspect):
+        """Get the list of checks applied to a container from the identifier_to_checks cache in the config store.
+        Use the DATADOG_ID label or the image."""
+        identifier = inspect.get('Config', {}).get('Labels', {}).get(DATADOG_ID) or \
+            inspect.get('Config', {}).get('Image')
+
+        return self.config_store.identifier_to_checks[identifier]
 
     def get_hostname(self):
         """Return the `Name` param from `docker info` to use as the hostname"""

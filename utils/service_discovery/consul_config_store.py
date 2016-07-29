@@ -46,12 +46,12 @@ class ConsulStore(AbstractConfigStore):
 
     def client_read(self, path, **kwargs):
         """Retrieve a value from a consul key."""
-        recurse = kwargs.get('recursive', False or kwargs.get('all, False'))
+        recurse = kwargs.get('recursive') or kwargs.get('all', False)
         res = self.client.kv.get(path, recurse=recurse)
         if kwargs.get('watch', False):
             return res[0]
         elif kwargs.get('all', False):
-            # we use it in _populate_image_to_checks
+            # we use it in _populate_identifier_to_checks
             return [(child.get('Key'), child.get('Value')) for child in res[1]]
         else:
             if res[1] is not None:
