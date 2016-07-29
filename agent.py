@@ -157,8 +157,11 @@ class Agent(Daemon):
 
             # this is an error dict
             # checks that failed to load are added to init_failed_checks
+            # and poped from initialized_checks
             if isinstance(fresh_check, dict) and 'error' in fresh_check.keys():
                 checksd['init_failed_checks'][fresh_check.keys()[0]] = fresh_check.values()[0]
+                if idx:
+                    checksd['initialized_checks'].pop(idx)
 
             elif not fresh_check:
                 # no instance left of it to monitor so the check was not loaded
