@@ -254,6 +254,8 @@ class Network(AgentCheck):
             tcp_lines = [line for line in lines if line.startswith('Tcp:')]
             udp_lines = [line for line in lines if line.startswith('Udp:')]
             ip_lines = [line for line in lines if line.startswith('Ip:')]
+            icmp_lines = [line for line in lines if line.startswith('Icmp:')]
+            icmp_msg_lines = [line for line in lines if line.startswith('IcmpMsg:')]
 
             tcp_column_names = tcp_lines[0].strip().split()
             tcp_values = tcp_lines[1].strip().split()
