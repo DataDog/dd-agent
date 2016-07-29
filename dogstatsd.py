@@ -41,8 +41,8 @@ from aggregator import get_formatter, MetricsBucketAggregator
 from checks.check_status import DogstatsdStatus
 from checks.metric_types import MetricTypes
 from config import get_config, get_version
-from daemon import AgentSupervisor, Daemon
 from util import chunks, get_hostname, get_uuid, plural
+from utils.agent_process import AgentProcess
 from utils.pidfile import PidFile
 from utils.net import inet_pton
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
@@ -414,11 +414,11 @@ class Server(object):
         self.running = False
 
 
-class Dogstatsd(Daemon):
-    """ This class is the dogstatsd daemon. """
+class Dogstatsd(AgentProcess):
+    """ This class is the dogstatsd process. """
 
-    def __init__(self, pid_file, server, reporter, autorestart):
-        Daemon.__init__(self, pid_file, autorestart=autorestart)
+    def __init__(self, pid_file, server, reporter):
+        AgentProcess.__init__(self, pid_file)
         self.server = server
         self.reporter = reporter
 
@@ -449,9 +449,6 @@ class Dogstatsd(Daemon):
             self.reporter.stop()
             self.reporter.join()
             log.info("Dogstatsd is stopped")
-            # Restart if asked to restart
-            if self.autorestart:
-                sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
     @classmethod
     def info(self):
@@ -524,50 +521,38 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
 def main(config_path=None):
     """ The main entry point for the unix version of dogstatsd. """
     # Deprecation notice
-    from utils.deprecations import deprecate_old_command_line_tools
-    deprecate_old_command_line_tools()
-
-    COMMANDS_START_DOGSTATSD = [
+    OLD_COMMANDS_AGENT = [
+        'restart'
         'start',
+        'status',
         'stop',
-        'restart',
-        'status'
     ]
 
-    parser = optparse.OptionParser("%prog [start|stop|restart|status]")
+    parser = optparse.OptionParser("%prog [|help|info]")
     parser.add_option('-u', '--use-local-forwarder', action='store_true',
                       dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
-    if not args or args[0] in COMMANDS_START_DOGSTATSD:
-        reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder, args=args)
-        daemon = Dogstatsd(PidFile(PID_NAME, PID_DIR).get_path(), server, reporter,
-                           cnf.get('autorestart', False))
+    if args and args[0] in OLD_COMMANDS_AGENT:
+        from utils.deprecations import deprecate_old_command_line_tools
+        deprecate_old_command_line_tools()
 
-    # If no args were passed in, run the server in the foreground.
     if not args:
-        daemon.start(foreground=True)
-        return 0
+        reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder, args=args)
+        dogstatsd = Dogstatsd(PidFile(PID_NAME, PID_DIR).get_path(), server, reporter)
+        dogstatsd.start()
 
-    # Otherwise, we're process the deamon command.
     else:
+        usage = "%s [help|info]. Run with no commands to start the server" % (sys.argv[0])
         command = args[0]
-
-        if command == 'start':
-            daemon.start()
-        elif command == 'stop':
-            daemon.stop()
-        elif command == 'restart':
-            daemon.restart()
-        elif command == 'status':
-            daemon.status()
-        elif command == 'info':
+        if command == 'info':
             return Dogstatsd.info()
+        elif command == 'help':
+            print usage
         else:
-            sys.stderr.write("Unknown command: %s\n\n" % command)
-            parser.print_help()
-            return 1
-        return 0
+            print "Unknown command: %s" % command
+            print usage
+            return -1
 
 if __name__ == '__main__':
     sys.exit(main())

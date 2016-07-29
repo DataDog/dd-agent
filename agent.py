@@ -32,13 +32,13 @@ from config import (
     get_system_stats,
     load_check_directory,
 )
-from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
 from util import (
     EC2,
     get_hostname,
     Watchdog,
 )
+from utils.agent_process import AgentProcess
 from utils.flare import Flare
 from utils.configcheck import configcheck, sd_configcheck
 from utils.jmx import jmx_command
@@ -52,22 +52,19 @@ PID_NAME = "dd-agent"
 PID_DIR = None
 WATCHDOG_MULTIPLIER = 10
 RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
-START_COMMANDS = ['start', 'restart', 'foreground']
-DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
-
 DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
 # Globals
 log = logging.getLogger('collector')
 
 
-class Agent(Daemon):
+class Agent(AgentProcess):
     """
-    The agent class is a daemon that runs the collector in a background process.
+    The agent class is a process that runs the collector in foreground.
     """
 
-    def __init__(self, pidfile, autorestart, start_event=True, in_developer_mode=False):
-        Daemon.__init__(self, pidfile, autorestart=autorestart)
+    def __init__(self, pidfile, start_event=True, in_developer_mode=False):
+        AgentProcess.__init__(self, pidfile)
         self.run_forever = True
         self.collector = None
         self.start_event = start_event
@@ -227,10 +224,6 @@ class Agent(Daemon):
                     except Exception as e:
                         log.warn("Cannot disable profiler: %s" % str(e))
 
-            # Check if we should restart.
-            if self.autorestart and self._should_restart():
-                self._do_restart()
-
             # Only plan for next loop if we will continue, otherwise exit quickly.
             if self.run_forever:
                 if watchdog:
@@ -246,7 +239,7 @@ class Agent(Daemon):
         except Exception:
             pass
 
-        # Explicitly kill the process, because it might be running as a daemon.
+        # Explicitly kill the process.
         log.info("Exiting. Bye bye.")
         sys.exit(0)
 
@@ -274,30 +267,27 @@ class Agent(Daemon):
                 log.info('Not running on EC2, using hostname to identify this server')
         return agentConfig
 
-    def _should_restart(self):
-        if time.time() - self.agent_start > self.restart_interval:
-            return True
-        return False
-
     def _do_restart(self):
         log.info("Running an auto-restart.")
         if self.collector:
             self.collector.stop()
-        sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
+        sys.exit(0)
 
 
 def main():
     options, args = get_parsed_args()
     agentConfig = get_config(options=options)
-    autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
     in_developer_mode = agentConfig.get('developer_mode')
     COMMANDS_AGENT = [
-        'start',
-        'stop',
-        'restart',
-        'status',
         'foreground',
+    ]
+
+    OLD_COMMANDS_AGENT = [
+        'restart'
+        'start',
+        'status',
+        'stop',
     ]
 
     COMMANDS_NO_AGENT = [
@@ -315,55 +305,26 @@ def main():
         return 2
 
     command = args[0]
+    # Deprecation notice
+    if command in OLD_COMMANDS_AGENT:
+        from utils.deprecations import deprecate_old_command_line_tools
+        deprecate_old_command_line_tools()
+        return 1
+
     if command not in COMMANDS:
         sys.stderr.write("Unknown command: %s\n" % command)
         return 3
 
-    # Deprecation notice
-    if command not in DD_AGENT_COMMANDS:
-        # Will become an error message and exit after deprecation period
-        from utils.deprecations import deprecate_old_command_line_tools
-        deprecate_old_command_line_tools()
-
     if command in COMMANDS_AGENT:
-        agent = Agent(PidFile(PID_NAME, PID_DIR).get_path(), autorestart, in_developer_mode=in_developer_mode)
-
-    if command in START_COMMANDS:
         log.info('Agent version %s' % get_version())
+        agent = Agent(PidFile(PID_NAME, PID_DIR).get_path(), in_developer_mode=in_developer_mode)
 
-    if 'start' == command:
-        log.info('Start daemon')
+    if 'foreground' == command:
+        # Run in the standard foreground.
         agent.start()
-
-    elif 'stop' == command:
-        log.info('Stop daemon')
-        agent.stop()
-
-    elif 'restart' == command:
-        log.info('Restart daemon')
-        agent.restart()
-
-    elif 'status' == command:
-        agent.status()
 
     elif 'info' == command:
         return Agent.info(verbose=options.verbose)
-
-    elif 'foreground' == command:
-        if autorestart:
-            # Set-up the supervisor callbacks and fork it.
-            logging.info('Running Agent with auto-restart ON')
-
-            def child_func():
-                agent.start(foreground=True)
-
-            def parent_func():
-                agent.start_event = False
-
-            AgentSupervisor.start(parent_func, child_func)
-        else:
-            # Run in the standard foreground.
-            agent.start(foreground=True)
 
     elif 'check' == command:
         if len(args) < 2:

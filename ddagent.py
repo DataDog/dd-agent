@@ -574,10 +574,6 @@ def init(skip_ssl_validation=False, use_simple_http_client=False):
 
 
 def main():
-    # Deprecation notice
-    from utils.deprecations import deprecate_old_command_line_tools
-    deprecate_old_command_line_tools()
-
     define("sslcheck", default=1, help="Verify SSL hostname, on by default")
     define("use_simple_http_client", default=0, help="Use Tornado SimpleHTTPClient instead of CurlAsyncHTTPClient")
     args = parse_command_line()
@@ -592,6 +588,8 @@ def main():
 
     # If we don't have any arguments, run the server.
     if not args:
+        from utils.deprecations import deprecate_old_command_line_tools
+        deprecate_old_command_line_tools()
         app = init(skip_ssl_validation, use_simple_http_client=use_simple_http_client)
         try:
             app.run()
