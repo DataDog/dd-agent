@@ -639,12 +639,20 @@ class MongoDb(AgentCheck):
                 message=message)
             raise Exception(message)
 
-        self.service_check(
-            self.SERVICE_CHECK_NAME,
-            AgentCheck.OK,
-            tags=service_check_tags)
+        try:
+            status = db.command('serverStatus', tcmalloc=collect_tcmalloc_metrics)
+        except Exception:
+            self.service_check(
+                self.SERVICE_CHECK_NAME,
+                AgentCheck.CRITICAL,
+                tags=service_check_tags)
+            raise
+        else:
+            self.service_check(
+                self.SERVICE_CHECK_NAME,
+                AgentCheck.OK,
+                tags=service_check_tags)
 
-        status = db.command('serverStatus', tcmalloc=collect_tcmalloc_metrics)
         if status['ok'] == 0:
             raise Exception(status['errmsg'].__str__())
 
