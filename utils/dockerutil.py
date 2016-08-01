@@ -169,6 +169,18 @@ class DockerUtil:
             """Find the mount point for a specified cgroup hierarchy.
 
             Works with old style and new style mounts.
+
+            An example of what the output of /proc/mounts looks like:
+
+                cgroup /sys/fs/cgroup/cpuset cgroup rw,relatime,cpuset 0 0
+                cgroup /sys/fs/cgroup/cpu cgroup rw,relatime,cpu 0 0
+                cgroup /sys/fs/cgroup/cpuacct cgroup rw,relatime,cpuacct 0 0
+                cgroup /sys/fs/cgroup/memory cgroup rw,relatime,memory 0 0
+                cgroup /sys/fs/cgroup/devices cgroup rw,relatime,devices 0 0
+                cgroup /sys/fs/cgroup/freezer cgroup rw,relatime,freezer 0 0
+                cgroup /sys/fs/cgroup/blkio cgroup rw,relatime,blkio 0 0
+                cgroup /sys/fs/cgroup/perf_event cgroup rw,relatime,perf_event 0 0
+                cgroup /sys/fs/cgroup/hugetlb cgroup rw,relatime,hugetlb 0 0
             """
             with open(os.path.join(self._docker_root, "/proc/mounts"), 'r') as fp:
                 mounts = map(lambda x: x.split(), fp.read().splitlines())
@@ -183,7 +195,7 @@ class DockerUtil:
 
             candidate = None
             for _, mountpoint, _, opts, _, _ in cgroup_mounts:
-                if hierarchy in opts and os.path.exists(mountpoint):
+                if any(opt == hierarchy for opt in opts.split(',')) and os.path.exists(mountpoint):
                     if mountpoint.startswith("/host/"):
                         return os.path.join(self._docker_root, mountpoint)
                     candidate = mountpoint
