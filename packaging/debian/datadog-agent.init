@@ -125,7 +125,7 @@ case "$1" in
             $0 stop > /dev/null 2>&1
         fi
 
-        su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null
+        su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null 2>&1
         if [ $? -ne 0 ]; then
             log_daemon_msg "Invalid check configuration. Please run sudo /etc/init.d/datadog-agent configtest for more details."
             log_daemon_msg "Resuming starting process."
