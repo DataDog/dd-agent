@@ -340,10 +340,10 @@ class Kubernetes(AgentCheck):
         for dep, stats in deployments_map.iteritems():
             _tags = tags[:]
             _tags.append('kube_deployment:{0}'.format(dep))
-            self.publish_gauge(self, NAMESPACE + '.pods.running', stats.pods, _tags)
-            self.publish_gauge(self, NAMESPACE + '.pods.desired', stats.desired, _tags)
-            self.publish_gauge(self, NAMESPACE + '.pods.available', stats.available, _tags)
-            self.publish_gauge(self, NAMESPACE + '.pods.unavailable', stats.unavailable, _tags)
+            self.publish_gauge(self, NAMESPACE + '.pods.running', stats['pods'], _tags)
+            self.publish_gauge(self, NAMESPACE + '.pods.desired', stats['desired'], _tags)
+            self.publish_gauge(self, NAMESPACE + '.pods.available', stats['available'], _tags)
+            self.publish_gauge(self, NAMESPACE + '.pods.unavailable', stats['unavailable'], _tags)
 
     def _update_pods_metrics(self, instance, pods):
         supported_kinds = [

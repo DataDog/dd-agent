@@ -135,10 +135,13 @@ class KubeUtil:
         # In order to retrieve the deployment that created a pod
         # we must take the pods ReplicaSet name and remove the
         # pods template hash.
-        serialized_reference = json.loads(pod['metadata']['annotations']['kubernetes.io/created-by'])
-        if serialized_reference['reference']['kind'] == 'ReplicaSet':
-            template_hash = pod['metadata']['labels']['pod-template-hash']
-            return string.replace(serialized_reference['reference']['name'], '-' + template_hash, '')
+        try:
+            serialized_reference = json.loads(pod['metadata']['annotations']['kubernetes.io/created-by'])
+            if serialized_reference['reference']['kind'] == 'ReplicaSet':
+                template_hash = pod['metadata']['labels']['pod-template-hash']
+                return string.replace(serialized_reference['reference']['name'], '-' + template_hash, '')
+        except KeyError:
+            return None
         return None
 
     def retrieve_deployments_list(self):
