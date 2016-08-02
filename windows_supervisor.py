@@ -61,24 +61,24 @@ class AgentSupervisor():
         agent_config = get_config(parse_args=False, options=opts)
         self.hostname = get_hostname(agent_config)
 
-        # Let's have an uptime counter
+        # Uptime counter
         self.start_ts = None
 
         # Watch JMXFetch restarts
         self._MAX_JMXFETCH_RESTARTS = 3
         self._count_jmxfetch_restarts = 0
 
-        # C:\Program Files(x86)\Datadog\Datadog Agent\agent
-        file_dir = os.path.dirname(os.path.realpath(__file__))
+        # C:\Program Files\Datadog\Datadog Agent\agent
+        agent_dir = os.path.dirname(os.path.realpath(__file__))
         embedded_python = os.path.normpath(
-            os.path.join(file_dir, '..', 'embedded', 'python.exe')
+            os.path.join(agent_dir, '..', 'embedded', 'python.exe')
         )
         # This allows us to use the system's Python in case there is no embedded python
         if not os.path.isfile(embedded_python):
             embedded_python = "python"
 
         # cd to C:\Program Files(x86)\Datadog\Datadog Agent\agent
-        os.chdir(file_dir)
+        os.chdir(agent_dir)
 
         # Keep a list of running processes so we can start/end as needed.
         # Processes will start started in order and stopped in reverse order.
@@ -106,7 +106,7 @@ class AgentSupervisor():
 
     def stop(self):
         # Stop all services.
-        log.info("Killing all the agent's primary processes.")
+        log.info("Stopping all the agent processes.")
         self.running = False
         for proc in self.procs.values():
             proc.terminate()
@@ -119,7 +119,7 @@ class AgentSupervisor():
         secs = int(time.time()-self.start_ts)
         mins = int(secs/60)
         hours = int(secs/3600)
-        log.info("They're all dead! The agent has been run for {0} hours {1} "
+        log.info("The agent stopped. It has been running for {0} hours {1} "
                  "minutes {2} seconds".format(hours, mins % 60, secs % 60))
 
     def run(self):
@@ -246,7 +246,7 @@ class DDProcess(object):
 
             # file_path = C:\Program Files(x86)\Datadog\Datadog Agent\
             file_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-            env['PATH'] += "{};{};".format(os.path.join(file_path, 'bin'), os.path.join(file_path, 'embedded'))
+            env['PATH'] += ";{};{};".format(os.path.join(file_path, 'bin'), os.path.join(file_path, 'embedded'))
 
             log.info("Starting {0}".format(self.name))
             self.proc = psutil.Popen(self.command, stdout=AgentSupervisor.devnull, stderr=AgentSupervisor.devnull, env=env)
@@ -309,9 +309,9 @@ if __name__ == '__main__':
                 supervisor = AgentSupervisor(False)
 
             def bye_bye(signum, frame):
-                log.info("Stopping all subprocesses...")
+                log.info("Stopping all agent processes...")
                 supervisor.stop()
-                log.info("Have a nice day !")
+                log.info("Agent processes stopped")
                 sys.exit(0)
 
             # Let's get ourselves some traditionnal ways to kill our supervisor
