@@ -60,9 +60,12 @@ class TestKubernetes(AgentCheckTest):
             "instances": [{"host": "foo"}]
         }
 
-        # Can't use run_check_twice due to specific metrics
-        self.run_check(config, force_reload=True)
-        self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL, tags=None, count=1)
+        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False))):
+            with mock.patch('utils.kubeutil.KubeUtil.retrieve_deployments_list', side_effect=lambda: json.loads(Fixtures.read_file("deployments_list.json", string_escape=False))):
+                with mock.patch('utils.dockerutil.DockerUtil.get_hostname', side_effect=lambda: 'foo'):
+                    # Can't use run_check_twice due to specific metrics
+                    self.run_check(config, mocks=mocks, force_reload=True)
+                    self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL, tags=None, count=1)
 
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_json_auth')
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_metrics',
@@ -82,8 +85,12 @@ class TestKubernetes(AgentCheckTest):
                 }
             ]
         }
-        # Can't use run_check_twice due to specific metrics
-        self.run_check_twice(config, mocks=mocks, force_reload=True)
+        # parts of the json returned by the kubelet api is escaped, keep it untouched
+        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False))):
+            with mock.patch('utils.kubeutil.KubeUtil.retrieve_deployments_list', side_effect=lambda: json.loads(Fixtures.read_file("deployments_list.json", string_escape=False))):
+                with mock.patch('utils.dockerutil.DockerUtil.get_hostname', side_effect=lambda: 'foo'):
+                    # Can't use run_check_twice due to specific metrics
+                    self.run_check_twice(config, mocks=mocks, force_reload=True)
 
         expected_tags = [
             (['container_name:/kubelet', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
@@ -140,8 +147,13 @@ class TestKubernetes(AgentCheckTest):
                 }
             ]
         }
-        # Can't use run_check_twice due to specific metrics
-        self.run_check_twice(config, mocks=mocks, force_reload=True)
+
+        # parts of the json returned by the kubelet api is escaped, keep it untouched
+        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False))):
+            with mock.patch('utils.kubeutil.KubeUtil.retrieve_deployments_list', side_effect=lambda: json.loads(Fixtures.read_file("deployments_list.json", string_escape=False))):
+                with mock.patch('utils.dockerutil.DockerUtil.get_hostname', side_effect=lambda: 'foo'):
+                    # Can't use run_check_twice due to specific metrics
+                    self.run_check_twice(config, mocks=mocks, force_reload=True)
 
         metric_suffix = ["count", "avg", "median", "max", "95percentile"]
 
@@ -181,9 +193,12 @@ class TestKubernetes(AgentCheckTest):
             "instances": [{"host": "foo"}]
         }
 
-        # Can't use run_check_twice due to specific metrics
-        self.run_check(config, force_reload=True)
-        self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL)
+        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))):
+            with mock.patch('utils.kubeutil.KubeUtil.retrieve_deployments_list', side_effect=lambda: json.loads(Fixtures.read_file("deployments_list.json", string_escape=False))):
+                with mock.patch('utils.dockerutil.DockerUtil.get_hostname', side_effect=lambda: 'foo'):
+                    # Can't use run_check_twice due to specific metrics
+                    self.run_check(config, mocks=mocks, force_reload=True)
+                    self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL)
 
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_json_auth')
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_metrics',
@@ -202,8 +217,12 @@ class TestKubernetes(AgentCheckTest):
                 }
             ]
         }
-        # Can't use run_check_twice due to specific metrics
-        self.run_check_twice(config, mocks=mocks, force_reload=True)
+        # parts of the json returned by the kubelet api is escaped, keep it untouched
+        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))):
+            with mock.patch('utils.kubeutil.KubeUtil.retrieve_deployments_list', side_effect=lambda: json.loads(Fixtures.read_file("deployments_list.json", string_escape=False))):
+                with mock.patch('utils.dockerutil.DockerUtil.get_hostname', side_effect=lambda: 'foo'):
+                    # Can't use run_check_twice due to specific metrics
+                    self.run_check_twice(config, mocks=mocks, force_reload=True)
 
         expected_tags = [
             (['container_name:/kubelet', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
@@ -246,8 +265,12 @@ class TestKubernetes(AgentCheckTest):
             ]
         }
 
-        # Can't use run_check_twice due to specific metrics
-        self.run_check_twice(config, mocks=mocks, force_reload=True)
+        # parts of the json returned by the kubelet api is escaped, keep it untouched
+        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))):
+            with mock.patch('utils.kubeutil.KubeUtil.retrieve_deployments_list', side_effect=lambda: json.loads(Fixtures.read_file("deployments_list.json", string_escape=False))):
+                with mock.patch('utils.dockerutil.DockerUtil.get_hostname', side_effect=lambda: 'foo'):
+                    # Can't use run_check_twice due to specific metrics
+                    self.run_check_twice(config, mocks=mocks, force_reload=True)
 
         metric_suffix = ["count", "avg", "median", "max", "95percentile"]
 
