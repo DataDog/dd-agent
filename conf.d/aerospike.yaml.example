@@ -1,0 +1,15 @@
+init_config:
+
+instances:
+  # Specify the aerospike hostname
+  # E.g. localhost
+  - hosts: localhost
+    # tags:
+    #   - optional_tag1
+    #   - optional_tag2
+
+
+    # additional_metrics:
+    #   - holdoff
+    #   - segment
+
