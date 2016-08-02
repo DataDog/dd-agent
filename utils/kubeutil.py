@@ -7,6 +7,7 @@ from collections import defaultdict
 import logging
 import os
 from urlparse import urljoin
+import string
 
 # project
 from util import check_yaml
@@ -27,6 +28,7 @@ class KubeUtil:
     DEFAULT_METHOD = 'http'
     METRICS_PATH = '/api/v1.3/subcontainers/'
     PODS_LIST_PATH = '/pods/'
+    DEPLOYMENTS_LIST_PATH = '/apis/extensions/v1beta1/deployments'
     DEFAULT_CADVISOR_PORT = 4194
     DEFAULT_KUBELET_PORT = 10255
     DEFAULT_MASTER_PORT = 8080
@@ -68,6 +70,7 @@ class KubeUtil:
         self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
         self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
         self.kube_health_url = urljoin(self.kubelet_api_url, 'healthz')
+        self.deployments_list_url = urljoin(self.kubelet_api_url, KubeUtil.DEPLOYMENTS_LIST_PATH)
 
         # keep track of the latest k8s event we collected and posted
         # default value is 0 but TTL for k8s events is one hour anyways
@@ -90,8 +93,14 @@ class KubeUtil:
             name = metadata.get("name")
             namespace = metadata.get("namespace")
             labels = metadata.get("labels")
+
             if name and labels and namespace:
                 key = "%s/%s" % (namespace, name)
+
+                # Add deployment name (if any)
+                deployment_name = self.get_deployment_name(pod)
+                if deployment_name is not None:
+                    kube_labels[key].append(u"kube_deployment:%s" % (deployment_name))
 
                 for k, v in labels.iteritems():
                     if k in excluded_keys:
@@ -115,6 +124,24 @@ class KubeUtil:
             if value is not None:
                 uids.append(value)
         return uids
+
+    def get_deployment_name(self, pod):
+        # HACK(onbjerg):
+        # In k8s there is no direct name to link a ReplicaSet
+        # (and thus a pod) to a Deployment. Naming conventions
+        # exist for ReplicaSet created by deployments, though.
+        #
+        # In order to retrieve the deployment that created a pod
+        # we must take the pods ReplicaSet name and remove the
+        # pods template hash.
+        serialized_reference = json.loads(pod['metadata']['annotations']['kubernetes.io/created-by'])
+        if serialized_reference['reference']['kind'] == 'ReplicaSet':
+            template_hash = pod['metadata']['labels']['pod-template-hash']
+            return string.replace(serialized_reference['reference']['name'], '-' + template_hash, '')
+        return None
+
+    def retrieve_deployments_list(self):
+        return retrieve_json(self.deployments_list_url)
 
     def retrieve_pods_list(self):
         """

@@ -317,13 +317,41 @@ class Kubernetes(AgentCheck):
 
         self._update_pods_metrics(instance, pods_list)
 
+        deployment_list = self.kubeutil.retrieve_deployments_list()
+        self._update_deployment_metrics(instance, deployment_list)
+
+    def _update_deployment_metrics(self, instance, deployments):
+        deployments_map = dict()
+        for deployment in deployments['items']:
+            try:
+                pod_count = deployment['status']['replicas']
+                pod_desired_count = deployment['spec']['replicas']
+                pod_available_count = deployment['status']['availableReplicas']
+                deployments_map[deployment['metadata']['name']] = {
+                    'pods': pod_count,
+                    'desired': pod_desired_count,
+                    'available': pod_available_count,
+                    'unavailable': pod_count - pod_available_count
+                }
+            except KeyError:
+                continue
+
+        tags = instance.get('tags', [])
+        for dep, stats in deployments_map.iteritems():
+            _tags = tags[:]
+            _tags.append('kube_deployment:{0}'.format(dep))
+            self.publish_gauge(self, NAMESPACE + '.pods.running', stats.pods, _tags)
+            self.publish_gauge(self, NAMESPACE + '.pods.desired', stats.desired, _tags)
+            self.publish_gauge(self, NAMESPACE + '.pods.available', stats.available, _tags)
+            self.publish_gauge(self, NAMESPACE + '.pods.unavailable', stats.unavailable, _tags)
+
     def _update_pods_metrics(self, instance, pods):
         supported_kinds = [
             "DaemonSet",
-            "Deployment",
             "Job",
             "ReplicationController",
-            "ReplicaSet",
+            "Deployment",
+            "ReplicaSet"
         ]
 
         controllers_map = defaultdict(int)
