@@ -2,6 +2,7 @@
 import copy
 
 # 3p
+from mock import Mock
 from nose.plugins.attrib import attr
 
 # project
@@ -62,3 +63,29 @@ class WMICheckTest(AgentCheckTest):
             self.assertMetricTag(metric, tag='name:svchost#1', count=0)
             self.assertMetricTag(metric, tag='name:svchost')
             self.assertMetricTagPrefix(metric, tag_prefix='commandline:')
+
+    def test_invalid_class(self):
+        instance = copy.deepcopy(INSTANCE)
+        instance['class'] = 'Unix'
+        logger = Mock()
+
+        self.run_check({'instances': [instance]}, mocks={'log': logger})
+
+        # A warning is logged
+        self.assertEquals(logger.warning.call_count, 1)
+
+        # No metrics/service check
+        self.coverage_report()
+
+    def test_invalid_metrics(self):
+        instance = copy.deepcopy(INSTANCE)
+        instance['metrics'].append(['InvalidProperty', 'proc.will.not.be.reported', 'gauge'])
+        logger = Mock()
+
+        self.run_check({'instances': [instance]}, mocks={'log': logger})
+
+        # A warning is logged
+        self.assertEquals(logger.warning.call_count, 1)
+
+        # No metrics/service check
+        self.coverage_report()

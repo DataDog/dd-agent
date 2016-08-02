@@ -2,7 +2,6 @@
 from nose.plugins.attrib import attr
 
 # project
-from checks import AgentCheck
 from tests.checks.common import AgentCheckTest
 
 MINIMAL_INSTANCE = {
@@ -12,6 +11,10 @@ MINIMAL_INSTANCE = {
 INSTANCE = {
     'host': '.',
     'sites': ['Default Web Site', 'Test-Website-1', 'Non Existing Website'],
+}
+
+INVALID_HOST_INSTANCE = {
+    'host': 'nonexistinghost'
 }
 
 
@@ -55,8 +58,7 @@ class IISTest(AgentCheckTest):
         for metric in self.IIS_METRICS:
             self.assertMetric(metric, tags=[], count=1)
 
-        self.assertServiceCheck('iis.site_up', status=AgentCheck.OK,
-                                tags=["site:{0}".format('Total')], count=1)
+        self.assertServiceCheckOK('iis.site_up', tags=["site:{0}".format('Total')], count=1)
         self.coverage_report()
 
     def test_check_on_specific_websites(self):
@@ -67,11 +69,18 @@ class IISTest(AgentCheckTest):
             for site_tag in site_tags:
                 self.assertMetric(metric, tags=["site:{0}".format(site_tag)], count=1)
 
-        self.assertServiceCheck('iis.site_up', status=AgentCheck.OK,
-                                tags=["site:{0}".format('Default_Web_Site')], count=1)
-        self.assertServiceCheck('iis.site_up', status=AgentCheck.OK,
-                                tags=["site:{0}".format('Test_Website_1')], count=1)
-        self.assertServiceCheck('iis.site_up', status=AgentCheck.CRITICAL,
-                                tags=["site:{0}".format('Non_Existing_Website')], count=1)
+        self.assertServiceCheckOK('iis.site_up',
+                                  tags=["site:{0}".format('Default_Web_Site')], count=1)
+        self.assertServiceCheckOK('iis.site_up',
+                                  tags=["site:{0}".format('Test_Website_1')], count=1)
+        self.assertServiceCheckCritical('iis.site_up',
+                                        tags=["site:{0}".format('Non_Existing_Website')], count=1)
+
+        self.coverage_report()
+
+    def test_service_check_with_invalid_host(self):
+        self.run_check({'instances': [INVALID_HOST_INSTANCE]})
+
+        self.assertServiceCheckCritical('iis.site_up', tags=["site:{0}".format('Total')])
 
         self.coverage_report()
