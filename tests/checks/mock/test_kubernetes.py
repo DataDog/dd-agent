@@ -22,9 +22,12 @@ NET = "net"
 NET_ERRORS = "net_errors"
 DISK = "disk"
 DISK_USAGE = "disk_usage"
-PODS = "pods"
+PODS = "running_pods"
 LIM = "limits"
 REQ = "requests"
+DESIRED_PODS = "desired_pods"
+AVAILABLE_PODS = "available_pods"
+UNAVAILABLE_PODS = "unavailable_pods"
 
 METRICS = [
     ('kubernetes.memory.usage', MEM),
@@ -42,6 +45,9 @@ METRICS = [
     ('kubernetes.cpu.requests', REQ),
     ('kubernetes.memory.limits', LIM),
     ('kubernetes.memory.requests', REQ),
+    ('kubernetes.pods.desired', DESIRED_PODS),
+    ('kubernetes.pods.available', AVAILABLE_PODS),
+    ('kubernetes.pods.unavailable', UNAVAILABLE_PODS),
 ]
 
 
@@ -94,17 +100,26 @@ class TestKubernetes(AgentCheckTest):
 
         expected_tags = [
             (['container_name:/kubelet', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
+
             (['kube_replication_controller:propjoe', 'kube_namespace:default', 'container_name:k8s_POD.e4cc795_propjoe-dhdzk_default_ba151259-36e0-11e5-84ce-42010af01c62_ef0ed5f9', 'pod_name:default/propjoe-dhdzk'], [MEM, CPU, FS, NET, NET_ERRORS]),
+
             (['container_name:/kube-proxy', 'pod_name:no_pod'], [MEM, CPU, NET]),
+
             (['kube_replication_controller:kube-dns-v8', 'kube_namespace:kube-system', 'container_name:k8s_POD.2688308a_kube-dns-v8-smhcb_kube-system_b80ffab3-3619-11e5-84ce-42010af01c62_295f14ff', 'pod_name:kube-system/kube-dns-v8-smhcb'], [MEM, CPU, FS, NET, NET_ERRORS]),
+
             (['container_name:/docker-daemon', 'pod_name:no_pod'], [MEM, CPU, DISK, NET]),
+
             (['kube_replication_controller:kube-dns-v8', 'kube_namespace:kube-system', 'container_name:k8s_etcd.2e44beff_kube-dns-v8-smhcb_kube-system_b80ffab3-3619-11e5-84ce-42010af01c62_e3e504ad', 'pod_name:kube-system/kube-dns-v8-smhcb'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['kube_replication_controller:fluentd-cloud-logging-kubernetes-minion', 'kube_namespace:kube-system', 'container_name:k8s_POD.e4cc795_fluentd-cloud-logging-kubernetes-minion-mu4w_kube-system_d0feac1ad02da9e97c4bf67970ece7a1_49dd977d', 'pod_name:kube-system/fluentd-cloud-logging-kubernetes-minion-mu4w'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['kube_replication_controller:kube-dns-v8', 'kube_namespace:kube-system', 'container_name:k8s_skydns.1e752dc0_kube-dns-v8-smhcb_kube-system_b80ffab3-3619-11e5-84ce-42010af01c62_7c1345a1', 'pod_name:kube-system/kube-dns-v8-smhcb'], [MEM, CPU, FS, NET, NET_ERRORS]),
+
             (['container_name:/', 'pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['container_name:/system/docker', 'pod_name:no_pod'], [MEM, CPU, DISK, NET]),
+
             (['kube_replication_controller:propjoe', 'kube_namespace:default', 'container_name:k8s_propjoe.21f63023_propjoe-dhdzk_default_ba151259-36e0-11e5-84ce-42010af01c62_19879457', 'pod_name:default/propjoe-dhdzk'], [MEM, CPU, FS, NET, NET_ERRORS]),
+
             (['container_name:/system', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
+
             (['kube_replication_controller:kube-ui-v1', 'kube_namespace:kube-system', 'container_name:k8s_POD.3b46e8b9_kube-ui-v1-sv2sq_kube-system_b7e8f250-3619-11e5-84ce-42010af01c62_209ed1dc', 'pod_name:kube-system/kube-ui-v1-sv2sq'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['kube_replication_controller:kube-dns-v8', 'kube_namespace:kube-system', 'container_name:k8s_kube2sky.1afa6a47_kube-dns-v8-smhcb_kube-system_b80ffab3-3619-11e5-84ce-42010af01c62_624bc34c', 'pod_name:kube-system/kube-dns-v8-smhcb'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['kube_replication_controller:propjoe', 'kube_namespace:default', 'container_name:k8s_POD.e4cc795_propjoe-lkc3l_default_3a9b1759-4055-11e5-84ce-42010af01c62_45d1185b', 'pod_name:default/propjoe-lkc3l'], [MEM, CPU, FS, NET, NET_ERRORS]),
@@ -114,12 +129,20 @@ class TestKubernetes(AgentCheckTest):
             (['kube_replication_controller:propjoe','kube_namespace:default', 'container_name:k8s_propjoe.21f63023_propjoe-lkc3l_default_3a9b1759-4055-11e5-84ce-42010af01c62_9fe8b7b0', 'pod_name:default/propjoe-lkc3l'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['kube_replication_controller:kube-dns-v8','kube_namespace:kube-system', 'container_name:k8s_healthz.4469a25d_kube-dns-v8-smhcb_kube-system_b80ffab3-3619-11e5-84ce-42010af01c62_241c34d1', 'pod_name:kube-system/kube-dns-v8-smhcb'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['kube_replication_controller:fluentd-cloud-logging-kubernetes-minion','kube_namespace:kube-system', 'container_name:k8s_fluentd-cloud-logging.7721935b_fluentd-cloud-logging-kubernetes-minion-mu4w_kube-system_d0feac1ad02da9e97c4bf67970ece7a1_2c3c0879', 'pod_name:kube-system/fluentd-cloud-logging-kubernetes-minion-mu4w'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
+
             (['container_name:dd-agent', 'pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
+
             (['kube_replication_controller:l7-lb-controller'], [PODS]),
             (['kube_replication_controller:redis-slave'], [PODS]),
             (['kube_replication_controller:frontend'], [PODS]),
             (['kube_replication_controller:heapster-v11'], [PODS]),
-            ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
+
+            ([], [LIM, REQ]),  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
+
+            (['kube_deployment:heapster-v1.1.0'], [PODS]),
+            (['kube_deployment:heapster-v1.1.0'], [DESIRED_PODS]),
+            (['kube_deployment:heapster-v1.1.0'], [AVAILABLE_PODS]),
+            (['kube_deployment:heapster-v1.1.0'], [UNAVAILABLE_PODS]),
         ]
         for m, _type in METRICS:
             for tags, types in expected_tags:
@@ -171,7 +194,13 @@ class TestKubernetes(AgentCheckTest):
             (['kube_replication_controller:redis-slave'], [PODS]),
             (['kube_replication_controller:frontend'], [PODS]),
             (['kube_replication_controller:heapster-v11'], [PODS]),
-            ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
+
+            ([], [LIM, REQ]),  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
+
+            (['kube_deployment:heapster-v1.1.0'], [PODS]),
+            (['kube_deployment:heapster-v1.1.0'], [DESIRED_PODS]),
+            (['kube_deployment:heapster-v1.1.0'], [AVAILABLE_PODS]),
+            (['kube_deployment:heapster-v1.1.0'], [UNAVAILABLE_PODS]),
         ]
 
         for m, _type in METRICS:
@@ -235,7 +264,13 @@ class TestKubernetes(AgentCheckTest):
               'pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar',
               'kube_bar:baz', 'kube_replication_controller:dd-agent'], [LIM, REQ, MEM, CPU, NET, DISK, DISK_USAGE]),
             (['kube_replication_controller:dd-agent'], [PODS]),
-            ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
+
+            ([], [LIM, REQ]),  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
+
+            (['kube_deployment:heapster-v1.1.0'], [PODS]),
+            (['kube_deployment:heapster-v1.1.0'], [DESIRED_PODS]),
+            (['kube_deployment:heapster-v1.1.0'], [AVAILABLE_PODS]),
+            (['kube_deployment:heapster-v1.1.0'], [UNAVAILABLE_PODS]),
         ]
 
         for m, _type in METRICS:
@@ -279,8 +314,14 @@ class TestKubernetes(AgentCheckTest):
               'kube_bar:baz',
               'kube_replication_controller:dd-agent'], [MEM, CPU, NET, DISK, NET_ERRORS, DISK_USAGE, LIM, REQ]),
             (['pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
+
             (['kube_replication_controller:dd-agent'], [PODS]),
-            ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
+            ([], [LIM, REQ]),  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
+
+            (['kube_deployment:heapster-v1.1.0'], [PODS]),
+            (['kube_deployment:heapster-v1.1.0'], [DESIRED_PODS]),
+            (['kube_deployment:heapster-v1.1.0'], [AVAILABLE_PODS]),
+            (['kube_deployment:heapster-v1.1.0'], [UNAVAILABLE_PODS]),
         ]
 
         for m, _type in METRICS:
