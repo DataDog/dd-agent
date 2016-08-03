@@ -10,12 +10,12 @@ environment:
   SKIP_LINT: true
   matrix:
   - PYTHON: C:\\Python27
-    PYTHON_VERSION: 2.7.9
+    PYTHON_VERSION: 2.7.12
     PYTHON_ARCH: 32
     PYWIN32_URL: https://downloads.sourceforge.net/project/pywin32/pywin32/Build%20219/pywin32-219.win32-py2.7.exe
     PYWIN32_INSTALL_DIR: pywin32-219-py2.7-win32.egg
   - PYTHON: C:\\Python27-x64
-    PYTHON_VERSION: 2.7.9
+    PYTHON_VERSION: 2.7.12
     PYTHON_ARCH: 64
     PYWIN32_URL: http://sourceforge.net/projects/pywin32/files/pywin32/Build%20219/pywin32-219.win-amd64-py2.7.exe/download
     PYWIN32_INSTALL_DIR: pywin32-219-py2.7-win-amd64.egg
@@ -43,6 +43,7 @@ install:
 build: off
 test_script:
   - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+  - python --version
   - bundle exec rake ci:run[default]
   - bundle exec rake ci:run[core_integration]
   - bundle exec rake ci:run[windows]
