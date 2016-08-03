@@ -7,6 +7,7 @@ instances:
     # port: 3306             # Optional
     # sock: /path/to/sock    # Connect via Unix Socket
     # defaults_file: my.cnf  # Alternate configuration mechanism
+    # connect_timeout: None  # Optional integer seconds
     # tags:                  # Optional
     #   - optional_tag1
     #   - optional_tag2
