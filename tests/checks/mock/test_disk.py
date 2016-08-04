@@ -168,6 +168,20 @@ class TestCheckDisk(AgentCheckTest):
 
         self.coverage_report()
 
+    @mock.patch('utils.subprocess_output.get_subprocess_output',
+                return_value=(Fixtures.read_file('centos-df-Tk'), "", 0))
+    @mock.patch('os.statvfs', return_value=MockInodesMetrics())
+    def test_no_psutil_centos(self, mock_df_output, mock_statvfs):
+        self.run_check({'instances': [{'use_mount': 'no',
+                                       'excluded_filesystems': ['devfs', 'tmpfs'],
+                                       'excluded_disks': ['/dev/sda1']}]},
+                       mocks={'_psutil': lambda: False})
+        for device in ['/dev/sda3', '10.1.5.223:/vil/cor']:
+            for metric, _ in self.GAUGES_VALUES.iteritems():
+                self.assertMetric(metric, tags=[], device_name=device)
+
+        self.coverage_report()
+
     def test_legacy_option(self):
         # First, let's check that it actually retrieves from the agent config
         self.load_check({'instances': [{}]}, agent_config={'use_mount': 'yes'})

@@ -250,7 +250,7 @@ class Disk(AgentCheck):
         for parts in devices:
             if len(parts) == 1:
                 previous = parts[0]
-            elif previous and self._is_number(parts[0]):
+            elif previous is not None:
                 # collate with previous line
                 parts.insert(0, previous)
                 previous = None
