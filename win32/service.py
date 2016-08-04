@@ -12,13 +12,14 @@ http://ryrobes.com/python/running-python-scripts-as-a-windows-service/
 """
 # stdlib
 import os
+import socket
+import select
 import logging
-import signal
-import time
 
 # 3p
 import psutil
 import win32api
+import subprocess
 import win32event
 import win32service
 import win32serviceutil
@@ -66,6 +67,7 @@ class AgentService(win32serviceutil.ServiceFramework):
     h_wait_stop = win32event.CreateEvent(None, 0, 0, None)
 
     def __init__(self, args):
+
         win32serviceutil.ServiceFramework.__init__(self, args)
 
         current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -88,31 +90,32 @@ class AgentService(win32serviceutil.ServiceFramework):
 
     def SvcStop(self):
         """ Called when Windows wants to stop the service """
-        if self._is_supervisor_alive():
-            logging.info("Stopping supervisor...")
+        # Happy endings
+        if self.proc is not None:
+            logging.info("Killing supervisor...")
             # Soft termination based on TCP sockets to handle communication between the service
             # layer and the Windows supervisor
-            self.proc.send_signal(signal.CTRL_C_EVENT)
-            for _ in xrange(10):
-                if self._is_supervisor_alive():
-                    time.sleep(1)
-                else:
-                    break
-            if self._is_supervisor_alive():
-                # Ok some processes didn't want to die apparently, let's take care of them the hard
-                # way !
-                logging.warning("Killing supervisor and all agent processes")
-                agent_processes = self.proc.children(recursive=True)
+            supervisor_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            supervisor_sock.connect(('localhost', 9001))
 
-                self.proc.kill()
-                for p in agent_processes:
+            supervisor_sock.send("die".encode())
+
+            rlist, wlist, xlist = select.select([supervisor_sock], [], [], 15)
+            if rlist:
+                logging.info("The supervisor and all its subprocesses exited accordingly :)")
+            else:
+                # Ok some processes didn't want to die apparently, let's take care og them the hard
+                # way !
+                logging.warning("Some processes wouldn't exit... they're going to be force killed.")
+                parent = psutil.Process(self.proc.pid)
+                children = parent.children(recursive=True)
+
+                for p in [parent] + children:
                     p.kill()
 
-            logging.info("All the agent processes stopped")
-        else:
-            logging.info('Supervisor is already stopped (or never started)')
+            logging.info("The supervisor and all his child processes are turned off, sleep well !")
 
-        # We can quit quietly now
+        # We can sleep quietly now
         win32event.SetEvent(self.h_wait_stop)
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
 
@@ -127,7 +130,7 @@ class AgentService(win32serviceutil.ServiceFramework):
         # appropriate log file. This program also logs a minimalistic set of
         # lines in the same supervisor.log.
 
-        logging.info("Starting Supervisor")
+        logging.info("Starting Supervisor!")
 
         # Since we don't call terminate here, the execution of the supervisord
         # will be performed in a non blocking way. If an error is triggered
@@ -143,7 +146,7 @@ class AgentService(win32serviceutil.ServiceFramework):
             if not os.path.isfile(embedded_python):
                 embedded_python = "python"
 
-            self.proc = psutil.Popen([embedded_python, "windows_supervisor.py", "start", "server"])
+            self.proc = subprocess.Popen([embedded_python, "windows_supervisor.py", "start", "server"])
         except WindowsError as e:
             logging.exception("WindowsError occured when starting our supervisor :\n\t"
                               "[Errno {1}] {0}".format(e.strerror, e.errno))
@@ -154,24 +157,18 @@ class AgentService(win32serviceutil.ServiceFramework):
             self.SvcStop()
             return
 
-        logging.info("Supervisor started")
+        logging.info("Supervisor started!")
 
         # Let's wait for our user to send a sigkill. We can't have RunSvc exit
         # before we actually kill our subprocess (the while True is just a
         # paranoia check in case win32event.INFINITE isn't really... infinite)
         while True:
-            rc = win32event.WaitForSingleObject(self.h_wait_stop, 1000)
+            rc = win32event.WaitForSingleObject(self.h_wait_stop, win32event.INFINITE)
             if rc == win32event.WAIT_OBJECT_0:
                 logging.info("Service stop requested")
                 break
-            elif rc == win32event.WAIT_TIMEOUT and not self._is_supervisor_alive():
-                self.SvcStop()
-                break
 
         logging.info("Service stopped")
-
-    def _is_supervisor_alive(self):
-        return self.proc is not None and self.proc.is_running()
 
 
 if __name__ == '__main__':
