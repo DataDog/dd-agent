@@ -7,6 +7,7 @@ Collects network metrics.
 """
 # stdlib
 import re
+from subprocess import check_output
 
 # project
 from checks import AgentCheck
@@ -276,6 +277,10 @@ class Network(AgentCheck):
             # On Openshift, /proc/net/snmp is only readable by root
             self.log.debug("Unable to read %s.", proc_snmp_path)
 
+        # SocktStat metrics
+        for metric, value in Network._linux_sockstat().items():
+            self.gauge(metric, value)
+
     # Parse the output of the command that retrieves the connection state (either `ss` or `netstat`)
     # Returns a dict metric_name -> value
     def _parse_linux_cx_state(self, lines, tcp_states, state_col, ip_version=None):
@@ -515,3 +520,117 @@ class Network(AgentCheck):
             metrics_by_interface[iface] = metrics
 
         return metrics_by_interface
+
+    @staticmethod
+    def _linux_sockstat_get_conntrack_max():
+        proc_name = '/proc/sys/net/ipv4/ip_conntrack_max'
+        try:
+            proc = open(proc_name,'r')
+            try:
+                lines = proc.readline()
+            finally:
+                proc.close()
+            return int(lines)
+        except IOError:
+            return 0
+
+    @staticmethod
+    def _linux_sockstat_get_conntrack_count():
+        proc_name = '/proc/sys/net/ipv4/netfilter/ip_conntrack_count'
+        try:
+            proc = open(proc_name,'r')
+            try:
+                lines = proc.readline()
+            finally:
+                proc.close()
+            return int(lines)
+        except IOError:
+            return 0
+
+    @staticmethod
+    def _linux_sockstat_get_max_orphans(self):
+        proc_name = '/proc/sys/net/ipv4/tcp_max_orphans'
+        try:
+            proc = open(proc_name,'r')
+            try:
+                lines = proc.readline()
+            finally:
+                proc.close()
+            return int(lines)
+        except IOError:
+            self.log.debug("Unable to read %s." % proc_name)
+
+    @staticmethod
+    def _linux_sockstat_get_size_of_page():
+        return long(check_output(["/usr/bin/getconf", "PAGESIZE"]))
+
+    @staticmethod
+    def _linux_sockstat_get_max_memory(self):
+        sizeOfPageInBytes = Network._linux_sockstat_get_size_of_page()
+        tcpMemFilePath = '/proc/sys/net/ipv4/tcp_mem'
+        try:
+            proc = open(tcpMemFilePath,'r')
+            try:
+                tcpmem = proc.readlines()
+            finally:
+                proc.close()
+
+        except IOError:
+            self.log.debug("Unable to read %s." % tcpMemFilePath)
+        tcpmemline = tcpmem[0].split()
+        maxMemoryInBytes = sizeOfPageInBytes * tcpmemline[2]
+        return long(maxMemoryInBytes)
+
+    @staticmethod
+    def _linux_sockstat(self):
+        proc_name = '/proc/net/sockstat'
+        try:
+            proc = open(proc_name,'r')
+            try:
+                lines = proc.read()
+            finally:
+                proc.close()
+            reg = re.compile("sockets: used (?P<sockets_used>\d+)\n"
+                        "TCP: inuse (?P<tcp_inuse>\d+) orphan (?P<orphans>\d+)"
+                        " tw (?P<tw_count>\d+) alloc (?P<tcp_sockets>\d+)"
+                        " mem (?P<tcp_pages>\d+)\n"
+                        "UDP: inuse (?P<udp_inuse>\d+)"
+                        "(?: mem (?P<udp_pages>\d+))?\n"
+                        "(?:UDPLITE: inuse (?P<udplite_inuse>\d+)\n)?"
+                        "RAW: inuse (?P<raw_inuse>\d+)\n"
+                        "FRAG: inuse (?P<ip_frag_nqueues>\d+)"
+                        " memory (?P<ip_frag_mem>\d+)\n")
+            match = re.match(reg, lines)
+            if not match:
+                self.log.debug("Unable to parse %s." % proc_name)
+                return
+
+            values = []
+            values.append(match.group("sockets_used"))
+            values.append(match.group("tcp_inuse"))
+            values.append(match.group("orphans"))
+            values.append(match.group("tw_count"))
+            values.append(match.group("tcp_sockets"))
+            values.append(match.group("tcp_pages"))
+            values.append(match.group("udp_inuse"))
+            values.append(match.group("udp_pages"))
+            values.append(match.group("udplite_inuse"))
+            values.append(match.group("raw_inuse"))
+            values.append(match.group("ip_frag_nqueues"))
+            values.append(match.group("ip_frag_mem"))
+            metric_names = ['sockstat.sockets.used','sockstat.sockets.tcp.inuse','sockstat.sockets.tcp.orphan','sockstat.sockets.tcp.tw ','sockstat.sockets.tcp.alloc','sockstat.sockets.tcp.mem','sockstat.sockets.udp.inuse','sockstat.sockets.udp.mem','sockstat.sockets.udp.lite','sockstat.sockets.raw.inuse','sockstat.sockets.frag.inuse','sockstat.sockets.frag.memory']
+            metrics = dict(zip(metric_names,values))
+            tcpMem = long(metrics['sockstat.sockets.tcp.alloc']) * Network._linux_sockstat_get_size_of_page()
+            metrics['linux.kernel.tcp.memorypercentused'] = (long(tcpMem) / Network._linux_sockstat_get_max_memory()) * 100
+            metrics['linux.kernel.tcp.orphanthresholdpercentage'] = ((long(metrics['sockstat.sockets.tcp.orphan']) * 4) / Network._linux_sockstat_get_max_orphans()) * 100
+            metrics['linux.netfilter.conntrack.count'] = Network._linux_sockstat_get_conntrack_count()
+            metrics['linux.netfilter.conntrack.max'] = Network._linux_sockstat_get_conntrack_max()
+            print metrics
+            return metrics
+        except IOError:
+            self.log.debug("Unable to read %s." % proc_name)
+
+
+if __name__ == '__main__':
+    # For tests porposes
+    Network._linux_sockstat()
