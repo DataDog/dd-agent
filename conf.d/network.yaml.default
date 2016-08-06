@@ -4,6 +4,8 @@
 
 init_config:
 
+# On Windows, instance configuration will be ignored, still an
+# instance must be listed here to enable the check.
 instances:
   # Network check only supports one configured instance
   - collect_connection_state: false

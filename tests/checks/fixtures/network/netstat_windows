@@ -1,0 +1,118 @@
+
+Active Connections
+
+  Proto  Local Address          Foreign Address        State
+  TCP    0.0.0.0:80             0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:443            0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:445            0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:1080           0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:1087           0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:3306           0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:3389           0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:9200           0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:9201           0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:9202           0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49152          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49153          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49154          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49664          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49665          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49666          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49668          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49677          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49681          0.0.0.0:0              LISTENING
+  TCP    127.0.0.1:1087         127.0.0.1:51285        ESTABLISHED
+  TCP    127.0.0.1:17123        0.0.0.0:0              LISTENING
+  TCP    127.0.0.1:49678        127.0.0.1:49679        ESTABLISHED
+  TCP    127.0.0.1:49679        127.0.0.1:49678        ESTABLISHED
+  TCP    127.0.0.1:51285        127.0.0.1:1087         ESTABLISHED
+  TCP    192.168.168.67:139     0.0.0.0:0              LISTENING
+  TCP    192.168.168.67:1080    192.168.168.114:41221  ESTABLISHED
+  TCP    192.168.168.67:1080    192.168.168.114:55193  ESTABLISHED
+  TCP    192.168.168.67:49689   191.232.139.100:443    ESTABLISHED
+  TCP    192.168.168.67:49720   52.49.14.91:22         ESTABLISHED
+  TCP    192.168.168.67:49722   52.48.111.96:22        ESTABLISHED
+  TCP    192.168.168.67:54876   207.46.7.252:80        ESTABLISHED
+  TCP    192.168.168.67:54877   92.123.142.202:80      ESTABLISHED
+  TCP    192.168.168.67:54879   104.82.186.227:80      ESTABLISHED
+  TCP    192.168.168.67:54883   104.82.216.24:443      ESTABLISHED
+  TCP    192.168.168.67:54885   168.62.105.45:443      ESTABLISHED
+  TCP    192.168.168.67:54889   65.52.55.39:443        ESTABLISHED
+  TCP    192.168.168.67:54890   65.52.55.39:443        ESTABLISHED
+  TCP    192.168.168.67:54892   65.52.55.39:443        ESTABLISHED
+  TCP    192.168.168.67:54893   65.52.55.39:443        ESTABLISHED
+  TCP    192.168.168.67:54894   65.52.55.39:443        ESTABLISHED
+  TCP    192.168.168.67:54895   65.52.55.39:443        ESTABLISHED
+  TCP    192.168.168.67:54896   65.52.0.51:5671        ESTABLISHED
+  TCP    [::]:80                [::]:0                 LISTENING
+  TCP    [::]:135               [::]:0                 LISTENING
+  TCP    [::]:443               [::]:0                 LISTENING
+  TCP    [::]:445               [::]:0                 LISTENING
+  TCP    [::]:3389              [::]:0                 LISTENING
+  TCP    [::]:49152             [::]:0                 LISTENING
+  TCP    [::]:49153             [::]:0                 LISTENING
+  TCP    [::]:49154             [::]:0                 LISTENING
+  TCP    [::]:49664             [::]:0                 LISTENING
+  TCP    [::]:49665             [::]:0                 LISTENING
+  TCP    [::]:49666             [::]:0                 LISTENING
+  TCP    [::]:49668             [::]:0                 LISTENING
+  TCP    [::]:49677             [::]:0                 LISTENING
+  TCP    [::]:49681             [::]:0                 LISTENING
+  TCP    [::1]:17123            [::]:0                 LISTENING
+  TCP    [::1]:49154            [::1]:49764            ESTABLISHED
+  TCP    [::1]:49154            [::1]:49803            ESTABLISHED
+  TCP    [::1]:49154            [::1]:54878            FIN_WAIT_2
+  TCP    [::1]:49154            [::1]:54882            ESTABLISHED
+  TCP    [::1]:49154            [::1]:54884            ESTABLISHED
+  TCP    [::1]:49154            [::1]:54888            ESTABLISHED
+  TCP    [::1]:49764            [::1]:49154            ESTABLISHED
+  TCP    [::1]:49803            [::1]:49154            ESTABLISHED
+  TCP    [::1]:54833            [::1]:49154            TIME_WAIT
+  TCP    [::1]:54834            [::1]:49154            TIME_WAIT
+  TCP    [::1]:54836            [::1]:49154            TIME_WAIT
+  TCP    [::1]:54842            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54843            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54846            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54848            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54850            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54852            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54853            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54856            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54858            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54860            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54862            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54863            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54866            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54868            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54870            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54872            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54873            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54878            [::1]:49154            CLOSE_WAIT
+  TCP    [::1]:54880            [::1]:49152            TIME_WAIT
+  TCP    [::1]:54881            [::1]:49152            TIME_WAIT
+  TCP    [::1]:54882            [::1]:49154            ESTABLISHED
+  TCP    [::1]:54884            [::1]:49154            ESTABLISHED
+  TCP    [::1]:54886            [::1]:49152            TIME_WAIT
+  TCP    [::1]:54887            [::1]:49152            TIME_WAIT
+  TCP    [::1]:54888            [::1]:49154            ESTABLISHED
+  TCP    [::1]:54891            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54898            [::1]:17123            TIME_WAIT
+  TCP    [::1]:54900            [::1]:17123            TIME_WAIT
+  UDP    0.0.0.0:3389           *:*
+  UDP    0.0.0.0:5353           *:*
+  UDP    0.0.0.0:5355           *:*
+  UDP    127.0.0.1:1900         *:*
+  UDP    127.0.0.1:8125         *:*
+  UDP    127.0.0.1:64820        *:*
+  UDP    192.168.168.67:137     *:*
+  UDP    192.168.168.67:138     *:*
+  UDP    192.168.168.67:1900    *:*
+  UDP    192.168.168.67:64819   *:*
+  UDP    [::]:3389              *:*
+  UDP    [::]:5353              *:*
+  UDP    [::]:5355              *:*
+  UDP    [::1]:1900             *:*
+  UDP    [::1]:64818            *:*
+  UDP    [fe80::e49f:4666:26ba:1dea%3]:1900  *:*
+  UDP    [fe80::e49f:4666:26ba:1dea%3]:64817  *:*
