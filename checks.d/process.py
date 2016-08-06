@@ -33,7 +33,8 @@ ATTR_TO_METRIC = {
     'r_bytes':          'ioread_bytes',  # FIXME: namespace me correctly (6.x) io.w_count
     'w_bytes':          'iowrite_bytes',  # FIXME: namespace me correctly (6.x) io.w_bytes
     'ctx_swtch_vol':    'voluntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.voluntary
-    'ctx_swtch_invol':  'involuntary_ctx_switches'  # FIXME: namespace me correctly (6.x), ctx_swt.involuntary
+    'ctx_swtch_invol':  'involuntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.involuntary
+    'run_time':         'run_time'
 }
 
 ATTR_TO_METRIC_RATE = {
@@ -263,6 +264,13 @@ class ProcessCheck(AgentCheck):
                 st['majflt'].append(None)
                 st['cmajflt'].append(None)
 
+            #calculate process run time
+            create_time = self.psutil_wrapper(p, 'create_time', None)
+            if create_time is not None:
+                now = time.time()
+                run_time = now - create_time
+                st['run_time'].append(run_time)
+
         return st
 
     def get_pagefault_stats(self, pid):
@@ -328,8 +336,14 @@ class ProcessCheck(AgentCheck):
             vals = [x for x in proc_state[attr] if x is not None]
             # skip []
             if vals:
+                if attr == 'run_time':
+                    self.gauge('system.processes.%s.avg' % mname, sum(vals)/len(vals), tags=tags)
+                    self.gauge('system.processes.%s.max' % mname, max(vals), tags=tags)
+                    self.gauge('system.processes.%s.min' % mname, min(vals), tags=tags)
+
                 # FIXME 6.x: change this prefix?
-                self.gauge('system.processes.%s' % mname, sum(vals), tags=tags)
+                else:
+                    self.gauge('system.processes.%s' % mname, sum(vals), tags=tags)
 
         for attr, mname in ATTR_TO_METRIC_RATE.iteritems():
             vals = [x for x in proc_state[attr] if x is not None]
