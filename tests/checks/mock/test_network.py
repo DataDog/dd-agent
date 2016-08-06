@@ -18,6 +18,9 @@ def netstat_subprocess_mock(*args, **kwargs):
     elif args[0][0] == 'netstat':
         return (Fixtures.read_file('netstat'), "", 0)
 
+def netstat_windows_subprocess_mock(*args, **kwargs):
+    return (Fixtures.read_file('netstat_windows'), "", 0)
+
 
 class TestCheckNetwork(AgentCheckTest):
     CHECK_NAME = 'network'
@@ -63,4 +66,21 @@ class TestCheckNetwork(AgentCheckTest):
 
         # Assert metrics
         for metric, value in self.CX_STATE_GAUGES_VALUES.iteritems():
+            self.assertMetric(metric, value=value)
+
+    @mock.patch('network.get_subprocess_output', side_effect=netstat_windows_subprocess_mock)
+    @mock.patch('network.Platform.is_linux', return_value=False)
+    @mock.patch('network.Platform.is_bsd', return_value=False)
+    @mock.patch('network.Platform.is_solaris', return_value=False)
+    @mock.patch('network.Platform.is_windows', return_value=True)
+    def test_cx_state_windows_netstat(self, mock_subprocess, mock_platform_linux, mock_platform_bsd, mock_platform_solaris, mock_platform_windows):
+        self.run_check({})
+
+        WINDOWS_STATE_GAUGES_VALUES = {
+            'system.net.tcp4.listening': 21,
+            'system.net.udp4.connections': 10,
+            'system.net.udp6.connections': 7,
+        }
+
+        for metric, value in WINDOWS_STATE_GAUGES_VALUES.iteritems():
             self.assertMetric(metric, value=value)
