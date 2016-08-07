@@ -375,7 +375,11 @@ class MySql(AgentCheck):
             ssl = dict(ssl) if ssl else None
 
             if defaults_file != '':
-                db = pymysql.connect(read_default_file=defaults_file, ssl=ssl)
+                db = pymysql.connect(
+                    read_default_file=defaults_file,
+                    ssl=ssl,
+                    connect_timeout=connect_timeout
+                )
             elif mysql_sock != '':
                 self.service_check_tags = [
                     'server:{0}'.format(mysql_sock),
