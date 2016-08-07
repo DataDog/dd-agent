@@ -84,9 +84,9 @@ class Kubernetes(AgentCheck):
                     is_ok = False
 
         except Exception as e:
-            self.log.warning('kubelet check failed: %s' % str(e))
+            self.log.warning('kubelet check %s failed: %s' % (url, str(e)))
             self.service_check(service_check_base, AgentCheck.CRITICAL,
-                               message='Kubelet check failed: %s' % str(e))
+                               message='Kubelet check %s failed: %s' % (url, str(e)))
 
         else:
             if is_ok:
