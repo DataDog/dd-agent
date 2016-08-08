@@ -35,3 +35,11 @@ instances:
     #   - metrics.commands
     #   - tcmalloc
     #   - top
+    #
+    # Collect metrics on specific collections from the database specified
+    # Each collection generates many metrics,
+    # up to 8 + the number of indices on the collection for each collection
+    # collections:
+    #   - my_collection
+    #   - my_other_collection
+    #

@@ -335,6 +335,18 @@ class MongoDb(AgentCheck):
         "writeLock.time": GAUGE,
     }
 
+    COLLECTION_METRICS = {
+        'collection.size': GAUGE,
+        'collection.avgObjSize': GAUGE,
+        'collection.count': GAUGE,
+        'collection.capped': GAUGE,
+        'collection.max': GAUGE,
+        'collection.maxSize': GAUGE,
+        'collection.storageSize': GAUGE,
+        'collection.nindexes': GAUGE,
+        'collection.indexSizes': GAUGE,
+    }
+
     """
     Mapping for case-sensitive metric name suffixes.
 
@@ -364,6 +376,7 @@ class MongoDb(AgentCheck):
         'metrics.commands': COMMANDS_METRICS,
         'tcmalloc': TCMALLOC_METRICS,
         'top': TOP_METRICS,
+        'collection': COLLECTION_METRICS,
     }
 
     # Replication states
@@ -393,6 +406,10 @@ class MongoDb(AgentCheck):
 
         # List of metrics to collect per instance
         self.metrics_to_collect_by_instance = {}
+
+        self.collection_metrics_names = []
+        for (key, value) in self.COLLECTION_METRICS.iteritems():
+            self.collection_metrics_names.append(key.split('.')[1])
 
     def get_library_versions(self):
         return {"pymongo": pymongo.version}
@@ -508,7 +525,6 @@ class MongoDb(AgentCheck):
         submit_method = metrics_to_collect[original_metric_name][0] \
             if isinstance(metrics_to_collect[original_metric_name], tuple) \
             else metrics_to_collect[original_metric_name]
-
         metric_name = metrics_to_collect[original_metric_name][1] \
             if isinstance(metrics_to_collect[original_metric_name], tuple) \
             else original_metric_name
@@ -592,6 +608,7 @@ class MongoDb(AgentCheck):
 
         # Get the list of metrics to collect
         additional_metrics = instance.get('additional_metrics', [])
+
         collect_tcmalloc_metrics = 'tcmalloc' in additional_metrics
         metrics_to_collect = self._get_metrics_to_collect(
             server,
@@ -874,3 +891,35 @@ class MongoDb(AgentCheck):
 
         else:
             self.log.debug('"local" database not in dbnames. Not collecting ReplicationInfo metrics')
+
+        # get collection level stats
+        try:
+            # Ensure that you're on the right db
+            db = cli[db_name]
+            # grab the collections from the configutation
+            coll_names = instance.get('collections', [])
+            # loop through the collections
+            for coll_name in coll_names:
+                # grab the stats from the collection
+                stats = db.command("collstats", coll_name)
+                # loop through the metrics
+                for m in self.collection_metrics_names:
+                    coll_tags = tags + ["db:%s" % db_name, "collection:%s" % coll_name]
+                    value = stats[m]
+
+                    # if it's the index sizes, then it's a dict.
+                    if m == 'indexSizes':
+                        # loop through the indexes
+                        for (idx, val) in value.iteritems():
+                            # we tag the index
+                            idx_tags = coll_tags + ["index:%s" % idx]
+                            submit_method, metric_name_alias = \
+                                self._resolve_metric('collection.%s' % m, metrics_to_collect)
+                            submit_method(self, metric_name_alias, val, tags=idx_tags)
+                    else:
+                        submit_method, metric_name_alias = \
+                            self._resolve_metric('collection.%s' % '.'.join(m), metrics_to_collect)
+                        submit_method(self, metric_name_alias, value, tags=coll_tags)
+        except Exception as e:
+            self.log.warning(u"Failed to record `collection` metrics.")
+            self.log.exception(e)
