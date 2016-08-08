@@ -48,6 +48,13 @@ instances:
     #
     # collect_response_time: true
 
+    # The (optional) follow_redirects will instruct the check on how to handle
+    # redirects. If set to false, the check will not follow redirects and
+    # return the redirect HTTP response code
+    # Defaults to true
+    #
+    # follow_redirects: true
+
     # The (optional) disable_ssl_validation will instruct the check
     # to skip the validation of the SSL certificate of the URL being tested.
     # This is mostly useful when checking SSL connections signed with
