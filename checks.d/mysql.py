@@ -896,13 +896,19 @@ class MySql(AgentCheck):
         try:
             with closing(db.cursor()) as cursor:
                 cursor.execute("SHOW /*!50000 ENGINE*/ INNODB STATUS")
-                innodb_status = cursor.fetchone()
-                innodb_status_text = innodb_status[2]
         except (pymysql.err.InternalError, pymysql.err.OperationalError, pymysql.err.NotSupportedError) as e:
             self.warning("Privilege error or engine unavailable accessing the INNODB status \
                          tables (must grant PROCESS): %s" % str(e))
             return {}
 
+        if (cursor.rowcount < 1)
+            # No data from SHOW ENGINE STATUS, even though the engine is enabled.
+            # EG: This could be an Aurora Read Instance
+            self.warning("'SHOW ENGINE INNODB STATUS' returned no data.")
+            return {}
+
+        innodb_status = cursor.fetchone()
+        innodb_status_text = innodb_status[2]
         results = defaultdict(int)
 
         # Here we now parse InnoDB STATUS one line at a time
