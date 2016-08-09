@@ -216,6 +216,11 @@ class DockerDaemon(AgentCheck):
             # Other options
             self.collect_image_stats = _is_affirmative(instance.get('collect_images_stats', False))
             self.collect_container_size = _is_affirmative(instance.get('collect_container_size', False))
+            self.collect_container_count = _is_affirmative(instance.get('collect_container_count', False))
+            self.collect_dead_container_count = _is_affirmative(instance.get('collect_dead_container_count', False))
+            self.collect_exited_container_count = _is_affirmative(instance.get('collect_exited_container_count', False))
+            self.collect_volume_count = _is_affirmative(instance.get('collect_volume_count', False))
+            self.collect_dangling_volume_count = _is_affirmative(instance.get('collect_dangling_volume_count', False))
             self.collect_events = _is_affirmative(instance.get('collect_events', True))
             self.collect_image_size = _is_affirmative(instance.get('collect_image_size', False))
             self.collect_disk_stats = _is_affirmative(instance.get('collect_disk_stats', False))
@@ -270,6 +275,21 @@ class DockerDaemon(AgentCheck):
 
         if self.collect_container_size:
             self._report_container_size(containers_by_id)
+
+        if self.collect_container_count:
+            self._report_container_count_by_state(containers_by_id)
+
+        if self.collect_dead_container_count:
+            self._report_container_count_by_state(containers_by_id, state="Dead")
+
+        if self.collect_exited_container_count:
+            self._report_container_count_by_state(containers_by_id, state="Exited")
+
+        if self.collect_volume_count:
+            self._report_volume_count()
+
+        if self.collect_dangling_volume_count:
+            self._report_volume_count(filters={'dangling': True})
 
         # Collect disk stats from Docker info command
         if self.collect_disk_stats:
@@ -503,7 +523,6 @@ class DockerDaemon(AgentCheck):
             tags = self._get_tags(container, PERFORMANCE)
             m_func = FUNC_MAP[GAUGE][self.use_histogram]
             if "SizeRw" in container:
-
                 m_func(self, 'docker.container.size_rw', container['SizeRw'],
                        tags=tags)
             if "SizeRootFs" in container:
@@ -539,6 +558,27 @@ class DockerDaemon(AgentCheck):
 
         tags = self._get_tags(container, CONTAINER)
         self.service_check(HEALTHCHECK_SERVICE_CHECK_NAME, status, tags=tags)
+
+    def _report_container_count_by_state(self, containers_by_id, state="Any"):
+        count = 0
+        tags = {}
+        filterlambda = lambda x: not self._is_container_excluded(x) and state is "Any" or container["State"] is state
+        filtered = list(filter(filterlambda, containers_by_id))
+        tags = self._get_tags(filtered[0], PERFORMANCE)
+
+        m_func = FUNC_MAP[GAUGE][self.use_histogram]
+        # Report docker.container.count if state is "Any", otherwise
+        # report docker.container.state_STATE.count
+        suffix = ".state_{}".format(state.lower()) if state is not "Any" else ""
+        m_func(self, 'docker.container{}.count'.format(suffix), len(filtered), tags=tags)
+
+    def _report_volume_count(self, filters={}):
+        volumes = self.docker_client.volumes(filters=filters)
+        count = len(volumes['Volumes'])
+
+        m_func = FUNC_MAP[GAUGE][self.use_histogram]
+        suffix = '.' + '-'.join(sorted(filters.keys())) if len(filters) is not 0 else ''
+        m_func(self, 'docker.volumes{}.count'.format(suffix), count)
 
     def _report_image_size(self, images):
         for image in images:
