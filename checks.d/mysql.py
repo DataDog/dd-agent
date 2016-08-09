@@ -901,7 +901,7 @@ class MySql(AgentCheck):
                          tables (must grant PROCESS): %s" % str(e))
             return {}
 
-        if (cursor.rowcount < 1)
+        if cursor.rowcount < 1:
             # No data from SHOW ENGINE STATUS, even though the engine is enabled.
             # EG: This could be an Aurora Read Instance
             self.warning("'SHOW ENGINE INNODB STATUS' returned no data.")
