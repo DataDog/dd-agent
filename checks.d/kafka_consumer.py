@@ -29,6 +29,41 @@ class KafkaCheck(AgentCheck):
         self.kafka_timeout = int(
             init_config.get('kafka_timeout', DEFAULT_KAFKA_TIMEOUT))
 
+    def _get_all_consumers_offsets(zk_conn, zk_prefix):
+        consumer_offsets = {}
+        topics = defaultdict(set)
+        consumers_zk_path = zk_path + '/consumers/
+        for consumer_group in zk_conn.get_children(consumers_zk_path):
+            consumer_offsets_path = consumers_zk_path + consumer_group + '/offsets'
+            for topic in zk_conn.get_children(consumer_offsets_path):
+                consumer_topics_path = consumer_offsets_path + '/' topic
+                for partition in zk_conn.get_children(consumer_topics_path):
+                    try:
+                       consumer_offset = int(zk_conn.get(consumer_topics_path + '/' + partition)[0])
+                       key = (consumer_group, topic, partition)
+                       consumer_offsets[key] = consumer_offset
+                    except Exception:
+                           self.log.exception('Could not read consumer offset from %s' % consumer_topics_path + '/' + partition)
+
+    def _get_consumers_offsets_by_config(consumer_groups, zk_conn, zk_path_tmpl):
+        consumer_offsets = {}
+        topics = defaultdict(set)
+        for consumer_group, topic_partitions in consumer_groups.iteritems():
+            for topic, partitions in topic_partitions.iteritems():
+                # Remember the topic partitions that we've see so that we can
+                # look up their broker offsets later
+                topics[topic].update(set(partitions))
+                for partition in partitions:
+                    zk_path = zk_path_tmpl % (consumer_group, topic, partition)
+                    try:
+                       consumer_offset = int(zk_conn.get(zk_path)[0])
+                       key = (consumer_group, topic, partition)
+                       consumer_offsets[key] = consumer_offset
+                       except NoNodeError:
+                           self.log.warn('No zookeeper node at %s' % zk_path)
+                       except Exception:
+                           self.log.exception('Could not read consumer offset from %s' % zk_path)
+
     def check(self, instance):
         consumer_groups = self.read_config(instance, 'consumer_groups',
                                            cast=self._validate_consumer_groups)
@@ -45,23 +80,10 @@ class KafkaCheck(AgentCheck):
 
         try:
             # Query Zookeeper for consumer offsets
-            consumer_offsets = {}
-            topics = defaultdict(set)
-            for consumer_group, topic_partitions in consumer_groups.iteritems():
-                for topic, partitions in topic_partitions.iteritems():
-                    # Remember the topic partitions that we've see so that we can
-                    # look up their broker offsets later
-                    topics[topic].update(set(partitions))
-                    for partition in partitions:
-                        zk_path = zk_path_tmpl % (consumer_group, topic, partition)
-                        try:
-                            consumer_offset = int(zk_conn.get(zk_path)[0])
-                            key = (consumer_group, topic, partition)
-                            consumer_offsets[key] = consumer_offset
-                        except NoNodeError:
-                            self.log.warn('No zookeeper node at %s' % zk_path)
-                        except Exception:
-                            self.log.exception('Could not read consumer offset from %s' % zk_path)
+            if consumer_groups[0].topic == "*"
+                topics = _get_all_consumers_offsets(zk_conn, zk_prefix)
+            else
+                topics = _get_consumers_offsets_by_config(consumer_groups, zk_conn, zk_path_tmpl)
         finally:
             try:
                 zk_conn.stop()
