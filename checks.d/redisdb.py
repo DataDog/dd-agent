@@ -53,6 +53,10 @@ class Redis(AgentCheck):
 
         # stats
         'latest_fork_usec':             'redis.perf.latest_fork_usec',
+        'bytes_received_per_sec':       'redis.bytes_received_per_sec',
+        'bytes_sent_per_sec':           'redis.bytes_sent_per_sec',
+        # Note: 'bytes_received_per_sec' and 'bytes_sent_per_sec' are only
+        # available on Azure Redis
 
         # pubsub
         'pubsub_channels':              'redis.pubsub.channels',
