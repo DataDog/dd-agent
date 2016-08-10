@@ -46,7 +46,8 @@ class EtcdStore(AbstractConfigStore):
                 timeout=kwargs.get('timeout', DEFAULT_TIMEOUT),
                 recursive=kwargs.get('recursive') or kwargs.get('all', False))
             if kwargs.get('watch', False):
-                return res.etcd_index
+                modified_indices = (res.modifiedIndex, ) + tuple(leaf.modifiedIndex for leaf in res.leaves)
+                return max(modified_indices)
             elif kwargs.get('all', False):
                 # we use it in _populate_identifier_to_checks
                 return [(child.key, child.value) for child in res.children]
