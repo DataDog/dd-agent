@@ -5,6 +5,8 @@
 # stdlib
 import logging
 import os
+import socket
+import struct
 import time
 
 # 3rd party
@@ -138,11 +140,26 @@ class DockerUtil:
         return self.config_store.identifier_to_checks[identifier]
 
     def get_hostname(self):
-        """Return the `Name` param from `docker info` to use as the hostname"""
+        '''
+        Return the `Name` param from `docker info` to use as the hostname
+        Falls back to the default route.
+        '''
         try:
-            return self.client.info().get("Name")
+            docker_host_name = self.client.info().get("Name")
+            socket.gethostbyname(docker_host_name) # make sure we can resolve it
+            return docker_host_name
+
         except Exception:
-            log.critical("Unable to find docker host hostname")
+            log.critical("Unable to find docker host hostname. Trying default route")
+
+        try:
+            with open('/proc/net/route') as f:
+                for line in f.readlines():
+                    fields = line.strip().split()
+                    if fields[1] == '00000000':
+                        return socket.inet_ntoa(struct.pack('<L', int(fields[2], 16)))
+        except IOError, e:
+            log.error('Unable to open /proc/net/route: %s', e)
         return None
 
     @property
