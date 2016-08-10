@@ -32,11 +32,11 @@ class KafkaCheck(AgentCheck):
     def _get_all_consumers_offsets(zk_conn, zk_prefix):
         consumer_offsets = {}
         topics = defaultdict(set)
-        consumers_zk_path = zk_path + '/consumers/
+        consumers_zk_path = zk_path + '/consumers/'
         for consumer_group in zk_conn.get_children(consumers_zk_path):
             consumer_offsets_path = consumers_zk_path + consumer_group + '/offsets'
             for topic in zk_conn.get_children(consumer_offsets_path):
-                consumer_topics_path = consumer_offsets_path + '/' topic
+                consumer_topics_path = consumer_offsets_path + '/' + topic
                 for partition in zk_conn.get_children(consumer_topics_path):
                     try:
                        consumer_offset = int(zk_conn.get(consumer_topics_path + '/' + partition)[0])
@@ -59,10 +59,10 @@ class KafkaCheck(AgentCheck):
                        consumer_offset = int(zk_conn.get(zk_path)[0])
                        key = (consumer_group, topic, partition)
                        consumer_offsets[key] = consumer_offset
-                       except NoNodeError:
-                           self.log.warn('No zookeeper node at %s' % zk_path)
-                       except Exception:
-                           self.log.exception('Could not read consumer offset from %s' % zk_path)
+                    except NoNodeError:
+                       self.log.warn('No zookeeper node at %s' % zk_path)
+                    except Exception:
+                       self.log.exception('Could not read consumer offset from %s' % zk_path)
 
     def check(self, instance):
         consumer_groups = self.read_config(instance, 'consumer_groups',
@@ -80,9 +80,9 @@ class KafkaCheck(AgentCheck):
 
         try:
             # Query Zookeeper for consumer offsets
-            if consumer_groups[0].topic == "*"
+            if consumer_groups[0].topic == '*':
                 topics = _get_all_consumers_offsets(zk_conn, zk_prefix)
-            else
+            else:
                 topics = _get_consumers_offsets_by_config(consumer_groups, zk_conn, zk_path_tmpl)
         finally:
             try:
