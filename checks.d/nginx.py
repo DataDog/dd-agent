@@ -30,6 +30,13 @@ class Nginx(AgentCheck):
     Reading: 0 Writing: 2 Waiting: 6
 
     """
+
+    DEFAULT_TIMEOUT = 10
+
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+        self.default_timeout = init_config.get('timeout', self.DEFAULT_TIMEOUT)
+
     def check(self, instance):
         if 'nginx_status_url' not in instance:
             raise Exception('NginX instance missing "nginx_status_url" value.')
@@ -59,6 +66,7 @@ class Nginx(AgentCheck):
     def _get_data(self, instance):
         url = instance.get('nginx_status_url')
         ssl_validation = instance.get('ssl_validation', True)
+        timeout = instance.get('timeout', self.default_timeout)
 
         auth = None
         if 'user' in instance and 'password' in instance:
@@ -73,7 +81,7 @@ class Nginx(AgentCheck):
         try:
             self.log.debug(u"Querying URL: {0}".format(url))
             r = requests.get(url, auth=auth, headers=headers(self.agentConfig),
-                             verify=ssl_validation)
+                             verify=ssl_validation, timeout=timeout)
             r.raise_for_status()
         except Exception:
             self.service_check(service_check_name, AgentCheck.CRITICAL,
