@@ -46,7 +46,8 @@ class EtcdStore(AbstractConfigStore):
                 timeout=kwargs.get('timeout', DEFAULT_TIMEOUT),
                 recursive=kwargs.get('recursive', False))
             if kwargs.get('watch', False) is True:
-                return res.etcd_index
+                modified_indices = (res.modifiedIndex, ) + tuple(leaf.modifiedIndex for leaf in res.leaves)
+                return max(modified_indices)
             else:
                 return res.value
         except EtcdKeyNotFound:
