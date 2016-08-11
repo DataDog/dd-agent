@@ -55,14 +55,15 @@ class WMICheckTest(AgentCheckTest):
     def test_check_with_tag_queries(self):
         instance = copy.deepcopy(INSTANCE)
         instance['filters'] = [{'Name': 'svchost%'}]
-        instance['tag_queries'] = [['IDProcess', 'Win32_Process', 'Handle', 'CommandLine']]
+        # `CreationDate` is a good property to test the tag queries but would obviously not be useful as a tag in DD
+        instance['tag_queries'] = [['IDProcess', 'Win32_Process', 'Handle', 'CreationDate']]
         self.run_check({'instances': [instance]})
 
         for metric in INSTANCE_METRICS:
             # No instance "number" (`#`) when tag_queries is specified
             self.assertMetricTag(metric, tag='name:svchost#1', count=0)
             self.assertMetricTag(metric, tag='name:svchost')
-            self.assertMetricTagPrefix(metric, tag_prefix='commandline:')
+            self.assertMetricTagPrefix(metric, tag_prefix='creationdate:')
 
     def test_invalid_class(self):
         instance = copy.deepcopy(INSTANCE)
