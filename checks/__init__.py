@@ -323,6 +323,7 @@ class AgentCheck(object):
         self.agentConfig = agentConfig
         self.in_developer_mode = agentConfig.get('developer_mode') and psutil
         self._internal_profiling_stats = None
+        self.default_integration_http_timeout = float(agentConfig.get('default_integration_http_timeout', 9))
 
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
