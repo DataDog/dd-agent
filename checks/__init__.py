@@ -296,6 +296,8 @@ class AgentCheck(object):
 
     SOURCE_TYPE_NAME = None
 
+    DEFAULT_EXPIRY_SECONDS = 300
+
     DEFAULT_MIN_COLLECTION_INTERVAL = 0
 
     _enabled_checks = []
@@ -327,8 +329,13 @@ class AgentCheck(object):
 
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
+
+        self.min_collection_interval = self.init_config.get('min_collection_interval',
+                                                            self.DEFAULT_MIN_COLLECTION_INTERVAL)
+
         self.aggregator = MetricsAggregator(
             self.hostname,
+            expiry_seconds = self.min_collection_interval + self.DEFAULT_EXPIRY_SECONDS,
             formatter=agent_formatter,
             recent_point_threshold=agentConfig.get('recent_point_threshold', None),
             histogram_aggregates=agentConfig.get('histogram_aggregates'),
@@ -748,12 +755,8 @@ class AgentCheck(object):
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
-                min_collection_interval = instance.get(
-                    'min_collection_interval', self.init_config.get(
-                        'min_collection_interval',
-                        self.DEFAULT_MIN_COLLECTION_INTERVAL
-                    )
-                )
+                min_collection_interval = instance.get('min_collection_interval', self.min_collection_interval)
+
                 now = time.time()
                 if now - self.last_collection_time[i] < min_collection_interval:
                     self.log.debug("Not running instance #{0} of check {1} as it ran less than {2}s ago".format(i, self.name, min_collection_interval))
