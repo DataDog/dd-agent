@@ -180,15 +180,16 @@ class HTTPCheck(NetworkCheck):
         weakcipher = _is_affirmative(instance.get('weakciphers', False))
         ignore_ssl_warning = _is_affirmative(instance.get('ignore_ssl_warning', False))
         skip_proxy = _is_affirmative(instance.get('no_proxy', False))
+        follow_redirects = _is_affirmative(instance.get('follow_redirects', True))
 
         return url, username, password, http_response_status_code, timeout, include_content,\
             headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs,\
-            weakcipher, ignore_ssl_warning, skip_proxy
+            weakcipher, ignore_ssl_warning, skip_proxy, follow_redirects
 
     def _check(self, instance):
         addr, username, password, http_response_status_code, timeout, include_content, headers,\
             response_time, content_match, tags, disable_ssl_validation,\
-            ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning, skip_proxy = self._load_conf(instance)
+            ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning, skip_proxy, follow_redirects = self._load_conf(instance)
         start = time.time()
 
         service_checks = []
@@ -226,7 +227,8 @@ class HTTPCheck(NetworkCheck):
                     base_addr, WeakCiphersHTTPSConnection.SUPPORTED_CIPHERS))
 
             r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers, proxies=instance_proxy,
-                             verify=False if disable_ssl_validation else instance_ca_certs)
+                             verify=False if disable_ssl_validation else instance_ca_certs,
+                             allow_redirects=follow_redirects)
 
         except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             length = int((time.time() - start) * 1000)
