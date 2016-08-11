@@ -276,9 +276,10 @@ class ProcessCheck(AgentCheck):
 
         # http://man7.org/linux/man-pages/man5/proc.5.html
         try:
-            data = file_to_string('/proc/%s/stat' % pid)
+            data = file_to_string('/%s/%s/stat' % (psutil.PROCFS_PATH, pid))
         except Exception:
-            self.log.debug('error getting proc stats: file_to_string failed for /proc/%s/stat' % pid)
+            self.log.debug('error getting proc stats: file_to_string failed'
+                           'for /%s/%s/stat' % (psutil.PROCFS_PATH, pid))
             return None
 
         return map(lambda i: int(i), data.split()[9:13])
