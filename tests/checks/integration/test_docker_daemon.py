@@ -465,6 +465,11 @@ class TestCheckDockerDaemon(AgentCheckTest):
                 "collect_labels_as_tags": ["label1"],
                 "collect_image_size": True,
                 "collect_images_stats": True,
+                "collect_container_count": True,
+                "collect_dead_container_count": True,
+                "collect_exited_container_count": True
+                "collect_volume_count": True
+                "collect_dangling_volume_count": True
             },
             ],
         }
