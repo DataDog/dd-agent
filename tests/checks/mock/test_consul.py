@@ -381,7 +381,7 @@ class TestCheckConsul(AgentCheckTest):
         self.assertIn('prev_consul_leader:My Old Leader', event['tags'])
         self.assertIn('curr_consul_leader:My New Leader', event['tags'])
 
-    def testn_self_leader_event(self):
+    def test_self_leader_event(self):
         self.check = load_check(self.CHECK_NAME, MOCK_CONFIG_SELF_LEADER_CHECK, self.DEFAULT_AGENT_CONFIG)
         self.check._last_known_leader = 'My Old Leader'
 
