@@ -398,6 +398,7 @@ class SparkCheck(AgentCheck):
             response = requests.get(url)
             response.raise_for_status()
             response_json = response.json()
+            self.log.debug("ENHANCED DEBUG:\n%s" % response)
 
         except Timeout as e:
             self.service_check(service_name,
