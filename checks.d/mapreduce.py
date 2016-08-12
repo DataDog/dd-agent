@@ -476,6 +476,7 @@ class MapReduceCheck(AgentCheck):
             response = requests.get(url, timeout=self.default_integration_http_timeout)
             response.raise_for_status()
             response_json = response.json()
+            self.log.debug("ENHANCED DEBUG:\n%s" % response)
 
         except Timeout as e:
             self.service_check(service_name,
