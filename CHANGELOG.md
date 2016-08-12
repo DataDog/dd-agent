@@ -7,6 +7,11 @@ Changes
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.8.5...5.9.0
 
+### Kafka-Python library update
+Because we have bumped the library version for the `kafka-python` package, if you happen to run any custom
+checks that rely on the former version please make necessary amends. We apologize for any inconvenience.
+See #2709 for reference.
+
 ### Changes
 * [FEATURE] Process: Option to search processes by PID [#2119][] (Thanks [@handigarde][])
 * [FEATURE] Forwarder: allow multiple endpoints/api_keys [#2564][]
@@ -19,7 +24,10 @@ https://github.com/DataDog/dd-agent/compare/5.8.5...5.9.0
 * [FEATURE] Apache: add connection status metrics [#2622][] (Thanks [@gzysk8][])
 * [FEATURE] Mysql: Allow `connection_timeout` to be set for MySQL checks [#2729][] (Thanks [@scottgeary][])
 * [FEATURE] Htpp_check: [Add allow_redirects parameter [#2586][] (Thanks [@n0ts][])
+* [FEATURE] Mongo: Apply yaml-configured tags to service checks #2575 (Thanks @avaughan89)
 
+* [IMPROVEMENT] RabbitMQ: new health check #2711
+* [IMPROVEMENT] Kafka_consumer: bumping kafka-python package version to 1.2.5. #2709
 * [IMPROVEMENT] Multiple integrations: Add an HTTP timeout to many integrations [#2673][] (Thanks [@gphat][])
 * [IMPROVEMENT] Core: remove noisy logs [#2715][] (Thanks [@ensonik][])
 * [IMPROVEMENT] Core: expiration should adjust to longer collection intervals (>300s). [#2541][]
