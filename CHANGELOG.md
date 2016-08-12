@@ -18,8 +18,11 @@ https://github.com/DataDog/dd-agent/compare/5.8.5...5.9.0
 * [FEATURE] Dns_check: Allow querying a custom record type [#2653][]
 * [FEATURE] Apache: add connection status metrics [#2622][] (Thanks [@gzysk8][])
 * [FEATURE] Mysql: Allow `connection_timeout` to be set for MySQL checks [#2729][] (Thanks [@scottgeary][])
+* [FEATURE] Htpp_check: [Add allow_redirects parameter [#2586][] (Thanks [@n0ts][])
 
+* [IMPROVEMENT] Multiple integrations: Add an HTTP timeout to many integrations [#2673][] (Thanks [@gphat][])
 * [IMPROVEMENT] Core: remove noisy logs [#2715][] (Thanks [@ensonik][])
+* [IMPROVEMENT] Core: expiration should adjust to longer collection intervals (>300s). [#2541][]
 * [IMPROVEMENT] Ssh: Be more specific when logging ssh errors [#2708][]
 * [IMPROVEMENT] Http_check: log exceptions 🔊 [#2704][]
 * [IMPROVEMENT] Dogstatsd: fix server address when non_local_traffic is passed [#2691][]
@@ -3249,6 +3252,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2535]: https://github.com/DataDog/dd-agent/issues/2535
 [#2537]: https://github.com/DataDog/dd-agent/issues/2537
 [#2538]: https://github.com/DataDog/dd-agent/issues/2538
+[#2541]: https://github.com/DataDog/dd-agent/issues/2541
 [#2542]: https://github.com/DataDog/dd-agent/issues/2542
 [#2543]: https://github.com/DataDog/dd-agent/issues/2543
 [#2548]: https://github.com/DataDog/dd-agent/issues/2548
@@ -3263,6 +3267,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2573]: https://github.com/DataDog/dd-agent/issues/2573
 [#2575]: https://github.com/DataDog/dd-agent/issues/2575
 [#2580]: https://github.com/DataDog/dd-agent/issues/2580
+[#2586]: https://github.com/DataDog/dd-agent/issues/2586
 [#2588]: https://github.com/DataDog/dd-agent/issues/2588
 [#2590]: https://github.com/DataDog/dd-agent/issues/2590
 [#2591]: https://github.com/DataDog/dd-agent/issues/2591
@@ -3295,6 +3300,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2669]: https://github.com/DataDog/dd-agent/issues/2669
 [#2670]: https://github.com/DataDog/dd-agent/issues/2670
 [#2672]: https://github.com/DataDog/dd-agent/issues/2672
+[#2673]: https://github.com/DataDog/dd-agent/issues/2673
 [#2677]: https://github.com/DataDog/dd-agent/issues/2677
 [#2681]: https://github.com/DataDog/dd-agent/issues/2681
 [#2684]: https://github.com/DataDog/dd-agent/issues/2684
@@ -3395,6 +3401,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@morskoyzmey]: https://github.com/morskoyzmey
 [@mtougeron]: https://github.com/mtougeron
 [@mutemule]: https://github.com/mutemule
+[@n0ts]: https://github.com/n0ts
 [@nambrosch]: https://github.com/nambrosch
 [@nfo]: https://github.com/nfo
 [@nwillems]: https://github.com/nwillems
