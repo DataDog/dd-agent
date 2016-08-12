@@ -36,6 +36,12 @@ instances:
       # self_leader_check for a more robust option.
       new_leader_checks: yes
 
+      # Whether to enable network latency metrics collection. When enabled
+      # consul network coordinates will be retrieved and latency calculated for
+      # each node and between data centers.
+      # See https://www.consul.io/docs/internals/coordinates.html
+      network_latency_checks: yes
+
       # Services to restrict catalog querying to
       # The default settings query up to 50 services. So if you have more than
       # this many in your Consul service catalog, you will want to fill in the
