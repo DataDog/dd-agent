@@ -365,9 +365,15 @@ class ConsulCheck(AgentCheck):
         if perform_network_latency_checks:
             self.check_network_latency(instance, agent_dc, main_tags)
 
+    def _get_coord_datacenters(self, instance):
+        return self.consul_request(instance, '/v1/coordinate/datacenters')
+
+    def _get_coord_nodes(self, instance):
+        return self.consul_request(instance, 'v1/coordinate/nodes')
+
     def check_network_latency(self, instance, agent_dc, main_tags):
 
-        datacenters = self.consul_request(instance, '/v1/coordinate/datacenters')
+        datacenters = self._get_coord_datacenters(instance)
         for datacenter in datacenters:
             name = datacenter['Datacenter']
             if name != agent_dc:
@@ -397,7 +403,7 @@ class ConsulCheck(AgentCheck):
                 self.gauge('consul.net.dc-latency.max', latencies[-1], hostname='', tags=tags)
 
         # Intra-datacenter
-        nodes = self.consul_request(instance, 'v1/coordinate/nodes')
+        nodes = self._get_coord_nodes(instance)
         for node in nodes:
             node_name = node['Node']
             latencies = []
