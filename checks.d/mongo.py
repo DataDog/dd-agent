@@ -576,28 +576,27 @@ class MongoDb(AgentCheck):
         db_name = parsed.get('database')
         clean_server_name = server.replace(password, "*" * 5) if password is not None else server
 
-        additional_metrics = instance.get('additional_metrics', [])
+        if not db_name:
+            self.log.debug('No MongoDB database found in URI. Defaulting to admin.')
+            db_name = 'admin'
 
         tags = instance.get('tags', [])
+        # de-dupe tags to avoid a memory leak
+        tags = list(set(tags))
+        service_check_tags = [
+            "db:%s" % db_name
+        ]
+        service_check_tags.extend(tags)
+        # Add the `server` tag to the metrics' tags only (it's added in the backend for service checks)
         tags.append('server:%s' % clean_server_name)
 
         # Get the list of metrics to collect
+        additional_metrics = instance.get('additional_metrics', [])
         collect_tcmalloc_metrics = 'tcmalloc' in additional_metrics
         metrics_to_collect = self._get_metrics_to_collect(
             server,
             additional_metrics
         )
-
-        # de-dupe tags to avoid a memory leak
-        tags = list(set(tags))
-
-        if not db_name:
-            self.log.info('No MongoDB database found in URI. Defaulting to admin.')
-            db_name = 'admin'
-
-        service_check_tags = [
-            "db:%s" % db_name
-        ]
 
         nodelist = parsed.get('nodelist')
         if nodelist:
@@ -701,8 +700,9 @@ class MongoDb(AgentCheck):
 
                 # Compute a lag time
                 if current is not None and primary is not None:
-                    lag = primary['optimeDate'] - current['optimeDate']
-                    data['replicationLag'] = total_seconds(lag)
+                    if 'optimeDate' in primary and 'optimeDate' in current:
+                        lag = primary['optimeDate'] - current['optimeDate']
+                        data['replicationLag'] = total_seconds(lag)
 
                 if current is not None:
                     data['health'] = current['health']
@@ -825,47 +825,52 @@ class MongoDb(AgentCheck):
                         submit_method, metric_name_alias = \
                             self._resolve_metric(m, metrics_to_collect, prefix="usage")
                         submit_method(self, metric_name_alias, value, tags=ns_tags)
-            except Exception, e:
+            except Exception as e:
                 self.log.warning('Failed to record `top` metrics %s' % str(e))
 
-        # Fetch information analogous to Mongo's db.getReplicationInfo()
-        localdb = cli['local']
 
-        oplog_data = {}
+        if 'local' in dbnames: # it might not be if we are connectiing through mongos
+            # Fetch information analogous to Mongo's db.getReplicationInfo()
+            localdb = cli['local']
 
-        for ol_collection_name in ("oplog.rs", "oplog.$main"):
-            ol_metadata = localdb.system.namespaces.find_one({"name": "local.%s" % ol_collection_name})
+            oplog_data = {}
+
+            for ol_collection_name in ("oplog.rs", "oplog.$main"):
+                ol_metadata = localdb.system.namespaces.find_one({"name": "local.%s" % ol_collection_name})
+                if ol_metadata:
+                    break
+
             if ol_metadata:
-                break
-
-        if ol_metadata:
-            try:
-                oplog_data['logSizeMB'] = round(
-                    ol_metadata['options']['size'] / 2.0 ** 20, 2
-                )
-
-                oplog = localdb[ol_collection_name]
-
-                oplog_data['usedSizeMB'] = round(
-                    localdb.command("collstats", ol_collection_name)['size'] / 2.0 ** 20, 2
-                )
-
-                op_asc_cursor = oplog.find().sort("$natural", pymongo.ASCENDING).limit(1)
-                op_dsc_cursor = oplog.find().sort("$natural", pymongo.DESCENDING).limit(1)
-
                 try:
-                    first_timestamp = op_asc_cursor[0]['ts'].as_datetime()
-                    last_timestamp = op_dsc_cursor[0]['ts'].as_datetime()
-                    oplog_data['timeDiff'] = total_seconds(last_timestamp - first_timestamp)
-                except (IndexError, KeyError):
-                    # if the oplog collection doesn't have any entries
-                    # if an object in the collection doesn't have a ts value, we ignore it
-                    pass
-            except KeyError:
-                # encountered an error trying to access options.size for the oplog collection
-                self.log.warning(u"Failed to record `ReplicationInfo` metrics.")
+                    oplog_data['logSizeMB'] = round(
+                        ol_metadata['options']['size'] / 2.0 ** 20, 2
+                    )
 
-        for (m, value) in oplog_data.iteritems():
-            submit_method, metric_name_alias = \
-                self._resolve_metric('oplog.%s' % m, metrics_to_collect)
-            submit_method(self, metric_name_alias, value, tags=tags)
+                    oplog = localdb[ol_collection_name]
+
+                    oplog_data['usedSizeMB'] = round(
+                        localdb.command("collstats", ol_collection_name)['size'] / 2.0 ** 20, 2
+                    )
+
+                    op_asc_cursor = oplog.find().sort("$natural", pymongo.ASCENDING).limit(1)
+                    op_dsc_cursor = oplog.find().sort("$natural", pymongo.DESCENDING).limit(1)
+
+                    try:
+                        first_timestamp = op_asc_cursor[0]['ts'].as_datetime()
+                        last_timestamp = op_dsc_cursor[0]['ts'].as_datetime()
+                        oplog_data['timeDiff'] = total_seconds(last_timestamp - first_timestamp)
+                    except (IndexError, KeyError):
+                        # if the oplog collection doesn't have any entries
+                        # if an object in the collection doesn't have a ts value, we ignore it
+                        pass
+                except KeyError:
+                    # encountered an error trying to access options.size for the oplog collection
+                    self.log.warning(u"Failed to record `ReplicationInfo` metrics.")
+
+            for (m, value) in oplog_data.iteritems():
+                submit_method, metric_name_alias = \
+                    self._resolve_metric('oplog.%s' % m, metrics_to_collect)
+                submit_method(self, metric_name_alias, value, tags=tags)
+
+        else:
+            self.log.debug('"local" database not in dbnames. Not collecting ReplicationInfo metrics')

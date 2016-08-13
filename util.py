@@ -4,7 +4,6 @@
 
 # stdlib
 from collections import deque
-from hashlib import md5
 import logging
 import os
 import platform
@@ -205,7 +204,7 @@ def get_hostname(config=None):
     if hostname is None and docker_util.is_dockerized():
         docker_hostname = docker_util.get_hostname()
         if docker_hostname is not None and is_valid_hostname(docker_hostname):
-            return docker_hostname
+            hostname = docker_hostname
 
     # then move on to os-specific detection
     if hostname is None:
@@ -225,7 +224,7 @@ def get_hostname(config=None):
                 hostname = unix_hostname
 
     # if we have an ec2 default hostname, see if there's an instance-id available
-    if (Platform.is_ecs_instance()) or (hostname is not None and True in [hostname.lower().startswith(p) for p in [u'ip-', u'domu']]):
+    if (Platform.is_ecs_instance()) or (hostname is not None and EC2.is_default(hostname)):
         instanceid = EC2.get_instance_id(config)
         if instanceid:
             hostname = instanceid
@@ -244,6 +243,7 @@ def get_hostname(config=None):
         raise Exception('Unable to reliably determine host name. You can define one in datadog.conf or in your hosts file')
     else:
         return hostname
+
 
 class GCE(object):
     URL = "http://169.254.169.254/computeMetadata/v1/?recursive=true"
@@ -347,6 +347,7 @@ class EC2(object):
     METADATA_URL_BASE = EC2_METADATA_HOST + "/latest/meta-data"
     INSTANCE_IDENTITY_URL = EC2_METADATA_HOST + "/latest/dynamic/instance-identity/document"
     TIMEOUT = 0.1  # second
+    DEFAULT_PREFIXES = [u'ip-', u'domu']
     metadata = {}
 
     class NoIAMRole(Exception):
@@ -354,6 +355,14 @@ class EC2(object):
         Instance has no associated IAM role.
         """
         pass
+
+    @staticmethod
+    def is_default(hostname):
+        hostname = hostname.lower()
+        for prefix in EC2.DEFAULT_PREFIXES:
+            if hostname.startswith(prefix):
+                return True
+        return False
 
     @staticmethod
     def get_iam_role():
@@ -558,33 +567,6 @@ class Watchdog(object):
         log.debug("Resetting watchdog for %d" % self._duration)
         signal.alarm(self._duration)
 
-
-class LaconicFilter(logging.Filter):
-    """
-    Filters messages, only print them once while keeping memory under control
-    """
-    LACONIC_MEM_LIMIT = 1024
-
-    def __init__(self, name=""):
-        logging.Filter.__init__(self, name)
-        self.hashed_messages = {}
-
-    def hash(self, msg):
-        return md5(msg).hexdigest()
-
-    def filter(self, record):
-        try:
-            h = self.hash(record.getMessage())
-            if h in self.hashed_messages:
-                return 0
-            else:
-                # Don't blow up our memory
-                if len(self.hashed_messages) >= LaconicFilter.LACONIC_MEM_LIMIT:
-                    self.hashed_messages.clear()
-                self.hashed_messages[h] = True
-                return 1
-        except Exception:
-            return 1
 
 class Timer(object):
     """ Helper class """

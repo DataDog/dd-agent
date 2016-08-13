@@ -18,6 +18,9 @@ from utils.singleton import Singleton
 class MountException(Exception):
     pass
 
+class CGroupException(Exception):
+    pass
+
 # Default docker client settings
 DEFAULT_TIMEOUT = 5
 DEFAULT_VERSION = 'auto'
@@ -27,13 +30,14 @@ CONFIG_RELOAD_STATUS = ['start', 'die', 'stop', 'kill']  # used to trigger servi
 log = logging.getLogger(__name__)
 
 
-class DockerUtil():
+class DockerUtil:
     __metaclass__ = Singleton
 
     DEFAULT_SETTINGS = {"version": DEFAULT_VERSION}
 
     def __init__(self, **kwargs):
         self._docker_root = None
+        self.events = []
 
         if 'init_config' in kwargs and 'instance' in kwargs:
             init_config = kwargs.get('init_config')
@@ -96,20 +100,25 @@ class DockerUtil():
                                              until=now, decode=True)
         self._latest_event_collection_ts = now
         for event in event_generator:
-            if event != '':
+            try:
+                if event.get('status') in CONFIG_RELOAD_STATUS:
+                    should_reload_conf = True
                 self.events.append(event)
-            if event.get('status') in CONFIG_RELOAD_STATUS:
-                should_reload_conf = True
-        return (self.events, should_reload_conf)
+            except AttributeError:
+                # due to [0] it might happen that the returned `event` is not a dict as expected but a string,
+                # making `event.get` fail with an `AttributeError`.
+                #
+                # [0]: https://github.com/docker/docker-py/pull/1082
+                log.debug('Unable to parse Docker event: %s', event)
+
+        return self.events, should_reload_conf
 
     def get_hostname(self):
         """Return the `Name` param from `docker info` to use as the hostname"""
-        if self.is_dockerized():
-            try:
-                return self.client.info().get("Name")
-            except Exception:
-                log.critical("Unable to find docker host hostname")
-
+        try:
+            return self.client.info().get("Name")
+        except Exception:
+            log.critical("Unable to find docker host hostname")
         return None
 
     @property
@@ -146,7 +155,14 @@ class DockerUtil():
     def get_mountpoints(self, cgroup_metrics):
         mountpoints = {}
         for metric in cgroup_metrics:
-            mountpoints[metric["cgroup"]] = self.find_cgroup(metric["cgroup"])
+            try:
+                mountpoints[metric["cgroup"]] = self.find_cgroup(metric["cgroup"])
+            except CGroupException as e:
+                log.exception("Unable to find cgroup: %s", e)
+
+        if not len(mountpoints):
+            raise CGroupException("No cgroups were found!")
+
         return mountpoints
 
     def find_cgroup(self, hierarchy):
@@ -174,7 +190,40 @@ class DockerUtil():
 
             if candidate is not None:
                 return os.path.join(self._docker_root, candidate)
-            raise Exception("Can't find mounted %s cgroups." % hierarchy)
+            raise CGroupException("Can't find mounted %s cgroups." % hierarchy)
+
+    @classmethod
+    def find_cgroup_from_proc(cls, mountpoints, pid, subsys, docker_root='/'):
+        proc_path = os.path.join(docker_root, 'proc', str(pid), 'cgroup')
+        with open(proc_path, 'r') as fp:
+            lines = map(lambda x: x.split(':'), fp.read().splitlines())
+            subsystems = dict(zip(map(lambda x: x[1], lines), map(lambda x: x[2] if x[2][0] != '/' else x[2][1:], lines)))
+
+        if subsys not in subsystems and subsys == 'cpuacct':
+            for form in "{},cpu", "cpu,{}":
+                _subsys = form.format(subsys)
+                if _subsys in subsystems:
+                    subsys = _subsys
+                    break
+
+        if subsys in subsystems:
+            for mountpoint in mountpoints.itervalues():
+                stat_file_path = os.path.join(mountpoint, subsystems[subsys])
+                if subsys in mountpoint and os.path.exists(stat_file_path):
+                    return os.path.join(stat_file_path, '%(file)s')
+
+                # CentOS7 will report `cpu,cpuacct` and then have the path on
+                # `cpuacct,cpu`
+                if 'cpuacct' in mountpoint and 'cpuacct' in subsys:
+                    flipkey = subsys.split(',')
+                    flipkey = "{},{}".format(flipkey[1], flipkey[0]) if len(flipkey) > 1 else flipkey[0]
+                    mountpoint = os.path.join(os.path.split(mountpoint)[0], flipkey)
+                    stat_file_path = os.path.join(mountpoint, subsystems[subsys])
+                    if os.path.exists(stat_file_path):
+                        return os.path.join(stat_file_path, '%(file)s')
+
+
+        raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
     @classmethod
     def find_cgroup_filename_pattern(cls, mountpoints, container_id):

@@ -9,6 +9,7 @@ artifacts/*
 node_modules/*
 .DS_Store
 venv/*
+vendor/
 *.swp
 *.log
 !nagios.log

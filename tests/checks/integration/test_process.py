@@ -140,7 +140,10 @@ class ProcessCheckTest(AgentCheckTest):
         'system.processes.number',
         'system.processes.open_file_descriptors',
         'system.processes.threads',
-        'system.processes.voluntary_ctx_switches'
+        'system.processes.voluntary_ctx_switches',
+        'system.processes.run_time.avg',
+        'system.processes.run_time.max',
+        'system.processes.run_time.min',
     ]
 
     PAGEFAULT_STAT = [
@@ -466,5 +469,8 @@ class ProcessCheckTest(AgentCheckTest):
         self.assertServiceCheckOK('process.up', count=1, tags=['process:moved_procfs'])
 
         self.assertMetric('system.processes.number', at_least=1, tags=expected_tags)
+        self.assertMetric('system.processes.run_time.avg', at_least=1, tags=expected_tags)
+        self.assertMetric('system.processes.run_time.max', at_least=1, tags=expected_tags)
+        self.assertMetric('system.processes.run_time.min', at_least=1, tags=expected_tags)
 
         self.coverage_report()

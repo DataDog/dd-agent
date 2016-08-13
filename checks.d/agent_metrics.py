@@ -151,6 +151,6 @@ class AgentMetrics(AgentCheck):
                     self.gauge('datadog.agent.collector.cpu.used', cpu_used_pct)
                     self.log.info("CPU consumed (%%) is high: %.1f, metrics count: %d, events count: %d",
                                   cpu_used_pct, len(payload['metrics']), len(payload['events']))
-            except Exception, e:
+            except Exception as e:
                 self.log.debug("Couldn't compute cpu used by collector with values %s %s %s",
                                cpu_time, collection_time, str(e))

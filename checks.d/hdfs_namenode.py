@@ -168,7 +168,7 @@ class HDFSNameNode(AgentCheck):
         self.log.debug('Attempting to connect to "%s"' % url)
 
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=self.default_integration_http_timeout)
             response.raise_for_status()
             response_json = response.json()
 

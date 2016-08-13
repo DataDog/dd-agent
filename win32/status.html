@@ -247,19 +247,6 @@
             <dt>Transactions rejected</dt>       <dd>{{ forwarder['too_big_count'] }}</dd>
           </dl>
 
-          {% if forwarder['proxy_data'] %}
-          <h3>Proxy</h3>
-
-          <dl>
-            <dt>Host</dt>     <dd>{{ forwarder['proxy_data']['host'] }}</dd>
-            <dt>Port</dt>     <dd>{{ forwarder['proxy_data']['port'] }}</dd>
-            {% if forwarder.get('hidden_username') %}
-            <dt>Username</dt>     <dd>{{ forwarder['hidden_username'] }}</dd>
-            <dt>Password</dt>     <dd>{{ forwarder['hidden_password'] }}</dd>
-            {% end %}
-          </dl>
-          {% end %}
-
           <!-- Dogstatsd -->
           <h2>DogstatsD</h2>
 

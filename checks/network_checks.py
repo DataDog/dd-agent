@@ -147,6 +147,9 @@ class NetworkCheck(AgentCheck):
                     self.resultsq.put((status, msg, sc_name, instance))
 
         except Exception:
+            self.log.exception(
+                u"Failed to process instance '%s'.", instance.get('Name', u"")
+            )
             result = (FAILURE, FAILURE, FAILURE, instance)
             self.resultsq.put(result)
 

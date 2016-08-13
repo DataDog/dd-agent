@@ -145,6 +145,7 @@ class DockerDaemon(AgentCheck):
         self.init()
         self._service_discovery = agentConfig.get('service_discovery') and \
             agentConfig.get('service_discovery_backend') == 'docker'
+        self._custom_cgroups = _is_affirmative(init_config.get('custom_cgroups', False))
 
     def is_k8s(self):
         return 'KUBERNETES_PORT' in os.environ
@@ -201,7 +202,7 @@ class DockerDaemon(AgentCheck):
 
             self.ecs_tags = {}
 
-        except Exception, e:
+        except Exception as e:
             self.log.critical(e)
             self.warning("Initialization failed. Will retry at next iteration")
         else:
@@ -231,8 +232,11 @@ class DockerDaemon(AgentCheck):
                 self.log.warning('Could not retrieve kubernetes labels: %s' % str(e))
                 self.kube_labels = {}
 
+        # containers running with custom cgroups?
+        custom_cgroups = _is_affirmative(instance.get('custom_cgroups', self._custom_cgroups))
+
         # Get the list of containers and the index of their names
-        containers_by_id = self._get_and_count_containers()
+        containers_by_id = self._get_and_count_containers(custom_cgroups)
         containers_by_id = self._crawl_container_pids(containers_by_id)
 
         # Send events from Docker API
@@ -261,11 +265,11 @@ class DockerDaemon(AgentCheck):
             if self.collect_image_size:
                 self._report_image_size(active_images)
 
-        except Exception, e:
+        except Exception as e:
             # It's not an important metric, keep going if it fails
             self.warning("Failed to count Docker images. Exception: {0}".format(e))
 
-    def _get_and_count_containers(self):
+    def _get_and_count_containers(self, custom_cgroups=False):
         """List all the containers from the API, filter and count them."""
 
         # Querying the size of containers is slow, we don't do it at each run
@@ -277,7 +281,7 @@ class DockerDaemon(AgentCheck):
 
         try:
             containers = self.docker_client.containers(all=True, size=must_query_size)
-        except Exception, e:
+        except Exception as e:
             message = "Unable to list Docker containers: {0}".format(e)
             self.service_check(SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                                message=message)
@@ -306,6 +310,16 @@ class DockerDaemon(AgentCheck):
                 continue
 
             containers_by_id[container['Id']] = container
+
+            # grab pid via API if custom cgroups - otherwise we won't find process when
+            # crawling for pids.
+            if custom_cgroups:
+                try:
+                    inspect_dict = self.docker_client.inspect_container(container_name)
+                    container['_pid'] = inspect_dict['State']['Pid']
+                except Exception as e:
+                    self.log.debug("Unable to inspect Docker container: %s", e)
+
 
         for tags, count in running_containers_count.iteritems():
             self.gauge("docker.containers.running", count, tags=list(tags))
@@ -509,7 +523,7 @@ class DockerDaemon(AgentCheck):
     def _report_cgroup_metrics(self, container, tags):
         try:
             for cgroup in CGROUP_METRICS:
-                stat_file = self._get_cgroup_file(cgroup["cgroup"], container['Id'], cgroup['file'])
+                stat_file = self._get_cgroup_from_proc(cgroup["cgroup"], container['_pid'], cgroup['file'])
                 stats = self._parse_cgroup_file(stat_file)
                 if stats:
                     for key, (dd_key, metric_func) in cgroup['metrics'].iteritems():
@@ -561,7 +575,7 @@ class DockerDaemon(AgentCheck):
                         m_func(self, "docker.net.bytes_rcvd", long(x[0]), tags)
                         m_func(self, "docker.net.bytes_sent", long(x[8]), tags)
                         break
-        except Exception, e:
+        except Exception as e:
             # It is possible that the container got stopped between the API call and now
             self.warning("Failed to report IO metrics from file {0}. Exception: {1}".format(proc_net_file, e))
 
@@ -577,7 +591,7 @@ class DockerDaemon(AgentCheck):
         except (socket.timeout, urllib2.URLError):
             self.warning('Timeout when collecting events. Events will be missing.')
             return
-        except Exception, e:
+        except Exception as e:
             self.warning("Unexpected exception when collecting events: {0}. "
                          "Events will be missing".format(e))
             return
@@ -718,9 +732,10 @@ class DockerDaemon(AgentCheck):
             total = stats.get('docker.{0}.total'.format(mtype))
             free = stats.get('docker.{0}.free'.format(mtype))
             if used and total and free and ceil(total) < free + used:
-                self.log.error('used, free, and total disk metrics may be wrong, '
-                               'unable to calculate percentage.')
-                return {}
+                self.log.debug('used, free, and total disk metrics may be wrong, '
+                               'used: %s, free: %s, total: %s',
+                               used, free, total)
+                total = used + free
             try:
                 if isinstance(used, int):
                     percs['docker.{0}.percent'.format(mtype)] = round(100 * float(used) / float(total), 2)
@@ -732,16 +747,12 @@ class DockerDaemon(AgentCheck):
         return percs
 
     # Cgroups
-
-    def _get_cgroup_file(self, cgroup, container_id, filename):
+    def _get_cgroup_from_proc(self, cgroup, pid, filename):
         """Find a specific cgroup file, containing metrics to extract."""
         params = {
-            "mountpoint": self._mountpoints[cgroup],
-            "id": container_id,
             "file": filename,
         }
-
-        return DockerUtil.find_cgroup_filename_pattern(self._mountpoints, container_id) % (params)
+        return DockerUtil.find_cgroup_from_proc(self._mountpoints, pid, cgroup, self.docker_util._docker_root) % (params)
 
     def _parse_cgroup_file(self, stat_file):
         """Parse a cgroup pseudo file for key/values."""
@@ -792,18 +803,25 @@ class DockerDaemon(AgentCheck):
                 path = os.path.join(proc_path, folder, 'cgroup')
                 with open(path, 'r') as f:
                     content = [line.strip().split(':') for line in f.readlines()]
+
+                selinux_policy = ''
+                path = os.path.join(proc_path, folder, 'attr', 'current')
+                if os.path.exists(path):
+                    with open(path, 'r') as f:
+                        selinux_policy = f.readlines()[0]
             except IOError, e:
                 #  Issue #2074
                 self.log.debug("Cannot read %s, "
                                "process likely raced to finish : %s" %
                                (path, str(e)))
-            except Exception, e:
+            except Exception as e:
                 self.warning("Cannot read %s : %s" % (path, str(e)))
                 continue
 
             try:
                 for line in content:
-                    if line[1] in ('cpu,cpuacct', 'cpuacct,cpu', 'cpuacct') and 'docker' in line[2]:
+                    if line[1] in ('cpu,cpuacct', 'cpuacct,cpu', 'cpuacct') and \
+                            ('docker' in line[2] or 'docker' in selinux_policy):
                         cpuacct = line[2]
                         break
                 else:
@@ -817,6 +835,12 @@ class DockerDaemon(AgentCheck):
                         continue
                     container_dict[container_id]['_pid'] = folder
                     container_dict[container_id]['_proc_root'] = os.path.join(proc_path, folder)
+                elif self._custom_cgroups: # if we match by pid that should be enough (?) - O(n) ugh!
+                    for _, container in container_dict.iteritems():
+                        if container.get('_pid') == int(folder):
+                            container['_proc_root'] = os.path.join(proc_path, folder)
+                            break
+
             except Exception, e:
                 self.warning("Cannot parse %s content: %s" % (path, str(e)))
                 continue

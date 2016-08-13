@@ -12,9 +12,10 @@ import nose.tools as nt
 from aggregator import DEFAULT_HISTOGRAM_AGGREGATES
 from dogstatsd import MetricsBucketAggregator
 
-
 @attr(requires='core_integration')
 class TestUnitMetricsBucketAggregator(unittest.TestCase):
+    BUCKET_BOUNDARY_TOLERANCE = 0.1
+
     def setUp(self):
         self.interval = 1
 
@@ -31,11 +32,16 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         return sorted(metrics, key=sort_by)
 
     def sleep_for_interval_length(self, interval=None):
-        time.sleep(interval or self.interval)
+        start_time = time.time()
+        sleep_interval = interval or self.interval
+        time.sleep(sleep_interval)
+        # Make sure that we've slept at least for the interval length
+        while time.time() < start_time + sleep_interval:
+            time.sleep(start_time + sleep_interval - time.time())
 
     def wait_for_bucket_boundary(self, interval=None):
         i = interval or self.interval
-        while time.time() % i > 0.01:
+        while time.time() % i > self.BUCKET_BOUNDARY_TOLERANCE:
             pass
 
     @staticmethod
@@ -614,6 +620,7 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
                     m = 'my.p:%s|%s' % (i, type_)
                     stats.submit_packets(m)
 
+        time.sleep(self.BUCKET_BOUNDARY_TOLERANCE)  # Make sure that we're waiting for the _next_ bucket boundary
         self.wait_for_bucket_boundary(ag_interval)
         percentiles = range(50)
         random.shuffle(percentiles) # in place
@@ -671,6 +678,7 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
                     m = 'my.p:%s|%s' % (i, type_)
                     stats.submit_packets(m)
 
+        time.sleep(self.BUCKET_BOUNDARY_TOLERANCE)  # Make sure that we'll wait for the _next_ bucket boundary
         self.wait_for_bucket_boundary(ag_interval)
         percentiles = range(50)
         random.shuffle(percentiles) # in place
