@@ -46,6 +46,7 @@ FUNC_MAP = {
     RATE: {True: HISTORATE, False: RATE}
 }
 
+
 class Kubernetes(AgentCheck):
     """ Collect metrics and events from kubelet """
 
@@ -82,10 +83,10 @@ class Kubernetes(AgentCheck):
                     self.service_check(service_check_name, AgentCheck.CRITICAL)
                     is_ok = False
 
-        except Exception, e:
-            self.log.warning('kubelet check failed: %s' % str(e))
+        except Exception as e:
+            self.log.warning('kubelet check %s failed: %s' % (url, str(e)))
             self.service_check(service_check_base, AgentCheck.CRITICAL,
-                               message='Kubelet check failed: %s' % str(e))
+                               message='Kubelet check %s failed: %s' % (url, str(e)))
 
         else:
             if is_ok:
@@ -250,7 +251,7 @@ class Kubernetes(AgentCheck):
         for subcontainer in metrics:
             try:
                 self._update_container_metrics(instance, subcontainer, kube_labels)
-            except Exception, e:
+            except Exception as e:
                 self.log.error("Unable to collect metrics for container: {0} ({1}".format(
                     subcontainer.get('name'), e))
 

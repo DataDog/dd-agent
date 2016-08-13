@@ -6,8 +6,8 @@
 from collections import defaultdict
 
 # 3p
-from kafka.client import KafkaClient
-from kafka.common import OffsetRequest
+from kafka import KafkaClient
+from kafka.common import OffsetRequestPayload as OffsetRequest
 from kazoo.client import KazooClient
 from kazoo.exceptions import NoNodeError
 
@@ -116,7 +116,7 @@ class KafkaCheck(AgentCheck):
             assert isinstance(topic, (str, unicode))
             assert isinstance(partitions, (list, tuple))
             return val
-        except Exception, e:
+        except Exception as e:
             self.log.exception(e)
             raise Exception('''The `consumer_groups` value must be a mapping of mappings, like this:
 consumer_groups:

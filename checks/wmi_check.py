@@ -93,7 +93,8 @@ class WinWMICheck(AgentCheck):
         if sampler[0][target_property] is None:
             self.log.error(
                 u"Incorrect 'target property' in `tag_queries` parameter:"
-                " `{wmi_property}` is not a property of `{wmi_class}`".format(
+                " `{wmi_property}` is empty or is not a property"
+                "of `{wmi_class}`".format(
                     wmi_property=target_property,
                     wmi_class=target_class,
                 )

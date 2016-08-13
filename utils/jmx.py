@@ -69,6 +69,8 @@ class JMXFiles(object):
     def _get_dir(cls):
         if Platform.is_win32():
             path = os.path.join(_windows_commondata_path(), 'Datadog')
+            if not os.path.isdir(path):
+                path = tempfile.gettempdir()
         elif os.path.isdir(PidFile.get_dir()):
             path = PidFile.get_dir()
         else:

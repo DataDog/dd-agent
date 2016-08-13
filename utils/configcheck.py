@@ -2,12 +2,58 @@
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
+# std
+import glob
+import os
+
 # project
+from config import (
+    check_yaml,
+    load_check_directory,
+    get_confd_path
+)
+from util import get_hostname
 from utils.dockerutil import DockerUtil
-from utils.service_discovery.config_stores import get_config_store, SD_CONFIG_BACKENDS
+from utils.service_discovery.config_stores import get_config_store, SD_CONFIG_BACKENDS, TRACE_CONFIG
 
 
-def sd_configcheck(agentConfig, configs):
+def configcheck():
+    all_valid = True
+    for conf_path in glob.glob(os.path.join(get_confd_path(), "*.yaml")):
+        basename = os.path.basename(conf_path)
+        try:
+            check_yaml(conf_path)
+        except Exception as e:
+            all_valid = False
+            print "%s contains errors:\n    %s" % (basename, e)
+        else:
+            print "%s is valid" % basename
+    if all_valid:
+        print "All yaml files passed. You can now run the Datadog agent."
+        return 0
+    else:
+        print("Fix the invalid yaml files above in order to start the Datadog agent. "
+              "A useful external tool for yaml parsing can be found at "
+              "http://yaml-online-parser.appspot.com/")
+        return 1
+
+
+def sd_configcheck(agentConfig):
+    if agentConfig.get('service_discovery', False):
+        # set the TRACE_CONFIG flag to True to make load_check_directory return
+        # the source of config objects.
+        # Then call load_check_directory here and pass the result to get_sd_configcheck
+        # to avoid circular imports
+        agentConfig[TRACE_CONFIG] = True
+        configs = {
+            # check_name: (config_source, config)
+        }
+        print("\nLoading check configurations...\n\n")
+        configs = load_check_directory(agentConfig, get_hostname(agentConfig))
+        get_sd_configcheck(agentConfig, configs)
+
+
+def get_sd_configcheck(agentConfig, configs):
     """Trace how the configuration objects are loaded and from where.
         Also print containers detected by the agent and templates from the config store."""
     print("\nSource of the configuration objects built by the agent:\n")
@@ -50,7 +96,7 @@ def print_templates(agentConfig):
 
         for img, tpl in templates.iteritems():
             print(
-                "- Image %s:\n\tcheck name: %s\n\tinit_config: %s\n\tinstance: %s" % (
+                "- Image %s:\n\tcheck names: %s\n\tinit_configs: %s\n\tinstances: %s" % (
                     img,
                     tpl.get('check_names'),
                     tpl.get('init_configs'),

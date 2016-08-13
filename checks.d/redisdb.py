@@ -325,9 +325,16 @@ class Redis(AgentCheck):
             if slowlog['start_time'] > max_ts:
                 max_ts = slowlog['start_time']
 
-            command_tag = 'command:{0}'.format(slowlog['command'].split()[0])
+            slowlog_tags = list(tags)
+            command = slowlog['command'].split()
+            # When the "Garantia Data" custom Redis is used, redis-py returns
+            # an empty `command` field
+            # FIXME when https://github.com/andymccurdy/redis-py/pull/622 is released in redis-py
+            if command:
+                slowlog_tags.append('command:{0}'.format(command[0]))
+
             value = slowlog['duration']
-            self.histogram('redis.slowlog.micros', value, tags=tags + [command_tag])
+            self.histogram('redis.slowlog.micros', value, tags=slowlog_tags)
 
         self.last_timestamp_seen[ts_key] = max_ts
 

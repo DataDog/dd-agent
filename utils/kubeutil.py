@@ -6,8 +6,6 @@
 from collections import defaultdict
 import logging
 import os
-import socket
-import struct
 from urlparse import urljoin
 
 # project
@@ -15,6 +13,7 @@ from util import check_yaml
 from utils.checkfiles import get_conf_path
 from utils.http import retrieve_json
 from utils.singleton import Singleton
+from utils.dockerutil import DockerUtil
 
 log = logging.getLogger('collector')
 
@@ -39,6 +38,7 @@ class KubeUtil():
     NAMESPACE_LABEL = "io.kubernetes.pod.namespace"
 
     def __init__(self):
+        self.docker_util = DockerUtil()
         try:
             config_file_path = get_conf_path(KUBERNETES_CHECK_NAME)
             check_config = check_yaml(config_file_path)
@@ -53,7 +53,7 @@ class KubeUtil():
             instance = {}
 
         self.method = instance.get('method', KubeUtil.DEFAULT_METHOD)
-        self.host = instance.get("host") or self._get_default_router()
+        self.host = instance.get("host") or self.docker_util.get_hostname()
 
         self.cadvisor_port = instance.get('port', KubeUtil.DEFAULT_CADVISOR_PORT)
         self.kubelet_port = instance.get('kubelet_port', KubeUtil.DEFAULT_KUBELET_PORT)
@@ -85,7 +85,7 @@ class KubeUtil():
             if name and labels and namespace:
                 key = "%s/%s" % (namespace, name)
 
-                for k,v in labels.iteritems():
+                for k, v in labels.iteritems():
                     if k in excluded_keys:
                         continue
 
@@ -95,18 +95,3 @@ class KubeUtil():
 
     def retrieve_pods_list(self):
         return retrieve_json(self.pods_list_url)
-
-    @classmethod
-    def _get_default_router(cls):
-        try:
-            from config import get_config
-            procfs_netroute = os.path.join(get_config(parse_args=True).get('procfs_path','/proc'), 'net', 'route')
-            with open(procfs_netroute) as f:
-                for line in f.readlines():
-                    fields = line.strip().split()
-                    if fields[1] == '00000000':
-                        return socket.inet_ntoa(struct.pack('<L', int(fields[2], 16)))
-        except IOError, e:
-            log.error('Unable to open /proc/net/route: %s', e)
-
-        return None
