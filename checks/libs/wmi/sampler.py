@@ -193,6 +193,11 @@ class WMISampler(object):
             self._formatted_filters = self._format_filter(filters, self._and_props)
         return self._formatted_filters
 
+    def reset_filter(self, new_filters):
+        self.filters = new_filters
+        # get rid of the formatted filters so they'll be recalculated
+        self._formatted_filters = None
+
     def sample(self):
         """
         Compute new samples.
