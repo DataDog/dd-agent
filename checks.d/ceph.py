@@ -115,6 +115,12 @@ class Ceph(AgentCheck):
             self.log.debug('Error retrieving mon_status metrics')
 
         try:
+            num_mons_active = len(raw['mon_status']['quorum'])
+            self.gauge(self.NAMESPACE + '.num_mons.active', num_mons_active, tags)
+        except KeyError:
+            self.log.debug('Error retrieving mon_status quorum metrics')
+
+        try:
             stats = raw['df_detail']['stats']
             self._publish(stats, self.gauge, ['total_objects'], tags)
             used = float(stats['total_used_bytes'])
