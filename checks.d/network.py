@@ -59,6 +59,19 @@ class Network(AgentCheck):
             "LAST_ACK": "closing",
             "LISTEN": "listening",
             "CLOSING": "closing",
+        },
+        "windows": {
+            "ESTABLISHED": "established",
+            "SYN_SEND": "opening",
+            "SYN_RECEIVED": "opening",
+            "FIN_WAIT_1": "closing",
+            "FIN_WAIT_2": "closing",
+            "TIME_WAIT": "time_wait",
+            "CLOSED": "closing",
+            "CLOSE_WAIT": "closing",
+            "LAST_ACK": "closing",
+            "LISTENING": "listening",
+            "CLOSING": "closing",
         }
     }
 
@@ -101,6 +114,8 @@ class Network(AgentCheck):
             self._check_bsd(instance)
         elif Platform.is_solaris():
             self._check_solaris(instance)
+        elif Platform.is_win32():
+            self._check_win32(instance)
 
     def _submit_devicemetrics(self, iface, vals_by_metric):
         if iface in self._excluded_ifaces or (self._exclude_iface_re and self._exclude_iface_re.match(iface)):
@@ -515,3 +530,41 @@ class Network(AgentCheck):
             metrics_by_interface[iface] = metrics
 
         return metrics_by_interface
+
+    def _check_win32(self, instance):
+        try:
+            netstat, _, _ = get_subprocess_output(["netstat", "-a", "-n"], self.log)
+            # Here's an example of the netstat output:
+            #
+            # Active Connections
+            # Proto      Local Address           Foreign Address         State
+            # TCP        46.105.75.4:80          79.220.227.193:2032     SYN_RECV
+            # TCP        46.105.75.4:143         90.56.111.177:56867     ESTABLISHED
+            # TCP        46.105.75.4:50468       107.20.207.175:443      TIME_WAIT
+            # TCP        46.105.75.4:80          93.15.237.188:58038     FIN_WAIT2
+            # TCP        46.105.75.4:80          79.220.227.193:2029     ESTABLISHED
+            # UDP        0.0.0.0:123             0.0.0.0:*
+            # UDP        :::41458                :::*
+
+            lines = netstat.split("\r\n")
+
+            metrics = dict.fromkeys(self.CX_STATE_GAUGE.values(), 0)
+            for l in lines[4:-1]:
+                cols = l.split()
+                # 0          1                       2                       3
+                # TCP        46.105.75.4:143         90.56.111.177:56867     ESTABLISHED
+                # tcp4 only right now
+                if cols[0].startswith("TCP"):
+                    protocol = ("tcp4", "tcp6")[cols[0] == "tcp6"]
+                    if cols[3] in self.TCP_STATES['windows']:
+                        metric = self.CX_STATE_GAUGE[protocol, self.TCP_STATES['windows'][cols[3]]]
+                        metrics[metric] += 1
+                elif cols[0].startswith("UDP"):
+                    protocol = ("udp4", "udp6")[cols[0] == "udp6"]
+                    metric = self.CX_STATE_GAUGE[protocol, 'connections']
+                    metrics[metric] += 1
+
+            for metric, value in metrics.iteritems():
+                self.gauge(metric, value)
+        except SubprocessOutputEmptyError:
+            self.log.exception("Error collecting connection stats.")
