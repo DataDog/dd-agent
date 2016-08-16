@@ -185,7 +185,7 @@
                     }
                 ]
             },
-            "overall_status": "HEALTH_OK",
+            "overall_status": "HEALTH_WARN",
             "summary": [],
             "timechecks": {
                 "epoch": 38,
