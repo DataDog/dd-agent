@@ -3,13 +3,10 @@
     Last Update: Tue Aug 9 (2016-08-09)
 """
 
-import sys
 import os
 
 from checks import AgentCheck
 from easysnmp import Session
-from easysnmp import EasySNMPError
-from easysnmp import EasySNMPConnectionError
 from easysnmp import EasySNMPTimeoutError
 from easysnmp import EasySNMPUnknownObjectIDError
 from easysnmp import EasySNMPNoSuchObjectError
@@ -412,7 +409,6 @@ class F5Check(AgentCheck):
             if len(e) < 3:                                                  # If the length is less than 3 something is missing
                 self.log.error("Length Error: Instance of metric in CUSTOM_METRICS is less than expected (%s < 3) {%s}", len(e), str(e))
                 continue                                                    # Skip this element
-                                                                            # Otherwise if we have all the relevant information
             snmp_obj = e[0]                                                 # Retrieve SNMP Object Name
             metric_type = e[1]                                              # Retrieve Metric Type
             tags = e[2]                                                     # Retrieve Tags
