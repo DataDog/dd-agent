@@ -121,13 +121,26 @@ def get_filters(include, exclude):
     exclude_patterns = []
     include_patterns = []
 
+    def append_filter_regex(rule, patterns):
+        split = rule.split(':')
+        if len(split) < 2:
+            return None
+
+        regex = ':'.join(split[1:])
+        patterns.append(re.compile(regex))
+
+        return split[0]
+
+
     # Compile regex
     for rule in exclude:
-        exclude_patterns.append(re.compile(rule))
-        filtered_tag_names.append(rule.split(':')[0])
+        filter_tag = append_filter_regex(rule, exclude_patterns)
+        if filter_tag:
+            filtered_tag_names.append(filter_tag)
     for rule in include:
-        include_patterns.append(re.compile(rule))
-        filtered_tag_names.append(rule.split(':')[0])
+        filter_tag = append_filter_regex(rule, include_patterns)
+        if filter_tag:
+            filtered_tag_names.append(filter_tag)
 
     return set(exclude_patterns), set(include_patterns), set(filtered_tag_names)
 
