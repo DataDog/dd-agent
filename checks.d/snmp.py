@@ -110,7 +110,7 @@ class SnmpCheck(NetworkCheck):
 
         return key
 
-    def snmp_logger(self, func):
+    def snmp_logger(self, func, instance_name):
         """
         Decorator to log, with DEBUG level, SNMP commands
         """
@@ -119,7 +119,8 @@ class SnmpCheck(NetworkCheck):
             self.log.debug("Running SNMP command {0} on OIDS {1}"
                            .format(func.__name__, args[2:]))
             result = func(*args, **kwargs)
-            self.log.debug("Returned vars: {0}".format(result[-1]))
+            if instance_name == 'test_debug_datadog':
+                self.log.debug("Returned vars: {0}".format(result[-1]))
             return result
         return wrapper
 
@@ -222,8 +223,8 @@ class SnmpCheck(NetworkCheck):
         # SOLUTION: perform a snmget command and fallback with snmpgetnext if not found
 
         # Set aliases for snmpget and snmpgetnext with logging
-        snmpget = self.snmp_logger(cmd_generator.getCmd)
-        snmpgetnext = self.snmp_logger(cmd_generator.nextCmd)
+        snmpget = self.snmp_logger(cmd_generator.getCmd, instance['name'])
+        snmpgetnext = self.snmp_logger(cmd_generator.nextCmd, instance['name'])
         transport_target = self.get_transport_target(instance, timeout, retries)
         auth_data = self.get_auth_data(instance)
 
@@ -301,7 +302,10 @@ class SnmpCheck(NetworkCheck):
                 oid = result_oid.asTuple()
                 matching = ".".join([str(i) for i in oid])
                 results[matching] = value
-        self.log.debug("Raw results: {0}".format(results))
+
+        if instance['name'] == 'test_debug_datadog':
+            self.log.debug("Raw results: {0}".format(results))
+
         return results
 
     def _check(self, instance):
