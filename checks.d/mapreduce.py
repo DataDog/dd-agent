@@ -123,6 +123,9 @@ class MapReduceCheck(AgentCheck):
         # Parse job specific counters
         self.job_specific_counters = self._parse_job_specific_counters(init_config)
 
+        # Set an http timeout default
+        self.default_integration_http_timeout = float(agentConfig.get('default_integration_http_timeout', 9))
+
     def check(self, instance):
         # Get properties from conf file
         rm_address = instance.get('resourcemanager_uri')
@@ -476,7 +479,7 @@ class MapReduceCheck(AgentCheck):
             response = requests.get(url, timeout=self.default_integration_http_timeout)
             response.raise_for_status()
             response_json = response.json()
-            self.log.debug("ENHANCED DEBUG:\n%s" % response)
+            self.log.debug("ENHANCED DEBUG:\n%s" % response_json)
 
         except Timeout as e:
             self.service_check(service_name,
