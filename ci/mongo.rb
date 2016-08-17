@@ -5,6 +5,7 @@
 require './ci/common'
 
 def mongo_version
+  # We test on '2.6.9' and 3.0.1
   ENV['FLAVOR_VERSION'] || '3.0.1'
 end
 
@@ -37,17 +38,19 @@ namespace :ci do
     task before_script: ['ci:common:before_script'] do
       sh %(mkdir -p $VOLATILE_DIR/mongod1)
       sh %(mkdir -p $VOLATILE_DIR/mongod2)
+
       hostname = `hostname`.strip
+
       sh %(#{mongo_rootdir}/bin/mongod --port 37017\
            --pidfilepath $VOLATILE_DIR/mongod1/mongo.pid\
            --dbpath $VOLATILE_DIR/mongod1\
-           --replSet rs0/#{hostname}:37018\
+           --replSet 'rs0' --bind_ip 0.0.0.0 \
            --logpath $VOLATILE_DIR/mongod1/mongo.log\
            --noprealloc --rest --fork)
       sh %(#{mongo_rootdir}/bin/mongod --port 37018\
           --pidfilepath $VOLATILE_DIR/mongod2/mongo.pid\
           --dbpath $VOLATILE_DIR/mongod2\
-          --replSet rs0/#{hostname}:37017\
+          --replSet 'rs0' --bind_ip 0.0.0.0 \
           --logpath $VOLATILE_DIR/mongod2/mongo.log\
           --noprealloc --rest --fork)
 
@@ -55,21 +58,34 @@ namespace :ci do
       Wait.for 37_017, 10
       Wait.for 37_018
       sh %(#{mongo_rootdir}/bin/mongo\
-           --eval "printjson(db.serverStatus())" 'localhost:37017'\
-           >> $VOLATILE_DIR/mongo.log)
+           --eval "printjson(db.serverStatus())" 'localhost:37017' \
+           >> $VOLATILE_DIR/mongo1.log)
       sh %(#{mongo_rootdir}/bin/mongo\
-           --eval "printjson(db.serverStatus())" 'localhost:37018'\
-           >> $VOLATILE_DIR/mongo.log)
+           --eval "printjson(db.serverStatus())" 'localhost:37018' \
+           >> $VOLATILE_DIR/mongo2.log)
       sh %(#{mongo_rootdir}/bin/mongo\
-           --eval "printjson(rs.initiate()); printjson(rs.conf());" 'localhost:37017'\
-           \>> $VOLATILE_DIR/mongo.log)
+           --eval "printjson(rs.initiate()); printjson(rs.conf());" '#{hostname}:37017' \
+           >> $VOLATILE_DIR/mongo1.log)
+
+      # mongo 2 takes longer to spin up than mongo 3. Without this wait,
+      # it will all break because it takes too long to come up.
       sleep_for 30
       sh %(#{mongo_rootdir}/bin/mongo\
-           --eval "printjson(rs.config()); printjson(rs.status());" 'localhost:37017'\
-           >> $VOLATILE_DIR/mongo.log)
+           --eval "cfg = rs.conf(); cfg.members[0].host = '#{hostname}:37017';\
+           printjson(cfg); \
+           rs.reconfig(cfg); printjson(rs.conf());" 'localhost:37017' \
+           >> $VOLATILE_DIR/mongo1.log)
       sh %(#{mongo_rootdir}/bin/mongo\
-           --eval "printjson(rs.config()); printjson(rs.status());" 'localhost:37018'\
-            >> $VOLATILE_DIR/mongo.log)
+           --eval "printjson(rs.add('#{hostname}:37018'));\
+           printjson(rs.status());" 'localhost:37017' >> $VOLATILE_DIR/mongo1.log)
+
+      sleep_for 30
+      sh %(#{mongo_rootdir}/bin/mongo\
+           --eval "printjson(rs.config()); printjson(rs.status());" 'localhost:37017' \
+           >> $VOLATILE_DIR/mongo1.log)
+      sh %(#{mongo_rootdir}/bin/mongo\
+           --eval "printjson(rs.config()); printjson(rs.status());" 'localhost:37018' \
+           >> $VOLATILE_DIR/mongo2.log)
     end
 
     task script: ['ci:common:script'] do
@@ -82,7 +98,8 @@ namespace :ci do
     task before_cache: ['ci:common:before_cache']
 
     task cleanup: ['ci:common:cleanup'] do
-      sh %(kill `cat $VOLATILE_DIR/mongod1/mongo.pid` `cat $VOLATILE_DIR/mongod2/mongo.pid`)
+      sh %(kill `cat $VOLATILE_DIR/mongod1/mongo.pid`)
+      sh %(kill `cat $VOLATILE_DIR/mongod2/mongo.pid`)
     end
 
     task :execute do
