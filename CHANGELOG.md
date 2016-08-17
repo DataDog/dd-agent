@@ -10,7 +10,7 @@ https://github.com/DataDog/dd-agent/compare/5.8.5...5.9.0
 ### Kafka-Python library update
 Because we have bumped the library version for the `kafka-python` package, if you happen to run any custom
 checks that rely on the former version please make necessary amends. We apologize for any inconvenience.
-See #2709 for reference.
+See [#2709][] for reference.
 
 ### Changes
 * [FEATURE] Process: Option to search processes by PID [#2119][] (Thanks [@handigarde][])
@@ -24,10 +24,10 @@ See #2709 for reference.
 * [FEATURE] Apache: add connection status metrics [#2622][] (Thanks [@gzysk8][])
 * [FEATURE] Mysql: Allow `connection_timeout` to be set for MySQL checks [#2729][] (Thanks [@scottgeary][])
 * [FEATURE] Htpp_check: [Add allow_redirects parameter [#2586][] (Thanks [@n0ts][])
-* [FEATURE] Mongo: Apply yaml-configured tags to service checks #2575 (Thanks @avaughan89)
+* [FEATURE] Mongo: Apply yaml-configured tags to service checks [#2575][] (Thanks [@avaughan89][])
 
-* [IMPROVEMENT] RabbitMQ: new health check #2711
-* [IMPROVEMENT] Kafka_consumer: bumping kafka-python package version to 1.2.5. #2709
+* [IMPROVEMENT] RabbitMQ: new health check [#2711][]
+* [IMPROVEMENT] Kafka_consumer: bumping kafka-python package version to 1.2.5. [#2709][]
 * [IMPROVEMENT] Multiple integrations: Add an HTTP timeout to many integrations [#2673][] (Thanks [@gphat][])
 * [IMPROVEMENT] Core: remove noisy logs [#2715][] (Thanks [@ensonik][])
 * [IMPROVEMENT] Core: expiration should adjust to longer collection intervals (>300s). [#2541][]
@@ -38,13 +38,17 @@ See #2709 for reference.
 * [IMPROVEMENT] Gohai [processes]: Simplify payload [#2600][]
 * [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done [#2621][]
 * [IMPROVEMENT] Core: remove events & resources api_key [#2557][]
+* [IMPROVEMENT] Core: Add an HTTP timeout to many integrations [#2673][] (Thanks [@gphat][])
 * [IMPROVEMENT] Rabbitmq: Avoiding the extra double lookup for 'rabbitmq_api_url' [#2543][] (Thanks [@ParthKolekar][])
 * [IMPROVEMENT] Kubernetes: disable use_histogram [#2542][]
+* [IMPROVEMENT] Kubernetes: Log URL in kubelet check failures and service checks [#2735][] (Thanks [@therc][])
 * [IMPROVEMENT] Vsphere: Add optional vm include parameter [#2459][]
 * [IMPROVEMENT] Openstack: openstack should pick-up on proxy settings set on agent [#2572][]
 * [IMPROVEMENT] Openstack: nova/neutron extend name search [#2627][]
 * [IMPROVEMENT] Disk: handle multilines df output [#2733][]
 * [IMPROVEMENT] Util: remove LaconicFilter [#2605][]
+* [IMPROVEMENT] Mongo: Adds metrics for collections [#2739][]
+* [IMPROVEMENT] Process:  Add metrics for avg, max, and min run times for processes [#2531][] (Thenks [@garnermccloud][])
 
 * [BUGFIX] Marathon: Fix a small problem that prevented marathon full path from being properly built [#2620][]
 * [BUGFIX] Iis: Fix metrics tagging when multiple sites are specified on instance [#2677][]
@@ -54,6 +58,7 @@ See #2709 for reference.
 * [BUGFIX] Process: Use configured proc path when getting pagefault stats [#2727][] (Thanks [@rdxiang][])
 * [BUGFIX] Packaging [linux]: Kernel 4+ won't error out on status now [#2640][]
 * [BUGFIX] Packaging [osx]: Support GNU-Friendly sed [#2580][] (Thanks [@sha1sum][])
+* [BUGFIX] Network Checks: Network check instance corrections [#2736][] (Thanks [@tschellhorn][])
 
 * [DEPRECATED] Jenkins: Deprecate check [#2688][]
 * [DEPRECATED] Core: clean debug logs and kill Dogstream-based DdForwarder [#2628][]
@@ -3257,6 +3262,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2516]: https://github.com/DataDog/dd-agent/issues/2516
 [#2521]: https://github.com/DataDog/dd-agent/issues/2521
 [#2528]: https://github.com/DataDog/dd-agent/issues/2528
+[#2531]: https://github.com/DataDog/dd-agent/issues/2531
 [#2535]: https://github.com/DataDog/dd-agent/issues/2535
 [#2537]: https://github.com/DataDog/dd-agent/issues/2537
 [#2538]: https://github.com/DataDog/dd-agent/issues/2538
@@ -3317,10 +3323,15 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2696]: https://github.com/DataDog/dd-agent/issues/2696
 [#2704]: https://github.com/DataDog/dd-agent/issues/2704
 [#2708]: https://github.com/DataDog/dd-agent/issues/2708
+[#2709]: https://github.com/DataDog/dd-agent/issues/2709
+[#2711]: https://github.com/DataDog/dd-agent/issues/2711
 [#2715]: https://github.com/DataDog/dd-agent/issues/2715
 [#2727]: https://github.com/DataDog/dd-agent/issues/2727
 [#2729]: https://github.com/DataDog/dd-agent/issues/2729
 [#2733]: https://github.com/DataDog/dd-agent/issues/2733
+[#2735]: https://github.com/DataDog/dd-agent/issues/2735
+[#2736]: https://github.com/DataDog/dd-agent/issues/2736
+[#2739]: https://github.com/DataDog/dd-agent/issues/2739
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -3343,6 +3354,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@arosenhagen]: https://github.com/arosenhagen
 [@arthurnn]: https://github.com/arthurnn
 [@asiebert]: https://github.com/asiebert
+[@avaughan89]: https://github.com/avaughan89
 [@bakins]: https://github.com/bakins
 [@bdharrington7]: https://github.com/bdharrington7
 [@bdotdub]: https://github.com/bdotdub
@@ -3368,6 +3380,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@echohead]: https://github.com/echohead
 [@ensonik]: https://github.com/ensonik
 [@etrepum]: https://github.com/etrepum
+[@garnermccloud]: https://github.com/garnermccloud
 [@glickbot]: https://github.com/glickbot
 [@gphat]: https://github.com/gphat
 [@graemej]: https://github.com/graemej
@@ -3450,8 +3463,10 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@takus]: https://github.com/takus
 [@tebriel]: https://github.com/tebriel
 [@theckman]: https://github.com/theckman
+[@therc]: https://github.com/therc
 [@tliakos]: https://github.com/tliakos
 [@tomduckering]: https://github.com/tomduckering
+[@tschellhorn]: https://github.com/tschellhorn
 [@ulich]: https://github.com/ulich
 [@urosgruber]: https://github.com/urosgruber
 [@walkeran]: https://github.com/walkeran
