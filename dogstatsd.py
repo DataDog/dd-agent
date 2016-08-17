@@ -391,6 +391,7 @@ class Server(object):
 
         # Run our select loop.
         self.running = True
+        message = None
         while self.running:
             try:
                 ready = select_select(sock, [], [], timeout)
@@ -408,7 +409,7 @@ class Server(object):
             except (KeyboardInterrupt, SystemExit):
                 break
             except Exception:
-                log.exception('Error receiving datagram')
+                log.exception('Error receiving datagram `%s`', message)
 
     def stop(self):
         self.running = False
