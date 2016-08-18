@@ -110,6 +110,8 @@ class KubeUtil:
         """
         Exctract fields like `uid` or `name` from the `metadata` section of a
         list of pods coming from the kubelet API.
+
+        TODO: currently not in use, was added to support events filtering, consider to remove it.
         """
         uids = []
         pods = pods_list.get("items") or []
@@ -136,6 +138,8 @@ class KubeUtil:
     def filter_pods_list(self, pods_list, host_ip):
         """
         Filter out (in place) pods that are not running on the given host.
+
+        TODO: currently not in use, was added to support events filtering, consider to remove it.
         """
         pod_items = pods_list.get('items') or []
         log.debug('Found {} pods to filter'.format(len(pod_items)))
