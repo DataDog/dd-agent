@@ -10,7 +10,8 @@ VM_COUNTS = {
     'pgmajfault': 'pages.major_faults'
 }
 
-class MoreLinuxVMCheck(AgentCheck):
+
+class LinuxVMExtrasCheck(AgentCheck):
     def check(self, instance):
         tags = instance.get('tags', [])
 
