@@ -1,6 +1,69 @@
 Changes
 =======
 
+# 5.9.0 / 08-12-2016
+**All Platforms**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.8.5...5.9.0
+
+### Kafka-Python library update
+Because we have bumped the library version for the `kafka-python` package, if you happen to run any custom
+checks that rely on the former version please make necessary amends. We apologize for any inconvenience.
+See [#2709][] for reference.
+
+### Changes
+* [FEATURE] Process: Option to search processes by PID [#2119][] (Thanks [@handigarde][])
+* [FEATURE] Forwarder: allow multiple endpoints/api_keys [#2564][]
+* [FEATURE] Linux: make /proc configurable [#2482][]
+* [FEATURE] Http_check: SNI support for cert_expiration [#2521][]
+* [FEATURE] Gearman: Add per-task gearman metrics [#2672][] (Thanks [@nyanshak][])
+* [FEATURE] Core:[dogstatsd: Added support for IP agnostic connections [#2619][]
+* [FEATURE] Docker_daemon: resolve hierarchy by looking at procfs <pid>/cgroup [#2537][]
+* [FEATURE] Dns_check: Allow querying a custom record type [#2653][]
+* [FEATURE] Apache: add connection status metrics [#2622][] (Thanks [@gzysk8][])
+* [FEATURE] Mysql: Allow `connection_timeout` to be set for MySQL checks [#2729][] (Thanks [@scottgeary][])
+* [FEATURE] Htpp_check: [Add allow_redirects parameter [#2586][] (Thanks [@n0ts][])
+* [FEATURE] Mongo: Apply yaml-configured tags to service checks [#2575][] (Thanks [@avaughan89][])
+
+* [IMPROVEMENT] RabbitMQ: new health check [#2711][]
+* [IMPROVEMENT] Kafka_consumer: bumping kafka-python package version to 1.2.5. [#2709][]
+* [IMPROVEMENT] Multiple integrations: Add an HTTP timeout to many integrations [#2673][] (Thanks [@gphat][])
+* [IMPROVEMENT] Core: remove noisy logs [#2715][] (Thanks [@ensonik][])
+* [IMPROVEMENT] Core: expiration should adjust to longer collection intervals (>300s). [#2541][]
+* [IMPROVEMENT] Ssh: Be more specific when logging ssh errors [#2708][]
+* [IMPROVEMENT] Http_check: log exceptions 🔊 [#2704][]
+* [IMPROVEMENT] Dogstatsd: fix server address when non_local_traffic is passed [#2691][]
+* [IMPROVEMENT] Flare: hide multiple endpoints api_keys [#2646][]
+* [IMPROVEMENT] Gohai [processes]: Simplify payload [#2600][]
+* [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done [#2621][]
+* [IMPROVEMENT] Core: remove events & resources api_key [#2557][]
+* [IMPROVEMENT] Core: Add an HTTP timeout to many integrations [#2673][] (Thanks [@gphat][])
+* [IMPROVEMENT] Rabbitmq: Avoiding the extra double lookup for 'rabbitmq_api_url' [#2543][] (Thanks [@ParthKolekar][])
+* [IMPROVEMENT] Kubernetes: disable use_histogram [#2542][]
+* [IMPROVEMENT] Kubernetes: Log URL in kubelet check failures and service checks [#2735][] (Thanks [@therc][])
+* [IMPROVEMENT] Vsphere: Add optional vm include parameter [#2459][]
+* [IMPROVEMENT] Openstack: openstack should pick-up on proxy settings set on agent [#2572][]
+* [IMPROVEMENT] Openstack: nova/neutron extend name search [#2627][]
+* [IMPROVEMENT] Disk: handle multilines df output [#2733][]
+* [IMPROVEMENT] Util: remove LaconicFilter [#2605][]
+* [IMPROVEMENT] Mongo: Adds metrics for collections [#2739][]
+* [IMPROVEMENT] Process:  Add metrics for avg, max, and min run times for processes [#2531][] (Thenks [@garnermccloud][])
+
+* [BUGFIX] Marathon: Fix a small problem that prevented marathon full path from being properly built [#2620][]
+* [BUGFIX] Iis: Fix metrics tagging when multiple sites are specified on instance [#2677][]
+* [BUGFIX] Redisdb: Avoid exception when slowlog query returns empty `command` [#2651][]
+* [BUGFIX] Http_check: Bring back include_content option [#2631][]
+* [BUGFIX] Win32_event_log: Fix small regression on `msg_text` selection [#2591][]
+* [BUGFIX] Process: Use configured proc path when getting pagefault stats [#2727][] (Thanks [@rdxiang][])
+* [BUGFIX] Packaging [linux]: Kernel 4+ won't error out on status now [#2640][]
+* [BUGFIX] Packaging [osx]: Support GNU-Friendly sed [#2580][] (Thanks [@sha1sum][])
+* [BUGFIX] Network Checks: Network check instance corrections [#2736][] (Thanks [@tschellhorn][])
+
+* [DEPRECATED] Jenkins: Deprecate check [#2688][]
+* [DEPRECATED] Core: clean debug logs and kill Dogstream-based DdForwarder [#2628][]
+
+
 # 5.8.5 / 07-27-2016
 **Windows, Linux and Source Install**
 
@@ -14,14 +77,14 @@ trusted APT key:
 
 ```
 pub   4096R/382E94DE 2016-06-29 [expires: 2022-06-28]
-uid                  Datadog, Inc <package@datadoghq.com>
+uid                  Datadog, Inc <package[@datadoghq][].com>
 ```
 
 During the package install, the DEB package will output the following:
 
 ```
 Prepare Datadog Agent keys rotation
-  Add the new 'Datadog, Inc <package@datadoghq.com>' key to the list of APT trusted keys. ... OK
+  Add the new 'Datadog, Inc <package[@datadoghq][].com>' key to the list of APT trusted keys. ... OK
 ```
 
 The signing key of the Agent hasn't changed yet but will be switched to this new key in a future release.
@@ -2998,6 +3061,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2114]: https://github.com/DataDog/dd-agent/issues/2114
 [#2115]: https://github.com/DataDog/dd-agent/issues/2115
 [#2116]: https://github.com/DataDog/dd-agent/issues/2116
+[#2119]: https://github.com/DataDog/dd-agent/issues/2119
 [#2120]: https://github.com/DataDog/dd-agent/issues/2120
 [#2121]: https://github.com/DataDog/dd-agent/issues/2121
 [#2126]: https://github.com/DataDog/dd-agent/issues/2126
@@ -3180,6 +3244,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2476]: https://github.com/DataDog/dd-agent/issues/2476
 [#2477]: https://github.com/DataDog/dd-agent/issues/2477
 [#2479]: https://github.com/DataDog/dd-agent/issues/2479
+[#2482]: https://github.com/DataDog/dd-agent/issues/2482
 [#2486]: https://github.com/DataDog/dd-agent/issues/2486
 [#2487]: https://github.com/DataDog/dd-agent/issues/2487
 [#2490]: https://github.com/DataDog/dd-agent/issues/2490
@@ -3195,37 +3260,78 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2514]: https://github.com/DataDog/dd-agent/issues/2514
 [#2515]: https://github.com/DataDog/dd-agent/issues/2515
 [#2516]: https://github.com/DataDog/dd-agent/issues/2516
+[#2521]: https://github.com/DataDog/dd-agent/issues/2521
 [#2528]: https://github.com/DataDog/dd-agent/issues/2528
+[#2531]: https://github.com/DataDog/dd-agent/issues/2531
 [#2535]: https://github.com/DataDog/dd-agent/issues/2535
+[#2537]: https://github.com/DataDog/dd-agent/issues/2537
 [#2538]: https://github.com/DataDog/dd-agent/issues/2538
+[#2541]: https://github.com/DataDog/dd-agent/issues/2541
+[#2542]: https://github.com/DataDog/dd-agent/issues/2542
+[#2543]: https://github.com/DataDog/dd-agent/issues/2543
 [#2548]: https://github.com/DataDog/dd-agent/issues/2548
 [#2553]: https://github.com/DataDog/dd-agent/issues/2553
 [#2556]: https://github.com/DataDog/dd-agent/issues/2556
+[#2557]: https://github.com/DataDog/dd-agent/issues/2557
 [#2559]: https://github.com/DataDog/dd-agent/issues/2559
 [#2560]: https://github.com/DataDog/dd-agent/issues/2560
+[#2564]: https://github.com/DataDog/dd-agent/issues/2564
 [#2565]: https://github.com/DataDog/dd-agent/issues/2565
+[#2572]: https://github.com/DataDog/dd-agent/issues/2572
 [#2573]: https://github.com/DataDog/dd-agent/issues/2573
 [#2575]: https://github.com/DataDog/dd-agent/issues/2575
+[#2580]: https://github.com/DataDog/dd-agent/issues/2580
+[#2586]: https://github.com/DataDog/dd-agent/issues/2586
 [#2588]: https://github.com/DataDog/dd-agent/issues/2588
 [#2590]: https://github.com/DataDog/dd-agent/issues/2590
+[#2591]: https://github.com/DataDog/dd-agent/issues/2591
 [#2592]: https://github.com/DataDog/dd-agent/issues/2592
 [#2593]: https://github.com/DataDog/dd-agent/issues/2593
+[#2600]: https://github.com/DataDog/dd-agent/issues/2600
 [#2603]: https://github.com/DataDog/dd-agent/issues/2603
+[#2605]: https://github.com/DataDog/dd-agent/issues/2605
 [#2608]: https://github.com/DataDog/dd-agent/issues/2608
 [#2609]: https://github.com/DataDog/dd-agent/issues/2609
 [#2610]: https://github.com/DataDog/dd-agent/issues/2610
+[#2619]: https://github.com/DataDog/dd-agent/issues/2619
+[#2620]: https://github.com/DataDog/dd-agent/issues/2620
+[#2621]: https://github.com/DataDog/dd-agent/issues/2621
+[#2622]: https://github.com/DataDog/dd-agent/issues/2622
 [#2625]: https://github.com/DataDog/dd-agent/issues/2625
 [#2626]: https://github.com/DataDog/dd-agent/issues/2626
+[#2627]: https://github.com/DataDog/dd-agent/issues/2627
+[#2628]: https://github.com/DataDog/dd-agent/issues/2628
+[#2631]: https://github.com/DataDog/dd-agent/issues/2631
 [#2633]: https://github.com/DataDog/dd-agent/issues/2633
+[#2640]: https://github.com/DataDog/dd-agent/issues/2640
+[#2646]: https://github.com/DataDog/dd-agent/issues/2646
+[#2651]: https://github.com/DataDog/dd-agent/issues/2651
+[#2653]: https://github.com/DataDog/dd-agent/issues/2653
 [#2660]: https://github.com/DataDog/dd-agent/issues/2660
 [#2661]: https://github.com/DataDog/dd-agent/issues/2661
 [#2666]: https://github.com/DataDog/dd-agent/issues/2666
 [#2667]: https://github.com/DataDog/dd-agent/issues/2667
 [#2669]: https://github.com/DataDog/dd-agent/issues/2669
 [#2670]: https://github.com/DataDog/dd-agent/issues/2670
+[#2672]: https://github.com/DataDog/dd-agent/issues/2672
+[#2673]: https://github.com/DataDog/dd-agent/issues/2673
+[#2677]: https://github.com/DataDog/dd-agent/issues/2677
 [#2681]: https://github.com/DataDog/dd-agent/issues/2681
 [#2684]: https://github.com/DataDog/dd-agent/issues/2684
+[#2688]: https://github.com/DataDog/dd-agent/issues/2688
+[#2691]: https://github.com/DataDog/dd-agent/issues/2691
 [#2696]: https://github.com/DataDog/dd-agent/issues/2696
+[#2704]: https://github.com/DataDog/dd-agent/issues/2704
+[#2708]: https://github.com/DataDog/dd-agent/issues/2708
+[#2709]: https://github.com/DataDog/dd-agent/issues/2709
+[#2711]: https://github.com/DataDog/dd-agent/issues/2711
+[#2715]: https://github.com/DataDog/dd-agent/issues/2715
+[#2727]: https://github.com/DataDog/dd-agent/issues/2727
+[#2729]: https://github.com/DataDog/dd-agent/issues/2729
+[#2733]: https://github.com/DataDog/dd-agent/issues/2733
+[#2735]: https://github.com/DataDog/dd-agent/issues/2735
+[#2736]: https://github.com/DataDog/dd-agent/issues/2736
+[#2739]: https://github.com/DataDog/dd-agent/issues/2739
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -3235,6 +3341,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@KnownSubset]: https://github.com/KnownSubset
 [@MiguelMoll]: https://github.com/MiguelMoll
 [@Osterjour]: https://github.com/Osterjour
+[@ParthKolekar]: https://github.com/ParthKolekar
 [@PedroMiguelFigueiredo]: https://github.com/PedroMiguelFigueiredo
 [@TheCloudlessSky]: https://github.com/TheCloudlessSky
 [@Zarkantho]: https://github.com/Zarkantho
@@ -3247,6 +3354,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@arosenhagen]: https://github.com/arosenhagen
 [@arthurnn]: https://github.com/arthurnn
 [@asiebert]: https://github.com/asiebert
+[@avaughan89]: https://github.com/avaughan89
 [@bakins]: https://github.com/bakins
 [@bdharrington7]: https://github.com/bdharrington7
 [@bdotdub]: https://github.com/bdotdub
@@ -3270,7 +3378,9 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@dougbarth]: https://github.com/dougbarth
 [@dspangen]: https://github.com/dspangen
 [@echohead]: https://github.com/echohead
+[@ensonik]: https://github.com/ensonik
 [@etrepum]: https://github.com/etrepum
+[@garnermccloud]: https://github.com/garnermccloud
 [@glickbot]: https://github.com/glickbot
 [@gphat]: https://github.com/gphat
 [@graemej]: https://github.com/graemej
@@ -3312,9 +3422,11 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@morskoyzmey]: https://github.com/morskoyzmey
 [@mtougeron]: https://github.com/mtougeron
 [@mutemule]: https://github.com/mutemule
+[@n0ts]: https://github.com/n0ts
 [@nambrosch]: https://github.com/nambrosch
 [@nfo]: https://github.com/nfo
 [@nwillems]: https://github.com/nwillems
+[@nyanshak]: https://github.com/nyanshak
 [@obi11235]: https://github.com/obi11235
 [@oeuftete]: https://github.com/oeuftete
 [@ojongerius]: https://github.com/ojongerius
@@ -3330,6 +3442,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@pfmooney]: https://github.com/pfmooney
 [@pidah]: https://github.com/pidah
 [@polynomial]: https://github.com/polynomial
+[@rdxiang]: https://github.com/rdxiang
 [@rhwlo]: https://github.com/rhwlo
 [@ricky26]: https://github.com/ricky26
 [@rl-0x0]: https://github.com/rl-0x0
@@ -3337,6 +3450,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@scottbessler]: https://github.com/scottbessler
 [@scottgeary]: https://github.com/scottgeary
 [@sethp-jive]: https://github.com/sethp-jive
+[@sha1sum]: https://github.com/sha1sum
 [@shamada-kuuluu]: https://github.com/shamada-kuuluu
 [@shashiranjan84]: https://github.com/shashiranjan84
 [@sirlantis]: https://github.com/sirlantis
@@ -3349,8 +3463,10 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@takus]: https://github.com/takus
 [@tebriel]: https://github.com/tebriel
 [@theckman]: https://github.com/theckman
+[@therc]: https://github.com/therc
 [@tliakos]: https://github.com/tliakos
 [@tomduckering]: https://github.com/tomduckering
+[@tschellhorn]: https://github.com/tschellhorn
 [@ulich]: https://github.com/ulich
 [@urosgruber]: https://github.com/urosgruber
 [@walkeran]: https://github.com/walkeran
