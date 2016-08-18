@@ -396,7 +396,6 @@ class Kubernetes(AgentCheck):
                 'source_type_name': EVENT_TYPE,
                 'event_object': 'kubernetes:{}'.format(involved_obj.get('name')),
             }
-            self.log.debug('Posting event: {}'.format(dd_event))
             self.event(dd_event)
 
         if most_recent_read > 0:
