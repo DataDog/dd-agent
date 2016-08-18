@@ -364,6 +364,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         for option in config.options('Main'):
             agentConfig[option] = config.get('Main', option)
 
+        if agentConfig['tags']:
+            agentConfig['tags'] = agentConfig['tags'].replace('"', '')
+            agentConfig['tags'] = agentConfig['tags'].replace("'", '')
+
         # Store developer mode setting in the agentConfig
         if config.has_option('Main', 'developer_mode'):
             agentConfig['developer_mode'] = _is_affirmative(config.get('Main', 'developer_mode'))
