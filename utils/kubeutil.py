@@ -160,7 +160,6 @@ class KubeUtil:
         verify = self.CA_CRT_PATH if os.path.exists(self.CA_CRT_PATH) else False
         log.debug('ssl validation: {}'.format(verify))
         headers = {'Authorization': 'Bearer {}'.format(auth_token)}
-        log.debug('HTTP headers: {}'.format(headers))
         r = requests.get(url, timeout=timeout, headers=headers, verify=verify)
         r.raise_for_status()
         return r.json()
