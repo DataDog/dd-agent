@@ -370,12 +370,12 @@ class Kubernetes(AgentCheck):
         self.log.debug('Found {} events, filtering out using timestamp: {}'.format(len(event_items), last_read))
 
         for event in event_items:
-            involved_obj = event.get('involvedObject', {})
-
             # skip if the event is too old
             event_ts = int(time.mktime(time.strptime(event.get('lastTimestamp'), '%Y-%m-%dT%H:%M:%SZ')))
             if event_ts <= last_read:
                 continue
+
+            involved_obj = event.get('involvedObject', {})
 
             # compute the most recently seen event, without relying on items order
             if event_ts > most_recent_read:
