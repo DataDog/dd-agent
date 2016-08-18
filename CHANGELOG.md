@@ -77,14 +77,14 @@ trusted APT key:
 
 ```
 pub   4096R/382E94DE 2016-06-29 [expires: 2022-06-28]
-uid                  Datadog, Inc <package[@datadoghq][].com>
+uid                  Datadog, Inc <package@datadoghq.com>
 ```
 
 During the package install, the DEB package will output the following:
 
 ```
 Prepare Datadog Agent keys rotation
-  Add the new 'Datadog, Inc <package[@datadoghq][].com>' key to the list of APT trusted keys. ... OK
+  Add the new 'Datadog, Inc <package@datadoghq.com>' key to the list of APT trusted keys. ... OK
 ```
 
 The signing key of the Agent hasn't changed yet but will be switched to this new key in a future release.
