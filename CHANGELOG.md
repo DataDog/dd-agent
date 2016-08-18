@@ -12,56 +12,82 @@ Because we have bumped the library version for the `kafka-python` package, if yo
 checks that rely on the former version please make necessary amends. We apologize for any inconvenience.
 See [#2709][] for reference.
 
+### Updated integrations
+* Apache
+* Disk Check
+* DNS
+* Docker
+* Gearman
+* HTTP Check
+* IIS
+* Kafka Consumer
+* Kubernetes
+* Linux Check
+* Marathon
+* Mongo
+* MySQL
+* Network Check
+* OpenStack
+* Process
+* RabbitMQ
+* Redis
+* SSH
+* vSphere
+* Windows
+
+### Deprecated integrations
+* Jenkins
+
 ### Changes
-* [FEATURE] Process: Option to search processes by PID [#2119][] (Thanks [@handigarde][])
-* [FEATURE] Forwarder: allow multiple endpoints/api_keys [#2564][]
-* [FEATURE] Linux: make /proc configurable [#2482][]
-* [FEATURE] Http_check: SNI support for cert_expiration [#2521][]
-* [FEATURE] Gearman: Add per-task gearman metrics [#2672][] (Thanks [@nyanshak][])
+* [FEATURE] Process: Option to search processes by PID. See [#2119][] (Thanks [@handigarde][])
+* [FEATURE] Forwarder: allow multiple endpoints/api_keys. See [#2564][]
+* [FEATURE] Linux: make /proc configurable. See [#2482][]
+* [FEATURE] Http_check: SNI support for cert_expiration. See [#2521][]
+* [FEATURE] Gearman: Add per-task gearman metrics. See [#2672][] (Thanks [@nyanshak][])
 * [FEATURE] Core:[dogstatsd: Added support for IP agnostic connections [#2619][]
-* [FEATURE] Docker_daemon: resolve hierarchy by looking at procfs <pid>/cgroup [#2537][]
-* [FEATURE] Dns_check: Allow querying a custom record type [#2653][]
-* [FEATURE] Apache: add connection status metrics [#2622][] (Thanks [@gzysk8][])
-* [FEATURE] Mysql: Allow `connection_timeout` to be set for MySQL checks [#2729][] (Thanks [@scottgeary][])
-* [FEATURE] Htpp_check: [Add allow_redirects parameter [#2586][] (Thanks [@n0ts][])
-* [FEATURE] Mongo: Apply yaml-configured tags to service checks [#2575][] (Thanks [@avaughan89][])
+* [FEATURE] Docker_daemon: resolve hierarchy by looking at procfs <pid>/cgroup. See [#2537][]
+* [FEATURE] Dns_check: Allow querying a custom record type. See [#2653][]
+* [FEATURE] Apache: add connection status metrics. See [#2622][] (Thanks [@gzysk8][])
+* [FEATURE] Mysql: Allow `connection_timeout` to be set for MySQL checks. See [#2729][] (Thanks [@scottgeary][])
+* [FEATURE] Http_check: Add allow_redirects parameter. See [#2586][] (Thanks [@n0ts][])
+* [FEATURE] Mongo: Apply yaml-configured tags to service checks. See [#2575][] (Thanks [@avaughan89][])
 
-* [IMPROVEMENT] RabbitMQ: new health check [#2711][]
-* [IMPROVEMENT] Kafka_consumer: bumping kafka-python package version to 1.2.5. [#2709][]
-* [IMPROVEMENT] Multiple integrations: Add an HTTP timeout to many integrations [#2673][] (Thanks [@gphat][])
-* [IMPROVEMENT] Core: remove noisy logs [#2715][] (Thanks [@ensonik][])
-* [IMPROVEMENT] Core: expiration should adjust to longer collection intervals (>300s). [#2541][]
-* [IMPROVEMENT] Ssh: Be more specific when logging ssh errors [#2708][]
-* [IMPROVEMENT] Http_check: log exceptions 🔊 [#2704][]
-* [IMPROVEMENT] Dogstatsd: fix server address when non_local_traffic is passed [#2691][]
-* [IMPROVEMENT] Flare: hide multiple endpoints api_keys [#2646][]
-* [IMPROVEMENT] Gohai [processes]: Simplify payload [#2600][]
-* [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done [#2621][]
-* [IMPROVEMENT] Core: remove events & resources api_key [#2557][]
-* [IMPROVEMENT] Core: Add an HTTP timeout to many integrations [#2673][] (Thanks [@gphat][])
-* [IMPROVEMENT] Rabbitmq: Avoiding the extra double lookup for 'rabbitmq_api_url' [#2543][] (Thanks [@ParthKolekar][])
-* [IMPROVEMENT] Kubernetes: disable use_histogram [#2542][]
-* [IMPROVEMENT] Kubernetes: Log URL in kubelet check failures and service checks [#2735][] (Thanks [@therc][])
-* [IMPROVEMENT] Vsphere: Add optional vm include parameter [#2459][]
-* [IMPROVEMENT] Openstack: openstack should pick-up on proxy settings set on agent [#2572][]
-* [IMPROVEMENT] Openstack: nova/neutron extend name search [#2627][]
-* [IMPROVEMENT] Disk: handle multilines df output [#2733][]
-* [IMPROVEMENT] Util: remove LaconicFilter [#2605][]
-* [IMPROVEMENT] Mongo: Adds metrics for collections [#2739][]
-* [IMPROVEMENT] Process:  Add metrics for avg, max, and min run times for processes [#2531][] (Thenks [@garnermccloud][])
+* [IMPROVEMENT] RabbitMQ: new health check. See [#2711][]
+* [IMPROVEMENT] Kafka_consumer: bumping kafka-python package version to 1.2.5. See [#2709][]
+* [IMPROVEMENT] Multiple integrations: Add an HTTP timeout to many integrations. See [#2673][] (Thanks [@gphat][])
+* [IMPROVEMENT] Core: remove noisy logs. See [#2715][] (Thanks [@ensonik][])
+* [IMPROVEMENT] Core: expiration should adjust to longer collection intervals (>300s). See [#2541][]
+* [IMPROVEMENT] Ssh: Be more specific when logging ssh errors. See [#2708][]
+* [IMPROVEMENT] Http_check: log exceptions 🔊. See [#2704][]
+* [IMPROVEMENT] Dogstatsd: fix server address when non_local_traffic is passed. See [#2691][]
+* [IMPROVEMENT] Flare: hide multiple endpoints api_keys. See [#2646][]
+* [IMPROVEMENT] Gohai [processes]: Simplify payload. See [#2600][]
+* [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done. See [#2621][]
+* [IMPROVEMENT] Core: remove events & resources api_key. See [#2557][]
+* [IMPROVEMENT] Core: Add an HTTP timeout to many integrations. See [#2673][] (Thanks [@gphat][])
+* [IMPROVEMENT] Rabbitmq: Avoiding the extra double lookup for 'rabbitmq_api_url'. See [#2543][] (Thanks [@ParthKolekar][])
+* [IMPROVEMENT] Kubernetes: disable use_histogram. See [#2542][]
+* [IMPROVEMENT] Kubernetes: Log URL in kubelet check failures and service checks. See [#2735][] (Thanks [@therc][])
+* [IMPROVEMENT] Vsphere: Add optional vm include parameter. See [#2459][]
+* [IMPROVEMENT] Openstack: openstack should pick-up on proxy settings set on agent. See [#2572][]
+* [IMPROVEMENT] Openstack: nova/neutron extend name search. See [#2627][]
+* [IMPROVEMENT] Disk: handle multilines df output. See [#2733][]
+* [IMPROVEMENT] Util: remove LaconicFilter. See [#2605][]
+* [IMPROVEMENT] Mongo: Adds metrics for collections. See [#2739][]
+* [IMPROVEMENT] Process:  Add metrics for avg, max, and min run times for processes. See [#2531][] (Thenks [@garnermccloud][])
 
-* [BUGFIX] Marathon: Fix a small problem that prevented marathon full path from being properly built [#2620][]
-* [BUGFIX] Iis: Fix metrics tagging when multiple sites are specified on instance [#2677][]
-* [BUGFIX] Redisdb: Avoid exception when slowlog query returns empty `command` [#2651][]
-* [BUGFIX] Http_check: Bring back include_content option [#2631][]
-* [BUGFIX] Win32_event_log: Fix small regression on `msg_text` selection [#2591][]
+* [BUGFIX] Marathon: Fix a small problem that prevented marathon full path from being properly built. See [#2620][]
+* [BUGFIX] IIS: Fix metrics tagging when multiple sites are specified on instance. See [#2677][]
+* [BUGFIX] Redisdb: Avoid exception when slowlog query returns empty `command`. See [#2651][]
+* [BUGFIX] Http_check: Bring back include_content option. See [#2631][]
+* [BUGFIX] Win32_event_log: Fix small regression on `msg_text` selection. See [#2591][]
 * [BUGFIX] Process: Use configured proc path when getting pagefault stats [#2727][] (Thanks [@rdxiang][])
-* [BUGFIX] Packaging [linux]: Kernel 4+ won't error out on status now [#2640][]
-* [BUGFIX] Packaging [osx]: Support GNU-Friendly sed [#2580][] (Thanks [@sha1sum][])
-* [BUGFIX] Network Checks: Network check instance corrections [#2736][] (Thanks [@tschellhorn][])
+* [BUGFIX] Packaging [linux]: Kernel 4+ won't error out on status now. See [#2640][]
+* [BUGFIX] Packaging [osx]: Support GNU-Friendly sed. See [#2580][] (Thanks [@sha1sum][])
+* [BUGFIX] Network Checks: Network check instance corrections. See [#2736][] (Thanks [@tschellhorn][])
 
-* [DEPRECATED] Jenkins: Deprecate check [#2688][]
-* [DEPRECATED] Core: clean debug logs and kill Dogstream-based DdForwarder [#2628][]
+* [DEPRECATED] Jenkins: Deprecate check. See [#2688][]
+* [DEPRECATED] Core: clean debug logs and kill Dogstream-based DdForwarder. See [#2628][]
 
 
 # 5.8.5 / 07-27-2016
