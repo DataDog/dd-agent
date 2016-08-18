@@ -288,10 +288,12 @@ class Kubernetes(AgentCheck):
                 c_name = container.get('name')
                 _tags = container_tags.get(name2id.get(c_name), [])
 
+                prog = re.compile(r'[-+]?\d+[\.]?\d*')
+
                 # limits
                 try:
                     for limit, value_str in container['resources']['limits'].iteritems():
-                        values = [float(s) for s in re.findall(r'[-+]?\d+[\.]?\d*', value_str)]
+                        values = [float(s) for s in prog.findall(value_str)]
                         if len(values) != 1:
                             self.log.warning("Error parsing limits value string: %s", value_str)
                             continue
@@ -303,7 +305,7 @@ class Kubernetes(AgentCheck):
                 # requests
                 try:
                     for request, value_str in container['resources']['requests'].iteritems():
-                        values = [float(s) for s in re.findall(r'[-+]?\d+[\.]?\d*', value_str)]
+                        values = [float(s) for s in prog.findall(value_str)]
                         if len(values) != 1:
                             self.log.warning("Error parsing requests value string: %s", value_str)
                             continue
