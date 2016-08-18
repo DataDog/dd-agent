@@ -48,7 +48,7 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Disk: handle multilines df output [#2733][]
 * [IMPROVEMENT] Util: remove LaconicFilter [#2605][]
 * [IMPROVEMENT] Mongo: Adds metrics for collections [#2739][]
-* [IMPROVEMENT] Process:  Add metrics for avg, max, and min run times for processes [#2531][] (Thenks [@garnermccloud][])
+* [IMPROVEMENT] Process:  Add metrics for avg, max, and min run times for processes [#2531][] (Thanks [@garnermccloud][])
 
 * [BUGFIX] Marathon: Fix a small problem that prevented marathon full path from being properly built [#2620][]
 * [BUGFIX] Iis: Fix metrics tagging when multiple sites are specified on instance [#2677][]
