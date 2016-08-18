@@ -39,55 +39,55 @@ See [#2709][] for reference.
 * Jenkins
 
 ### Changes
-* [FEATURE] Process: Option to search processes by PID. See [#2119][] (Thanks [@handigarde][])
-* [FEATURE] Forwarder: allow multiple endpoints/api_keys. See [#2564][]
-* [FEATURE] Linux: make /proc configurable. See [#2482][]
-* [FEATURE] Http_check: SNI support for cert_expiration. See [#2521][]
-* [FEATURE] Gearman: Add per-task gearman metrics. See [#2672][] (Thanks [@nyanshak][])
-* [FEATURE] Core:[dogstatsd: Added support for IP agnostic connections [#2619][]
-* [FEATURE] Docker_daemon: resolve hierarchy by looking at procfs <pid>/cgroup. See [#2537][]
-* [FEATURE] Dns_check: Allow querying a custom record type. See [#2653][]
 * [FEATURE] Apache: add connection status metrics. See [#2622][] (Thanks [@gzysk8][])
-* [FEATURE] Mysql: Allow `connection_timeout` to be set for MySQL checks. See [#2729][] (Thanks [@scottgeary][])
+* [FEATURE] Core: dogstatsd: Added support for IP agnostic connections [#2619][]
+* [FEATURE] Dns_check: Allow querying a custom record type. See [#2653][]
+* [FEATURE] Docker_daemon: resolve hierarchy by looking at procfs <pid>/cgroup. See [#2537][]
+* [FEATURE] Forwarder: allow multiple endpoints/api_keys. See [#2564][]
+* [FEATURE] Gearman: Add per-task gearman metrics. See [#2672][] (Thanks [@nyanshak][])
 * [FEATURE] Http_check: Add allow_redirects parameter. See [#2586][] (Thanks [@n0ts][])
+* [FEATURE] Http_check: SNI support for cert_expiration. See [#2521][]
+* [FEATURE] Linux: make /proc configurable. See [#2482][]
 * [FEATURE] Mongo: Apply yaml-configured tags to service checks. See [#2575][] (Thanks [@avaughan89][])
+* [FEATURE] Mysql: Allow `connection_timeout` to be set for MySQL checks. See [#2729][] (Thanks [@scottgeary][])
+* [FEATURE] Process: Option to search processes by PID. See [#2119][] (Thanks [@handigarde][])
 
-* [IMPROVEMENT] RabbitMQ: new health check. See [#2711][]
-* [IMPROVEMENT] Kafka_consumer: bumping kafka-python package version to 1.2.5. See [#2709][]
-* [IMPROVEMENT] Multiple integrations: Add an HTTP timeout to many integrations. See [#2673][] (Thanks [@gphat][])
-* [IMPROVEMENT] Core: remove noisy logs. See [#2715][] (Thanks [@ensonik][])
+* [IMPROVEMENT] Core: Add an HTTP timeout to many integrations. See [#2673][] (Thanks [@gphat][])
 * [IMPROVEMENT] Core: expiration should adjust to longer collection intervals (>300s). See [#2541][]
-* [IMPROVEMENT] Ssh: Be more specific when logging ssh errors. See [#2708][]
-* [IMPROVEMENT] Http_check: log exceptions 🔊. See [#2704][]
+* [IMPROVEMENT] Core: remove events & resources api_key. See [#2557][]
+* [IMPROVEMENT] Core: remove noisy logs. See [#2715][] (Thanks [@ensonik][])
+* [IMPROVEMENT] Disk: handle multilines df output. See [#2733][]
 * [IMPROVEMENT] Dogstatsd: fix server address when non_local_traffic is passed. See [#2691][]
+* [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done. See [#2621][]
 * [IMPROVEMENT] Flare: hide multiple endpoints api_keys. See [#2646][]
 * [IMPROVEMENT] Gohai [processes]: Simplify payload. See [#2600][]
-* [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done. See [#2621][]
-* [IMPROVEMENT] Core: remove events & resources api_key. See [#2557][]
-* [IMPROVEMENT] Core: Add an HTTP timeout to many integrations. See [#2673][] (Thanks [@gphat][])
-* [IMPROVEMENT] Rabbitmq: Avoiding the extra double lookup for 'rabbitmq_api_url'. See [#2543][] (Thanks [@ParthKolekar][])
+* [IMPROVEMENT] Http_check: log exceptions 🔊. See [#2704][]
+* [IMPROVEMENT] Kafka_consumer: bumping kafka-python package version to 1.2.5. See [#2709][]
 * [IMPROVEMENT] Kubernetes: disable use_histogram. See [#2542][]
 * [IMPROVEMENT] Kubernetes: Log URL in kubelet check failures and service checks. See [#2735][] (Thanks [@therc][])
-* [IMPROVEMENT] Vsphere: Add optional vm include parameter. See [#2459][]
+* [IMPROVEMENT] Mongo: Adds metrics for collections. See [#2739][]
+* [IMPROVEMENT] Multiple integrations: Add an HTTP timeout to many integrations. See [#2673][] (Thanks [@gphat][])
 * [IMPROVEMENT] Openstack: openstack should pick-up on proxy settings set on agent. See [#2572][]
 * [IMPROVEMENT] Openstack: nova/neutron extend name search. See [#2627][]
-* [IMPROVEMENT] Disk: handle multilines df output. See [#2733][]
-* [IMPROVEMENT] Util: remove LaconicFilter. See [#2605][]
-* [IMPROVEMENT] Mongo: Adds metrics for collections. See [#2739][]
 * [IMPROVEMENT] Process:  Add metrics for avg, max, and min run times for processes. See [#2531][] (Thenks [@garnermccloud][])
+* [IMPROVEMENT] RabbitMQ: Avoiding the extra double lookup for 'rabbitmq_api_url'. See [#2543][] (Thanks [@ParthKolekar][])
+* [IMPROVEMENT] RabbitMQ: new health check. See [#2711][]
+* [IMPROVEMENT] SSH: Be more specific when logging ssh errors. See [#2708][]
+* [IMPROVEMENT] Util: remove LaconicFilter. See [#2605][]
+* [IMPROVEMENT] Vsphere: Add optional vm include parameter. See [#2459][]
 
-* [BUGFIX] Marathon: Fix a small problem that prevented marathon full path from being properly built. See [#2620][]
-* [BUGFIX] IIS: Fix metrics tagging when multiple sites are specified on instance. See [#2677][]
-* [BUGFIX] Redisdb: Avoid exception when slowlog query returns empty `command`. See [#2651][]
 * [BUGFIX] Http_check: Bring back include_content option. See [#2631][]
-* [BUGFIX] Win32_event_log: Fix small regression on `msg_text` selection. See [#2591][]
-* [BUGFIX] Process: Use configured proc path when getting pagefault stats [#2727][] (Thanks [@rdxiang][])
+* [BUGFIX] IIS: Fix metrics tagging when multiple sites are specified on instance. See [#2677][]
+* [BUGFIX] Marathon: Fix a small problem that prevented marathon full path from being properly built. See [#2620][]
+* [BUGFIX] Network Checks: Network check instance corrections. See [#2736][] (Thanks [@tschellhorn][])
 * [BUGFIX] Packaging [linux]: Kernel 4+ won't error out on status now. See [#2640][]
 * [BUGFIX] Packaging [osx]: Support GNU-Friendly sed. See [#2580][] (Thanks [@sha1sum][])
-* [BUGFIX] Network Checks: Network check instance corrections. See [#2736][] (Thanks [@tschellhorn][])
+* [BUGFIX] Process: Use configured proc path when getting pagefault stats [#2727][] (Thanks [@rdxiang][])
+* [BUGFIX] Redisdb: Avoid exception when slowlog query returns empty `command`. See [#2651][]
+* [BUGFIX] Win32_event_log: Fix small regression on `msg_text` selection. See [#2591][]
 
-* [DEPRECATED] Jenkins: Deprecate check. See [#2688][]
 * [DEPRECATED] Core: clean debug logs and kill Dogstream-based DdForwarder. See [#2628][]
+* [DEPRECATED] Jenkins: Deprecate check. See [#2688][]
 
 
 # 5.8.5 / 07-27-2016
