@@ -300,7 +300,7 @@ class Kubernetes(AgentCheck):
                         self.publish_gauge(self, '{}.{}.limits'.format(NAMESPACE, limit), values[0], _tags)
                 except (KeyError, AttributeError) as e:
                     self.log.error("Unable to retrieve container limits for %s: %s", c_name, e)
-                    self.log.debug(container)
+                    self.log.debug("Container object for {}: {}".format(c_name, container))
 
                 # requests
                 try:
@@ -312,7 +312,7 @@ class Kubernetes(AgentCheck):
                         self.publish_gauge(self, '{}.{}.requests'.format(NAMESPACE, request), values[0], _tags)
                 except (KeyError, AttributeError) as e:
                     self.log.error("Unable to retrieve container requests for %s: %s", c_name, e)
-                    self.log.debug(container)
+                    self.log.debug("Container object for {}: {}".format(c_name, container))
 
         self._update_pods_metrics(instance, pods_list)
 
@@ -346,12 +346,12 @@ class Kubernetes(AgentCheck):
         """
         Retrieve a list of events from the kubernetes API.
 
-        At the moment there is no support to select events based on a timestamp query, so we
+        At the moment (k8s v1.3) there is no support to select events based on a timestamp query, so we
         go through the whole list every time. This should be fine for now as events
         have a TTL of one hour[1] but logic needs to improve as soon as they provide
         query capabilities or at least pagination, see [2][3].
 
-        [1] https://github.com/kubernetes/kubernetes/blob/master/cmd/kube-apiserver/app/options/options.go#L50
+        [1] https://github.com/kubernetes/kubernetes/blob/release-1.3.0/cmd/kube-apiserver/app/options/options.go#L51
         [2] https://github.com/kubernetes/kubernetes/issues/4432
         [3] https://github.com/kubernetes/kubernetes/issues/1362
         """
