@@ -211,11 +211,23 @@ class FlareTest(unittest.TestCase):
 
         self.assertEqual(
             contents,
-            """api_key: *************************aaaaa
-other_api_keys: **************************bbbbb, **************************ccccc, **************************dddd
-
-"""
+            "api_key: **************************aaaaa, **************************bbbbb,"
+            " **************************ccccc, **************************ddddd\n"
         )
+
+        f = Flare()
+        file_path, _ = f._strip_credentials(
+            os.path.join(get_mocked_temp(), 'apikey.conf'),
+            f.MAIN_CREDENTIALS
+        )
+        with open(file_path) as f:
+            contents = f.read()
+
+        self.assertEqual(
+            contents,
+            "api_key: **************************aaaaa\n"
+        )
+
 
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)

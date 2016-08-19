@@ -18,6 +18,8 @@ dd_url: https://app.datadoghq.com
 # The Datadog api key to associate your Agent's data with your organization.
 # Can be found here:
 # https://app.datadoghq.com/account/settings
+# This can be a comma-separated list of api keys.
+# (default: None, the agent doesn't start without it)
 api_key:
 
 # Force the hostname to whatever you want. (default: auto-detected)
@@ -96,17 +98,6 @@ gce_updated_hostname: yes
 
 # histogram_aggregates: max, median, avg, count
 # histogram_percentiles: 0.95
-
-# Multiple endpoints/api_keys
-# If you want to send your data to multiple accounts,
-# add your extra api_keys here in a comma-separated list
-# (default: disabled)
-# other_api_keys: my_apikey, my_other_apikey
-# If you want to send your data to multiple endpoints,
-# add your extra api_keys here in a comma-separated list.
-# For each extra dd_url, an api_key must be specified in
-# other_api_keys (default: disabled)
-# other_dd_urls: https://app.example.com
 
 # ========================================================================== #
 # Service Discovery                                                          #
