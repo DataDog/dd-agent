@@ -13,12 +13,18 @@ def mongo_rootdir
   "#{ENV['INTEGRATIONS_DIR']}/mongo_#{mongo_version}"
 end
 
+def mongo_bin
+  "#{mongo_rootdir}/bin/mongod"
+end
+
 namespace :ci do
   namespace :mongo do |flavor|
     task before_install: ['ci:common:before_install']
 
     task install: ['ci:common:install'] do
-      unless Dir.exist? File.expand_path(mongo_rootdir)
+      unless File.exist? mongo_bin
+        # cleanup dirty states
+        sh %(rm -rf #{mongo_rootdir})
         # Downloads
         # https://fastdl.mongodb.org/linux/mongodb-#{target}-x86_64-#{mongo_version}.tgz
         target = if `uname`.strip == 'Darwin'
