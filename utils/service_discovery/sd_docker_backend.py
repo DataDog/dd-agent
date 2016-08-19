@@ -57,8 +57,8 @@ class SDDockerBackend(AbstractSDBackend):
             if ip_addr:
                 return ip_addr
 
-        # try to get the bridge IP address
-        log.debug("No network found for container %s (%s), trying with IPAddress field" % (c_id[:12], c_img))
+        # try to get the bridge (default) IP address
+        log.debug("No network was specified for container %s (%s), trying with IPAddress field" % (c_id[:12], c_img))
         ip_addr = c_inspect.get('NetworkSettings', {}).get('IPAddress')
         if ip_addr:
             return ip_addr

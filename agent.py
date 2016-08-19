@@ -19,6 +19,7 @@ import os
 import signal
 import sys
 import time
+from copy import copy
 
 # For pickle & PID files, see issue 293
 os.umask(022)
@@ -31,6 +32,7 @@ from config import (
     get_parsed_args,
     get_system_stats,
     load_check_directory,
+    load_check
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
@@ -76,6 +78,7 @@ class Agent(Daemon):
         self._checksd = []
         self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
         self.check_frequency = None
+        # this flag can be set to True, False, or a list of checks (for partial reload)
         self.reload_configs_flag = False
         self.sd_backend = None
 
@@ -98,25 +101,84 @@ class Agent(Daemon):
         log.info("SIGHUP caught! Scheduling configuration reload before next collection run.")
         self.reload_configs_flag = True
 
-    def reload_configs(self):
-        """Reloads the agent configuration and checksd configurations."""
+    def reload_configs(self, checks_to_reload=set()):
+        """Reload the agent configuration and checksd configurations.
+           Can also reload only an explicit set of checks."""
         log.info("Attempting a configuration reload...")
-
-        # Stop checks
-        for check in self._checksd.get('initialized_checks', []):
-            check.stop()
-
-        # Reload checksd configs
         hostname = get_hostname(self._agentConfig)
-        self._checksd = load_check_directory(self._agentConfig, hostname)
+
+        # if no check was given, reload them all
+        if not checks_to_reload:
+            log.debug("No check list was passed, reloading every check")
+            # stop checks
+            for check in self._checksd.get('initialized_checks', []):
+                check.stop()
+
+            self._checksd = load_check_directory(self._agentConfig, hostname)
+        else:
+            new_checksd = copy(self._checksd)
+
+            self.refresh_specific_checks(hostname, new_checksd, checks_to_reload)
+            # once the reload is done, replace existing checks with the new ones
+            self._checksd = new_checksd
 
         # Logging
         num_checks = len(self._checksd['initialized_checks'])
         if num_checks > 0:
-            log.info("Successfully reloaded {num_checks} checks".
-                     format(num_checks=num_checks))
+            opt_msg = " (refreshed %s checks)" % len(checks_to_reload) if checks_to_reload else ''
+
+            msg = "Check reload was successful. Running {num_checks} checks{opt_msg}.".format(
+                num_checks=num_checks, opt_msg=opt_msg)
+            log.info(msg)
         else:
             log.info("No checksd configs found")
+
+    def refresh_specific_checks(self, hostname, checksd, checks):
+        """take a list of checks and for each of them:
+            - remove it from the init_failed_checks if it was there
+            - load a fresh config for it
+            - replace its old config with the new one in initialized_checks if there was one
+            - disable the check if no new config was found
+            - otherwise, append it to initialized_checks
+        """
+        for check_name in checks:
+            idx = None
+            for num, check in enumerate(checksd['initialized_checks']):
+                if check.name == check_name:
+                    idx = num
+                    # stop the existing check before reloading it
+                    check.stop()
+
+            if not idx and check_name in checksd['init_failed_checks']:
+                # if the check previously failed to load, pop it from init_failed_checks
+                checksd['init_failed_checks'].pop(check_name)
+
+            fresh_check = load_check(self._agentConfig, hostname, check_name)
+
+            # this is an error dict
+            # checks that failed to load are added to init_failed_checks
+            # and poped from initialized_checks
+            if isinstance(fresh_check, dict) and 'error' in fresh_check.keys():
+                checksd['init_failed_checks'][fresh_check.keys()[0]] = fresh_check.values()[0]
+                if idx:
+                    checksd['initialized_checks'].pop(idx)
+
+            elif not fresh_check:
+                # no instance left of it to monitor so the check was not loaded
+                if idx:
+                    checksd['initialized_checks'].pop(idx)
+                # the check was not previously running so we were trying to instantiate it and it failed
+                else:
+                    log.error("Configuration for check %s was not found, it won't be reloaded." % check_name)
+
+            # successfully reloaded check are added to initialized_checks
+            # (appended or replacing a previous version)
+            else:
+                if idx is not None:
+                    checksd['initialized_checks'][idx] = fresh_check
+                # it didn't exist before and doesn't need to be replaced so we append it
+                else:
+                    checksd['initialized_checks'].append(fresh_check)
 
     @classmethod
     def info(cls, verbose=None):
@@ -189,13 +251,16 @@ class Agent(Daemon):
                     log.warn("Cannot enable profiler: %s" % str(e))
 
             if self.reload_configs_flag:
-                self.reload_configs()
+                if isinstance(self.reload_configs_flag, set):
+                    self.reload_configs(checks_to_reload=self.reload_configs_flag)
+                else:
+                    self.reload_configs()
 
             # Do the work. Pass `configs_reloaded` to let the collector know if it needs to
             # look for the AgentMetrics check and pop it out.
             self.collector.run(checksd=self._checksd,
                                start_event=self.start_event,
-                               configs_reloaded=self.reload_configs_flag)
+                               configs_reloaded=True if self.reload_configs_flag else False)
 
             self.reload_configs_flag = False
 
@@ -215,7 +280,7 @@ class Agent(Daemon):
             # using ConfigStore.crawl_config_template
             if self._agentConfig.get('service_discovery') and self.sd_backend and \
                self.sd_backend.reload_check_configs:
-                self.reload_configs_flag = True
+                self.reload_configs_flag = self.sd_backend.reload_check_configs
                 self.sd_backend.reload_check_configs = False
 
             if profiled:

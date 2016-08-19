@@ -1071,6 +1071,36 @@ def load_check_directory(agentConfig, hostname):
             'init_failed_checks': init_failed_checks,
             }
 
+
+def load_check(agentConfig, hostname, checkname):
+    """Same logic as load_check_directory except it loads one specific check"""
+    agentConfig['checksd_hostname'] = hostname
+    osname = get_os()
+    checks_places = get_checks_places(osname, agentConfig)
+    for config_path in _file_configs_paths(osname, agentConfig):
+        check_name = _conf_path_to_check_name(config_path)
+        if check_name == checkname:
+            conf_is_valid, check_config, invalid_check = _load_file_config(config_path, check_name, agentConfig)
+
+            if invalid_check and not conf_is_valid:
+                return invalid_check
+
+            # try to load the check and return the result
+            load_success, load_failure = load_check_from_places(check_config, check_name, checks_places, agentConfig)
+            return load_success.values()[0] or load_failure
+
+    # the check was not found, try with service discovery
+    for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
+        if check_name == checkname:
+            sd_init_config, sd_instances = service_disco_check_config
+            check_config = {'init_config': sd_init_config, 'instances': sd_instances}
+
+            # try to load the check and return the result
+            load_success, load_failure = load_check_from_places(check_config, check_name, checks_places, agentConfig)
+            return load_success.values()[0] or load_failure
+
+    return None
+
 #
 # logging
 

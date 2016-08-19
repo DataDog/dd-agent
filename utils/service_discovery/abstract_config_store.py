@@ -3,6 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 # std
+from collections import defaultdict
 import logging
 import simplejson as json
 from os import path
@@ -43,6 +44,17 @@ class AbstractConfigStore(object):
         self.sd_template_dir = agentConfig.get('sd_template_dir')
         self.auto_conf_images = get_auto_conf_images(agentConfig)
 
+        # cache used by dockerutil to determine which check to reload based on the image linked to an event
+        #
+        # it is invalidated entirely when a change is detected in the kv store
+        #
+        # this is a defaultdict(set) and some calls to it rely on this property
+        # so if you're planning on changing that, track its references
+        #
+        # TODO Haissam: this should be fleshed out a bit more and used as a cache instead
+        # of querying the kv store for each template
+        self.identifier_to_checks = self._populate_identifier_to_checks()
+
     @classmethod
     def _drop(cls):
         """Drop the config store instance. This is only used for testing."""
@@ -60,6 +72,28 @@ class AbstractConfigStore(object):
 
     def dump_directory(self, path, **kwargs):
         raise NotImplementedError()
+
+    def _populate_identifier_to_checks(self):
+        """Populate the identifier_to_checks cache with templates pulled
+        from the config store and from the auto-config folder"""
+        identifier_to_checks = defaultdict(set)
+        # config store templates
+        try:
+            templates = self.client_read(self.sd_template_dir.lstrip('/'), all=True)
+        except (NotImplementedError, TimeoutError, AttributeError):
+            templates = []
+        for tpl in templates:
+            split_tpl = tpl[0].split('/')
+            ident, var = split_tpl[-2], split_tpl[-1]
+            if var == CHECK_NAMES:
+                identifier_to_checks[ident].update(set(json.loads(tpl[1])))
+
+        # auto-config templates
+        templates = get_auto_conf_images(self.agentConfig)
+        for image, check in templates.iteritems():
+            identifier_to_checks[image].add(check)
+
+        return identifier_to_checks
 
     def _get_auto_config(self, image_name):
         ident = self._get_image_ident(image_name)
@@ -109,6 +143,9 @@ class AbstractConfigStore(object):
                       'and instances are not all the same length. Container with identifier {} '
                       'will not be configured by the service discovery'.format(identifier))
             return []
+
+        # Try to update the identifier_to_checks cache
+        self._update_identifier_to_checks(identifier, check_names)
 
         for idx, c_name in enumerate(check_names):
             if trace_config:
@@ -208,8 +245,21 @@ class AbstractConfigStore(object):
             self.previous_config_index = config_index
             return False
         # Config has been modified since last crawl
+        # in this case a full config reload is triggered and the identifier_to_checks cache is rebuilt
         if config_index != self.previous_config_index:
-            log.info('Detected an update in config template, reloading check configs...')
+            log.info('Detected an update in config templates, reloading check configs...')
             self.previous_config_index = config_index
+            self.identifier_to_checks = self._populate_identifier_to_checks()
             return True
         return False
+
+    def _update_identifier_to_checks(self, identifier, check_names):
+        """Try to insert in the identifier_to_checks cache the mapping between
+           an identifier and its check names.
+           This should very rarely happen.
+           When/If it does we can correct the cache if the key was missing but not if there is a conflict."""
+        if identifier not in self.identifier_to_checks:
+            self.identifier_to_checks[identifier] = set(check_names)
+        elif self.identifier_to_checks[identifier] != set(check_names):
+            log.warning("Trying to cache check names for ident %s but a different value is already there."
+                        "Not updating." % identifier)

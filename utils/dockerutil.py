@@ -5,18 +5,24 @@
 # stdlib
 import logging
 import os
+import socket
+import struct
 import time
 
 # 3rd party
-from docker import Client
-from docker import tls
+from docker import Client, tls
+from docker.errors import NullResource
 
 # project
 from utils.singleton import Singleton
+from utils.service_discovery.config_stores import get_config_store
+
+DATADOG_ID = 'com.datadoghq.sd.check.id'
 
 
 class MountException(Exception):
     pass
+
 
 class CGroupException(Exception):
     pass
@@ -48,6 +54,12 @@ class DockerUtil:
 
         # At first run we'll just collect the events from the latest 60 secs
         self._latest_event_collection_ts = int(time.time()) - 60
+
+        # if agentConfig is passed it means service discovery is enabled and we need to get_config_store
+        if 'agentConfig' in kwargs:
+            self.config_store = get_config_store(kwargs['agentConfig'])
+        else:
+            self.config_store = None
 
         # Try to detect if we are on ECS
         self._is_ecs = False
@@ -93,7 +105,7 @@ class DockerUtil:
 
     def get_events(self):
         self.events = []
-        should_reload_conf = False
+        conf_reload_set = set()
         now = int(time.time())
 
         event_generator = self.client.events(since=self._latest_event_collection_ts,
@@ -101,8 +113,14 @@ class DockerUtil:
         self._latest_event_collection_ts = now
         for event in event_generator:
             try:
-                if event.get('status') in CONFIG_RELOAD_STATUS:
-                    should_reload_conf = True
+                if self.config_store and event.get('status') in CONFIG_RELOAD_STATUS:
+                    try:
+                        inspect = self.client.inspect_container(event.get('id'))
+                    except NullResource:
+                        inspect = {}
+                    checks = self._get_checks_from_inspect(inspect)
+                    if checks:
+                        conf_reload_set.update(set(checks))
                 self.events.append(event)
             except AttributeError:
                 # due to [0] it might happen that the returned `event` is not a dict as expected but a string,
@@ -111,14 +129,37 @@ class DockerUtil:
                 # [0]: https://github.com/docker/docker-py/pull/1082
                 log.debug('Unable to parse Docker event: %s', event)
 
-        return self.events, should_reload_conf
+        return self.events, conf_reload_set
+
+    def _get_checks_from_inspect(self, inspect):
+        """Get the list of checks applied to a container from the identifier_to_checks cache in the config store.
+        Use the DATADOG_ID label or the image."""
+        identifier = inspect.get('Config', {}).get('Labels', {}).get(DATADOG_ID) or \
+            inspect.get('Config', {}).get('Image')
+
+        return self.config_store.identifier_to_checks[identifier]
 
     def get_hostname(self):
-        """Return the `Name` param from `docker info` to use as the hostname"""
+        '''
+        Return the `Name` param from `docker info` to use as the hostname
+        Falls back to the default route.
+        '''
         try:
-            return self.client.info().get("Name")
+            docker_host_name = self.client.info().get("Name")
+            socket.gethostbyname(docker_host_name) # make sure we can resolve it
+            return docker_host_name
+
         except Exception:
-            log.critical("Unable to find docker host hostname")
+            log.critical("Unable to find docker host hostname. Trying default route")
+
+        try:
+            with open('/proc/net/route') as f:
+                for line in f.readlines():
+                    fields = line.strip().split()
+                    if fields[1] == '00000000':
+                        return socket.inet_ntoa(struct.pack('<L', int(fields[2], 16)))
+        except IOError, e:
+            log.error('Unable to open /proc/net/route: %s', e)
         return None
 
     @property
@@ -221,7 +262,6 @@ class DockerUtil:
                     stat_file_path = os.path.join(mountpoint, subsystems[subsys])
                     if os.path.exists(stat_file_path):
                         return os.path.join(stat_file_path, '%(file)s')
-
 
         raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
