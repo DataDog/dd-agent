@@ -381,14 +381,14 @@ class Collector(object):
                 metrics.extend(res)
 
         # Use `info` log level for some messages on the first run only, then `debug`
-        log_method = log.info if self._is_first_run() else log.debug
+        log_at_first_run = log.info if self._is_first_run() else log.debug
 
         # checks.d checks
         check_statuses = []
         for check in self.initialized_checks_d:
             if not self.continue_running:
                 return
-            log_method("Running check %s" % check.name)
+            log_at_first_run("Running check %s", check.name)
             instance_statuses = []
             metric_count = 0
             event_count = 0
