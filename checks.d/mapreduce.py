@@ -130,6 +130,7 @@ class MapReduceCheck(AgentCheck):
             raise Exception('The ResourceManager URL must be specified in the instance configuration')
 
         collect_task_metrics = _is_affirmative(instance.get('collect_task_metrics', False))
+        include_app_id = _is_affirmative(instance.get('include_app_id', True))
 
         # Get additional tags from the conf file
         tags = instance.get('tags', [])
@@ -156,14 +157,14 @@ class MapReduceCheck(AgentCheck):
             message='Connection to ResourceManager "%s" was successful' % rm_address)
 
         # Get the applications from the application master
-        running_jobs = self._mapreduce_job_metrics(running_apps, tags)
+        running_jobs = self._mapreduce_job_metrics(running_apps, tags, include_app_id)
 
         # # Get job counter metrics
-        self._mapreduce_job_counters_metrics(running_jobs, tags)
+        self._mapreduce_job_counters_metrics(running_jobs, tags, include_app_id)
 
         # Get task metrics
         if collect_task_metrics:
-            self._mapreduce_task_metrics(running_jobs, tags)
+            self._mapreduce_task_metrics(running_jobs, tags, include_app_id)
 
         # Report success after gathering all metrics from Application Master
         if running_jobs:
@@ -288,13 +289,14 @@ class MapReduceCheck(AgentCheck):
                     app_id = app_json.get('id')
                     tracking_url = app_json.get('trackingUrl')
                     app_name = app_json.get('name')
+                    queue_name = app_json.get('queue')
 
-                    if app_id and tracking_url and app_name:
-                        running_apps[app_id] = (app_name, tracking_url)
+                    if app_id and tracking_url and app_name and queue_name:
+                        running_apps[app_id] = (app_name, tracking_url, queue_name)
 
         return running_apps
 
-    def _mapreduce_job_metrics(self, running_apps, addl_tags):
+    def _mapreduce_job_metrics(self, running_apps, addl_tags, include_app_id):
         '''
         Get metrics for each MapReduce job.
         Return a dictionary for each MapReduce job
@@ -303,13 +305,13 @@ class MapReduceCheck(AgentCheck):
             'job_name': job_name,
             'app_name': app_name,
             'user_name': user_name,
+            'queue_name': queue_name,
             'tracking_url': tracking_url
         }
         '''
         running_jobs = {}
 
-        for app_id, (app_name, tracking_url) in running_apps.iteritems():
-
+        for app_id, (app_name, tracking_url, queue_name) in running_apps.iteritems():
             metrics_json = self._rest_request_to_json(tracking_url,
                 MAPREDUCE_JOBS_PATH,
                 MAPREDUCE_SERVICE_CHECK)
@@ -328,11 +330,14 @@ class MapReduceCheck(AgentCheck):
                             running_jobs[str(job_id)] = {'job_name': str(job_name),
                                                     'app_name': str(app_name),
                                                     'user_name': str(user_name),
+                                                    'queue_name': str(queue_name),
                                                     'tracking_url': self._join_url_dir(tracking_url, MAPREDUCE_JOBS_PATH, job_id)}
 
-                            tags = ['app_name:' + str(app_name),
-                                    'user_name:' + str(user_name),
-                                    'job_name:' + str(job_name)]
+                            tags = ['user_name:' + str(user_name),'queue_name:' + str(queue_name)]
+
+                            if include_app_id:
+                                tags.extend(['app_name:' + str(app_name),
+                                    'job_name:' + str(job_name)])
 
                             tags.extend(addl_tags)
 
@@ -340,7 +345,7 @@ class MapReduceCheck(AgentCheck):
 
         return running_jobs
 
-    def _mapreduce_job_counters_metrics(self, running_jobs, addl_tags):
+    def _mapreduce_job_counters_metrics(self, running_jobs, addl_tags, include_app_id):
         '''
         Get custom metrics specified for each counter
         '''
@@ -381,10 +386,13 @@ class MapReduceCheck(AgentCheck):
 
                                             # Check if the counter name is in the custom metrics for this group name
                                             if counter_name and counter_name in counter_metrics:
-                                                tags = ['app_name:' + job_metrics.get('app_name'),
-                                                        'user_name:' + job_metrics.get('user_name'),
-                                                        'job_name:' + job_name,
+                                                tags = ['user_name:' + job_metrics.get('user_name'),
+                                                        'queue_name:' + job_metrics.get('queue_name'),
                                                         'counter_name:' + str(counter_name).lower()]
+
+                                                if include_app_id:
+                                                    tags.extend(['app_name:' + job_metrics.get('app_name'),
+                                                        'job_name:' + job_name])
 
                                                 tags.extend(addl_tags)
 
@@ -392,13 +400,12 @@ class MapReduceCheck(AgentCheck):
                                                     counter,
                                                     MAPREDUCE_JOB_COUNTER_METRICS)
 
-    def _mapreduce_task_metrics(self, running_jobs, addl_tags):
+    def _mapreduce_task_metrics(self, running_jobs, addl_tags, include_app_id):
         '''
         Get metrics for each MapReduce task
         Return a dictionary of {task_id: 'tracking_url'} for each MapReduce task
         '''
         for job_id, job_stats in running_jobs.iteritems():
-
             metrics_json = self._rest_request_to_json(job_stats['tracking_url'],
                     'tasks',
                     MAPREDUCE_SERVICE_CHECK)
@@ -410,10 +417,13 @@ class MapReduceCheck(AgentCheck):
                         task_type = task.get('type')
 
                         if task_type:
-                            tags = ['app_name:' + job_stats['app_name'],
-                                    'user_name:' + job_stats['user_name'],
-                                    'job_name:' + job_stats['job_name'],
+                            tags = ['user_name:' + job_stats['user_name'],
+                                    'queue_name:' + job_stats['queue_name'],
                                     'task_type:' + str(task_type).lower()]
+
+                            if include_app_id:
+                                tags.extend(['app_name:' + job_stats['app_name'],
+                                    'job_name:' + job_stats['job_name']])
 
                             tags.extend(addl_tags)
 
