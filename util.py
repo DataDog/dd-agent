@@ -85,13 +85,16 @@ def get_os():
         return sys.platform
 
 
-def headers(agentConfig):
+def headers(agentConfig, **kwargs):
     # Build the request headers
-    return {
+    res = {
         'User-Agent': 'Datadog Agent/%s' % agentConfig['version'],
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'text/html, */*',
     }
+    if 'http_host' in kwargs:
+        res['Host'] = kwargs['http_host']
+    return res
 
 
 def windows_friendly_colon_split(config_string):
