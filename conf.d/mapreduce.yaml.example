@@ -20,6 +20,10 @@ instances:
     # map and reduce tasks (default: false)
     # collect_task_metrics: false
 
+    # Set to false to not include app/job id as a tag in the metrics
+    # This is recommended for larger deployments since this could slowdown graph generation greatly
+    #include_app_id: true
+
     # Optional tags to be applied to every emitted metric.
     # tags:
     #   - key:value

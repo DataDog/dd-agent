@@ -13,6 +13,7 @@ APP_NAME = 'WordCount'
 JOB_ID = 'job_1453738555560_0001'
 JOB_NAME = 'WordCount'
 USER_NAME = 'vagrant'
+QUEUE_NAME = 'root.default'
 TASK_ID = 'task_1453738555560_0001_m_000000'
 CLUSTER_NAME = 'MapReduceCluster'
 
@@ -85,7 +86,8 @@ class MapReduceCheck(AgentCheckTest):
     MR_CONFIG = {
         'resourcemanager_uri': 'http://localhost:8088',
         'cluster_name': CLUSTER_NAME,
-        'collect_task_metrics': 'true'
+        'collect_task_metrics': 'true',
+        'include_app_id': 'true'
     }
 
     INIT_CONFIG = {
@@ -144,6 +146,7 @@ class MapReduceCheck(AgentCheckTest):
         'cluster_name:' + CLUSTER_NAME,
         'app_name:' + APP_NAME,
         'job_name:' + JOB_NAME,
+        'queue_name:' + QUEUE_NAME,
         'user_name:' + USER_NAME
     ]
 
@@ -155,6 +158,7 @@ class MapReduceCheck(AgentCheckTest):
         'cluster_name:' + CLUSTER_NAME,
         'app_name:' + APP_NAME,
         'job_name:' + JOB_NAME,
+        'queue_name:' + QUEUE_NAME,
         'user_name:' + USER_NAME,
         'task_type:map'
     ]
@@ -167,6 +171,7 @@ class MapReduceCheck(AgentCheckTest):
         'cluster_name:' + CLUSTER_NAME,
         'app_name:' + APP_NAME,
         'job_name:' + JOB_NAME,
+        'queue_name:' + QUEUE_NAME,
         'user_name:' + USER_NAME,
         'task_type:reduce'
     ]
@@ -187,6 +192,7 @@ class MapReduceCheck(AgentCheckTest):
         'cluster_name:' + CLUSTER_NAME,
         'app_name:' + APP_NAME,
         'job_name:' + JOB_NAME,
+        'queue_name:' + QUEUE_NAME,
         'user_name:' + USER_NAME
     ]
 
