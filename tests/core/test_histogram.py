@@ -125,7 +125,7 @@ class TestHistogram(unittest.TestCase):
         )
 
     def test_custom_aggregate(self):
-        configstr = 'median, max'
+        configstr = 'median, max, sum'
         stats = MetricsAggregator(
             'myhost',
             histogram_aggregates=get_histogram_aggregates(configstr)
@@ -133,7 +133,7 @@ class TestHistogram(unittest.TestCase):
 
         self.assertEquals(
             sorted(stats.metric_config[Histogram]['aggregates']),
-            ['max', 'median'],
+            ['max', 'median', 'sum'],
             stats.metric_config[Histogram]
         )
 
@@ -142,7 +142,7 @@ class TestHistogram(unittest.TestCase):
 
         metrics = stats.flush()
 
-        self.assertEquals(len(metrics), 3, metrics)
+        self.assertEquals(len(metrics), 4, metrics)
 
         value_by_type = {}
         for k in metrics:
@@ -150,4 +150,5 @@ class TestHistogram(unittest.TestCase):
 
         self.assertEquals(value_by_type['median'], 9, value_by_type)
         self.assertEquals(value_by_type['max'], 19, value_by_type)
+        self.assertEquals(value_by_type['sum'], 190, value_by_type)
         self.assertEquals(value_by_type['95percentile'], 18, value_by_type)

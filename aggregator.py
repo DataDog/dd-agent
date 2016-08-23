@@ -258,13 +258,15 @@ class Histogram(Metric):
         min_ = self.samples[0]
         max_ = self.samples[-1]
         med = self.samples[int(round(length/2 - 1))]
-        avg = sum(self.samples) / float(length)
+        sum_ = sum(self.samples)
+        avg = sum_ / float(length)
 
         aggregators = [
             ('min', min_, MetricTypes.GAUGE),
             ('max', max_, MetricTypes.GAUGE),
             ('median', med, MetricTypes.GAUGE),
             ('avg', avg, MetricTypes.GAUGE),
+            ('sum', sum_, MetricTypes.GAUGE),
             ('count', self.count/interval, MetricTypes.RATE),
         ]
 
