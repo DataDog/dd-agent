@@ -242,6 +242,10 @@ class Kubernetes(AgentCheck):
         pods_list = self.kubeutil.retrieve_pods_list()
         metrics = self._retrieve_metrics(self.kubeutil.metrics_url)
 
+        self.log.info('Hostname: %s' % self.kubeutil.host)
+        self.log.info('Metrics URL: %s' % self.kubeutil.metrics_url)
+        self.log.info('Pod list URL: %s' % self.kubeutil.pods_list_url)
+
         excluded_labels = instance.get('excluded_labels')
         kube_labels = self.kubeutil.extract_kube_labels(pods_list, excluded_keys=excluded_labels)
 
@@ -256,6 +260,26 @@ class Kubernetes(AgentCheck):
                     subcontainer.get('name'), e))
 
         self._update_pods_metrics(instance, pods_list)
+        self._update_node(instance)
+
+    def _update_node(self, instance):
+        # These vars and fetch stuff should live in kubeuitl:
+        from utils.http import retrieve_json
+        from urlparse import urljoin
+        MACHINE_INFO_PATH = '/api/v1.3/machine/'
+        machine_info_url = urljoin(
+            '%s://%s:%d' % (self.kubeutil.method, self.kubeutil.host, self.kubeutil.cadvisor_port), MACHINE_INFO_PATH)
+        self.log.info('Machine info URL: %s' % machine_info_url)
+        machine_info = retrieve_json(machine_info_url)
+
+        num_cores = machine_info.get('num_cores', 0)
+        memory_capacity = machine_info.get('memory_capacity', 0)
+
+        tags = instance.get('tags', [])
+        self.publish_gauge(self, NAMESPACE + '.cpu.capacity', float(num_cores), tags)
+        self.publish_gauge(self, NAMESPACE + '.memory.capacity', float(memory_capacity), tags)
+        # TODO(markine): Report 'allocatable' which is capacity minus capacity
+        # reserved for system/Kubernetes.
 
     def _update_pods_metrics(self, instance, pods):
         supported_kinds = [
@@ -281,3 +305,56 @@ class Kubernetes(AgentCheck):
             _tags = tags[:]  # copy base tags
             _tags.append('kube_replication_controller:{0}'.format(ctrl))
             self.publish_gauge(self, NAMESPACE + '.pods.running', pod_count, _tags)
+
+        for pod in pods['items']:
+            _tags = tags[:]  # copy base tags
+
+            pod_name = pod.get('metadata', {}).get('name', '')
+            pod_namespace = pod.get('metadata', {}).get('namespace', '')
+            _tags.append(u"pod_name:%s/%s" % (pod_namespace, pod_name))
+            _tags.append(u"kube_namespace:%s" % pod_namespace)
+
+            containers = pod.get('spec', {}).get('containers', [])
+            cpu_requests = float(0)
+            cpu_limits = float(0)
+            memory_requests = float(0)
+            memory_limits = float(0)
+
+            def parse_cpu(s):
+                cpu = s.split('m')
+                if len(cpu) == 2:
+                    return float(cpu[0]) / 1000
+                else:
+                    return float(cpu[0])
+
+            def parse_memory(s):
+                number = ''
+                unit = ''
+                for c in s:
+                    if c.isdigit() or c == '.':
+                        number += c
+                    else:
+                        unit += c
+                factors = {
+                    'K': 1000,
+                    'M': 1000*1000,
+                    'G': 1000*1000*1000,
+                    'T': 1000*1000*1000*1000,
+                    'Ki': 1024,
+                    'Mi': 1024*1024,
+                    'Gi': 1024*1024*1024,
+                    'Ti': 1024*1024*1024*1024,
+                }
+                return float(number) * factors.get(unit, 1)
+
+            for c in containers:
+                requests = c.get('resources', {}).get('requests', {})
+                cpu_requests += parse_cpu(requests.get('cpu', '0'))
+                memory_requests += parse_memory(requests.get('memory', '0'))
+                limits = c.get('resources', {}).get('limits', {})
+                cpu_limits += parse_cpu(limits.get('cpu', '0'))
+                memory_limits += parse_memory(limits.get('memory', '0'))
+            self.publish_gauge(self, NAMESPACE + '.cpu.requests', cpu_requests, _tags)
+            self.publish_gauge(self, NAMESPACE + '.memory.requests', memory_requests, _tags)
+            self.publish_gauge(self, NAMESPACE + '.cpu.limits', cpu_limits, _tags)
+            self.publish_gauge(self, NAMESPACE + '.memory.limits', memory_limits, _tags)
