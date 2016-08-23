@@ -913,7 +913,9 @@ class MongoDb(AgentCheck):
                 # loop through the metrics
                 for m in self.collection_metrics_names:
                     coll_tags = tags + ["db:%s" % db_name, "collection:%s" % coll_name]
-                    value = stats[m]
+                    value = stats.get(m, None)
+                    if not value:
+                        continue
 
                     # if it's the index sizes, then it's a dict.
                     if m == 'indexSizes':
