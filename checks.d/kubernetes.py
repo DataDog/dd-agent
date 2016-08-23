@@ -299,7 +299,7 @@ class Kubernetes(AgentCheck):
                             continue
                         self.publish_gauge(self, '{}.{}.limits'.format(NAMESPACE, limit), values[0], _tags)
                 except (KeyError, AttributeError) as e:
-                    self.log.error("Unable to retrieve container limits for %s: %s", c_name, e)
+                    self.log.debug("Unable to retrieve container limits for %s: %s", c_name, e)
                     self.log.debug("Container object for {}: {}".format(c_name, container))
 
                 # requests
