@@ -926,7 +926,7 @@ class MongoDb(AgentCheck):
                             submit_method(self, metric_name_alias, val, tags=idx_tags)
                     else:
                         submit_method, metric_name_alias = \
-                            self._resolve_metric('collection.%s' % '.'.join(m), metrics_to_collect)
+                            self._resolve_metric('collection.%s' % m, metrics_to_collect)
                         submit_method(self, metric_name_alias, value, tags=coll_tags)
         except Exception as e:
             self.log.warning(u"Failed to record `collection` metrics.")
