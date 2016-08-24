@@ -490,13 +490,15 @@ class MySql(AgentCheck):
         results['Key_buffer_size'] = key_buffer_size
 
         try:
-            key_cache_utilization = 1 - ((key_blocks_unused * key_cache_block_size) / key_buffer_size)
+            # can be null if the unit is missing in the user config (4 instead of 4G for eg.)
+            if key_buffer_size != 0:
+                key_cache_utilization = 1 - ((key_blocks_unused * key_cache_block_size) / key_buffer_size)
+                results['Key_cache_utilization'] = key_cache_utilization
 
             results['Key_buffer_bytes_used'] = self._collect_scalar(
                 'Key_blocks_used', results) * key_cache_block_size
             results['Key_buffer_bytes_unflushed'] = self._collect_scalar(
                 'Key_blocks_not_flushed', results) * key_cache_block_size
-            results['Key_cache_utilization'] = key_cache_utilization
         except TypeError as e:
             self.log.error("Not all Key metrics are available, unable to compute: {0}".format(e))
 
