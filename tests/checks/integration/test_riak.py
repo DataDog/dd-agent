@@ -282,7 +282,7 @@ class RiakTestCase(AgentCheckTest):
     ]
 
     # The below metrics for leveldb and read repair
-    # appear when they have no values, however they 
+    # appear when they have no values, however they
     # are displayed as "undefined". The search metrics
     # do not appear if search is off.
     CHECK_NOT_TESTED = [
