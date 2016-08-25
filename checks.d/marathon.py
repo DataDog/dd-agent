@@ -56,6 +56,10 @@ class Marathon(AgentCheck):
                     if attr in app:
                         self.gauge('marathon.' + attr, app[attr], tags=tags)
 
+        response = self.get_json(urljoin(url, "v2/deployments"), timeout, auth)
+        if response is not None:
+            self.gauge('marathon.deployments', len(response), tags=instance_tags)
+
     def get_json(self, url, timeout, auth):
         try:
             r = requests.get(url, timeout=timeout, auth=auth)
