@@ -6,6 +6,7 @@ from mock import Mock
 from nose.plugins.attrib import attr
 
 # project
+from checks.libs.wmi.exceptions import WMIInvalidClass
 from tests.checks.common import AgentCheckTest
 
 INSTANCE = {
@@ -66,17 +67,16 @@ class WMICheckTest(AgentCheckTest):
             self.assertMetricTagPrefix(metric, tag_prefix='creationdate:')
 
     def test_invalid_class(self):
+        """
+        WMI invalid classes raise an intelligible exception.
+        """
         instance = copy.deepcopy(INSTANCE)
         instance['class'] = 'Unix'
         logger = Mock()
 
-        self.run_check({'instances': [instance]}, mocks={'log': logger})
-
-        # A warning is logged
-        self.assertEquals(logger.warning.call_count, 1)
-
-        # No metrics/service check
-        self.coverage_report()
+        # An exception is raised
+        with self.assertRaises(WMIInvalidClass):
+            self.run_check({'instances': [instance]}, mocks={'log': logger})
 
     def test_invalid_metrics(self):
         instance = copy.deepcopy(INSTANCE)
