@@ -133,7 +133,7 @@ class Fixtures(object):
 
     @staticmethod
     def read_json_file(file_name, string_escape=True):
-			return json.loads(Fixtures.read_file(file_name, string_escape=string_escape))
+        return json.loads(Fixtures.read_file(file_name, string_escape=string_escape))
 
 class AgentCheckTest(unittest.TestCase):
     DEFAULT_AGENT_CONFIG = {

@@ -10,14 +10,14 @@ from tests.checks.common import load_check, AgentCheckTest
 from tests.checks.common import Fixtures
 
 CONFIG = {
-    'init_config': {
-			'default_timeout': 5
-		},
-    'instances': [
-        {
-						'url': 'http://localhost:8080'
-        }
-    ]
+	'init_config': {
+	   'default_timeout': 5
+	},
+	'instances': [
+		{
+		      'url': 'http://localhost:8080'
+		}
+	]
 }
 
 class MarathonCheckTest(AgentCheckTest):
