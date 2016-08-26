@@ -142,7 +142,9 @@ namespace :ci do
 
     task :before_cache do |t|
       section('BEFORE_CACHE')
-      sh %(find #{ENV['INTEGRATIONS_DIR']}/ -type f -name '*.log*' -delete)
+      unless Gem.win_platform?
+        sh %(find #{ENV['INTEGRATIONS_DIR']}/ -type f -name '*.log*' -delete)
+      end
       t.reenable
     end
 
@@ -178,6 +180,29 @@ namespace :ci do
       sh %(#{path}nosetests -s -v -A "#{nose}" #{tests_directory})
       t.reenable
     end
-    task execute: [:before_install, :install, :before_script, :script]
+
+    task :execute, :flavor do |_t, attr|
+      flavor = attr[:flavor]
+      # Check if the check uses the cache
+      cached = flavor.tasks.any? { |task| task.name == (flavor.scope.path + ':before_cache') }
+      exception = nil
+      begin
+        tasks = %w(before_install install before_script script)
+        tasks << 'before_cache' if cached
+        tasks.each do |t|
+          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
+        end
+      rescue => e
+        exception = e
+        puts "Failed task: #{e.class} #{e.message}".red
+      end
+      if ENV['SKIP_CLEANUP']
+        puts 'Skipping cleanup, disposable environments are great'.yellow
+      else
+        puts 'Cleaning up'
+        Rake::Task["#{flavor.scope.path}:cleanup"].invoke
+      end
+      raise exception if exception
+    end
   end
 end
