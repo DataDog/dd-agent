@@ -46,7 +46,7 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task before_cache: :cleanup
+    task before_cache: ['ci:common:before_cache', :cleanup]
 
     task cleanup: ['ci:common:cleanup'] do
       sh %(kill `cat $VOLATILE_DIR/cass.pid`)
