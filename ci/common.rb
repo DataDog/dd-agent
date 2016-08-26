@@ -38,6 +38,26 @@ def install_requirements(req_file, pip_options = nil, output = nil, use_venv = n
   end
 end
 
+def can_skip?
+  return false, [] if Gem.win_platform?
+
+  modified_checks = []
+  `git diff-tree --no-commit-id --name-only -r FETCH_HEAD origin/master`.each_line do |filename|
+    filename.strip!
+    if filename.start_with? 'checks.d'
+      check_name = File.basename(filename, '.py')
+    elsif filename.start_with?('tests/checks/integration', 'tests/checks/mock')
+      check_name = File.basename(filename, '.py').slice 'test_'
+    elsif filename.start_with?('tests/checks/fixtures', 'conf.d')
+      next
+    else
+      return false, []
+    end
+    modified_checks << check_name unless modified_checks.include? check_name
+  end
+  [true, modified_checks]
+end
+
 # helper class to wait for TCP/HTTP services to boot
 class Wait
   DEFAULT_TIMEOUT = 10
@@ -183,12 +203,20 @@ namespace :ci do
 
     task :execute, :flavor do |_t, attr|
       flavor = attr[:flavor]
-      # Check if the check uses the cache
-      cached = flavor.tasks.any? { |task| task.name == (flavor.scope.path + ':before_cache') }
+      # flavor.scope.path is ci:cassandra
+      # flavor.scope.path[3..-1] is cassandra
+      check_name = flavor.scope.path[3..-1]
+
+      can_skip, checks = can_skip?
+      can_skip &&= !%w(default core_integration checks_mock).include?(check_name)
+      if can_skip && !checks.include?(check_name)
+        puts "Skipping #{check_name} tests, not affected by the change".yellow
+        next
+      end
       exception = nil
       begin
         tasks = %w(before_install install before_script script)
-        tasks << 'before_cache' if cached
+        tasks << 'before_cache' unless ENV['CI'].nil?
         tasks.each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end
