@@ -222,8 +222,9 @@ class SparkCheck(AgentCheck):
         Figures out what mode we're in and fetches running apps
         '''
         cluster_mode = instance.get(SPARK_CLUSTER_MODE)
-        if not cluster_mode:
-            raise Exception('No cluster mode specified. %s must be set to %s or %s', (SPARK_CLUSTER_MODE, SPARK_STANDALONE_MODE, SPARK_YARN_MODE))
+        if cluster_mode is None:
+            self.log.warning('The value for `spark_cluster_mode` was not set in the configuration. Defaulting to "%s"' % SPARK_YARN_MODE)
+            cluster_mode = SPARK_YARN_MODE
 
         if cluster_mode == SPARK_STANDALONE_MODE:
             return self._standalone_init(instance)
