@@ -9,3 +9,4 @@ instances:
   #   if marathon is protected by basic auth
   #   user: "username"
   #   password: "password"
+  #   enable_deployment_metrics: #Optional. Set to true if you want to receive send deployment related metrics. Adds an extra API call to Marathon.
