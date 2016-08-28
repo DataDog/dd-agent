@@ -110,7 +110,7 @@ STAGE_EVENT = 'stage'
 
 # Alert types
 ERROR_STATUS = 'FAILED'
-SUCCESS_STATUS = 'SUCCEEDED'
+SUCCESS_STATUS = ['SUCCEEDED', 'COMPLETE']
 
 # Event source type
 SOURCE_TYPE_NAME = 'spark.application.server'
@@ -546,7 +546,7 @@ class SparkCheck(AgentCheck):
         alert_type = None
         if current_status == ERROR_STATUS:
             alert_type = 'error'
-        elif current_status == SUCCESS_STATUS:
+        elif current_status in SUCCESS_STATUS:
             alert_type = 'success'
 
         self.event({
