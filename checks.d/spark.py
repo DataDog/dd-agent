@@ -108,6 +108,11 @@ APPLICATION_STATES = 'RUNNING'
 JOB_EVENT = 'job'
 STAGE_EVENT = 'stage'
 
+# Alert types
+ERROR_STATUS = 'FAILED'
+SUCCESS_STATUS = 'SUCCEEDED'
+
+# Event source type
 SOURCE_TYPE_NAME = 'spark.application.server'
 
 # Metric types
@@ -225,7 +230,8 @@ class SparkCheck(AgentCheck):
         '''
         cluster_mode = instance.get(SPARK_CLUSTER_MODE)
         if cluster_mode is None:
-            self.log.warning('The value for `spark_cluster_mode` was not set in the configuration. Defaulting to "%s"' % SPARK_YARN_MODE)
+            self.log.warning('The value for `spark_cluster_mode` was not set in the configuration. '
+                'Defaulting to "%s"' % SPARK_YARN_MODE)
             cluster_mode = SPARK_YARN_MODE
 
         if cluster_mode == SPARK_STANDALONE_MODE:
@@ -236,7 +242,8 @@ class SparkCheck(AgentCheck):
             return self._get_spark_app_ids(running_apps)
 
         else:
-            raise Exception('Invalid setting for %s. Received %s.' % (SPARK_CLUSTER_MODE, cluster_mode))
+            raise Exception('Invalid setting for %s. Received %s.' % (SPARK_CLUSTER_MODE,
+                cluster_mode))
 
     def _standalone_init(self, instance):
         '''
@@ -273,10 +280,14 @@ class SparkCheck(AgentCheck):
         return running_apps
 
     def _yarn_init(self, instance, tags):
+        '''
+        Return a dictionary of {app_id: (app_name, tracking_url)} for running Spark applications.
+        '''
         rm_address = instance.get('spark_url')
 
         if rm_address is None:
-            raise Exception('The ResourceManager URL must be specified in the instance configuration')
+            raise Exception('The ResourceManager URL must be specified in the instance '
+                'configuration')
 
         cluster_name = instance.get('cluster_name')
         if cluster_name is None:
@@ -314,7 +325,7 @@ class SparkCheck(AgentCheck):
 
     def _yarn_get_running_spark_apps(self, rm_address):
         '''
-        Return a dictionary of {app_id: (app_name, tracking_url)} for the running Spark applications.
+        Return a dictionary of {app_id: (app_name, tracking_url)} for running Spark applications.
 
         The `app_id` returned is that of the YARN application. This will eventually be mapped into
         a Spark application ID.
@@ -364,7 +375,6 @@ class SparkCheck(AgentCheck):
     def _spark_job_metrics(self, running_apps, addl_tags):
         '''
         Get metrics for each Spark job.
-        Return a map from Stage IDs to Job IDs
         '''
         new_jobs = {}
 
@@ -392,7 +402,7 @@ class SparkCheck(AgentCheck):
 
                 self._event_for_job_status_change(job, tags, previous_status)
 
-            # build index by mapping app ids to a mapping of job id => jobs
+            # Map application IDs to {job ID: job}
             new_jobs[app_id] = dict((job['jobId'], job) for job in response)
 
         self.previous_jobs = new_jobs
@@ -426,7 +436,7 @@ class SparkCheck(AgentCheck):
 
                 self._event_for_stage_status_change(stage, tags, previous_status)
 
-            # Build index by mapping app ids to a mapping of job id => jobs
+            # Map application IDs to {stage ID: stage}
             new_stages[app_id] = dict((stage['stageId'], stage) for stage in response)
 
         self.previous_stages = new_stages
@@ -533,12 +543,19 @@ class SparkCheck(AgentCheck):
         msg_title = 'Spark {type} `{stage}` has status {status}'.format(type=event_type,
             stage=state_name, status=current_status)
 
+        alert_type = None
+        if current_status == ERROR_STATUS:
+            alert_type = 'error'
+        elif current_status == SUCCESS_STATUS:
+            alert_type = 'success'
+
         self.event({
             'timestamp': int(time.time()),
             'source_type_name': SOURCE_TYPE_NAME,
             'msg_title': msg_title,
             'msg_text': msg,
-            'tags': tags
+            'tags': tags,
+            'alert_type': alert_type
         })
 
     def _rest_request(self, address, object_path, service_name, *args, **kwargs):
