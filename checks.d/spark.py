@@ -104,6 +104,10 @@ SPARK_MASTER_APP_PATH = '/app/'
 YARN_APPLICATION_TYPES = 'SPARK'
 APPLICATION_STATES = 'RUNNING'
 
+# Event types
+JOB_EVENT = 'job'
+STAGE_EVENT = 'stage'
+
 SOURCE_TYPE_NAME = 'spark.application.server'
 
 # Metric types
@@ -381,45 +385,17 @@ class SparkCheck(AgentCheck):
                 self._set_metrics_from_json(tags, job, SPARK_JOB_METRICS)
                 self._set_metric('spark.job.count', INCREMENT, 1, tags)
 
-                job_id = job['jobId']
+                job_id = job.get('jobId')
                 previous_status = None
                 if app_id in self.previous_jobs and job_id in self.previous_jobs[app_id]:
-                    previous_status = self.previous_jobs[app_id][job_id]['status']
+                    previous_status = self.previous_jobs[app_id][job_id].get('status')
+
                 self._event_for_job_status_change(job, tags, previous_status)
 
             # build index by mapping app ids to a mapping of job id => jobs
             new_jobs[app_id] = dict((job['jobId'], job) for job in response)
 
         self.previous_jobs = new_jobs
-
-    def _event_for_job_status_change(self, current_job, tags, previous_status):
-        '''
-        Create an event for a job changing status
-        '''
-        job_name = current_job['name']
-        job_id = current_job['jobId']
-        current_status = current_job['status']
-
-        if previous_status:
-            # Bail early if the previous status is the same
-            if previous_status != current_status:
-                msg = 'Spark job `{0}` (ID {1}) status changed from {2} to {3}.'.format(job_name, job_id, previous_status, current_status)
-
-            else:
-                return
-
-        else:
-            msg = 'New Spark job `{0}` (ID {1}) has status {2}.'.format(job_name, job_id, current_status)
-
-        msg_title = 'Spark job `{job}` is now {status}'.format(job=job_name, status=current_status)
-
-        self.event({
-            'timestamp': int(time.time()),
-            'source_type_name': SOURCE_TYPE_NAME,
-            'msg_title': msg_title,
-            'msg_text': msg,
-            'tags': tags
-        })
 
     def _spark_stage_metrics(self, running_apps, addl_tags):
         '''
@@ -443,10 +419,10 @@ class SparkCheck(AgentCheck):
                 self._set_metrics_from_json(tags, stage, SPARK_STAGE_METRICS)
                 self._set_metric('spark.stage.count', INCREMENT, 1, tags)
 
-                stage_id = stage['stageId']
+                stage_id = stage.get('stageId')
                 previous_status = None
                 if app_id in self.previous_stages and stage_id in self.previous_stages[app_id]:
-                    previous_status = self.previous_stages[app_id][stage_id]['status']
+                    previous_status = self.previous_stages[app_id][stage_id].get('status')
 
                 self._event_for_stage_status_change(stage, tags, previous_status)
 
@@ -454,34 +430,6 @@ class SparkCheck(AgentCheck):
             new_stages[app_id] = dict((stage['stageId'], stage) for stage in response)
 
         self.previous_stages = new_stages
-
-    def _event_for_stage_status_change(self, current_stage, tags, previous_status):
-        '''
-        Create an event for a stage changing status
-        '''
-        stage_name = current_stage['name']
-        stage_id = current_stage['stageId']
-        current_status = current_stage['status']
-
-        if previous_status:
-            # Bail early if the previous status is the same
-            if previous_status != current_status:
-                msg = 'Spark stage `{0}` (ID {1}) status changed from {2} to {3}.'.format(stage_name, stage_id, previous_status, current_status)
-
-            else:
-                return
-        else:
-            msg = 'New Spark stage `{0}` (ID {1}) has status {2}.'.format(stage_name, stage_id, current_status)
-
-        msg_title = 'Spark stage `{stage}` has status {status}'.format(stage=stage_name, status=current_status)
-
-        self.event({
-            'timestamp': int(time.time()),
-            'source_type_name': SOURCE_TYPE_NAME,
-            'msg_title': msg_title,
-            'msg_text': msg,
-            'tags': tags
-        })
 
     def _spark_executor_metrics(self, running_apps, addl_tags):
         '''
@@ -545,6 +493,53 @@ class SparkCheck(AgentCheck):
             self.increment(metric_name, value, tags=tags)
         else:
             self.log.error('Metric type "%s" unknown' % (metric_type))
+
+    def _event_for_job_status_change(self, current_job, tags, previous_status):
+        '''
+        Create an event for a job changing status
+        '''
+        job_name = current_job.get('name')
+        job_id = current_job.get('jobId')
+        current_status = current_job.get('status')
+
+        self._set_event(current_status, previous_status, tags, JOB_EVENT, job_name, job_id)
+
+    def _event_for_stage_status_change(self, current_stage, tags, previous_status):
+        '''
+        Create an event for a stage changing status
+        '''
+        stage_name = current_stage.get('name')
+        stage_id = current_stage.get('stageId')
+        current_status = current_stage.get('status')
+
+        self._set_event(current_status, previous_status, tags, STAGE_EVENT, stage_name, stage_id)
+
+    def _set_event(self, current_status, previous_status, tags, event_type, state_name, state_id):
+        '''
+        Create an event
+        '''
+        if previous_status is None:
+            msg = 'New Spark {type} `{name}` (ID {id}) has status {curr}.'.format(type=event_type,
+                name=state_name, id=state_id, curr=current_status)
+
+        elif previous_status != current_status:
+            msg = 'Spark {type} `{name}` (ID {id}) status changed from {prev} to {curr}.'.format(
+                type=event_type, name=state_name, id=state_id, prev=previous_status,
+                curr=current_status)
+
+        else:
+            return
+
+        msg_title = 'Spark {type} `{stage}` has status {status}'.format(type=event_type,
+            stage=state_name, status=current_status)
+
+        self.event({
+            'timestamp': int(time.time()),
+            'source_type_name': SOURCE_TYPE_NAME,
+            'msg_title': msg_title,
+            'msg_text': msg,
+            'tags': tags
+        })
 
     def _rest_request(self, address, object_path, service_name, *args, **kwargs):
         '''
