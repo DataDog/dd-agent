@@ -18,6 +18,7 @@ from utils.dockerutil import DockerUtil, MountException
 from utils.kubeutil import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.sd_backend import get_sd_backend
+from utils.service_discovery.config_stores import get_config_store
 
 
 EVENT_TYPE = 'docker'
@@ -154,10 +155,12 @@ class DockerDaemon(AgentCheck):
         try:
             instance = self.instances[0]
 
-            # if service discovery is enabled dockerutil will need a reference
-            # to the config store. We need to pass it agentConfig for that
+            # if service discovery is enabled dockerutil will need a reference to the config store
             if self._service_discovery:
-                self.docker_util = DockerUtil(agentConfig=self.agentConfig)
+                self.docker_util = DockerUtil(
+                    agentConfig=self.agentConfig,
+                    config_store=get_config_store(self.agentConfig)
+                )
             else:
                 self.docker_util = DockerUtil()
             self.docker_client = self.docker_util.client
