@@ -90,19 +90,22 @@ DEPRECATED_MASTER_ADDRESS = 'resourcemanager_uri'
 # Switch that determines the mode Spark is running in. Can be either
 # 'yarn' or 'standalone'
 SPARK_CLUSTER_MODE = 'spark_cluster_mode'
-SPARK_STANDALONE_MODE = 'spark_standalone_mode'
 SPARK_YARN_MODE = 'spark_yarn_mode'
+SPARK_STANDALONE_MODE = 'spark_standalone_mode'
+SPARK_MESOS_MODE = 'spark_mesos_mode'
 
 # Service Checks
 SPARK_STANDALONE_SERVICE_CHECK = 'spark.standalone_master.can_connect'
 YARN_SERVICE_CHECK = 'spark.resource_manager.can_connect'
 SPARK_SERVICE_CHECK = 'spark.application_master.can_connect'
+MESOS_SERVICE_CHECK = 'spark.mesos_master.can_connect'
 
 # URL Paths
 YARN_APPS_PATH = 'ws/v1/cluster/apps'
 SPARK_APPS_PATH = 'api/v1/applications'
 SPARK_MASTER_STATE_PATH = '/json/'
 SPARK_MASTER_APP_PATH = '/app/'
+MESOS_MASTER_APP_PATH = '/frameworks'
 
 # Application type and states to collect
 YARN_APPLICATION_TYPES = 'SPARK'
@@ -262,6 +265,11 @@ class SparkCheck(AgentCheck):
         if cluster_mode == SPARK_STANDALONE_MODE:
             return self._standalone_init(master_address)
 
+        elif cluster_mode == SPARK_MESOS_MODE:
+            running_apps = self._mesos_init(master_address)
+            return self._get_spark_app_ids(running_apps)
+
+
         elif cluster_mode == SPARK_YARN_MODE:
             running_apps = self._yarn_init(master_address)
             return self._get_spark_app_ids(running_apps)
@@ -296,6 +304,33 @@ class SparkCheck(AgentCheck):
             AgentCheck.OK,
             tags=['url:%s' % spark_master_address],
             message='Connection to Spark master "%s" was successful' % spark_master_address)
+
+        return running_apps
+
+    def _mesos_init(self, master_address):
+        '''
+        Return a dictionary of {app_id: (app_name, tracking_url)} for running Spark applications.
+        '''
+        running_apps = {}
+
+        metrics_json = self._rest_request_to_json(master_address,
+            MESOS_MASTER_APP_PATH,
+            MESOS_SERVICE_CHECK)
+
+        if metrics_json.get('frameworks'):
+            for app_json in metrics_json.get('frameworks'):
+                app_id = app_json.get('id')
+                tracking_url = app_json.get('webui_url')
+                app_name = app_json.get('name')
+
+                if app_id and tracking_url and app_name:
+                    running_apps[app_id] = (app_name, tracking_url)
+
+        # Report success after gathering all metrics from ResourceManaager
+        self.service_check(MESOS_SERVICE_CHECK,
+            AgentCheck.OK,
+            tags=['url:%s' % master_address],
+            message='Connection to ResourceManager "%s" was successful' % master_address)
 
         return running_apps
 
