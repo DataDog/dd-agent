@@ -12,7 +12,8 @@ instances:
   # ResourceManager hostname can be found in the yarn-site.xml conf file
   # under the property yarn.resourcemanager.address The ResourceManager port
   # can be found in the yarn-site.xml conf file under the property
-  # yarn.resourcemanager.webapp.address
+  # yarn.resourcemanager.webapp.address. This is http://localhost:8088 by default
+  #
   - spark_url: http://localhost:8088
 
     # To enable monitoring of a Standalone Spark cluster, the spark cluster

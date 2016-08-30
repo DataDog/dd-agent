@@ -83,6 +83,10 @@ from bs4 import BeautifulSoup
 # Project
 from checks import AgentCheck
 
+# Identifier for cluster master address in `spark.yaml`
+MASTER_ADDRESS = 'spark_url'
+DEPRECATED_MASTER_ADDRESS = 'resourcemanager_uri'
+
 # Switch that determines the mode Spark is running in. Can be either
 # 'yarn' or 'standalone'
 SPARK_CLUSTER_MODE = 'spark_cluster_mode'
@@ -228,6 +232,27 @@ class SparkCheck(AgentCheck):
         '''
         Determine what mode was specified
         '''
+
+        # Get the master address from the instance configuration
+        master_address = instance.get(MASTER_ADDRESS)
+        if master_address is None:
+            master_address = instance.get(DEPRECATED_MASTER_ADDRESS)
+
+            if master_address:
+                self.log.warning('The use of `%s` is deprecated. Please use `%s` instead.' %
+                    (DEPRECATED_MASTER_ADDRESS, MASTER_ADDRESS))
+            else:
+                raise Exception('A URL for `%s` must be specified in the instance '
+                    'configuration' % MASTER_ADDRESS)
+
+        # Get the cluster name from the instance configuration
+        cluster_name = instance.get('cluster_name')
+        if cluster_name is None:
+            raise Exception('The cluster_name must be specified in the instance configuration')
+
+        tags.append('cluster_name:%s' % cluster_name)
+
+        # Determine the cluster mode
         cluster_mode = instance.get(SPARK_CLUSTER_MODE)
         if cluster_mode is None:
             self.log.warning('The value for `spark_cluster_mode` was not set in the configuration. '
@@ -235,25 +260,20 @@ class SparkCheck(AgentCheck):
             cluster_mode = SPARK_YARN_MODE
 
         if cluster_mode == SPARK_STANDALONE_MODE:
-            return self._standalone_init(instance)
+            return self._standalone_init(master_address)
 
         elif cluster_mode == SPARK_YARN_MODE:
-            running_apps = self._yarn_init(instance, tags)
+            running_apps = self._yarn_init(master_address)
             return self._get_spark_app_ids(running_apps)
 
         else:
             raise Exception('Invalid setting for %s. Received %s.' % (SPARK_CLUSTER_MODE,
                 cluster_mode))
 
-    def _standalone_init(self, instance):
+    def _standalone_init(self, spark_master_address):
         '''
         Return a dictionary of {app_id: (app_name, tracking_url)} for the running Spark applications
         '''
-        spark_master_address = instance.get('spark_url')
-
-        if spark_master_address is None:
-            raise Exception('The Spark master URL must be specified in the instance configuration')
-
         metrics_json = self._rest_request_to_json(spark_master_address,
             SPARK_MASTER_STATE_PATH,
             SPARK_STANDALONE_SERVICE_CHECK)
@@ -279,22 +299,10 @@ class SparkCheck(AgentCheck):
 
         return running_apps
 
-    def _yarn_init(self, instance, tags):
+    def _yarn_init(self, rm_address):
         '''
         Return a dictionary of {app_id: (app_name, tracking_url)} for running Spark applications.
         '''
-        rm_address = instance.get('spark_url')
-
-        if rm_address is None:
-            raise Exception('The ResourceManager URL must be specified in the instance '
-                'configuration')
-
-        cluster_name = instance.get('cluster_name')
-        if cluster_name is None:
-            raise Exception('The cluster_name must be specified in the instance configuration')
-
-        tags.append('cluster_name:%s' % cluster_name)
-
         running_apps = {}
         running_apps = self._yarn_get_running_spark_apps(rm_address)
 
