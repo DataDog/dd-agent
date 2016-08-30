@@ -38,11 +38,16 @@ def install_requirements(req_file, pip_options = nil, output = nil, use_venv = n
   end
 end
 
+def travis_pr?
+  !ENV['TRAVIS'].nil? && ENV['TRAVIS_EVENT_TYPE'] == 'pull_request'
+end
+
 def can_skip?
-  return false, [] if Gem.win_platform?
+  return false, [] unless travis_pr?
 
   modified_checks = []
-  `git diff-tree --no-commit-id --name-only -r FETCH_HEAD origin/master`.each_line do |filename|
+  git_output = `git diff-tree --no-commit-id --name-only -r #{ENV['TRAVIS_COMMIT']} #{ENV['TRAVIS_BRANCH']}`
+  git_output.each_line do |filename|
     filename.strip!
     if filename.start_with? 'checks.d'
       check_name = File.basename(filename, '.py')
