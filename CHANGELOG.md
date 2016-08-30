@@ -69,6 +69,8 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Multiple integrations: Add an HTTP timeout to many integrations. See [#2673][] (Thanks [@gphat][])
 * [IMPROVEMENT] Openstack: openstack should pick-up on proxy settings set on agent. See [#2572][]
 * [IMPROVEMENT] Openstack: nova/neutron extend name search. See [#2627][]
+* [IMPROVEMENT] Php5_fpm: Allow host header override. See [#2779][] (Thenks [@allixsenos][])
+* [IMPROVEMENT] Postgres: Allow to use psycopg2. See [#2782][]
 * [IMPROVEMENT] Process:  Add metrics for avg, max, and min run times for processes. See [#2531][] (Thenks [@garnermccloud][])
 * [IMPROVEMENT] RabbitMQ: Avoiding the extra double lookup for 'rabbitmq_api_url'. See [#2543][] (Thanks [@ParthKolekar][])
 * [IMPROVEMENT] RabbitMQ: new health check. See [#2711][]
@@ -79,6 +81,8 @@ See [#2709][] for reference.
 * [BUGFIX] Http_check: Bring back include_content option. See [#2631][]
 * [BUGFIX] IIS: Fix metrics tagging when multiple sites are specified on instance. See [#2677][]
 * [BUGFIX] Marathon: Fix a small problem that prevented marathon full path from being properly built. See [#2620][]
+* [BUGFIX] Mongo: Fixes a mistake in the mongo collections check. See [#2783][]
+* [BUGFIX] MySQL: Check for null key_buffer_size before dividing by it. See [#2784][]
 * [BUGFIX] Network Checks: Network check instance corrections. See [#2736][] (Thanks [@tschellhorn][])
 * [BUGFIX] Packaging [linux]: Kernel 4+ won't error out on status now. See [#2640][]
 * [BUGFIX] Packaging [osx]: Support GNU-Friendly sed. See [#2580][] (Thanks [@sha1sum][])
@@ -103,14 +107,14 @@ trusted APT key:
 
 ```
 pub   4096R/382E94DE 2016-06-29 [expires: 2022-06-28]
-uid                  Datadog, Inc <package@datadoghq.com>
+uid                  Datadog, Inc <package[@datadoghq][].com>
 ```
 
 During the package install, the DEB package will output the following:
 
 ```
 Prepare Datadog Agent keys rotation
-  Add the new 'Datadog, Inc <package@datadoghq.com>' key to the list of APT trusted keys. ... OK
+  Add the new 'Datadog, Inc <package[@datadoghq][].com>' key to the list of APT trusted keys. ... OK
 ```
 
 The signing key of the Agent hasn't changed yet but will be switched to this new key in a future release.
@@ -612,6 +616,7 @@ The `wmi_check` now only supports `%` as the wildcard character in the `filters`
 * [BUGFIX] Core: Fix cases of low/no disk space causing the Agent to crash when calling subprocesses. See [#2223][]
 * [BUGFIX] Core: Make Dogstatsd recover gracefully from serialization errors. See [#2176][]
 * [BUGFIX] Core: Set agent pid file and path from constants. See [#2128][] (Thanks [@urosgruber][])
+* [BUGFIX] Core: Log check starts with info level on first run only. See [#2772][]
 * [BUGFIX] Development: Fix test of platform in `etcd` CI setup script. See [#2205][] (Thanks [@ojongerius][])
 * [BUGFIX] Docker: Avoid event collection failure if an event has no ID param. See [#2308][]
 * [BUGFIX] Docker: Catch exception when getting k8s labels fails. See [#2200][]
@@ -3358,6 +3363,11 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2735]: https://github.com/DataDog/dd-agent/issues/2735
 [#2736]: https://github.com/DataDog/dd-agent/issues/2736
 [#2739]: https://github.com/DataDog/dd-agent/issues/2739
+[#2772]: https://github.com/DataDog/dd-agent/issues/2772
+[#2779]: https://github.com/DataDog/dd-agent/issues/2779
+[#2782]: https://github.com/DataDog/dd-agent/issues/2782
+[#2783]: https://github.com/DataDog/dd-agent/issues/2783
+[#2784]: https://github.com/DataDog/dd-agent/issues/2784
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -3375,6 +3385,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@a20012251]: https://github.com/a20012251
 [@adriandoolittle]: https://github.com/adriandoolittle
 [@alaz]: https://github.com/alaz
+[@allixsenos]: https://github.com/allixsenos
 [@alz]: https://github.com/alz
 [@antifuchs]: https://github.com/antifuchs
 [@arosenhagen]: https://github.com/arosenhagen
