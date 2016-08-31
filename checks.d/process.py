@@ -34,7 +34,8 @@ ATTR_TO_METRIC = {
     'w_bytes':          'iowrite_bytes',  # FIXME: namespace me correctly (6.x) io.w_bytes
     'ctx_swtch_vol':    'voluntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.voluntary
     'ctx_swtch_invol':  'involuntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.involuntary
-    'run_time':         'run_time'
+    'run_time':         'run_time',
+    'mem_pct':          'mem.pct'
 }
 
 ATTR_TO_METRIC_RATE = {
@@ -222,6 +223,9 @@ class ProcessCheck(AgentCheck):
             meminfo = self.psutil_wrapper(p, 'memory_info', ['rss', 'vms'])
             st['rss'].append(meminfo.get('rss'))
             st['vms'].append(meminfo.get('vms'))
+
+            mem_percent = self.psutil_wrapper(p, 'memory_percent', None)
+            st['mem_pct'].append(mem_percent)
 
             # will fail on win32 and solaris
             shared_mem = self.psutil_wrapper(p, 'memory_info_ex', ['shared']).get('shared')
