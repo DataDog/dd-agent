@@ -8,8 +8,6 @@ import os
 import socket
 import struct
 import time
-import socket
-import struct
 
 # 3rd party
 from docker import Client, tls
@@ -171,15 +169,7 @@ class DockerUtil:
         except Exception:
             log.critical("Unable to find docker host hostname. Trying default route")
 
-        try:
-            with open('/proc/net/route') as f:
-                for line in f.readlines():
-                    fields = line.strip().split()
-                    if fields[1] == '00000000':
-                        return socket.inet_ntoa(struct.pack('<L', int(fields[2], 16)))
-        except IOError, e:
-            log.error('Unable to open /proc/net/route: %s', e)
-        return None
+        return DockerUtil.get_gateway()
 
     @property
     def client(self):
