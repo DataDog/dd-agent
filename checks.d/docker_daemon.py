@@ -72,7 +72,7 @@ CGROUP_METRICS = [
         "cgroup": "cpu",
         "file": "cpu.stat",
         "metrics": {
-            "nr_throttled": ("docker.cpu.throttled", GAUGE)
+            "nr_throttled": ("docker.cpu.throttled", RATE)
         },
     },
     {
