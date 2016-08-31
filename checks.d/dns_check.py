@@ -52,14 +52,20 @@ class DNSCheck(AgentCheck):
             resolver.nameservers = [nameserver]
 
         record_type = instance.get('record_type', 'A')
+        expected_results = instance.get('addresses', [])
 
         status = AgentCheck.CRITICAL
         start_time = time.time()
         try:
             self.log.debug('Querying "%s" record for hostname "%s"...' % (record_type, hostname))
             answer = resolver.query(hostname, rdtype=record_type)
+            resolved_value = answer.rrset.items[0].to_text()
             assert(answer.rrset.items[0].to_text())
             end_time = time.time()
+            if len(expected_results) > 0:
+                if resolved_value not in expected_results:
+                    raise Exception("Resolution did not match excpected value.")
+
         except dns.exception.Timeout:
             self.log.error('DNS resolution of %s timed out' % hostname)
             self.service_check(self.SERVICE_CHECK_NAME, status, tags=self._get_tags(instance))

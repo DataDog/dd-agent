@@ -56,6 +56,30 @@ class TestDns(AgentCheckTest):
         self.coverage_report()
 
     @mock.patch.object(Resolver, 'query', side_effect=success_query_mock)
+    def test_success_addresses(self, mocked_query):
+        config = {
+            'instances': [{'hostname': 'www.example.org', 'nameserver': '127.0.0.1', 'addresses': ['127.0.0.1']}]
+        }
+        self.run_check(config)
+        self.assertMetric('dns.response_time', count=1,
+                          tags=['nameserver:127.0.0.1', 'resolved_hostname:www.example.org'])
+        self.assertServiceCheck(SERVICE_CHECK_NAME, status=AgentCheck.OK,
+                                tags=['resolved_hostname:www.example.org', 'nameserver:127.0.0.1'])
+        self.coverage_report()
+
+    @mock.patch.object(Resolver, 'query', side_effect=success_query_mock)
+    def test_failure_addresses(self, mocked_query):
+        config = {
+            'instances': [{'hostname': 'www.example.org', 'nameserver': '127.0.0.1', 'addresses': ['127.0.0.2']}]
+        }
+        self.run_check(config)
+        self.assertMetric('dns.response_time', count=1,
+                          tags=['nameserver:127.0.0.1', 'resolved_hostname:www.example.org'])
+        self.assertServiceCheck(SERVICE_CHECK_NAME, status=AgentCheck.CRITICAL,
+                                tags=['resolved_hostname:www.example.org', 'nameserver:127.0.0.1'])
+        self.coverage_report()
+
+    @mock.patch.object(Resolver, 'query', side_effect=success_query_mock)
     def test_success_CNAME(self, mocked_query):
         config = {
             'instances': [{'hostname': 'www.example.org', 'nameserver': '127.0.0.1', 'record_type': 'CNAME'}]
