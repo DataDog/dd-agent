@@ -47,6 +47,7 @@ See [#2709][] for reference.
 * [FEATURE] Gearman: Add per-task gearman metrics. See [#2672][] (Thanks [@nyanshak][])
 * [FEATURE] Http_check: Add allow_redirects parameter. See [#2586][] (Thanks [@n0ts][])
 * [FEATURE] Http_check: SNI support for cert_expiration. See [#2521][]
+* [FEATURE] Kubernetes: Improve service discovery to only reload checks that need it. See [#2551][]
 * [FEATURE] Linux: make /proc configurable. See [#2482][]
 * [FEATURE] Mongo: Apply yaml-configured tags to service checks. See [#2575][] (Thanks [@avaughan89][])
 * [FEATURE] Mysql: Allow `connection_timeout` to be set for MySQL checks. See [#2729][] (Thanks [@scottgeary][])
@@ -57,6 +58,7 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Core: remove events & resources api_key. See [#2557][]
 * [IMPROVEMENT] Core: remove noisy logs. See [#2715][] (Thanks [@ensonik][])
 * [IMPROVEMENT] Disk: handle multilines df output. See [#2733][]
+* [IMPROVEMENT] Docker: Improve service discovery to only reload checks that need it. See [#2702][]
 * [IMPROVEMENT] Dogstatsd: fix server address when non_local_traffic is passed. See [#2691][]
 * [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done. See [#2621][]
 * [IMPROVEMENT] Flare: hide multiple endpoints api_keys. See [#2646][]
@@ -71,7 +73,8 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Openstack: nova/neutron extend name search. See [#2627][]
 * [IMPROVEMENT] Php5_fpm: Allow host header override. See [#2779][] (Thenks [@allixsenos][])
 * [IMPROVEMENT] Postgres: Allow to use psycopg2. See [#2782][]
-* [IMPROVEMENT] Process:  Add metrics for avg, max, and min run times for processes. See [#2531][] (Thenks [@garnermccloud][])
+* [IMPROVEMENT] Process: Add metrics for avg, max, and min run times for processes. See [#2531][] (Thenks [@garnermccloud][])
+* [IMPROVEMENT] Process: Add system.processes.mem.pct metric to process check. See [#2801][]
 * [IMPROVEMENT] RabbitMQ: Avoiding the extra double lookup for 'rabbitmq_api_url'. See [#2543][] (Thanks [@ParthKolekar][])
 * [IMPROVEMENT] RabbitMQ: new health check. See [#2711][]
 * [IMPROVEMENT] SSH: Be more specific when logging ssh errors. See [#2708][]
@@ -81,6 +84,7 @@ See [#2709][] for reference.
 * [BUGFIX] Http_check: Bring back include_content option. See [#2631][]
 * [BUGFIX] IIS: Fix metrics tagging when multiple sites are specified on instance. See [#2677][]
 * [BUGFIX] Marathon: Fix a small problem that prevented marathon full path from being properly built. See [#2620][]
+* [BUGFIX] Mongo: Repairing of mongodb.can_connect check. See [#2658][] (Thanks [@cryptspirit][])
 * [BUGFIX] Mongo: Fixes a mistake in the mongo collections check. See [#2783][]
 * [BUGFIX] MySQL: Check for null key_buffer_size before dividing by it. See [#2784][]
 * [BUGFIX] Network Checks: Network check instance corrections. See [#2736][] (Thanks [@tschellhorn][])
@@ -3301,6 +3305,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2542]: https://github.com/DataDog/dd-agent/issues/2542
 [#2543]: https://github.com/DataDog/dd-agent/issues/2543
 [#2548]: https://github.com/DataDog/dd-agent/issues/2548
+[#2551]: https://github.com/DataDog/dd-agent/issues/2551
 [#2553]: https://github.com/DataDog/dd-agent/issues/2553
 [#2556]: https://github.com/DataDog/dd-agent/issues/2556
 [#2557]: https://github.com/DataDog/dd-agent/issues/2557
@@ -3338,6 +3343,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2646]: https://github.com/DataDog/dd-agent/issues/2646
 [#2651]: https://github.com/DataDog/dd-agent/issues/2651
 [#2653]: https://github.com/DataDog/dd-agent/issues/2653
+[#2658]: https://github.com/DataDog/dd-agent/issues/2658
 [#2660]: https://github.com/DataDog/dd-agent/issues/2660
 [#2661]: https://github.com/DataDog/dd-agent/issues/2661
 [#2666]: https://github.com/DataDog/dd-agent/issues/2666
@@ -3352,6 +3358,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2688]: https://github.com/DataDog/dd-agent/issues/2688
 [#2691]: https://github.com/DataDog/dd-agent/issues/2691
 [#2696]: https://github.com/DataDog/dd-agent/issues/2696
+[#2702]: https://github.com/DataDog/dd-agent/issues/2702
 [#2704]: https://github.com/DataDog/dd-agent/issues/2704
 [#2708]: https://github.com/DataDog/dd-agent/issues/2708
 [#2709]: https://github.com/DataDog/dd-agent/issues/2709
@@ -3368,6 +3375,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2782]: https://github.com/DataDog/dd-agent/issues/2782
 [#2783]: https://github.com/DataDog/dd-agent/issues/2783
 [#2784]: https://github.com/DataDog/dd-agent/issues/2784
+[#2801]: https://github.com/DataDog/dd-agent/issues/2801
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -3406,6 +3414,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@ckrough]: https://github.com/ckrough
 [@clly]: https://github.com/clly
 [@clokep]: https://github.com/clokep
+[@cryptspirit]: https://github.com/cryptspirit
 [@datadoghq]: https://github.com/datadoghq
 [@dcrosta]: https://github.com/dcrosta
 [@diogokiss]: https://github.com/diogokiss
