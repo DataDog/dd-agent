@@ -134,6 +134,7 @@ class ProcessCheckTest(AgentCheckTest):
         'system.processes.ioread_count',
         'system.processes.iowrite_bytes',
         'system.processes.iowrite_count',
+        'system.processes.mem.pct',
         'system.processes.mem.real',
         'system.processes.mem.rss',
         'system.processes.mem.vms',
