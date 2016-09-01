@@ -46,8 +46,17 @@ class TestFunctions(TestCase):
 
 
 class TestServer(TestCase):
+<<<<<<< c3930455f2f60891eca676945db124f4cbee1ce0
     def test_init(self):
         s = Server(None, 'localhost', '1234')
+=======
+    @mock.patch('dogstatsd.get_socket_address')
+    def test_init(self, nh):
+        nh.return_value = 'foo'
+#
+        s = Server(None, 'localhost', '1234', 'buffer_size')
+        nh.assertCalledOnceWith('localhost', 1234)
+>>>>>>> fix tests
 
         self.assertIsNone(s.sockaddr)
         self.assertIsNone(s.socket)
@@ -55,15 +64,15 @@ class TestServer(TestCase):
     @mock.patch('dogstatsd.select')
     def test_start(self, select):
         select.select.side_effect = [KeyboardInterrupt, SystemExit]
-        s1 = Server(mock.MagicMock(), '::1', '1234')
+        s1 = Server(mock.MagicMock(), '::1', '1234', 'buffer_size')
         s1.start()
         self.assertEqual(s1.socket.family, socket.AF_INET6)
 
-        s2 = Server(mock.MagicMock(), '127.0.0.1', '2345')
+        s2 = Server(mock.MagicMock(), '127.0.0.1', '2345', 'buffer_size')
         s2.start()
         self.assertEqual(s2.socket.family, socket.AF_INET6)
 
-        s2 = Server(mock.MagicMock(), 'foo', '80')
+        s2 = Server(mock.MagicMock(), 'foo', '80', 'buffer_size')
         s2.start()
         self.assertFalse(s2.running)
 

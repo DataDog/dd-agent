@@ -41,7 +41,7 @@ class DummyReporter(threading.Thread):
 class TestTomcat(unittest.TestCase):
     def setUp(self):
         aggregator = MetricsAggregator("test_host")
-        self.server = Server(aggregator, "localhost", STATSD_PORT)
+        self.server = Server(aggregator, "localhost", STATSD_PORT, 'buffer_size')
         self.reporter = DummyReporter(aggregator)
 
         self.t1 = threading.Thread(target=self.server.start)
