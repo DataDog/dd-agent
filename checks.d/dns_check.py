@@ -64,15 +64,15 @@ class DNSCheck(AgentCheck):
             end_time = time.time()
             if len(expected_results) > 0:
                 if resolved_value not in expected_results:
-                    raise Exception("Resolution did not match excpected value.")
+                    raise Exception('DNS resolution of %s resulted in unexpected address %s.' % (hostname, resolved_value))
 
         except dns.exception.Timeout:
             self.log.error('DNS resolution of %s timed out' % hostname)
             self.service_check(self.SERVICE_CHECK_NAME, status, tags=self._get_tags(instance))
             raise
-        except Exception:
-            self.log.exception('DNS resolution of %s has failed.' % hostname)
-            self.service_check(self.SERVICE_CHECK_NAME, status, tags=self._get_tags(instance))
+        except Exception as err:
+            self.log.exception(err)
+            self.service_check(self.SERVICE_CHECK_NAME, status, tags=self._get_tags(instance), message=err)
             raise
         else:
             if end_time - start_time > 0:
