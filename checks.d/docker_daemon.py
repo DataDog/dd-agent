@@ -69,6 +69,13 @@ CGROUP_METRICS = [
         },
     },
     {
+        "cgroup": "cpu",
+        "file": "cpu.stat",
+        "metrics": {
+            "nr_throttled": ("docker.cpu.throttled", RATE)
+        },
+    },
+    {
         "cgroup": "blkio",
         "file": 'blkio.throttle.io_service_bytes',
         "metrics": {
