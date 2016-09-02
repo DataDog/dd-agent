@@ -62,16 +62,10 @@ PID_DIR = None
 DOGSTATSD_FLUSH_INTERVAL = 10
 DOGSTATSD_AGGREGATOR_BUCKET_SIZE = 10
 
-<<<<<<< 462de0b8347dea47e3926a9b3b10db7f53c20778
 # Dogstatsd UDP packet size in K
 UPD_PACKET_SIZE_OPTIONS = [8, 16, 32, 64]
 DEFAULT_UDP_PACKET_SIZE = 8
 DEFAULT_UDP_PACKET_SIZE_BYTES = DEFAULT_UDP_PACKET_SIZE * 1024
-=======
-# buffer size in K
-BUFFER_SIZE_OPTIONS = [8, 16, 32, 64]
-DEFAULT_BUFFER_SIZE = 8
->>>>>>> Refactor - added default buffer size constant. Edit tests to reflect optional buffer parameter
 
 WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
@@ -355,7 +349,7 @@ class Server(object):
     A statsd udp server.
     """
     def __init__(self, metrics_aggregator, host, port, forward_to_host=None, forward_to_port=None,
-                max_packet_size=DEFAULT_UDP_PACKET_SIZE_BYTES):
+                 max_packet_size=DEFAULT_UDP_PACKET_SIZE_BYTES):
         self.sockaddr = None
         self.socket = None
         self.metrics_aggregator = metrics_aggregator
