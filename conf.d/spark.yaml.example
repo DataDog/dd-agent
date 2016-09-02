@@ -14,6 +14,7 @@ instances:
   # can be found in the yarn-site.xml conf file under the property
   # yarn.resourcemanager.webapp.address. This is http://localhost:8088 by default
   #
+  # The use of `resourcemanager_uri` has been deprecated, but is still functional.
   - spark_url: http://localhost:8088
 
     # To enable monitoring of a Standalone Spark cluster, the spark cluster
