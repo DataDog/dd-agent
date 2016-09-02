@@ -53,7 +53,7 @@ class TestServer(TestCase):
     @mock.patch('dogstatsd.get_socket_address')
     def test_init(self, nh):
         nh.return_value = 'foo'
-#
+
         s = Server(None, 'localhost', '1234')
         nh.assertCalledOnceWith('localhost', 1234)
 >>>>>>> fix tests
