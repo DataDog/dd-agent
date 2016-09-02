@@ -41,7 +41,7 @@ class DummyReporter(threading.Thread):
 class JMXTestCase(unittest.TestCase):
     def setUp(self):
         aggregator = MetricsAggregator("test_host")
-        self.server = Server(aggregator, "localhost", STATSD_PORT, 'buffer_size')
+        self.server = Server(aggregator, "localhost", STATSD_PORT)
         self.reporter = DummyReporter(aggregator)
 
         self.t1 = threading.Thread(target=self.server.start)
