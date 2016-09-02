@@ -37,7 +37,7 @@ class Ceph(AgentCheck):
         args = ceph_args + ['version']
         try:
             output,_,_ = get_subprocess_output(args, self.log)
-        except Exception, e:
+        except Exception as e:
             raise Exception('Unable to run cmd=%s: %s' % (' '.join(args), str(e)))
 
         raw = {}
@@ -46,7 +46,7 @@ class Ceph(AgentCheck):
                 args = ceph_args + cmd.split() + ['-fjson']
                 output,_,_ = get_subprocess_output(args, self.log)
                 res = json.loads(output)
-            except Exception, e:
+            except Exception as e:
                 self.log.warning('Unable to parse data from cmd=%s: %s' % (cmd, str(e)))
                 continue
 
