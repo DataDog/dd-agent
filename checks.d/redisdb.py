@@ -171,15 +171,15 @@ class Redis(AgentCheck):
         try:
             info = conn.info()
             status = AgentCheck.OK
-            self.service_check('redis.can_connect', status, tags=tags_to_add)
+            self.service_check('redis.can_connect', status, tags=tags)
             self._collect_metadata(info)
         except ValueError:
             status = AgentCheck.CRITICAL
-            self.service_check('redis.can_connect', status, tags=tags_to_add)
+            self.service_check('redis.can_connect', status, tags=tags)
             raise
         except Exception:
             status = AgentCheck.CRITICAL
-            self.service_check('redis.can_connect', status, tags=tags_to_add)
+            self.service_check('redis.can_connect', status, tags=tags)
             raise
 
         latency_ms = round((time.time() - start) * 1000, 2)
