@@ -123,7 +123,7 @@ def get_url_endpoint(default_url, endpoint_type=None):
         endpoint_type
     )
     if endpoint_type == 'flare':
-        subdomain_replacement = "{0}.flare".format(formatted_version)
+        subdomain_replacement = "{0}-flare".format(formatted_version)
 
     # Replace https://app.datadoghq.com in https://5-2-0-app.agent.datadoghq.com
     return default_url.replace(subdomain, subdomain_replacement)
