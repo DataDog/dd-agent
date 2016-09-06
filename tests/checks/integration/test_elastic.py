@@ -245,6 +245,7 @@ class TestElastic(AgentCheckTest):
         }
 
         tags = [u"foo:bar", u"baz"]
+        cluster_tag = [u"cluster_name:elasticsearch"]
         url = 'http://localhost:{0}'.format(port)
         bad_url = 'http://localhost:{0}'.format(bad_port)
 
@@ -310,6 +311,7 @@ class TestElastic(AgentCheckTest):
 
         for m_name, desc in expected_metrics.iteritems():
             for hostname, m_tags in contexts:
+                m_tags = m_tags + cluster_tag
                 if (m_name in CLUSTER_HEALTH_METRICS
                         and hostname == local_hostname):
                     hostname = conf_hostname
@@ -321,8 +323,8 @@ class TestElastic(AgentCheckTest):
                     self.assertMetric(
                         m_name, tags=m_tags, count=1, hostname=hostname)
 
-        good_sc_tags = ['host:localhost', 'port:{0}'.format(port)]
-        bad_sc_tags = ['host:localhost', 'port:{0}'.format(bad_port)]
+        good_sc_tags = ['host:localhost', 'port:{0}'.format(port)] + cluster_tag
+        bad_sc_tags = ['host:localhost', 'port:{0}'.format(bad_port)] + cluster_tag
 
         self.assertServiceCheckOK('elasticsearch.can_connect',
                                   tags=good_sc_tags + tags,
@@ -351,7 +353,8 @@ class TestElastic(AgentCheckTest):
                                            count=1)
             # Assert event
             self.assertEvent('ElasticSearch: foo just reported as yellow', count=1,
-                             tags=default_tags+tags, msg_title='foo is yellow',
+                             tags=default_tags+tags+cluster_tag,
+                             msg_title='foo is yellow',
                              event_type='elasticsearch', alert_type='warning',
                              source_type_name='elasticsearch')
 
@@ -414,6 +417,8 @@ class TestElastic(AgentCheckTest):
 
     def test_health_event(self):
         dummy_tags = ['foo:bar', 'elastique:recherche']
+        server_tags = ['cluster_name:elasticsearch']
+
         config = {'instances': [
             {'url': 'http://localhost:9200', 'tags': dummy_tags}
         ]}
@@ -425,7 +430,7 @@ class TestElastic(AgentCheckTest):
         self.assertEquals(len(self.events), 1)
         self.assertIn('yellow', self.events[0]['msg_title'])
         self.assertEquals(
-            ['url:http://localhost:9200'] + dummy_tags,
+            ['url:http://localhost:9200'] + dummy_tags + server_tags,
             self.events[0]['tags']
         )
         self.assertServiceCheckWarning(
@@ -443,12 +448,12 @@ class TestElastic(AgentCheckTest):
         self.assertEquals(len(self.events), 1)
         self.assertIn('green', self.events[0]['msg_title'])
         self.assertEquals(
-            ['url:http://localhost:9200'] + dummy_tags,
+            ['url:http://localhost:9200'] + dummy_tags + server_tags,
             self.events[0]['tags']
         )
         self.assertServiceCheckOK(
             'elasticsearch.cluster_health',
-            tags=['host:localhost', 'port:9200'] + dummy_tags,
+            tags=['host:localhost', 'port:9200'] + dummy_tags + server_tags,
             count=1
         )
 

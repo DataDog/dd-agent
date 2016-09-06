@@ -322,16 +322,25 @@ class ESCheck(AgentCheck):
         health_url, nodes_url, stats_url, pshard_stats_url, pending_tasks_url, stats_metrics, \
             pshard_stats_metrics = self._define_params(version, config.cluster_stats)
 
+        # Load stats data.
+        # This must happen before other URL processing as the cluster name
+        # is retreived here, and added to the tag list.
+
+        stats_url = urlparse.urljoin(config.url, stats_url)
+        stats_data = self._get_data(stats_url, config)
+        if stats_data['cluster_name']:
+            # retreive the cluster name from the data, and append it to the
+            # master tag list.
+            config.tags.append("cluster_name:{}".format(stats_data['cluster_name']))
+            config.service_check_tags.append("cluster_name:{}".format(stats_data['cluster_name']))
+        self._process_stats_data(nodes_url, stats_data, stats_metrics, config)
+
         # Load clusterwise data
         if config.pshard_stats:
             pshard_stats_url = urlparse.urljoin(config.url, pshard_stats_url)
             pshard_stats_data = self._get_data(pshard_stats_url, config)
             self._process_pshard_stats_data(pshard_stats_data, config, pshard_stats_metrics)
 
-        # Load stats data.
-        stats_url = urlparse.urljoin(config.url, stats_url)
-        stats_data = self._get_data(stats_url, config)
-        self._process_stats_data(nodes_url, stats_data, stats_metrics, config)
 
         # Load the health data.
         health_url = urlparse.urljoin(config.url, health_url)
