@@ -198,12 +198,22 @@ ADDITIONAL_METRICS_POST_1_3_0 = {
 ADDITIONAL_METRICS_POST_1_4_0 = {
     "elasticsearch.indices.segments.index_writer_max_memory_in_bytes": ("gauge", "indices.segments.index_writer_max_memory_in_bytes"),
     "elasticsearch.indices.segments.fixed_bit_set_memory_in_bytes": ("gauge", "indices.segments.fixed_bit_set_memory_in_bytes"),
+    "elasticsearch.indices.query_cache.memory_size_in_bytes": ("gauge", "indices.query_cache.memory_size_in_bytes"),
+    "elasticsearch.indices.query_cache.evictions": ("gauge", "indices.query_cache.evictions"),
+    "elasticsearch.indices.query_cache.hit_count": ("gauge", "indices.query_cache.hit_count"),
+    "elasticsearch.indices.query_cache.miss_count": ("gauge", "indices.query_cache.miss_count"),
 }
 
 ADDITIONAL_METRICS_PRE_2_0 = {
     "elasticsearch.thread_pool.merge.active": ("gauge", "thread_pool.merge.active"),
     "elasticsearch.thread_pool.merge.threads": ("gauge", "thread_pool.merge.threads"),
     "elasticsearch.thread_pool.merge.queue": ("gauge", "thread_pool.merge.queue"),
+}
+
+ADDITIONAL_METRICS_POST_2_0 = {
+    "elasticsearch.indices.query_cache.total_count": ("gauge", "indices.query_cache.total_count"),
+    "elasticsearch.indices.query_cache.cache_size": ("gauge", "indices.query_cache.cache_size"),
+    "elasticsearch.indices.query_cache.cache_count": ("gauge", "indices.query_cache.cache_count"),
 }
 
 CLUSTER_HEALTH_METRICS = {
@@ -296,6 +306,9 @@ class TestElastic(AgentCheckTest):
 
         if es_version >= [1, 4, 0]:
             expected_metrics.update(ADDITIONAL_METRICS_POST_1_4_0)
+
+        if es_version >= [2, 0, 0]:
+            expected_metrics.update(ADDITIONAL_METRICS_POST_2_0)
 
         local_hostname = socket.gethostname() if es_version < [2, 0, 0] else '127.0.0.1'
         contexts = [
