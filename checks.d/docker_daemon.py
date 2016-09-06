@@ -436,13 +436,12 @@ class DockerDaemon(AgentCheck):
         ip = ecs_config.get('NetworkSettings', {}).get('IPAddress')
         ports = ecs_config.get('NetworkSettings', {}).get('Ports')
         port = ports.keys()[0].split('/')[0] if ports else None
-        if not ip and DockerUtil.is_dockerized():
-            if self.docker_gateway:
-                ip = self.docker_gateway
-                port = ECS_INTROSPECT_DEFAULT_PORT
-        elif not ip:
-            ip = "localhost"
+        if not ip:
             port = ECS_INTROSPECT_DEFAULT_PORT
+            if DockerUtil.is_dockerized() and self.docker_gateway():
+                ip = self.docker_gateway
+            else:
+                ip = "localhost"
 
         ecs_tags = {}
         try:
@@ -452,7 +451,7 @@ class DockerDaemon(AgentCheck):
                     for container in task.get('Containers', []):
                         tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
                         ecs_tags[container['DockerId']] = tags
-        except requests.exceptions.HTTPError as e:
+        except (requests.exceptions.HTTPError, requests.exceptions.HTTPError) as e:
             self.log.warning("Unable to collect ECS task names: %s" % e)
 
         self.ecs_tags = ecs_tags
