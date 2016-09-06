@@ -120,6 +120,7 @@ class Win32EventLogWMI(WinWMICheck):
             and_props=['Message']
         )
 
+        wmi_sampler.reset_filter(new_filters=filters)
         try:
             wmi_sampler.sample()
         except TimeoutException:
