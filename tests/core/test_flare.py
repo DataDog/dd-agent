@@ -82,7 +82,7 @@ class FlareTest(unittest.TestCase):
         conf = mock_config()
         self.assertEqual(f._case_id, 1337)
         self.assertEqual(f._api_key, conf['api_key'])
-        self.assertEqual(f._url, 'https://6-6-6-flare.agent.datadoghq.com/support/flare')
+        self.assertEqual(f._url, 'https://6-6-6.flare.datadoghq.com/support/flare')
         self.assertEqual(f.tar_path, os.path.join(get_mocked_temp(), "datadog-agent-1.tar.bz2"))
 
     @mock.patch('utils.flare.requests.post', return_value=FakeResponse())
@@ -102,7 +102,7 @@ class FlareTest(unittest.TestCase):
         args, kwargs = mock_requests.call_args_list[0]
         self.assertEqual(
             args,
-            ('https://6-6-6-flare.agent.datadoghq.com/support/flare/1337?api_key=APIKEY',)
+            ('https://6-6-6.flare.datadoghq.com/support/flare/1337?api_key=APIKEY',)
         )
         self.assertEqual(
             kwargs['files']['flare_file'].name,
@@ -129,7 +129,7 @@ class FlareTest(unittest.TestCase):
         args, kwargs = mock_requests.call_args_list[0]
         self.assertEqual(
             args,
-            ('https://6-6-6-flare.agent.datadoghq.com/support/flare?api_key=APIKEY',)
+            ('https://6-6-6.flare.datadoghq.com/support/flare?api_key=APIKEY',)
         )
         self.assertEqual(
             kwargs['files']['flare_file'].name,
@@ -156,7 +156,7 @@ class FlareTest(unittest.TestCase):
         args, kwargs = mock_requests.call_args_list[0]
         self.assertEqual(
             args,
-            ('https://6-6-6-flare.agent.datadoghq.com/support/flare/1337?api_key=APIKEY',)
+            ('https://6-6-6.flare.datadoghq.com/support/flare/1337?api_key=APIKEY',)
         )
         self.assertEqual(
             kwargs['files']['flare_file'].name,
