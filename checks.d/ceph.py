@@ -91,7 +91,7 @@ class Ceph(AgentCheck):
             else:
                 for osdhealth in raw['health_detail']['detail']:
                     osd, pct = self._osd_pct_used(osdhealth)
-                    local_tags = tags + ['ceph_osd:%s' %  osd.replace('.','')]
+                    local_tags = tags + ['ceph_osd:%s' % osd.replace('.','')]
 
                     if 'near' in osdhealth:
                         health = {'num_near_full_osds' : pct}
