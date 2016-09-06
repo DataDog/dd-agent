@@ -14,9 +14,11 @@ See [#2709][] for reference.
 
 ### Updated integrations
 * Apache
+* Ceph
 * Disk Check
 * DNS
 * Docker
+* Elasticsearch
 * Gearman
 * HTTP Check
 * IIS
@@ -28,9 +30,12 @@ See [#2709][] for reference.
 * MySQL
 * Network Check
 * OpenStack
+* Php5_fpm
+* Postgres
 * Process
 * RabbitMQ
 * Redis
+* Spark/Minerkasch
 * SSH
 * vSphere
 * Windows
@@ -52,14 +57,20 @@ See [#2709][] for reference.
 * [FEATURE] Mongo: Apply yaml-configured tags to service checks. See [#2575][] (Thanks [@avaughan89][])
 * [FEATURE] Mysql: Allow `connection_timeout` to be set for MySQL checks. See [#2729][] (Thanks [@scottgeary][])
 * [FEATURE] Process: Option to search processes by PID. See [#2119][] (Thanks [@handigarde][])
+* [FEATURE] Spark: minerkasch/spark standalone support. See [#2752][] (Thanks [@zachradtka][])
 
+* [IMPROVEMENT] Ceph: update to support 10.0.2.2. See [#2805][]
+* [IMPROVEMENT] Core: avoid calls to service discovery from dogstatsd. See [#2798][]
+* [IMPROVEMENT] Core: easier config for multiple endpoints. See [#2774][]
 * [IMPROVEMENT] Core: Add an HTTP timeout to many integrations. See [#2673][] (Thanks [@gphat][])
 * [IMPROVEMENT] Core: expiration should adjust to longer collection intervals (>300s). See [#2541][]
 * [IMPROVEMENT] Core: remove events & resources api_key. See [#2557][]
 * [IMPROVEMENT] Core: remove noisy logs. See [#2715][] (Thanks [@ensonik][])
 * [IMPROVEMENT] Disk: handle multilines df output. See [#2733][]
 * [IMPROVEMENT] Docker: Improve service discovery to only reload checks that need it. See [#2702][]
+* [IMPROVEMENT] Docker: Add CPU throttling stats to Docker metrics. See [#2724][] (Thanks [@ejholmes][])
 * [IMPROVEMENT] Dogstatsd: fix server address when non_local_traffic is passed. See [#2691][]
+* [IMPROVEMENT] Elasticsearch: Add elastic search cluster name to tags. See [#2744][]
 * [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done. See [#2621][]
 * [IMPROVEMENT] Flare: hide multiple endpoints api_keys. See [#2646][]
 * [IMPROVEMENT] Gohai [processes]: Simplify payload. See [#2600][]
@@ -69,6 +80,7 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Kubernetes: Log URL in kubelet check failures and service checks. See [#2735][] (Thanks [@therc][])
 * [IMPROVEMENT] Mongo: Adds metrics for collections. See [#2739][]
 * [IMPROVEMENT] Multiple integrations: Add an HTTP timeout to many integrations. See [#2673][] (Thanks [@gphat][])
+* [IMPROVEMENT] Network: implement check using psutil on Windows. See [#2499][]
 * [IMPROVEMENT] Openstack: openstack should pick-up on proxy settings set on agent. See [#2572][]
 * [IMPROVEMENT] Openstack: nova/neutron extend name search. See [#2627][]
 * [IMPROVEMENT] Php5_fpm: Allow host header override. See [#2779][] (Thenks [@allixsenos][])
@@ -81,6 +93,9 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Util: remove LaconicFilter. See [#2605][]
 * [IMPROVEMENT] Vsphere: Add optional vm include parameter. See [#2459][]
 
+* [BUGFIX] Disk: timeout on disk usage. See [#2714][]
+* [BUGFIX] Docker_daemon: ECS introspection resilience. See [#2745][]
+* [BUGFIX] Flare: user flare-specific url. See [#2813][]
 * [BUGFIX] Http_check: Bring back include_content option. See [#2631][]
 * [BUGFIX] IIS: Fix metrics tagging when multiple sites are specified on instance. See [#2677][]
 * [BUGFIX] Marathon: Fix a small problem that prevented marathon full path from being properly built. See [#2620][]
@@ -93,6 +108,8 @@ See [#2709][] for reference.
 * [BUGFIX] Process: Use configured proc path when getting pagefault stats [#2727][] (Thanks [@rdxiang][])
 * [BUGFIX] Redisdb: Avoid exception when slowlog query returns empty `command`. See [#2651][]
 * [BUGFIX] Win32_event_log: Fix small regression on `msg_text` selection. See [#2591][]
+* [BUGFIX] Win32_event_log: reset filters between iterations. See [#2796][]
+* [BUGFIX] Wmi: set provider architecture when necessary. See [#2812][]
 
 * [DEPRECATED] Core: clean debug logs and kill Dogstream-based DdForwarder. See [#2628][]
 * [DEPRECATED] Jenkins: Deprecate check. See [#2688][]
@@ -3286,6 +3303,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2491]: https://github.com/DataDog/dd-agent/issues/2491
 [#2492]: https://github.com/DataDog/dd-agent/issues/2492
 [#2494]: https://github.com/DataDog/dd-agent/issues/2494
+[#2499]: https://github.com/DataDog/dd-agent/issues/2499
 [#2500]: https://github.com/DataDog/dd-agent/issues/2500
 [#2502]: https://github.com/DataDog/dd-agent/issues/2502
 [#2507]: https://github.com/DataDog/dd-agent/issues/2507
@@ -3363,19 +3381,30 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2708]: https://github.com/DataDog/dd-agent/issues/2708
 [#2709]: https://github.com/DataDog/dd-agent/issues/2709
 [#2711]: https://github.com/DataDog/dd-agent/issues/2711
+[#2714]: https://github.com/DataDog/dd-agent/issues/2714
 [#2715]: https://github.com/DataDog/dd-agent/issues/2715
+[#2724]: https://github.com/DataDog/dd-agent/issues/2724
 [#2727]: https://github.com/DataDog/dd-agent/issues/2727
 [#2729]: https://github.com/DataDog/dd-agent/issues/2729
 [#2733]: https://github.com/DataDog/dd-agent/issues/2733
 [#2735]: https://github.com/DataDog/dd-agent/issues/2735
 [#2736]: https://github.com/DataDog/dd-agent/issues/2736
 [#2739]: https://github.com/DataDog/dd-agent/issues/2739
+[#2744]: https://github.com/DataDog/dd-agent/issues/2744
+[#2745]: https://github.com/DataDog/dd-agent/issues/2745
+[#2752]: https://github.com/DataDog/dd-agent/issues/2752
 [#2772]: https://github.com/DataDog/dd-agent/issues/2772
+[#2774]: https://github.com/DataDog/dd-agent/issues/2774
 [#2779]: https://github.com/DataDog/dd-agent/issues/2779
 [#2782]: https://github.com/DataDog/dd-agent/issues/2782
 [#2783]: https://github.com/DataDog/dd-agent/issues/2783
 [#2784]: https://github.com/DataDog/dd-agent/issues/2784
+[#2796]: https://github.com/DataDog/dd-agent/issues/2796
+[#2798]: https://github.com/DataDog/dd-agent/issues/2798
 [#2801]: https://github.com/DataDog/dd-agent/issues/2801
+[#2805]: https://github.com/DataDog/dd-agent/issues/2805
+[#2812]: https://github.com/DataDog/dd-agent/issues/2812
+[#2813]: https://github.com/DataDog/dd-agent/issues/2813
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -3424,6 +3453,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@dougbarth]: https://github.com/dougbarth
 [@dspangen]: https://github.com/dspangen
 [@echohead]: https://github.com/echohead
+[@ejholmes]: https://github.com/ejholmes
 [@ensonik]: https://github.com/ensonik
 [@etrepum]: https://github.com/etrepum
 [@garnermccloud]: https://github.com/garnermccloud
@@ -3521,4 +3551,5 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@xkrt]: https://github.com/xkrt
 [@yenif]: https://github.com/yenif
 [@yyamano]: https://github.com/yyamano
+[@zachradtka]: https://github.com/zachradtka
 [@zdannar]: https://github.com/zdannar
