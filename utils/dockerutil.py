@@ -15,7 +15,6 @@ from docker.errors import NullResource
 
 # project
 from utils.singleton import Singleton
-from utils.service_discovery.config_stores import get_config_store
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 
@@ -55,9 +54,8 @@ class DockerUtil:
         # At first run we'll just collect the events from the latest 60 secs
         self._latest_event_collection_ts = int(time.time()) - 60
 
-        # if agentConfig is passed it means service discovery is enabled and we need to get_config_store
-        if 'agentConfig' in kwargs:
-            self.config_store = get_config_store(kwargs['agentConfig'])
+        if 'config_store' in kwargs:
+            self.config_store = kwargs['config_store']
         else:
             self.config_store = None
 
@@ -78,8 +76,8 @@ class DockerUtil:
         init_config, instances = {}, []
         try:
             conf_path = get_conf_path(CHECK_NAME)
-        except IOError as ex:
-            log.debug(ex.message)
+        except IOError:
+            log.debug("Couldn't find docker settings, trying with defaults.")
             return init_config, {}
 
         if conf_path is not None and os.path.exists(conf_path):
@@ -112,23 +110,22 @@ class DockerUtil:
                                              until=now, decode=True)
         self._latest_event_collection_ts = now
         for event in event_generator:
-            try:
-                if self.config_store and event.get('status') in CONFIG_RELOAD_STATUS:
-                    try:
-                        inspect = self.client.inspect_container(event.get('id'))
-                    except NullResource:
-                        inspect = {}
-                    checks = self._get_checks_from_inspect(inspect)
-                    if checks:
-                        conf_reload_set.update(set(checks))
-                self.events.append(event)
-            except AttributeError:
-                # due to [0] it might happen that the returned `event` is not a dict as expected but a string,
-                # making `event.get` fail with an `AttributeError`.
-                #
-                # [0]: https://github.com/docker/docker-py/pull/1082
+            # due to [0] it might happen that the returned `event` is not a dict as expected but a string,
+            #
+            # [0]: https://github.com/docker/docker-py/pull/1082
+            if not isinstance(event, dict):
                 log.debug('Unable to parse Docker event: %s', event)
+                continue
 
+            if self.config_store and event.get('status') in CONFIG_RELOAD_STATUS:
+                try:
+                    inspect = self.client.inspect_container(event.get('id'))
+                except NullResource:
+                    inspect = {}
+                checks = self._get_checks_from_inspect(inspect)
+                if checks:
+                    conf_reload_set.update(set(checks))
+            self.events.append(event)
         return self.events, conf_reload_set
 
     def _get_checks_from_inspect(self, inspect):

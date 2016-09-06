@@ -203,8 +203,8 @@ def get_hostname(config=None):
                 return gce_hostname
 
     # Try to get the docker hostname
-    docker_util = DockerUtil(agentConfig=config)
-    if hostname is None and docker_util.is_dockerized():
+    if hostname is None and DockerUtil.is_dockerized():
+        docker_util = DockerUtil(agentConfig=config)
         docker_hostname = docker_util.get_hostname()
         if docker_hostname is not None and is_valid_hostname(docker_hostname):
             hostname = docker_hostname
