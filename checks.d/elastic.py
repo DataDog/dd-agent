@@ -274,11 +274,11 @@ class ESCheck(AgentCheck):
             cluster_stats = _is_affirmative(instance.get('is_external', False))
 
         pending_task_stats = _is_affirmative(instance.get('pending_task_stats', True))
-        # Support URLs that have a path in them from the config, for
-        # backwards-compatibility.
+
+        # Strip trailing slash from the url
+        url = url.strip('/')
+
         parsed = urlparse.urlparse(url)
-        if parsed[2] != "":
-            url = "%s://%s" % (parsed[0], parsed[1])
         port = parsed.port
         host = parsed.hostname
 
@@ -324,23 +324,23 @@ class ESCheck(AgentCheck):
 
         # Load clusterwise data
         if config.pshard_stats:
-            pshard_stats_url = urlparse.urljoin(config.url, pshard_stats_url)
+            pshard_stats_url = config.url + pshard_stats_url
             pshard_stats_data = self._get_data(pshard_stats_url, config)
             self._process_pshard_stats_data(pshard_stats_data, config, pshard_stats_metrics)
 
         # Load stats data.
-        stats_url = urlparse.urljoin(config.url, stats_url)
+        stats_url = config.url + stats_url
         stats_data = self._get_data(stats_url, config)
         self._process_stats_data(nodes_url, stats_data, stats_metrics, config)
 
         # Load the health data.
-        health_url = urlparse.urljoin(config.url, health_url)
+        health_url = config.url + health_url
         health_data = self._get_data(health_url, config)
         self._process_health_data(health_data, config)
 
         if config.pending_task_stats:
             # Load the pending_tasks data.
-            pending_tasks_url = urlparse.urljoin(config.url, pending_tasks_url)
+            pending_tasks_url = config.url + pending_tasks_url
             pending_tasks_data = self._get_data(pending_tasks_url, config)
             self._process_pending_tasks_data(pending_tasks_data, config)
 
