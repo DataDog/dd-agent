@@ -119,6 +119,8 @@ PERFORMANCE = "performance"
 FILTERED = "filtered"
 IMAGE = "image"
 
+ECS_INTROSPECT_DEFAULT_PORT = 51678
+
 
 def get_filters(include, exclude):
     # The reasoning is to check exclude first, so we can skip if there is no exclude
@@ -171,6 +173,8 @@ class DockerDaemon(AgentCheck):
             else:
                 self.docker_util = DockerUtil()
             self.docker_client = self.docker_util.client
+            self.docker_gateway = DockerUtil.get_gateway()
+
             if self.is_k8s():
                 self.kubeutil = KubeUtil()
             # We configure the check with the right cgroup settings for this host
@@ -442,13 +446,23 @@ class DockerDaemon(AgentCheck):
         ip = ecs_config.get('NetworkSettings', {}).get('IPAddress')
         ports = ecs_config.get('NetworkSettings', {}).get('Ports')
         port = ports.keys()[0].split('/')[0] if ports else None
+        if not ip:
+            port = ECS_INTROSPECT_DEFAULT_PORT
+            if DockerUtil.is_dockerized() and self.docker_gateway():
+                ip = self.docker_gateway
+            else:
+                ip = "localhost"
+
         ecs_tags = {}
-        if ip and port:
-            tasks = requests.get('http://%s:%s/v1/tasks' % (ip, port)).json()
-            for task in tasks.get('Tasks', []):
-                for container in task.get('Containers', []):
-                    tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
-                    ecs_tags[container['DockerId']] = tags
+        try:
+            if ip and port:
+                tasks = requests.get('http://%s:%s/v1/tasks' % (ip, port)).json()
+                for task in tasks.get('Tasks', []):
+                    for container in task.get('Containers', []):
+                        tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
+                        ecs_tags[container['DockerId']] = tags
+        except (requests.exceptions.HTTPError, requests.exceptions.HTTPError) as e:
+            self.log.warning("Unable to collect ECS task names: %s" % e)
 
         self.ecs_tags = ecs_tags
 
