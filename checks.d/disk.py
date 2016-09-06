@@ -12,11 +12,15 @@ try:
 except ImportError:
     psutil = None
 
-# project
+# datadog
 from checks import AgentCheck
 from config import _is_affirmative
 from util import Platform
 from utils.subprocess_output import get_subprocess_output
+from utils.timeout import (
+    timeout,
+    TimeoutException,
+)
 
 
 class Disk(AgentCheck):
@@ -91,12 +95,18 @@ class Disk(AgentCheck):
             # we check all exclude conditions
             if self._exclude_disk_psutil(part):
                 continue
+
             # Get disk metrics here to be able to exclude on total usage
             try:
-                disk_usage = psutil.disk_usage(part.mountpoint)
+                disk_usage = timeout(5)(psutil.disk_usage)(part.mountpoint)
+            except TimeoutException:
+                self.log.warn(
+                    u"Timeout while retrieving the disk usage of `%s` mountpoint. Skipping...",
+                    part.mountpoint
+                )
+                continue
             except Exception as e:
-                self.log.debug("Unable to get disk metrics for %s: %s",
-                               part.mountpoint, e)
+                self.log.warn("Unable to get disk metrics for %s: %s", part.mountpoint, e)
                 continue
             # Exclude disks with total disk size 0
             if disk_usage.total == 0:
