@@ -160,6 +160,8 @@ class HTTPCheck(NetworkCheck):
 
     def _load_conf(self, instance):
         # Fetches the conf
+        method = instance.get('method', 'get')
+        data = instance.get('data', {})
         tags = instance.get('tags', [])
         username = instance.get('username')
         password = instance.get('password')
@@ -182,12 +184,12 @@ class HTTPCheck(NetworkCheck):
         skip_proxy = _is_affirmative(instance.get('no_proxy', False))
         allow_redirects = _is_affirmative(instance.get('allow_redirects', True))
 
-        return url, username, password, http_response_status_code, timeout, include_content,\
+        return url, username, password, method, data, http_response_status_code, timeout, include_content,\
             headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs,\
             weakcipher, ignore_ssl_warning, skip_proxy, allow_redirects
 
     def _check(self, instance):
-        addr, username, password, http_response_status_code, timeout, include_content, headers,\
+        addr, username, password, method, data, http_response_status_code, timeout, include_content, headers,\
             response_time, content_match, tags, disable_ssl_validation,\
             ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning, skip_proxy, allow_redirects = self._load_conf(instance)
         start = time.time()
@@ -226,9 +228,10 @@ class HTTPCheck(NetworkCheck):
                 self.log.debug("Weak Ciphers will be used for {0}. Suppoted Cipherlist: {1}".format(
                     base_addr, WeakCiphersHTTPSConnection.SUPPORTED_CIPHERS))
 
-            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers,
-                             proxies=instance_proxy, allow_redirects=allow_redirects,
-                             verify=False if disable_ssl_validation else instance_ca_certs)
+            r = sess.request(method.upper(), addr, auth=auth, timeout=timeout, headers=headers,
+                             proxies = instance_proxy, allow_redirects=allow_redirects,
+                             verify=False if disable_ssl_validation else instance_ca_certs,
+                             json = data if method == 'post' else None)
 
         except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             length = int((time.time() - start) * 1000)

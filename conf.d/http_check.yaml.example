@@ -7,6 +7,15 @@ instances:
     url: http://some.url.example.com
     timeout: 1
 
+    # The default HTTP method is GET but the (optional) method parameter allows you to change the
+    # HTTP method to POST.
+    # If using the POST method, you can then specify the data to send in the body of the request
+    # with the data parameter.
+    #
+    # method: get
+    # data:
+    #   key: value
+
     # The (optional) content_match parameter will allow the check
     # to look for a particular string within the response. The check
     # will report as DOWN if the string is not found.
