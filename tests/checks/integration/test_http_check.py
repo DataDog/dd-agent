@@ -146,6 +146,14 @@ CONFIG_HTTP_REDIRECTS = {
 
 FAKE_CERT = {'notAfter': 'Apr 12 12:00:00 2006 GMT'}
 
+BAD_TAGS_CONFIG = {
+    'instances': [{
+        'name': 'bad_tags_config',
+        'url': 'http://httpbin.org',
+        "tags": [{"env": "production"}]
+    }]
+}
+
 
 @attr(requires='network')
 class HTTPCheckTest(AgentCheckTest):
@@ -293,3 +301,6 @@ class HTTPCheckTest(AgentCheckTest):
             "Datadog Agent.",
             count=1
         )
+
+    def test_bad_tags(self):
+        self.run_check(BAD_TAGS_CONFIG)
