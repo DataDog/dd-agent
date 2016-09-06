@@ -8,6 +8,7 @@ Collects metrics from ceph clusters
 
 # stdlib
 import os
+import re
 
 # project
 from checks import AgentCheck
@@ -89,10 +90,9 @@ class Ceph(AgentCheck):
                 self._publish(health, self.count, ['num_full_osds'], tags)
             else:
                 for osdhealth in raw['health_detail']['detail']:
-                    # Full looks like: osd.2 is full at 95%
-                    # Near full: osd.1 is near full at 94%
-                    pct = int(osdhealth[osdhealth.find('at ') + len('at '):osdhealth.find('%')])
-                    local_tags = tags + ['ceph_osd:%s' % osdhealth[:osdhealth.find(' is')].replace('.', '')]
+                    osd, pct = self._osd_pct_used(osdhealth)
+                    local_tags = tags + ['ceph_osd:%s' %  osd.replace('.','')]
+
                     if 'near' in osdhealth:
                         health = {'num_near_full_osds' : pct}
                         self._publish(health, self.count, ['num_near_full_osds'], local_tags)
@@ -103,7 +103,7 @@ class Ceph(AgentCheck):
             self.log.debug('Error retrieving health metrics')
 
         for osdinfo in raw['osd_pool_stats']:
-            name = osdinfo['pool_name']
+            name = osdinfo.get('pool_name')
             local_tags = tags + ['ceph_pool:%s' % name]
             ops = 0
             try:
@@ -189,6 +189,14 @@ class Ceph(AgentCheck):
 
         except (KeyError, ValueError):
             self.log.debug('Error retrieving df_detail metrics')
+
+    def _osd_pct_used(self, health):
+            """Take a single health check string, return (OSD name, percentage used)"""
+            # Full string looks like: osd.2 is full at 95%
+            # Near full string: osd.1 is near full at 94%
+            pct = re.compile('\d+%')
+            osd = re.compile('osd.\d+')
+            return (osd.findall(health)[0], int(pct.findall(health)[0][:-1]))
 
     def _perform_service_checks(self, raw, tags):
         if 'status' in raw:
