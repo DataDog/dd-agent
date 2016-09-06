@@ -1,4 +1,4 @@
-#!/opt/datadog-agent/embedded/bin/python
+suvl da#!/opt/datadog-agent/embedded/bin/python
 
 # (C) Datadog, Inc. 2010-2016
 # All rights reserved
@@ -62,17 +62,10 @@ PID_DIR = None
 DOGSTATSD_FLUSH_INTERVAL = 10
 DOGSTATSD_AGGREGATOR_BUCKET_SIZE = 10
 
-<<<<<<< 3858625b9c02207df9d4253d0d68a385dc1dd904
 # Dogstatsd UDP packet size in K
-UPD_PACKET_SIZE_OPTIONS = [8, 16, 32, 64]
+UDP_PACKET_SIZE_OPTIONS = [8, 16, 32, 64]
 DEFAULT_UDP_PACKET_SIZE = 8
 DEFAULT_UDP_PACKET_SIZE_BYTES = DEFAULT_UDP_PACKET_SIZE * 1024
-=======
-# buffer size in K
-BUFFER_SIZE_OPTIONS = [8, 16, 32, 64]
-DEFAULT_BUFFER_SIZE = 8
-DEFAULT_BUFFER_SIZE_BYTES = DEFAULT_BUFFER_SIZE * 1024
->>>>>>> fix unit mismatch
 
 WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
@@ -357,7 +350,7 @@ class Server(object):
     """
     def __init__(self, metrics_aggregator, host, port, forward_to_host=None, forward_to_port=None,
                  max_packet_size=DEFAULT_UDP_PACKET_SIZE_BYTES):
-        self.sockaddr = None
+        self.sockaddr = get_socket_address(host, int(port))
         self.socket = None
         self.metrics_aggregator = metrics_aggregator
         self.host = host
@@ -558,8 +551,8 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     if non_local_traffic:
         server_host = '0.0.0.0'
 
-    server = Server(aggregator, server_host, port, buffer_size forward_to_host=forward_to_host, forward_to_port=forward_to_port,
-                    max_packet_size=max_packet_size))
+    server = Server(aggregator, server_host, port, forward_to_host=forward_to_host, forward_to_port=forward_to_port,
+                    max_packet_size=max_packet_size)
 
     return reporter, server, c
 
