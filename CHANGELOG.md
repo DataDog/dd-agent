@@ -51,6 +51,7 @@ See [#2709][] for reference.
 * [FEATURE] Forwarder: allow multiple endpoints/api_keys. See [#2564][]
 * [FEATURE] Gearman: Add per-task gearman metrics. See [#2672][] (Thanks [@nyanshak][])
 * [FEATURE] Http_check: Add allow_redirects parameter. See [#2586][] (Thanks [@n0ts][])
+* [FEATURE] Http_check: Add ability to use post method. See [#2544][]
 * [FEATURE] Http_check: SNI support for cert_expiration. See [#2521][]
 * [FEATURE] Kubernetes: Improve service discovery to only reload checks that need it. See [#2551][]
 * [FEATURE] Linux: make /proc configurable. See [#2482][]
@@ -70,6 +71,7 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Docker: Improve service discovery to only reload checks that need it. See [#2702][]
 * [IMPROVEMENT] Docker: Add CPU throttling stats to Docker metrics. See [#2724][] (Thanks [@ejholmes][])
 * [IMPROVEMENT] Dogstatsd: fix server address when non_local_traffic is passed. See [#2691][]
+* [IMPROVEMENT] Elasticsearch: Add missing metrics. See [#2758][] (Thanks [@mdelaney][])
 * [IMPROVEMENT] Elasticsearch: Add elastic search cluster name to tags. See [#2744][]
 * [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done. See [#2621][]
 * [IMPROVEMENT] Flare: hide multiple endpoints api_keys. See [#2646][]
@@ -3322,6 +3324,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2541]: https://github.com/DataDog/dd-agent/issues/2541
 [#2542]: https://github.com/DataDog/dd-agent/issues/2542
 [#2543]: https://github.com/DataDog/dd-agent/issues/2543
+[#2544]: https://github.com/DataDog/dd-agent/issues/2544
 [#2548]: https://github.com/DataDog/dd-agent/issues/2548
 [#2551]: https://github.com/DataDog/dd-agent/issues/2551
 [#2553]: https://github.com/DataDog/dd-agent/issues/2553
@@ -3393,6 +3396,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2744]: https://github.com/DataDog/dd-agent/issues/2744
 [#2745]: https://github.com/DataDog/dd-agent/issues/2745
 [#2752]: https://github.com/DataDog/dd-agent/issues/2752
+[#2758]: https://github.com/DataDog/dd-agent/issues/2758
 [#2772]: https://github.com/DataDog/dd-agent/issues/2772
 [#2774]: https://github.com/DataDog/dd-agent/issues/2774
 [#2779]: https://github.com/DataDog/dd-agent/issues/2779
@@ -3490,6 +3494,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@lowl4tency]: https://github.com/lowl4tency
 [@mastrolinux]: https://github.com/mastrolinux
 [@mausch]: https://github.com/mausch
+[@mdelaney]: https://github.com/mdelaney
 [@mderomph-coolblue]: https://github.com/mderomph-coolblue
 [@micktwomey]: https://github.com/micktwomey
 [@mike-lerch]: https://github.com/mike-lerch
