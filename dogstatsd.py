@@ -1,4 +1,4 @@
-suvl da#!/opt/datadog-agent/embedded/bin/python
+#!/opt/datadog-agent/embedded/bin/python
 
 # (C) Datadog, Inc. 2010-2016
 # All rights reserved
