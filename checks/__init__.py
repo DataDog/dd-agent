@@ -29,7 +29,8 @@ import yaml
 
 # project
 from checks import check_status
-from util import get_hostname, get_next_id, yLoader
+from util import get_next_id, yLoader
+from utils.hostname import get_hostname
 from utils.proxy import get_proxy
 from utils.platform import Platform
 from utils.profile import pretty_statistics

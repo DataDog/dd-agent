@@ -12,7 +12,8 @@ import ntpath
 
 # project
 from config import get_config, load_check_directory, _conf_path_to_check_name
-from util import is_valid_hostname, windows_friendly_colon_split
+from util import windows_friendly_colon_split
+from utils.hostname import is_valid_hostname
 from utils.pidfile import PidFile
 from utils.platform import Platform
 

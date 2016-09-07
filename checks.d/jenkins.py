@@ -11,8 +11,6 @@ from xml.etree.ElementTree import ElementTree
 
 # project
 from checks import AgentCheck
-from util import get_hostname
-
 
 class Skip(Exception):
     """
@@ -178,7 +176,7 @@ class Jenkins(AgentCheck):
 
         for job_dir in job_dirs:
             for output in self._get_build_results(instance.get('name'), job_dir):
-                output['host'] = get_hostname(self.agentConfig)
+                output['host'] = self.hostname
                 if create_event:
                     self.log.debug("Creating event for job: %s" % output['job_name'])
                     self.event(output)

@@ -12,8 +12,10 @@ import os
 import re
 import time
 from urlparse import urlsplit
-from util import json
 from collections import defaultdict
+
+# 3rd party
+import simplejson as json
 
 # project
 from checks import AgentCheck

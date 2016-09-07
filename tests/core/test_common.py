@@ -15,7 +15,7 @@ from checks import (
 )
 from checks.collector import Collector
 from tests.checks.common import load_check
-from util import get_hostname
+from utils.hostname import get_hostname
 from utils.ntp import NTPUtil
 from utils.proxy import get_proxy
 

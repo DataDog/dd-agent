@@ -29,15 +29,13 @@ import checks.system.unix as u
 import checks.system.win32 as w32
 import modules
 from util import (
-    EC2,
-    GCE,
-    get_os,
     get_uuid,
     Timer,
 )
+from utils.cloud_metadata import GCE, EC2
 from utils.logger import log_exceptions
 from utils.jmx import JMXFiles
-from utils.platform import Platform
+from utils.platform import Platform, get_os
 from utils.subprocess_output import get_subprocess_output
 
 log = logging.getLogger(__name__)

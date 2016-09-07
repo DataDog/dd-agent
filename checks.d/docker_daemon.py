@@ -157,9 +157,6 @@ class DockerDaemon(AgentCheck):
         self.init()
         self._custom_cgroups = _is_affirmative(init_config.get('custom_cgroups', False))
 
-    def is_k8s(self):
-        return 'KUBERNETES_PORT' in os.environ
-
     def init(self):
         try:
             instance = self.instances[0]
@@ -175,7 +172,7 @@ class DockerDaemon(AgentCheck):
             self.docker_client = self.docker_util.client
             self.docker_gateway = DockerUtil.get_gateway()
 
-            if self.is_k8s():
+            if Platform.is_k8s():
                 self.kubeutil = KubeUtil()
             # We configure the check with the right cgroup settings for this host
             # Just needs to be done once
@@ -244,7 +241,7 @@ class DockerDaemon(AgentCheck):
         if self.collect_ecs_tags:
             self.refresh_ecs_tags()
 
-        if self.is_k8s():
+        if Platform.is_k8s():
             try:
                 self.kube_labels = self.kubeutil.get_kube_labels()
             except Exception as e:
@@ -363,7 +360,7 @@ class DockerDaemon(AgentCheck):
         tags = list(self.custom_tags)
 
         # Collect pod names as tags on kubernetes
-        if self.is_k8s() and KubeUtil.POD_NAME_LABEL not in self.collect_labels_as_tags:
+        if Platform.is_k8s() and KubeUtil.POD_NAME_LABEL not in self.collect_labels_as_tags:
             self.collect_labels_as_tags.append(KubeUtil.POD_NAME_LABEL)
 
         if entity is not None:
@@ -375,7 +372,7 @@ class DockerDaemon(AgentCheck):
                 for k in self.collect_labels_as_tags:
                     if k in labels:
                         v = labels[k]
-                        if k == KubeUtil.POD_NAME_LABEL and self.is_k8s():
+                        if k == KubeUtil.POD_NAME_LABEL and Platform.is_k8s():
                             pod_name = v
                             k = "pod_name"
                             if "-" in pod_name:
@@ -397,7 +394,7 @@ class DockerDaemon(AgentCheck):
                         else:
                             tags.append("%s:%s" % (k,v))
 
-                    if k == KubeUtil.POD_NAME_LABEL and self.is_k8s() and k not in labels:
+                    if k == KubeUtil.POD_NAME_LABEL and Platform.is_k8s() and k not in labels:
                         tags.append("pod_name:no_pod")
 
             # Get entity specific tags
@@ -417,7 +414,7 @@ class DockerDaemon(AgentCheck):
                     tags.extend(ecs_tags)
 
             # Add kube labels
-            if self.is_k8s():
+            if Platform.is_k8s():
                 kube_tags = self.kube_labels.get(pod_name)
                 if kube_tags:
                     tags.extend(list(kube_tags))
@@ -448,7 +445,7 @@ class DockerDaemon(AgentCheck):
         port = ports.keys()[0].split('/')[0] if ports else None
         if not ip:
             port = ECS_INTROSPECT_DEFAULT_PORT
-            if DockerUtil.is_dockerized() and self.docker_gateway:
+            if Platform.is_containerized() and self.docker_gateway:
                 ip = self.docker_gateway
             else:
                 ip = "localhost"
@@ -543,7 +540,7 @@ class DockerDaemon(AgentCheck):
         if containers_without_proc_root:
             message = "Couldn't find pid directory for containers: {0}. They'll be missing network metrics".format(
                 ", ".join(containers_without_proc_root))
-            if not self.is_k8s():
+            if not Platform.is_k8s():
                 self.warning(message)
             else:
                 # On kubernetes, this is kind of expected. Network metrics will be collected by the kubernetes integration anyway

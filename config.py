@@ -23,8 +23,8 @@ import traceback
 from urlparse import urlparse
 
 # project
-from util import check_yaml, get_os
-from utils.platform import Platform
+from util import check_yaml
+from utils.platform import Platform, get_os
 from utils.proxy import get_proxy
 from utils.service_discovery.config import extract_agent_config
 from utils.service_discovery.config_stores import CONFIG_FROM_FILE, TRACE_CONFIG

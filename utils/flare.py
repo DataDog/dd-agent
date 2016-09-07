@@ -43,7 +43,7 @@ from config import (
     get_url_endpoint,
 )
 from jmxfetch import JMXFetch
-from util import get_hostname
+from utils.hostname import get_hostname
 from utils.jmx import jmx_command, JMXFiles
 from utils.platform import Platform
 from utils.configcheck import configcheck, sd_configcheck
