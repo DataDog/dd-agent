@@ -42,3 +42,6 @@ instances:
 
     # Collect INFO COMMANDSTATS output as metrics.
     # command_stats: False
+
+    # Use a SSL connection
+    # ssl: False
