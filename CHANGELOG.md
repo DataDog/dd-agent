@@ -7,6 +7,9 @@ Changes
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.8.5...5.9.0
 
+### Python 2.7.12
+With this release we begin to ship python 2.7.12 as the embedded python interpreter.
+
 ### Kafka-Python library update
 Because we have bumped the library version for the `kafka-python` package, if you happen to run any custom
 checks that rely on the former version please make necessary amends. We apologize for any inconvenience.
@@ -45,7 +48,8 @@ See [#2709][] for reference.
 
 ### Changes
 * [FEATURE] Apache: add connection status metrics. See [#2622][] (Thanks [@gzysk8][])
-* [FEATURE] Core: dogstatsd: Added support for IP agnostic connections [#2619][]
+* [FEATURE] Core: dogstatsd: Added support for IP agnostic connections. See [#2619][]
+* [FEATURE] Curl: support for HTTP2. See [omnibus-software-65](https://github.com/DataDog/omnibus-software/pull/65)
 * [FEATURE] Dns_check: Allow querying a custom record type. See [#2653][]
 * [FEATURE] Docker_daemon: resolve hierarchy by looking at procfs <pid>/cgroup. See [#2537][]
 * [FEATURE] Forwarder: allow multiple endpoints/api_keys. See [#2564][]
@@ -75,9 +79,10 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Elasticsearch: Add elastic search cluster name to tags. See [#2744][]
 * [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done. See [#2621][]
 * [IMPROVEMENT] Flare: hide multiple endpoints api_keys. See [#2646][]
-* [IMPROVEMENT] Gohai [processes]: Simplify payload. See [#2600][]
+* [IMPROVEMENT] Gohai: Processes - simplify payload. See [#2600][]
+* [IMPROVEMENT] Gohai: CPU - take into account environments with multiple physical processors. See [gohai-32](https://github.com/DataDog/gohai/issues/32)
 * [IMPROVEMENT] Http_check: log exceptions 🔊. See [#2704][]
-* [IMPROVEMENT] Kafka_consumer: bumping kafka-python package version to 1.2.5. See [#2709][]
+* [IMPROVEMENT] Kafka_consumer: bumping kafka-python package version to 1.2.5. See [#2709][], [omnibus-software-70](https://github.com/DataDog/omnibus-software/pull/70)
 * [IMPROVEMENT] Kubernetes: disable use_histogram. See [#2542][]
 * [IMPROVEMENT] Kubernetes: Log URL in kubelet check failures and service checks. See [#2735][] (Thanks [@therc][])
 * [IMPROVEMENT] Mongo: Adds metrics for collections. See [#2739][]
@@ -85,15 +90,20 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Network: implement check using psutil on Windows. See [#2499][]
 * [IMPROVEMENT] Openstack: openstack should pick-up on proxy settings set on agent. See [#2572][]
 * [IMPROVEMENT] Openstack: nova/neutron extend name search. See [#2627][]
+* [IMPROVEMENT] Packaging: debian - only create dd-agent group if it doesn't already exist. See [dd-agent-omnibus-89](https://github.com/DataDog/dd-agent-omnibus/pull/89)
+* [IMPROVEMENT] Packaging: linux - correctly silence configcheck. See [dd-agent-omnibus-86](https://github.com/DataDog/dd-agent-omnibus/pull/86)
+* [IMPROVEMENT] Packaging: debian - remove configcheck output when upgrading. See [dd-agent-omnibus-85](https://github.com/DataDog/dd-agent-omnibus/pull/85)
 * [IMPROVEMENT] Php5_fpm: Allow host header override. See [#2779][] (Thenks [@allixsenos][])
 * [IMPROVEMENT] Postgres: Allow to use psycopg2. See [#2782][]
 * [IMPROVEMENT] Process: Add metrics for avg, max, and min run times for processes. See [#2531][] (Thenks [@garnermccloud][])
 * [IMPROVEMENT] Process: Add system.processes.mem.pct metric to process check. See [#2801][]
+* [IMPROVEMENT] Python: Upgrade to 2.7.12. See [omnibus-software-63](https://github.com/DataDog/omnibus-software/pull/63)
 * [IMPROVEMENT] RabbitMQ: Avoiding the extra double lookup for 'rabbitmq_api_url'. See [#2543][] (Thanks [@ParthKolekar][])
 * [IMPROVEMENT] RabbitMQ: new health check. See [#2711][]
 * [IMPROVEMENT] SSH: Be more specific when logging ssh errors. See [#2708][]
 * [IMPROVEMENT] Util: remove LaconicFilter. See [#2605][]
 * [IMPROVEMENT] Vsphere: Add optional vm include parameter. See [#2459][]
+* [IMPROVEMENT] Windows MSI: Add bmp graphics for panel background and banner. See [dd-agent-omnibus-73](https://github.com/DataDog/dd-agent-omnibus/pull/73)
 
 * [BUGFIX] Disk: timeout on disk usage. See [#2714][]
 * [BUGFIX] Docker_daemon: ECS introspection resilience. See [#2745][]
@@ -115,6 +125,7 @@ See [#2709][] for reference.
 
 * [DEPRECATED] Core: clean debug logs and kill Dogstream-based DdForwarder. See [#2628][]
 * [DEPRECATED] Jenkins: Deprecate check. See [#2688][]
+* [DEPRECATED] Nghttp2: remove python bindings. See [omnibus-software-71](https://github.com/DataDog/omnibus-software/pull/71)
 
 
 # 5.8.5 / 07-27-2016
