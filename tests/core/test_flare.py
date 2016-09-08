@@ -173,7 +173,7 @@ class FlareTest(unittest.TestCase):
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
     def test_endpoint(self, mock_config, mock_temp, mock_stfrtime):
-        if os.environ['FLARE_BROKEN']:
+        if os.environ.get('FLARE_BROKEN'):
             raise unittest.case.SkipTest('Flare broken, acknowledged')
         f = Flare()
         f._ask_for_email = lambda: None
