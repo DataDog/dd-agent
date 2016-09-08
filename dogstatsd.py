@@ -42,7 +42,8 @@ from checks.check_status import DogstatsdStatus
 from checks.metric_types import MetricTypes
 from config import get_config, get_version
 from daemon import AgentSupervisor, Daemon
-from util import chunks, get_hostname, get_uuid, plural
+from util import chunks, get_uuid, plural
+from utils.hostname import get_hostname
 from utils.pidfile import PidFile
 from utils.net import inet_pton
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6

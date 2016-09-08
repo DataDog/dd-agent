@@ -44,6 +44,8 @@ class DockerUtil:
     def __init__(self, **kwargs):
         self._docker_root = None
         self.events = []
+        self.hostname = None
+        self._default_gateway = None
 
         if 'init_config' in kwargs and 'instance' in kwargs:
             init_config = kwargs.get('init_config')
@@ -152,21 +154,34 @@ class DockerUtil:
 
         return None
 
-
-    def get_hostname(self):
+    def get_hostname(self, use_default_gw=True):
         '''
         Return the `Name` param from `docker info` to use as the hostname
         Falls back to the default route.
         '''
+
+        if self.hostname is not None:
+            # Use cache
+            return self.hostname
+
+        if self._default_gateway is not None and use_default_gw:
+            return self._default_gateway
+
         try:
             docker_host_name = self.client.info().get("Name")
             socket.gethostbyname(docker_host_name) # make sure we can resolve it
+            self.hostname = docker_host_name
             return docker_host_name
 
-        except Exception:
-            log.critical("Unable to find docker host hostname. Trying default route")
+        except Exception as e:
+            log.debug("Unable to retrieve hostname using docker API, %s", str(e))
+            if not use_default_gw:
+                return None
 
-        return DockerUtil.get_gateway()
+        log.warning("Unable to find docker host hostname. Trying default route")
+        self._default_gateway = DockerUtil.get_gateway()
+
+        return self._default_gateway
 
     @property
     def client(self):
@@ -194,10 +209,6 @@ class DockerUtil:
             verify = verify if verify is not None else cacert
             tls_config = tls.TLSConfig(client_cert=client_cert, verify=verify)
             self.settings["tls"] = tls_config
-
-    @classmethod
-    def is_dockerized(cls):
-        return os.environ.get("DOCKER_DD_AGENT") == "yes"
 
     def get_mountpoints(self, cgroup_metrics):
         mountpoints = {}

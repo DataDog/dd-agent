@@ -36,13 +36,13 @@ from config import (
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from util import (
-    EC2,
-    get_hostname,
-    Watchdog,
-)
-from utils.flare import Flare
+
+# utils
+from util import Watchdog
+from utils.cloud_metadata import EC2
 from utils.configcheck import configcheck, sd_configcheck
+from utils.flare import Flare
+from utils.hostname import get_hostname
 from utils.jmx import jmx_command
 from utils.pidfile import PidFile
 from utils.profile import AgentProfiler

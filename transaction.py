@@ -9,9 +9,12 @@ from operator import attrgetter
 import sys
 import time
 
+# 3rd party
+from tornado import ioloop
+
 # project
 from checks.check_status import ForwarderStatus
-from util import get_tornado_ioloop, plural
+from util import plural
 
 log = logging.getLogger(__name__)
 
@@ -213,7 +216,7 @@ class TransactionManager(object):
             # Otherwise, schedule a flush as soon as possible (throttling)
             elif self._running_flushes < self._MAX_PARALLELISM:
                 # Wait a little bit more
-                tornado_ioloop = get_tornado_ioloop()
+                tornado_ioloop = ioloop.IOLoop.current()
                 if tornado_ioloop._running:
                     tornado_ioloop.add_timeout(time.time() + delay,
                                                lambda: self.flush_next())

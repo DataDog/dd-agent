@@ -3,8 +3,24 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 # stdlib
+import os
 import sys
 
+
+def get_os():
+    "Human-friendly OS name"
+    if sys.platform == 'darwin':
+        return 'mac'
+    elif sys.platform.find('freebsd') != -1:
+        return 'freebsd'
+    elif sys.platform.find('linux') != -1:
+        return 'linux'
+    elif sys.platform.find('win32') != -1:
+        return 'windows'
+    elif sys.platform.find('sunos') != -1:
+        return 'solaris'
+    else:
+        return sys.platform
 
 class Platform(object):
     """
@@ -70,3 +86,11 @@ class Platform(object):
     def is_ecs_instance():
         from utils.dockerutil import DockerUtil
         return DockerUtil().is_ecs()
+
+    @staticmethod
+    def is_containerized():
+        return os.environ.get("DOCKER_DD_AGENT") == "yes"
+
+    @staticmethod
+    def is_k8s():
+        return 'KUBERNETES_PORT' in os.environ

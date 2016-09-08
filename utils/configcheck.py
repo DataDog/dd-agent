@@ -12,7 +12,7 @@ from config import (
     load_check_directory,
     get_confd_path
 )
-from util import get_hostname
+from utils.hostname import get_hostname
 from utils.dockerutil import DockerUtil
 from utils.service_discovery.config_stores import get_config_store, SD_CONFIG_BACKENDS, TRACE_CONFIG
 

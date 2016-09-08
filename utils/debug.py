@@ -10,7 +10,7 @@ import sys
 
 # datadog
 from config import get_checksd_path, get_confd_path
-from util import get_os
+from utils.platform import get_os
 
 
 def run_check(name, path=None):

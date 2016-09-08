@@ -12,7 +12,8 @@ import simplejson as json
 # project
 from tests.checks.common import AgentCheckTest, Fixtures
 from checks import AgentCheck
-from utils.kubeutil import KubeUtil, is_k8s
+from utils.kubeutil import KubeUtil
+from utils.platform import Platform
 
 CPU = "CPU"
 MEM = "MEM"
@@ -426,6 +427,6 @@ class TestKubeutil(unittest.TestCase):
 
     def test_is_k8s(self):
         os.unsetenv('KUBERNETES_PORT')
-        self.assertFalse(is_k8s())
+        self.assertFalse(Platform.is_k8s())
         os.environ['KUBERNETES_PORT'] = '999'
-        self.assertTrue(is_k8s())
+        self.assertTrue(Platform.is_k8s())

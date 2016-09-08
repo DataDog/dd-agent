@@ -21,11 +21,6 @@ log = logging.getLogger('collector')
 
 KUBERNETES_CHECK_NAME = 'kubernetes'
 
-
-def is_k8s():
-    return 'KUBERNETES_PORT' in os.environ
-
-
 class KubeUtil:
     __metaclass__ = Singleton
 
@@ -183,7 +178,12 @@ class KubeUtil:
 
         The host IP address is different from the default router for the pod.
         """
-        pod_items = self.retrieve_pods_list().get("items") or []
+        try:
+            pod_items = self.retrieve_pods_list().get("items") or []
+        except Exception as e:
+            log.warning("Unable to retrieve pod list %s. Not fetching host data", str(e))
+            return
+
         for pod in pod_items:
             metadata = pod.get("metadata", {})
             name = metadata.get("name")

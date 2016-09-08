@@ -8,7 +8,6 @@ from urlparse import urljoin
 
 # project
 from checks import AgentCheck
-from util import get_hostname
 
 # 3p
 import requests
@@ -862,7 +861,7 @@ class OpenStackCheck(AgentCheck):
         """
         Returns a best guess for the hostname registered with OpenStack for this host
         """
-        return self.init_config.get("os_host") or get_hostname(self.agentConfig)
+        return self.init_config.get("os_host") or self.hostname
 
     def get_servers_managed_by_hypervisor(self):
         return self.get_all_server_ids(filter_by_host=self.get_my_hostname())

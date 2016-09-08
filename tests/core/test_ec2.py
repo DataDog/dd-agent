@@ -6,7 +6,7 @@ import types
 import unittest
 
 # project
-from util import EC2
+from utils.cloud_metadata import EC2
 
 
 class TestEC2(unittest.TestCase):

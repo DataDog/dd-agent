@@ -8,7 +8,8 @@ import simplejson as json
 
 # project
 from utils.dockerutil import DockerUtil
-from utils.kubeutil import KubeUtil, is_k8s
+from utils.kubeutil import KubeUtil
+from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store, TRACE_CONFIG
 
@@ -21,7 +22,7 @@ class SDDockerBackend(AbstractSDBackend):
 
     def __init__(self, agentConfig):
         self.docker_client = DockerUtil().client
-        if is_k8s():
+        if Platform.is_k8s():
             self.kubeutil = KubeUtil()
 
         try:
@@ -63,7 +64,7 @@ class SDDockerBackend(AbstractSDBackend):
         if ip_addr:
             return ip_addr
 
-        if is_k8s():
+        if Platform.is_k8s():
             # kubernetes case
             log.debug("Couldn't find the IP address for container %s (%s), "
                       "using the kubernetes way." % (c_id[:12], c_img))
@@ -121,7 +122,7 @@ class SDDockerBackend(AbstractSDBackend):
             ports = map(lambda x: x.split('/')[0], container_inspect['Config'].get('ExposedPorts', {}).keys())
 
             # if it failed, try with the kubernetes API
-            if not ports and is_k8s():
+            if not ports and Platform.is_k8s():
                 log.debug("Didn't find the port for container %s (%s), trying the kubernetes way." %
                           (c_id[:12], container_inspect.get('Config', {}).get('Image', '')))
                 co_statuses = self._get_kube_config(c_id, 'status').get('containerStatuses', [])
@@ -160,7 +161,7 @@ class SDDockerBackend(AbstractSDBackend):
     def get_tags(self, c_inspect):
         """Extract useful tags from docker or platform APIs. These are collected by default."""
         tags = []
-        if is_k8s():
+        if Platform.is_k8s():
             pod_metadata = self._get_kube_config(c_inspect.get('Id'), 'metadata')
 
             if pod_metadata is None:
@@ -184,7 +185,7 @@ class SDDockerBackend(AbstractSDBackend):
 
     def _get_additional_tags(self, container_inspect, *args):
         tags = []
-        if is_k8s():
+        if Platform.is_k8s():
             pod_metadata = self._get_kube_config(container_inspect.get('Id'), 'metadata')
             pod_spec = self._get_kube_config(container_inspect.get('Id'), 'spec')
             if pod_metadata is None or pod_spec is None:
