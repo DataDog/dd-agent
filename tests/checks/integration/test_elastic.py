@@ -411,8 +411,8 @@ class TestElastic(AgentCheckTest):
                     self.assertMetric(
                         m_name, tags=m_tags, count=1, hostname=hostname)
 
-        good_sc_tags = ['host:localhost', 'port:{0}'.format(port)] + cluster_tag
-        bad_sc_tags = ['host:localhost', 'port:{0}'.format(bad_port)] + cluster_tag
+        good_sc_tags = ['host:localhost', 'port:{0}'.format(port)]
+        bad_sc_tags = ['host:localhost', 'port:{0}'.format(bad_port)]
 
         self.assertServiceCheckOK('elasticsearch.can_connect',
                                   tags=good_sc_tags + tags,
