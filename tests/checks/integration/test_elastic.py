@@ -541,7 +541,7 @@ class TestElastic(AgentCheckTest):
         )
         self.assertServiceCheckOK(
             'elasticsearch.cluster_health',
-            tags=['host:localhost', 'port:9200'] + dummy_tags + server_tags,
+            tags=['host:localhost', 'port:9200'] + dummy_tags,
             count=1
         )
 
