@@ -7,9 +7,6 @@ Changes
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.8.5...5.9.0
 
-### Python 2.7.12
-With this release we begin to ship python 2.7.12 as the embedded python interpreter.
-
 ### Kafka-Python library update
 Because we have bumped the library version for the `kafka-python` package, if you happen to run any custom
 checks that rely on the former version please make necessary amends. We apologize for any inconvenience.
@@ -25,10 +22,12 @@ See [#2709][] for reference.
 * Gearman
 * HTTP Check
 * IIS
+* JMXFetch
 * Kafka Consumer
 * Kubernetes
 * Linux Check
 * Marathon
+* Mesos
 * Mongo
 * MySQL
 * Network Check
@@ -38,7 +37,7 @@ See [#2709][] for reference.
 * Process
 * RabbitMQ
 * Redis
-* Spark/Minerkasch
+* Spark
 * SSH
 * vSphere
 * Windows
@@ -47,6 +46,8 @@ See [#2709][] for reference.
 * Jenkins
 
 ### Changes
+* [ENHANCEMENT] Use JMXFetch 0.12.0 ( [Changelog](https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md) )
+
 * [FEATURE] Apache: add connection status metrics. See [#2622][] (Thanks [@gzysk8][])
 * [FEATURE] Core: dogstatsd: Added support for IP agnostic connections. See [#2619][]
 * [FEATURE] Curl: support for HTTP2. See [omnibus-software-65](https://github.com/DataDog/omnibus-software/pull/65)
@@ -62,7 +63,7 @@ See [#2709][] for reference.
 * [FEATURE] Mongo: Apply yaml-configured tags to service checks. See [#2575][] (Thanks [@avaughan89][])
 * [FEATURE] Mysql: Allow `connection_timeout` to be set for MySQL checks. See [#2729][] (Thanks [@scottgeary][])
 * [FEATURE] Process: Option to search processes by PID. See [#2119][] (Thanks [@handigarde][])
-* [FEATURE] Spark: minerkasch/spark standalone support. See [#2752][] (Thanks [@zachradtka][])
+* [FEATURE] Spark: spark standalone support. See [#2752][] (Thanks [@zachradtka][]), [omnibus-software-73](https://github.com/DataDog/omnibus-software/pull/73), [dd-agent-omnibus](https://github.com/DataDog/dd-agent-omnibus/pull/91)
 
 * [IMPROVEMENT] Ceph: update to support 10.0.2.2. See [#2805][]
 * [IMPROVEMENT] Core: avoid calls to service discovery from dogstatsd. See [#2798][]
@@ -85,6 +86,7 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Kafka_consumer: bumping kafka-python package version to 1.2.5. See [#2709][], [omnibus-software-70](https://github.com/DataDog/omnibus-software/pull/70)
 * [IMPROVEMENT] Kubernetes: disable use_histogram. See [#2542][]
 * [IMPROVEMENT] Kubernetes: Log URL in kubelet check failures and service checks. See [#2735][] (Thanks [@therc][])
+* [IMPROVEMENT] Mesos: make SSL check optional. See [#2809][]
 * [IMPROVEMENT] Mongo: Adds metrics for collections. See [#2739][]
 * [IMPROVEMENT] Multiple integrations: Add an HTTP timeout to many integrations. See [#2673][] (Thanks [@gphat][])
 * [IMPROVEMENT] Network: implement check using psutil on Windows. See [#2499][]
@@ -103,13 +105,13 @@ See [#2709][] for reference.
 * [IMPROVEMENT] SSH: Be more specific when logging ssh errors. See [#2708][]
 * [IMPROVEMENT] Util: remove LaconicFilter. See [#2605][]
 * [IMPROVEMENT] Vsphere: Add optional vm include parameter. See [#2459][]
-* [IMPROVEMENT] Windows MSI: Add bmp graphics for panel background and banner. See [dd-agent-omnibus-73](https://github.com/DataDog/dd-agent-omnibus/pull/73)
 
 * [BUGFIX] Disk: timeout on disk usage. See [#2714][]
-* [BUGFIX] Docker_daemon: ECS introspection resilience. See [#2745][]
+* [BUGFIX] Docker_daemon: ECS introspection resilience. See [#2745][] and [#2825][]
 * [BUGFIX] Flare: user flare-specific url. See [#2813][]
 * [BUGFIX] Http_check: Bring back include_content option. See [#2631][]
 * [BUGFIX] IIS: Fix metrics tagging when multiple sites are specified on instance. See [#2677][]
+* [BUGFIX] JMXFetch: Do not scope MBeans queries on `list_not_matching_attributes` action. See [jmxfetch-102](https://github.com/DataDog/jmxfetch/pull/102)
 * [BUGFIX] Marathon: Fix a small problem that prevented marathon full path from being properly built. See [#2620][]
 * [BUGFIX] Mongo: Repairing of mongodb.can_connect check. See [#2658][] (Thanks [@cryptspirit][])
 * [BUGFIX] Mongo: Fixes a mistake in the mongo collections check. See [#2783][]
@@ -3418,8 +3420,10 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2798]: https://github.com/DataDog/dd-agent/issues/2798
 [#2801]: https://github.com/DataDog/dd-agent/issues/2801
 [#2805]: https://github.com/DataDog/dd-agent/issues/2805
+[#2809]: https://github.com/DataDog/dd-agent/issues/2809
 [#2812]: https://github.com/DataDog/dd-agent/issues/2812
 [#2813]: https://github.com/DataDog/dd-agent/issues/2813
+[#2825]: https://github.com/DataDog/dd-agent/issues/2825
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
