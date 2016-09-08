@@ -108,25 +108,18 @@ def get_version():
 
 
 # Return url endpoint, here because needs access to version number
-def get_url_endpoint(default_url, endpoint_type=None):
-    if endpoint_type is None:
-        endpoint_type = 'app'
-
+def get_url_endpoint(default_url, endpoint_type='app'):
     parsed_url = urlparse(default_url)
     if parsed_url.netloc not in LEGACY_DATADOG_URLS:
         return default_url
 
     subdomain = parsed_url.netloc.split(".")[0]
-    formatted_version = get_version().replace(".", "-")
-    subdomain_replacement = "{0}-{1}.agent".format(
-        formatted_version,
-        endpoint_type
-    )
-    if endpoint_type == 'flare':
-        subdomain_replacement = "{0}.flare".format(formatted_version)
 
     # Replace https://app.datadoghq.com in https://5-2-0-app.agent.datadoghq.com
-    return default_url.replace(subdomain, subdomain_replacement)
+    return default_url.replace(subdomain,
+        "{0}-{1}.agent".format(
+            get_version().replace(".", "-"),
+            endpoint_type))
 
 
 def skip_leading_wsp(f):
