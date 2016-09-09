@@ -317,7 +317,6 @@ def get_histogram_percentiles(configstr=None):
 
     return result
 
-
 def clean_dd_url(url):
     url = url.strip()
     if not url.startswith('http'):
@@ -476,6 +475,9 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         if config.has_option('Main', 'histogram_percentiles'):
             agentConfig['histogram_percentiles'] = get_histogram_percentiles(config.get('Main', 'histogram_percentiles'))
+
+        if config.has_option('Main', 'histogram_name_format'):
+            agentConfig['histogram_name_format'] = config.get('Main', 'histogram_name_format')
 
         # Disable Watchdog (optionally)
         if config.has_option('Main', 'watchdog'):

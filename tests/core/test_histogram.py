@@ -57,6 +57,74 @@ class TestHistogram(unittest.TestCase):
 
         self.assertEquals(value_by_type['40percentile'], 7, value_by_type)
 
+    def test_custom_single_percentile_withCustomName(self):
+        configstr = '0.40'
+        configname = '%s.p%s'
+
+        stats = MetricsAggregator(
+            'myhost',
+            histogram_percentiles=get_histogram_percentiles(configstr),
+            histogram_name_format=configname
+        )
+
+        self.assertEquals(
+            stats.metric_config[Histogram]['percentiles'],
+            [0.40],
+            stats.metric_config[Histogram]
+        )
+        self.assertEquals(
+            stats.metric_config[Histogram]['name_format'],
+            '%s.p%s',
+            stats.metric_config[Histogram]
+        )
+
+        for i in xrange(20):
+            stats.submit_packets('myhistogram:{0}|h'.format(i))
+
+        metrics = stats.flush()
+
+        self.assertEquals(len(metrics), 5, metrics)
+
+        value_by_type = {}
+        for k in metrics:
+            value_by_type[k['metric'][len('myhistogram')+1:]] = k['points'][0][1]
+
+        self.assertEquals(value_by_type['p40'], 7, value_by_type)
+
+    def test_custom_single_percentile_withInvalidCustomName(self):
+        configstr = '0.40'
+        configname = '%s.p%s.%s'
+
+        stats = MetricsAggregator(
+            'myhost',
+            histogram_percentiles=get_histogram_percentiles(configstr),
+            histogram_name_format=configname
+        )
+
+        self.assertEquals(
+            stats.metric_config[Histogram]['percentiles'],
+            [0.40],
+            stats.metric_config[Histogram]
+        )
+        self.assertEquals(
+            stats.metric_config[Histogram]['name_format'],
+            '%s.p%s.%s',
+            stats.metric_config[Histogram]
+        )
+
+        for i in xrange(20):
+            stats.submit_packets('myhistogram:{0}|h'.format(i))
+
+        metrics = stats.flush()
+
+        self.assertEquals(len(metrics), 5, metrics)
+
+        value_by_type = {}
+        for k in metrics:
+            value_by_type[k['metric'][len('myhistogram')+1:]] = k['points'][0][1]
+
+        self.assertEquals(value_by_type['40percentile'], 7, value_by_type)
+
     def test_custom_multiple_percentile(self):
         configstr = '0.4, 0.65, 0.999'
         stats = MetricsAggregator(

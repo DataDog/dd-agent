@@ -503,6 +503,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         formatter=get_formatter(c),
         histogram_aggregates=c.get('histogram_aggregates'),
         histogram_percentiles=c.get('histogram_percentiles'),
+        histogram_name_format=c.get('histogram_name_format'),
         utf8_decoding=c['utf8_decoding']
     )
 

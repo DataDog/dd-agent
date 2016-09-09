@@ -223,6 +223,7 @@ class Counter(Metric):
 
 DEFAULT_HISTOGRAM_AGGREGATES = ['max', 'median', 'avg', 'count']
 DEFAULT_HISTOGRAM_PERCENTILES = [0.95]
+DEFAULT_HISTOGRAM_NAME_FORMAT = '%s.%spercentile'
 
 class Histogram(Metric):
     """ A metric to track the distribution of a set of values. """
@@ -238,6 +239,9 @@ class Histogram(Metric):
         self.percentiles = extra_config['percentiles'] if\
             extra_config is not None and extra_config.get('percentiles') is not None\
             else DEFAULT_HISTOGRAM_PERCENTILES
+        self.name_format = extra_config['name_format'] if\
+            extra_config is not None and extra_config.get('name_format') is not None\
+            else DEFAULT_HISTOGRAM_NAME_FORMAT
         self.tags = tags
         self.hostname = hostname
         self.device_name = device_name
@@ -287,7 +291,11 @@ class Histogram(Metric):
 
         for p in self.percentiles:
             val = self.samples[int(round(p * length - 1))]
-            name = '%s.%spercentile' % (self.name, int(p * 100))
+            try:
+                name = self.name_format % (self.name, int(p * 100))
+            except TypeError:
+                log.warn("Invalid histogram name format %s, defaulting to '%s'" % (self.name_format, DEFAULT_HISTOGRAM_NAME_FORMAT))
+                name = DEFAULT_HISTOGRAM_NAME_FORMAT % (self.name, int(p * 100))
             metrics.append(self.formatter(
                 hostname=self.hostname,
                 tags=self.tags,
@@ -401,6 +409,7 @@ class Aggregator(object):
     def __init__(self, hostname, interval=1.0, expiry_seconds=300,
             formatter=None, recent_point_threshold=None,
             histogram_aggregates=None, histogram_percentiles=None,
+            histogram_name_format=None,
             utf8_decoding=False):
         self.events = []
         self.service_checks = []
@@ -421,7 +430,8 @@ class Aggregator(object):
         self.metric_config = {
             Histogram: {
                 'aggregates': histogram_aggregates,
-                'percentiles': histogram_percentiles
+                'percentiles': histogram_percentiles,
+                'name_format': histogram_name_format
             }
         }
 
@@ -723,6 +733,7 @@ class MetricsBucketAggregator(Aggregator):
     def __init__(self, hostname, interval=1.0, expiry_seconds=300,
             formatter=None, recent_point_threshold=None,
             histogram_aggregates=None, histogram_percentiles=None,
+            histogram_name_format=None,
             utf8_decoding=False):
         super(MetricsBucketAggregator, self).__init__(
             hostname,
@@ -732,6 +743,7 @@ class MetricsBucketAggregator(Aggregator):
             recent_point_threshold,
             histogram_aggregates,
             histogram_percentiles,
+            histogram_name_format,
             utf8_decoding
         )
         self.metric_by_bucket = {}
@@ -863,6 +875,7 @@ class MetricsAggregator(Aggregator):
     def __init__(self, hostname, interval=1.0, expiry_seconds=300,
             formatter=None, recent_point_threshold=None,
             histogram_aggregates=None, histogram_percentiles=None,
+            histogram_name_format=None,
             utf8_decoding=False):
         super(MetricsAggregator, self).__init__(
             hostname,
@@ -872,6 +885,7 @@ class MetricsAggregator(Aggregator):
             recent_point_threshold,
             histogram_aggregates,
             histogram_percentiles,
+            histogram_name_format,
             utf8_decoding
         )
         self.metrics = {}
