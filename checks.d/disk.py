@@ -187,7 +187,19 @@ class Disk(AgentCheck):
 
     def _collect_inodes_metrics(self, mountpoint):
         metrics = {}
-        inodes = os.statvfs(mountpoint)
+        # we need to timeout this, too.
+        try:
+            inodes = timeout(5)(os.statvfs)(mountpoint)
+        except TimeoutException:
+            self.log.warn(
+                u"Timeout while retrieving the disk usage of `%s` mountpoint. Skipping...",
+                mountpoint
+            )
+            return metrics
+        except Exception as e:
+            self.log.warn("Unable to get disk metrics for %s: %s", mountpoint, e)
+            return metrics
+
         if inodes.f_files != 0:
             total = inodes.f_files
             free = inodes.f_ffree
