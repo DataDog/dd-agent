@@ -325,7 +325,9 @@ class ProcessCheck(AgentCheck):
                 ignore_ad=ignore_ad
             )
         elif pid is not None:
-            pids = [psutil.Process(pid)]
+            # we use Process(pid) as a means to search, if pid not found
+            # psutil.NoSuchProcess is raised.
+            pids = set([psutil.Process(pid).pid])
         else:
             raise ValueError('The "search_string" or "pid" options are required for process identification')
 
