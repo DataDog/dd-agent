@@ -224,43 +224,43 @@ class DockerUtil:
         return mountpoints
 
     def find_cgroup(self, hierarchy):
-            """Find the mount point for a specified cgroup hierarchy.
+        """Find the mount point for a specified cgroup hierarchy.
 
-            Works with old style and new style mounts.
+        Works with old style and new style mounts.
 
-            An example of what the output of /proc/mounts looks like:
+        An example of what the output of /proc/mounts looks like:
 
-                cgroup /sys/fs/cgroup/cpuset cgroup rw,relatime,cpuset 0 0
-                cgroup /sys/fs/cgroup/cpu cgroup rw,relatime,cpu 0 0
-                cgroup /sys/fs/cgroup/cpuacct cgroup rw,relatime,cpuacct 0 0
-                cgroup /sys/fs/cgroup/memory cgroup rw,relatime,memory 0 0
-                cgroup /sys/fs/cgroup/devices cgroup rw,relatime,devices 0 0
-                cgroup /sys/fs/cgroup/freezer cgroup rw,relatime,freezer 0 0
-                cgroup /sys/fs/cgroup/blkio cgroup rw,relatime,blkio 0 0
-                cgroup /sys/fs/cgroup/perf_event cgroup rw,relatime,perf_event 0 0
-                cgroup /sys/fs/cgroup/hugetlb cgroup rw,relatime,hugetlb 0 0
-            """
-            with open(os.path.join(self._docker_root, "/proc/mounts"), 'r') as fp:
-                mounts = map(lambda x: x.split(), fp.read().splitlines())
-            cgroup_mounts = filter(lambda x: x[2] == "cgroup", mounts)
-            if len(cgroup_mounts) == 0:
-                raise Exception(
-                    "Can't find mounted cgroups. If you run the Agent inside a container,"
-                    " please refer to the documentation.")
-            # Old cgroup style
-            if len(cgroup_mounts) == 1:
-                return os.path.join(self._docker_root, cgroup_mounts[0][1])
+            cgroup /sys/fs/cgroup/cpuset cgroup rw,relatime,cpuset 0 0
+            cgroup /sys/fs/cgroup/cpu cgroup rw,relatime,cpu 0 0
+            cgroup /sys/fs/cgroup/cpuacct cgroup rw,relatime,cpuacct 0 0
+            cgroup /sys/fs/cgroup/memory cgroup rw,relatime,memory 0 0
+            cgroup /sys/fs/cgroup/devices cgroup rw,relatime,devices 0 0
+            cgroup /sys/fs/cgroup/freezer cgroup rw,relatime,freezer 0 0
+            cgroup /sys/fs/cgroup/blkio cgroup rw,relatime,blkio 0 0
+            cgroup /sys/fs/cgroup/perf_event cgroup rw,relatime,perf_event 0 0
+            cgroup /sys/fs/cgroup/hugetlb cgroup rw,relatime,hugetlb 0 0
+        """
+        with open(os.path.join(self._docker_root, "/proc/mounts"), 'r') as fp:
+            mounts = map(lambda x: x.split(), fp.read().splitlines())
+        cgroup_mounts = filter(lambda x: x[2] == "cgroup", mounts)
+        if len(cgroup_mounts) == 0:
+            raise Exception(
+                "Can't find mounted cgroups. If you run the Agent inside a container,"
+                " please refer to the documentation.")
+        # Old cgroup style
+        if len(cgroup_mounts) == 1:
+            return os.path.join(self._docker_root, cgroup_mounts[0][1])
 
-            candidate = None
-            for _, mountpoint, _, opts, _, _ in cgroup_mounts:
-                if any(opt == hierarchy for opt in opts.split(',')) and os.path.exists(mountpoint):
-                    if mountpoint.startswith("/host/"):
-                        return os.path.join(self._docker_root, mountpoint)
-                    candidate = mountpoint
+        candidate = None
+        for _, mountpoint, _, opts, _, _ in cgroup_mounts:
+            if any(opt == hierarchy for opt in opts.split(',')) and os.path.exists(mountpoint):
+                if mountpoint.startswith("/host/"):
+                    return os.path.join(self._docker_root, mountpoint)
+                candidate = mountpoint
 
-            if candidate is not None:
-                return os.path.join(self._docker_root, candidate)
-            raise CGroupException("Can't find mounted %s cgroups." % hierarchy)
+        if candidate is not None:
+            return os.path.join(self._docker_root, candidate)
+        raise CGroupException("Can't find mounted %s cgroups." % hierarchy)
 
     @classmethod
     def find_cgroup_from_proc(cls, mountpoints, pid, subsys, docker_root='/'):
@@ -279,7 +279,7 @@ class DockerUtil:
         if subsys in subsystems:
             for mountpoint in mountpoints.itervalues():
                 stat_file_path = os.path.join(mountpoint, subsystems[subsys])
-                if subsys in mountpoint and os.path.exists(stat_file_path):
+                if subsys == mountpoint.split('/')[-1] and os.path.exists(stat_file_path):
                     return os.path.join(stat_file_path, '%(file)s')
 
                 # CentOS7 will report `cpu,cpuacct` and then have the path on
