@@ -54,7 +54,7 @@ instances:
 #    collect_function_metrics: False
 #
 
-#    Collect count metrics, default value is True for backward compatibility but they migth be slow,
+#    Collect count metrics, default value is True for backward compatibility but they might be slow,
 #    suggested value is False.
 #    collect_count_metrics: False
 #
