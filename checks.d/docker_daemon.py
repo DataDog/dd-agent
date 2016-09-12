@@ -122,26 +122,6 @@ ECS_INTROSPECT_DEFAULT_PORT = 51678
 
 ERROR_ALERT_TYPE = ['oom', 'kill']
 
-def get_filters(include, exclude):
-    # The reasoning is to check exclude first, so we can skip if there is no exclude
-    if not exclude:
-        return
-
-    filtered_tag_names = []
-    exclude_patterns = []
-    include_patterns = []
-
-    # Compile regex
-    for rule in exclude:
-        exclude_patterns.append(re.compile(rule))
-        filtered_tag_names.append(rule.split(':')[0])
-    for rule in include:
-        include_patterns.append(re.compile(rule))
-        filtered_tag_names.append(rule.split(':')[0])
-
-    return set(exclude_patterns), set(include_patterns), set(filtered_tag_names)
-
-
 class DockerDaemon(AgentCheck):
     """Collect metrics and events from Docker API and cgroups."""
 
@@ -160,12 +140,20 @@ class DockerDaemon(AgentCheck):
         try:
             instance = self.instances[0]
 
-            self.docker_util = DockerUtil()
+            # if service discovery is enabled dockerutil will need a reference to the config store
+            if self._service_discovery:
+                self.docker_util = DockerUtil(
+                    agentConfig=self.agentConfig,
+                    config_store=get_config_store(self.agentConfig)
+                )
+            else:
+                self.docker_util = DockerUtil()
+
             self.docker_client = self.docker_util.client
             self.docker_gateway = DockerUtil.get_gateway()
 
-            if Platform.is_k8s():
-                self.kubeutil = KubeUtil()
+            self.kubeutil = KubeUtil() if Platform.is_k8s() else None
+
             # We configure the check with the right cgroup settings for this host
             # Just needs to be done once
             self._mountpoints = self.docker_util.get_mountpoints(CGROUP_METRICS)
@@ -189,16 +177,8 @@ class DockerDaemon(AgentCheck):
             }
 
             # Set filtering settings
-            if not instance.get("exclude"):
-                self._filtering_enabled = False
-                if instance.get("include"):
-                    self.log.warning("You must specify an exclude section to enable filtering")
-            else:
-                self._filtering_enabled = True
-                include = instance.get("include", [])
-                exclude = instance.get("exclude", [])
-                self._exclude_patterns, self._include_patterns, _filtered_tag_names = get_filters(include, exclude)
-                self.tag_names[FILTERED] = _filtered_tag_names
+            if self.docker_util.filtering_enabled:
+                self.tag_names[FILTERED] = self.docker_util.get_filters()
 
             # Other options
             self.collect_image_stats = _is_affirmative(instance.get('collect_images_stats', False))
@@ -298,7 +278,8 @@ class DockerDaemon(AgentCheck):
         else:
             self.service_check(SERVICE_CHECK_NAME, AgentCheck.OK)
 
-        # Filter containers according to the exclude/include rules
+        # Create a set of filtered containers based on the exclude/include rules
+        # and cache these rules in docker_util
         self._filter_containers(containers)
 
         containers_by_id = {}
@@ -456,30 +437,17 @@ class DockerDaemon(AgentCheck):
         self.ecs_tags = ecs_tags
 
     def _filter_containers(self, containers):
-        if not self._filtering_enabled:
+        if not self.docker_util.filtering_enabled:
             return
 
         self._filtered_containers = set()
         for container in containers:
             container_tags = self._get_tags(container, FILTERED)
-            if self._are_tags_filtered(container_tags):
+            # exclude/include patterns are stored in docker_util to share them with other container-related checks
+            if self.docker_util.are_tags_filtered(container_tags):
                 container_name = DockerUtil.container_name_extractor(container)[0]
                 self._filtered_containers.add(container_name)
                 self.log.debug("Container {0} is filtered".format(container_name))
-
-    def _are_tags_filtered(self, tags):
-        if self._tags_match_patterns(tags, self._exclude_patterns):
-            if self._tags_match_patterns(tags, self._include_patterns):
-                return False
-            return True
-        return False
-
-    def _tags_match_patterns(self, tags, filters):
-        for rule in filters:
-            for tag in tags:
-                if re.match(rule, tag):
-                    return True
-        return False
 
     def _is_container_excluded(self, container):
         """Check if a container is excluded according to the filter rules.

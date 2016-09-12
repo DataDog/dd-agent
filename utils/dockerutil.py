@@ -5,6 +5,7 @@
 # stdlib
 import logging
 import os
+import re
 import socket
 import struct
 import time
@@ -13,6 +14,7 @@ import time
 from docker import Client, tls
 
 # project
+from utils.platform import Platform
 from utils.singleton import Singleton
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
@@ -30,6 +32,8 @@ DEFAULT_TIMEOUT = 5
 DEFAULT_VERSION = 'auto'
 CHECK_NAME = 'docker_daemon'
 CONFIG_RELOAD_STATUS = ['start', 'die', 'stop', 'kill']  # used to trigger service discovery
+
+DEFAULT_CONTAINER_EXCLUDE = ["container_image:gcr.io/google_containers/pause:2.0"]
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +69,20 @@ class DockerUtil:
                     self._is_ecs = True
         except Exception:
             pass
+
+        # Build include/exclude patterns for containers
+        self._include, self._exclude = instance.get('include', []), instance.get('exclude', [])
+        if not self._exclude:
+            # In Kubernetes, pause containers are not interesting to monitor.
+            # This part could be reused for other platforms where containers can be safely ignored.
+            if Platform.is_k8s():
+                self.filtering_enabled = True
+                self._exclude = DEFAULT_CONTAINER_EXCLUDE
+            if self._include:
+                log.warning("You must specify an exclude section to enable filtering")
+            self.filtering_enabled = False
+        else:
+            self.filtering_enabled = True
 
     def get_check_config(self):
         """Read the config from docker_daemon.yaml"""
@@ -241,6 +259,40 @@ class DockerUtil:
         if candidate is not None:
             return os.path.join(self._docker_root, candidate)
         raise CGroupException("Can't find mounted %s cgroups." % hierarchy)
+
+    def get_filters(self):
+        # The reasoning is to check exclude first, so we can skip if there is no exclude
+        if not self._exclude:
+            return
+
+        filtered_tag_names = []
+        exclude_patterns = []
+        include_patterns = []
+
+        # Compile regex
+        for rule in self._exclude:
+            exclude_patterns.append(re.compile(rule))
+            filtered_tag_names.append(rule.split(':')[0])
+        for rule in self._include:
+            include_patterns.append(re.compile(rule))
+            filtered_tag_names.append(rule.split(':')[0])
+
+        self._exclude_patterns, self._include_patterns = set(exclude_patterns), set(include_patterns)
+        return list(set(filtered_tag_names))
+
+    def are_tags_filtered(self, tags):
+        if self._tags_match_patterns(tags, self._exclude_patterns):
+            if self._tags_match_patterns(tags, self._include_patterns):
+                return False
+            return True
+        return False
+
+    def _tags_match_patterns(self, tags, filters):
+        for rule in filters:
+            for tag in tags:
+                if re.match(rule, tag):
+                    return True
+        return False
 
     @classmethod
     def find_cgroup_from_proc(cls, mountpoints, pid, subsys, docker_root='/'):
