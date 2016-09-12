@@ -276,6 +276,14 @@ class DockerUtil:
                     subsys = _subsys
                     break
 
+        # In Ubuntu Xenial, we've encountered containers with no `cpu`
+        # cgroup in /proc/<pid>/cgroup
+        if subsys == 'cpu' and subsys not in subsystems:
+            for sub, mountpoint in subsystems.iteritems():
+                if 'cpuacct' in sub:
+                    subsystems['cpu'] = mountpoint
+                    break
+
         if subsys in subsystems:
             for mountpoint in mountpoints.itervalues():
                 stat_file_path = os.path.join(mountpoint, subsystems[subsys])
@@ -284,7 +292,7 @@ class DockerUtil:
 
                 # CentOS7 will report `cpu,cpuacct` and then have the path on
                 # `cpuacct,cpu`
-                if 'cpuacct' in mountpoint and 'cpuacct' in subsys:
+                if 'cpuacct' in mountpoint and ('cpuacct' in subsys or 'cpu' in subsys):
                     flipkey = subsys.split(',')
                     flipkey = "{},{}".format(flipkey[1], flipkey[0]) if len(flipkey) > 1 else flipkey[0]
                     mountpoint = os.path.join(os.path.split(mountpoint)[0], flipkey)
