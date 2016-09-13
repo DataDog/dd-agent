@@ -16,6 +16,7 @@ from util import headers
 
 
 class Fluentd(AgentCheck):
+    DEFAULT_TIMEOUT = 5
     SERVICE_CHECK_NAME = 'fluentd.is_ok'
     GAUGES = ['retry_count', 'buffer_total_queued_size', 'buffer_queue_length']
     _AVAILABLE_TAGS = frozenset(['plugin_id', 'type'])
@@ -45,8 +46,10 @@ class Fluentd(AgentCheck):
             monitor_agent_port = parsed_url.port or 24220
             service_check_tags = ['fluentd_host:%s' % monitor_agent_host, 'fluentd_port:%s'
                                   % monitor_agent_port]
+            default_timeout = self.init_config.get('default_timeout', self.DEFAULT_TIMEOUT)
+            timeout = float(instance.get('timeout', default_timeout))
 
-            r = requests.get(url, headers=headers(self.agentConfig))
+            r = requests.get(url, headers=headers(self.agentConfig), timeout=timeout)
             r.raise_for_status()
             status = r.json()
 
