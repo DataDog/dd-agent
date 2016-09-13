@@ -86,6 +86,9 @@ MAX_WAIT_FOR_REPLAY = timedelta(seconds=90)
 # Maximum queue size in bytes (when this is reached, old messages are dropped)
 MAX_QUEUE_SIZE = 30 * 1024 * 1024  # 30MB
 
+# Some responses should be rejected, rather than replayed. This list will be rejected.
+RESPONSES_TO_REJECT = [413, 400]
+
 THROTTLING_DELAY = timedelta(microseconds=1000000 / 2)  # 2 msg/second
 
 
@@ -273,7 +276,7 @@ class AgentTransaction(Transaction):
     def on_response(self, response):
         if response.error:
             log.error("Response: %s" % response)
-            if response.code in [413, 400]:
+            if response.code in RESPONSES_TO_REJECT:
                 self._trManager.tr_error_reject_request(self)
             else:
                 self._trManager.tr_error(self)
