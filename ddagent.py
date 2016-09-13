@@ -273,8 +273,8 @@ class AgentTransaction(Transaction):
     def on_response(self, response):
         if response.error:
             log.error("Response: %s" % response)
-            if response.code == 413:
-                self._trManager.tr_error_too_big(self)
+            if response.code in [413, 400]:
+                self._trManager.tr_error_reject_request(self)
             else:
                 self._trManager.tr_error(self)
         else:
