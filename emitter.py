@@ -31,6 +31,26 @@ control_char_re = re.compile('[%s]' % re.escape(control_chars))
 def remove_control_chars(s):
     return control_char_re.sub('', s)
 
+def remove_control_chars_from(item, log):
+    if isinstance(item, dict):
+        newdict = {}
+        for k, v in item.iteritems():
+            newval = remove_control_chars_from(v, log)
+            newkey = remove_control_chars(k)
+            newdict[newkey] = newval
+        return newdict
+    if isinstance(item, list):
+        newlist = []
+        for listitems in item:
+            newlist.append(remove_control_chars_from(listitems, log))
+        return newlist
+    if(isinstance(item, str)):
+        newstr = remove_control_chars(item)
+        if item != newstr:
+            if log is not None:
+                log.warning('changed string: ' + newstr)
+            return newstr
+    return item
 
 def http_emitter(message, log, agentConfig, endpoint):
     "Send payload"
@@ -42,8 +62,16 @@ def http_emitter(message, log, agentConfig, endpoint):
     try:
         payload = json.dumps(message)
     except UnicodeDecodeError:
-        message = remove_control_chars(message)
-        payload = json.dumps(message)
+        try:
+            newmessage = remove_control_chars_from(message, log)
+            payload = json.dumps(newmessage)
+        except UnicodeDecodeError as ude:
+            log.error('http_emitter: Unable to convert message to json %s ' % str(ude))
+            # early return as we can't actually process the message
+            return
+        except Exception as e:
+            log.error('http_emitter: unknown exception processing message %s ' % str(e))
+            return
 
     zipped = zlib.compress(payload)
 
