@@ -33,7 +33,7 @@ DEFAULT_VERSION = 'auto'
 CHECK_NAME = 'docker_daemon'
 CONFIG_RELOAD_STATUS = ['start', 'die', 'stop', 'kill']  # used to trigger service discovery
 
-DEFAULT_CONTAINER_EXCLUDE = ["container_image:gcr.io/google_containers/pause:2.0"]
+DEFAULT_CONTAINER_EXCLUDE = ["container_image:gcr.io/google_containers/pause.*"]
 
 log = logging.getLogger(__name__)
 
@@ -78,11 +78,15 @@ class DockerUtil:
             if Platform.is_k8s():
                 self.filtering_enabled = True
                 self._exclude = DEFAULT_CONTAINER_EXCLUDE
-            if self._include:
-                log.warning("You must specify an exclude section to enable filtering")
-            self.filtering_enabled = False
+            else:
+                if self._include:
+                    log.warning("You must specify an exclude section to enable filtering")
+                self.filtering_enabled = False
         else:
             self.filtering_enabled = True
+
+        if self.filtering_enabled:
+            self.build_filters()
 
     def get_check_config(self):
         """Read the config from docker_daemon.yaml"""
@@ -260,7 +264,8 @@ class DockerUtil:
             return os.path.join(self._docker_root, candidate)
         raise CGroupException("Can't find mounted %s cgroups." % hierarchy)
 
-    def get_filters(self):
+    def build_filters(self):
+        """Build sets of include/exclude patters and of all filtered tag names based on these"""
         # The reasoning is to check exclude first, so we can skip if there is no exclude
         if not self._exclude:
             return
@@ -278,9 +283,15 @@ class DockerUtil:
             filtered_tag_names.append(rule.split(':')[0])
 
         self._exclude_patterns, self._include_patterns = set(exclude_patterns), set(include_patterns)
-        return list(set(filtered_tag_names))
+        self._filtered_tag_names = set(filtered_tag_names)
+
+    @property
+    def filtered_tag_names(self):
+        return list(self._filtered_tag_names)
 
     def are_tags_filtered(self, tags):
+        if not self.filtering_enabled:
+            return False
         if self._tags_match_patterns(tags, self._exclude_patterns):
             if self._tags_match_patterns(tags, self._include_patterns):
                 return False

@@ -152,7 +152,8 @@ class DockerDaemon(AgentCheck):
             self.docker_client = self.docker_util.client
             self.docker_gateway = DockerUtil.get_gateway()
 
-            self.kubeutil = KubeUtil() if Platform.is_k8s() else None
+            if Platform.is_k8s():
+                self.kubeutil = KubeUtil()
 
             # We configure the check with the right cgroup settings for this host
             # Just needs to be done once
@@ -178,7 +179,7 @@ class DockerDaemon(AgentCheck):
 
             # Set filtering settings
             if self.docker_util.filtering_enabled:
-                self.tag_names[FILTERED] = self.docker_util.get_filters()
+                self.tag_names[FILTERED] = self.docker_util.filtered_tag_names
 
             # Other options
             self.collect_image_stats = _is_affirmative(instance.get('collect_images_stats', False))
@@ -779,8 +780,9 @@ class DockerDaemon(AgentCheck):
                 else:
                     return dict(map(lambda x: x.split(' ', 1), fp.read().splitlines()))
         except IOError:
-            # It is possible that the container got stopped between the API call and now
-            self.log.info("Can't open %s. Metrics for this container are skipped." % stat_file)
+            # It is possible that the container got stopped between the API call and now.
+            # Some files can also be missing (like cpu.stat) and that's fine.
+            self.log.info("Can't open %s. Some metrics for this container may be missing." % stat_file)
 
     def _parse_blkio_metrics(self, stats):
         """Parse the blkio metrics."""

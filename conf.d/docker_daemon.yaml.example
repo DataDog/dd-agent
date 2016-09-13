@@ -86,7 +86,7 @@ instances:
     # include: ["docker_image:ubuntu", "docker_image:debian"]
     #
     # include all, except ubuntu and Kubernetes pause containers.
-    # exclude: ["docker_image:ubuntu", "container_image:gcr.io/google_containers/pause:2.0"]
+    # exclude: ["docker_image:ubuntu", "container_image:gcr.io/google_containers/pause.*"]
     # include: []
     #
     # Default: include all containers except for pause containers if running in Kubernetes.
