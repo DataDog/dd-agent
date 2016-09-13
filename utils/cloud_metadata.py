@@ -192,10 +192,6 @@ class EC2(object):
         # >>> requests.get('http://169.254.169.254/latest/meta-data/instance-id', timeout=1).content
         # 'i-deadbeef'
 
-        # Every call may add TIMEOUT seconds in latency so don't abuse this call
-        # python 2.4 does not support an explicit timeout argument so force it here
-        # Rather than monkey-patching urllib2, just lower the timeout globally for these calls
-
         if not agentConfig['collect_instance_metadata']:
             log.info("Instance metadata collection is disabled. Not collecting it.")
             return {}
