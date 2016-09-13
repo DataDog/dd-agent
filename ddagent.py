@@ -398,6 +398,8 @@ class Application(tornado.web.Application):
         self._metrics = {}
         AgentTransaction.set_application(self)
         AgentTransaction.set_endpoints(agentConfig['endpoints'])
+        if agentConfig['endpoints'] == {}:
+            log.warning(u"No valid endpoint found. Forwarder will drop all incoming payloads.")
         AgentTransaction.set_request_timeout(agentConfig['forwarder_timeout'])
 
         max_parallelism = self.NO_PARALLELISM

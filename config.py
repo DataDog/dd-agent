@@ -325,6 +325,10 @@ def clean_dd_url(url):
     return url[:-1] if url.endswith('/') else url
 
 
+def remove_empty(string_array):
+    return filter(lambda x: x, string_array)
+
+
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
         options, _ = get_parsed_args()
@@ -398,8 +402,11 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         #    'https://app.example.com': ['api_key_xyz']
         # }
         endpoints = {}
+        dd_urls = remove_empty(dd_urls)
+        api_keys = remove_empty(api_keys)
         if len(dd_urls) == 1:
-            endpoints[dd_urls[0]] = api_keys
+            if len(api_keys) > 0:
+                endpoints[dd_urls[0]] = api_keys
         else:
             assert len(dd_urls) == len(api_keys), 'Please provide one api_key for each url'
             for i, dd_url in enumerate(dd_urls):
