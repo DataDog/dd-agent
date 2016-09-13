@@ -34,12 +34,15 @@ class GCE(object):
             return GCE.metadata
 
         try:
-            GCE.metadata = requests.get(
+            r = requests.get(
                 GCE.URL,
                 timeout=GCE.TIMEOUT,
                 headers={'X-Google-Metadata-Request': True}
-            ).json()
-        except Exception:
+            )
+            r.raise_for_status()
+            GCE.metadata = r.json()
+        except Exception as e:
+            log.debug("Collecting GCE Metadata failed %s", str(e))
             GCE.metadata = {}
 
         return GCE.metadata
@@ -71,7 +74,8 @@ class GCE(object):
             GCE.metadata['hostname'] = host_metadata['instance']['hostname'].split('.')[0]
 
             return tags
-        except Exception:
+        except Exception as e:
+            log.debug("Collecting GCE tags failed %s", str(e))
             return None
 
     @staticmethod
@@ -93,7 +97,8 @@ class GCE(object):
             project_id = host_metadata['project']['projectId']
             instance_name = host_metadata['instance']['hostname'].split('.')[0]
             return ['%s.%s' % (instance_name, project_id)]
-        except Exception:
+        except Exception as e:
+            log.debug("Collecting GCE host aliases failed %s", str(e))
             return None
 
 class EC2(object):
@@ -131,6 +136,7 @@ class EC2(object):
             r.raise_for_status()
             return r.content.strip()
         except requests.exceptions.HTTPError as e:
+            log.debug("Collecting IAM Role failed %s", str(e))
             if e.response.status_code == 404:
                 raise EC2.NoIAMRole()
             raise
@@ -149,8 +155,12 @@ class EC2(object):
         try:
             iam_role = EC2.get_iam_role()
             iam_url = EC2.METADATA_URL_BASE + "/iam/security-credentials/" + unicode(iam_role)
-            iam_params = requests.get(iam_url, timeout=EC2.TIMEOUT).json()
-            instance_identity = requests.get(EC2.INSTANCE_IDENTITY_URL, timeout=EC2.TIMEOUT).json()
+            r = requests.get(iam_url, timeout=EC2.TIMEOUT)
+            r.raise_for_status() # Fail on 404 etc
+            iam_params = r.json()
+            r = requests.get(EC2.INSTANCE_IDENTITY_URL, timeout=EC2.TIMEOUT)
+            r.raise_for_status()
+            instance_identity = r.json()
             region = instance_identity['region']
 
             import boto.ec2
@@ -199,10 +209,13 @@ class EC2(object):
         for k in ('instance-id', 'hostname', 'local-hostname', 'public-hostname', 'ami-id', 'local-ipv4', 'public-keys/', 'public-ipv4', 'reservation-id', 'security-groups'):
             try:
                 url = EC2.METADATA_URL_BASE + "/" + unicode(k)
-                v = requests.get(url, timeout=EC2.TIMEOUT).content.strip()
+                r = requests.get(url, timeout=EC2.TIMEOUT)
+                r.raise_for_status()
+                v = r.content.strip()
                 assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
                 EC2.metadata[k.rstrip('/')] = v
-            except Exception:
+            except Exception as e:
+                log.debug("Collecting EC2 Metadata failed %s", str(e))
                 pass
 
         return EC2.metadata
