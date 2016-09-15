@@ -40,7 +40,7 @@ def _get_container_inspect(c_id):
         return None
 
 
-def _get_conf_tpls(image_name, trace_config=False):
+def _get_conf_tpls(image_name, trace_config=False, kube_annotations=None):
     """Return a mocked configuration template from self.mock_templates."""
     return copy.deepcopy(TestServiceDiscovery.mock_templates.get(image_name)[0])
 
@@ -523,6 +523,28 @@ class TestServiceDiscovery(unittest.TestCase):
         for image in invalid_config:
             tpl = self.mock_tpls.get(image)[1]
             self.assertEquals(tpl, config_store.get_check_tpls(image))
+
+    @mock.patch.object(AbstractConfigStore, 'client_read', side_effect=client_read)
+    def test_get_check_tpls_kube(self, mock_client_read):
+        """Test get_check_tpls"""
+        valid_config = ['image_0', 'image_1', 'image_2']
+        invalid_config = ['bad_image_0']
+        config_store = get_config_store(self.auto_conf_agentConfig)
+        for image in valid_config + invalid_config:
+            tpl = self.mock_tpls.get(image)[1]
+            if tpl:
+                self.assertNotEquals(
+                    tpl,
+                    config_store.get_check_tpls('k8s-' + image, auto_conf=True))
+            self.assertEquals(
+                tpl,
+                config_store.get_check_tpls(
+                    'k8s-' + image, auto_conf=True,
+                    kube_annotations=dict(zip(
+                        ['com.datadoghq.sd/check_names',
+                         'com.datadoghq.sd/init_configs',
+                         'com.datadoghq.sd/instances'],
+                        self.mock_tpls[image][0]))))
 
     def test_get_config_id(self):
         """Test get_config_id"""

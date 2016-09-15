@@ -14,6 +14,9 @@ from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store, TRACE_CONFIG
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
+K8S_ANNOTATION_CHECK_NAMES = 'com.datadoghq.sd/check_names'
+K8S_ANNOTATION_INIT_CONFIGS = 'com.datadoghq.sd/init_configs'
+K8S_ANNOTATION_INSTANCES = 'com.datadoghq.sd/instances'
 log = logging.getLogger(__name__)
 
 
@@ -255,7 +258,8 @@ class SDDockerBackend(AbstractSDBackend):
     def _get_check_configs(self, c_id, identifier, trace_config=False):
         """Retrieve configuration templates and fill them with data pulled from docker and tags."""
         inspect = self.docker_client.inspect_container(c_id)
-        config_templates = self._get_config_templates(identifier, trace_config=trace_config)
+        annotations = (self._get_kube_config(inspect.get('Id'), 'metadata') or {}).get('annotations') if Platform.is_k8s() else None
+        config_templates = self._get_config_templates(identifier, trace_config=trace_config, kube_annotations=annotations)
         if not config_templates:
             log.debug('No config template for container %s with identifier %s. '
                       'It will be left unconfigured.' % (c_id[:12], identifier))
@@ -281,7 +285,7 @@ class SDDockerBackend(AbstractSDBackend):
 
         return check_configs
 
-    def _get_config_templates(self, identifier, trace_config=False):
+    def _get_config_templates(self, identifier, trace_config=False, kube_annotations=None):
         """Extract config templates for an identifier from a K/V store and returns it as a dict object."""
         config_backend = self.agentConfig.get('sd_config_backend')
         templates = []
@@ -294,7 +298,7 @@ class SDDockerBackend(AbstractSDBackend):
         # format: [('ident', {init_tpl}, {instance_tpl})] without trace_config
         # or      [(source, ('ident', {init_tpl}, {instance_tpl}))] with trace_config
         raw_tpls = self.config_store.get_check_tpls(
-            identifier, auto_conf=auto_conf, trace_config=trace_config)
+            identifier, auto_conf=auto_conf, trace_config=trace_config, kube_annotations=kube_annotations)
         for tpl in raw_tpls:
             if trace_config and tpl is not None:
                 # each template can come from either auto configuration or user-supplied templates
