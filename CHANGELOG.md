@@ -14,6 +14,7 @@ See [#2709][] for reference.
 
 ### Updated integrations
 * Apache
+* Cassandra
 * Ceph
 * Disk Check
 * DNS
@@ -59,12 +60,14 @@ See [#2709][] for reference.
 * [FEATURE] Http_check: Add ability to use post method. See [#2544][]
 * [FEATURE] Http_check: SNI support for cert_expiration. See [#2521][]
 * [FEATURE] Kubernetes: Improve service discovery to only reload checks that need it. See [#2551][]
+* [FEATURE] Kubernetes: Ingest k8s events + limits and requests metrics. See [#2551][]
 * [FEATURE] Linux: make /proc configurable. See [#2482][]
 * [FEATURE] Mongo: Apply yaml-configured tags to service checks. See [#2575][] (Thanks [@avaughan89][])
 * [FEATURE] Mysql: Allow `connection_timeout` to be set for MySQL checks. See [#2729][] (Thanks [@scottgeary][])
 * [FEATURE] Process: Option to search processes by PID. See [#2119][] (Thanks [@handigarde][])
 * [FEATURE] Spark: spark standalone support. See [#2752][] (Thanks [@zachradtka][]), [omnibus-software-73](https://github.com/DataDog/omnibus-software/pull/73), [dd-agent-omnibus](https://github.com/DataDog/dd-agent-omnibus/pull/91)
 
+* [IMPROVEMENT] Cassandra: add read and write latency ColumnFamily metrics. See [#2483][]
 * [IMPROVEMENT] Ceph: update to support 10.0.2.2. See [#2805][]
 * [IMPROVEMENT] Core: avoid calls to service discovery from dogstatsd. See [#2798][]
 * [IMPROVEMENT] Core: easier config for multiple endpoints. See [#2774][]
@@ -77,7 +80,7 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Docker: Add CPU throttling stats to Docker metrics. See [#2724][] (Thanks [@ejholmes][])
 * [IMPROVEMENT] Dogstatsd: fix server address when non_local_traffic is passed. See [#2691][]
 * [IMPROVEMENT] Elasticsearch: Add missing metrics. See [#2758][] (Thanks [@mdelaney][])
-* [IMPROVEMENT] Elasticsearch: Add elastic search cluster name to tags. See [#2744][]
+* [IMPROVEMENT] Elasticsearch: Add elastic search cluster name to tags. See [#2744][] and [#2826][]
 * [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done. See [#2621][]
 * [IMPROVEMENT] Flare: hide multiple endpoints api_keys. See [#2646][]
 * [IMPROVEMENT] Gohai: Processes - simplify payload. See [#2600][]
@@ -106,8 +109,13 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Util: remove LaconicFilter. See [#2605][]
 * [IMPROVEMENT] Vsphere: Add optional vm include parameter. See [#2459][]
 
-* [BUGFIX] Disk: timeout on disk usage. See [#2714][]
+* [BUGFIX] Core: forwarder drop payloads when no valid endpoints. See [#2833][]
+* [BUGFIX] Cloud metadata: Fail on non-2xx responses. See [#2844][]
+* [BUGFIX] Disk: timeout on disk usage. See [#2714][] and [#2823][]
 * [BUGFIX] Docker_daemon: ECS introspection resilience. See [#2745][] and [#2825][]
+* [BUGFIX] Docker_daemon: Custom cgroups are per instance only. See [#2846][]
+* [BUGFIX] Docker_daemon: Fix pid retrieval that could affect k8s. See [#2847][]
+* [BUGFIX] Dockerutil: cpu subsys might be mistaken for cpuacct. See [#2829][]
 * [BUGFIX] Flare: user flare-specific url. See [#2813][]
 * [BUGFIX] Http_check: Bring back include_content option. See [#2631][]
 * [BUGFIX] IIS: Fix metrics tagging when multiple sites are specified on instance. See [#2677][]
@@ -3312,6 +3320,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2477]: https://github.com/DataDog/dd-agent/issues/2477
 [#2479]: https://github.com/DataDog/dd-agent/issues/2479
 [#2482]: https://github.com/DataDog/dd-agent/issues/2482
+[#2483]: https://github.com/DataDog/dd-agent/issues/2483
 [#2486]: https://github.com/DataDog/dd-agent/issues/2486
 [#2487]: https://github.com/DataDog/dd-agent/issues/2487
 [#2490]: https://github.com/DataDog/dd-agent/issues/2490
@@ -3423,7 +3432,14 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2809]: https://github.com/DataDog/dd-agent/issues/2809
 [#2812]: https://github.com/DataDog/dd-agent/issues/2812
 [#2813]: https://github.com/DataDog/dd-agent/issues/2813
+[#2823]: https://github.com/DataDog/dd-agent/issues/2823
 [#2825]: https://github.com/DataDog/dd-agent/issues/2825
+[#2826]: https://github.com/DataDog/dd-agent/issues/2826
+[#2829]: https://github.com/DataDog/dd-agent/issues/2829
+[#2833]: https://github.com/DataDog/dd-agent/issues/2833
+[#2844]: https://github.com/DataDog/dd-agent/issues/2844
+[#2846]: https://github.com/DataDog/dd-agent/issues/2846
+[#2847]: https://github.com/DataDog/dd-agent/issues/2847
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
