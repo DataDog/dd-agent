@@ -155,7 +155,6 @@ class DockerDaemon(AgentCheck):
         self._service_discovery = agentConfig.get('service_discovery') and \
             agentConfig.get('service_discovery_backend') == 'docker'
         self.init()
-        self._custom_cgroups = _is_affirmative(init_config.get('custom_cgroups', False))
 
     def init(self):
         try:
@@ -249,11 +248,11 @@ class DockerDaemon(AgentCheck):
                 self.kube_labels = {}
 
         # containers running with custom cgroups?
-        custom_cgroups = _is_affirmative(instance.get('custom_cgroups', self._custom_cgroups))
+        custom_cgroups = _is_affirmative(instance.get('custom_cgroups', False))
 
         # Get the list of containers and the index of their names
         containers_by_id = self._get_and_count_containers(custom_cgroups)
-        containers_by_id = self._crawl_container_pids(containers_by_id)
+        containers_by_id = self._crawl_container_pids(containers_by_id, custom_cgroups)
 
         # Send events from Docker API
         if self.collect_events or self._service_discovery:
@@ -807,7 +806,7 @@ class DockerDaemon(AgentCheck):
         return metrics
 
     # proc files
-    def _crawl_container_pids(self, container_dict):
+    def _crawl_container_pids(self, container_dict, custom_cgroups=False):
         """Crawl `/proc` to find container PIDs and add them to `containers_by_id`."""
         proc_path = os.path.join(self.docker_util._docker_root, 'proc')
         pid_dirs = [_dir for _dir in os.listdir(proc_path) if _dir.isdigit()]
@@ -861,7 +860,7 @@ class DockerDaemon(AgentCheck):
                         continue
                     container_dict[container_id]['_pid'] = folder
                     container_dict[container_id]['_proc_root'] = os.path.join(proc_path, folder)
-                elif self._custom_cgroups: # if we match by pid that should be enough (?) - O(n) ugh!
+                elif custom_cgroups: # if we match by pid that should be enough (?) - O(n) ugh!
                     for _, container in container_dict.iteritems():
                         if container.get('_pid') == int(folder):
                             container['_proc_root'] = os.path.join(proc_path, folder)
