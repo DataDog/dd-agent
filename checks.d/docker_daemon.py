@@ -805,6 +805,17 @@ class DockerDaemon(AgentCheck):
                 metrics['io_write'] += int(line.split()[2])
         return metrics
 
+    def _is_container_cgroup(self, line, selinux_policy):
+        if line[1] not in ('cpu,cpuacct', 'cpuacct,cpu', 'cpuacct') or line[2] == '/docker-daemon':
+            return False
+        if 'docker' in line[2]: # general case
+            return True
+        if 'docker' in selinux_policy: # selinux
+            return True
+        if line[2].startswith('/') and re.match(CONTAINER_ID_RE, line[2][1:]): # kubernetes
+            return True
+        return False
+
     # proc files
     def _crawl_container_pids(self, container_dict, custom_cgroups=False):
         """Crawl `/proc` to find container PIDs and add them to `containers_by_id`."""
@@ -845,8 +856,7 @@ class DockerDaemon(AgentCheck):
 
             try:
                 for line in content:
-                    if line[1] in ('cpu,cpuacct', 'cpuacct,cpu', 'cpuacct') and \
-                            ('docker' in line[2] or 'docker' in selinux_policy):
+                    if self._is_container_cgroup(line, selinux_policy):
                         cpuacct = line[2]
                         break
                 else:
