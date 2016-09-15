@@ -17,3 +17,7 @@ instances:
       # tags:
       #   - tag:one
       #   - tag:two
+
+    - hostname: nxdomain.example.org
+      nameserver: 127.0.0.1
+      record_type: NXDOMAIN

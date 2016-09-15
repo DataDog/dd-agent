@@ -67,8 +67,17 @@ class DNSCheck(NetworkCheck):
 
         try:
             self.log.debug('Querying "{0}" record for hostname "{1}"...'.format(record_type, hostname))
-            answer = resolver.query(hostname, rdtype=record_type)
-            assert(answer.rrset.items[0].to_text())
+            if record_type == "NXDOMAIN":
+                try:
+                    resolver.query(hostname)
+                except dns.resolver.NXDOMAIN:
+                    pass
+                else:
+                    raise AssertionError("Expected an NXDOMAIN, got a result.")
+            else:
+                answer = resolver.query(hostname, rdtype=record_type)
+                assert(answer.rrset.items[0].to_text())
+
             end_time = time.time()
 
         except dns.exception.Timeout:
