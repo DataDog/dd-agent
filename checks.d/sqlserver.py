@@ -269,7 +269,6 @@ class SQLServer(AgentCheck):
         Cursor are cached in the self.connections dict
         '''
         conn_key = self._conn_key(instance, db_key=db_key, db_name=db_name)
-                                              'autocommit':True}
 
         conn = self.connections[conn_key]['conn']
         cursor = conn.cursor()
