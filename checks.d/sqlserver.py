@@ -99,18 +99,17 @@ class SQLServer(AgentCheck):
         for instance in instances:
             try:
                 # check to see if the database exists before we try any connections to it
+                self.open_db_connections(instance, db_name=self.DEFAULT_DATABASE)
                 db_exists, context = self._check_db_exists(instance)
                 instance_key = self._conn_key(instance, db_key=DEFAULT_DB_KEY)
                 
                 if db_exists:
                     self.do_check[instance_key] = True
                     if instance.get('stored_procedure') is None:
-     					self.open_db_connections(instance)
+                        self.open_db_connections(instance, db_key=DEFAULT_DB_KEY)
                         self._make_metric_list_to_collect(instance, custom_metrics)
                         self.close_db_connections(instance, db_key=DEFAULT_DB_KEY)
-                        self.close_db_connections(instance, db_name=self.DEFAULT_DATABASE)
                 else:
-                    
                     # How much do we care that the DB doesn't exist?
                     ignore = instance.get('ignore_missing_database')
                     if ignore is not None and ignore:
@@ -121,6 +120,8 @@ class SQLServer(AgentCheck):
                         # yes we do. Keep trying
                         self.do_check[instance_key] = True
                         self.log.exception("Database %s does not exist. Fix issue and restart agent" % (context))
+
+                self.close_db_connections(instance, db_name=self.DEFAULT_DATABASE)
 
             except SQLConnectionError, e:
                 self.log.exception("Skipping SQL Server instance")
@@ -136,7 +137,6 @@ class SQLServer(AgentCheck):
         host, username, password, database = self._get_access_info(instance, db_key=DEFAULT_DB_KEY)
         context = "%s - %s" % (host, database)
         if self.existing_databases is None:
-        
             cursor = self.get_cursor(instance, db_name='master')
         
             try:
@@ -246,13 +246,10 @@ class SQLServer(AgentCheck):
         database = database if db_name is None else db_name
         return '%s:%s:%s:%s' % (host, username, password, database)
 
-    def _conn_string(self, instance=None, db_key=None, db_name=None, conn_key=None):
+    def _conn_string(self, instance, db_key, db_name):
         ''' Return a connection string to use with adodbapi
         '''
-        if instance:
-            host, username, password, database = self._get_access_info(instance, db_key, db_name=db_name)
-        elif conn_key:
-            host, username, password, database = conn_key.split(":")
+        host, username, password, database = self._get_access_info(instance, db_key, db_name=db_name)
         conn_str = 'Provider=SQLOLEDB;Data Source=%s;Initial Catalog=%s;' \
             % (host, database)
         if username:
@@ -405,7 +402,7 @@ class SQLServer(AgentCheck):
         locks on the db. This presents as issues such as the SQL Server Agent
         being unable to stop.
         """
-        conn_key = self._conn_key(instance, db_key=db_key, db_name=db_name)
+        conn_key = self._conn_key(instance, db_key, db_name)
         if conn_key not in self.connections:
             return
 
@@ -423,24 +420,23 @@ class SQLServer(AgentCheck):
         Server Agent being unable to stop.
         """
 
-        conn_key = self._conn_key(instance, db_key=db_key, db_name=db_name)
+        conn_key = self._conn_key(instance, db_key, db_name)
         timeout = int(instance.get('command_timeout',
                                    self.DEFAULT_COMMAND_TIMEOUT))
 
-        host = instance.get('host')
-        database = instance.get('database', self.DEFAULT_DATABASE)
+        host, username, password, database = self._get_access_info(instance, db_key, db_name)
         service_check_tags = [
             'host:%s' % host,
             'db:%s' % database
         ]
 
         try:
-            rawconn = adodbapi.connect(self._conn_string(instance=instance, db_key=db_key),
+            rawconn = adodbapi.connect(self._conn_string(instance, db_key, db_name),
                                        {'timeout':timeout, 'autocommit':True})
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                                tags=service_check_tags)
             if conn_key not in self.connections:
-                self.connections[conn_key] = {'conn': rawconn
+                self.connections[conn_key] = {'conn': rawconn,
                                               'timeout': timeout,
                                               'autocommit': True}
             else:
