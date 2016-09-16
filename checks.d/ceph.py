@@ -103,44 +103,47 @@ class Ceph(AgentCheck):
         except KeyError:
             self.log.debug('Error retrieving health metrics')
 
-        for osdinfo in raw['osd_pool_stats']:
-            name = osdinfo.get('pool_name')
-            local_tags = tags + ['ceph_pool:%s' % name]
-            ops = 0
-            try:
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_op_per_sec'], local_tags)
-                ops += osdinfo['client_io_rate']['read_op_per_sec']
-            except KeyError:
-                osdinfo['client_io_rate'].update({'read_op_per_sec' : 0})
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_op_per_sec'], local_tags)
+        try:
+            for osdinfo in raw['osd_pool_stats']:
+                name = osdinfo.get('pool_name')
+                local_tags = tags + ['ceph_pool:%s' % name]
+                ops = 0
+                try:
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_op_per_sec'], local_tags)
+                    ops += osdinfo['client_io_rate']['read_op_per_sec']
+                except KeyError:
+                    osdinfo['client_io_rate'].update({'read_op_per_sec' : 0})
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_op_per_sec'], local_tags)
 
-            try:
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_op_per_sec'], local_tags)
-                ops += osdinfo['client_io_rate']['write_op_per_sec']
-            except KeyError:
-                osdinfo['client_io_rate'].update({'write_op_per_sec' : 0})
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_op_per_sec'], local_tags)
+                try:
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_op_per_sec'], local_tags)
+                    ops += osdinfo['client_io_rate']['write_op_per_sec']
+                except KeyError:
+                    osdinfo['client_io_rate'].update({'write_op_per_sec' : 0})
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_op_per_sec'], local_tags)
 
-            try:
-                osdinfo['client_io_rate']['op_per_sec']
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'op_per_sec'], local_tags)
-            except KeyError:
-                osdinfo['client_io_rate'].update({'op_per_sec' : ops})
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'op_per_sec'], local_tags)
+                try:
+                    osdinfo['client_io_rate']['op_per_sec']
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'op_per_sec'], local_tags)
+                except KeyError:
+                    osdinfo['client_io_rate'].update({'op_per_sec' : ops})
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'op_per_sec'], local_tags)
 
-            try:
-                osdinfo['client_io_rate']['read_bytes_sec']
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_bytes_sec'], local_tags)
-            except KeyError:
-                osdinfo['client_io_rate'].update({'read_bytes_sec' : 0})
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_bytes_sec'], local_tags)
+                try:
+                    osdinfo['client_io_rate']['read_bytes_sec']
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_bytes_sec'], local_tags)
+                except KeyError:
+                    osdinfo['client_io_rate'].update({'read_bytes_sec' : 0})
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_bytes_sec'], local_tags)
 
-            try:
-                osdinfo['client_io_rate']['write_bytes_sec']
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_bytes_sec'], local_tags)
-            except KeyError:
-                osdinfo['client_io_rate'].update({'write_bytes_sec' : 0})
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_bytes_sec'], local_tags)
+                try:
+                    osdinfo['client_io_rate']['write_bytes_sec']
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_bytes_sec'], local_tags)
+                except KeyError:
+                    osdinfo['client_io_rate'].update({'write_bytes_sec' : 0})
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_bytes_sec'], local_tags)
+        except KeyError:
+            self.log.debug('Error retrieving osd_pool_stats metrics')
 
         try:
             osdstatus = raw['status']['osdmap']['osdmap']
