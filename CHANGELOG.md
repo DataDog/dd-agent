@@ -68,6 +68,7 @@ See [#2709][] for reference.
 * [FEATURE] Spark: spark standalone support. See [#2752][] (Thanks [@zachradtka][]), [omnibus-software-73](https://github.com/DataDog/omnibus-software/pull/73), [dd-agent-omnibus](https://github.com/DataDog/dd-agent-omnibus/pull/91)
 
 * [IMPROVEMENT] Cassandra: add read and write latency ColumnFamily metrics. See [#2483][]
+* [IMPROVEMENT] Ceph: improve health metrics. See [#2852][]
 * [IMPROVEMENT] Ceph: update to support 10.0.2.2. See [#2805][]
 * [IMPROVEMENT] Core: avoid calls to service discovery from dogstatsd. See [#2798][]
 * [IMPROVEMENT] Core: easier config for multiple endpoints. See [#2774][]
@@ -80,7 +81,7 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Docker: Add CPU throttling stats to Docker metrics. See [#2724][] (Thanks [@ejholmes][])
 * [IMPROVEMENT] Dogstatsd: fix server address when non_local_traffic is passed. See [#2691][]
 * [IMPROVEMENT] Elasticsearch: Add missing metrics. See [#2758][] (Thanks [@mdelaney][])
-* [IMPROVEMENT] Elasticsearch: Add elastic search cluster name to tags. See [#2744][] and [#2826][]
+* [IMPROVEMENT] Elasticsearch: Add elastic search cluster name to tags. See [#2744][], [#2820][] and [#2826][]
 * [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done. See [#2621][]
 * [IMPROVEMENT] Flare: hide multiple endpoints api_keys. See [#2646][]
 * [IMPROVEMENT] Gohai: Processes - simplify payload. See [#2600][]
@@ -116,7 +117,6 @@ See [#2709][] for reference.
 * [BUGFIX] Docker_daemon: Custom cgroups are per instance only. See [#2846][]
 * [BUGFIX] Docker_daemon: Fix pid retrieval that could affect k8s. See [#2847][]
 * [BUGFIX] Dockerutil: cpu subsys might be mistaken for cpuacct. See [#2829][]
-* [BUGFIX] Flare: user flare-specific url. See [#2813][]
 * [BUGFIX] Http_check: Bring back include_content option. See [#2631][]
 * [BUGFIX] IIS: Fix metrics tagging when multiple sites are specified on instance. See [#2677][]
 * [BUGFIX] JMXFetch: Do not scope MBeans queries on `list_not_matching_attributes` action. See [jmxfetch-102](https://github.com/DataDog/jmxfetch/pull/102)
@@ -3432,6 +3432,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2809]: https://github.com/DataDog/dd-agent/issues/2809
 [#2812]: https://github.com/DataDog/dd-agent/issues/2812
 [#2813]: https://github.com/DataDog/dd-agent/issues/2813
+[#2820]: https://github.com/DataDog/dd-agent/issues/2820
 [#2823]: https://github.com/DataDog/dd-agent/issues/2823
 [#2825]: https://github.com/DataDog/dd-agent/issues/2825
 [#2826]: https://github.com/DataDog/dd-agent/issues/2826
@@ -3440,6 +3441,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2844]: https://github.com/DataDog/dd-agent/issues/2844
 [#2846]: https://github.com/DataDog/dd-agent/issues/2846
 [#2847]: https://github.com/DataDog/dd-agent/issues/2847
+[#2852]: https://github.com/DataDog/dd-agent/issues/2852
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
