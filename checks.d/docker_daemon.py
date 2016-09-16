@@ -22,6 +22,7 @@ from utils.service_discovery.sd_backend import get_sd_backend
 
 EVENT_TYPE = 'docker'
 SERVICE_CHECK_NAME = 'docker.service_up'
+HEALTHCHECK_SERVICE_CHECK_NAME = 'docker.container_health'
 SIZE_REFRESH_RATE = 5  # Collect container sizes every 5 iterations of the check
 MAX_CGROUP_LISTING_RETRIES = 3
 CONTAINER_ID_RE = re.compile('[0-9a-f]{64}')
@@ -218,8 +219,11 @@ class DockerDaemon(AgentCheck):
         # containers running with custom cgroups?
         custom_cgroups = _is_affirmative(instance.get('custom_cgroups', False))
 
+        # submit healtcheck service checks?
+        health_service_checks = _is_affirmative(instance.get('health_service_checks', False))
+
         # Get the list of containers and the index of their names
-        containers_by_id = self._get_and_count_containers(custom_cgroups)
+        containers_by_id = self._get_and_count_containers(custom_cgroups, health_service_checks)
         containers_by_id = self._crawl_container_pids(containers_by_id, custom_cgroups)
 
         # Send events from Docker API
@@ -235,6 +239,10 @@ class DockerDaemon(AgentCheck):
         # Collect disk stats from Docker info command
         if self.collect_disk_stats:
             self._report_disk_stats()
+
+        # Report docker healthcheck SC's where available
+        if health_service_checks:
+            self._send_container_healthcheck_sc(containers_by_id)
 
     def _count_and_weigh_images(self):
         try:
@@ -252,7 +260,7 @@ class DockerDaemon(AgentCheck):
             # It's not an important metric, keep going if it fails
             self.warning("Failed to count Docker images. Exception: {0}".format(e))
 
-    def _get_and_count_containers(self, custom_cgroups=False):
+    def _get_and_count_containers(self, custom_cgroups=False, healthchecks=False):
         """List all the containers from the API, filter and count them."""
 
         # Querying the size of containers is slow, we don't do it at each run
@@ -297,10 +305,11 @@ class DockerDaemon(AgentCheck):
 
             # grab pid via API if custom cgroups - otherwise we won't find process when
             # crawling for pids.
-            if custom_cgroups:
+            if custom_cgroups or healthchecks:
                 try:
                     inspect_dict = self.docker_client.inspect_container(container_name)
                     container['_pid'] = inspect_dict['State']['Pid']
+                    container['health'] = inspect_dict['State'].get('Health', {})
                 except Exception as e:
                     self.log.debug("Unable to inspect Docker container: %s", e)
 
@@ -467,6 +476,20 @@ class DockerDaemon(AgentCheck):
                 m_func(
                     self, 'docker.container.size_rootfs', container['SizeRootFs'],
                     tags=tags)
+
+    def _send_container_healthcheck_sc(self, containers_by_id):
+        for container in containers_by_id.itervalues():
+            health = container.get('health', {})
+            tags = self._get_tags(container, CONTAINER)
+            status = AgentCheck.UNKNOWN
+            if health:
+                _health = health.get('Status', '')
+                if _health == 'unhealthy':
+                    status = AgentCheck.CRITICAL
+                elif _health == 'healthy':
+                    status = AgentCheck.OK
+
+            self.service_check(HEALTHCHECK_SERVICE_CHECK_NAME, status, tags=tags)
 
     def _report_image_size(self, images):
         for image in images:

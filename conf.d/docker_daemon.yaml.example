@@ -47,9 +47,17 @@ instances:
 
     # Do you use custom cgroups for this particular instance?
     # Note: enabling this option modifies the way in which we inspect the containers and causes
-    #       some overhead - if you run a high volume of containers we may timeout. Please only
-    #       enable if absolutely necessary.
+    #       some overhead - if you run a high volume of containers we may timeout.
+    #
     # custom_cgroups: false
+
+    # Report docker container healthcheck events as service checks
+    # Note: enabling this option modifies the way in which we inspect the containers and causes
+    #       some overhead - if you run a high volume of containers we may timeout.
+    #       Container Healthchecks are available starting with docker 1.12, enabling with older
+    #       versions will result in an UNKNOWN state for the service check.
+    #
+    # health_service_checks: false
 
     # Collect images stats
     # Number of available active images and intermediate images as gauges.
