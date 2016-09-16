@@ -91,14 +91,15 @@ class Ceph(AgentCheck):
             else:
                 for osdhealth in raw['health_detail']['detail']:
                     osd, pct = self._osd_pct_used(osdhealth)
-                    local_tags = tags + ['ceph_osd:%s' % osd.replace('.','')]
+                    if osd:
+                        local_tags = tags + ['ceph_osd:%s' % osd.replace('.','')]
 
-                    if 'near' in osdhealth:
-                        health = {'num_near_full_osds' : pct}
-                        self._publish(health, self.count, ['num_near_full_osds'], local_tags)
-                    else:
-                        health = {'num_full_osds' : pct}
-                        self._publish(health, self.count, ['num_full_osds'], local_tags)
+                        if 'near' in osdhealth:
+                            health = {'num_near_full_osds' : pct}
+                            self._publish(health, self.count, ['num_near_full_osds'], local_tags)
+                        else:
+                            health = {'num_full_osds' : pct}
+                            self._publish(health, self.count, ['num_full_osds'], local_tags)
         except KeyError:
             self.log.debug('Error retrieving health metrics')
 
@@ -194,9 +195,12 @@ class Ceph(AgentCheck):
             """Take a single health check string, return (OSD name, percentage used)"""
             # Full string looks like: osd.2 is full at 95%
             # Near full string: osd.1 is near full at 94%
-            pct = re.compile('\d+%')
-            osd = re.compile('osd.\d+')
-            return (osd.findall(health)[0], int(pct.findall(health)[0][:-1]))
+            pct = re.compile('\d+%').findall(health)
+            osd = re.compile('osd.\d+').findall(health)
+            if len(pct) > 0 and len(osd) > 0:
+                return osd[0], int(pct[0][:-1])
+            else:
+                return None, None
 
     def _perform_service_checks(self, raw, tags):
         if 'status' in raw:
