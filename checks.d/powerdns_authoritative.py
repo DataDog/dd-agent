@@ -73,6 +73,8 @@ class PowerDNSAuthoritativeCheck(AgentCheck):
         config, tags = self._get_config(instance)
         stats = self._get_pdns_stats(config)
         for stat in stats:
+            self.log.debug('powerdns.authoritative.{}:{}'.format(stat['name'], stat['value']))
+
             if stat['name'] in PowerDNSAuthoritativeCheck.GAUGE_METRICS:
                 self.gauge('powerdns.authoritative.{}'.format(stat['name']), float(stat['value']), tags=tags)
             elif stat['name'] in PowerDNSAuthoritativeCheck.RATE_METRICS:
@@ -110,4 +112,5 @@ class PowerDNSAuthoritativeCheck(AgentCheck):
             raise
         self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                            tags=service_check_tags)
+	    self.log.debug(request.json())
         return request.json()
