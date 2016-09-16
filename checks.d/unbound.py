@@ -35,11 +35,11 @@ class UnboundCheck(AgentCheck):
             if 'histogram' not in stat[0]: # dont send histogram metrics
                 self.log.debug('unbound.{}:{}'.format(stat[0], stat[1]))
 
-                if '.time.' in stat[0]:
-                    self.gauge('unbound.{}'.format(stat[0]), float(stat[1]), tags=tags)
-                elif 'unbound.unwanted.' in stat[0]:
+                if 'num.' in stat[0]:
                     self.rate('unbound.{}'.format(stat[0]), float(stat[1]), tags=tags)
-                elif '.num.' in stat[0]:
+                elif 'time.' in stat[0]:
+                    self.gauge('unbound.{}'.format(stat[0]), float(stat[1]), tags=tags)
+                elif 'unwanted.' in stat[0]:
                     self.rate('unbound.{}'.format(stat[0]), float(stat[1]), tags=tags)
                 else:
                     self.gauge('unbound.{}'.format(stat[0]), float(stat[1]), tags=tags)
