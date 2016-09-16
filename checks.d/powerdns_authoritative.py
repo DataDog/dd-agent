@@ -98,7 +98,7 @@ class PowerDNSAuthoritativeCheck(AgentCheck):
         return Config(host, port, api_key), tags
 
     def _get_pdns_stats(self, config):
-        url = "http://{}:{}/servers/localhost/statistics".format(config.host, config.port)
+        url = "http://{}:{}/api/v1/servers/localhost/statistics".format(config.host, config.port)
         service_check_tags = ['authoritative_host:{}'.format(config.host), 'authoritative_port:{}'.format(config.port)]
         headers = {"X-API-Key": config.api_key}
         try:
