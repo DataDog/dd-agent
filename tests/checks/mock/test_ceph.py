@@ -79,3 +79,17 @@ class TestCeph(AgentCheckTest):
             expected_metrics = ['ceph.read_op_per_sec', 'ceph.write_op_per_sec', 'ceph.op_per_sec']
             for metric in expected_metrics:
                 self.assertMetric(metric, count=1, tags=expected_tags)
+
+    def test_osd_status_metrics_non_osd_health(self):
+        """
+        The `detail` key of `health detail` can contain info on the health of non-osd units:
+        shouldn't make the check fail
+        """
+        mocks = {
+            '_collect_raw': lambda x,y: json.loads(Fixtures.read_file('ceph_10.2.2_mon_health.json')),
+        }
+        config = {
+            'instances': [{'host': 'foo'}]
+        }
+
+        self.run_check_twice(config, mocks=mocks, force_reload=True)
