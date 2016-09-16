@@ -83,23 +83,25 @@ class Ceph(AgentCheck):
             self.log.debug('Error retrieving osdperf metrics')
 
         try:
+            health = {'num_near_full_osds': 0, 'num_full_osds': 0}
             # Health summary will be empty if no bad news
-            if raw['health_detail']['summary'] == []:
-                health = {'num_near_full_osds' : 0, 'num_full_osds' : 0}
-                self._publish(health, self.count, ['num_near_full_osds'], tags)
-                self._publish(health, self.count, ['num_full_osds'], tags)
-            else:
+            if raw['health_detail']['summary'] != []:
                 for osdhealth in raw['health_detail']['detail']:
                     osd, pct = self._osd_pct_used(osdhealth)
                     if osd:
                         local_tags = tags + ['ceph_osd:%s' % osd.replace('.','')]
 
                         if 'near' in osdhealth:
-                            health = {'num_near_full_osds' : pct}
-                            self._publish(health, self.count, ['num_near_full_osds'], local_tags)
+                            health['num_near_full_osds'] += 1
+                            local_health = {'osd.pct_used': pct}
+                            self._publish(local_health, self.gauge, ['osd.pct_used'], local_tags)
                         else:
-                            health = {'num_full_osds' : pct}
-                            self._publish(health, self.count, ['num_full_osds'], local_tags)
+                            health['num_full_osds'] += 1
+                            local_health = {'osd.pct_used': pct}
+                            self._publish(local_health, self.gauge, ['osd.pct_used'], local_tags)
+
+            self._publish(health, self.gauge, ['num_full_osds'], tags)
+            self._publish(health, self.gauge, ['num_near_full_osds'], tags)
         except KeyError:
             self.log.debug('Error retrieving health metrics')
 
