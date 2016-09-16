@@ -1,9 +1,9 @@
 init_config:
-  # cacert: /path/to/ca.pem
-  # disable_cert_verify: true
 
 instances:
   - url: http://127.0.0.1:8098/stats
+    # cacert: /path/to/ca.pem
+    # disable_cert_verify: true
     # tags:
     #  - optional_tag1
     #  - optional_tag2
