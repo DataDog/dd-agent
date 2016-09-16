@@ -6,6 +6,9 @@
 import logging
 import simplejson as json
 
+# 3rd party
+from docker.errors import NullResource, NotFound
+
 # project
 from utils.dockerutil import DockerUtil
 from utils.kubeutil import KubeUtil
@@ -43,6 +46,29 @@ class SDDockerBackend(AbstractSDBackend):
         }
 
         AbstractSDBackend.__init__(self, agentConfig)
+
+    def update_checks(self, changed_containers):
+        conf_reload_set = set()
+        for id_ in changed_containers:
+            try:
+                inspect = self.docker_client.inspect_container(id_)
+            except (NullResource, NotFound):
+                inspect = {}
+
+            checks = self._get_checks_from_inspect(inspect)
+            conf_reload_set.update(set(checks))
+
+        if conf_reload_set:
+            self.reload_check_configs = conf_reload_set
+
+    def _get_checks_from_inspect(self, inspect):
+        """Get the list of checks applied to a container from the identifier_to_checks cache in the config store.
+        Use the DATADOG_ID label or the image."""
+        identifier = inspect.get('Config', {}).get('Labels', {}).get(DATADOG_ID) or \
+            inspect.get('Config', {}).get('Image')
+        annotations = (self._get_kube_config(inspect.get('Id'), 'metadata') or {}).get('annotations') if Platform.is_k8s() else None
+
+        return self.config_store.get_checks_to_refresh(identifier, kube_annotations=annotations)
 
     def _get_host_address(self, c_inspect, tpl_var):
         """Extract the container IP from a docker inspect object, or the kubelet API."""

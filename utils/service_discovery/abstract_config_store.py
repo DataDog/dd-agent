@@ -129,6 +129,16 @@ class AbstractConfigStore(object):
 
         return None
 
+    def get_checks_to_refresh(self, identifier, **kwargs):
+        to_check = set(self.identifier_to_checks[identifier])
+        kube_annotations = kwargs.get('kube_annotations')
+        if kube_annotations:
+            kube_config = self._get_kube_config(identifier, kube_annotations)
+            if kube_config is not None:
+                to_check.update(kube_config[0])
+
+        return to_check
+
     def get_check_tpls(self, identifier, **kwargs):
         """Retrieve template configs for an identifier from the config_store or auto configuration."""
         trace_config = kwargs.get(TRACE_CONFIG, False)
