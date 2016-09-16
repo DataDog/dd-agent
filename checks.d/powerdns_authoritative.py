@@ -17,7 +17,10 @@ class PowerDNSAuthoritativeCheck(AgentCheck):
         stats = self._get_pdns_stats(config)
         for stat in stats:
             self.log.debug('powerdns.authoritative.{}:{}'.format(stat['name'], stat['value']))
-            self.gauge('powerdns.authoritative.{}'.format(stat['name']), float(stat['value']), tags=tags)
+            if 'status' or 'usage' or 'size' in stat['name']:
+                self.gauge('powerdns.authoritative.{}'.format(stat['name']), float(stat['value']), tags=tags)
+            else:
+                self.rate('powerdns.authoritative.{}'.format(stat['name']), float(stat['value']), tags=tags)
 
     def _get_config(self, instance):
         required = ['host', 'port', 'api_key']
