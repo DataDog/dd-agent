@@ -19,7 +19,6 @@ from checks import AgentCheck
 
 ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')
-DEFAULT_DB_KEY = 'database'
 
 # Constant for SQLServer cntr_type
 PERF_LARGE_RAW_BASE = 1073939712
@@ -64,6 +63,8 @@ class SQLServer(AgentCheck):
     # FIXME: 6.x, set default to 5s (like every check)
     DEFAULT_COMMAND_TIMEOUT = 30
     DEFAULT_DATABASE = 'master'
+    DEFAULT_DB_KEY = 'database'
+    PROC_GUARD_DB_KEY = 'proc_only_if_database'
 
     METRICS = [
         ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio', ''),  # RAW_LARGE_FRACTION
@@ -101,14 +102,14 @@ class SQLServer(AgentCheck):
                 # check to see if the database exists before we try any connections to it
                 self.open_db_connections(instance, db_name=self.DEFAULT_DATABASE)
                 db_exists, context = self._check_db_exists(instance)
-                instance_key = self._conn_key(instance, db_key=DEFAULT_DB_KEY)
+                instance_key = self._conn_key(instance, db_key=self.DEFAULT_DB_KEY)
                 
                 if db_exists:
                     self.do_check[instance_key] = True
                     if instance.get('stored_procedure') is None:
-                        self.open_db_connections(instance, db_key=DEFAULT_DB_KEY)
+                        self.open_db_connections(instance, db_key=self.DEFAULT_DB_KEY)
                         self._make_metric_list_to_collect(instance, custom_metrics)
-                        self.close_db_connections(instance, db_key=DEFAULT_DB_KEY)
+                        self.close_db_connections(instance, db_key=self.DEFAULT_DB_KEY)
                 else:
                     # How much do we care that the DB doesn't exist?
                     ignore = instance.get('ignore_missing_database')
@@ -134,7 +135,7 @@ class SQLServer(AgentCheck):
         This allows the same config to be installed on many servers but fail gracefully
         """
         
-        host, username, password, database = self._get_access_info(instance, db_key=DEFAULT_DB_KEY)
+        host, username, password, database = self._get_access_info(instance, db_key=self.DEFAULT_DB_KEY)
         context = "%s - %s" % (host, database)
         if self.existing_databases is None:
             cursor = self.get_cursor(instance, db_name='master')
@@ -195,7 +196,7 @@ class SQLServer(AgentCheck):
                                                         row.get('instance_name', ''),
                                                         row.get('tag_by', None)))
 
-        instance_key = self._conn_key(instance, db_key=DEFAULT_DB_KEY)
+        instance_key = self._conn_key(instance, db_key=self.DEFAULT_DB_KEY)
         self.instances_metrics[instance_key] = metrics_to_collect
 
     def typed_metric(self, dd_name, sql_name, base_name, user_type, sql_type, instance_name, tag_by):
@@ -234,8 +235,8 @@ class SQLServer(AgentCheck):
         database = instance.get(db_key) if db_name is None else db_name
 
         if database is None:
-            database = (self.DEFAULT_DATABASE if (db_key == DEFAULT_DB_KEY) else
-                        instance.get(DEFAULT_DB_KEY, self.DEFAULT_DATABASE))
+            database = (self.DEFAULT_DATABASE if (db_key == self.DEFAULT_DB_KEY) else
+                        instance.get(self.DEFAULT_DB_KEY, self.DEFAULT_DATABASE))
 
         return host, username, password, database
 
@@ -306,7 +307,7 @@ class SQLServer(AgentCheck):
         return sql_type, base_name
 
     def check(self, instance):
-        if self.do_check[self._conn_key(instance, db_key=DEFAULT_DB_KEY)]:
+        if self.do_check[self._conn_key(instance, db_key=self.DEFAULT_DB_KEY)]:
             proc = instance.get('stored_procedure')
             if proc is None:
                 self.do_perf_counter_check(instance)
@@ -319,11 +320,11 @@ class SQLServer(AgentCheck):
         """
         Fetch the metrics from the sys.dm_os_performance_counters table
         """
-        self.open_db_connections(instance, db_key=DEFAULT_DB_KEY)
-        cursor = self.get_cursor(instance, db_key=DEFAULT_DB_KEY)
+        self.open_db_connections(instance, db_key=self.DEFAULT_DB_KEY)
+        cursor = self.get_cursor(instance, db_key=self.DEFAULT_DB_KEY)
 
         custom_tags = instance.get('tags', [])
-        instance_key = self._conn_key(instance, db_key=DEFAULT_DB_KEY)
+        instance_key = self._conn_key(instance, db_key=self.DEFAULT_DB_KEY)
         metrics_to_collect = self.instances_metrics[instance_key]
 
         for metric in metrics_to_collect:
@@ -333,7 +334,7 @@ class SQLServer(AgentCheck):
                 self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
         self.close_cursor(cursor)
-        self.close_db_connections(instance, db_key=DEFAULT_DB_KEY)
+        self.close_db_connections(instance, db_key=self.DEFAULT_DB_KEY)
 
     def do_stored_procedure_check(self, instance, proc):
         """
@@ -343,8 +344,8 @@ class SQLServer(AgentCheck):
         guardSql = instance.get('proc_only_if')
 
         if (guardSql and self.proc_check_guard(instance, guardSql)) or not guardSql:
-            self.open_db_connections(instance, db_key=DEFAULT_DB_KEY)
-            cursor = self.get_cursor(instance, db_key=DEFAULT_DB_KEY)
+            self.open_db_connections(instance, db_key=self.DEFAULT_DB_KEY)
+            cursor = self.get_cursor(instance, db_key=self.DEFAULT_DB_KEY)
 
             try:
                 cursor.callproc(proc)
@@ -362,7 +363,7 @@ class SQLServer(AgentCheck):
                 self.log.warning("Could not call procedure %s: %s" % (proc, e))
                 
             self.close_cursor(cursor)
-            self.close_db_connections(instance, db_key=DEFAULT_DB_KEY)
+            self.close_db_connections(instance, db_key=self.DEFAULT_DB_KEY)
         else:
             self.log.info("Skipping call to %s due to only_if" % (proc))
 
@@ -371,8 +372,8 @@ class SQLServer(AgentCheck):
         check to see if the guard SQL returns a single column contains 0 or 1
         We return true if 1, False if 0
         """
-        self.open_db_connections(instance, 'proc_only_if_database')
-        cursor = self.get_cursor(instance, db_key='proc_only_if_database')
+        self.open_db_connections(instance, self.PROC_GUARD_DB_KEY)
+        cursor = self.get_cursor(instance, db_key=self.PROC_GUARD_DB_KEY)
 
         try:
             cursor.execute(sql, ())
@@ -383,7 +384,7 @@ class SQLServer(AgentCheck):
             return False
         
         self.close_cursor(cursor)
-        self.close_db_connections(instance, db_key='proc_only_if_database')
+        self.close_db_connections(instance, db_key=self.PROC_GUARD_DB_KEY)
     
     def close_cursor(self, cursor):
         """
