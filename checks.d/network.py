@@ -382,11 +382,11 @@ class Network(AgentCheck):
             assert(icmp_msg_metrics['IcmpMsg:'] == 'IcmpMsg:')
 
             icmp_msg_metrics_name = {
-                'InType3'	: 'system.net.icmp_msg.in_type_3'
-                'InType8'	: 'system.net.icmp_msg.in_type_8'
-                'OutType0'	: 'system.net.icmp_msg.out_type_0'
-                'OutType3'	: 'system.net.icmp_msg.out_type_3'
-                'OutType11'	: 'system.net.icmp_msg.out_type_11'
+                'InType3'	: 'system.net.icmp_msg.in_type_3',
+                'InType8'	: 'system.net.icmp_msg.in_type_8',
+                'OutType0'	: 'system.net.icmp_msg.out_type_0',
+                'OutType3'	: 'system.net.icmp_msg.out_type_3',
+                'OutType11'	: 'system.net.icmp_msg.out_type_11',
             }
             for key, metric in icmp_msg_metrics_name.iteritems():
                 if key in icmp_msg_metrics:
