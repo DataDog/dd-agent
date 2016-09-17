@@ -347,32 +347,32 @@ class Network(AgentCheck):
             assert(icmp_metrics['Icmp:'] == 'Icmp:')
 
             icmp_metrics_name = {
-                'InMsgs'	        : 'system.net.icmp.in_msgs'
-                'InErrors'	        : 'system.net.icmp.in_errors'
-                'InCsumErrors'	    : 'system.net.icmp.in_csum_errors'
-                'InDestUnreachs'    : 'system.net.icmp.in_dest_unreachs'
-                'InTimeExcds'	    : 'system.net.icmp.in_time_excds'
-                'InParmProbs'	    : 'system.net.icmp.in_param_probs'
-                'InSrcQuenchs'	    : 'system.net.icmp.in_src_quenchs'
-                'InRedirects'	    : 'system.net.icmp.in_redirects'
-                'InEchos'	        : 'system.net.icmp.in_echos'
-                'InEchoReps'	    : 'system.net.icmp.in_echos_reps'
-                'InTimestamps'	    : 'system.net.icmp.in_timestamps'
-                'InTimestampReps'   : 'system.net.icmp.in_timestams_reps'
-                'InAddrMasks'	    : 'system.net.icmp.in_addr_masks'
-                'InAddrMaskReps'    : 'system.net.icmp.in_addr_mask_reps'
-                'OutMsgs'	        : 'system.net.icmp.out_msgs'
-                'OutErrors'	        : 'system.net.icmp.out_errors'
-                'OutDestUnreachs'   : 'system.net.icmp.out_dest_unreachs'
-                'OutTimeExcds'	    : 'system.net.icmp.out_time_excds'
-                'OutParmProbs'	    : 'system.net.icmp.out_parm_probs'
-                'OutSrcQuenchs'	    : 'system.net.icmp.out_src_quenchs'
-                'OutRedirects'	    : 'system.net.icmp.out_redirects'
-                'OutEchos'	        : 'system.net.icmp.out_echos'
-                'OutEchoReps'	    : 'system.net.icmp.out_echo_reps'
-                'OutTimestamps'	    : 'system.net.icmp.out_timestamps'
-                'OutTimestampReps'  : 'system.net.icmp.out_timestamp_reps'
-                'OutAddrMasks'	    : 'system.net.icmp.out_addr_masks'
+                'InMsgs'	        : 'system.net.icmp.in_msgs',
+                'InErrors'	        : 'system.net.icmp.in_errors',
+                'InCsumErrors'	    : 'system.net.icmp.in_csum_errors',
+                'InDestUnreachs'    : 'system.net.icmp.in_dest_unreachs',
+                'InTimeExcds'	    : 'system.net.icmp.in_time_excds',
+                'InParmProbs'	    : 'system.net.icmp.in_param_probs',
+                'InSrcQuenchs'	    : 'system.net.icmp.in_src_quenchs',
+                'InRedirects'	    : 'system.net.icmp.in_redirects',
+                'InEchos'	        : 'system.net.icmp.in_echos',
+                'InEchoReps'	    : 'system.net.icmp.in_echos_reps',
+                'InTimestamps'	    : 'system.net.icmp.in_timestamps',
+                'InTimestampReps'   : 'system.net.icmp.in_timestams_reps',
+                'InAddrMasks'	    : 'system.net.icmp.in_addr_masks',
+                'InAddrMaskReps'    : 'system.net.icmp.in_addr_mask_reps',
+                'OutMsgs'	        : 'system.net.icmp.out_msgs',
+                'OutErrors'	        : 'system.net.icmp.out_errors',
+                'OutDestUnreachs'   : 'system.net.icmp.out_dest_unreachs',
+                'OutTimeExcds'	    : 'system.net.icmp.out_time_excds',
+                'OutParmProbs'	    : 'system.net.icmp.out_parm_probs',
+                'OutSrcQuenchs'	    : 'system.net.icmp.out_src_quenchs',
+                'OutRedirects'	    : 'system.net.icmp.out_redirects',
+                'OutEchos'	        : 'system.net.icmp.out_echos',
+                'OutEchoReps'	    : 'system.net.icmp.out_echo_reps',
+                'OutTimestamps'	    : 'system.net.icmp.out_timestamps',
+                'OutTimestampReps'  : 'system.net.icmp.out_timestamp_reps',
+                'OutAddrMasks'	    : 'system.net.icmp.out_addr_masks',
                 'OutAddrMaskReps'	: 'system.net.icmp.out_addr_mask_reps'
             }
             for key, metric in icmp_metrics_name.iteritems():
