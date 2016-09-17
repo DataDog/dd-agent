@@ -55,12 +55,15 @@ def _get_check_tpls(image_name, **kwargs):
             return None
 
 
-def client_read(path):
+def client_read(path, **kwargs):
     """Return a mocked string that would normally be read from a config store (etcd, consul...)."""
     parts = path.split('/')
     config_parts = ['check_names', 'init_configs', 'instances']
     image, config_part = parts[-2], parts[-1]
-    return TestServiceDiscovery.mock_tpls.get(image)[0][config_parts.index(config_part)]
+    if 'all' in kwargs:
+        return {}
+    else:
+        return TestServiceDiscovery.mock_tpls.get(image)[0][config_parts.index(config_part)]
 
 
 def issue_read(identifier):

@@ -46,6 +46,36 @@ class TestCeph(AgentCheckTest):
         for pool in ['pool0', 'rbd']:
             expected_tags = ['ceph_fsid:e0efcf84-e8ed-4916-8ce1-9c70242d390a',
                              'ceph_mon_state:peon',
-                             'ceph_pool_name:%s' % pool]
+                             'ceph_pool:%s' % pool]
             for metric in ['ceph.read_bytes', 'ceph.write_bytes', 'ceph.pct_used', 'ceph.num_objects']:
+                self.assertMetric(metric, count=1, tags=expected_tags)
+
+    def test_osd_status_metrics(self):
+        mocks = {
+            '_collect_raw': lambda x,y: json.loads(Fixtures.read_file('ceph_10.2.2.json')),
+        }
+        config = {
+            'instances': [{'host': 'foo'}]
+        }
+
+        self.run_check_twice(config, mocks=mocks, force_reload=True)
+        for osd in ['osd2']:
+            expected_tags = ['ceph_fsid:e0efcf84-e8ed-4916-8ce1-9c70242d390a','ceph_mon_state:leader',
+                             'ceph_osd:%s' % osd]
+
+            for metric in ['ceph.num_full_osds']:
+                self.assertMetric(metric, count=1, tags=expected_tags)
+
+        for osd in ['osd1']:
+            expected_tags = ['ceph_fsid:e0efcf84-e8ed-4916-8ce1-9c70242d390a','ceph_mon_state:leader',
+                             'ceph_osd:%s' % osd]
+
+            for metric in ['ceph.num_near_full_osds']:
+                self.assertMetric(metric, count=1, tags=expected_tags)
+
+        for pool in ['rbd', 'scbench']:
+            expected_tags = ['ceph_fsid:e0efcf84-e8ed-4916-8ce1-9c70242d390a','ceph_mon_state:leader',
+                 'ceph_pool:%s' % pool]
+            expected_metrics = ['ceph.read_op_per_sec', 'ceph.write_op_per_sec', 'ceph.op_per_sec']
+            for metric in expected_metrics:
                 self.assertMetric(metric, count=1, tags=expected_tags)

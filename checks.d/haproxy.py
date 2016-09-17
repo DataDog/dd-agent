@@ -153,7 +153,7 @@ class HAProxy(AgentCheck):
 
         self.log.debug("HAProxy Fetching haproxy search data from: %s" % url)
 
-        r = requests.get(url, auth=auth, headers=headers(self.agentConfig), verify=verify)
+        r = requests.get(url, auth=auth, headers=headers(self.agentConfig), verify=verify, timeout=self.default_integration_http_timeout)
         r.raise_for_status()
 
         return r.content.splitlines()

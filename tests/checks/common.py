@@ -18,8 +18,10 @@ import unittest
 # project
 from checks import AgentCheck
 from config import get_checksd_path
-from util import get_hostname, get_os
+
 from utils.debug import get_check  # noqa -  FIXME 5.5.0 AgentCheck tests should not use this
+from utils.hostname import get_hostname
+from utils.platform import get_os
 
 log = logging.getLogger('tests')
 

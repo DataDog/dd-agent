@@ -19,7 +19,7 @@ def get_config_store(agentConfig):
         return EtcdStore(agentConfig)
     elif agentConfig.get('sd_config_backend') == 'consul':
         return ConsulStore(agentConfig)
-    elif agentConfig.get('sd_config_backend') is None:
+    else:
         return StubStore(agentConfig)
 
 

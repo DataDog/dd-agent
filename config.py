@@ -23,8 +23,8 @@ import traceback
 from urlparse import urlparse
 
 # project
-from util import check_yaml, get_os
-from utils.platform import Platform
+from util import check_yaml
+from utils.platform import Platform, get_os
 from utils.proxy import get_proxy
 from utils.service_discovery.config import extract_agent_config
 from utils.service_discovery.config_stores import CONFIG_FROM_FILE, TRACE_CONFIG
@@ -325,6 +325,10 @@ def clean_dd_url(url):
     return url[:-1] if url.endswith('/') else url
 
 
+def remove_empty(string_array):
+    return filter(lambda x: x, string_array)
+
+
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
         options, _ = get_parsed_args()
@@ -384,22 +388,12 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             sys.exit(2)
 
         # Endpoints
-        dd_url = clean_dd_url(config.get('Main', 'dd_url'))
-        api_key = config.get('Main', 'api_key').strip()
+        dd_urls = map(clean_dd_url, config.get('Main', 'dd_url').split(','))
+        api_keys = map(lambda el: el.strip(), config.get('Main', 'api_key').split(','))
 
         # For collector and dogstatsd
-        agentConfig['api_key'] = api_key
-        agentConfig['dd_url'] = dd_url
-
-        # multiple endpoints
-        if config.has_option('Main', 'other_dd_urls'):
-            other_dd_urls = map(clean_dd_url, config.get('Main', 'other_dd_urls').split(','))
-        else:
-            other_dd_urls = []
-        if config.has_option('Main', 'other_api_keys'):
-            other_api_keys = map(lambda x: x.strip(), config.get('Main', 'other_api_keys').split(','))
-        else:
-            other_api_keys = []
+        agentConfig['dd_url'] = dd_urls[0]
+        agentConfig['api_key'] = api_keys[0]
 
         # Forwarder endpoints logic
         # endpoints is:
@@ -407,13 +401,16 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         #    'https://app.datadoghq.com': ['api_key_abc', 'api_key_def'],
         #    'https://app.example.com': ['api_key_xyz']
         # }
-        endpoints = {dd_url: [api_key]}
-        if len(other_dd_urls) == 0:
-            endpoints[dd_url] += other_api_keys
+        endpoints = {}
+        dd_urls = remove_empty(dd_urls)
+        api_keys = remove_empty(api_keys)
+        if len(dd_urls) == 1:
+            if len(api_keys) > 0:
+                endpoints[dd_urls[0]] = api_keys
         else:
-            assert len(other_dd_urls) == len(other_api_keys), 'Please provide one api_key for each url'
-            for i, other_dd_url in enumerate(other_dd_urls):
-                endpoints[other_dd_url] = endpoints.get(other_dd_url, []) + [other_api_keys[i]]
+            assert len(dd_urls) == len(api_keys), 'Please provide one api_key for each url'
+            for i, dd_url in enumerate(dd_urls):
+                endpoints[dd_url] = endpoints.get(dd_url, []) + [api_keys[i]]
 
         agentConfig['endpoints'] = endpoints
 
@@ -519,11 +516,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig['statsd_forward_host'] = config.get('Main', 'statsd_forward_host')
             if config.has_option('Main', 'statsd_forward_port'):
                 agentConfig['statsd_forward_port'] = int(config.get('Main', 'statsd_forward_port'))
-
-        # optionally send dogstatsd data directly to the agent.
-        if config.has_option('Main', 'dogstatsd_use_ddurl'):
-            if _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl')):
-                agentConfig['dogstatsd_target'] = agentConfig['dd_url']
 
         # Optional config
         # FIXME not the prettiest code ever...
@@ -1075,6 +1067,36 @@ def load_check_directory(agentConfig, hostname):
     return {'initialized_checks': initialized_checks.values(),
             'init_failed_checks': init_failed_checks,
             }
+
+
+def load_check(agentConfig, hostname, checkname):
+    """Same logic as load_check_directory except it loads one specific check"""
+    agentConfig['checksd_hostname'] = hostname
+    osname = get_os()
+    checks_places = get_checks_places(osname, agentConfig)
+    for config_path in _file_configs_paths(osname, agentConfig):
+        check_name = _conf_path_to_check_name(config_path)
+        if check_name == checkname:
+            conf_is_valid, check_config, invalid_check = _load_file_config(config_path, check_name, agentConfig)
+
+            if invalid_check and not conf_is_valid:
+                return invalid_check
+
+            # try to load the check and return the result
+            load_success, load_failure = load_check_from_places(check_config, check_name, checks_places, agentConfig)
+            return load_success.values()[0] or load_failure
+
+    # the check was not found, try with service discovery
+    for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
+        if check_name == checkname:
+            sd_init_config, sd_instances = service_disco_check_config
+            check_config = {'init_config': sd_init_config, 'instances': sd_instances}
+
+            # try to load the check and return the result
+            load_success, load_failure = load_check_from_places(check_config, check_name, checks_places, agentConfig)
+            return load_success.values()[0] or load_failure
+
+    return None
 
 #
 # logging

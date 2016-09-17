@@ -73,7 +73,7 @@ class Nginx(AgentCheck):
         try:
             self.log.debug(u"Querying URL: {0}".format(url))
             r = requests.get(url, auth=auth, headers=headers(self.agentConfig),
-                             verify=ssl_validation)
+                             verify=ssl_validation, timeout=self.default_integration_http_timeout)
             r.raise_for_status()
         except Exception:
             self.service_check(service_check_name, AgentCheck.CRITICAL,

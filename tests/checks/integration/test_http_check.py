@@ -134,8 +134,30 @@ CONFIG_HTTP_HEADERS = {
     }]
 }
 
+CONFIG_HTTP_REDIRECTS = {
+    'instances': [{
+        'name': 'redirect_service',
+        'url': 'http://github.com',
+        'timeout': 1,
+        'http_response_status_code': 301,
+        'allow_redirects': False,
+    }]
+}
 
 FAKE_CERT = {'notAfter': 'Apr 12 12:00:00 2006 GMT'}
+
+CONFIG_POST_METHOD = {
+    'instances': [{
+        'name': 'post_method',
+        'url': 'http://httpbin.org/post',
+        'timeout': 1,
+        'method': 'post',
+        'data': {
+            'foo': 'bar',
+            'baz': ['qux','quux']
+        }
+    }]
+}
 
 
 @attr(requires='network')
@@ -169,7 +191,7 @@ class HTTPCheckTest(AgentCheckTest):
         """
         # Run the check
         self.load_check(CONFIG_HTTP_HEADERS, AGENT_CONFIG)
-        headers = self.check._load_conf(CONFIG_HTTP_HEADERS['instances'][0])[6]
+        headers = self.check._load_conf(CONFIG_HTTP_HEADERS['instances'][0])[8]
 
         self.assertEqual(headers["X-Auth-Token"], "SOME-AUTH-TOKEN", headers)
         expected_headers = agent_headers(AGENT_CONFIG).get('User-Agent')
@@ -230,6 +252,16 @@ class HTTPCheckTest(AgentCheckTest):
 
         self.coverage_report()
 
+    def test_check_allow_redirects(self):
+        self.run_check(CONFIG_HTTP_REDIRECTS)
+        # Overrides self.service_checks attribute when values are available\
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 1)
+
+        tags = ['url:http://github.com', 'instance:redirect_service']
+        self.assertServiceCheckOK("http.can_connect", tags=tags)
+
+        self.coverage_report()
+
     @mock.patch('ssl.SSLSocket.getpeercert', return_value=FAKE_CERT)
     def test_mock_case(self, getpeercert_func):
         self.run_check(CONFIG_EXPIRED_SSL)
@@ -274,3 +306,7 @@ class HTTPCheckTest(AgentCheckTest):
             "Datadog Agent.",
             count=1
         )
+
+    def test_post_method(self):
+        # Run the check
+        self.run_check(CONFIG_POST_METHOD)

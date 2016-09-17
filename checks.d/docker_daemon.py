@@ -18,6 +18,7 @@ from utils.dockerutil import DockerUtil, MountException
 from utils.kubeutil import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.sd_backend import get_sd_backend
+from utils.service_discovery.config_stores import get_config_store
 
 
 EVENT_TYPE = 'docker'
@@ -69,6 +70,13 @@ CGROUP_METRICS = [
         },
     },
     {
+        "cgroup": "cpu",
+        "file": "cpu.stat",
+        "metrics": {
+            "nr_throttled": ("docker.cpu.throttled", RATE)
+        },
+    },
+    {
         "cgroup": "blkio",
         "file": 'blkio.throttle.io_service_bytes',
         "metrics": {
@@ -111,6 +119,8 @@ PERFORMANCE = "performance"
 FILTERED = "filtered"
 IMAGE = "image"
 
+ECS_INTROSPECT_DEFAULT_PORT = 51678
+
 
 def get_filters(include, exclude):
     # The reasoning is to check exclude first, so we can skip if there is no exclude
@@ -142,24 +152,29 @@ class DockerDaemon(AgentCheck):
                             agentConfig, instances=instances)
 
         self.init_success = False
-        self.init()
         self._service_discovery = agentConfig.get('service_discovery') and \
             agentConfig.get('service_discovery_backend') == 'docker'
-        self._custom_cgroups = _is_affirmative(init_config.get('custom_cgroups', False))
-
-    def is_k8s(self):
-        return 'KUBERNETES_PORT' in os.environ
+        self.init()
 
     def init(self):
         try:
             instance = self.instances[0]
 
+            # if service discovery is enabled dockerutil will need a reference to the config store
+            if self._service_discovery:
+                self.docker_util = DockerUtil(
+                    agentConfig=self.agentConfig,
+                    config_store=get_config_store(self.agentConfig)
+                )
+            else:
+                self.docker_util = DockerUtil()
+            self.docker_client = self.docker_util.client
+            self.docker_gateway = DockerUtil.get_gateway()
+
+            if Platform.is_k8s():
+                self.kubeutil = KubeUtil()
             # We configure the check with the right cgroup settings for this host
             # Just needs to be done once
-            self.docker_util = DockerUtil()
-            self.docker_client = self.docker_util.client
-            if self.is_k8s():
-                self.kubeutil = KubeUtil()
             self._mountpoints = self.docker_util.get_mountpoints(CGROUP_METRICS)
             self.cgroup_listing_retries = 0
             self._latest_size_query = 0
@@ -225,7 +240,7 @@ class DockerDaemon(AgentCheck):
         if self.collect_ecs_tags:
             self.refresh_ecs_tags()
 
-        if self.is_k8s():
+        if Platform.is_k8s():
             try:
                 self.kube_labels = self.kubeutil.get_kube_labels()
             except Exception as e:
@@ -233,11 +248,11 @@ class DockerDaemon(AgentCheck):
                 self.kube_labels = {}
 
         # containers running with custom cgroups?
-        custom_cgroups = _is_affirmative(instance.get('custom_cgroups', self._custom_cgroups))
+        custom_cgroups = _is_affirmative(instance.get('custom_cgroups', False))
 
         # Get the list of containers and the index of their names
         containers_by_id = self._get_and_count_containers(custom_cgroups)
-        containers_by_id = self._crawl_container_pids(containers_by_id)
+        containers_by_id = self._crawl_container_pids(containers_by_id, custom_cgroups)
 
         # Send events from Docker API
         if self.collect_events or self._service_discovery:
@@ -344,7 +359,7 @@ class DockerDaemon(AgentCheck):
         tags = list(self.custom_tags)
 
         # Collect pod names as tags on kubernetes
-        if self.is_k8s() and KubeUtil.POD_NAME_LABEL not in self.collect_labels_as_tags:
+        if Platform.is_k8s() and KubeUtil.POD_NAME_LABEL not in self.collect_labels_as_tags:
             self.collect_labels_as_tags.append(KubeUtil.POD_NAME_LABEL)
 
         if entity is not None:
@@ -356,7 +371,7 @@ class DockerDaemon(AgentCheck):
                 for k in self.collect_labels_as_tags:
                     if k in labels:
                         v = labels[k]
-                        if k == KubeUtil.POD_NAME_LABEL and self.is_k8s():
+                        if k == KubeUtil.POD_NAME_LABEL and Platform.is_k8s():
                             pod_name = v
                             k = "pod_name"
                             if "-" in pod_name:
@@ -378,7 +393,7 @@ class DockerDaemon(AgentCheck):
                         else:
                             tags.append("%s:%s" % (k,v))
 
-                    if k == KubeUtil.POD_NAME_LABEL and self.is_k8s() and k not in labels:
+                    if k == KubeUtil.POD_NAME_LABEL and Platform.is_k8s() and k not in labels:
                         tags.append("pod_name:no_pod")
 
             # Get entity specific tags
@@ -398,7 +413,7 @@ class DockerDaemon(AgentCheck):
                     tags.extend(ecs_tags)
 
             # Add kube labels
-            if self.is_k8s():
+            if Platform.is_k8s():
                 kube_tags = self.kube_labels.get(pod_name)
                 if kube_tags:
                     tags.extend(list(kube_tags))
@@ -427,13 +442,23 @@ class DockerDaemon(AgentCheck):
         ip = ecs_config.get('NetworkSettings', {}).get('IPAddress')
         ports = ecs_config.get('NetworkSettings', {}).get('Ports')
         port = ports.keys()[0].split('/')[0] if ports else None
+        if not ip:
+            port = ECS_INTROSPECT_DEFAULT_PORT
+            if Platform.is_containerized() and self.docker_gateway:
+                ip = self.docker_gateway
+            else:
+                ip = "localhost"
+
         ecs_tags = {}
-        if ip and port:
-            tasks = requests.get('http://%s:%s/v1/tasks' % (ip, port)).json()
-            for task in tasks.get('Tasks', []):
-                for container in task.get('Containers', []):
-                    tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
-                    ecs_tags[container['DockerId']] = tags
+        try:
+            if ip and port:
+                tasks = requests.get('http://%s:%s/v1/tasks' % (ip, port)).json()
+                for task in tasks.get('Tasks', []):
+                    for container in task.get('Containers', []):
+                        tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
+                        ecs_tags[container['DockerId']] = tags
+        except (requests.exceptions.HTTPError, requests.exceptions.HTTPError) as e:
+            self.log.warning("Unable to collect ECS task names: %s" % e)
 
         self.ecs_tags = ecs_tags
 
@@ -514,7 +539,7 @@ class DockerDaemon(AgentCheck):
         if containers_without_proc_root:
             message = "Couldn't find pid directory for containers: {0}. They'll be missing network metrics".format(
                 ", ".join(containers_without_proc_root))
-            if not self.is_k8s():
+            if not Platform.is_k8s():
                 self.warning(message)
             else:
                 # On kubernetes, this is kind of expected. Network metrics will be collected by the kubernetes integration anyway
@@ -602,9 +627,9 @@ class DockerDaemon(AgentCheck):
 
     def _get_events(self):
         """Get the list of events."""
-        events, should_reload_conf = self.docker_util.get_events()
-        if should_reload_conf and self._service_discovery:
-            get_sd_backend(self.agentConfig).reload_check_configs = True
+        events, conf_reload_set = self.docker_util.get_events()
+        if conf_reload_set and self._service_discovery:
+            get_sd_backend(self.agentConfig).reload_check_configs = conf_reload_set
         return events
 
     def _pre_aggregate_events(self, api_events, containers_by_id):
@@ -780,8 +805,19 @@ class DockerDaemon(AgentCheck):
                 metrics['io_write'] += int(line.split()[2])
         return metrics
 
+    def _is_container_cgroup(self, line, selinux_policy):
+        if line[1] not in ('cpu,cpuacct', 'cpuacct,cpu', 'cpuacct') or line[2] == '/docker-daemon':
+            return False
+        if 'docker' in line[2]: # general case
+            return True
+        if 'docker' in selinux_policy: # selinux
+            return True
+        if line[2].startswith('/') and re.match(CONTAINER_ID_RE, line[2][1:]): # kubernetes
+            return True
+        return False
+
     # proc files
-    def _crawl_container_pids(self, container_dict):
+    def _crawl_container_pids(self, container_dict, custom_cgroups=False):
         """Crawl `/proc` to find container PIDs and add them to `containers_by_id`."""
         proc_path = os.path.join(self.docker_util._docker_root, 'proc')
         pid_dirs = [_dir for _dir in os.listdir(proc_path) if _dir.isdigit()]
@@ -820,8 +856,7 @@ class DockerDaemon(AgentCheck):
 
             try:
                 for line in content:
-                    if line[1] in ('cpu,cpuacct', 'cpuacct,cpu', 'cpuacct') and \
-                            ('docker' in line[2] or 'docker' in selinux_policy):
+                    if self._is_container_cgroup(line, selinux_policy):
                         cpuacct = line[2]
                         break
                 else:
@@ -835,7 +870,7 @@ class DockerDaemon(AgentCheck):
                         continue
                     container_dict[container_id]['_pid'] = folder
                     container_dict[container_id]['_proc_root'] = os.path.join(proc_path, folder)
-                elif self._custom_cgroups: # if we match by pid that should be enough (?) - O(n) ugh!
+                elif custom_cgroups: # if we match by pid that should be enough (?) - O(n) ugh!
                     for _, container in container_dict.iteritems():
                         if container.get('_pid') == int(folder):
                             container['_proc_root'] = os.path.join(proc_path, folder)

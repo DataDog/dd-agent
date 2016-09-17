@@ -43,7 +43,7 @@ from config import (
     get_url_endpoint,
 )
 from jmxfetch import JMXFetch
-from util import get_hostname
+from utils.hostname import get_hostname
 from utils.jmx import jmx_command, JMXFiles
 from utils.platform import Platform
 from utils.configcheck import configcheck, sd_configcheck
@@ -74,14 +74,14 @@ class Flare(object):
     ]
     MAIN_CREDENTIALS = [
         CredentialPattern(
-            re.compile('^api_key: *\w+(\w{5})$'),
-            r'api_key: *************************\1',
+            re.compile('^api_key:( *\w+(\w{5}) ?,?)+$'),
+            lambda matchobj:  'api_key: ' + ', '.join(map(
+                lambda key: '*' * 26 + key[-5:],
+                map(lambda x: x.strip(),
+                    matchobj.string.split(':')[1].split(',')
+                    )
+            )),
             'api_key'
-        ),
-        CredentialPattern(
-            re.compile('^other_api_keys:( *\w+(\w{5}),?)+$'),
-            lambda matchobj:  'other_api_keys: ' + ', '.join(map(lambda key: '*' * 26 + key[-5:], matchobj.string.split(':')[1].split(','))),
-            'other_api_keys'
         ),
         CredentialPattern(
             re.compile('^(proxy_user|proxy_password): *.+'),

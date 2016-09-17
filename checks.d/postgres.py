@@ -10,8 +10,12 @@ Collects database-wide metrics and optionally per-relation metrics, custom metri
 import socket
 
 # 3rd party
-import pg8000 as pg
-from pg8000 import InterfaceError, ProgrammingError
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
+
+import pg8000
 
 # project
 from checks import AgentCheck, CheckException
@@ -19,6 +23,10 @@ from config import _is_affirmative
 
 MAX_CUSTOM_RESULTS = 100
 TABLE_COUNT_LIMIT = 200
+
+def psycopg2_connect(*args, **kwargs):
+    del kwargs['ssl']
+    return psycopg2.connect(*args, **kwargs)
 
 
 class ShouldRestartException(Exception):
@@ -300,6 +308,16 @@ SELECT s.schemaname,
         self.replication_metrics = {}
         self.custom_metrics = {}
 
+    def _get_pg_attrs(self, instance):
+        if _is_affirmative(instance.get('use_psycopg2', False)):
+            if psycopg2 is None:
+                self.log.error("Unable to import psycopg2, falling back to pg8000")
+            else:
+                return psycopg2_connect, psycopg2.InterfaceError, psycopg2.ProgrammingError
+
+        # Let's use pg8000
+        return pg8000.connect, pg8000.InterfaceError, pg8000.ProgrammingError
+
     def _get_version(self, key, db):
         if key not in self.versions:
             cursor = db.cursor()
@@ -416,7 +434,7 @@ SELECT s.schemaname,
                 self.log.warn('Failed to parse config element=%s, check syntax' % str(element))
         return config
 
-    def _collect_stats(self, key, db, instance_tags, relations, custom_metrics, function_metrics, count_metrics):
+    def _collect_stats(self, key, db, instance_tags, relations, custom_metrics, function_metrics, count_metrics, interface_error, programming_error):
         """Query pg_stat_* for various metrics
         If relations is not an empty list, gather per-relation metrics
         on top of that.
@@ -491,7 +509,7 @@ SELECT s.schemaname,
                         cursor.execute(query.replace(r'%', r'%%'))
 
                     results = cursor.fetchall()
-                except ProgrammingError as e:
+                except programming_error as e:
                     log_func("Not all metrics may be available: %s" % str(e))
                     continue
 
@@ -556,7 +574,7 @@ SELECT s.schemaname,
                         v[0][1](self, v[0][0], v[1], tags=tags)
 
             cursor.close()
-        except InterfaceError as e:
+        except interface_error as e:
             self.log.error("Connection error: %s" % str(e))
             raise ShouldRestartException
         except socket.error as e:
@@ -571,7 +589,7 @@ SELECT s.schemaname,
         ]
         return service_check_tags
 
-    def get_connection(self, key, host, port, user, password, dbname, ssl, use_cached=True):
+    def get_connection(self, key, host, port, user, password, dbname, ssl, connect_fct, use_cached=True):
         "Get and memoize connections to instances"
         if key in self.dbs and use_cached:
             return self.dbs[key]
@@ -580,12 +598,12 @@ SELECT s.schemaname,
             try:
                 if host == 'localhost' and password == '':
                     # Use ident method
-                    connection = pg.connect("user=%s dbname=%s" % (user, dbname))
+                    connection = connect_fct("user=%s dbname=%s" % (user, dbname))
                 elif port != '':
-                    connection = pg.connect(host=host, port=port, user=user,
+                    connection = connect_fct(host=host, port=port, user=user,
                         password=password, database=dbname, ssl=ssl)
                 else:
-                    connection = pg.connect(host=host, user=user, password=password,
+                    connection = connect_fct(host=host, user=user, password=password,
                         database=dbname, ssl=ssl)
             except Exception as e:
                 message = u'Error establishing postgres connection: %s' % (str(e))
@@ -667,17 +685,19 @@ SELECT s.schemaname,
         # preset tags to the database name
         db = None
 
+        connect_fct, interface_error, programming_error = self._get_pg_attrs(instance)
+
         # Collect metrics
         try:
             # Check version
-            db = self.get_connection(key, host, port, user, password, dbname, ssl)
+            db = self.get_connection(key, host, port, user, password, dbname, ssl, connect_fct)
             version = self._get_version(key, db)
             self.log.debug("Running check against version %s" % version)
-            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics, count_metrics)
+            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics, count_metrics, interface_error, programming_error)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
-            db = self.get_connection(key, host, port, user, password, dbname, ssl, use_cached=False)
-            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics, count_metrics)
+            db = self.get_connection(key, host, port, user, password, dbname, ssl, connect_fct, use_cached=False)
+            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics, count_metrics, interface_error, programming_error)
 
         if db is not None:
             service_check_tags = self._get_service_check_tags(host, port, dbname)
