@@ -1,11 +1,8 @@
 # stdlib
-import os
 import re
 
 # project
 from checks import AgentCheck
-from config import _is_affirmative
-from util import Platform
 from utils.subprocess_output import get_subprocess_output
 
 class UnboundCheck(AgentCheck):
