@@ -21,10 +21,10 @@ class TestEmitter(unittest.TestCase):
 
     def test_remove_control_chars_from(self):
         bad_messages = [
-            {"processes":[1234,[["d≤Ω≈ç√∫˜µ≤", 0, 2.2,12,34,"compiz",1]]]}
+            {"processes":[1234,[[u'd≤Ω≈ç√∫˜µ≤\r\n', 0, 2.2,12,34,'compiz',1]]]}
         ]
         good_messages = [
-            {"processes":[1234,[["db", 0, 2.2,12,34,"compiz",1]]]}
+            {"processes":[1234,[[u'db🖫', 0, 2.2,12,34,u'☢compiz☢',1]]]}
         ]
 
         def is_converted_same(msg):

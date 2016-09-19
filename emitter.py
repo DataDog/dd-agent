@@ -7,6 +7,7 @@ from hashlib import md5
 import logging
 import re
 import zlib
+import unicodedata
 
 # 3p
 import requests
@@ -29,7 +30,13 @@ control_char_re = re.compile('[%s]' % re.escape(control_chars))
 
 
 def remove_control_chars(s):
-    return control_char_re.sub('', s)
+    if isinstance(s, str):
+        sanitized = control_char_re.sub('', s)
+    elif isinstance(s, unicode):
+        sanitized = ''.join(['' if unicodedata.category(c) == 'Cc' else c
+                            for c in u'{}'.format(s)])
+
+    return sanitized
 
 def remove_control_chars_from(item, log):
     if isinstance(item, dict):
@@ -44,7 +51,7 @@ def remove_control_chars_from(item, log):
         for listitems in item:
             newlist.append(remove_control_chars_from(listitems, log))
         return newlist
-    if(isinstance(item, str)):
+    if isinstance(item, basestring):
         newstr = remove_control_chars(item)
         if item != newstr:
             if log is not None:
@@ -60,18 +67,18 @@ def http_emitter(message, log, agentConfig, endpoint):
 
     # Post back the data
     try:
-        payload = json.dumps(message)
-    except UnicodeDecodeError:
         try:
+            payload = json.dumps(message)
+        except UnicodeDecodeError:
             newmessage = remove_control_chars_from(message, log)
             payload = json.dumps(newmessage)
-        except UnicodeDecodeError as ude:
-            log.error('http_emitter: Unable to convert message to json %s ' % str(ude))
-            # early return as we can't actually process the message
-            return
-        except Exception as e:
-            log.error('http_emitter: unknown exception processing message %s ' % str(e))
-            return
+    except UnicodeDecodeError as ude:
+        log.error('http_emitter: Unable to convert message to json %s ' % str(ude))
+        # early return as we can't actually process the message
+        return
+    except Exception as e:
+        log.error('http_emitter: unknown exception processing message %s ' % str(e))
+        return
 
     zipped = zlib.compress(payload)
 
