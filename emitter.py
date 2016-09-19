@@ -76,6 +76,10 @@ def http_emitter(message, log, agentConfig, endpoint):
         log.error('http_emitter: Unable to convert message to json %s ' % str(ude))
         # early return as we can't actually process the message
         return
+    except RuntimeError as rte:
+        log.error('http_emitter: runtime error dumping message to json %s ' % str(rte))
+        # early return as we can't actually process the message
+        return
     except Exception as e:
         log.error('http_emitter: unknown exception processing message %s ' % str(e))
         return

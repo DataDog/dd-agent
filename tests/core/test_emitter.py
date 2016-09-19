@@ -21,7 +21,8 @@ class TestEmitter(unittest.TestCase):
 
     def test_remove_control_chars_from(self):
         bad_messages = [
-            {"processes":[1234,[[u'd≤Ω≈ç√∫˜µ≤\r\n', 0, 2.2,12,34,'compiz',1]]]}
+            ({"processes":[1234,[[u'☢cd≤Ω≈ç√∫˜µ≤\r\n', 0, 2.2,12,34,'compiz\r\n',1]]]},
+             {"processes":[1234,[[u'☢cd≤Ω≈ç√∫˜µ≤', 0, 2.2,12,34,'compiz',1]]]})
         ]
         good_messages = [
             {"processes":[1234,[[u'db🖫', 0, 2.2,12,34,u'☢compiz☢',1]]]}
@@ -33,8 +34,9 @@ class TestEmitter(unittest.TestCase):
                 return True
             return False
 
-        for msg in bad_messages:
-            self.assertFalse(is_converted_same(msg))
+        for bad, good in bad_messages:
+            self.assertFalse(is_converted_same(bad))
+            self.assertTrue(remove_control_chars_from(bad, None) == good)
 
         for msg in good_messages:
             self.assertTrue(is_converted_same(msg))
