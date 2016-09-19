@@ -44,22 +44,20 @@ class SDDockerBackend(AbstractSDBackend):
     def _get_host_address(self, c_inspect, tpl_var):
         """Extract the container IP from a docker inspect object, or the kubelet API."""
         c_id, c_img = c_inspect.get('Id', ''), c_inspect.get('Config', {}).get('Image', '')
-        tpl_parts = tpl_var.split('_')
 
-        # a specifier was given
-        if len(tpl_parts) > 1:
-            networks = c_inspect.get('NetworkSettings', {}).get('Networks') or {}
-            ip_dict = {}
-            for net_name, net_desc in networks.iteritems():
-                ip = net_desc.get('IPAddress')
-                if ip:
-                    ip_dict[net_name] = ip
-            ip_addr = self._extract_ip_from_networks(ip_dict, tpl_var)
-            if ip_addr:
-                return ip_addr
+        networks = c_inspect.get('NetworkSettings', {}).get('Networks') or {}
+        ip_dict = {}
+        for net_name, net_desc in networks.iteritems():
+            ip = net_desc.get('IPAddress')
+            if ip:
+                ip_dict[net_name] = ip
+        ip_addr = self._extract_ip_from_networks(ip_dict, tpl_var)
+        if ip_addr:
+            return ip_addr
 
         # try to get the bridge (default) IP address
-        log.debug("No network was specified for container %s (%s), trying with IPAddress field" % (c_id[:12], c_img))
+        log.debug("No IP address was found in container %s (%s) "
+            "networks, trying with the IPAddress field" % (c_id[:12], c_img))
         ip_addr = c_inspect.get('NetworkSettings', {}).get('IPAddress')
         if ip_addr:
             return ip_addr
@@ -87,7 +85,7 @@ class SDDockerBackend(AbstractSDBackend):
         """Extract a single IP from a dictionary made of network names and IPs."""
         if not ip_dict:
             return None
-        tpl_parts = tpl_var.split('_')
+        tpl_parts = tpl_var.split('_', 1)
 
         # no specifier
         if len(tpl_parts) < 2:
@@ -108,7 +106,7 @@ class SDDockerBackend(AbstractSDBackend):
             return ip_dict['bridge']
         else:
             last_key = sorted(ip_dict.iterkeys())[-1]
-            log.warning("Trying with the last key: '%s'." % last_key)
+            log.warning("Trying with the last (sorted) network: '%s'." % last_key)
             return ip_dict[last_key]
 
     def _get_port(self, container_inspect, tpl_var):
@@ -142,7 +140,7 @@ class SDDockerBackend(AbstractSDBackend):
         if not ports:
             return None
 
-        tpl_parts = tpl_var.split('_')
+        tpl_parts = tpl_var.split('_', 1)
 
         if len(tpl_parts) == 1:
             log.debug("No index was passed for template variable %s. "

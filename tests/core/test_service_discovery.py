@@ -209,7 +209,7 @@ class TestServiceDiscovery(unittest.TestCase):
                 'Networks': {
                     'bridge': {'IPAddress': '172.17.0.2'},
                     'foo': {'IPAddress': '192.168.0.2'}}}},
-             'host', '127.0.0.1'),
+             'host', '172.17.0.2'),
 
             ({'NetworkSettings': {'Networks': {}}}, 'host', None),
             ({'NetworkSettings': {'Networks': {}}}, 'host_bridge', None),
@@ -349,7 +349,7 @@ class TestServiceDiscovery(unittest.TestCase):
                     'Networks': {'bridge': {'IPAddress': '172.17.0.2'}}}
                   },
                  {'host': '%%host%%', 'port': 1337}, ['host'], ['foo', 'bar:baz']),
-                ({'host': '%%host%%', 'port': 1337, 'tags': ['foo', 'bar:baz']}, {'host': '127.0.0.1'}),
+                ({'host': '%%host%%', 'port': 1337, 'tags': ['foo', 'bar:baz']}, {'host': '172.17.0.2'}),
             ),
             (
                 ({'NetworkSettings': {
