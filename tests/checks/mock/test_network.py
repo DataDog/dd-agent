@@ -38,15 +38,13 @@ class TestCheckNetwork(AgentCheckTest):
     CX_STATE_GAUGES_VALUES = {
         'system.net.udp4.connections': 2,
         'system.net.udp6.connections': 3,
-        'system.net.tcp4.established': 1,
-        'system.net.tcp4.opening': 0,
-        'system.net.tcp4.closing': 0,
-        'system.net.tcp4.listening': 2,
+        'system.net.tcp4.estab': 1,
+        'system.net.tcp4.close': 0,
+        'system.net.tcp4.listen': 2,
         'system.net.tcp4.time_wait': 2,
-        'system.net.tcp6.established': 1,
-        'system.net.tcp6.opening': 0,
-        'system.net.tcp6.closing': 1,
-        'system.net.tcp6.listening': 1,
+        'system.net.tcp6.estab': 1,
+        'system.net.tcp6.close': 1,
+        'system.net.tcp6.listen': 1,
         'system.net.tcp6.time_wait': 1,
     }
 
@@ -111,17 +109,15 @@ class TestCheckNetwork(AgentCheckTest):
 
         results = {
             'system.net.tcp6.time_wait': 2,
-            'system.net.tcp4.listening': 1,
-            'system.net.tcp6.closing': 0,
-            'system.net.tcp4.closing': 0,
+            'system.net.tcp4.listen': 1,
+            'system.net.tcp6.close': 0,
+            'system.net.tcp4.close': 0,
             'system.net.tcp4.time_wait': 0,
-            'system.net.tcp6.established': 1,
-            'system.net.tcp4.established': 2,
-            'system.net.tcp6.listening': 1,
-            'system.net.tcp4.opening': 0,
+            'system.net.tcp6.estab': 1,
+            'system.net.tcp4.estab': 2,
+            'system.net.tcp6.listen': 1,
             'system.net.udp4.connections': 0,
             'system.net.udp6.connections': 1,
-            'system.net.tcp6.opening': 0,
         }
 
         with mock.patch('network.psutil') as mock_psutil:

@@ -24,7 +24,7 @@ def section(name)
 end
 
 def install_requirements(req_file, pip_options = nil, output = nil, use_venv = nil)
-  pip_command = use_venv ? 'venv/bin/pip' : 'pip'
+  pip_command = 'venv/bin/pip'
   redirect_output = output ? "2>&1 >> #{output}" : ''
   pip_options = '' if pip_options.nil?
   File.open(req_file, 'r') do |f|
@@ -137,15 +137,15 @@ namespace :ci do
 
     task :install do |t|
       section('INSTALL')
-      sh %(#{'python -m ' if Gem.win_platform?}pip install --upgrade pip setuptools)
-      sh %(pip install\
+      sh %(venv/bin/pip install --upgrade pip setuptools)
+      sh %(venv/bin/pip install\
            -r requirements.txt\
            --cache-dir #{ENV['PIP_CACHE']}\
            2>&1 >> #{ENV['VOLATILE_DIR']}/ci.log)
       install_requirements('requirements-opt.txt',
                            "--cache-dir #{ENV['PIP_CACHE']}",
-                           "#{ENV['VOLATILE_DIR']}/ci.log")
-      sh %(pip install\
+                           "#{ENV['VOLATILE_DIR']}/ci.log", true)
+      sh %(venv/bin/pip install\
            --upgrade\
            -r requirements-test.txt\
            --cache-dir #{ENV['PIP_CACHE']}\
@@ -202,7 +202,7 @@ namespace :ci do
         # separate dir we symlink stuff in the rootdir
         path = %(PATH="#{ENV['INTEGRATIONS_DIR']}/bin:#{ENV['PATH']}" )
       end
-      sh %(#{path}nosetests -s -v -A "#{nose}" #{tests_directory})
+      sh %(venv/bin/nosetests -s -v -A "#{nose}" #{tests_directory})
       t.reenable
     end
 
