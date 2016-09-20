@@ -28,10 +28,18 @@ instances:
       # you will receive one event per leader change per agent
       new_leader_checks: yes
 
+      # Number of services to restrict catalog checks to
+      # By default, the catalog checks allow only 50 services, so if
+      # you have more than this, you'll have to adjust this
+      # number. Use any value less than 1 to query an unlimited number
+      # of services.
+      # max_services: 50
+
       # Services to restrict catalog querying to
-      # The default settings query up to 50 services. So if you have more than
-      # this many in your Consul service catalog, you will want to fill in the
-      # whitelist
+      # The default settings query up to the first 50 services. If you
+      # have more services than max_services above, you can either
+      # pick the specific services to query for (any that exceed
+      # max_services will be removed).
       # service_whitelist:
       #   - zookeeper
       #   - gunicorn
