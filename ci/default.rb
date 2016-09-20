@@ -53,8 +53,8 @@ namespace :ci do
         sh %(pwd)
         sh %(flake8)
         sh %(find . -name '*.py' -not\
-               \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' -or -path '*.git*' \\)\
-               | xargs -n 100 -P 8 pylint --rcfile=./.pylintrc)
+               \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' -or -path '*.git*' -or -path \
+               '*.ropeproject*' \\) | xargs -n 100 -P 8 pylint --rcfile=./.pylintrc)
       end
     end
 
