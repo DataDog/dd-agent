@@ -33,12 +33,12 @@ def remove_control_chars(s):
     if isinstance(s, str):
         sanitized = control_char_re.sub('', s)
     elif isinstance(s, unicode):
-        sanitized = ''.join(['' if unicodedata.category(c) == 'Cc' else c
+        sanitized = ''.join(['' if unicodedata.category(c) in ['Cc','Cf'] else c
                             for c in u'{}'.format(s)])
 
     return sanitized
 
-def remove_control_chars_from(item, log):
+def remove_control_chars_from(item, log=None):
     if isinstance(item, dict):
         newdict = {}
         for k, v in item.iteritems():
@@ -48,8 +48,8 @@ def remove_control_chars_from(item, log):
         return newdict
     if isinstance(item, list):
         newlist = []
-        for listitems in item:
-            newlist.append(remove_control_chars_from(listitems, log))
+        for listitem in item:
+            newlist.append(remove_control_chars_from(listitem, log))
         return newlist
     if isinstance(item, basestring):
         newstr = remove_control_chars(item)
@@ -73,15 +73,15 @@ def http_emitter(message, log, agentConfig, endpoint):
             newmessage = remove_control_chars_from(message, log)
             payload = json.dumps(newmessage)
     except UnicodeDecodeError as ude:
-        log.error('http_emitter: Unable to convert message to json %s ' % str(ude))
+        log.error('http_emitter: Unable to convert message to json %s', ude)
         # early return as we can't actually process the message
         return
     except RuntimeError as rte:
-        log.error('http_emitter: runtime error dumping message to json %s ' % str(rte))
+        log.error('http_emitter: runtime error dumping message to json %s', rte)
         # early return as we can't actually process the message
         return
     except Exception as e:
-        log.error('http_emitter: unknown exception processing message %s ' % str(e))
+        log.error('http_emitter: unknown exception processing message %s', e)
         return
 
     zipped = zlib.compress(payload)
