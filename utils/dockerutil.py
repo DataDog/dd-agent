@@ -61,6 +61,7 @@ class DockerUtil:
             self.config_store = kwargs['config_store']
         else:
             self.config_store = None
+            log.warning('No config store configured. Configuration reload will not work.')
 
         # Try to detect if we are on ECS
         self._is_ecs = False
