@@ -21,10 +21,6 @@ class SDDockerBackend(AbstractSDBackend):
     """Docker-based service discovery"""
 
     def __init__(self, agentConfig):
-        self.docker_client = DockerUtil().client
-        if Platform.is_k8s():
-            self.kubeutil = KubeUtil()
-
         try:
             self.config_store = get_config_store(agentConfig=agentConfig)
         except Exception as e:
@@ -32,6 +28,10 @@ class SDDockerBackend(AbstractSDBackend):
                       'Auto-config only will be used. %s' % str(e))
             agentConfig['sd_config_backend'] = None
             self.config_store = get_config_store(agentConfig=agentConfig)
+
+        self.docker_client = DockerUtil(config_store=self.config_store).client
+        if Platform.is_k8s():
+            self.kubeutil = KubeUtil()
 
         self.VAR_MAPPING = {
             'host': self._get_host_address,
