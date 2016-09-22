@@ -11,7 +11,6 @@ import time
 
 # 3rd party
 from docker import Client, tls
-from docker.errors import NullResource
 
 # project
 from utils.singleton import Singleton
@@ -57,12 +56,6 @@ class DockerUtil:
         # At first run we'll just collect the events from the latest 60 secs
         self._latest_event_collection_ts = int(time.time()) - 60
 
-        if 'config_store' in kwargs:
-            self.config_store = kwargs['config_store']
-        else:
-            self.config_store = None
-            log.warning('No config store configured. Configuration reload will not work.')
-
         # Try to detect if we are on ECS
         self._is_ecs = False
         try:
@@ -107,7 +100,7 @@ class DockerUtil:
 
     def get_events(self):
         self.events = []
-        conf_reload_set = set()
+        changed_container_ids = set()
         now = int(time.time())
 
         event_generator = self.client.events(since=self._latest_event_collection_ts,
@@ -121,24 +114,10 @@ class DockerUtil:
                 log.debug('Unable to parse Docker event: %s', event)
                 continue
 
-            if self.config_store and event.get('status') in CONFIG_RELOAD_STATUS:
-                try:
-                    inspect = self.client.inspect_container(event.get('id'))
-                except NullResource:
-                    inspect = {}
-                checks = self._get_checks_from_inspect(inspect)
-                if checks:
-                    conf_reload_set.update(set(checks))
+            if event.get('status') in CONFIG_RELOAD_STATUS:
+                changed_container_ids.add(event.get('id'))
             self.events.append(event)
-        return self.events, conf_reload_set
-
-    def _get_checks_from_inspect(self, inspect):
-        """Get the list of checks applied to a container from the identifier_to_checks cache in the config store.
-        Use the DATADOG_ID label or the image."""
-        identifier = inspect.get('Config', {}).get('Labels', {}).get(DATADOG_ID) or \
-            inspect.get('Config', {}).get('Image')
-
-        return self.config_store.identifier_to_checks[identifier]
+        return self.events, changed_container_ids
 
     @classmethod
     def get_gateway(cls, proc_prefix=""):

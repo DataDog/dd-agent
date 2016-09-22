@@ -18,7 +18,6 @@ from utils.dockerutil import DockerUtil, MountException
 from utils.kubeutil import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.sd_backend import get_sd_backend
-from utils.service_discovery.config_stores import get_config_store
 
 
 EVENT_TYPE = 'docker'
@@ -160,14 +159,7 @@ class DockerDaemon(AgentCheck):
         try:
             instance = self.instances[0]
 
-            # if service discovery is enabled dockerutil will need a reference to the config store
-            if self._service_discovery:
-                self.docker_util = DockerUtil(
-                    agentConfig=self.agentConfig,
-                    config_store=get_config_store(self.agentConfig)
-                )
-            else:
-                self.docker_util = DockerUtil()
+            self.docker_util = DockerUtil()
             self.docker_client = self.docker_util.client
             self.docker_gateway = DockerUtil.get_gateway()
 
@@ -627,9 +619,9 @@ class DockerDaemon(AgentCheck):
 
     def _get_events(self):
         """Get the list of events."""
-        events, conf_reload_set = self.docker_util.get_events()
-        if conf_reload_set and self._service_discovery:
-            get_sd_backend(self.agentConfig).reload_check_configs = conf_reload_set
+        events, changed_container_ids = self.docker_util.get_events()
+        if changed_container_ids and self._service_discovery:
+            get_sd_backend(self.agentConfig).update_checks(changed_container_ids)
         return events
 
     def _pre_aggregate_events(self, api_events, containers_by_id):

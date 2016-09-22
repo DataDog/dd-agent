@@ -8,6 +8,8 @@ namespace :ci do
   namespace :docker_daemon do |flavor|
     task before_install: ['ci:common:before_install']
 
+    task install: ['ci:common:install']
+
     task before_script: ['ci:common:before_script']
 
     task script: ['ci:common:script'] do
