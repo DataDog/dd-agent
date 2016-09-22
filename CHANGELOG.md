@@ -49,6 +49,8 @@ See [#2709][] for reference.
 ### Changes
 * [ENHANCEMENT] Use JMXFetch 0.12.0 ( [Changelog](https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md) )
 
+* [SECURITY] The deb and rpm packages now bundle OpenSSL 1.0.2i. For more details, see the [security advisory](https://www.openssl.org/news/secadv/20160922.txt), [omnibus-software-76](https://github.com/DataDog/omnibus-software/pull/76)
+
 * [FEATURE] Apache: add connection status metrics. See [#2622][] (Thanks [@gzysk8][])
 * [FEATURE] Core: dogstatsd: Added support for IP agnostic connections. See [#2619][]
 * [FEATURE] Curl: support for HTTP2. See [omnibus-software-65](https://github.com/DataDog/omnibus-software/pull/65)
@@ -88,6 +90,7 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Gohai: CPU - take into account environments with multiple physical processors. See [gohai-32](https://github.com/DataDog/gohai/issues/32)
 * [IMPROVEMENT] Http_check: log exceptions 🔊. See [#2704][]
 * [IMPROVEMENT] Kafka_consumer: bumping kafka-python package version to 1.2.5. See [#2709][], [omnibus-software-70](https://github.com/DataDog/omnibus-software/pull/70)
+* [IMPROVEMENT] Kubernetes: Add ability to specify service discovery via kubernetes annotations. See [#2848][] (Thanks [@mikekap][])
 * [IMPROVEMENT] Kubernetes: disable use_histogram. See [#2542][]
 * [IMPROVEMENT] Kubernetes: Log URL in kubelet check failures and service checks. See [#2735][] (Thanks [@therc][])
 * [IMPROVEMENT] Mesos: make SSL check optional. See [#2809][]
@@ -111,6 +114,9 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Vsphere: Add optional vm include parameter. See [#2459][]
 
 * [BUGFIX] Core: forwarder drop payloads when no valid endpoints. See [#2833][]
+* [BUGFIX] Core: emitter would crash agent with some unicode control characters in payload. See [#2843][]
+* [BUGFIX] Core: service discovery fix fallback IP address extraction. See [#2855][]
+* [BUGFIX] Core: service discovery dont pass missing `config_store` reference to dockerutil. See [#2858][]
 * [BUGFIX] Cloud metadata: Fail on non-2xx responses. See [#2844][]
 * [BUGFIX] Disk: timeout on disk usage. See [#2714][] and [#2823][]
 * [BUGFIX] Docker_daemon: ECS introspection resilience. See [#2745][] and [#2825][]
@@ -3438,10 +3444,14 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2826]: https://github.com/DataDog/dd-agent/issues/2826
 [#2829]: https://github.com/DataDog/dd-agent/issues/2829
 [#2833]: https://github.com/DataDog/dd-agent/issues/2833
+[#2843]: https://github.com/DataDog/dd-agent/issues/2843
 [#2844]: https://github.com/DataDog/dd-agent/issues/2844
 [#2846]: https://github.com/DataDog/dd-agent/issues/2846
 [#2847]: https://github.com/DataDog/dd-agent/issues/2847
+[#2848]: https://github.com/DataDog/dd-agent/issues/2848
 [#2852]: https://github.com/DataDog/dd-agent/issues/2852
+[#2855]: https://github.com/DataDog/dd-agent/issues/2855
+[#2858]: https://github.com/DataDog/dd-agent/issues/2858
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -3531,6 +3541,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@mderomph-coolblue]: https://github.com/mderomph-coolblue
 [@micktwomey]: https://github.com/micktwomey
 [@mike-lerch]: https://github.com/mike-lerch
+[@mikekap]: https://github.com/mikekap
 [@mms-gianni]: https://github.com/mms-gianni
 [@mooney6023]: https://github.com/mooney6023
 [@morskoyzmey]: https://github.com/morskoyzmey
