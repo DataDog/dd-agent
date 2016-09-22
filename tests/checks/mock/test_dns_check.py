@@ -18,12 +18,12 @@ SERVICE_CHECK_NAME = 'dns.can_resolve'
 
 
 class MockDNSAnswer:
-    def __init__(self, address):
-        self.rrset = MockDNSAnswer.MockRrset(address)
+    def __init__(self, *args):
+        self.rrset = MockDNSAnswer.MockRrset(args)
 
     class MockRrset:
-        def __init__(self, address):
-            self.items = [MockDNSAnswer.MockItem(address)]
+        def __init__(self, *args):
+            self.items = map(lambda x: MockDNSAnswer.MockItem(address), args)
 
     class MockItem:
         def __init__(self, address):
@@ -38,6 +38,9 @@ def success_query_mock(d_name, rdtype):
         return MockDNSAnswer('127.0.0.1')
     elif rdtype == 'CNAME':
         return MockDNSAnswer('alias.example.org')
+
+def multiple_records_query_mock(d_name, rdtype):
+    return MockDNSAnswer('127.0.0.1','127.0.0.2')
 
 
 class TestDns(AgentCheckTest):
@@ -64,6 +67,30 @@ class TestDns(AgentCheckTest):
         self.assertMetric('dns.response_time', count=1,
                           tags=['nameserver:127.0.0.1', 'resolved_hostname:www.example.org'])
         self.assertServiceCheck(SERVICE_CHECK_NAME, status=AgentCheck.OK,
+                                tags=['resolved_hostname:www.example.org', 'nameserver:127.0.0.1'])
+        self.coverage_report()
+
+    @mock.patch.object(Resolver, 'query', side_effect=success_query_mock)
+    def test_success_multiple_addresses(self, multiple_records_query_mock):
+        config = {
+            'instances': [{'hostname': 'www.example.org', 'nameserver': '127.0.0.1', 'addresses': ['127.0.0.1','127.0.0.2']}]
+        }
+        self.run_check(config)
+        self.assertMetric('dns.response_time', count=1,
+                          tags=['nameserver:127.0.0.1', 'resolved_hostname:www.example.org'])
+        self.assertServiceCheck(SERVICE_CHECK_NAME, status=AgentCheck.OK,
+                                tags=['resolved_hostname:www.example.org', 'nameserver:127.0.0.1'])
+        self.coverage_report()
+
+    @mock.patch.object(Resolver, 'query', side_effect=success_query_mock)
+    def test_failure_multiple_addresses(self, multiple_records_query_mock):
+        config = {
+            'instances': [{'hostname': 'www.example.org', 'nameserver': '127.0.0.1', 'addresses': ['127.0.0.1','127.0.0.3']}]
+        }
+        self.run_check(config)
+        self.assertMetric('dns.response_time', count=1,
+                          tags=['nameserver:127.0.0.1', 'resolved_hostname:www.example.org'])
+        self.assertServiceCheck(SERVICE_CHECK_NAME, status=AgentCheck.CRITICAL,
                                 tags=['resolved_hostname:www.example.org', 'nameserver:127.0.0.1'])
         self.coverage_report()
 
