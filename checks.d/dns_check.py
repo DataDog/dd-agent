@@ -59,12 +59,8 @@ class DNSCheck(AgentCheck):
         try:
             self.log.debug('Querying "%s" record for hostname "%s"...' % (record_type, hostname))
             answer = resolver.query(hostname, rdtype=record_type)
-            resolved_value = answer.rrset.items[0].to_text()
-            assert(answer.rrset.items[0].to_text())
+            resolved_results = map(lambda x: x.to_text(), answer.rrset.items)
             end_time = time.time()
-            if len(expected_results) > 0:
-                if resolved_value not in expected_results:
-                    raise Exception('DNS resolution of %s resulted in unexpected address %s.' % (hostname, resolved_value))
 
         except dns.exception.Timeout:
             self.log.error('DNS resolution of %s timed out' % hostname)
@@ -75,6 +71,11 @@ class DNSCheck(AgentCheck):
             self.service_check(self.SERVICE_CHECK_NAME, status, tags=self._get_tags(instance), message=err)
             raise
         else:
+            if len(expected_results) > 0:
+                missing_values = list(set(expected_results, resolved_results))
+                if len(missing_values) > 0:
+                    self.log.error('DNS resolution of %s did not contain expected address(es) %s.' % (hostname, ", ".join(missing_values)))
+                    self.service_check(self.SERVICE_CHECK_NAME, status, tags=self._get_tags(instance))
             if end_time - start_time > 0:
                 self.gauge('dns.response_time', end_time - start_time, tags=tags)
                 self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=self._get_tags(instance))

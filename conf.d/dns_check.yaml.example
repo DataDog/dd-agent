@@ -11,7 +11,7 @@ instances:
       # record_type: A
 
       # Specify expected results if you want to check that the returned IP
-      # matches. If you supply multiple records then a match to any one will
-      # be considered success
-      # addressses:
+      # matches. If you supply multiple records then ALL included addresses
+      # will need to match!
+      # addresses:
       #   - 127.0.0.1
