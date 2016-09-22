@@ -23,7 +23,7 @@ class MockDNSAnswer:
 
     class MockRrset:
         def __init__(self, *args):
-            self.items = map(lambda x: MockDNSAnswer.MockItem(address), args)
+            self.items = map(lambda x: MockDNSAnswer.MockItem(x), args)
 
     class MockItem:
         def __init__(self, address):
