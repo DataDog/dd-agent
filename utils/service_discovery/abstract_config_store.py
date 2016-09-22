@@ -20,10 +20,13 @@ log = logging.getLogger(__name__)
 CONFIG_FROM_AUTOCONF = 'auto-configuration'
 CONFIG_FROM_FILE = 'YAML file'
 CONFIG_FROM_TEMPLATE = 'template'
+CONFIG_FROM_KUBE = 'Kubernetes Pod Annotation'
 TRACE_CONFIG = 'trace_config'  # used for tracing config load by service discovery
 CHECK_NAMES = 'check_names'
 INIT_CONFIGS = 'init_configs'
 INSTANCES = 'instances'
+KUBE_ANNOTATIONS = 'kube_annotations'
+KUBE_ANNOTATION_PREFIX = 'com.datadoghq.sd/'
 
 
 class KeyNotFound(Exception):
@@ -95,6 +98,19 @@ class AbstractConfigStore(object):
 
         return identifier_to_checks
 
+    def _get_kube_config(self, identifier, kube_annotations):
+        try:
+            check_names = json.loads(kube_annotations[KUBE_ANNOTATION_PREFIX + CHECK_NAMES])
+            init_config_tpls = json.loads(kube_annotations[KUBE_ANNOTATION_PREFIX + INIT_CONFIGS])
+            instance_tpls = json.loads(kube_annotations[KUBE_ANNOTATION_PREFIX + INSTANCES])
+            return [check_names, init_config_tpls, instance_tpls]
+        except KeyError:
+            return None
+        except json.JSONDecodeError:
+            log.exception('Could not decode the JSON configuration template '
+                          'for the kubernetes pod with ident %s...' % identifier)
+            return None
+
     def _get_auto_config(self, image_name):
         ident = self._get_image_ident(image_name)
         if ident in self.auto_conf_images:
@@ -113,14 +129,34 @@ class AbstractConfigStore(object):
 
         return None
 
+    def get_checks_to_refresh(self, identifier, **kwargs):
+        to_check = set(self.identifier_to_checks[identifier])
+        kube_annotations = kwargs.get('kube_annotations')
+        if kube_annotations:
+            kube_config = self._get_kube_config(identifier, kube_annotations)
+            if kube_config is not None:
+                to_check.update(kube_config[0])
+
+        return to_check
+
     def get_check_tpls(self, identifier, **kwargs):
         """Retrieve template configs for an identifier from the config_store or auto configuration."""
-        templates = []
         trace_config = kwargs.get(TRACE_CONFIG, False)
 
         # this flag is used when no valid configuration store was provided
         # it makes the method skip directly to the auto_conf
         if kwargs.get('auto_conf') is True:
+            # When not using a configuration store on kubernetes, check the pod
+            # annotations for configs before falling back to autoconf.
+            kube_annotations = kwargs.get(KUBE_ANNOTATIONS)
+            if kube_annotations:
+                kube_config = self._get_kube_config(identifier, kube_annotations)
+                if kube_config is not None:
+                    check_names, init_config_tpls, instance_tpls = kube_config
+                    source = CONFIG_FROM_KUBE
+                    return [(source, vs) if trace_config else vs
+                            for vs in zip(check_names, init_config_tpls, instance_tpls)]
+
             # in auto config mode, identifier is the image name
             auto_config = self._get_auto_config(identifier)
             if auto_config is not None:
@@ -147,12 +183,8 @@ class AbstractConfigStore(object):
         # Try to update the identifier_to_checks cache
         self._update_identifier_to_checks(identifier, check_names)
 
-        for idx, c_name in enumerate(check_names):
-            if trace_config:
-                templates.append((source, (c_name, init_config_tpls[idx], instance_tpls[idx])))
-            else:
-                templates.append((c_name, init_config_tpls[idx], instance_tpls[idx]))
-        return templates
+        return [(source, values) if trace_config else values
+                for values in zip(check_names, init_config_tpls, instance_tpls)]
 
     def read_config_from_store(self, identifier):
         """Try to read from the config store, falls back to auto-config in case of failure."""
