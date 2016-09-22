@@ -22,7 +22,7 @@ class AbstractSDBackend(object):
         self.agentConfig = agentConfig
         # this variable is used to store the name of checks that need to
         # be reloaded at the end of the current collector run.
-        # If a full config reload is required, it is set to True.
+        # If a full config reload is required, it is set to True or a set.
         self.reload_check_configs = False
 
     @classmethod
