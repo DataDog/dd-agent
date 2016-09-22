@@ -157,12 +157,12 @@ class Redis(AgentCheck):
 
         tags = sorted(tags.union(tags_to_add))
 
-        return tags, tags_to_add
+        return tags
 
     def _check_db(self, instance, custom_tags=None):
         conn = self._get_conn(instance)
 
-        tags, tags_to_add = self._get_tags(custom_tags, instance)
+        tags = self._get_tags(custom_tags, instance)
 
         # Ping the database for info, and track the latency.
         # Process the service check: the check passes if we can connect to Redis
@@ -288,7 +288,7 @@ class Redis(AgentCheck):
         """
         conn = self._get_conn(instance)
 
-        tags, _ = self._get_tags(custom_tags, instance)
+        tags = self._get_tags(custom_tags, instance)
 
         if not instance.get(MAX_SLOW_ENTRIES_KEY):
             try:
