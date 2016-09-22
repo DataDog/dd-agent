@@ -78,7 +78,7 @@ class TestRedis(AgentCheckTest):
         instance = {
             'host': 'localhost',
             'port': port,
-            'tags': [ "foo:bar" ]
+            'tags': ["foo:bar"]
         }
 
         db = redis.Redis(port=port, db=14)  # Datadog's test db
@@ -141,7 +141,7 @@ class TestRedis(AgentCheckTest):
             service_checks_count,
             service_checks)
         self.assertEquals(
-            len([sc for sc in service_checks if "foo:bar"] in sc['tags']]),
+            len([sc for sc in service_checks if "foo:bar" in sc['tags']]),
             service_checks_count,
             service_checks)
 
