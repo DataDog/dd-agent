@@ -119,7 +119,7 @@ instances:
     #   - container_command: Command ran by the container (example: "echo 1")
     #   - container_id: Id of the container
     #
-    # performance_tags: ["container_name", image_name", "image_tag", "docker_image"]
+    # performance_tags: ["container_name", "image_name", "image_tag", "docker_image"]
 
     # Tags for containers count metrics.
     # Available: ["image_name", "image_tag", "docker_image", "container_command"]
