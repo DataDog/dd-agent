@@ -91,9 +91,12 @@ class NetworkExt(AgentCheck):
             # 'OutOfWindowIcmps': 'system.net.tcpx.X',
             # 'LockDroppedIcmps': 'system.net.tcpx.X',
             # 'ArpFilter': 'system.net.tcpx.X',
-            # 'TW': 'system.net.tcpx.X',
-            # 'TWRecycled': 'system.net.tcpx.X',
-            # 'TWKilled': 'system.net.tcpx.X',
+
+            'TW': ('system.net.tcpx.time_waited', MONOTONIC_COUNT),
+            'TWRecycled': ('system.net.tcpx.time_wait_recycled', MONOTONIC_COUNT),
+            'TWKilled': ('system.net.tcpx.time_wait_killed', MONOTONIC_COUNT),
+
+            # ??
             # 'PAWSPassive': 'system.net.tcpx.X',
             # 'PAWSActive': 'system.net.tcpx.X',
             # 'PAWSEstab': 'system.net.tcpx.X',

@@ -1,7 +1,3 @@
-# This file is overwritten upon Agent upgrade.
-# To make modifications to the check configuration, please copy this file
-# to `network.yaml` and make your changes on that file.
-
 init_config:
 
 instances: [{}]
