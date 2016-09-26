@@ -14,7 +14,7 @@ from utils.dockerutil import DockerUtil
 from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
-from utils.service_discovery.config_stores import get_config_store, TRACE_CONFIG
+from utils.service_discovery.config_stores import get_config_store
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 K8S_ANNOTATION_CHECK_NAMES = 'com.datadoghq.sd/check_names'
@@ -66,7 +66,12 @@ class SDDockerBackend(AbstractSDBackend):
         Use the DATADOG_ID label or the image."""
         identifier = inspect.get('Config', {}).get('Labels', {}).get(DATADOG_ID) or \
             inspect.get('Config', {}).get('Image')
-        annotations = (self._get_kube_config(inspect.get('Id'), 'metadata') or {}).get('annotations') if Platform.is_k8s() else None
+
+        if Platform.is_k8s():
+            kube_metadata = self._get_kube_config(inspect.get('Id'), 'metadata') or {}
+            annotations = kube_metadata.get('annotations')
+        else:
+            annotations = {}
 
         return self.config_store.get_checks_to_refresh(identifier, kube_annotations=annotations)
 
@@ -239,37 +244,28 @@ class SDDockerBackend(AbstractSDBackend):
             container.get('Image'),
             container.get('Id'), container.get('Labels')
         ) for container in self.docker_client.containers()]
-
-        # used by the configcheck agent command to trace where check configs come from
-        trace_config = self.agentConfig.get(TRACE_CONFIG, False)
+        seen_dedup_keys = set()
 
         for image, cid, labels in containers:
             try:
                 # value of the DATADOG_ID tag or the image name if the label is missing
                 identifier = self.get_config_id(image, labels)
-                check_configs = self._get_check_configs(cid, identifier, trace_config=trace_config) or []
+                check_configs = self._get_check_configs(cid, identifier) or []
                 for conf in check_configs:
-                    if trace_config and conf is not None:
-                        source, conf = conf
+                    source, dedup_key, (check_name, init_config, instance) = conf
+                    if dedup_key in seen_dedup_keys:
+                        continue
+                    seen_dedup_keys.add(dedup_key)
 
-                    check_name, init_config, instance = conf
                     # build instances list if needed
                     if configs.get(check_name) is None:
-                        if trace_config:
-                            configs[check_name] = (source, (init_config, [instance]))
-                        else:
-                            configs[check_name] = (init_config, [instance])
+                        configs[check_name] = (source, (init_config, [instance]))
                     else:
                         conflict_init_msg = 'Different versions of `init_config` found for check {}. ' \
                             'Keeping the first one found.'
-                        if trace_config:
-                            if configs[check_name][1][0] != init_config:
-                                log.warning(conflict_init_msg.format(check_name))
-                            configs[check_name][1][1].append(instance)
-                        else:
-                            if configs[check_name][0] != init_config:
-                                log.warning(conflict_init_msg.format(check_name))
-                            configs[check_name][1].append(instance)
+                        if configs[check_name][1][0] != init_config:
+                            log.warning(conflict_init_msg.format(check_name))
+                        configs[check_name][1][1].append(instance)
             except Exception:
                 log.exception('Building config for container %s based on image %s using service '
                               'discovery failed, leaving it alone.' % (cid[:12], image))
@@ -279,11 +275,17 @@ class SDDockerBackend(AbstractSDBackend):
         """Look for a DATADOG_ID label, return its value or the image name if missing"""
         return labels.get(DATADOG_ID) or image
 
-    def _get_check_configs(self, c_id, identifier, trace_config=False):
+    def _get_check_configs(self, c_id, identifier):
         """Retrieve configuration templates and fill them with data pulled from docker and tags."""
         inspect = self.docker_client.inspect_container(c_id)
-        annotations = (self._get_kube_config(inspect.get('Id'), 'metadata') or {}).get('annotations') if Platform.is_k8s() else None
-        config_templates = self._get_config_templates(identifier, trace_config=trace_config, kube_annotations=annotations)
+        if Platform.is_k8s():
+            kube_metadata = self._get_kube_config(inspect.get('Id'), 'metadata') or {}
+            annotations = kube_metadata.get('annotations')
+            pod_name = kube_metadata.get('name')
+        else:
+            annotations = {}
+            pod_name = None
+        config_templates = self._get_config_templates(identifier, kube_annotations=annotations, kube_pod_name=pod_name)
         if not config_templates:
             log.debug('No config template for container %s with identifier %s. '
                       'It will be left unconfigured.' % (c_id[:12], identifier))
@@ -292,8 +294,7 @@ class SDDockerBackend(AbstractSDBackend):
         check_configs = []
         tags = self.get_tags(inspect)
         for config_tpl in config_templates:
-            if trace_config:
-                source, config_tpl = config_tpl
+            source, dedup_key, config_tpl = config_tpl
             check_name, init_config_tpl, instance_tpl, variables = config_tpl
 
             # insert tags in instance_tpl and process values for template variables
@@ -302,14 +303,11 @@ class SDDockerBackend(AbstractSDBackend):
             tpl = self._render_template(init_config_tpl or {}, instance_tpl or {}, var_values)
             if tpl and len(tpl) == 2:
                 init_config, instance = tpl
-                if trace_config:
-                    check_configs.append((source, (check_name, init_config, instance)))
-                else:
-                    check_configs.append((check_name, init_config, instance))
+                check_configs.append((source, dedup_key, (check_name, init_config, instance)))
 
         return check_configs
 
-    def _get_config_templates(self, identifier, trace_config=False, kube_annotations=None):
+    def _get_config_templates(self, identifier, kube_annotations=None, kube_pod_name=None):
         """Extract config templates for an identifier from a K/V store and returns it as a dict object."""
         config_backend = self.agentConfig.get('sd_config_backend')
         templates = []
@@ -319,18 +317,15 @@ class SDDockerBackend(AbstractSDBackend):
         else:
             auto_conf = False
 
-        # format: [('ident', {init_tpl}, {instance_tpl})] without trace_config
-        # or      [(source, ('ident', {init_tpl}, {instance_tpl}))] with trace_config
+        # format [(source, ('ident', {init_tpl}, {instance_tpl}))]
         raw_tpls = self.config_store.get_check_tpls(
-            identifier, auto_conf=auto_conf, trace_config=trace_config, kube_annotations=kube_annotations)
+            identifier, auto_conf=auto_conf, kube_annotations=kube_annotations, kube_pod_name=kube_pod_name)
         for tpl in raw_tpls:
-            if trace_config and tpl is not None:
-                # each template can come from either auto configuration or user-supplied templates
-                source, tpl = tpl
-            if tpl is not None and len(tpl) == 3:
-                check_name, init_config_tpl, instance_tpl = tpl
-            else:
-                log.debug('No template was found for identifier %s, leaving it alone.' % identifier)
+            # each template can come from either auto configuration or user-supplied templates
+            try:
+                source, dedup_key, (check_name, init_config_tpl, instance_tpl) = tpl
+            except (TypeError, IndexError, ValueError):
+                log.debug('No template was found for identifier %s, leaving it alone: %s' % (identifier, tpl))
                 return None
             try:
                 # build a list of all variables to replace in the template
@@ -346,10 +341,9 @@ class SDDockerBackend(AbstractSDBackend):
                               ' by service discovery failed for ident  {1}.'.format(check_name, identifier))
                 return None
 
-            if trace_config:
-                templates.append((source, (check_name, init_config_tpl, instance_tpl, variables)))
-            else:
-                templates.append((check_name, init_config_tpl, instance_tpl, variables))
+            templates.append((source,
+                              dedup_key,
+                              (check_name, init_config_tpl, instance_tpl, variables)))
 
         return templates
 

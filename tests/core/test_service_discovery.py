@@ -10,7 +10,7 @@ from nose.plugins.attrib import attr
 from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.consul_config_store import ConsulStore
 from utils.service_discovery.etcd_config_store import EtcdStore
-from utils.service_discovery.abstract_config_store import AbstractConfigStore
+from utils.service_discovery.abstract_config_store import AbstractConfigStore, CONFIG_FROM_KUBE
 from utils.service_discovery.sd_backend import get_sd_backend
 from utils.service_discovery.sd_docker_backend import SDDockerBackend
 
@@ -40,14 +40,16 @@ def _get_container_inspect(c_id):
         return None
 
 
-def _get_conf_tpls(image_name, trace_config=False, kube_annotations=None):
+def _get_conf_tpls(image_name, kube_annotations=None, kube_pod_name=None):
     """Return a mocked configuration template from self.mock_templates."""
-    return copy.deepcopy(TestServiceDiscovery.mock_templates.get(image_name)[0])
+    return [(x, image_name + ':0', y) for x, y in
+            copy.deepcopy(TestServiceDiscovery.mock_templates.get(image_name)[0])]
 
 
 def _get_check_tpls(image_name, **kwargs):
     if image_name in TestServiceDiscovery.mock_templates:
-        return [copy.deepcopy(TestServiceDiscovery.mock_templates.get(image_name)[0][0][0:3])]
+        result = copy.deepcopy(TestServiceDiscovery.mock_templates.get(image_name)[0][0])
+        return [(result[0], image_name + ':0', result[1][0:3])]
     elif image_name in TestServiceDiscovery.bad_mock_templates:
         try:
             return [copy.deepcopy(TestServiceDiscovery.bad_mock_templates.get(image_name))]
@@ -107,16 +109,16 @@ class TestServiceDiscovery(unittest.TestCase):
 
     # templates with variables already extracted
     mock_templates = {
-        # image_name: ([(check_name, init_tpl, instance_tpl, variables)], (expected_config_template))
+        # image_name: ([(source, (check_name, init_tpl, instance_tpl, variables))], (expected_config_template))
         'image_0': (
-            [('check_0', {}, {'host': '%%host%%'}, ['host'])],
-            ('check_0', {}, {'host': '127.0.0.1'})),
+            [('template', ('check_0', {}, {'host': '%%host%%'}, ['host']))],
+            ('template', 'image_0:0', ('check_0', {}, {'host': '127.0.0.1'}))),
         'image_1': (
-            [('check_1', {}, {'port': '%%port%%'}, ['port'])],
-            ('check_1', {}, {'port': '1337'})),
+            [('template', ('check_1', {}, {'port': '%%port%%'}, ['port']))],
+            ('template', 'image_1:0', ('check_1', {}, {'port': '1337'}))),
         'image_2': (
-            [('check_2', {}, {'host': '%%host%%', 'port': '%%port%%'}, ['host', 'port'])],
-            ('check_2', {}, {'host': '127.0.0.1', 'port': '1337'})),
+            [('template', ('check_2', {}, {'host': '%%host%%', 'port': '%%port%%'}, ['host', 'port']))],
+            ('template', 'image_2:0', ('check_2', {}, {'host': '127.0.0.1', 'port': '1337'}))),
     }
 
     # raw templates coming straight from the config store
@@ -124,13 +126,13 @@ class TestServiceDiscovery(unittest.TestCase):
         # image_name: ('[check_name]', '[init_tpl]', '[instance_tpl]', expected_python_tpl_list)
         'image_0': (
             ('["check_0"]', '[{}]', '[{"host": "%%host%%"}]'),
-            [('check_0', {}, {"host": "%%host%%"})]),
+            [('template', 'image_0:0', ('check_0', {}, {"host": "%%host%%"}))]),
         'image_1': (
             ('["check_1"]', '[{}]', '[{"port": "%%port%%"}]'),
-            [('check_1', {}, {"port": "%%port%%"})]),
+            [('template', 'image_1:0', ('check_1', {}, {"port": "%%port%%"}))]),
         'image_2': (
             ('["check_2"]', '[{}]', '[{"host": "%%host%%", "port": "%%port%%"}]'),
-            [('check_2', {}, {"host": "%%host%%", "port": "%%port%%"})]),
+            [('template', 'image_2:0', ('check_2', {}, {"host": "%%host%%", "port": "%%port%%"}))]),
         'bad_image_0': ((['invalid template']), []),
         'bad_image_1': (('invalid template'), []),
         'bad_image_2': (None, []),
@@ -249,38 +251,39 @@ class TestServiceDiscovery(unittest.TestCase):
                     self.assertRaises(expected_ports, sd_backend._get_port, c_ins, var_tpl)
                 clear_singletons(self.auto_conf_agentConfig)
 
+    @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
+    @mock.patch.object(SDDockerBackend, '_get_host_address', return_value='127.0.0.1')
+    @mock.patch.object(SDDockerBackend, '_get_port', return_value='1337')
     @mock.patch('docker.Client.inspect_container', side_effect=_get_container_inspect)
     @mock.patch.object(SDDockerBackend, '_get_config_templates', side_effect=_get_conf_tpls)
-    def test_get_check_configs(self, mock_inspect_container, mock_get_conf_tpls):
+    def test_get_check_configs(self, *args):
         """Test get_check_config with mocked container inspect and config template"""
-        with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
-            with mock.patch.object(SDDockerBackend, '_get_host_address', return_value='127.0.0.1'):
-                with mock.patch.object(SDDockerBackend, '_get_port', return_value='1337'):
-                    c_id = self.docker_container_inspect.get('Id')
-                    for image in self.mock_templates.keys():
-                        sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
-                        self.assertEquals(
-                            sd_backend._get_check_configs(c_id, image)[0],
-                            self.mock_templates[image][1])
-                        clear_singletons(self.auto_conf_agentConfig)
+        c_id = self.docker_container_inspect.get('Id')
+        for image in self.mock_templates.keys():
+            sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
+            self.assertEquals(
+                sd_backend._get_check_configs(c_id, image)[0],
+                self.mock_templates[image][1])
+            clear_singletons(self.auto_conf_agentConfig)
 
+    @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
+    @mock.patch.object(ConsulStore, 'get_client', return_value=None)
+    @mock.patch.object(EtcdStore, 'get_client', return_value=None)
     @mock.patch.object(AbstractConfigStore, 'get_check_tpls', side_effect=_get_check_tpls)
-    def test_get_config_templates(self, mock_get_check_tpls):
+    def test_get_config_templates(self, *args):
         """Test _get_config_templates with mocked get_check_tpls"""
-        with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
-            with mock.patch.object(EtcdStore, 'get_client', return_value=None):
-                with mock.patch.object(ConsulStore, 'get_client', return_value=None):
-                    for agentConfig in self.agentConfigs:
-                        sd_backend = get_sd_backend(agentConfig=agentConfig)
-                        # normal cases
-                        for image in self.mock_templates.keys():
-                            template = sd_backend._get_config_templates(image)
-                            expected_template = self.mock_templates.get(image)[0]
-                            self.assertEquals(template, expected_template)
-                        # error cases
-                        for image in self.bad_mock_templates.keys():
-                            self.assertEquals(sd_backend._get_config_templates(image), None)
-                        clear_singletons(agentConfig)
+        for agentConfig in self.agentConfigs:
+            sd_backend = get_sd_backend(agentConfig=agentConfig)
+            # normal cases
+            for image in self.mock_templates.keys():
+                template = sd_backend._get_config_templates(image)
+                expected_template = self.mock_templates.get(image)[0]
+                expected_template = [(t[0], image + ':0', t[1]) for t in expected_template]
+                self.assertEquals(template, expected_template)
+            # error cases
+            for image in self.bad_mock_templates.keys():
+                self.assertEquals(sd_backend._get_config_templates(image), None)
+            clear_singletons(agentConfig)
 
     def test_render_template(self):
         """Test _render_template"""
@@ -526,12 +529,13 @@ class TestServiceDiscovery(unittest.TestCase):
 
     @mock.patch.object(AbstractConfigStore, 'client_read', side_effect=client_read)
     def test_get_check_tpls_kube(self, mock_client_read):
-        """Test get_check_tpls"""
+        """Test get_check_tpls for kubernetes annotations"""
         valid_config = ['image_0', 'image_1', 'image_2']
         invalid_config = ['bad_image_0']
         config_store = get_config_store(self.auto_conf_agentConfig)
         for image in valid_config + invalid_config:
             tpl = self.mock_tpls.get(image)[1]
+            tpl = [(CONFIG_FROM_KUBE, t[1], t[2]) for t in tpl]
             if tpl:
                 self.assertNotEquals(
                     tpl,
@@ -540,6 +544,7 @@ class TestServiceDiscovery(unittest.TestCase):
                 tpl,
                 config_store.get_check_tpls(
                     'k8s-' + image, auto_conf=True,
+                    kube_pod_name=image,
                     kube_annotations=dict(zip(
                         ['com.datadoghq.sd/check_names',
                          'com.datadoghq.sd/init_configs',
