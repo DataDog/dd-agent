@@ -1,8 +1,8 @@
 Changes
 =======
 
-# 5.9.0 / Not Released
-**All Platforms**
+# 5.9.0 / 09-27-2016
+**Linux, Windows, Docker and Source Install**
 
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.8.5...5.9.0
