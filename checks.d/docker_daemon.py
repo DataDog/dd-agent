@@ -120,6 +120,7 @@ IMAGE = "image"
 
 ECS_INTROSPECT_DEFAULT_PORT = 51678
 
+ERROR_ALERT_TYPE = ['oom', 'kill']
 
 def get_filters(include, exclude):
     # The reasoning is to check exclude first, so we can skip if there is no exclude
@@ -672,6 +673,12 @@ class DockerDaemon(AgentCheck):
                 status_changes="\n".join(
                     ["%s \t%s" % (change[1].upper(), change[0]) for change in status_change])
             )
+
+            if any(error in status_text for error in ERROR_ALERT_TYPE):
+                alert_type = "error"
+            else:
+                alert_type = None
+
             events.append({
                 'timestamp': max_timestamp,
                 'host': self.hostname,
@@ -680,7 +687,8 @@ class DockerDaemon(AgentCheck):
                 'msg_text': msg_body,
                 'source_type_name': EVENT_TYPE,
                 'event_object': 'docker:%s' % image_name,
-                'tags': list(container_tags)
+                'tags': list(container_tags),
+                'alert_type': alert_type
             })
 
         return events
