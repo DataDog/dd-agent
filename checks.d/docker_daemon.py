@@ -18,6 +18,7 @@ from utils.dockerutil import DockerUtil, MountException
 from utils.kubeutil import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.sd_backend import get_sd_backend
+from utils import network
 
 
 EVENT_TYPE = 'docker'
@@ -595,6 +596,8 @@ class DockerDaemon(AgentCheck):
         except Exception as e:
             # It is possible that the container got stopped between the API call and now
             self.warning("Failed to report IO metrics from file {0}. Exception: {1}".format(proc_net_file, e))
+
+        network.check_all(self, "docker.net", container['_proc_root'], tags=tags)
 
     def _process_events(self, containers_by_id):
         if self.collect_events is False:
