@@ -26,6 +26,7 @@ class Ceph(AgentCheck):
 
     def _collect_raw(self, ceph_cmd, instance):
         use_sudo = _is_affirmative(instance.get('use_sudo', False))
+        cluster_name = instance.get('cluster_name')
         ceph_args = []
         if use_sudo:
             test_sudo = os.system('setsid sudo -l < /dev/null')
@@ -40,6 +41,9 @@ class Ceph(AgentCheck):
             output,_,_ = get_subprocess_output(args, self.log)
         except Exception as e:
             raise Exception('Unable to run cmd=%s: %s' % (' '.join(args), str(e)))
+
+        if cluster_name:
+            ceph_args.extend(['--cluster', cluster_name])
 
         raw = {}
         for cmd in ('mon_status', 'status', 'df detail', 'osd pool stats', 'osd perf', 'health detail'):
