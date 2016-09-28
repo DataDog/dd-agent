@@ -12,9 +12,10 @@ instances:
 # for more than 30 seconds. Do not expect its value to be accurate for shorter-lived processes.
 #
 #  - name: (required) STRING. It will be used to uniquely identify your metrics as they will be tagged with this name
-#    search_string: (or pid_file is required) LIST OF STRINGS. If one of the elements in the list matches,
-#                    return the counter of all the processes that contain the string
-#    pid_file: (or search_string is required) Pid od file
+#    search_string(*1): LIST OF STRINGS. If one of the elements in the list matches,
+#                   return the counter of all the processes that contain the string
+#    pid(*1): STRING. A Process id.
+#    pid_file(*1): STRING. A Pid file.
 #    exact_match: (optional) Boolean. Default to True, if you want to look for an arbitrary
 #                 string only use search_string, use exact_match: False
 #    ignore_denied_access: (optional) Boolean. Default to True, when getting the number of files descriptors, dd-agent user might
@@ -27,13 +28,13 @@ instances:
 #     In this example, process check will return OK for 3 to 5 process. WARNING for 1, 2, 6, 7 processes and Critical below 1 or above 7.
 #     CRITICAL is always dominant in case of overlapping.
 #
+#    *1: search_string or pid or pid_file parameter is required.
 #
 # Examples:
 #
 
   - name: ssh
     search_string: ['ssh', 'sshd']
-    # pid_file: /var/run/sshd.pid
     # tags:
     #   - env:staging
     #   - cluster:big-data
@@ -52,5 +53,8 @@ instances:
     search_string: ['node server.js']
 
   - name: pid_process
-    pid: 1278 
+    pid: 1278
     # Do not use search_string when searching by pid or multiple processes will be grabbed
+
+  - name: pid_file
+    pid_file: /var/run/sshd.pid

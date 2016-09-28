@@ -31,6 +31,9 @@ except Exception:
 
 
 class MockProcess(object):
+    def __init__(self):
+        self.pid = None
+
     def is_running(self):
         return True
 
@@ -128,7 +131,14 @@ class ProcessCheckTest(AgentCheckTest):
         {
             'config': {
                 'name': 'test_8',
-                'pid_file': '/var/run/test_8',  # index in the array for our find_pids mock
+                'pid': 1,
+            },
+            'mocked_processes': set([1])
+        },
+        {
+            'config': {
+                'name': 'test_9',
+                'pid_file': 'tests/checks/fixtures/process/test_pid_file',
             },
             'mocked_processes': set([1])
         }
@@ -239,10 +249,12 @@ class ProcessCheckTest(AgentCheckTest):
         # Shouldn't throw an exception
         self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
 
-    def mock_find_pids(self, name, search_string=None, exact_match=True, pid_file=None, ignore_ad=True,
-                       refresh_ad_cache=True):
+    def mock_find_pids(self, name, search_string, exact_match=True, ignore_ad=True,
+                       refresh_ad_cache=True, pid=None, pid_file=None):
         if search_string is not None:
             idx = search_string[0].split('_')[1]
+        elif pid is not None:
+            idx = pid
         elif pid_file is not None:
             idx = pid_file.split('_')[1]
         return self.CONFIG_STUBS[int(idx)]['mocked_processes']
@@ -328,7 +340,6 @@ class ProcessCheckTest(AgentCheckTest):
                 self.assertServiceCheckWarning('process.up', count=1, tags=expected_tags)
             else:
                 self.assertServiceCheckOK('process.up', count=1, tags=expected_tags)
-
 
         # Raises when coverage < 100%
         self.coverage_report()
