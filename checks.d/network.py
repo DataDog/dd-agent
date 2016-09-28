@@ -7,6 +7,8 @@ Collects network metrics.
 """
 # stdlib
 import re
+import socket
+from collections import defaultdict
 
 # project
 from checks import AgentCheck
@@ -15,6 +17,7 @@ from utils.subprocess_output import (
     get_subprocess_output,
     SubprocessOutputEmptyError,
 )
+import psutil
 
 BSD_TCP_METRICS = [
     (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
@@ -59,22 +62,46 @@ class Network(AgentCheck):
             "LAST_ACK": "closing",
             "LISTEN": "listening",
             "CLOSING": "closing",
+        },
+        "psutil": {
+            psutil.CONN_ESTABLISHED: "established",
+            psutil.CONN_SYN_SENT: "opening",
+            psutil.CONN_SYN_RECV: "opening",
+            psutil.CONN_FIN_WAIT1: "closing",
+            psutil.CONN_FIN_WAIT2: "closing",
+            psutil.CONN_TIME_WAIT: "time_wait",
+            psutil.CONN_CLOSE: "closing",
+            psutil.CONN_CLOSE_WAIT: "closing",
+            psutil.CONN_LAST_ACK: "closing",
+            psutil.CONN_LISTEN: "listening",
+            psutil.CONN_CLOSING: "closing",
+            psutil.CONN_NONE: "connections",  # CONN_NONE is always returned for udp connections
         }
     }
 
+    PSUTIL_TYPE_MAPPING = {
+        socket.SOCK_STREAM: 'tcp',
+        socket.SOCK_DGRAM: 'udp',
+    }
+
+    PSUTIL_FAMILY_MAPPING = {
+        socket.AF_INET: '4',
+        socket.AF_INET6: '6',
+    }
+
     CX_STATE_GAUGE = {
-        ('udp4', 'connections') : 'system.net.udp4.connections',
-        ('udp6', 'connections') : 'system.net.udp6.connections',
-        ('tcp4', 'established') : 'system.net.tcp4.established',
-        ('tcp4', 'opening') : 'system.net.tcp4.opening',
-        ('tcp4', 'closing') : 'system.net.tcp4.closing',
-        ('tcp4', 'listening') : 'system.net.tcp4.listening',
-        ('tcp4', 'time_wait') : 'system.net.tcp4.time_wait',
-        ('tcp6', 'established') : 'system.net.tcp6.established',
-        ('tcp6', 'opening') : 'system.net.tcp6.opening',
-        ('tcp6', 'closing') : 'system.net.tcp6.closing',
-        ('tcp6', 'listening') : 'system.net.tcp6.listening',
-        ('tcp6', 'time_wait') : 'system.net.tcp6.time_wait',
+        ('udp4', 'connections'): 'system.net.udp4.connections',
+        ('udp6', 'connections'): 'system.net.udp6.connections',
+        ('tcp4', 'established'): 'system.net.tcp4.established',
+        ('tcp4', 'opening'): 'system.net.tcp4.opening',
+        ('tcp4', 'closing'): 'system.net.tcp4.closing',
+        ('tcp4', 'listening'): 'system.net.tcp4.listening',
+        ('tcp4', 'time_wait'): 'system.net.tcp4.time_wait',
+        ('tcp6', 'established'): 'system.net.tcp6.established',
+        ('tcp6', 'opening'): 'system.net.tcp6.opening',
+        ('tcp6', 'closing'): 'system.net.tcp6.closing',
+        ('tcp6', 'listening'): 'system.net.tcp6.listening',
+        ('tcp6', 'time_wait'): 'system.net.tcp6.time_wait',
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
@@ -101,6 +128,8 @@ class Network(AgentCheck):
             self._check_bsd(instance)
         elif Platform.is_solaris():
             self._check_solaris(instance)
+        elif Platform.is_windows():
+            self._check_psutil()
 
     def _submit_devicemetrics(self, iface, vals_by_metric):
         if iface in self._excluded_ifaces or (self._exclude_iface_re and self._exclude_iface_re.match(iface)):
@@ -515,3 +544,54 @@ class Network(AgentCheck):
             metrics_by_interface[iface] = metrics
 
         return metrics_by_interface
+
+    def _check_psutil(self):
+        """
+        Gather metrics about connections states and interfaces counters
+        using psutil facilities
+        """
+        if self._collect_cx_state:
+            self._cx_state_psutil()
+
+        self._cx_counters_psutil()
+
+    def _cx_state_psutil(self):
+        """
+        Collect metrics about connections state using psutil
+        """
+        metrics = defaultdict(int)
+        for conn in psutil.net_connections():
+            protocol = self._parse_protocol_psutil(conn)
+            status = self.TCP_STATES['psutil'].get(conn.status)
+            metric = self.CX_STATE_GAUGE.get((protocol, status))
+            if metric is None:
+                self.log.warning('Metric not found for: %s,%s', protocol, status)
+            else:
+                metrics[metric] += 1
+
+        for metric, value in metrics.iteritems():
+            self.gauge(metric, value)
+
+    def _cx_counters_psutil(self):
+        """
+        Collect metrics about interfaces counters using psutil
+        """
+        for iface, counters in psutil.net_io_counters(pernic=True).iteritems():
+            metrics = {
+                'bytes_rcvd': counters.bytes_recv,
+                'bytes_sent': counters.bytes_sent,
+                'packets_in.count': counters.packets_recv,
+                'packets_in.error': counters.errin,
+                'packets_out.count': counters.packets_sent,
+                'packets_out.error': counters.errout,
+            }
+            self._submit_devicemetrics(iface, metrics)
+
+    def _parse_protocol_psutil(self, conn):
+        """
+        Returns a string describing the protocol for the given connection
+        in the form `tcp4`, 'udp4` as in `self.CX_STATE_GAUGE`
+        """
+        protocol = self.PSUTIL_TYPE_MAPPING.get(conn.type, '')
+        family = self.PSUTIL_FAMILY_MAPPING.get(conn.family, '')
+        return '{}{}'.format(protocol, family)

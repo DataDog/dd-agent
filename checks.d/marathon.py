@@ -47,7 +47,7 @@ class Marathon(AgentCheck):
         default_timeout = self.init_config.get('default_timeout', self.DEFAULT_TIMEOUT)
         timeout = float(instance.get('timeout', default_timeout))
 
-        response = self.get_json(urljoin(url, "/v2/apps"), timeout, auth)
+        response = self.get_json(urljoin(url, "v2/apps"), timeout, auth)
         if response is not None:
             self.gauge('marathon.apps', len(response['apps']), tags=instance_tags)
             for app in response['apps']:

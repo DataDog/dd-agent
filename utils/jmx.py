@@ -18,7 +18,7 @@ from utils.pidfile import PidFile
 from utils.platform import Platform
 
 # JMXFetch java version
-JMX_FETCH_JAR_NAME = "jmxfetch-0.11.0-jar-with-dependencies.jar"
+JMX_FETCH_JAR_NAME = "jmxfetch-0.12.0-jar-with-dependencies.jar"
 
 log = logging.getLogger(__name__)
 
@@ -69,6 +69,8 @@ class JMXFiles(object):
     def _get_dir(cls):
         if Platform.is_win32():
             path = os.path.join(_windows_commondata_path(), 'Datadog')
+            if not os.path.isdir(path):
+                path = tempfile.gettempdir()
         elif os.path.isdir(PidFile.get_dir()):
             path = PidFile.get_dir()
         else:

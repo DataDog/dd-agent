@@ -45,6 +45,12 @@ instances:
     #
     # collect_container_size: false
 
+    # Do you use custom cgroups for this particular instance?
+    # Note: enabling this option modifies the way in which we inspect the containers and causes
+    #       some overhead - if you run a high volume of containers we may timeout. Please only
+    #       enable if absolutely necessary.
+    # custom_cgroups: false
+
     # Collect images stats
     # Number of available active images and intermediate images as gauges.
     # Defaults to false.
@@ -113,7 +119,7 @@ instances:
     #   - container_command: Command ran by the container (example: "echo 1")
     #   - container_id: Id of the container
     #
-    # performance_tags: ["container_name", image_name", "image_tag", "docker_image"]
+    # performance_tags: ["container_name", "image_name", "image_tag", "docker_image"]
 
     # Tags for containers count metrics.
     # Available: ["image_name", "image_tag", "docker_image", "container_command"]

@@ -16,6 +16,7 @@ class TestRunFiles(unittest.TestCase):
     _mac_run_dir = '/'.join(_my_dir.split('/')[:-4]) or '/'
     _linux_run_dir = '/opt/datadog-agent/run'
 
+    @mock.patch('os.path.isdir', return_value=True)
     @mock.patch('checks.check_status._windows_commondata_path', return_value="C:\Windows\App Data")
     @mock.patch('utils.platform.Platform.is_win32', return_value=True)
     def test_agent_status_pickle_file_win32(self, *mocks):

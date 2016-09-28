@@ -92,8 +92,9 @@ class SparkCheck(AgentCheckTest):
     CHECK_NAME = 'spark'
 
     SPARK_CONFIG = {
-        'resourcemanager_uri': 'http://localhost:8088',
-        'cluster_name': CLUSTER_NAME
+        'spark_url': 'http://localhost:8088',
+        'cluster_name': CLUSTER_NAME,
+        'spark_cluster_mode': 'spark_yarn_mode'
     }
 
     SPARK_JOB_RUNNING_METRIC_VALUES = {

@@ -38,6 +38,31 @@ def install_requirements(req_file, pip_options = nil, output = nil, use_venv = n
   end
 end
 
+def travis_pr?
+  !ENV['TRAVIS'].nil? && ENV['TRAVIS_EVENT_TYPE'] == 'pull_request'
+end
+
+def can_skip?
+  return false, [] unless travis_pr?
+
+  modified_checks = []
+  git_output = `git diff-tree --no-commit-id --name-only -r #{ENV['TRAVIS_COMMIT']} #{ENV['TRAVIS_BRANCH']}`
+  git_output.each_line do |filename|
+    filename.strip!
+    if filename.start_with? 'checks.d'
+      check_name = File.basename(filename, '.py')
+    elsif filename.start_with?('tests/checks/integration', 'tests/checks/mock')
+      check_name = File.basename(filename, '.py').slice 'test_'
+    elsif filename.start_with?('tests/checks/fixtures', 'conf.d')
+      next
+    else
+      return false, []
+    end
+    modified_checks << check_name unless modified_checks.include? check_name
+  end
+  [true, modified_checks]
+end
+
 # helper class to wait for TCP/HTTP services to boot
 class Wait
   DEFAULT_TIMEOUT = 10
@@ -142,7 +167,9 @@ namespace :ci do
 
     task :before_cache do |t|
       section('BEFORE_CACHE')
-      sh %(find #{ENV['INTEGRATIONS_DIR']}/ -type f -name '*.log*' -delete)
+      unless Gem.win_platform?
+        sh %(find #{ENV['INTEGRATIONS_DIR']}/ -type f -name '*.log*' -delete)
+      end
       t.reenable
     end
 
@@ -178,6 +205,37 @@ namespace :ci do
       sh %(#{path}nosetests -s -v -A "#{nose}" #{tests_directory})
       t.reenable
     end
-    task execute: [:before_install, :install, :before_script, :script]
+
+    task :execute, :flavor do |_t, attr|
+      flavor = attr[:flavor]
+      # flavor.scope.path is ci:cassandra
+      # flavor.scope.path[3..-1] is cassandra
+      check_name = flavor.scope.path[3..-1]
+
+      can_skip, checks = can_skip?
+      can_skip &&= !%w(default core_integration checks_mock).include?(check_name)
+      if can_skip && !checks.include?(check_name)
+        puts "Skipping #{check_name} tests, not affected by the change".yellow
+        next
+      end
+      exception = nil
+      begin
+        tasks = %w(before_install install before_script script)
+        tasks << 'before_cache' unless ENV['CI'].nil?
+        tasks.each do |t|
+          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
+        end
+      rescue => e
+        exception = e
+        puts "Failed task: #{e.class} #{e.message}".red
+      end
+      if ENV['SKIP_CLEANUP']
+        puts 'Skipping cleanup, disposable environments are great'.yellow
+      else
+        puts 'Cleaning up'
+        Rake::Task["#{flavor.scope.path}:cleanup"].invoke
+      end
+      raise exception if exception
+    end
   end
 end

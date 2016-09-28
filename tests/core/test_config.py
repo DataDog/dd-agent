@@ -12,7 +12,8 @@ import ntpath
 
 # project
 from config import get_config, load_check_directory, _conf_path_to_check_name
-from util import is_valid_hostname, windows_friendly_colon_split
+from util import windows_friendly_colon_split
+from utils.hostname import is_valid_hostname
 from utils.pidfile import PidFile
 from utils.platform import Platform
 
@@ -155,7 +156,7 @@ class TestConfig(unittest.TestCase):
 
 TMP_DIR = tempfile.gettempdir()
 DD_AGENT_TEST_DIR = 'dd-agent-tests'
-TEMP_3RD_PARTY_CHECKS_DIR = os.path.join(TMP_DIR, DD_AGENT_TEST_DIR, '3rd-party')
+TEMP_SDK_INTEGRATIONS_CHECKS_DIR = os.path.join(TMP_DIR, DD_AGENT_TEST_DIR, 'integrations')
 TEMP_ETC_CHECKS_DIR = os.path.join(TMP_DIR, DD_AGENT_TEST_DIR, 'etc', 'checks.d')
 TEMP_ETC_CONF_DIR = os.path.join(TMP_DIR, DD_AGENT_TEST_DIR, 'etc', 'conf.d')
 TEMP_AGENT_CHECK_DIR = os.path.join(TMP_DIR, DD_AGENT_TEST_DIR)
@@ -164,11 +165,11 @@ FIXTURE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'fixtur
 
 @mock.patch('config.get_checksd_path', return_value=TEMP_AGENT_CHECK_DIR)
 @mock.patch('config.get_confd_path', return_value=TEMP_ETC_CONF_DIR)
-@mock.patch('config.get_3rd_party_path', return_value=TEMP_3RD_PARTY_CHECKS_DIR)
+@mock.patch('config.get_sdk_integrations_path', return_value=TEMP_SDK_INTEGRATIONS_CHECKS_DIR)
 class TestConfigLoadCheckDirectory(unittest.TestCase):
 
     TEMP_DIRS = [
-        '%s/test_check' % TEMP_3RD_PARTY_CHECKS_DIR,
+        '%s/test_check' % TEMP_SDK_INTEGRATIONS_CHECKS_DIR,
         TEMP_ETC_CHECKS_DIR, TEMP_ETC_CONF_DIR, TEMP_AGENT_CHECK_DIR
     ]
 
@@ -262,7 +263,7 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         copyfile('%s/valid_check_2.py' % FIXTURE_PATH,
             '%s/test_check.py' % TEMP_AGENT_CHECK_DIR)
         copyfile('%s/valid_check_1.py' % FIXTURE_PATH,
-            '%s/test_check/check.py' % TEMP_3RD_PARTY_CHECKS_DIR)
+            '%s/test_check/check.py' % TEMP_SDK_INTEGRATIONS_CHECKS_DIR)
         checks = load_check_directory({"additional_checksd": TEMP_ETC_CHECKS_DIR}, "foo")
         self.assertEquals(1, len(checks['initialized_checks']))
         self.assertEquals('valid_check_1', checks['initialized_checks'][0].check(None))
@@ -271,7 +272,7 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         copyfile('%s/valid_conf.yaml' % FIXTURE_PATH,
             '%s/test_check.yaml' % TEMP_ETC_CONF_DIR)
         copyfile('%s/valid_check_2.py' % FIXTURE_PATH,
-            '%s/test_check/check.py' % TEMP_3RD_PARTY_CHECKS_DIR)
+            '%s/test_check/check.py' % TEMP_SDK_INTEGRATIONS_CHECKS_DIR)
         copyfile('%s/valid_check_1.py' % FIXTURE_PATH,
             '%s/test_check.py' % TEMP_ETC_CHECKS_DIR)
         checks = load_check_directory({"additional_checksd": TEMP_ETC_CHECKS_DIR}, "foo")

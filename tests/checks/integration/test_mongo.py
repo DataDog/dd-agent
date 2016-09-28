@@ -6,6 +6,7 @@ import unittest
 # 3p
 from mock import Mock
 from nose.plugins.attrib import attr
+import pymongo
 
 # project
 from checks import AgentCheck
@@ -48,7 +49,7 @@ class TestMongoUnit(AgentCheckTest):
         DEFAULT_METRICS = {
             m_name: m_type for d in [
                 self.check.BASE_METRICS, self.check.DURABILITY_METRICS,
-                self.check.LOCKS_METRICS, self.check.WIREDTIGER_METRICS]
+                self.check.LOCKS_METRICS, self.check.WIREDTIGER_METRICS,]
             for m_name, m_type in d.iteritems()
         }
 
@@ -154,6 +155,34 @@ class TestMongoUnit(AgentCheckTest):
 
 @attr(requires='mongo')
 class TestMongo(unittest.TestCase):
+    def setUp(self):
+        server = "mongodb://localhost:%s/test" % PORT1
+        cli = pymongo.mongo_client.MongoClient(
+            server,
+            socketTimeoutMS=30000,
+            read_preference=pymongo.ReadPreference.PRIMARY_PREFERRED,)
+
+        db = cli['test']
+        foo = db.foo
+        foo.insert_one({'1': []})
+        foo.insert_one({'1': []})
+        foo.insert_one({})
+
+        bar = db.bar
+        bar.insert_one({'1': []})
+        bar.insert_one({})
+
+    def tearDown(self):
+        server = "mongodb://localhost:%s/test" % PORT1
+        cli = pymongo.mongo_client.MongoClient(
+            server,
+            socketTimeoutMS=30000,
+            read_preference=pymongo.ReadPreference.PRIMARY_PREFERRED,)
+
+        db = cli['test']
+        db.drop_collection("foo")
+        db.drop_collection("bar")
+
     def testMongoCheck(self):
         self.agentConfig = {
             'version': '0.1',
@@ -191,7 +220,8 @@ class TestMongo(unittest.TestCase):
             'mongodb.connections.available': lambda x: x >= 1,
             'mongodb.uptime': lambda x: x >= 0,
             'mongodb.mem.resident': lambda x: x > 0,
-            'mongodb.mem.virtual': lambda x: x > 0
+            'mongodb.mem.virtual': lambda x: x > 0,
+            'mongodb.collections.size': lambda x: x > 0
         }
 
         for m in metrics:

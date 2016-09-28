@@ -28,6 +28,7 @@ import zlib
 os.umask(022)
 
 # 3p
+import simplejson as json
 try:
     import pycurl
 except ImportError:
@@ -51,12 +52,11 @@ from config import (
 import modules
 from transaction import Transaction, TransactionManager
 from util import (
-    get_hostname,
-    get_tornado_ioloop,
     get_uuid,
-    json,
     Watchdog,
 )
+
+from utils.hostname import get_hostname
 from utils.logger import RedactedLogRecord
 
 
@@ -398,6 +398,8 @@ class Application(tornado.web.Application):
         self._metrics = {}
         AgentTransaction.set_application(self)
         AgentTransaction.set_endpoints(agentConfig['endpoints'])
+        if agentConfig['endpoints'] == {}:
+            log.warning(u"No valid endpoint found. Forwarder will drop all incoming payloads.")
         AgentTransaction.set_request_timeout(agentConfig['forwarder_timeout'])
 
         max_parallelism = self.NO_PARALLELISM
@@ -499,23 +501,23 @@ class Application(tornado.web.Application):
                 except gaierror:
                     log.warning("localhost seems undefined in your host file, using 127.0.0.1 instead")
                     http_server.listen(self._port, address="127.0.0.1")
-                except socket_error, e:
+                except socket_error as e:
                     if "Errno 99" in str(e):
                         log.warning("IPv6 doesn't seem to be fully supported. Falling back to IPv4")
                         http_server.listen(self._port, address="127.0.0.1")
                     else:
                         raise
-        except socket_error, e:
+        except socket_error as e:
             log.exception("Socket error %s. Is another application listening on the same port ? Exiting", e)
             sys.exit(1)
-        except Exception, e:
+        except Exception as e:
             log.exception("Uncaught exception. Forwarder is exiting.")
             sys.exit(1)
 
         log.info("Listening on port %d" % self._port)
 
         # Register callbacks
-        self.mloop = get_tornado_ioloop()
+        self.mloop = tornado.ioloop.IOLoop.current()
 
         logging.getLogger().setLevel(get_logging_config()['log_level'] or logging.INFO)
 

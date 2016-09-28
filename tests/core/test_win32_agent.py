@@ -56,7 +56,7 @@ class TestWin32Agent(unittest.TestCase):
         self.assertFalse(process_watchdog._can_restart())
 
         # Can restart after the timeframe is expired
-        time.sleep(1)
+        time.sleep(1.1)
         self.assertTrue(process_watchdog._can_restart())
 
     def test_watchdog_restart(self):

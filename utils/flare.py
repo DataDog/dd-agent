@@ -39,10 +39,11 @@ from config import (
     get_config,
     get_config_path,
     get_logging_config,
+    get_ssl_certificate,
     get_url_endpoint,
 )
 from jmxfetch import JMXFetch
-from util import get_hostname
+from utils.hostname import get_hostname
 from utils.jmx import jmx_command, JMXFiles
 from utils.platform import Platform
 from utils.configcheck import configcheck, sd_configcheck
@@ -73,8 +74,13 @@ class Flare(object):
     ]
     MAIN_CREDENTIALS = [
         CredentialPattern(
-            re.compile('^api_key: *\w+(\w{5})$'),
-            r'api_key: *************************\1',
+            re.compile('^api_key:( *\w+(\w{5}) ?,?)+$'),
+            lambda matchobj:  'api_key: ' + ', '.join(map(
+                lambda key: '*' * 26 + key[-5:],
+                map(lambda x: x.strip(),
+                    matchobj.string.split(':')[1].split(',')
+                    )
+            )),
             'api_key'
         ),
         CredentialPattern(
@@ -124,7 +130,12 @@ class Flare(object):
         if not self._api_key:
             raise Exception('No api_key found')
         log.info("Collecting logs and configuration files:")
+        with self._open_tarfile():
+            self._collect()
+            log.info("Saving all files to {0}".format(self.tar_path))
 
+    # Actual collection. The tar file must be open
+    def _collect(self):
         self._add_logs_tar()
         self._add_conf_tar()
         log.info("  * datadog-agent configcheck output")
@@ -144,9 +155,6 @@ class Flare(object):
         self._permissions_file.close()
         self._add_file_tar(self._permissions_file.name, 'permissions.log',
                            log_permissions=False)
-
-        log.info("Saving all files to {0}".format(self.tar_path))
-        self._tar.close()
 
     # Set the proxy settings, if they exist
     def set_proxy(self, options):
@@ -170,11 +178,7 @@ class Flare(object):
         if self._config.get('skip_ssl_validation', False):
             options['verify'] = False
         elif Platform.is_windows():
-            options['verify'] = os.path.realpath(os.path.join(
-                os.path.dirname(os.path.realpath(__file__)),
-                os.pardir, os.pardir,
-                'datadog-cert.pem'
-            ))
+            options['verify'] = get_ssl_certificate('windows', 'datadog-cert.pem')
 
     # Upload the tar file
     def upload(self, email=None):
@@ -191,24 +195,26 @@ class Flare(object):
         if self._case_id:
             url = '{0}/{1}'.format(self._url, str(self._case_id))
         url = "{0}?api_key={1}".format(url, self._api_key)
-        requests_options = {
-            'data': {
-                'case_id': self._case_id,
-                'hostname': self._hostname,
-                'email': email
-            },
-            'files': {'flare_file': open(self.tar_path, 'rb')},
-            'timeout': self.TIMEOUT
-        }
+        with open(self.tar_path, 'rb') as flare_file:
+            requests_options = {
+                'data': {
+                    'case_id': self._case_id,
+                    'hostname': self._hostname,
+                    'email': email
+                },
+                'files': {'flare_file': flare_file},
+                'timeout': self.TIMEOUT
+            }
 
-        self.set_proxy(requests_options)
-        self.set_ssl_validation(requests_options)
+            self.set_proxy(requests_options)
+            self.set_ssl_validation(requests_options)
 
-        self._resp = requests.post(url, **requests_options)
-        self._analyse_result()
+            self._resp = requests.post(url, **requests_options)
+            self._analyse_result()
+
         return self._case_id
 
-    # Start by creating the tar file which will contain everything
+    # Start by preparing the tar file which will contain everything
     def _init_tarfile(self):
         # Default temp path
         self.tar_path = os.path.join(
@@ -218,7 +224,11 @@ class Flare(object):
 
         if os.path.exists(self.tar_path):
             os.remove(self.tar_path)
+
+    # Open the tar file (context manager) and return it
+    def _open_tarfile(self):
         self._tar = tarfile.open(self.tar_path, 'w:bz2')
+        return self._tar
 
     # Create a file to log permissions on collected files and write header line
     def _init_permissions_file(self):
@@ -513,7 +523,7 @@ class Flare(object):
     def _print_output_command(self, command):
         try:
             status = subprocess.check_output(command, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError, e:
+        except subprocess.CalledProcessError as e:
             status = 'Not able to get output, exit number {0}, exit output:\n'\
                      '{1}'.format(str(e.returncode), e.output)
         print status
@@ -528,7 +538,7 @@ class Flare(object):
     def _jmx_command_call(self, command):
         try:
             jmx_command([command], self._config, redirect_std_streams=True)
-        except Exception, e:
+        except Exception as e:
             print "Unable to call jmx command {0}: {1}".format(command, e)
 
     # Print java version

@@ -7,6 +7,7 @@ instances:
 #    password: my_password
 #    dbname: db_name
 #    ssl: False
+#    use_psycopg2: False # Force using psycogp2 instead of pg8000 to connect. WARNING: psycopg2 doesn't support ssl mode.
 #    tags:
 #      - optional_tag1
 #      - optional_tag2
@@ -53,7 +54,7 @@ instances:
 #    collect_function_metrics: False
 #
 
-#    Collect count metrics, default value is True for backward compatibility but they migth be slow,
+#    Collect count metrics, default value is True for backward compatibility but they might be slow,
 #    suggested value is False.
 #    collect_count_metrics: False
 #

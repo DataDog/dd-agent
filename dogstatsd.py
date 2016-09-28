@@ -42,8 +42,11 @@ from checks.check_status import DogstatsdStatus
 from checks.metric_types import MetricTypes
 from config import get_config, get_version
 from daemon import AgentSupervisor, Daemon
-from util import chunks, get_hostname, get_uuid, plural
+from util import chunks, get_uuid, plural
+from utils.hostname import get_hostname
 from utils.pidfile import PidFile
+from utils.net import inet_pton
+from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
 
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")
@@ -129,6 +132,48 @@ def serialize_metrics(metrics, hostname):
 
 def serialize_event(event):
     return json.dumps(event)
+
+
+def mapto_v6(addr):
+    """
+    Map an IPv4 address to an IPv6 one.
+    If the address is already an IPv6 one, just return it.
+    Return None if the IP address is not valid.
+    """
+    try:
+        inet_pton(socket.AF_INET, addr)
+        return '::ffff:{}'.format(addr)
+    except socket.error:
+        try:
+            inet_pton(socket.AF_INET6, addr)
+            return addr
+        except socket.error:
+            log.debug('%s is not a valid IP address.', addr)
+
+    return None
+
+
+def get_socket_address(host, port):
+    """
+    Gather informations to open the server socket.
+    Try to resolve the name giving precedence to IPv4 for retro compatibility
+    but still mapping the host to an IPv6 address, fallback to IPv6.
+    """
+    try:
+        info = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_DGRAM)
+    except socket.gaierror:
+        try:
+            info = socket.getaddrinfo(host, port, socket.AF_INET6, socket.SOCK_DGRAM)
+        except socket.gaierror as e:
+            log.error('Error processing host %s and port %s: %s', host, port, e)
+            return None
+
+    # we get the first item of the list and map the address for IPv4 hosts
+    sockaddr = info[0][-1]
+    if info[0][0] == socket.AF_INET:
+        mapped_host = mapto_v6(sockaddr[0])
+        sockaddr = (mapped_host, sockaddr[1], 0, 0)
+    return sockaddr
 
 
 class Reporter(threading.Thread):
@@ -292,11 +337,9 @@ class Server(object):
     """
     A statsd udp server.
     """
-
     def __init__(self, metrics_aggregator, host, port, forward_to_host=None, forward_to_port=None):
-        self.host = host
-        self.port = int(port)
-        self.address = (self.host, self.port)
+        self.sockaddr = get_socket_address(host, int(port))
+        self.socket = None
         self.metrics_aggregator = metrics_aggregator
         self.buffer_size = 1024 * 8
 
@@ -318,20 +361,23 @@ class Server(object):
                 log.exception("Error while setting up connection to external statsd server")
 
     def start(self):
-        """ Run the server. """
-        # Bind to the UDP socket.
-        # IPv4 only
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        """
+        Run the server.
+        """
+        # Bind to the UDP socket in IPv4 and IPv6 compatibility mode
+        self.socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        # Configure the socket so that it accepts connections from both
+        # IPv4 and IPv6 networks in a portable manner.
+        self.socket.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
         self.socket.setblocking(0)
-        try:
-            self.socket.bind(self.address)
-        except socket.gaierror:
-            if self.address[0] == 'localhost':
-                log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
-                self.address = ('127.0.0.1', self.address[1])
-                self.socket.bind(self.address)
 
-        log.info('Listening on host & port: %s' % str(self.address))
+        try:
+            self.socket.bind(self.sockaddr)
+        except TypeError:
+            log.error('Unable to start Dogstatsd server loop, exiting...')
+            return
+
+        log.info('Listening on socket address: %s', str(self.sockaddr))
 
         # Inline variables for quick look-up.
         buffer_size = self.buffer_size
@@ -346,6 +392,7 @@ class Server(object):
 
         # Run our select loop.
         self.running = True
+        message = None
         while self.running:
             try:
                 ready = select_select(sock, [], [], timeout)
@@ -355,7 +402,7 @@ class Server(object):
 
                     if should_forward:
                         forward_udp_sock.send(message)
-            except select_error, se:
+            except select_error as se:
                 # Ignore interrupted system calls from sigterm.
                 errno = se[0]
                 if errno != 4:
@@ -363,7 +410,7 @@ class Server(object):
             except (KeyboardInterrupt, SystemExit):
                 break
             except Exception:
-                log.exception('Error receiving datagram')
+                log.exception('Error receiving datagram `%s`', message)
 
     def stop(self):
         self.running = False
@@ -394,8 +441,9 @@ class Dogstatsd(Daemon):
         try:
             try:
                 self.server.start()
-            except Exception, e:
-                log.exception('Error starting server')
+            except Exception as e:
+                log.exception(
+                    'Error starting dogstatsd server on %s', self.server.sockaddr)
                 raise e
         finally:
             # The server will block until it's done. Once we're here, shutdown
@@ -427,8 +475,6 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         sleep(4)
         sys.exit(0)
 
-    log.debug("Configuring dogstatsd")
-
     port = c['dogstatsd_port']
     interval = DOGSTATSD_FLUSH_INTERVAL
     api_key = c['api_key']
@@ -438,6 +484,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     forward_to_port = c.get('statsd_forward_port')
     event_chunk_size = c.get('event_chunk_size')
     recent_point_threshold = c.get('recent_point_threshold', None)
+    server_host = c['bind_host']
 
     target = c['dd_url']
     if use_forwarder:
@@ -462,12 +509,14 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, event_chunk_size)
 
-    # Start the server on an IPv4 stack
-    # Default to loopback
-    server_host = c['bind_host']
-    # If specified, bind to all addressses
+    # NOTICE: when `non_local_traffic` is passed we need to bind to any interface on the box. The forwarder uses
+    # Tornado which takes care of sockets creation (more than one socket can be used at once depending on the
+    # network settings), so it's enough to just pass an empty string '' to the library.
+    # In Dogstatsd we use a single, fullstack socket, so passing '' as the address doesn't work and we default to
+    # '0.0.0.0'. If someone needs to bind Dogstatsd to the IPv6 '::', they need to turn off `non_local_traffic` and
+    # use the '::' meta address as `bind_host`.
     if non_local_traffic:
-        server_host = ''
+        server_host = '0.0.0.0'
 
     server = Server(aggregator, server_host, port, forward_to_host=forward_to_host, forward_to_port=forward_to_port)
 

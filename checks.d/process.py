@@ -33,7 +33,9 @@ ATTR_TO_METRIC = {
     'r_bytes':          'ioread_bytes',  # FIXME: namespace me correctly (6.x) io.w_count
     'w_bytes':          'iowrite_bytes',  # FIXME: namespace me correctly (6.x) io.w_bytes
     'ctx_swtch_vol':    'voluntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.voluntary
-    'ctx_swtch_invol':  'involuntary_ctx_switches'  # FIXME: namespace me correctly (6.x), ctx_swt.involuntary
+    'ctx_swtch_invol':  'involuntary_ctx_switches',  # FIXME: namespace me correctly (6.x), ctx_swt.involuntary
+    'run_time':         'run_time',
+    'mem_pct':          'mem.pct'
 }
 
 ATTR_TO_METRIC_RATE = {
@@ -92,10 +94,10 @@ class ProcessCheck(AgentCheck):
         now = time.time()
         return now - self.last_pid_cache_ts.get(name, 0) > self.pid_cache_duration
 
-    def find_pids(self, name, search_string=None, exact_match=True, pid_file=None, ignore_ad=True):
+    def find_pids(self, name, search_string=None, exact_match=True, ignore_ad=True):
         """
         Create a set of pids of selected processes.
-        Search for search_string or pid_file
+        Search for search_string
         """
         if not self.should_refresh_pid_cache(name):
             return self.pid_cache[name]
@@ -128,12 +130,6 @@ class ProcessCheck(AgentCheck):
                             cmdline = proc.cmdline()
                             if string in ' '.join(cmdline):
                                 found = True
-
-                elif pid_file is not None:
-                    for pid in open(pid_file):
-                        if proc.pid == int(pid.rstrip("\r\n")):
-                            found = True
-
             except psutil.NoSuchProcess:
                 self.log.warning('Process disappeared while scanning')
             except psutil.AccessDenied, e:
@@ -230,6 +226,9 @@ class ProcessCheck(AgentCheck):
             st['rss'].append(meminfo.get('rss'))
             st['vms'].append(meminfo.get('vms'))
 
+            mem_percent = self.psutil_wrapper(p, 'memory_percent', None)
+            st['mem_pct'].append(mem_percent)
+
             # will fail on win32 and solaris
             shared_mem = self.psutil_wrapper(p, 'memory_info_ex', ['shared']).get('shared')
             if shared_mem is not None and meminfo.get('rss') is not None:
@@ -271,6 +270,13 @@ class ProcessCheck(AgentCheck):
                 st['majflt'].append(None)
                 st['cmajflt'].append(None)
 
+            #calculate process run time
+            create_time = self.psutil_wrapper(p, 'create_time', None)
+            if create_time is not None:
+                now = time.time()
+                run_time = now - create_time
+                st['run_time'].append(run_time)
+
         return st
 
     def get_pagefault_stats(self, pid):
@@ -284,9 +290,10 @@ class ProcessCheck(AgentCheck):
 
         # http://man7.org/linux/man-pages/man5/proc.5.html
         try:
-            data = file_to_string('/proc/%s/stat' % pid)
+            data = file_to_string('/%s/%s/stat' % (psutil.PROCFS_PATH, pid))
         except Exception:
-            self.log.debug('error getting proc stats: file_to_string failed for /proc/%s/stat' % pid)
+            self.log.debug('error getting proc stats: file_to_string failed'
+                           'for /%s/%s/stat' % (psutil.PROCFS_PATH, pid))
             return None
 
         return map(lambda i: int(i), data.split()[9:13])
@@ -296,32 +303,41 @@ class ProcessCheck(AgentCheck):
         tags = instance.get('tags', [])
         exact_match = _is_affirmative(instance.get('exact_match', True))
         search_string = instance.get('search_string', None)
-        pid_file = instance.get('pid_file', None)
         ignore_ad = _is_affirmative(instance.get('ignore_denied_access', True))
+        pid = instance.get('pid')
+        pid_file = instance.get('pid_file', None)
+
+        if not isinstance(search_string, list) and pid is None and pid_file is None:
+            raise KeyError('"search_string" or "pid" or "pid_file" parameter is requred')
+
+        # FIXME 6.x remove me
+        if pid is None and pid_file is None:
+            if "All" in search_string:
+                self.warning('Deprecated: Having "All" in your search_string will'
+                         'greatly reduce the performance of the check and '
+                         'will be removed in a future version of the agent.')
 
         if name is None:
             raise KeyError('The "name" of process groups is mandatory')
 
-        if search_string is None and pid_file is None:
-            raise KeyError('The "search_string" or "pid_file" is mandatory')
-
         if search_string is not None:
-            # FIXME 6.x remove me
-            if "All" in search_string:
-                self.warning('Deprecated: Having "All" in your search_string will'
-                             'greatly reduce the performance of the check and '
-                             'will be removed in a future version of the agent.')
-
-            if not isinstance(search_string, list):
-                raise KeyError('"search_string" parameter should be a list')
-
-        pids = self.find_pids(
-            name,
-            search_string=search_string,
-            exact_match=exact_match,
-            pid_file=pid_file,
-            ignore_ad=ignore_ad
-        )
+            pids = self.find_pids(
+                name,
+                search_string,
+                exact_match,
+                ignore_ad=ignore_ad
+            )
+        elif pid is not None:
+            # we use Process(pid) as a means to search, if pid not found
+            # psutil.NoSuchProcess is raised.
+            pids = set([psutil.Process(pid).pid])
+        elif pid_file is not None:
+            file_pid = open(pid_file, 'r')
+            pid_line = file_pid.readline().splitlines()
+            pids = set([psutil.Process(pid_line[-1]).pid])
+            file_pid.close()
+        else:
+            raise ValueError('The "search_string" or "pid" options are required for process identification')
 
         proc_state = self.get_process_state(name, pids)
 
@@ -335,8 +351,14 @@ class ProcessCheck(AgentCheck):
             vals = [x for x in proc_state[attr] if x is not None]
             # skip []
             if vals:
+                if attr == 'run_time':
+                    self.gauge('system.processes.%s.avg' % mname, sum(vals)/len(vals), tags=tags)
+                    self.gauge('system.processes.%s.max' % mname, max(vals), tags=tags)
+                    self.gauge('system.processes.%s.min' % mname, min(vals), tags=tags)
+
                 # FIXME 6.x: change this prefix?
-                self.gauge('system.processes.%s' % mname, sum(vals), tags=tags)
+                else:
+                    self.gauge('system.processes.%s' % mname, sum(vals), tags=tags)
 
         for attr, mname in ATTR_TO_METRIC_RATE.iteritems():
             vals = [x for x in proc_state[attr] if x is not None]
