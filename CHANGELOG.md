@@ -56,7 +56,6 @@ See [#2709][] for reference.
 * [FEATURE] Curl: support for HTTP2. See [omnibus-software-65](https://github.com/DataDog/omnibus-software/pull/65)
 * [FEATURE] Dns_check: Allow querying a custom record type. See [#2653][]
 * [FEATURE] Docker_daemon: resolve hierarchy by looking at procfs <pid>/cgroup. See [#2537][]
-* [FEATURE] Forwarder: allow multiple endpoints/api_keys. See [#2564][]
 * [FEATURE] Gearman: Add per-task gearman metrics. See [#2672][] (Thanks [@nyanshak][])
 * [FEATURE] Http_check: Add allow_redirects parameter. See [#2586][] (Thanks [@n0ts][])
 * [FEATURE] Http_check: Add ability to use post method. See [#2544][]
@@ -73,7 +72,6 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Ceph: improve health metrics. See [#2852][]
 * [IMPROVEMENT] Ceph: update to support 10.0.2.2. See [#2805][]
 * [IMPROVEMENT] Core: avoid calls to service discovery from dogstatsd. See [#2798][]
-* [IMPROVEMENT] Core: easier config for multiple endpoints. See [#2774][]
 * [IMPROVEMENT] Core: Add an HTTP timeout to many integrations. See [#2673][] (Thanks [@gphat][])
 * [IMPROVEMENT] Core: expiration should adjust to longer collection intervals (>300s). See [#2541][]
 * [IMPROVEMENT] Core: remove events & resources api_key. See [#2557][]
@@ -85,7 +83,6 @@ See [#2709][] for reference.
 * [IMPROVEMENT] Elasticsearch: Add missing metrics. See [#2758][] (Thanks [@mdelaney][])
 * [IMPROVEMENT] Elasticsearch: Add elastic search cluster name to tags. See [#2744][], [#2820][] and [#2826][]
 * [IMPROVEMENT] Flare: Close the tar file cleanly once upload is done. See [#2621][]
-* [IMPROVEMENT] Flare: hide multiple endpoints api_keys. See [#2646][]
 * [IMPROVEMENT] Gohai: Processes - simplify payload. See [#2600][]
 * [IMPROVEMENT] Gohai: CPU - take into account environments with multiple physical processors. See [gohai-32](https://github.com/DataDog/gohai/issues/32)
 * [IMPROVEMENT] Http_check: log exceptions 🔊. See [#2704][]
