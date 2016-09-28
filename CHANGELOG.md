@@ -44,7 +44,7 @@ See [#2709][] for reference.
 * Windows
 
 ### Deprecated integrations
-* Jenkins
+* Jenkins - Replaced check with plug-in. Details below.
 
 ### Changes
 * [ENHANCEMENT] Use JMXFetch 0.12.0 ( [Changelog](https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md) )
@@ -137,7 +137,7 @@ See [#2709][] for reference.
 * [BUGFIX] Wmi: set provider architecture when necessary. See [#2812][]
 
 * [DEPRECATED] Core: clean debug logs and kill Dogstream-based DdForwarder. See [#2628][]
-* [DEPRECATED] Jenkins: Deprecate check. See [#2688][]
+* [DEPRECATED] Jenkins: Deprecated check. Please use plugin. More information can be found on the Jenkins Integration panel under the Configuration tab (https://app.datadoghq.com/account/settings#integrations/jenkins) See [#2688][]
 * [DEPRECATED] Nghttp2: remove python bindings. See [omnibus-software-71](https://github.com/DataDog/omnibus-software/pull/71)
 
 
