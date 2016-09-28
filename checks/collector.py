@@ -22,22 +22,20 @@ from checks.check_status import (
     STATUS_ERROR,
     STATUS_OK,
 )
-from checks.datadog import DdForwarder, Dogstreams
+from checks.datadog import Dogstreams
 from checks.ganglia import Ganglia
 from config import get_system_stats, get_version
 import checks.system.unix as u
 import checks.system.win32 as w32
 import modules
 from util import (
-    EC2,
-    GCE,
-    get_os,
     get_uuid,
     Timer,
 )
+from utils.cloud_metadata import GCE, EC2
 from utils.logger import log_exceptions
 from utils.jmx import JMXFiles
-from utils.platform import Platform
+from utils.platform import Platform, get_os
 from utils.subprocess_output import get_subprocess_output
 
 log = logging.getLogger(__name__)
@@ -46,20 +44,6 @@ log = logging.getLogger(__name__)
 FLUSH_LOGGING_PERIOD = 10
 FLUSH_LOGGING_INITIAL = 5
 DD_CHECK_TAG = 'dd_check:{0}'
-
-# Description of the format of the `processes` resource check, identical to the legacy check.
-# Sent on the first run of the collector, on subsequent runs the resources payload is sent w/o this desc.
-# The exact behavior of the aggregation functions is defined in the backend
-PROCESSES_FORMAT_DESCRIPTION = [
-    # [format_version, metric_name, type, agg, time_agg, server_agg, server_time_agg, group_on, time_group_on]
-    [2, 'user', 'str', 'append', 'append', 'append', 'append', False, False],
-    [2, 'pct_cpu', 'float', 'sum', 'avg', 'sum', 'avg', False, False],
-    [2, 'pct_mem', 'float', 'sum', 'avg', 'sum', 'avg', False, False],
-    [2, 'vsz', 'int', 'sum', 'avg', 'sum', 'avg', False, False],
-    [2, 'rss', 'int', 'sum', 'avg', 'sum', 'avg', False, False],
-    [2, 'family', 'str', None, None, 'append', 'append', True, True],
-    [2, 'ps_count', 'int', 'sum', 'avg', 'sum', 'avg', False, False],
-]
 
 
 class AgentPayload(collections.MutableMapping):
@@ -148,7 +132,7 @@ class AgentPayload(collections.MutableMapping):
                 emitter_status = EmitterStatus(name)
                 try:
                     emitter(payload, log, config, endpoint)
-                except Exception, e:
+                except Exception as e:
                     log.exception("Error running emitter: %s"
                                   % emitter.__name__)
                     emitter_status = EmitterStatus(name, e)
@@ -226,9 +210,8 @@ class Collector(object):
         }
 
         # Old-style metric checks
-        self._ganglia = Ganglia(log)
-        self._dogstream = Dogstreams.init(log, self.agentConfig)
-        self._ddforwarder = DdForwarder(log, self.agentConfig)
+        self._ganglia = Ganglia(log) if self.agentConfig.get('ganglia_host', '') != '' else None
+        self._dogstream = None if self.agentConfig.get('dogstreams') is None else Dogstreams.init(log, self.agentConfig)
 
         # Agent performance metrics check
         self._agent_metrics = None
@@ -354,15 +337,10 @@ class Collector(object):
                 payload.update(cpuStats)
 
         # Run old-style checks
-        gangliaData = self._ganglia.check(self.agentConfig)
-        dogstreamData = self._dogstream.check(self.agentConfig)
-        ddforwarderData = self._ddforwarder.check(self.agentConfig)
-
-        if gangliaData is not False and gangliaData is not None:
-            payload['ganglia'] = gangliaData
-
-        # dogstream
-        if dogstreamData:
+        if self._ganglia is not None:
+            payload['ganglia'] = self._ganglia.check(self.agentConfig)
+        if self._dogstream is not None:
+            dogstreamData = self._dogstream.check(self.agentConfig)
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
             if dogstreamEvents:
                 if 'dogstream' in payload['events']:
@@ -373,29 +351,24 @@ class Collector(object):
 
             payload.update(dogstreamData)
 
-        # metrics about the forwarder
-        if ddforwarderData:
-            payload['datadog'] = ddforwarderData
-
         # process collector of gohai (compliant with payload of legacy "resources checks")
         if not Platform.is_windows() and self._should_send_additional_data('processes'):
             gohai_processes = self._run_gohai_processes()
             if gohai_processes:
                 try:
                     gohai_processes_json = json.loads(gohai_processes)
-                    processes_payload = {
-                        'snaps': [gohai_processes_json.get('processes')],
-                        'format_version': 1
-                    }
-                    if self._is_first_run():
-                        processes_payload['format_description'] = PROCESSES_FORMAT_DESCRIPTION
-
-                    payload['resources'] = {
-                        'processes': processes_payload,
-                        'meta': {
-                            'host': payload['internalHostname'],
+                    processes_snaps = gohai_processes_json.get('processes')
+                    if processes_snaps:
+                        processes_payload = {
+                            'snaps': [processes_snaps]
                         }
-                    }
+
+                        payload['resources'] = {
+                            'processes': processes_payload,
+                            'meta': {
+                                'host': self.hostname,
+                            }
+                        }
                 except Exception:
                     log.exception("Error running gohai processes collection")
 
@@ -405,12 +378,15 @@ class Collector(object):
             if res:
                 metrics.extend(res)
 
+        # Use `info` log level for some messages on the first run only, then `debug`
+        log_at_first_run = log.info if self._is_first_run() else log.debug
+
         # checks.d checks
         check_statuses = []
         for check in self.initialized_checks_d:
             if not self.continue_running:
                 return
-            log.info("Running check %s" % check.name)
+            log_at_first_run("Running check %s", check.name)
             instance_statuses = []
             metric_count = 0
             event_count = 0
@@ -600,7 +576,7 @@ class Collector(object):
             emitter_status = EmitterStatus(name)
             try:
                 emitter(payload, log, self.agentConfig)
-            except Exception, e:
+            except Exception as e:
                 log.exception("Error running emitter: %s" % emitter.__name__)
                 emitter_status = EmitterStatus(name, e)
             statuses.append(emitter_status)
@@ -641,7 +617,7 @@ class Collector(object):
             # Also post an event in the newsfeed
             payload['events']['System'] = [{
                 'api_key': self.agentConfig['api_key'],
-                'host': payload['internalHostname'],
+                'host': self.hostname,
                 'timestamp': now,
                 'event_type':'Agent Startup',
                 'msg_text': 'Version %s' % get_version()

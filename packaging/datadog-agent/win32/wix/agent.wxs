@@ -46,7 +46,7 @@
         <CustomAction
             Id="ReplaceTags"
             BinaryKey="FindReplace"
-            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" "#tags: mytag0, mytag1" "tags: [TAGS]"'
+            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" "# tags: mytag0, mytag1" "tags: [TAGS]"'
             Execute="deferred"
             Return="check"
             Impersonate="no" />
@@ -54,7 +54,7 @@
         <CustomAction
             Id="ReplaceHostname"
             BinaryKey="FindReplace"
-            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" "#hostname: mymachine.mydomain" "hostname: [HOSTNAME]"'
+            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" "# hostname: mymachine.mydomain" "hostname: [HOSTNAME]"'
             Execute="deferred"
             Return="check"
             Impersonate="no" />

@@ -33,7 +33,7 @@ import dogstatsd
 from emitter import http_emitter
 from jmxfetch import JMXFetch
 import modules
-from util import get_hostname
+from utils.hostname import get_hostname
 from utils.jmx import JMXFiles
 from utils.profile import AgentProfiler
 

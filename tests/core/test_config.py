@@ -12,7 +12,8 @@ import ntpath
 
 # project
 from config import get_config, load_check_directory, _conf_path_to_check_name
-from util import is_valid_hostname, windows_friendly_colon_split
+from util import windows_friendly_colon_split
+from utils.hostname import is_valid_hostname
 from utils.pidfile import PidFile
 from utils.platform import Platform
 
@@ -21,19 +22,54 @@ DEFAULT_CHECKS = []
 
 
 class TestConfig(unittest.TestCase):
+    CONFIG_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'fixtures', 'config')
+
+    def get_config(self, name, parse_args=False):
+        """
+        Small helper function to load fixtures configs
+        """
+        return get_config(cfg_path=os.path.join(self.CONFIG_FOLDER, name), parse_args=parse_args)
+
     def testWhiteSpaceConfig(self):
         """Leading whitespace confuse ConfigParser
         """
-        agentConfig = get_config(cfg_path=os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                                       'fixtures', 'badconfig.conf'),
-                                 parse_args=False)
+        agentConfig = self.get_config('bad.conf')
+
         self.assertEquals(agentConfig["dd_url"], "https://app.datadoghq.com")
         self.assertEquals(agentConfig["api_key"], "1234")
         self.assertEquals(agentConfig["nagios_log"], "/var/log/nagios3/nagios.log")
         self.assertEquals(agentConfig["graphite_listen_port"], 17126)
         self.assertTrue("statsd_metric_namespace" in agentConfig)
 
-    def testGoodPidFie(self):
+    def test_one_endpoint(self):
+        agent_config = self.get_config('one_endpoint.conf')
+        self.assertEquals(agent_config["dd_url"], "https://app.datadoghq.com")
+        self.assertEquals(agent_config["api_key"], "1234")
+        endpoints = {'https://app.datadoghq.com': ['1234']}
+        self.assertEquals(agent_config['endpoints'], endpoints)
+
+    def test_multiple_endpoints(self):
+        agent_config = self.get_config('multiple_endpoints.conf')
+        self.assertEquals(agent_config["dd_url"], "https://app.datadoghq.com")
+        self.assertEquals(agent_config["api_key"], "1234")
+        endpoints = {
+            'https://app.datadoghq.com': ['1234'],
+            'https://app.example.com': ['5678', '901']
+        }
+        self.assertEquals(agent_config['endpoints'], endpoints)
+        with self.assertRaises(AssertionError):
+            self.get_config('multiple_endpoints_bad.conf')
+
+    def test_multiple_apikeys(self):
+        agent_config = self.get_config('multiple_apikeys.conf')
+        self.assertEquals(agent_config["dd_url"], "https://app.datadoghq.com")
+        self.assertEquals(agent_config["api_key"], "1234")
+        endpoints = {
+            'https://app.datadoghq.com': ['1234', '5678', '901']
+        }
+        self.assertEquals(agent_config['endpoints'], endpoints)
+
+    def testGoodPidFile(self):
         """Verify that the pid file succeeds and fails appropriately"""
 
         pid_dir = tempfile.mkdtemp()
@@ -120,7 +156,7 @@ class TestConfig(unittest.TestCase):
 
 TMP_DIR = tempfile.gettempdir()
 DD_AGENT_TEST_DIR = 'dd-agent-tests'
-TEMP_3RD_PARTY_CHECKS_DIR = os.path.join(TMP_DIR, DD_AGENT_TEST_DIR, '3rd-party')
+TEMP_SDK_INTEGRATIONS_CHECKS_DIR = os.path.join(TMP_DIR, DD_AGENT_TEST_DIR, 'integrations')
 TEMP_ETC_CHECKS_DIR = os.path.join(TMP_DIR, DD_AGENT_TEST_DIR, 'etc', 'checks.d')
 TEMP_ETC_CONF_DIR = os.path.join(TMP_DIR, DD_AGENT_TEST_DIR, 'etc', 'conf.d')
 TEMP_AGENT_CHECK_DIR = os.path.join(TMP_DIR, DD_AGENT_TEST_DIR)
@@ -129,11 +165,11 @@ FIXTURE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'fixtur
 
 @mock.patch('config.get_checksd_path', return_value=TEMP_AGENT_CHECK_DIR)
 @mock.patch('config.get_confd_path', return_value=TEMP_ETC_CONF_DIR)
-@mock.patch('config.get_3rd_party_path', return_value=TEMP_3RD_PARTY_CHECKS_DIR)
+@mock.patch('config.get_sdk_integrations_path', return_value=TEMP_SDK_INTEGRATIONS_CHECKS_DIR)
 class TestConfigLoadCheckDirectory(unittest.TestCase):
 
     TEMP_DIRS = [
-        '%s/test_check' % TEMP_3RD_PARTY_CHECKS_DIR,
+        '%s/test_check' % TEMP_SDK_INTEGRATIONS_CHECKS_DIR,
         TEMP_ETC_CHECKS_DIR, TEMP_ETC_CONF_DIR, TEMP_AGENT_CHECK_DIR
     ]
 
@@ -227,7 +263,7 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         copyfile('%s/valid_check_2.py' % FIXTURE_PATH,
             '%s/test_check.py' % TEMP_AGENT_CHECK_DIR)
         copyfile('%s/valid_check_1.py' % FIXTURE_PATH,
-            '%s/test_check/check.py' % TEMP_3RD_PARTY_CHECKS_DIR)
+            '%s/test_check/check.py' % TEMP_SDK_INTEGRATIONS_CHECKS_DIR)
         checks = load_check_directory({"additional_checksd": TEMP_ETC_CHECKS_DIR}, "foo")
         self.assertEquals(1, len(checks['initialized_checks']))
         self.assertEquals('valid_check_1', checks['initialized_checks'][0].check(None))
@@ -236,7 +272,7 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         copyfile('%s/valid_conf.yaml' % FIXTURE_PATH,
             '%s/test_check.yaml' % TEMP_ETC_CONF_DIR)
         copyfile('%s/valid_check_2.py' % FIXTURE_PATH,
-            '%s/test_check/check.py' % TEMP_3RD_PARTY_CHECKS_DIR)
+            '%s/test_check/check.py' % TEMP_SDK_INTEGRATIONS_CHECKS_DIR)
         copyfile('%s/valid_check_1.py' % FIXTURE_PATH,
             '%s/test_check.py' % TEMP_ETC_CHECKS_DIR)
         checks = load_check_directory({"additional_checksd": TEMP_ETC_CHECKS_DIR}, "foo")

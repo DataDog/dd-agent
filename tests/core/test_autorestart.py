@@ -10,6 +10,7 @@ import unittest
 from nose.plugins.attrib import attr
 
 
+@attr('unix')
 @attr(requires='core_integration')
 class TestAutoRestart(unittest.TestCase):
     """ Test the auto-restart and forking of the agent """

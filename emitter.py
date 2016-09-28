@@ -7,6 +7,7 @@ from hashlib import md5
 import logging
 import re
 import zlib
+import unicodedata
 
 # 3p
 import requests
@@ -29,8 +30,34 @@ control_char_re = re.compile('[%s]' % re.escape(control_chars))
 
 
 def remove_control_chars(s):
-    return control_char_re.sub('', s)
+    if isinstance(s, str):
+        sanitized = control_char_re.sub('', s)
+    elif isinstance(s, unicode):
+        sanitized = ''.join(['' if unicodedata.category(c) in ['Cc','Cf'] else c
+                            for c in u'{}'.format(s)])
 
+    return sanitized
+
+def remove_control_chars_from(item, log=None):
+    if isinstance(item, dict):
+        newdict = {}
+        for k, v in item.iteritems():
+            newval = remove_control_chars_from(v, log)
+            newkey = remove_control_chars(k)
+            newdict[newkey] = newval
+        return newdict
+    if isinstance(item, list):
+        newlist = []
+        for listitem in item:
+            newlist.append(remove_control_chars_from(listitem, log))
+        return newlist
+    if isinstance(item, basestring):
+        newstr = remove_control_chars(item)
+        if item != newstr:
+            if log is not None:
+                log.warning('changed string: ' + newstr)
+            return newstr
+    return item
 
 def http_emitter(message, log, agentConfig, endpoint):
     "Send payload"
@@ -40,10 +67,22 @@ def http_emitter(message, log, agentConfig, endpoint):
 
     # Post back the data
     try:
-        payload = json.dumps(message)
-    except UnicodeDecodeError:
-        message = remove_control_chars(message)
-        payload = json.dumps(message)
+        try:
+            payload = json.dumps(message)
+        except UnicodeDecodeError:
+            newmessage = remove_control_chars_from(message, log)
+            payload = json.dumps(newmessage)
+    except UnicodeDecodeError as ude:
+        log.error('http_emitter: Unable to convert message to json %s', ude)
+        # early return as we can't actually process the message
+        return
+    except RuntimeError as rte:
+        log.error('http_emitter: runtime error dumping message to json %s', rte)
+        # early return as we can't actually process the message
+        return
+    except Exception as e:
+        log.error('http_emitter: unknown exception processing message %s', e)
+        return
 
     zipped = zlib.compress(payload)
 

@@ -214,7 +214,7 @@ class NagiosTailer(object):
             self.gen.next()
             self.log.debug("Done nagios check for file %s (parsed %s line(s))" %
                            (self.log_path, self._line_parsed))
-        except StopIteration, e:
+        except StopIteration as e:
             self.log.exception(e)
             self.log.warning("Can't tail %s file" % (self.log_path))
 
@@ -225,7 +225,7 @@ class NagiosTailer(object):
             regex = re.sub(r'[[\]*]', r'.', file_template)
             regex = re.sub(r'\$([^\$]*)\$', r'(?P<\1>[^\$]*)', regex)
             self.line_pattern = re.compile(regex)
-        except Exception, e:
+        except Exception as e:
             raise InvalidDataTemplate("%s (%s)" % (file_template, e))
 
 

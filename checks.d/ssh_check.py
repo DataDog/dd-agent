@@ -53,11 +53,15 @@ class CheckSSH(AgentCheck):
         conf = self._load_conf(instance)
         tags = ["instance:{0}-{1}".format(conf.host, conf.port)]
 
+        private_key = None
         try:
             private_key = paramiko.RSAKey.from_private_key_file(conf.private_key_file)
-        except Exception:
-            self.warning("Private key could not be found")
-            private_key = None
+        except IOError:
+            self.warning("Unable to find private key file: {}".format(conf.private_key_file))
+        except paramiko.ssh_exception.PasswordRequiredException:
+            self.warning("Private key file is encrypted but no password was given")
+        except paramiko.ssh_exception.SSHException:
+            self.warning("Private key file is invalid")
 
         client = paramiko.SSHClient()
         if conf.add_missing_keys:

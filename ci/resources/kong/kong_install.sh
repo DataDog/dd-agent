@@ -8,9 +8,4 @@ tar xvzf $VOLATILE_DIR/kong.tar.gz -C . --strip-components=1
 mkdir $LUAJIT_DIR/include/$LUA_VERSION/uuid
 cp $UUID_DIR/usr/include/uuid/* $LUAJIT_DIR/include/$LUA_VERSION/uuid
 cp $UUID_DIR/usr/lib/libuuid* $LUAJIT_DIR/lib
-
-cp $TRAVIS_BUILD_DIR/ci/resources/kong/kong_DEVELOPMENT.yml ./
-make install
-kong  migrations -c kong_DEVELOPMENT.yml up
-kong start -c kong_DEVELOPMENT.yml
 popd

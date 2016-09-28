@@ -9,6 +9,9 @@ import gearman
 # project
 from checks import AgentCheck
 
+
+MAX_NUM_TASKS = 200
+
 class Gearman(AgentCheck):
     SERVICE_CHECK_NAME = 'gearman.can_connect'
 
@@ -20,18 +23,17 @@ class Gearman(AgentCheck):
         return gearman.GearmanAdminClient(["%s:%s" %
             (host, port)])
 
-    def _get_metrics(self, client, tags):
-        data = client.get_status()
+    def _get_aggregate_metrics(self, tasks, tags):
         running = 0
         queued = 0
         workers = 0
 
-        for stat in data:
+        for stat in tasks:
             running += stat['running']
             queued += stat['queued']
             workers += stat['workers']
 
-        unique_tasks = len(data)
+        unique_tasks = len(tasks)
 
         self.gauge("gearman.unique_tasks", unique_tasks, tags=tags)
         self.gauge("gearman.running", running, tags=tags)
@@ -41,9 +43,34 @@ class Gearman(AgentCheck):
         self.log.debug("running %d, queued %d, unique tasks %d, workers: %d"
         % (running, queued, unique_tasks, workers))
 
+    def _get_per_task_metrics(self, tasks, task_filter, tags):
+        if len(task_filter) > MAX_NUM_TASKS:
+            self.warning(
+                "The maximum number of tasks you can specify is {}.".format(MAX_NUM_TASKS))
+
+        if not len(task_filter) == 0:
+            tasks = [t for t in tasks if t['task'] in task_filter]
+
+        if len(tasks) > MAX_NUM_TASKS:
+            # Display a warning in the info page
+            self.warning(
+                "Too many tasks to fetch. You must choose the tasks you are interested in by editing the gearmand.yaml configuration file or get in touch with Datadog Support")
+
+        for stat in tasks[:MAX_NUM_TASKS]:
+            running = stat['running']
+            queued = stat['queued']
+            workers = stat['workers']
+
+            task_tags = tags[:]
+            task_tags.append("task:{}".format(stat['task']))
+            self.gauge("gearman.running_by_task", running, tags=task_tags)
+            self.gauge("gearman.queued_by_task", queued, tags=task_tags)
+            self.gauge("gearman.workers_by_task", workers, tags=task_tags)
+
     def _get_conf(self, instance):
         host = instance.get('server', None)
         port = instance.get('port', None)
+        tasks = instance.get('tasks', [])
 
         if host is None:
             self.warning("Host not set, assuming 127.0.0.1")
@@ -55,12 +82,12 @@ class Gearman(AgentCheck):
 
         tags = instance.get('tags', [])
 
-        return host, port, tags
+        return host, port, tasks, tags
 
     def check(self, instance):
         self.log.debug("Gearman check start")
 
-        host, port, tags = self._get_conf(instance)
+        host, port, task_filter, tags = self._get_conf(instance)
         service_check_tags = ["server:{0}".format(host),
             "port:{0}".format(port)]
 
@@ -70,7 +97,9 @@ class Gearman(AgentCheck):
         tags += service_check_tags
 
         try:
-            self._get_metrics(client, tags)
+            tasks = client.get_status()
+            self._get_aggregate_metrics(tasks, tags)
+            self._get_per_task_metrics(tasks, task_filter, tags)
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                 message="Connection to %s:%s succeeded." % (host, port),
                 tags=service_check_tags)
