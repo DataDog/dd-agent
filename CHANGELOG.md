@@ -8,7 +8,7 @@ Changes
 https://github.com/DataDog/dd-agent/compare/5.9.0...5.9.1
 
 ### Build/Packaging Issue in 5.9.0
-There was an issue in the way the 5.9.0 packages got built. The impact in most cases should be small, but users of the spark check will be affected and the check will break.
+A packaging issue led to issues with the Spark integration when running Agent 5.9.0. This release fixes the issue.
 
 ### Updated integrations
 * Kubernetes
