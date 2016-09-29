@@ -364,11 +364,16 @@ class Server(object):
         """
         Run the server.
         """
-        # Bind to the UDP socket in IPv4 and IPv6 compatibility mode
-        self.socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        # Configure the socket so that it accepts connections from both
-        # IPv4 and IPv6 networks in a portable manner.
-        self.socket.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
+        try:
+            # Bind to the UDP socket in IPv4 and IPv6 compatibility mode
+            self.socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+            # Configure the socket so that it accepts connections from both
+            # IPv4 and IPv6 networks in a portable manner.
+            self.socket.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
+        except Exception:
+            log.info('unable to create IPv6 socket, falling back to IPv4.')
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
         self.socket.setblocking(0)
 
         try:
