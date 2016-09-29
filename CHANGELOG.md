@@ -1,6 +1,27 @@
 Changes
 =======
 
+# 5.9.1 / Unreleased
+**Linux, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.9.0...5.9.1
+
+### Build/Packaging Issue in 5.9.0
+A packaging issue led to issues with the Spark integration when running Agent 5.9.0. This release fixes the issue.
+
+### Updated integrations
+* Kubernetes
+* Spark
+
+### Changes
+* [BUGFIX] Dogstatsd: fix ipv6 fallback to ipv4. See [#2879][]
+* [BUGFIX] Kubernetes: Fix incorrect time conversion for Kubernetes events. See [#2873][] (Thanks [@yannrouillard][])
+* [BUGFIX] Packaging: Build with the corresponding dd-agent-omnibus branch ( [5.9.x](https://github.com/DataDog/dd-agent-omnibus/tree/5.9.x) )
+* [BUGFIX] Packaging: include latest repo keys. See above.
+* [BUGFIX] Spark: fix missing libraries issue.
+
+
 # 5.9.0 / 09-27-2016
 **Linux, Windows, Docker and Source Install**
 
@@ -3449,6 +3470,8 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2852]: https://github.com/DataDog/dd-agent/issues/2852
 [#2855]: https://github.com/DataDog/dd-agent/issues/2855
 [#2858]: https://github.com/DataDog/dd-agent/issues/2858
+[#2873]: https://github.com/DataDog/dd-agent/issues/2873
+[#2879]: https://github.com/DataDog/dd-agent/issues/2879
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -3595,6 +3618,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@warnerpr-cyan]: https://github.com/warnerpr-cyan
 [@wyaeld]: https://github.com/wyaeld
 [@xkrt]: https://github.com/xkrt
+[@yannrouillard]: https://github.com/yannrouillard
 [@yenif]: https://github.com/yenif
 [@yyamano]: https://github.com/yyamano
 [@zachradtka]: https://github.com/zachradtka
