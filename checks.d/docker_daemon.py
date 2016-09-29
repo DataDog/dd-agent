@@ -358,16 +358,16 @@ class DockerDaemon(AgentCheck):
         if entity is not None:
             pod_name = None
 
-            if self.include_app_id and ( tag_type is CONTAINER or tag_type is PERFORMANCE ):
+            if self.include_app_id and (tag_type is CONTAINER or tag_type is PERFORMANCE):
                 self.log.debug("We need to capture Marathon Id")
                 cont_id = entity.get("Id")
                 if cont_id is not None:
                     cont_inspected = self.docker_client.inspect_container(cont_id)
                     for env_var in cont_inspected['Config']['Env']:
-                        self.log.debug("We have env_var : %s"%env_var)
+                        self.log.debug("We have env_var : %s" % env_var)
                         if 'MARATHON_APP_ID=' in env_var:
                             app_id = env_var.replace('MARATHON_APP_ID=','')
-                            self.log.debug("We have found the id as %s"%app_id)
+                            self.log.debug("We have found the id as %s" % app_id)
                             tags.append("app_id:%s" % app_id)
 
 
