@@ -25,7 +25,7 @@ cache:
   - C:\projects\dd-agent\embedded
 services:
   - iis
-  - mssql2008r2sp2
+  # - mssql2008r2sp2
   - mssql2012sp1
   - mssql2014
 install:
