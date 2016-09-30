@@ -343,6 +343,35 @@ class Kubernetes(AgentCheck):
             _tags.append('kube_replication_controller:{0}'.format(ctrl))
             self.publish_gauge(self, NAMESPACE + '.pods.running', pod_count, _tags)
 
+
+    def _get_namespace_events(self, namespace):
+        events_endpoint = '{}/namespaces/{}/events'.format(self.kubeutil.kubernetes_api_url, namespace)
+        self.log.debug('Kubernetes API endpoint to query events: %s' % events_endpoint)
+
+        events = self.kubeutil.retrieve_json_auth(events_endpoint, self.kubeutil.get_auth_token())
+        event_items = events.get('items') or []
+        last_read = self.kubeutil.last_event_collection_ts[namespace]
+        most_recent_read = 0
+
+        self.log.debug('Found {} events, filtering out using timestamp: {}'.format(len(event_items), last_read))
+
+        for event in event_items:
+            # skip if the event is too old
+            event_ts = calendar.timegm(time.strptime(event.get('lastTimestamp'), '%Y-%m-%dT%H:%M:%SZ'))
+            if event_ts <= last_read:
+                continue
+
+            yield event, event_ts
+
+            # compute the most recently seen event, without relying on items order
+            if event_ts > most_recent_read:
+                most_recent_read = event_ts
+
+        if most_recent_read > 0:
+            self.kubeutil.last_event_collection_ts[namespace] = most_recent_read
+            self.log.debug('_last_event_collection_ts for namespace {} is now {}'.format(namespace, most_recent_read))
+
+
     def _process_events(self, instance, pods_list):
         """
         Retrieve a list of events from the kubernetes API.
@@ -360,27 +389,9 @@ class Kubernetes(AgentCheck):
         self.log.debug('Processing events on {} [{}]'.format(node_name, node_ip))
 
         k8s_namespace = instance.get('namespace', 'default')
-        events_endpoint = '{}/namespaces/{}/events'.format(self.kubeutil.kubernetes_api_url, k8s_namespace)
-        self.log.debug('Kubernetes API endpoint to query events: %s' % events_endpoint)
-
-        events = self.kubeutil.retrieve_json_auth(events_endpoint, self.kubeutil.get_auth_token())
-        event_items = events.get('items') or []
-        last_read = self.kubeutil.last_event_collection_ts[k8s_namespace]
-        most_recent_read = 0
-
-        self.log.debug('Found {} events, filtering out using timestamp: {}'.format(len(event_items), last_read))
-
-        for event in event_items:
-            # skip if the event is too old
-            event_ts = calendar.timegm(time.strptime(event.get('lastTimestamp'), '%Y-%m-%dT%H:%M:%SZ'))
-            if event_ts <= last_read:
-                continue
+        for event,event_ts in self._get_namespace_events(k8s_namespace):
 
             involved_obj = event.get('involvedObject', {})
-
-            # compute the most recently seen event, without relying on items order
-            if event_ts > most_recent_read:
-                most_recent_read = event_ts
 
             title = '{} {} on {}'.format(involved_obj.get('name'), event.get('reason'), node_name)
             message = event.get('message')
@@ -399,6 +410,3 @@ class Kubernetes(AgentCheck):
             }
             self.event(dd_event)
 
-        if most_recent_read > 0:
-            self.kubeutil.last_event_collection_ts[k8s_namespace] = most_recent_read
-            self.log.debug('_last_event_collection_ts is now {}'.format(most_recent_read))
