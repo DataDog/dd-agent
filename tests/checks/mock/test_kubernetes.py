@@ -70,7 +70,7 @@ class TestKubernetes(AgentCheckTest):
             with mock.patch('utils.kubeutil.KubeUtil.retrieve_deployments_list', side_effect=lambda: json.loads(Fixtures.read_file("deployments_list.json", string_escape=False))):
                 with mock.patch('utils.dockerutil.DockerUtil.get_hostname', side_effect=lambda: 'foo'):
                     # Can't use run_check_twice due to specific metrics
-                    self.run_check(config, mocks=mocks, force_reload=True)
+                    self.run_check(config, force_reload=True)
                     self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL, tags=None, count=1)
 
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_json_auth')
@@ -226,7 +226,7 @@ class TestKubernetes(AgentCheckTest):
             with mock.patch('utils.kubeutil.KubeUtil.retrieve_deployments_list', side_effect=lambda: json.loads(Fixtures.read_file("deployments_list.json", string_escape=False))):
                 with mock.patch('utils.dockerutil.DockerUtil.get_hostname', side_effect=lambda: 'foo'):
                     # Can't use run_check_twice due to specific metrics
-                    self.run_check(config, mocks=mocks, force_reload=True)
+                    self.run_check(config, force_reload=True)
                     self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL)
 
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_json_auth')
