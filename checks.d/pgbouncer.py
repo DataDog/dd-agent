@@ -120,10 +120,16 @@ class PgBouncer(AgentCheck):
             self.log.error("Connection error: %s" % str(e))
             raise ShouldRestartException
 
-    def _get_connection(self, key, host, port, user, password, use_cached=True):
+    def _get_connection(self, key, host, port, user, password, use_cached=True,
+                        database_url=None):
         "Get and memoize connections to instances"
         if key in self.dbs and use_cached:
             return self.dbs[key]
+
+        if database_url:
+            connection = pg.connect(database_url)
+            connection.set_isolation_level(
+                pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 
         elif host != "" and user != "":
             try:
@@ -162,6 +168,7 @@ class PgBouncer(AgentCheck):
         user = instance.get('username', '')
         password = instance.get('password', '')
         tags = instance.get('tags', [])
+        database_url = instance.get('database_url')
 
         key = '%s:%s' % (host, port)
 
@@ -171,7 +178,8 @@ class PgBouncer(AgentCheck):
             tags = list(set(tags))
 
         try:
-            db = self._get_connection(key, host, port, user, password)
+            db = self._get_connection(key, host, port, user, password,
+                                      database_url=database_url)
             self._collect_stats(db, tags)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
