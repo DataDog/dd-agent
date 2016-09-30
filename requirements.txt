@@ -22,7 +22,7 @@ ntplib==0.3.3
 pyyaml==3.11
 # note: requests is also used in many checks
 # upgrade with caution
-requests==2.6.0
+requests==2.6.2
 # note: simplejson is used in many checks to inteface APIs
 simplejson==3.6.5
 supervisor==3.3.0
