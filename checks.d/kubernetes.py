@@ -27,6 +27,7 @@ DEFAULT_MAX_DEPTH = 10
 
 DEFAULT_USE_HISTOGRAM = False
 DEFAULT_PUBLISH_ALIASES = False
+DEFAULT_COLLECT_EVENTS_FROM_ALL_NAMESPACES = False
 DEFAULT_ENABLED_RATES = [
     'diskio.io_service_bytes.stats.total',
     'network.??_bytes',
@@ -388,25 +389,29 @@ class Kubernetes(AgentCheck):
         node_ip, node_name = self.kubeutil.get_node_info()
         self.log.debug('Processing events on {} [{}]'.format(node_name, node_ip))
 
-        k8s_namespace = instance.get('namespace', 'default')
-        for event,event_ts in self._get_namespace_events(k8s_namespace):
+        if _is_affirmative(instance.get('collect_events_from_all_namespaces', DEFAULT_COLLECT_EVENTS_FROM_ALL_NAMESPACES)):
+            k8s_namespaces = [item['metadata']['name'] for item in self.kubeutil.retrieve_namespaces_list()['items']]
+        else:
+            k8s_namespaces = [instance.get('namespace', 'default')]
 
-            involved_obj = event.get('involvedObject', {})
+        for namespace in k8s_namespaces:
+            for event,event_ts in self._get_namespace_events(namespace):
 
-            title = '{} {} on {}'.format(involved_obj.get('name'), event.get('reason'), node_name)
-            message = event.get('message')
-            source = event.get('source')
-            if source:
-                message += '\nSource: {} {}\n'.format(source.get('component', ''), source.get('host', ''))
-            msg_body = "%%%\n{}\n```\n{}\n```\n%%%".format(title, message)
-            dd_event = {
-                'timestamp': event_ts,
-                'host': node_ip,
-                'event_type': EVENT_TYPE,
-                'msg_title': title,
-                'msg_text': msg_body,
-                'source_type_name': EVENT_TYPE,
-                'event_object': 'kubernetes:{}'.format(involved_obj.get('name')),
-            }
-            self.event(dd_event)
+                involved_obj = event.get('involvedObject', {})
 
+                title = '{} {} on {}'.format(involved_obj.get('name'), event.get('reason'), node_name)
+                message = event.get('message')
+                source = event.get('source')
+                if source:
+                    message += '\nSource: {} {}\n'.format(source.get('component', ''), source.get('host', ''))
+                msg_body = "%%%\n{}\n```\n{}\n```\n%%%".format(title, message)
+                dd_event = {
+                    'timestamp': event_ts,
+                    'host': node_ip,
+                    'event_type': EVENT_TYPE,
+                    'msg_title': title,
+                    'msg_text': msg_body,
+                    'source_type_name': EVENT_TYPE,
+                    'event_object': 'kubernetes:{}'.format(involved_obj.get('name')),
+                }
+                self.event(dd_event)

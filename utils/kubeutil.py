@@ -25,6 +25,7 @@ class KubeUtil:
     __metaclass__ = Singleton
 
     DEFAULT_METHOD = 'http'
+    NAMESPACES_LIST_PATH = 'namespaces'
     METRICS_PATH = '/api/v1.3/subcontainers/'
     PODS_LIST_PATH = '/pods/'
     DEFAULT_CADVISOR_PORT = 4194
@@ -65,6 +66,7 @@ class KubeUtil:
         self.cadvisor_url = '%s://%s:%d' % (self.method, self.host, self.cadvisor_port)
         self.kubernetes_api_url = 'https://%s/api/v1' % self.DEFAULT_MASTER_NAME
 
+        self.namespaces_list_url = "%s/%s" % (self.kubernetes_api_url, KubeUtil.NAMESPACES_LIST_PATH)
         self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
         self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
         self.kube_health_url = urljoin(self.kubelet_api_url, 'healthz')
@@ -115,6 +117,13 @@ class KubeUtil:
             if value is not None:
                 uids.append(value)
         return uids
+
+    def retrieve_namespaces_list(self):
+        """
+        Retrieve the list of namespaces for this cluster querying the kubelet API.
+
+        """
+        return self.retrieve_json_auth(self.namespaces_list_url, self.get_auth_token())
 
     def retrieve_pods_list(self):
         """
