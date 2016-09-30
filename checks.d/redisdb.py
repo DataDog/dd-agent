@@ -127,7 +127,7 @@ class Redis(AgentCheck):
 
                 # Only send useful parameters to the redis client constructor
                 list_params = ['host', 'port', 'db', 'password', 'socket_timeout',
-                               'connection_pool', 'charset', 'errors', 'unix_socket_path']
+                               'connection_pool', 'charset', 'errors', 'unix_socket_path', 'ssl']
 
                 # Set a default timeout (in seconds) if no timeout is specified in the instance config
                 instance['socket_timeout'] = instance.get('socket_timeout', 5)
