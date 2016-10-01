@@ -47,16 +47,16 @@ class AbstractConfigStore(object):
         self.sd_template_dir = agentConfig.get('sd_template_dir')
         self.auto_conf_images = get_auto_conf_images(agentConfig)
 
-        # cache used by dockerutil to determine which check to reload based on the image linked to an event
+        # Cache mapping identifiers to their templates;
+        # ident: [[check_names], [init_config_tpls], [instance_tpls]]
+        # Used by dockerutil to determine which check to reload based on the image linked to an event
+        # Also used by AbstractConfigStore to get templates and avoid querying the kv store.
         #
-        # it is invalidated entirely when a change is detected in the kv store
+        # it is invalidated entirely when a change is detected in the kv store.
         #
-        # this is a defaultdict(set) and some calls to it rely on this property
+        # this is a defaultdict(lambda: [[]] * 3) and some calls to it rely on this property
         # so if you're planning on changing that, track its references
-        #
-        # TODO Haissam: this should be fleshed out a bit more and used as a cache instead
-        # of querying the kv store for each template
-        self.identifier_to_checks = self._populate_identifier_to_checks()
+        self.identifier_to_tpls = self._populate_identifier_to_tpls(trace_config=TRACE_CONFIG in agentConfig)
 
     @classmethod
     def _drop(cls):
@@ -76,27 +76,54 @@ class AbstractConfigStore(object):
     def dump_directory(self, path, **kwargs):
         raise NotImplementedError()
 
-    def _populate_identifier_to_checks(self):
-        """Populate the identifier_to_checks cache with templates pulled
+    def _populate_identifier_to_tpls(self, **kwargs):
+        """Populate the identifier_to_tpls cache with templates pulled
         from the config store and from the auto-config folder"""
-        identifier_to_checks = defaultdict(set)
+        identifier_to_tpls = defaultdict(lambda: [[]] * 3)
         # config store templates
         try:
             templates = self.client_read(self.sd_template_dir.lstrip('/'), all=True)
         except (NotImplementedError, TimeoutError, AttributeError):
             templates = []
         for tpl in templates:
-            split_tpl = tpl[0].split('/')
-            ident, var = split_tpl[-2], split_tpl[-1]
+            split_key = tpl[0].split('/')
+            ident, var = split_key[-2], split_key[-1]
             if var == CHECK_NAMES:
-                identifier_to_checks[ident].update(set(json.loads(tpl[1])))
+                identifier_to_tpls[ident][0] = json.loads(tpl[1])
+            elif var == INIT_CONFIGS:
+                identifier_to_tpls[ident][1] = json.loads(tpl[1])
+            elif var == INSTANCES:
+                identifier_to_tpls[ident][2] = json.loads(tpl[1])
+
+        if kwargs.get('trace_config'):
+            for ident in identifier_to_tpls:
+                identifier_to_tpls[ident] = (CONFIG_FROM_TEMPLATE, identifier_to_tpls[ident])
 
         # auto-config templates
-        templates = get_auto_conf_images(self.agentConfig)
-        for image, check in templates.iteritems():
-            identifier_to_checks[image].add(check)
+        templates = get_auto_conf_images(self.agentConfig, full_tpl=True)
+        for image, tpl in templates.iteritems():
+            check_name, init_tpl, instance_tpl = tpl
+            # there is already a user-defined template for this image
+            if image in identifier_to_tpls:
+                if check_name in identifier_to_tpls[image][0] or \
+                   identifier_to_tpls[image][0] == CONFIG_FROM_TEMPLATE:
+                    continue
+                identifier_to_tpls[image][0].append(check_name)
+                identifier_to_tpls[image][1].append(init_tpl)
+                identifier_to_tpls[image][2].append(instance_tpl)
+            else:
+                identifier_to_tpls[image][0] = [check_name]
+                identifier_to_tpls[image][1] = [init_tpl or {}]
+                # no list wrapping because auto_conf files already have a list of instances
+                identifier_to_tpls[image][2] = instance_tpl or [{}]
 
-        return identifier_to_checks
+        if kwargs.get('trace_config'):
+            for ident in identifier_to_tpls:
+                tpl = identifier_to_tpls[ident]
+                if not isinstance(tpl, tuple):
+                    identifier_to_tpls[ident] = (CONFIG_FROM_AUTOCONF, identifier_to_tpls[ident])
+
+        return identifier_to_tpls
 
     def _get_kube_config(self, identifier, kube_annotations):
         try:
@@ -114,7 +141,7 @@ class AbstractConfigStore(object):
     def _get_auto_config(self, image_name):
         ident = self._get_image_ident(image_name)
         if ident in self.auto_conf_images:
-            check_name = self.auto_conf_images[ident]
+            check_name = self.auto_conf_images[ident][0]
 
             # get the check class to verify it matches
             check = get_check_class(self.agentConfig, check_name)
@@ -130,7 +157,8 @@ class AbstractConfigStore(object):
         return None
 
     def get_checks_to_refresh(self, identifier, **kwargs):
-        to_check = set(self.identifier_to_checks[identifier])
+        # get check names list
+        to_check = set(self.identifier_to_tpls[identifier][0])
         kube_annotations = kwargs.get('kube_annotations')
         if kube_annotations:
             kube_config = self._get_kube_config(identifier, kube_annotations)
@@ -168,9 +196,12 @@ class AbstractConfigStore(object):
                 log.debug('No auto config was found for image %s, leaving it alone.' % identifier)
                 return []
         else:
-            config = self.read_config_from_store(identifier)
+            config = self.retrieve_config_tpl(identifier, trace_config=trace_config)
             if config:
-                source, check_names, init_config_tpls, instance_tpls = config
+                if trace_config:
+                    source, check_names, init_config_tpls, instance_tpls = config
+                else:
+                    check_names, init_config_tpls, instance_tpls = config
             else:
                 return []
 
@@ -180,14 +211,15 @@ class AbstractConfigStore(object):
                       'will not be configured by the service discovery'.format(identifier))
             return []
 
-        # Try to update the identifier_to_checks cache
-        self._update_identifier_to_checks(identifier, check_names)
+        # Try to update the identifier_to_tpls cache
+        self._update_identifier_to_tpls(identifier, check_names, init_config_tpls, instance_tpls)
 
         return [(source, values) if trace_config else values
                 for values in zip(check_names, init_config_tpls, instance_tpls)]
 
-    def read_config_from_store(self, identifier):
-        """Try to read from the config store, falls back to auto-config in case of failure."""
+    def retrieve_config_tpl(self, identifier, **kwargs):
+        """Try to read from the config store (or the cache), falls back to auto-config in case of failure."""
+        trace_config = kwargs.get('trace_config', False)
         try:
             try:
                 res = self._issue_read(identifier)
@@ -197,24 +229,25 @@ class AbstractConfigStore(object):
                 image_ident = self._get_image_ident(identifier)
                 res = self._issue_read(image_ident)
 
+            if trace_config and res:
+                source, res = res
+
             if res and len(res) == 3:
-                source = CONFIG_FROM_TEMPLATE
                 check_names, init_config_tpls, instance_tpls = res
             else:
                 log.debug("Could not find directory {} in the config store, "
                           "trying to convert to the old format...".format(identifier))
                 image_ident = self._get_image_ident(identifier)
                 res = self._issue_read(image_ident)
+
+                if trace_config and res:
+                    source, res = res
+
                 if res and len(res) == 3:
-                    source = CONFIG_FROM_TEMPLATE
                     check_names, init_config_tpls, instance_tpls = res
                 else:
                     raise KeyError
         except (KeyError, KeyNotFound, TimeoutError, json.JSONDecodeError) as ex:
-            # this is kind of expected, it means that no template was provided for this container
-            if isinstance(ex, KeyError) or isinstance(ex, KeyNotFound):
-                log.debug("Could not find directory {} in the config store, "
-                          "trying to auto-configure a check...".format(identifier))
             # this case is not expected, the agent can't reach the config store
             if isinstance(ex, TimeoutError):
                 log.warning("Connection to the config backend timed out. Is it reachable?\n"
@@ -224,21 +257,18 @@ class AbstractConfigStore(object):
                 log.error('Could not decode the JSON configuration template '
                           'for the container with ident %s...' % identifier)
                 return []
-            # try to read from auto-config templates
-            auto_config = self._get_auto_config(identifier)
-            if auto_config is not None:
-                # create list-format config based on an autoconf template
-                check_names, init_config_tpls, instance_tpls = map(lambda x: [x], auto_config)
-                source = CONFIG_FROM_AUTOCONF
             else:
-                log.debug('No config was found for container with ident %s, leaving it alone.' % identifier)
+                log.debug('No config was found for container with identifier %s, leaving it alone.' % identifier)
                 return []
         except Exception as ex:
             log.warning(
-                'Fetching the value for {0} in the config store failed, this check '
-                'will not be configured by the service discovery. Error: {1}'.format(identifier, str(ex)))
+                'Fetching the value for {0} failed, this check will not be '
+                'configured by the service discovery. Error: {1}'.format(identifier, str(ex)))
             return []
-        return source, check_names, init_config_tpls, instance_tpls
+        if trace_config:
+            return source, check_names, init_config_tpls, instance_tpls
+        else:
+            return check_names, init_config_tpls, instance_tpls
 
     def _get_image_ident(self, ident):
         """Extract an identifier from the image"""
@@ -250,6 +280,10 @@ class AbstractConfigStore(object):
             return ident.split(':')[0].split('/')[-1]
 
     def _issue_read(self, identifier):
+        """Query a full template for the config store for an identifier."""
+        if identifier in self.identifier_to_tpls:
+            return self.identifier_to_tpls[identifier]
+
         try:
             check_names = json.loads(
                 self.client_read(path.join(self.sd_template_dir, identifier, CHECK_NAMES).lstrip('/')))
@@ -277,21 +311,22 @@ class AbstractConfigStore(object):
             self.previous_config_index = config_index
             return False
         # Config has been modified since last crawl
-        # in this case a full config reload is triggered and the identifier_to_checks cache is rebuilt
+        # in this case a full config reload is triggered and the identifier_to_tpls cache is rebuilt
         if config_index != self.previous_config_index:
             log.info('Detected an update in config templates, reloading check configs...')
             self.previous_config_index = config_index
-            self.identifier_to_checks = self._populate_identifier_to_checks()
+            self.identifier_to_tpls = self._populate_identifier_to_tpls()
             return True
         return False
 
-    def _update_identifier_to_checks(self, identifier, check_names):
-        """Try to insert in the identifier_to_checks cache the mapping between
+    def _update_identifier_to_tpls(self, identifier, check_names, init_tpl, instance_tpl):
+        """Try to insert in the identifier_to_tpls cache the mapping between
            an identifier and its check names.
            This should very rarely happen.
            When/If it does we can correct the cache if the key was missing but not if there is a conflict."""
-        if identifier not in self.identifier_to_checks:
-            self.identifier_to_checks[identifier] = set(check_names)
-        elif self.identifier_to_checks[identifier] != set(check_names):
-            log.warning("Trying to cache check names for ident %s but a different value is already there."
+        if identifier not in self.identifier_to_tpls:
+            self.identifier_to_tpls[identifier] = [check_names, init_tpl, instance_tpl]
+        elif self.identifier_to_tpls[identifier][0] != check_names and \
+                self.identifier_to_tpls[identifier][0] not in [CONFIG_FROM_TEMPLATE, CONFIG_FROM_AUTOCONF]:
+            log.warning("Trying to cache template(s) for ident %s but a different value is already there. "
                         "Not updating." % identifier)
