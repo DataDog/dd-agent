@@ -413,5 +413,6 @@ class Kubernetes(AgentCheck):
                     'msg_text': msg_body,
                     'source_type_name': EVENT_TYPE,
                     'event_object': 'kubernetes:{}'.format(involved_obj.get('name')),
+                    'tags': [u"kube_namespace:{0}".format(namespace)]
                 }
                 self.event(dd_event)
