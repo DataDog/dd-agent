@@ -71,7 +71,7 @@ class Kubernetes(AgentCheck):
         service_check_base = NAMESPACE + '.kubelet.check'
         is_ok = True
         try:
-            r = requests.get(url)
+            r = requests.get(url, params={'verbose': True})
             for line in r.iter_lines():
 
                 # avoid noise; this check is expected to fail since we override the container hostname
