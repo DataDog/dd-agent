@@ -48,6 +48,7 @@ class SDDockerBackend(AbstractSDBackend):
         AbstractSDBackend.__init__(self, agentConfig)
 
     def update_checks(self, changed_containers):
+        self.get_configs()
         conf_reload_set = set()
         for id_ in changed_containers:
             try:
