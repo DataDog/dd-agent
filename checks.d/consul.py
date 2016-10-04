@@ -16,6 +16,8 @@ from checks import AgentCheck
 import requests
 
 
+# More information in https://www.consul.io/docs/internals/coordinates.html,
+# code is based on the snippet there.
 def distance(a, b):
     a = a['Coord']
     b = b['Coord']
