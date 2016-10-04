@@ -21,6 +21,7 @@ log = logging.getLogger('collector')
 
 KUBERNETES_CHECK_NAME = 'kubernetes'
 
+
 class KubeUtil:
     __metaclass__ = Singleton
 

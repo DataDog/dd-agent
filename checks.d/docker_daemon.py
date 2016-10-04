@@ -15,7 +15,7 @@ from math import ceil
 from checks import AgentCheck
 from config import _is_affirmative
 from utils.dockerutil import DockerUtil, MountException
-from utils.kubeutil import KubeUtil
+from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.sd_backend import get_sd_backend
 

@@ -175,7 +175,7 @@ class TestServiceDiscovery(unittest.TestCase):
     # sd_backend tests
 
     @mock.patch('utils.http.requests.get')
-    @mock.patch('utils.kubeutil.check_yaml')
+    @mock.patch('utils.kubernetes.kubeutil.check_yaml')
     def test_get_host_address(self, mock_check_yaml, mock_get):
         kubernetes_config = {'instances': [{'kubelet_port': 1337}]}
         pod_list = {
@@ -234,7 +234,7 @@ class TestServiceDiscovery(unittest.TestCase):
         for c_ins, tpl_var, expected_ip in ip_address_inspects:
             with mock.patch.object(AbstractConfigStore, '__init__', return_value=None):
                 with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
-                    with mock.patch('utils.kubeutil.get_conf_path', return_value=None):
+                    with mock.patch('utils.kubernetes.kubeutil.get_conf_path', return_value=None):
                         sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
                         self.assertEquals(sd_backend._get_host_address(c_ins, tpl_var), expected_ip)
                         clear_singletons(self.auto_conf_agentConfig)

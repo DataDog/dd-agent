@@ -96,7 +96,7 @@ def load_check(name, config, agentConfig):
 
     # init the check class
     try:
-        return check_class(name, init_config=init_config, agentConfig=agentConfig, instances=instances)
+        return check_class(name, init_config, agentConfig, instances=instances)
     except TypeError as e:
         raise Exception("Check is using old API, {0}".format(e))
     except Exception:
