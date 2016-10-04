@@ -28,7 +28,7 @@ def distance(a, b):
 
     adjusted = rtt + a['Adjustment'] + b['Adjustment']
     if adjusted > 0.0:
-      rtt = adjusted
+        rtt = adjusted
 
     return rtt * 1000.0
 
