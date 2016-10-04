@@ -531,11 +531,11 @@ class TestCheckConsul(AgentCheckTest):
         self.assertEquals(19, len(latency))
 
         # Only 3 dc-latency metrics since we only do source = self
-        dc = [m for m in latency if '.dc-latency.' in m[0]]
+        dc = [m for m in latency if '.dc.latency.' in m[0]]
         self.assertEquals(3, len(dc))
         self.assertEquals(1.6746410750238774, dc[0][2])
 
         # 16 latency metrics, 2 nodes * 8 metrics each
-        node = [m for m in latency if '.latency.' in m[0]]
+        node = [m for m in latency if '.node.latency.' in m[0]]
         self.assertEquals(16, len(node))
         self.assertEquals(0.26577747932995816, node[0][2])
