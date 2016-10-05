@@ -378,31 +378,31 @@ class ConsulCheck(AgentCheck):
         datacenters = self._get_coord_datacenters(instance)
         for datacenter in datacenters:
             name = datacenter['Datacenter']
-            if name != agent_dc:
-                # Not us, skip
-                continue
-            # Inter-datacenter
-            for other in datacenters:
-                other_name = other['Datacenter']
-                if name == other_name:
-                    # Ignore ourself
-                    continue
-                latencies = []
-                for node_a in datacenter['Coordinates']:
-                    for node_b in other['Coordinates']:
-                        latencies.append(distance(node_a, node_b))
-                latencies.sort()
-                tags = main_tags + ['source_datacenter:{}'.format(name),
-                                    'dest_datacenter:{}'.format(other_name)]
-                n = len(latencies)
-                half_n = int(floor(n / 2))
-                if n % 2:
-                    median = latencies[half_n]
-                else:
-                    median = (latencies[half_n - 1] + latencies[half_n]) / 2
-                self.gauge('consul.net.dc.latency.min', latencies[0], hostname='', tags=tags)
-                self.gauge('consul.net.dc.latency.median', median, hostname='', tags=tags)
-                self.gauge('consul.net.dc.latency.max', latencies[-1], hostname='', tags=tags)
+            if name == agent_dc:
+                # This is us, time to collect inter-datacenter data
+                for other in datacenters:
+                    other_name = other['Datacenter']
+                    if name == other_name:
+                        # Ignore ourself
+                        continue
+                    latencies = []
+                    for node_a in datacenter['Coordinates']:
+                        for node_b in other['Coordinates']:
+                            latencies.append(distance(node_a, node_b))
+                    latencies.sort()
+                    tags = main_tags + ['source_datacenter:{}'.format(name),
+                                        'dest_datacenter:{}'.format(other_name)]
+                    n = len(latencies)
+                    half_n = int(floor(n / 2))
+                    if n % 2:
+                        median = latencies[half_n]
+                    else:
+                        median = (latencies[half_n - 1] + latencies[half_n]) / 2
+                    self.gauge('consul.net.dc.latency.min', latencies[0], hostname='', tags=tags)
+                    self.gauge('consul.net.dc.latency.median', median, hostname='', tags=tags)
+                    self.gauge('consul.net.dc.latency.max', latencies[-1], hostname='', tags=tags)
+                # We've found ourself, we can move on
+                break
 
         # Intra-datacenter
         nodes = self._get_coord_nodes(instance)
