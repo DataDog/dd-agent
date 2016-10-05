@@ -4,6 +4,7 @@
 
 # stdlib
 import collections
+import locale
 import logging
 import pprint
 import socket
@@ -735,7 +736,7 @@ class Collector(object):
             pass
 
         metadata["hostname"] = self.hostname
-        metadata["timezones"] = sanitize_tzname(time.tzname)
+        metadata["timezones"] = self._decode_tzname(time.tzname)
 
         # Add cloud provider aliases
         host_aliases = GCE.get_host_aliases(self.agentConfig)
@@ -782,12 +783,16 @@ class Collector(object):
 
         return output
 
+    @staticmethod
+    def _decode_tzname(tzname):
+        """ On Windows, decodes the timezone from the system-preferred encoding
+        """
+        if Platform.is_windows():
+            try:
+                decoded_tzname = map(lambda tz: tz.decode(locale.getpreferredencoding()), tzname)
+            except Exception as e:
+                log.exception("Failed decoding timezone with encoding %s", locale.getpreferredencoding())
+                return ('', '')
+            return tuple(decoded_tzname)
 
-def sanitize_tzname(tzname):
-    """ Returns the tzname given, and deals with Japanese encoding issue
-    """
-    if tzname[0] == '\x93\x8c\x8b\x9e (\x95W\x8f\x80\x8e\x9e)':
-        log.debug('tzname from TOKYO detected and converted')
-        return ('JST', 'JST')
-    else:
         return tzname
