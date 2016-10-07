@@ -441,7 +441,10 @@ class MongoDb(AgentCheck):
     def hostname_for_event(self, clean_server_name, agentConfig):
         """Return a reasonable hostname for a replset membership event to mention."""
         uri = urlsplit(clean_server_name)
-        hostname = uri.netloc.split(':')[0]
+        if '@' in uri.netloc:
+            hostname = uri.netloc.split('@')[1].split(':')[0]
+        else:
+            hostname = uri.netloc.split(':')[0]
         if hostname == 'localhost':
             hostname = self.hostname
         return hostname
