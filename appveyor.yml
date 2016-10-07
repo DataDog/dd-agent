@@ -5,7 +5,7 @@ environment:
   INTEGRATIONS_DIR: c:\projects\dd-agent\embedded
   PIP_CACHE: c:\projects\dd-agent\.cache\pip
   VOLATILE_DIR: c:\projects
-  NOSE_FILTER: not unix
+  NOSE_FILTER: not unix and not fixme
   PYWIN_PATH: C:\projects\dd-agent\.cache\pywin32-py2.7.exe
   SKIP_LINT: true
   matrix:
@@ -25,9 +25,9 @@ cache:
   - C:\projects\dd-agent\embedded
 services:
   - iis
-  - mssql2008r2sp2
+  # - mssql2008r2sp2 # FIXME: re-enable when we can launch multiple mssql instances at once
   - mssql2012sp1
-  - mssql2014
+  # - mssql2014 # FIXME: re-enable when we can launch multiple mssql instances at once
 install:
   # Use the 64-bit ruby so that all the Powershell classes are accessible when running shell commands from ruby
   - set PATH=C:\Ruby22-x64\bin;%PATH%
