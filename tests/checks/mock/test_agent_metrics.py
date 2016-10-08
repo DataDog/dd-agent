@@ -3,7 +3,17 @@ import mock
 
 # project
 from checks import AGENT_METRICS_CHECK_NAME
-from tests.checks.common import AgentCheckTest, load_check
+from tests.checks.common import AgentCheckTest, load_check, log as tests_log
+
+import logging
+
+def setup_logging(logger, level):
+    logger.setLevel(level)
+    ch = logging.StreamHandler()
+    logger.addHandler(ch)
+
+setup_logging(tests_log, logging.INFO)
+
 
 MOCK_CONFIG = {
     'instances': [
@@ -37,6 +47,25 @@ MOCK_CONFIG_2 = {
             },
         ]}],
     'init_config': {}
+}
+
+MOCK_CONFIG_3 = {
+    'instances': [
+        {'process_metrics': [
+            {
+                'name': 'memory_info',
+                'type': 'gauge',
+                'active': 'yes'
+            },
+            {
+                'name': 'get_non_existent_stat',
+                'type': 'gauge',
+                'active': 'yes'
+            },
+        ]}],
+    'init_config': {
+        'log_num_metrics': 'yes'
+    }
 }
 
 AGENT_CONFIG_DEV_MODE = {
@@ -123,3 +152,38 @@ class AgentMetricsTestCase(AgentCheckTest):
         }
 
         self.run_check(MOCK_CONFIG, mocks=mocks)
+
+    def test_num_metrics(self):
+        check = load_check(self.CHECK_NAME, MOCK_CONFIG_3, AGENT_CONFIG_DEV_MODE)
+        check.log = tests_log
+
+        self.assertTrue(check.in_developer_mode)
+        self.assertTrue(check.log_num_metrics)
+
+        metrics = [1, 2, 3]
+        events = [1, 2]
+        payload = {
+            'metrics': metrics,
+            'events': events
+        }
+        cpu_time = 300
+        collection_time = 100
+        emit_time = 200
+        context = {
+            'collection_time': collection_time,
+            'emit_time': emit_time,
+            'cpu_time': cpu_time
+        }
+        check.set_metric_context(payload, context)
+        self.check = check
+
+        self.run_check(MOCK_CONFIG_3)
+
+        self.assertMetric('datadog.agent.collector.num_metrics', value=len(metrics))
+        self.assertMetric('datadog.agent.collector.num_events', value=len(events))
+
+        self.assertMetric('datadog.agent.collector.collection.time', value=collection_time)
+        self.assertMetric('datadog.agent.emitter.emit.time', value=emit_time)
+
+        cpu_used_pct = 100.0 * float(cpu_time)/float(collection_time)
+        self.assertMetric('datadog.agent.collector.cpu.used', value=cpu_used_pct)

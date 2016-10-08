@@ -35,12 +35,18 @@ class AgentMetrics(AgentCheck):
     """
     New-style version of `CollectorMetrics`
     Gets information about agent performance on every collector loop
+
+    NOTE: this Check is *always* created, because there is an 'agent_metrics.yaml.default' configuration
+          present in conf.d. (see utils/checkfiles.py)
     """
 
-    def __init__(self, *args, **kwargs):
-        AgentCheck.__init__(self, *args, **kwargs)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+
         self._collector_payload = {}
         self._metric_context = {}
+
+        self.log_num_metrics = init_config.get('log_num_metrics', False)
 
     def _psutil_config_to_stats(self, instance):
         """
@@ -122,6 +128,14 @@ class AgentMetrics(AgentCheck):
         collection_time = context.get('collection_time', None)
         emit_time = context.get('emit_time', None)
         cpu_time = context.get('cpu_time', None)
+
+        if self.in_developer_mode:
+            num_metrics = len(payload['metrics'])
+            num_events = len(payload['events'])
+            self.gauge('datadog.agent.collector.num_metrics', num_metrics)
+            self.gauge('datadog.agent.collector.num_events', num_events)
+            if self.log_num_metrics:
+                self.log.info("Check:(%s) num_metrics: %s num_events: %s" % (self.name, num_metrics, num_events))
 
         if threading.activeCount() > MAX_THREADS_COUNT:
             self.gauge('datadog.agent.collector.threads.count', threading.activeCount())

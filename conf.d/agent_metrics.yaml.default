@@ -3,6 +3,7 @@
 # to `agent_metrics.yaml` and make your changes on that file.
 
 init_config:
+    log_num_metrics: no
     process_metrics:
         - name: memory_info
           type: gauge
