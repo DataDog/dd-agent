@@ -12,12 +12,16 @@ def activemq_rootdir
   "#{ENV['INTEGRATIONS_DIR']}/activemq_#{activemq_version}"
 end
 
+def activemq_bin
+  "#{activemq_rootdir}/bin/activemq"
+end
+
 namespace :ci do
   namespace :activemq do |flavor|
     task before_install: ['ci:common:before_install']
 
     task install: ['ci:common:install'] do
-      unless Dir.exist? File.expand_path(activemq_rootdir)
+      unless File.exist? activemq_bin
         # Download from Apache
         # http://archive.apache.org/dist/activemq/#{activemq_version}/apache-activemq-#{activemq_version}-bin.tar.gz
         sh %(curl -s -L\
@@ -37,7 +41,7 @@ namespace :ci do
            https://s3.amazonaws.com/dd-agent-tarball-mirror/apache-activemq-kahadb.tar.gz)
       sh %(tar zxf $VOLATILE_DIR/kahadb.tar.gz\
            -C #{activemq_rootdir}/data)
-      sh %(#{activemq_rootdir}/bin/activemq start)
+      sh %(#{activemq_bin} start)
       Wait.for 'http://localhost:8161'
     end
 
