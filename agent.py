@@ -19,6 +19,8 @@ import os
 import signal
 import sys
 import time
+import supervisor.xmlrpc
+import xmlrpclib
 from copy import copy
 
 # For pickle & PID files, see issue 293
@@ -32,10 +34,12 @@ from config import (
     get_parsed_args,
     get_system_stats,
     load_check_directory,
-    load_check
+    load_check,
+    generate_jmx_configs
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
+from utils.platform import Platform
 
 # utils
 from util import Watchdog
@@ -50,11 +54,21 @@ from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.sd_backend import get_sd_backend
 
 # Constants
+from jmxfetch import JMX_CHECKS
 PID_NAME = "dd-agent"
 PID_DIR = None
 WATCHDOG_MULTIPLIER = 10
 RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 
+JMX_SUPERVISOR_ENTRY = 'datadog-agent:jmxfetch'
+JMX_GRACE_SECS = 2
+SERVICE_DISCOVERY_PREFIX = 'SD-'
+SD_PIPE_NAME = "dd-service_discovery"
+SD_PIPE_UNIX_PATH = "/tmp"
+SD_PIPE_WIN_PATH = "\\\\.\\pipe\\{pipename}"
+SD_CONFIG_SEP = "#### SERVICE-DISCOVERY ####\n"
+
+DEFAULT_SUPERVISOR_SOCKET = '/opt/datadog-agent/run/datadog-supervisor.sock'
 DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
 # Globals
@@ -79,6 +93,16 @@ class Agent(Daemon):
         # this flag can be set to True, False, or a list of checks (for partial reload)
         self.reload_configs_flag = False
         self.sd_backend = None
+        self.supervisor_proxy = None
+
+        if Platform.is_windows():
+            pipe_name = SD_PIPE_WIN_PATH.format(pipename=SD_PIPE_NAME)
+        else:
+            pipe_name = os.path.join(SD_PIPE_UNIX_PATH, SD_PIPE_NAME)
+
+        if not os.path.exists(pipe_name):
+            os.mkfifo(pipe_name)
+        self.sd_pipe = os.open(pipe_name, os.O_RDWR) # RW to avoid blocking (will only W)
 
     def _handle_sigterm(self, signum, frame):
         """Handles SIGTERM and SIGINT, which gracefully stops the agent."""
@@ -113,12 +137,20 @@ class Agent(Daemon):
                 check.stop()
 
             self._checksd = load_check_directory(self._agentConfig, hostname)
+            jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
         else:
             new_checksd = copy(self._checksd)
 
-            self.refresh_specific_checks(hostname, new_checksd, checks_to_reload)
+            jmx_checks = [check for check in checks_to_reload if check in JMX_CHECKS]
+            py_checks = set(checks_to_reload) - set(jmx_checks)
+            self.refresh_specific_checks(hostname, new_checksd, py_checks)
+            jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname, jmx_checks)
+
             # once the reload is done, replace existing checks with the new ones
             self._checksd = new_checksd
+
+        if jmx_sd_configs:
+            self._submit_jmx_service_discovery(jmx_sd_configs)
 
         # Logging
         num_checks = len(self._checksd['initialized_checks'])
@@ -216,8 +248,16 @@ class Agent(Daemon):
         if self._agentConfig.get('service_discovery'):
             self.sd_backend = get_sd_backend(self._agentConfig)
 
+        # Initialize Supervisor proxy (unix specific)
+        self.supervisor_proxy = self._get_supervisor_socket(self._agentConfig)
+
         # Load the checks.d checks
         self._checksd = load_check_directory(self._agentConfig, hostname)
+
+        # Load JMX configs if available
+        jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
+        if jmx_sd_configs:
+            self._submit_jmx_service_discovery(jmx_sd_configs)
 
         # Initialize the Collector
         self.collector = Collector(self._agentConfig, emitters, systemStats, hostname)
@@ -341,6 +381,48 @@ class Agent(Daemon):
             else:
                 log.info('Not running on EC2, using hostname to identify this server')
         return agentConfig
+
+    def _get_supervisor_socket(self, agentConfig):
+        if Platform.is_windows():
+            return None
+
+        sockfile = agentConfig.get('supervisor_socket', DEFAULT_SUPERVISOR_SOCKET)
+        supervisor_proxy = xmlrpclib.ServerProxy(
+            'http://127.0.0.1',
+            transport=supervisor.xmlrpc.SupervisorTransport(
+                None, None, serverurl="unix://{socket}".format(socket=sockfile))
+        )
+
+        return supervisor_proxy
+
+    def _submit_jmx_service_discovery(self, jmx_sd_configs):
+
+        if not jmx_sd_configs:
+            return
+
+        if self.supervisor_proxy is not None:
+            jmx_state = self.supervisor_proxy.supervisor.getProcessInfo(JMX_SUPERVISOR_ENTRY)
+            log.debug("Current JMX check state: %s", jmx_state['statename'])
+            # restart jmx if stopped
+            if jmx_state['statename'] in ['STOPPED', 'EXITED', 'FATAL'] and self._agentConfig.get('sd_jmx_enable'):
+                self.supervisor_proxy.supervisor.startProcess(JMX_SUPERVISOR_ENTRY)
+                time.sleep(JMX_GRACE_SECS)
+        else:
+            log.debug("Unable to automatically start jmxfetch on Windows via supervisor.")
+
+        buffer = ""
+        for name, yaml in jmx_sd_configs.iteritems():
+            try:
+                buffer += SD_CONFIG_SEP
+                buffer += "# {}\n".format(name)
+                buffer += yaml
+            except Exception as e:
+                log.exception("unable to submit YAML via RPC: %s", e)
+            else:
+                log.info("JMX SD Config via named pip %s successfully.", name)
+
+        if buffer:
+            os.write(self.sd_pipe, buffer)
 
     def _should_restart(self):
         if time.time() - self.agent_start > self.restart_interval:

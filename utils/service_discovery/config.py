@@ -11,7 +11,6 @@ from utils.service_discovery.config_stores import extract_sd_config, SD_CONFIG_B
 
 log = logging.getLogger(__name__)
 
-
 def extract_agent_config(config):
     # get merged into the real agentConfig
     agentConfig = {}

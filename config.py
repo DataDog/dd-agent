@@ -1,4 +1,3 @@
-# (C) Datadog, Inc. 2010-2016
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
@@ -23,7 +22,7 @@ import traceback
 from urlparse import urlparse
 
 # project
-from util import check_yaml
+from util import check_yaml, config_to_yaml
 from utils.platform import Platform, get_os
 from utils.proxy import get_proxy
 from utils.service_discovery.config import extract_agent_config
@@ -71,6 +70,8 @@ LEGACY_DATADOG_URLS = [
     "app.datadoghq.com",
     "app.datad0g.com",
 ]
+
+JMX_SD_CONF_TEMPLATE = '.jmx.{}.yaml'
 
 
 class PathNotFound(Exception):
@@ -376,7 +377,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if options is not None and options.profile:
             agentConfig['developer_mode'] = True
 
-        #
         # Core config
         #ap
         if not config.has_option('Main', 'api_key'):
@@ -997,6 +997,7 @@ def load_check_directory(agentConfig, hostname):
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
     from checks import AGENT_METRICS_CHECK_NAME
+    from jmxfetch import JMX_CHECKS
 
     initialized_checks = {}
     init_failed_checks = {}
@@ -1035,7 +1036,9 @@ def load_check_directory(agentConfig, hostname):
 
     for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
         # ignore this config from service disco if the check has been loaded through a file config
-        if check_name in initialized_checks or check_name in init_failed_checks:
+        if check_name in initialized_checks or \
+                check_name in init_failed_checks or \
+                check_name in JMX_CHECKS:
             continue
 
         sd_init_config, sd_instances = service_disco_check_config[1]
@@ -1065,12 +1068,14 @@ def load_check_directory(agentConfig, hostname):
 
 def load_check(agentConfig, hostname, checkname):
     """Same logic as load_check_directory except it loads one specific check"""
+    from jmxfetch import JMX_CHECKS
+
     agentConfig['checksd_hostname'] = hostname
     osname = get_os()
     checks_places = get_checks_places(osname, agentConfig)
     for config_path in _file_configs_paths(osname, agentConfig):
         check_name = _conf_path_to_check_name(config_path)
-        if check_name == checkname:
+        if check_name == checkname and check_name not in JMX_CHECKS:
             conf_is_valid, check_config, invalid_check = _load_file_config(config_path, check_name, agentConfig)
 
             if invalid_check and not conf_is_valid:
@@ -1091,6 +1096,35 @@ def load_check(agentConfig, hostname, checkname):
             return load_success.values()[0] or load_failure
 
     return None
+
+def generate_jmx_configs(agentConfig, hostname, checknames=None):
+    """Similar logic to load_check_directory for JMX checks"""
+    from jmxfetch import JMX_CHECKS
+
+    if not checknames:
+        checknames = JMX_CHECKS
+    agentConfig['checksd_hostname'] = hostname
+
+    # the check was not found, try with service discovery
+    generated = {}
+    for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
+        if check_name in checknames and check_name in JMX_CHECKS:
+            log.debug('Generating JMX config for: %s' % check_name)
+
+            sd_init_config, sd_instances = service_disco_check_config
+
+            check_config = {'init_config': sd_init_config,
+                            'instances': sd_instances}
+
+            try:
+                yaml = config_to_yaml(check_config)
+                # generated["{}_{}".format(check_name, idx)] = yaml
+                generated["{}_{}".format(check_name, 0)] = yaml
+                log.debug("YAML generated: %s", yaml)
+            except Exception as e:
+                log.exception("Unable to generate YAML config for %s: %s", check_name, e)
+
+    return generated
 
 #
 # logging
