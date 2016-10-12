@@ -35,7 +35,6 @@ from utils.subprocess_output import (
 )
 
 # CONSTANTS
-from jmxfetch import JMX_CHECKS
 AGENT_VERSION = "5.10.0"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
@@ -1000,6 +999,7 @@ def load_check_directory(agentConfig, hostname):
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
     from checks import AGENT_METRICS_CHECK_NAME
+    from jmxfetch import JMX_CHECKS
 
     initialized_checks = {}
     init_failed_checks = {}
@@ -1076,6 +1076,8 @@ def load_check_directory(agentConfig, hostname):
 
 def load_check(agentConfig, hostname, checkname):
     """Same logic as load_check_directory except it loads one specific check"""
+    from jmxfetch import JMX_CHECKS
+
     agentConfig['checksd_hostname'] = hostname
     osname = get_os()
     checks_places = get_checks_places(osname, agentConfig)
@@ -1103,8 +1105,11 @@ def load_check(agentConfig, hostname, checkname):
 
     return None
 
-def generate_jmx_configs(agentConfig, hostname, checknames=JMX_CHECKS):
+def generate_jmx_configs(agentConfig, hostname, checknames=None):
     """Similar logic to load_check_directory for JMX checks"""
+    from jmxfetch import JMX_CHECKS
+    if not checknames:
+        checknames = JMX_CHECKS
     agentConfig['checksd_hostname'] = hostname
 
     # the check was not found, try with service discovery
