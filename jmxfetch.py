@@ -93,6 +93,10 @@ class JMXFetch(object):
         log.debug("Caught sigterm. Stopping subprocess.")
         self.jmx_process.terminate()
 
+    def _handle_sigreload(self, signum, frame):
+        # Terminate jmx process on SIGTERM signal
+        log.debug("Caught sigusr. Prompting reload...")
+
     def register_signal_handlers(self):
         """
         Enable SIGTERM and SIGINT handlers
@@ -103,6 +107,9 @@ class JMXFetch(object):
 
             # Handle Keyboard Interrupt
             signal.signal(signal.SIGINT, self._handle_sigterm)
+
+            # Handle Config reload...
+            signal.signal(signal.SIGUSR1, self._handle_sigreload)
 
         except ValueError:
             log.exception("Unable to register signal handlers.")

@@ -23,7 +23,7 @@ import traceback
 from urlparse import urlparse
 
 # project
-from util import check_yaml
+from util import check_yaml, dump_yaml
 from utils.platform import Platform, get_os
 from utils.proxy import get_proxy
 from utils.service_discovery.config import extract_agent_config
@@ -35,6 +35,7 @@ from utils.subprocess_output import (
 )
 
 # CONSTANTS
+from jmxfetch import JMX_CHECKS
 AGENT_VERSION = "5.10.0"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
@@ -71,6 +72,8 @@ LEGACY_DATADOG_URLS = [
     "app.datadoghq.com",
     "app.datad0g.com",
 ]
+
+JMX_SD_CONF_TEMPLATE = '.jmx.{}.yaml'
 
 
 class PathNotFound(Exception):
@@ -1035,7 +1038,9 @@ def load_check_directory(agentConfig, hostname):
 
     for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
         # ignore this config from service disco if the check has been loaded through a file config
-        if check_name in initialized_checks or check_name in init_failed_checks:
+        if check_name in initialized_checks or \
+                check_name in init_failed_checks or \
+                check_name in JMX_CHECKS:
             continue
 
         # if TRACE_CONFIG is set, service_disco_check_config looks like:
@@ -1076,7 +1081,7 @@ def load_check(agentConfig, hostname, checkname):
     checks_places = get_checks_places(osname, agentConfig)
     for config_path in _file_configs_paths(osname, agentConfig):
         check_name = _conf_path_to_check_name(config_path)
-        if check_name == checkname:
+        if check_name == checkname and check_name not in JMX_CHECKS:
             conf_is_valid, check_config, invalid_check = _load_file_config(config_path, check_name, agentConfig)
 
             if invalid_check and not conf_is_valid:
@@ -1097,6 +1102,25 @@ def load_check(agentConfig, hostname, checkname):
             return load_success.values()[0] or load_failure
 
     return None
+
+def generate_jmx_configs(agentConfig, hostname, checknames=JMX_CHECKS):
+    """Similar logic to load_check_directory for JMX checks"""
+    agentConfig['checksd_hostname'] = hostname
+
+    # the check was not found, try with service discovery
+    generated = []
+    for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
+        if check_name in checknames and check_name in JMX_CHECKS:
+            sd_init_config, sd_instances = service_disco_check_config
+            check_config = {'init_config': sd_init_config, 'instances': sd_instances}
+
+            # try to load the check and return the result
+            # TODO Jaime: make this an RPC call...
+            temp_file = os.path.join('/tmp',JMX_SD_CONF_TEMPLATE.format(check_name))
+            dump_yaml(temp_file, check_config)
+            generated.append(check_name)
+
+    return generated
 
 #
 # logging
