@@ -77,6 +77,10 @@ env:
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.4.18
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.6.17
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.8.19
+    # 2.4.18 does not support EVALSHA which is used in the sidekiq check
+    # - TRAVIS_FLAVOR=sidekiq FLAVOR_VERSION=2.4.18
+    - TRAVIS_FLAVOR=sidekiq FLAVOR_VERSION=2.6.17
+    - TRAVIS_FLAVOR=sidekiq FLAVOR_VERSION=2.8.19
 # Compilation takes too much time on Travis
 #   - TRAVIS_FLAVOR=riak
     - TRAVIS_FLAVOR=snmpd
