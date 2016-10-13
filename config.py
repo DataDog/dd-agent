@@ -1,4 +1,3 @@
-# (C) Datadog, Inc. 2010-2016
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
@@ -1108,6 +1107,7 @@ def load_check(agentConfig, hostname, checkname):
 def generate_jmx_configs(agentConfig, hostname, checknames=None):
     """Similar logic to load_check_directory for JMX checks"""
     from jmxfetch import JMX_CHECKS
+
     if not checknames:
         checknames = JMX_CHECKS
     agentConfig['checksd_hostname'] = hostname
@@ -1116,12 +1116,14 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
     generated = []
     for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
         if check_name in checknames and check_name in JMX_CHECKS:
+            log.info('Generating JMX config for: %s' % check_name)
             sd_init_config, sd_instances = service_disco_check_config
             check_config = {'init_config': sd_init_config, 'instances': sd_instances}
 
             # try to load the check and return the result
             # TODO Jaime: make this an RPC call...
             temp_file = os.path.join('/tmp',JMX_SD_CONF_TEMPLATE.format(check_name))
+            log.info('Dumping config %s to: %s' % (check_config, temp_file))
             dump_yaml(temp_file, check_config)
             generated.append(check_name)
 

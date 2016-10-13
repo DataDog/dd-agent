@@ -140,9 +140,12 @@ class Agent(Daemon):
         # restart jmx
         if jmx_checks:
             jmx_state = self.supervisor_proxy.supervisor.getProcessInfo(JMX_SUPERVISOR_ENTRY)
+            log.debug("Current JMX check state: %s", jmx_state['statename'])
             if jmx_state['statename'] in ['STOPPED', 'EXITED', 'FATAL']:
+                log.debug("Starting JMX...")
                 self.supervisor_proxy.supervisor.startProcess(JMX_SUPERVISOR_ENTRY)
 
+            log.debug("Signaling JMX load-up...")
             self.supervisor_proxy.supervisor.signalProcess(JMX_SUPERVISOR_ENTRY, 'USR1') # send SIGUSR1 to process
 
         # Logging
