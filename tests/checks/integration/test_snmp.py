@@ -17,7 +17,7 @@ from tests.checks.common import AgentCheckTest
 RESULTS_TIMEOUT = 10
 
 
-@attr(requires='snmpd')
+@attr(requires='snmp')
 class SNMPTestCase(AgentCheckTest):
     CHECK_NAME = 'snmp'
     CHECK_TAGS = ['snmp_device:localhost']

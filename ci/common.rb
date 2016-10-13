@@ -42,6 +42,30 @@ def travis_pr?
   !ENV['TRAVIS'].nil? && ENV['TRAVIS_EVENT_TYPE'] == 'pull_request'
 end
 
+BAD_CITIZENS = {
+  'couch' => 'couchdb',
+  'disk' => 'system',
+  'network' => 'system',
+  'tcp_check' => 'system',
+  'http_check' => 'system',
+  'sysstat' => 'system',
+  'elastic' => 'elasticsearch',
+  'gearmand' => 'gearman',
+  'mcache' => 'memcache',
+  'php_fpm' => 'phpfpm',
+  'redisdb' => 'redis',
+  'ssh_check' => 'ssh',
+  'zk' => 'zookeeper'
+}.freeze
+
+def translate_to_travis(checks)
+  checks.map do |check_name|
+    BAD_CITIZENS.key? check_name ? BAD_CITIZENS[check_name] : check_name
+  end
+end
+
+# rubocop:disable Metrics/AbcSize
+# [15.39/15]....
 def can_skip?
   return false, [] unless travis_pr?
 
@@ -60,8 +84,9 @@ def can_skip?
     end
     modified_checks << check_name unless modified_checks.include? check_name
   end
-  [true, modified_checks]
+  [true, translate_to_travis(modified_checks)]
 end
+# rubocop:enable Metrics/AbcSize
 
 # helper class to wait for TCP/HTTP services to boot
 class Wait
