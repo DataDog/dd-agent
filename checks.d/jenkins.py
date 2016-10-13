@@ -91,6 +91,17 @@ class Jenkins(AgentCheck):
                     .text
             except Exception:
                 pass
+
+            try:
+                d['parameters'] = {
+                    e.find('name').text: e.find('value').text for e in
+                    tree.find('actions')
+                        .find('hudson.model.ParametersAction')
+                        .find('parameters')
+                }
+            except Exception:
+                d['parameters'] = {}
+
             return d
 
     def _get_build_results(self, instance_key, job_dir):
@@ -163,6 +174,7 @@ class Jenkins(AgentCheck):
             self.check(instance, create_event=False)
 
         jenkins_home = instance.get('jenkins_home')
+        parameters = instance.get('parameters', {})
 
         if not jenkins_home:
             raise Exception("No jenkins_home directory set in the config file")
@@ -190,6 +202,12 @@ class Jenkins(AgentCheck):
                     if 'branch' in output:
                         tags.append('branch:%s' % output['branch'])
                     self.gauge("jenkins.job.duration", float(output['duration'])/1000.0, tags=tags)
+
+                    tags.extend([
+                        '%s:%s' % (tag, output['parameters'][parameter])
+                        for parameter, tag in parameters.iteritems()
+                        if parameter in output['parameters']
+                    ])
 
                     if output['result'] == 'SUCCESS':
                         self.increment('jenkins.job.success', tags=tags)
