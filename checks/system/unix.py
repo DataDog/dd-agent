@@ -365,6 +365,7 @@ class Memory(Check):
             try:
                 memData['physTotal'] = int(meminfo.get('MemTotal', 0)) / 1024
                 memData['physFree'] = int(meminfo.get('MemFree', 0)) / 1024
+                memData['physAvailable'] = int(meminfo.get('MemAvailable', 0)) / 1024
                 memData['physBuffers'] = int(meminfo.get('Buffers', 0)) / 1024
                 memData['physCached'] = int(meminfo.get('Cached', 0)) / 1024
                 memData['physShared'] = int(meminfo.get('Shmem', 0)) / 1024
@@ -380,6 +381,7 @@ class Memory(Check):
 
                 if memData['physTotal'] > 0:
                     memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
+                    memData['physPctAvailable'] = float(memData['physAvailable']) / float(memData['physTotal'])
             except Exception:
                 self.logger.exception('Cannot compute stats from %s', proc_meminfo)
 
