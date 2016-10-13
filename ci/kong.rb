@@ -74,6 +74,7 @@ namespace :ci do
         sh %(bash #{kong_rootdir}/setup_dnsmasq.sh)
         set_kong_path
         sh %(bash #{kong_rootdir}/kong_install.sh)
+        sh %(cd #{kong_rootdir} && make install)
       end
     end
 
@@ -84,7 +85,6 @@ namespace :ci do
       sh %(#{cassandra_rootdir}/bin/cassandra -p $VOLATILE_DIR/cass.pid > /dev/null)
       Wait.for 9042, 60
       kong_yml = "#{ENV['TRAVIS_BUILD_DIR']}/ci/resources/kong/kong_DEVELOPMENT.yml"
-      sh %(cd #{kong_rootdir} && make install)
       sh %(kong migrations -c #{kong_yml} up)
       sh %(kong start -c #{kong_yml})
       Wait.for 8001, 10
