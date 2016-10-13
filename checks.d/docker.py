@@ -190,6 +190,10 @@ class Docker(AgentCheck):
                 tag = self._make_tag(key, container[key], instance)
                 if tag:
                     container_tags.append(tag)
+                if key == "Image":
+                    itag = self._make_tag('docker_image_tagless', re.sub(':.*', '', container[key]), instance)
+                    if itag:
+                        container_tags.append(itag)
             if container['Id'] in running_containers_ids:
                 self.set("docker.containers.running", container['Id'], tags=container_tags)
             else:
