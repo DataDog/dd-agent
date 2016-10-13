@@ -128,7 +128,7 @@ def dump_yaml(path, config):
     '''
     Dump config dict to YAML file in path
     '''
-    with open(path) as f:
+    with open(path, 'w+') as f:
         assert 'init_config' in config, "No 'init_config' section found"
         assert 'instances' in config, "No 'instances' section found"
 
