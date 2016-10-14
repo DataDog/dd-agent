@@ -12,6 +12,10 @@ def redis_rootdir
   "#{ENV['INTEGRATIONS_DIR']}/redis_#{redis_version}"
 end
 
+def redis_bin
+  "#{redis_rootdir}/src/redis-server"
+end
+
 namespace :ci do
   namespace :redis do |flavor|
     task before_install: ['ci:common:before_install']
@@ -19,11 +23,11 @@ namespace :ci do
     task install: ['ci:common:install'] do
       # Downloads
       # https://github.com/antirez/redis/archive/#{redis_version}.zip
-      unless Dir.exist? File.expand_path(redis_rootdir)
-        sh %(curl -s -L\
+      unless File.exist? redis_bin
+        sh %(curl -s -S -L\
              -o $VOLATILE_DIR/redis.zip\
              https://s3.amazonaws.com/dd-agent-tarball-mirror/redis-#{redis_version}.zip)
-        sh %(mkdir -p #{redis_rootdir})
+        sh %(rm -rf #{redis_rootdir} && mkdir -p #{redis_rootdir})
         sh %(mkdir -p $VOLATILE_DIR/redis)
         sh %(unzip -x $VOLATILE_DIR/redis.zip -d $VOLATILE_DIR/)
         sh %(mv -f $VOLATILE_DIR/redis-*/* #{redis_rootdir})
@@ -33,14 +37,10 @@ namespace :ci do
 
     task before_script: ['ci:common:before_script'] do
       # Run redis !
-      sh %(#{redis_rootdir}/src/redis-server\
-           $TRAVIS_BUILD_DIR/ci/resources/redis/auth.conf)
-      sh %(#{redis_rootdir}/src/redis-server\
-           $TRAVIS_BUILD_DIR/ci/resources/redis/noauth.conf)
-      sh %(#{redis_rootdir}/src/redis-server\
-           $TRAVIS_BUILD_DIR/ci/resources/redis/slave_healthy.conf)
-      sh %(#{redis_rootdir}/src/redis-server\
-           $TRAVIS_BUILD_DIR/ci/resources/redis/slave_unhealthy.conf)
+      sh %(#{redis_bin} $TRAVIS_BUILD_DIR/ci/resources/redis/auth.conf)
+      sh %(#{redis_bin} $TRAVIS_BUILD_DIR/ci/resources/redis/noauth.conf)
+      sh %(#{redis_bin} $TRAVIS_BUILD_DIR/ci/resources/redis/slave_healthy.conf)
+      sh %(#{redis_bin} $TRAVIS_BUILD_DIR/ci/resources/redis/slave_unhealthy.conf)
     end
 
     task script: ['ci:common:script'] do
