@@ -22,7 +22,7 @@ import traceback
 from urlparse import urlparse
 
 # project
-from util import check_yaml, dump_yaml
+from util import check_yaml, config_to_yaml
 from utils.platform import Platform, get_os
 from utils.proxy import get_proxy
 from utils.service_discovery.config import extract_agent_config
@@ -1113,19 +1113,18 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
     agentConfig['checksd_hostname'] = hostname
 
     # the check was not found, try with service discovery
-    generated = []
+    generated = {}
     for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
         if check_name in checknames and check_name in JMX_CHECKS:
             log.info('Generating JMX config for: %s' % check_name)
             sd_init_config, sd_instances = service_disco_check_config
             check_config = {'init_config': sd_init_config, 'instances': sd_instances}
 
-            # try to load the check and return the result
-            # TODO Jaime: make this an RPC call...
-            temp_file = os.path.join('/tmp',JMX_SD_CONF_TEMPLATE.format(check_name))
-            log.info('Dumping config %s to: %s' % (check_config, temp_file))
-            dump_yaml(temp_file, check_config)
-            generated.append(check_name)
+            try:
+                yaml = config_to_yaml(check_config)
+                generated[check_name] = yaml
+            except Exception as e:
+                log.exception("Unable to generate YAML config for %s: %s", check_name, e)
 
     return generated
 

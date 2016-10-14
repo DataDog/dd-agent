@@ -39,6 +39,10 @@ from config import (
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
+import rpc.service_discovery_pb2
+
+#3p
+import grpc
 
 # utils
 from util import Watchdog
@@ -91,6 +95,8 @@ class Agent(Daemon):
             transport=supervisor.xmlrpc.SupervisorTransport(
                 None, None, serverurl='unix:///opt/datadog-agent/run/datadog-supervisor.sock')
         )
+        channel = grpc.insecure_channel('localhost:50051')
+        self.rpcstub = rpc.service_discovery_pb2.ServiceDiscoveryStub(channel)
 
     def _handle_sigterm(self, signum, frame):
         """Handles SIGTERM and SIGINT, which gracefully stops the agent."""
@@ -125,28 +131,34 @@ class Agent(Daemon):
                 check.stop()
 
             self._checksd = load_check_directory(self._agentConfig, hostname)
-            jmx_checks = generate_jmx_configs(self._agentConfig, hostname)
+            jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
         else:
             new_checksd = copy(self._checksd)
 
             jmx_checks = [check for check in checks_to_reload if check in JMX_CHECKS]
             py_checks = set(checks_to_reload) - set(jmx_checks)
             self.refresh_specific_checks(hostname, new_checksd, py_checks)
-            jmx_checks = generate_jmx_configs(self._agentConfig, hostname, jmx_checks)
+            jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname, jmx_checks)
 
             # once the reload is done, replace existing checks with the new ones
             self._checksd = new_checksd
 
         # restart jmx
-        if jmx_checks:
+        if jmx_sd_configs:
+            # TODO jaime: set guards here this is unix specific.
             jmx_state = self.supervisor_proxy.supervisor.getProcessInfo(JMX_SUPERVISOR_ENTRY)
             log.debug("Current JMX check state: %s", jmx_state['statename'])
             if jmx_state['statename'] in ['STOPPED', 'EXITED', 'FATAL']:
                 log.debug("Starting JMX...")
                 self.supervisor_proxy.supervisor.startProcess(JMX_SUPERVISOR_ENTRY)
+                # TODO jaime: we probably have to wait for the the process to come up...
 
-            log.debug("Signaling JMX load-up...")
-            self.supervisor_proxy.supervisor.signalProcess(JMX_SUPERVISOR_ENTRY, 'USR1') # send SIGUSR1 to process
+            for check, config in jmx_sd_configs:
+                res = self.rpcstub.SetConfig(rpc.service_discovery_pb2.SDConfig(name=check, config=config))
+                if res.applied:
+                    log.info("JMX Config submitted via RPC for %s successfully.", check)
+                else:
+                    log.info("JMX Config submitted via RPC for %s failed. Perhaps overriden by file config.", check)
 
         # Logging
         num_checks = len(self._checksd['initialized_checks'])
