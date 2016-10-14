@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "org.datadog.jmxfetch";
+option java_outer_classname = "ServiceDiscoveryProto";
+
+package servicediscovery;
+
+// Interface exported by the server.
+service ServiceDiscovery {
+  // A simple RPC.
+  //
+  // Obtains the feature at a given position.
+  //
+  // A feature with an empty name is returned if there's no feature at the given
+  // position.
+  rpc SetConfig(SDConfig) returns (SDConfigApplied) {}
+
+}
+
+message SDConfigApplied {
+  bool applied = 1;
+}
+
+message SDConfig {
+  string name = 1;
+  string config = 2;
+}
