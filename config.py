@@ -41,7 +41,6 @@ MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 10 * 1024 * 1024
 SDK_INTEGRATIONS_DIR = 'integrations'
-SERVICE_DISCOVERY_PREFIX = 'SD-'
 
 log = logging.getLogger(__name__)
 
@@ -1117,7 +1116,7 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
     generated = {}
     for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
         if check_name in checknames and check_name in JMX_CHECKS:
-            log.info('Generating JMX config for: %s' % check_name)
+            log.debug('Generating JMX config for: %s' % check_name)
             sd_init_config, sd_instances = service_disco_check_config
             check_config = {'init_config': sd_init_config, 'instances': sd_instances}
 
