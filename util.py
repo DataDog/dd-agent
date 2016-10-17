@@ -135,7 +135,7 @@ def config_to_yaml(config):
     if config['instances'] is None or not isinstance(config['instances'], list):
         valid_instances = False
     else:
-        yaml_output = yaml.dump(config, default_flow_style=False)
+        yaml_output = yaml.safe_dump(config, default_flow_style=False)
 
     if not valid_instances:
         raise Exception('You need to have at least one instance defined in your config.')

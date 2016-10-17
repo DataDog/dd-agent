@@ -65,6 +65,7 @@ RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 START_COMMANDS = ['start', 'restart', 'foreground']
 DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
 JMX_SUPERVISOR_ENTRY = 'datadog-agent:jmxfetch'
+SERVICE_DISCOVERY_PREFIX = 'SD-'
 
 DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
@@ -146,19 +147,26 @@ class Agent(Daemon):
         # restart jmx
         if jmx_sd_configs:
             # TODO jaime: set guards here this is unix specific.
-            jmx_state = self.supervisor_proxy.supervisor.getProcessInfo(JMX_SUPERVISOR_ENTRY)
-            log.debug("Current JMX check state: %s", jmx_state['statename'])
-            if jmx_state['statename'] in ['STOPPED', 'EXITED', 'FATAL']:
-                log.debug("Starting JMX...")
-                self.supervisor_proxy.supervisor.startProcess(JMX_SUPERVISOR_ENTRY)
-                # TODO jaime: we probably have to wait for the the process to come up...
+            # jmx_state = self.supervisor_proxy.supervisor.getProcessInfo(JMX_SUPERVISOR_ENTRY)
+            # log.debug("Current JMX check state: %s", jmx_state['statename'])
+            # if jmx_state['statename'] in ['STOPPED', 'EXITED', 'FATAL']:
+            #     log.debug("Starting JMX...")
+            #     self.supervisor_proxy.supervisor.startProcess(JMX_SUPERVISOR_ENTRY)
+            #     # TODO jaime: we probably have to wait for the the process to come up...
 
-            for check, config in jmx_sd_configs:
-                res = self.rpcstub.SetConfig(rpc.service_discovery_pb2.SDConfig(name=check, config=config))
-                if res.applied:
-                    log.info("JMX Config submitted via RPC for %s successfully.", check)
+            for name, yaml in jmx_sd_configs.iteritems():
+                try:
+                    res = self.rpcstub.SetConfig(rpc.service_discovery_pb2.SDConfig(name="{}{}".format(
+                        SERVICE_DISCOVERY_PREFIX, name), config=yaml))
+                except Exception as e:
+                    log.exception("unable to submit YAML via RPC: %s", e)
                 else:
-                    log.info("JMX Config submitted via RPC for %s failed. Perhaps overriden by file config.", check)
+                    if res.applied:
+                        log.info("JMX SD Config submitted via RPC for %s successfully.", name)
+                    else:
+                        log.info("JMX SD Config submitted via RPC for %s failed. \
+                                 Perhaps overriden by file config or bad YAML.", name)
+
 
         # Logging
         num_checks = len(self._checksd['initialized_checks'])

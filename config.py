@@ -41,6 +41,7 @@ MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 10 * 1024 * 1024
 SDK_INTEGRATIONS_DIR = 'integrations'
+SERVICE_DISCOVERY_PREFIX = 'SD-'
 
 log = logging.getLogger(__name__)
 
