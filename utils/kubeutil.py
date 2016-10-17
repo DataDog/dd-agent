@@ -63,7 +63,7 @@ class KubeUtil:
 
         self.kubelet_api_url = '%s://%s:%d' % (self.method, self.host, self.kubelet_port)
         self.cadvisor_url = '%s://%s:%d' % (self.method, self.host, self.cadvisor_port)
-        self.kubernetes_api_url = 'https://%s/api/v1' % self.DEFAULT_MASTER_NAME
+        self.kubernetes_api_url = 'https://%s/api/v1' % (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME)
 
         self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
         self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
