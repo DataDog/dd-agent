@@ -1118,13 +1118,14 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
         if check_name in checknames and check_name in JMX_CHECKS:
             log.debug('Generating JMX config for: %s' % check_name)
             sd_init_config, sd_instances = service_disco_check_config
-            check_config = {'init_config': sd_init_config, 'instances': sd_instances}
+            for idx, init_config in enumerate(sd_init_config):
+                check_config = {'init_config': init_config, 'instances': sd_instances[idx]}
 
-            try:
-                yaml = config_to_yaml(check_config)
-                generated[check_name] = yaml
-            except Exception as e:
-                log.exception("Unable to generate YAML config for %s: %s", check_name, e)
+                try:
+                    yaml = config_to_yaml(check_config)
+                    generated["{}_{}".format(check_name, idx)] = yaml
+                except Exception as e:
+                    log.exception("Unable to generate YAML config for %s: %s", check_name, e)
 
     return generated
 
