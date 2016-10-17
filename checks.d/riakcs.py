@@ -48,14 +48,21 @@ class RiakCs(AgentCheck):
         if not stats:
             raise Exception("No stats were collected")
 
-        legends = dict([(len(k), k) for k in stats["legend"]])
-        del stats["legend"]
-        for key, values in stats.iteritems():
-            legend = legends[len(values)]
-            for i, value in enumerate(values):
-                metric_name = "riakcs.{0}.{1}".format(key, legend[i])
-                self.gauge(metric_name, value, tags=tags)
-
+        if "legend" not in stats:
+            # riak cs 2.1+ stats format
+            for key, value in stats.iteritems():
+                suffix = key.rsplit("_", 1)[-1]
+                method = STATS_METHODS.get(suffix, "gauge")
+                getattr(self, method)("riakcs.{}".format(key), value, tags=tags)
+        else:
+            # pre 2.1 stats format
+            legends = dict([(len(k), k) for k in stats["legend"]])
+            del stats["legend"]
+            for key, values in stats.iteritems():
+                legend = legends[len(values)]
+                for i, value in enumerate(values):
+                    metric_name = "riakcs.{0}.{1}".format(key, legend[i])
+                    self.gauge(metric_name, value, tags=tags)
 
     def _connect(self, instance):
         for e in ("access_id", "access_secret"):
@@ -107,8 +114,16 @@ class RiakCs(AgentCheck):
 
         return stats
 
-
-    # We need this as the riak cs stats page returns json with duplicate keys
     @classmethod
     def load_json(cls, text):
-        return json.JSONDecoder(object_pairs_hook=multidict).decode(text)
+        data = json.loads(text)
+        if "legend" in data:
+            # riak cs before v2.1 had duplicate keys
+            data = json.JSONDecoder(object_pairs_hook=multidict).decode(text)
+        return data
+
+
+STATS_METHODS = {
+    "one": "count",
+    "total": "monotonic_count",
+}
