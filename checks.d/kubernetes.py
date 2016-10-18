@@ -378,6 +378,8 @@ class Kubernetes(AgentCheck):
 
             involved_obj = event.get('involvedObject', {})
 
+            tags = self.kubeutil.extract_event_tags(event)
+
             # compute the most recently seen event, without relying on items order
             if event_ts > most_recent_read:
                 most_recent_read = event_ts
@@ -396,6 +398,7 @@ class Kubernetes(AgentCheck):
                 'msg_text': msg_body,
                 'source_type_name': EVENT_TYPE,
                 'event_object': 'kubernetes:{}'.format(involved_obj.get('name')),
+                'tags': tags,
             }
             self.event(dd_event)
 
