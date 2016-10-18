@@ -212,6 +212,8 @@ class Ceph(AgentCheck):
             s_status = raw['status']['health']['overall_status']
             if s_status.find('_OK') != -1:
                 status = AgentCheck.OK
+            elif s_status.find('_WARN') != -1:
+                status = AgentCheck.WARNING
             else:
                 status = AgentCheck.CRITICAL
             self.service_check(self.NAMESPACE + '.overall_status', status)
