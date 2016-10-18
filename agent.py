@@ -65,6 +65,7 @@ RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 START_COMMANDS = ['start', 'restart', 'foreground']
 DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
 JMX_SUPERVISOR_ENTRY = 'datadog-agent:jmxfetch'
+JMX_GRACE_SECS = 2
 SERVICE_DISCOVERY_PREFIX = 'SD-'
 
 DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
@@ -147,12 +148,13 @@ class Agent(Daemon):
         # restart jmx
         if jmx_sd_configs:
             # TODO jaime: set guards here this is unix specific.
-            # jmx_state = self.supervisor_proxy.supervisor.getProcessInfo(JMX_SUPERVISOR_ENTRY)
-            # log.debug("Current JMX check state: %s", jmx_state['statename'])
-            # if jmx_state['statename'] in ['STOPPED', 'EXITED', 'FATAL']:
-            #     log.debug("Starting JMX...")
-            #     self.supervisor_proxy.supervisor.startProcess(JMX_SUPERVISOR_ENTRY)
-            #     # TODO jaime: we probably have to wait for the the process to come up...
+            jmx_state = self.supervisor_proxy.supervisor.getProcessInfo(JMX_SUPERVISOR_ENTRY)
+            log.debug("Current JMX check state: %s", jmx_state['statename'])
+            if jmx_state['statename'] in ['STOPPED', 'EXITED', 'FATAL'] and self._agentConfig.get('sd_jmx_enable'):
+                log.debug("Starting JMX...")
+                self.supervisor_proxy.supervisor.startProcess(JMX_SUPERVISOR_ENTRY)
+                time.sleep(JMX_GRACE_SECS)
+                # TODO jaime: we probably have to wait for the the process to come up...
 
             for name, yaml in jmx_sd_configs.iteritems():
                 try:
