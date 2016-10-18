@@ -50,6 +50,28 @@ FUNC_MAP = {
 
 EVENT_TYPE = 'kubernetes'
 
+# Suffixes per
+# https://github.com/kubernetes/kubernetes/blob/8fd414537b5143ab039cb910590237cabf4af783/pkg/api/resource/suffix.go#L108
+FACTORS = {
+    'n': float(1)/(1000*1000*1000),
+    'u': float(1)/(1000*1000),
+    'm': float(1)/1000,
+    'k': 1000,
+    'M': 1000*1000,
+    'G': 1000*1000*1000,
+    'T': 1000*1000*1000*1000,
+    'P': 1000*1000*1000*1000*1000,
+    'E': 1000*1000*1000*1000*1000*1000,
+    'Ki': 1024,
+    'Mi': 1024*1024,
+    'Gi': 1024*1024*1024,
+    'Ti': 1024*1024*1024*1024,
+    'Pi': 1024*1024*1024*1024*1024,
+    'Ei': 1024*1024*1024*1024*1024*1024,
+}
+
+QUANTITY_EXP = re.compile(r'[-+]?\d+[\.]?\d*[numkMGTPE]?i?')
+
 
 class Kubernetes(AgentCheck):
     """ Collect metrics and events from kubelet """
@@ -249,6 +271,16 @@ class Kubernetes(AgentCheck):
         return tags
 
     def _update_metrics(self, instance, pods_list):
+        def parse_quantity(s):
+            number = ''
+            unit = ''
+            for c in s:
+                if c.isdigit() or c == '.':
+                    number += c
+                else:
+                    unit += c
+            return float(number) * FACTORS.get(unit, 1)
+
         metrics = self.kubeutil.retrieve_metrics()
 
         excluded_labels = instance.get('excluded_labels')
@@ -289,12 +321,10 @@ class Kubernetes(AgentCheck):
                 c_name = container.get('name')
                 _tags = container_tags.get(name2id.get(c_name), [])
 
-                prog = re.compile(r'[-+]?\d+[\.]?\d*')
-
                 # limits
                 try:
                     for limit, value_str in container['resources']['limits'].iteritems():
-                        values = [float(s) for s in prog.findall(value_str)]
+                        values = [parse_quantity(s) for s in QUANTITY_EXP.findall(value_str)]
                         if len(values) != 1:
                             self.log.warning("Error parsing limits value string: %s", value_str)
                             continue
@@ -306,7 +336,7 @@ class Kubernetes(AgentCheck):
                 # requests
                 try:
                     for request, value_str in container['resources']['requests'].iteritems():
-                        values = [float(s) for s in prog.findall(value_str)]
+                        values = [parse_quantity(s) for s in QUANTITY_EXP.findall(value_str)]
                         if len(values) != 1:
                             self.log.warning("Error parsing requests value string: %s", value_str)
                             continue
