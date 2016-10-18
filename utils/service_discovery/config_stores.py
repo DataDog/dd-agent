@@ -41,6 +41,9 @@ def extract_sd_config(config):
     if config.has_option('Main', 'sd_backend_port'):
         sd_config['sd_backend_port'] = config.get(
             'Main', 'sd_backend_port')
+    if config.has_option('Main', 'sd_jmx_enable'):
+        sd_config['sd_jmx_enable'] = config.get(
+            'Main', 'sd_jmx_enable')
     return sd_config
 
 

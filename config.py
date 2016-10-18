@@ -377,7 +377,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if options is not None and options.profile:
             agentConfig['developer_mode'] = True
 
-        #
         # Core config
         #ap
         if not config.has_option('Main', 'api_key'):
@@ -1117,9 +1116,13 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
     for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
         if check_name in checknames and check_name in JMX_CHECKS:
             log.debug('Generating JMX config for: %s' % check_name)
+
+            # Why is sd_init_config a dict and sd_instances a list of dicts?
             sd_init_config, sd_instances = service_disco_check_config
-            for idx, init_config in enumerate(sd_init_config):
-                check_config = {'init_config': init_config, 'instances': sd_instances[idx]}
+            for idx, instance in enumerate(sd_instances):
+                check_config = {}
+                check_config.update(sd_init_config)
+                check_config.update(instance)
 
                 try:
                     yaml = config_to_yaml(check_config)

@@ -27,11 +27,13 @@ from config import (
     get_config,
     get_logging_config,
     PathNotFound,
+    _is_affirmative
 )
 from util import yLoader
 from utils.jmx import JMX_FETCH_JAR_NAME, JMXFiles
 from utils.platform import Platform
 from utils.subprocess_output import subprocess
+from utils.service_discovery.config import SD_DEFAULT_RPC_WAIT
 
 log = logging.getLogger('jmxfetch')
 
@@ -46,6 +48,7 @@ JAVA_LOGGING_LEVEL = {
 }
 
 _JVM_DEFAULT_MAX_MEMORY_ALLOCATION = " -Xmx200m"
+_JVM_DEFAULT_SD_MAX_MEMORY_ALLOCATION = " -Xmx512m"
 _JVM_DEFAULT_INITIAL_MEMORY_ALLOCATION = " -Xms50m"
 JMXFETCH_MAIN_CLASS = "org.datadog.jmxfetch.App"
 JMX_CHECKS = [
@@ -81,6 +84,7 @@ class JMXFetch(object):
         self.agentConfig = agentConfig
         self.logging_config = get_logging_config()
         self.check_frequency = DEFAULT_CHECK_FREQUENCY
+        self.service_discovery = _is_affirmative(self.agentConfig.get('sd_jmx_enable', False))
 
         self.jmx_process = None
         self.jmx_checks = None
@@ -155,7 +159,7 @@ class JMXFetch(object):
                 except Exception:
                     log.exception("Error while writing JMX status file")
 
-            if len(self.jmx_checks) > 0:
+            if len(self.jmx_checks) > 0 or self.service_discovery:
                 return self._start(self.java_bin_path, self.java_options, self.jmx_checks,
                                    command, reporter, self.tools_jar_path, self.custom_jar_paths, redirect_std_streams)
             else:
@@ -280,13 +284,18 @@ class JMXFetch(object):
                 subprocess_args.insert(len(subprocess_args) - 1, '--exit_file_location')
                 subprocess_args.insert(len(subprocess_args) - 1, path_to_exit_file)
 
-            subprocess_args.insert(4, '--check')
-            for check in jmx_checks:
-                subprocess_args.insert(5, check)
+            if self.service_discovery:
+                subprocess_args.insert(4, '--rpc_wait')
+                subprocess_args.insert(5, str(SD_DEFAULT_RPC_WAIT))
+
+            if jmx_checks:
+                subprocess_args.insert(4, '--check')
+                for check in jmx_checks:
+                    subprocess_args.insert(5, check)
 
             # Specify a maximum memory allocation pool for the JVM
             if "Xmx" not in java_run_opts and "XX:MaxHeapSize" not in java_run_opts:
-                java_run_opts += _JVM_DEFAULT_MAX_MEMORY_ALLOCATION
+                java_run_opts += _JVM_DEFAULT_SD_MAX_MEMORY_ALLOCATION if self.service_discovery else _JVM_DEFAULT_MAX_MEMORY_ALLOCATION
             # Specify the initial memory allocation pool for the JVM
             if "Xms" not in java_run_opts and "XX:InitialHeapSize" not in java_run_opts:
                 java_run_opts += _JVM_DEFAULT_INITIAL_MEMORY_ALLOCATION
