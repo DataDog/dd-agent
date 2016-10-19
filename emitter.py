@@ -59,6 +59,38 @@ def remove_control_chars_from(item, log=None):
             return newstr
     return item
 
+def remove_undecodable_chars(s, log=None):
+    sanitized = s
+    try:
+        s.decode('utf8')
+    except UnicodeDecodeError:
+        sanitized = s.decode('utf8', errors='ignore')
+        if log:
+            log.warning(u'changed string: ' + s.decode('utf8', errors='replace'))
+    return sanitized
+
+def remove_undecodable_chars_from(item, log=None):
+    if isinstance(item, dict):
+        newdict = {}
+        for k, v in item.iteritems():
+            newval = remove_undecodable_chars_from(v, log)
+            newkey = remove_undecodable_chars(k, log)
+            newdict[newkey] = newval
+        return newdict
+    if isinstance(item, list):
+        newlist = []
+        for listitem in item:
+            newlist.append(remove_undecodable_chars_from(listitem, log))
+        return newlist
+    if isinstance(item, tuple):
+        newlist = []
+        for listitem in item:
+            newlist.append(remove_undecodable_chars_from(listitem, log))
+        return tuple(newlist)
+    if isinstance(item, str):
+        return remove_undecodable_chars(item, log)
+    return item
+
 def http_emitter(message, log, agentConfig, endpoint):
     "Send payload"
     url = agentConfig['dd_url']
@@ -70,8 +102,12 @@ def http_emitter(message, log, agentConfig, endpoint):
         try:
             payload = json.dumps(message)
         except UnicodeDecodeError:
-            newmessage = remove_control_chars_from(message, log)
-            payload = json.dumps(newmessage)
+            try:
+                newmessage = remove_control_chars_from(message, log)
+                payload = json.dumps(newmessage)
+            except UnicodeDecodeError:
+                newmessage = remove_undecodable_chars_from(newmessage, log)
+                payload = json.dumps(newmessage)
     except UnicodeDecodeError as ude:
         log.error('http_emitter: Unable to convert message to json %s', ude)
         # early return as we can't actually process the message
