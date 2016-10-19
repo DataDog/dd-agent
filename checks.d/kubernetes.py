@@ -346,6 +346,31 @@ class Kubernetes(AgentCheck):
                     self.log.debug("Container object for {}: {}".format(c_name, container))
 
         self._update_pods_metrics(instance, pods_list)
+        self._update_node(instance)
+
+    def _update_node(self, instance):
+        # These vars and fetch stuff should live in kubeuitl:
+        from utils.http import retrieve_json
+        from urlparse import urljoin
+
+        self.log.info('Hostname: %s' % self.kubeutil.host)
+        self.log.info('Metrics URL: %s' % self.kubeutil.metrics_url)
+        self.log.info('Pod list URL: %s' % self.kubeutil.pods_list_url)
+
+        MACHINE_INFO_PATH = '/api/v1.3/machine/'
+        machine_info_url = urljoin(
+            '%s://%s:%d' % (self.kubeutil.method, self.kubeutil.host, self.kubeutil.cadvisor_port), MACHINE_INFO_PATH)
+        self.log.info('Machine info URL: %s' % machine_info_url)
+        machine_info = retrieve_json(machine_info_url)
+
+        num_cores = machine_info.get('num_cores', 0)
+        memory_capacity = machine_info.get('memory_capacity', 0)
+
+        tags = instance.get('tags', [])
+        self.publish_gauge(self, NAMESPACE + '.cpu.capacity', float(num_cores), tags)
+        self.publish_gauge(self, NAMESPACE + '.memory.capacity', float(memory_capacity), tags)
+        # TODO(markine): Report 'allocatable' which is capacity minus capacity
+        # reserved for system/Kubernetes.
 
     def _update_pods_metrics(self, instance, pods):
         supported_kinds = [
