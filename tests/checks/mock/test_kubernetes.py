@@ -430,3 +430,17 @@ class TestKubeutil(unittest.TestCase):
         self.assertFalse(Platform.is_k8s())
         os.environ['KUBERNETES_PORT'] = '999'
         self.assertTrue(Platform.is_k8s())
+
+    def test_extract_event_tags(self):
+        events = json.loads(Fixtures.read_file("events.json", string_escape=False))['items']
+        for ev in events:
+            tags = KubeUtil().extract_event_tags(ev)
+            # there should be 4 tags except for some events where source.host is missing
+            self.assertTrue(len(tags) >= 3)
+
+            tag_names = [tag.split(':')[0] for tag in tags]
+            self.assertIn('reason', tag_names)
+            self.assertIn('namespace', tag_names)
+            self.assertIn('object_type', tag_names)
+            if len(tags) == 4:
+                self.assertIn('node_name', tag_names)
