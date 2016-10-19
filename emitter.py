@@ -59,14 +59,13 @@ def remove_control_chars_from(item, log=None):
             return newstr
     return item
 
-def remove_undecodable_chars(s, log=None):
+def remove_undecodable_chars(s, log):
     sanitized = s
     try:
         s.decode('utf8')
     except UnicodeDecodeError:
         sanitized = s.decode('utf8', errors='ignore')
-        if log:
-            log.warning(u'changed string: ' + s.decode('utf8', errors='replace'))
+        log.warning(u'changed string: ' + s.decode('utf8', errors='replace'))
     return sanitized
 
 def remove_undecodable_chars_from(item, log=None):
@@ -107,6 +106,7 @@ def http_emitter(message, log, agentConfig, endpoint):
                 payload = json.dumps(newmessage)
             except UnicodeDecodeError:
                 newmessage = remove_undecodable_chars_from(newmessage, log)
+                log.info('Removed undecodable characters from payload')
                 payload = json.dumps(newmessage)
     except UnicodeDecodeError as ude:
         log.error('http_emitter: Unable to convert message to json %s', ude)
