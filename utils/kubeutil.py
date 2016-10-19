@@ -195,6 +195,23 @@ class KubeUtil:
                 self._node_name = spec.get('nodeName', '')
                 break
 
+    def extract_event_tags(self, event):
+        """
+        Return a list of tags extracted from an event object
+        """
+        tags = []
+
+        if 'reason' in event:
+            tags.append('reason:%s' % event.get('reason', '').lower())
+        if 'namespace' in event.get('metadata', {}):
+            tags.append('namespace:%s' % event['metadata']['namespace'])
+        if 'host' in event.get('source', {}):
+            tags.append('node_name:%s' % event['source']['host'])
+        if 'kind' in event.get('involvedObject', {}):
+            tags.append('object_type:%s' % event['involvedObject'].get('kind', '').lower())
+
+        return tags
+
     @classmethod
     def get_auth_token(cls):
         """
