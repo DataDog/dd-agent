@@ -34,10 +34,9 @@ class DNSCheck(NetworkCheck):
 
     def _load_conf(self, instance):
         # Fetches the conf
-        try:
-            hostname = instance.get('hostname')
-        except Exception:
-            raise BadConfException("You must specify a hostname")
+        hostname = instance.get('hostname')
+        if not hostname:
+            raise BadConfException('A valid "hostname" must be specified')
 
         resolver = dns.resolver.Resolver()
 
@@ -56,7 +55,6 @@ class DNSCheck(NetworkCheck):
         hostname, timeout, nameserver, record_type, resolver = self._load_conf(instance)
 
         # Perform the DNS query, and report its duration as a gauge
-        start_time = end_time = 0.0
         start_time = time.time()
 
         try:
@@ -76,13 +74,13 @@ class DNSCheck(NetworkCheck):
         else:
             tags = self._get_tags(instance)
             if end_time - start_time > 0:
-                self.gauge('dns.response_time', end_time - start_time, tags)
+                self.gauge('dns.response_time', end_time - start_time, tags=tags)
             self.log.debug('Resolved hostname: {0}'.format(hostname))
             return Status.UP, 'UP'
 
     def _get_tags(self, instance):
-        instance_name = instance.get('name')
         hostname = instance.get('hostname')
+        instance_name = instance.get('name', hostname)
         record_type = instance.get('record_type', 'A')
         custom_tags = instance.get('tags', [])
         tags = []
@@ -102,7 +100,6 @@ class DNSCheck(NetworkCheck):
     def report_as_service_check(self, sc_name, status, instance, msg=None):
         tags = self._get_tags(instance)
 
-        # FIXME: 5.3, Setting skip_event True here to hide deprecated option in yaml.
         instance['skip_event'] = True
 
         if status == Status.UP:
