@@ -225,8 +225,13 @@ class Agent(Daemon):
         self.collector = Collector(self._agentConfig, emitters, systemStats, hostname)
 
         # In developer mode, the number of runs to be included in a single collector profile
-        self.collector_profile_interval = self._agentConfig.get('collector_profile_interval',
-                                                                DEFAULT_COLLECTOR_PROFILE_INTERVAL)
+        try:
+            self.collector_profile_interval = int(
+                self._agentConfig.get('collector_profile_interval', DEFAULT_COLLECTOR_PROFILE_INTERVAL))
+        except ValueError:
+            log.warn('collector_profile_interval is invalid. '
+                     'Using default value instead (%s).' % DEFAULT_COLLECTOR_PROFILE_INTERVAL)
+            self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
 
         # Configure the watchdog.
         self.check_frequency = int(self._agentConfig['check_freq'])
