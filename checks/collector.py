@@ -441,7 +441,8 @@ class Collector(object):
             current_check_service_checks = check.get_service_checks()
             if current_check_service_checks:
                 service_checks.extend(current_check_service_checks)
-            service_check_count = len(current_check_service_checks)
+            # -1 because the user doesn't care about the service check for check failure
+            service_check_count = len(current_check_service_checks) - 1
 
             # Update the check status with the correct service_check_count
             check_status.service_check_count = service_check_count
