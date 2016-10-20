@@ -628,7 +628,14 @@ class MongoDb(AgentCheck):
         db_name = parsed.get('database')
         additional_metrics = instance.get('additional_metrics', [])
 
-        clean_server_name = server.replace(password, "*" * 5) if password else server
+        # IF the password contains a URL encoded character (for example '/'), then the
+        # raw server string will have %2F, but the password string will have the '/'.
+        # Therefore, the string replace (below) won't work, because it won't have an
+        # exact match.  Convert the password *back* to URL encoded, so the string
+        # replace works properly.
+        encoded_password = urllib.quote_plus(password) if password else None
+
+        clean_server_name = server.replace(encoded_password, "*" * 5) if encoded_password else server
 
         if ssl_params:
             username_uri = u"{}@".format(urllib.quote(username))
