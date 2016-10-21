@@ -42,14 +42,14 @@ def _get_container_inspect(c_id):
 
 def _get_conf_tpls(image_name, kube_annotations=None, kube_pod_name=None, kube_container_name=None):
     """Return a mocked configuration template from self.mock_templates."""
-    return [(x, image_name + ':0', y) for x, y in
+    return [(x, y) for x, y in
             copy.deepcopy(TestServiceDiscovery.mock_templates.get(image_name)[0])]
 
 
 def _get_check_tpls(image_name, **kwargs):
     if image_name in TestServiceDiscovery.mock_templates:
         result = copy.deepcopy(TestServiceDiscovery.mock_templates.get(image_name)[0][0])
-        return [(result[0], image_name + ':0', result[1][0:3])]
+        return [(result[0], result[1][0:3])]
     elif image_name in TestServiceDiscovery.bad_mock_templates:
         try:
             return [copy.deepcopy(TestServiceDiscovery.bad_mock_templates.get(image_name))]
@@ -112,13 +112,13 @@ class TestServiceDiscovery(unittest.TestCase):
         # image_name: ([(source, (check_name, init_tpl, instance_tpl, variables))], (expected_config_template))
         'image_0': (
             [('template', ('check_0', {}, {'host': '%%host%%'}, ['host']))],
-            ('template', 'image_0:0', ('check_0', {}, {'host': '127.0.0.1'}))),
+            ('template', ('check_0', {}, {'host': '127.0.0.1'}))),
         'image_1': (
             [('template', ('check_1', {}, {'port': '%%port%%'}, ['port']))],
-            ('template', 'image_1:0', ('check_1', {}, {'port': '1337'}))),
+            ('template', ('check_1', {}, {'port': '1337'}))),
         'image_2': (
             [('template', ('check_2', {}, {'host': '%%host%%', 'port': '%%port%%'}, ['host', 'port']))],
-            ('template', 'image_2:0', ('check_2', {}, {'host': '127.0.0.1', 'port': '1337'}))),
+            ('template', ('check_2', {}, {'host': '127.0.0.1', 'port': '1337'}))),
     }
 
     # raw templates coming straight from the config store
@@ -126,13 +126,13 @@ class TestServiceDiscovery(unittest.TestCase):
         # image_name: ('[check_name]', '[init_tpl]', '[instance_tpl]', expected_python_tpl_list)
         'image_0': (
             ('["check_0"]', '[{}]', '[{"host": "%%host%%"}]'),
-            [('template', 'image_0:0', ('check_0', {}, {"host": "%%host%%"}))]),
+            [('template', ('check_0', {}, {"host": "%%host%%"}))]),
         'image_1': (
             ('["check_1"]', '[{}]', '[{"port": "%%port%%"}]'),
-            [('template', 'image_1:0', ('check_1', {}, {"port": "%%port%%"}))]),
+            [('template', ('check_1', {}, {"port": "%%port%%"}))]),
         'image_2': (
             ('["check_2"]', '[{}]', '[{"host": "%%host%%", "port": "%%port%%"}]'),
-            [('template', 'image_2:0', ('check_2', {}, {"host": "%%host%%", "port": "%%port%%"}))]),
+            [('template', ('check_2', {}, {"host": "%%host%%", "port": "%%port%%"}))]),
         'bad_image_0': ((['invalid template']), []),
         'bad_image_1': (('invalid template'), []),
         'bad_image_2': (None, []),
@@ -278,7 +278,6 @@ class TestServiceDiscovery(unittest.TestCase):
             for image in self.mock_templates.keys():
                 template = sd_backend._get_config_templates(image)
                 expected_template = self.mock_templates.get(image)[0]
-                expected_template = [(t[0], image + ':0', t[1]) for t in expected_template]
                 self.assertEquals(template, expected_template)
             # error cases
             for image in self.bad_mock_templates.keys():
@@ -535,7 +534,7 @@ class TestServiceDiscovery(unittest.TestCase):
         config_store = get_config_store(self.auto_conf_agentConfig)
         for image in valid_config + invalid_config:
             tpl = self.mock_tpls.get(image)[1]
-            tpl = [(CONFIG_FROM_KUBE, t[1], t[2]) for t in tpl]
+            tpl = [(CONFIG_FROM_KUBE, t[1]) for t in tpl]
             if tpl:
                 self.assertNotEquals(
                     tpl,

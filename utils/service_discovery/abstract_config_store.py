@@ -158,14 +158,14 @@ class AbstractConfigStore(object):
                 if kube_config is not None:
                     check_names, init_config_tpls, instance_tpls = kube_config
                     source = CONFIG_FROM_KUBE
-                    return [(source, '{}:{}'.format(kube_pod_name, i), vs)
+                    return [(source, vs)
                             for i, vs in enumerate(zip(check_names, init_config_tpls, instance_tpls))]
 
             # in auto config mode, identifier is the image name
             auto_config = self._get_auto_config(identifier)
             if auto_config is not None:
                 source = CONFIG_FROM_AUTOCONF
-                return [(source, identifier, auto_config)]
+                return [(source, auto_config)]
             else:
                 log.debug('No auto config was found for image %s, leaving it alone.' % identifier)
                 return []
@@ -185,7 +185,7 @@ class AbstractConfigStore(object):
         # Try to update the identifier_to_checks cache
         self._update_identifier_to_checks(identifier, check_names)
 
-        return [(source, '{}:{}'.format(identifier, i), values)
+        return [(source, values)
                 for i, values in enumerate(zip(check_names, init_config_tpls, instance_tpls))]
 
     def read_config_from_store(self, identifier):

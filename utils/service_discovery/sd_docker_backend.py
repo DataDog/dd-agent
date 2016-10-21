@@ -254,7 +254,6 @@ class SDDockerBackend(AbstractSDBackend):
             container.get('Image'),
             container.get('Id'), container.get('Labels')
         ) for container in self.docker_client.containers()]
-        seen_dedup_keys = set()
 
         for image, cid, labels in containers:
             try:
@@ -262,10 +261,7 @@ class SDDockerBackend(AbstractSDBackend):
                 identifier = self.get_config_id(image, labels)
                 check_configs = self._get_check_configs(cid, identifier) or []
                 for conf in check_configs:
-                    source, dedup_key, (check_name, init_config, instance) = conf
-                    if dedup_key in seen_dedup_keys:
-                        continue
-                    seen_dedup_keys.add(dedup_key)
+                    source, (check_name, init_config, instance) = conf
 
                     # build instances list if needed
                     if configs.get(check_name) is None:
@@ -305,7 +301,7 @@ class SDDockerBackend(AbstractSDBackend):
         check_configs = []
         tags = self.get_tags(inspect)
         for config_tpl in config_templates:
-            source, dedup_key, config_tpl = config_tpl
+            source, config_tpl = config_tpl
             check_name, init_config_tpl, instance_tpl, variables = config_tpl
 
             # insert tags in instance_tpl and process values for template variables
@@ -314,7 +310,7 @@ class SDDockerBackend(AbstractSDBackend):
             tpl = self._render_template(init_config_tpl or {}, instance_tpl or {}, var_values)
             if tpl and len(tpl) == 2:
                 init_config, instance = tpl
-                check_configs.append((source, dedup_key, (check_name, init_config, instance)))
+                check_configs.append((source, (check_name, init_config, instance)))
 
         return check_configs
 
@@ -333,7 +329,7 @@ class SDDockerBackend(AbstractSDBackend):
         for tpl in raw_tpls:
             # each template can come from either auto configuration or user-supplied templates
             try:
-                source, dedup_key, (check_name, init_config_tpl, instance_tpl) = tpl
+                source, (check_name, init_config_tpl, instance_tpl) = tpl
             except (TypeError, IndexError, ValueError):
                 log.debug('No template was found for identifier %s, leaving it alone: %s' % (identifier, tpl))
                 return None
@@ -352,7 +348,6 @@ class SDDockerBackend(AbstractSDBackend):
                 return None
 
             templates.append((source,
-                              dedup_key,
                               (check_name, init_config_tpl, instance_tpl, variables)))
 
         return templates
