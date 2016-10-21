@@ -26,7 +26,6 @@ CHECK_NAMES = 'check_names'
 INIT_CONFIGS = 'init_configs'
 INSTANCES = 'instances'
 KUBE_ANNOTATIONS = 'kube_annotations'
-KUBE_POD_NAME = 'kube_pod_name'
 KUBE_CONTAINER_NAME = 'kube_container_name'
 KUBE_ANNOTATION_PREFIX = 'sd.datadoghq.com'
 
@@ -151,7 +150,6 @@ class AbstractConfigStore(object):
             # When not using a configuration store on kubernetes, check the pod
             # annotations for configs before falling back to autoconf.
             kube_annotations = kwargs.get(KUBE_ANNOTATIONS)
-            kube_pod_name = kwargs.get(KUBE_POD_NAME)
             kube_container_name = kwargs.get(KUBE_CONTAINER_NAME)
             if kube_annotations:
                 kube_config = self._get_kube_config(identifier, kube_annotations, kube_container_name)

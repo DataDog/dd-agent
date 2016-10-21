@@ -288,7 +288,6 @@ class SDDockerBackend(AbstractSDBackend):
         if Platform.is_k8s():
             kube_metadata = self._get_kube_config(inspect.get('Id'), 'metadata') or {}
             platform_kwargs = {
-                'kube_pod_name': kube_metadata.get('name'),
                 'kube_container_name': self._get_kube_container_name(inspect.get('Id')),
                 'kube_annotations': kube_metadata.get('annotations'),
             }
