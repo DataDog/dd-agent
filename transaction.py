@@ -90,7 +90,7 @@ class TransactionManager(object):
         self._transactions_received = 0
         self._transactions_flushed = 0
 
-        self._too_big_count = 0
+        self._transactions_rejected = 0
 
         # Global counter to assign a number to each transaction: we may have an issue
         #  if this overlaps
@@ -192,7 +192,7 @@ class TransactionManager(object):
             flush_count=self._flush_count,
             transactions_received=self._transactions_received,
             transactions_flushed=self._transactions_flushed,
-            too_big_count=self._too_big_count).persist()
+            transactions_rejected=self._transactions_rejected).persist()
 
     def flush_next(self):
 
@@ -262,7 +262,7 @@ class TransactionManager(object):
 
             self._trs_to_flush = new_trs_to_flush
 
-    def tr_error_too_big(self, tr):
+    def tr_error_reject_request(self, tr):
         self._running_flushes -= 1
         self._finished_flushes += 1
         tr.inc_error_count()
@@ -275,14 +275,14 @@ class TransactionManager(object):
         self._total_size -= tr.get_size()
         self._transactions_flushed += 1
         self.print_queue_stats()
-        self._too_big_count += 1
+        self._transactions_rejected += 1
         ForwarderStatus(
             queue_length=self._total_count,
             queue_size=self._total_size,
             flush_count=self._flush_count,
             transactions_received=self._transactions_received,
             transactions_flushed=self._transactions_flushed,
-            too_big_count=self._too_big_count).persist()
+            transactions_rejected=self._transactions_rejected).persist()
 
     def tr_success(self, tr):
         self._running_flushes -= 1
