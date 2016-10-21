@@ -1,6 +1,7 @@
 import random
 
 from tests.checks.common import AgentCheckTest, load_check
+from utils.containers import hash_mutable
 
 MOCK_CONFIG = {
     'init_config': {},
@@ -103,7 +104,7 @@ class TestCheckConsul(AgentCheckTest):
             dct[k] = []
         return dct
 
-    def mock_get_local_config(self, instance):
+    def mock_get_local_config(self, instance, instance_state):
         return {
             "Config": {
                 "AdvertiseAddr": "10.0.2.15",
@@ -374,9 +375,6 @@ class TestCheckConsul(AgentCheckTest):
             '_get_coord_nodes': self.mock_get_coord_nodes,
         }
 
-    def test_bad_config(self):
-        self.assertRaises(Exception, self.run_check, MOCK_BAD_CONFIG)
-
     def test_get_nodes_with_service(self):
         self.run_check(MOCK_CONFIG, mocks=self._get_consul_mocks())
         self.assertMetric('consul.catalog.nodes_up', value=1, tags=['consul_datacenter:dc1', 'consul_service_id:service-1'])
@@ -462,7 +460,8 @@ class TestCheckConsul(AgentCheckTest):
 
     def test_new_leader_event(self):
         self.check = load_check(self.CHECK_NAME, MOCK_CONFIG_LEADER_CHECK, self.DEFAULT_AGENT_CONFIG)
-        self.check._last_known_leader = 'My Old Leader'
+        instance_hash = hash_mutable(MOCK_CONFIG_LEADER_CHECK['instances'][0])
+        self.check._instance_states[instance_hash].last_known_leader = 'My Old Leader'
 
         mocks = self._get_consul_mocks()
         mocks['_get_cluster_leader'] = self.mock_get_cluster_leader_B
@@ -477,7 +476,8 @@ class TestCheckConsul(AgentCheckTest):
 
     def test_self_leader_event(self):
         self.check = load_check(self.CHECK_NAME, MOCK_CONFIG_SELF_LEADER_CHECK, self.DEFAULT_AGENT_CONFIG)
-        self.check._last_known_leader = 'My Old Leader'
+        instance_hash = hash_mutable(MOCK_CONFIG_SELF_LEADER_CHECK['instances'][0])
+        self.check._instance_states[instance_hash].last_known_leader = 'My Old Leader'
 
         mocks = self._get_consul_mocks()
 
@@ -488,7 +488,7 @@ class TestCheckConsul(AgentCheckTest):
         mocks['_get_cluster_leader'] = self.mock_get_cluster_leader_A
         self.run_check(MOCK_CONFIG_SELF_LEADER_CHECK, mocks=mocks)
         self.assertEqual(len(self.events), 1)
-        self.assertEqual(our_url, self.check._last_known_leader)
+        self.assertEqual(our_url, self.check._instance_states[instance_hash].last_known_leader)
         event = self.events[0]
         self.assertEqual(event['event_type'], 'consul.new_leader')
         self.assertIn('prev_consul_leader:My Old Leader', event['tags'])
@@ -502,13 +502,13 @@ class TestCheckConsul(AgentCheckTest):
         mocks['_get_cluster_leader'] = self.mock_get_cluster_leader_B
         self.run_check(MOCK_CONFIG_SELF_LEADER_CHECK, mocks=mocks)
         self.assertEqual(len(self.events), 0)
-        self.assertEqual(other_url, self.check._last_known_leader)
+        self.assertEqual(other_url, self.check._instance_states[instance_hash].last_known_leader)
 
         # We regain the leadership
         mocks['_get_cluster_leader'] = self.mock_get_cluster_leader_A
         self.run_check(MOCK_CONFIG_SELF_LEADER_CHECK, mocks=mocks)
         self.assertEqual(len(self.events), 1)
-        self.assertEqual(our_url, self.check._last_known_leader)
+        self.assertEqual(our_url, self.check._instance_states[instance_hash].last_known_leader)
         event = self.events[0]
         self.assertEqual(event['event_type'], 'consul.new_leader')
         self.assertIn('prev_consul_leader:%s' % other_url, event['tags'])
@@ -521,9 +521,10 @@ class TestCheckConsul(AgentCheckTest):
         mocks = self._get_consul_mocks()
 
         # We start out as the leader, and stay that way
-        self.check._last_known_leader = self.mock_get_cluster_leader_A(None)
+        instance_hash = hash_mutable(MOCK_CONFIG_NETWORK_LATENCY_CHECKS['instances'][0])
+        self.check._instance_states[instance_hash].last_known_leader = self.mock_get_cluster_leader_A(None)
 
-        self.run_check(MOCK_CONFIG_SELF_LEADER_CHECK, mocks=mocks)
+        self.run_check(MOCK_CONFIG_NETWORK_LATENCY_CHECKS, mocks=mocks)
 
         latency = [m for m in self.metrics if m[0].startswith('consul.net.')]
         latency.sort()
