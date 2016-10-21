@@ -25,6 +25,7 @@ DISK_USAGE = "disk_usage"
 PODS = "pods"
 LIM = "limits"
 REQ = "requests"
+CAP = "capacity"
 
 METRICS = [
     ('kubernetes.memory.usage', MEM),
@@ -40,8 +41,10 @@ METRICS = [
     ('kubernetes.pods.running', PODS),
     ('kubernetes.cpu.limits', LIM),
     ('kubernetes.cpu.requests', REQ),
+    ('kubernetes.cpu.capacity', CAP),
     ('kubernetes.memory.limits', LIM),
     ('kubernetes.memory.requests', REQ),
+    ('kubernetes.memory.capacity', CAP),
 ]
 
 
@@ -50,6 +53,7 @@ class TestKubernetes(AgentCheckTest):
     CHECK_NAME = 'kubernetes'
 
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_json_auth')
+    @mock.patch('utils.kubeutil.KubeUtil.retrieve_machine_info')
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_metrics',
                 side_effect=lambda: json.loads(Fixtures.read_file("metrics_1.1.json")))
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list',
@@ -65,6 +69,7 @@ class TestKubernetes(AgentCheckTest):
         self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL, tags=None, count=1)
 
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_json_auth')
+    @mock.patch('utils.kubeutil.KubeUtil.retrieve_machine_info')
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_metrics',
                 side_effect=lambda: json.loads(Fixtures.read_file("metrics_1.1.json")))
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list',
@@ -112,7 +117,7 @@ class TestKubernetes(AgentCheckTest):
             (['kube_replication_controller:redis-slave'], [PODS]),
             (['kube_replication_controller:frontend'], [PODS]),
             (['kube_replication_controller:heapster-v11'], [PODS]),
-            ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
+            ([], [LIM, REQ, CAP])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
         for m, _type in METRICS:
             for tags, types in expected_tags:
@@ -122,6 +127,7 @@ class TestKubernetes(AgentCheckTest):
         self.coverage_report()
 
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_json_auth')
+    @mock.patch('utils.kubeutil.KubeUtil.retrieve_machine_info')
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_metrics',
                 side_effect=lambda: json.loads(Fixtures.read_file("metrics_1.1.json")))
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list',
@@ -159,7 +165,7 @@ class TestKubernetes(AgentCheckTest):
             (['kube_replication_controller:redis-slave'], [PODS]),
             (['kube_replication_controller:frontend'], [PODS]),
             (['kube_replication_controller:heapster-v11'], [PODS]),
-            ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
+            ([], [LIM, REQ, CAP])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
 
         for m, _type in METRICS:
@@ -171,6 +177,8 @@ class TestKubernetes(AgentCheckTest):
         self.coverage_report()
 
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_json_auth')
+    @mock.patch('utils.kubeutil.KubeUtil.retrieve_machine_info',
+                side_effect=lambda: json.loads(Fixtures.read_file("machine_info_1.2.json")))
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_metrics',
                 side_effect=lambda: json.loads(Fixtures.read_file("metrics_1.2.json")))
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list',
@@ -186,6 +194,8 @@ class TestKubernetes(AgentCheckTest):
         self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL)
 
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_json_auth')
+    @mock.patch('utils.kubeutil.KubeUtil.retrieve_machine_info',
+                side_effect=lambda: json.loads(Fixtures.read_file("machine_info_1.2.json")))
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_metrics',
                 side_effect=lambda: json.loads(Fixtures.read_file("metrics_1.2.json")))
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list',
@@ -216,7 +226,7 @@ class TestKubernetes(AgentCheckTest):
               'pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar',
               'kube_bar:baz', 'kube_replication_controller:dd-agent'], [LIM, REQ, MEM, CPU, NET, DISK, DISK_USAGE]),
             (['kube_replication_controller:dd-agent'], [PODS]),
-            ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
+            ([], [LIM, REQ, CAP])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
 
         for m, _type in METRICS:
@@ -224,9 +234,15 @@ class TestKubernetes(AgentCheckTest):
                 if _type in types:
                     self.assertMetric(m, count=1, tags=tags)
 
+        # Verify exact capacity values read from machine_info_1.2.json fixture.
+        self.assertMetric('kubernetes.cpu.capacity', value=2)
+        self.assertMetric('kubernetes.memory.capacity', value=8391204864)
+
         self.coverage_report()
 
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_json_auth')
+    @mock.patch('utils.kubeutil.KubeUtil.retrieve_machine_info',
+                side_effect=lambda: json.loads(Fixtures.read_file("machine_info_1.2.json")))
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_metrics',
                 side_effect=lambda: json.loads(Fixtures.read_file("metrics_1.2.json")))
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list',
@@ -257,7 +273,7 @@ class TestKubernetes(AgentCheckTest):
               'kube_replication_controller:dd-agent'], [MEM, CPU, NET, DISK, NET_ERRORS, DISK_USAGE, LIM, REQ]),
             (['pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['kube_replication_controller:dd-agent'], [PODS]),
-            ([], [LIM, REQ])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
+            ([], [LIM, REQ, CAP])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
 
         for m, _type in METRICS:
@@ -274,6 +290,7 @@ class TestKubernetes(AgentCheckTest):
                 side_effect=lambda x, y: x)
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_json_auth',
                 side_effect=lambda x,y: json.loads(Fixtures.read_file("events.json", string_escape=False)))
+    @mock.patch('utils.kubeutil.KubeUtil.retrieve_machine_info')
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_metrics')
     @mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list',
                 side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False)))
@@ -350,6 +367,11 @@ class TestKubeutil(unittest.TestCase):
     def test_retrieve_pods_list(self, retrieve_json):
         self.kubeutil.retrieve_pods_list()
         retrieve_json.assert_called_once_with(self.kubeutil.pods_list_url)
+
+    @mock.patch('utils.kubeutil.retrieve_json')
+    def test_retrieve_machine_info(self, retrieve_json):
+        self.kubeutil.retrieve_machine_info()
+        retrieve_json.assert_called_once_with(self.kubeutil.machine_info_url)
 
     @mock.patch('utils.kubeutil.retrieve_json')
     def test_retrieve_metrics(self, retrieve_json):

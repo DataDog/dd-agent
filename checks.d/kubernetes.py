@@ -346,6 +346,18 @@ class Kubernetes(AgentCheck):
                     self.log.debug("Container object for {}: {}".format(c_name, container))
 
         self._update_pods_metrics(instance, pods_list)
+        self._update_node(instance)
+
+    def _update_node(self, instance):
+        machine_info = self.kubeutil.retrieve_machine_info()
+        num_cores = machine_info.get('num_cores', 0)
+        memory_capacity = machine_info.get('memory_capacity', 0)
+
+        tags = instance.get('tags', [])
+        self.publish_gauge(self, NAMESPACE + '.cpu.capacity', float(num_cores), tags)
+        self.publish_gauge(self, NAMESPACE + '.memory.capacity', float(memory_capacity), tags)
+        # TODO(markine): Report 'allocatable' which is capacity minus capacity
+        # reserved for system/Kubernetes.
 
     def _update_pods_metrics(self, instance, pods):
         supported_kinds = [

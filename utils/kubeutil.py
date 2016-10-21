@@ -25,6 +25,7 @@ class KubeUtil:
     __metaclass__ = Singleton
 
     DEFAULT_METHOD = 'http'
+    MACHINE_INFO_PATH = '/api/v1.3/machine/'
     METRICS_PATH = '/api/v1.3/subcontainers/'
     PODS_LIST_PATH = '/pods/'
     DEFAULT_CADVISOR_PORT = 4194
@@ -66,6 +67,7 @@ class KubeUtil:
         self.kubernetes_api_url = 'https://%s/api/v1' % (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME)
 
         self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
+        self.machine_info_url = urljoin(self.cadvisor_url, KubeUtil.MACHINE_INFO_PATH)
         self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
         self.kube_health_url = urljoin(self.kubelet_api_url, 'healthz')
 
@@ -123,6 +125,12 @@ class KubeUtil:
         TODO: the list of pods could be cached with some policy to be decided.
         """
         return retrieve_json(self.pods_list_url)
+
+    def retrieve_machine_info(self):
+        """
+        Retrieve machine info from Cadvisor.
+        """
+        return retrieve_json(self.machine_info_url)
 
     def retrieve_metrics(self):
         """
