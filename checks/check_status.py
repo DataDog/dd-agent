@@ -19,6 +19,7 @@ import time
 
 # 3p
 import ntplib
+import requests
 import yaml
 
 # project
@@ -115,6 +116,21 @@ def get_ntp_info():
         ntp_styles = []
     return ntp_offset, ntp_styles
 
+def validate_api_key(api_key):
+    try:
+        r = requests.get("https://app.datadoghq.com/api/v1/validate",
+            params={'api_key': api_key}, timeout=3)
+
+        if r.status_code == 403:
+            return "API Key is invalid"
+
+        r.raise_for_status()
+
+    except Exception:
+        log.exception("Unable to validate API Key")
+        return "Unable to validate API Key. Please try again later"
+
+    return "API Key is valid"
 
 class AgentStatus(object):
     """
@@ -782,7 +798,8 @@ class ForwarderStatus(AgentStatus):
             "Transactions received: %s" % self.transactions_received,
             "Transactions flushed: %s" % self.transactions_flushed,
             "Transactions rejected: %s" % self.transactions_rejected,
-            ""
+            "API Key Status: %s" % validate_api_key(get_config().get('api_key')),
+            "",
         ]
 
         return lines
