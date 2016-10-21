@@ -8,18 +8,19 @@ package servicediscovery;
 
 // Interface exported by the server.
 service ServiceDiscovery {
+
   // A simple RPC.
   //
-  // Obtains the feature at a given position.
+  // Attempts to set a YAML service discovery configuration.
   //
-  // A feature with an empty name is returned if there's no feature at the given
-  // position.
-  rpc SetConfig(SDConfig) returns (SDConfigApplied) {}
+  // A confirmation message is returned with the status of the
+  // operation.
+  rpc SetConfig(SDConfig) returns (Confirmation) {}
 
 }
 
-message SDConfigApplied {
-  bool applied = 1;
+message Confirmation {
+  bool success = 1;
 }
 
 message SDConfig {

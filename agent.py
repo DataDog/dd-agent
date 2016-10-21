@@ -163,7 +163,7 @@ class Agent(Daemon):
                 except Exception as e:
                     log.exception("unable to submit YAML via RPC: %s", e)
                 else:
-                    if res.applied:
+                    if res.success:
                         log.info("JMX SD Config submitted via RPC for %s successfully.", name)
                     else:
                         log.info("JMX SD Config submitted via RPC for %s failed. \
