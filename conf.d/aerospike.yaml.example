@@ -9,7 +9,13 @@ instances:
     #   - optional_tag2
 
 
-    # additional_metrics:
-    #   - holdoff
-    #   - segment
+    # sets namespaces to fetch namespace specific metrics.
+    # namespaces:
+    #  - namespace_name1
+    #  - namespace_name2
+    
+    # Set the host's tags
+    # tags:
+    #   - tag_name: tag_value
+
 
