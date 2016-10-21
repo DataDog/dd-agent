@@ -27,7 +27,8 @@ INIT_CONFIGS = 'init_configs'
 INSTANCES = 'instances'
 KUBE_ANNOTATIONS = 'kube_annotations'
 KUBE_POD_NAME = 'kube_pod_name'
-KUBE_ANNOTATION_PREFIX = 'com.datadoghq.sd/'
+KUBE_CONTAINER_NAME = 'kube_container_name'
+KUBE_ANNOTATION_PREFIX = 'sd.datadoghq.com'
 
 
 class KeyNotFound(Exception):
@@ -99,11 +100,12 @@ class AbstractConfigStore(object):
 
         return identifier_to_checks
 
-    def _get_kube_config(self, identifier, kube_annotations):
+    def _get_kube_config(self, identifier, kube_annotations, kube_container_name):
         try:
-            check_names = json.loads(kube_annotations[KUBE_ANNOTATION_PREFIX + CHECK_NAMES])
-            init_config_tpls = json.loads(kube_annotations[KUBE_ANNOTATION_PREFIX + INIT_CONFIGS])
-            instance_tpls = json.loads(kube_annotations[KUBE_ANNOTATION_PREFIX + INSTANCES])
+            prefix = '{}/{}/'.format(KUBE_ANNOTATION_PREFIX, kube_container_name)
+            check_names = json.loads(kube_annotations[prefix + CHECK_NAMES])
+            init_config_tpls = json.loads(kube_annotations[prefix + INIT_CONFIGS])
+            instance_tpls = json.loads(kube_annotations[prefix + INSTANCES])
             return [check_names, init_config_tpls, instance_tpls]
         except KeyError:
             return None
@@ -132,9 +134,10 @@ class AbstractConfigStore(object):
 
     def get_checks_to_refresh(self, identifier, **kwargs):
         to_check = set(self.identifier_to_checks[identifier])
-        kube_annotations = kwargs.get('kube_annotations')
+        kube_annotations = kwargs.get(KUBE_ANNOTATIONS)
+        kube_container_name = kwargs.get(KUBE_CONTAINER_NAME)
         if kube_annotations:
-            kube_config = self._get_kube_config(identifier, kube_annotations)
+            kube_config = self._get_kube_config(identifier, kube_annotations, kube_container_name)
             if kube_config is not None:
                 to_check.update(kube_config[0])
 
@@ -149,8 +152,9 @@ class AbstractConfigStore(object):
             # annotations for configs before falling back to autoconf.
             kube_annotations = kwargs.get(KUBE_ANNOTATIONS)
             kube_pod_name = kwargs.get(KUBE_POD_NAME)
+            kube_container_name = kwargs.get(KUBE_CONTAINER_NAME)
             if kube_annotations:
-                kube_config = self._get_kube_config(identifier, kube_annotations)
+                kube_config = self._get_kube_config(identifier, kube_annotations, kube_container_name)
                 if kube_config is not None:
                     check_names, init_config_tpls, instance_tpls = kube_config
                     source = CONFIG_FROM_KUBE

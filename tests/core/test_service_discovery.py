@@ -40,7 +40,7 @@ def _get_container_inspect(c_id):
         return None
 
 
-def _get_conf_tpls(image_name, kube_annotations=None, kube_pod_name=None):
+def _get_conf_tpls(image_name, kube_annotations=None, kube_pod_name=None, kube_container_name=None):
     """Return a mocked configuration template from self.mock_templates."""
     return [(x, image_name + ':0', y) for x, y in
             copy.deepcopy(TestServiceDiscovery.mock_templates.get(image_name)[0])]
@@ -545,10 +545,11 @@ class TestServiceDiscovery(unittest.TestCase):
                 config_store.get_check_tpls(
                     'k8s-' + image, auto_conf=True,
                     kube_pod_name=image,
+                    kube_container_name='foo',
                     kube_annotations=dict(zip(
-                        ['com.datadoghq.sd/check_names',
-                         'com.datadoghq.sd/init_configs',
-                         'com.datadoghq.sd/instances'],
+                        ['sd.datadoghq.com/foo/check_names',
+                         'sd.datadoghq.com/foo/init_configs',
+                         'sd.datadoghq.com/foo/instances'],
                         self.mock_tpls[image][0]))))
 
     def test_get_config_id(self):

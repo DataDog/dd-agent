@@ -67,13 +67,15 @@ class SDDockerBackend(AbstractSDBackend):
         identifier = inspect.get('Config', {}).get('Labels', {}).get(DATADOG_ID) or \
             inspect.get('Config', {}).get('Image')
 
+        platform_kwargs = {}
         if Platform.is_k8s():
             kube_metadata = self._get_kube_config(inspect.get('Id'), 'metadata') or {}
-            annotations = kube_metadata.get('annotations')
-        else:
-            annotations = {}
+            platform_kwargs = {
+                'kube_annotations': kube_metadata.get('annotations'),
+                'kube_container_name': self._get_kube_container_name(inspect.get('Id')),
+            }
 
-        return self.config_store.get_checks_to_refresh(identifier, kube_annotations=annotations)
+        return self.config_store.get_checks_to_refresh(identifier, **platform_kwargs)
 
     def _get_host_address(self, c_inspect, tpl_var):
         """Extract the container IP from a docker inspect object, or the kubelet API."""
@@ -228,6 +230,14 @@ class SDDockerBackend(AbstractSDBackend):
             tags.append('pod_name:%s' % pod_metadata.get('name'))
         return tags
 
+    def _get_kube_container_name(self, c_id):
+        pods = self.kubeutil.retrieve_pods_list().get('items', [])
+        for pod in pods:
+            c_statuses = pod.get('status', {}).get('containerStatuses', [])
+            for status in c_statuses:
+                if c_id == status.get('containerID', '').split('//')[-1]:
+                    return status.get('name')
+
     def _get_kube_config(self, c_id, key):
         """Get a part of a pod config from the kubernetes API"""
         pods = self.kubeutil.retrieve_pods_list().get('items', [])
@@ -278,14 +288,15 @@ class SDDockerBackend(AbstractSDBackend):
     def _get_check_configs(self, c_id, identifier):
         """Retrieve configuration templates and fill them with data pulled from docker and tags."""
         inspect = self.docker_client.inspect_container(c_id)
+        platform_kwargs = {}
         if Platform.is_k8s():
             kube_metadata = self._get_kube_config(inspect.get('Id'), 'metadata') or {}
-            annotations = kube_metadata.get('annotations')
-            pod_name = kube_metadata.get('name')
-        else:
-            annotations = {}
-            pod_name = None
-        config_templates = self._get_config_templates(identifier, kube_annotations=annotations, kube_pod_name=pod_name)
+            platform_kwargs = {
+                'kube_pod_name': kube_metadata.get('name'),
+                'kube_container_name': self._get_kube_container_name(inspect.get('Id')),
+                'kube_annotations': kube_metadata.get('annotations'),
+            }
+        config_templates = self._get_config_templates(identifier, **platform_kwargs)
         if not config_templates:
             log.debug('No config template for container %s with identifier %s. '
                       'It will be left unconfigured.' % (c_id[:12], identifier))
@@ -307,7 +318,7 @@ class SDDockerBackend(AbstractSDBackend):
 
         return check_configs
 
-    def _get_config_templates(self, identifier, kube_annotations=None, kube_pod_name=None):
+    def _get_config_templates(self, identifier, **platform_kwargs):
         """Extract config templates for an identifier from a K/V store and returns it as a dict object."""
         config_backend = self.agentConfig.get('sd_config_backend')
         templates = []
@@ -318,8 +329,7 @@ class SDDockerBackend(AbstractSDBackend):
             auto_conf = False
 
         # format [(source, ('ident', {init_tpl}, {instance_tpl}))]
-        raw_tpls = self.config_store.get_check_tpls(
-            identifier, auto_conf=auto_conf, kube_annotations=kube_annotations, kube_pod_name=kube_pod_name)
+        raw_tpls = self.config_store.get_check_tpls(identifier, auto_conf=auto_conf, **platform_kwargs)
         for tpl in raw_tpls:
             # each template can come from either auto configuration or user-supplied templates
             try:
