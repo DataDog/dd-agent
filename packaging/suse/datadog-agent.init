@@ -1,0 +1,481 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides: dd-agent
+# Short-Description: Start and stop dd-agent
+# Description: dd-agent is the monitoring Agent component for Datadog
+# Required-Start: $remote_fs
+# Required-Stop: $remote_fs
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+### END INIT INFO
+
+. /lib/lsb/init-functions
+PATH=$PATH:/sbin # add the location of start-stop-daemon on Suse
+
+AGENTPATH="/opt/datadog-agent/agent/agent.py"
+AGENTCONF="/etc/dd-agent/datadog.conf"
+DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
+KILL_PATH="/opt/datadog-agent/embedded/bin/kill"
+AGENTUSER="dd-agent"
+FORWARDERPATH="/opt/datadog-agent/agent/ddagent.py"
+NAME="datadog-agent"
+DESC="Datadog Agent"
+SUPERVISOR_PIDFILE="/opt/datadog-agent/run/datadog-supervisord.pid"
+SUPERVISOR_FILE="/etc/dd-agent/supervisor.conf"
+SUPERVISOR_SOCK="/opt/datadog-agent/run/datadog-supervisor.sock"
+SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
+SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
+COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
+SYSTEM_PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH
+DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro"
+
+if [ ! -x $AGENTPATH ]; then
+    echo "$AGENTPATH not found. Exiting."
+    exit 0
+fi
+
+# Debian/Ubuntu have more functions in their /lib/lsb/init-functions than suse.
+# This will add the ones we're missing.
+# The file asks me to include the following notice in this:
+
+#Copyright (c) 2002-08 Chris Lawrence
+#All rights reserved.
+#Redistribution and use in source and binary forms, with or without
+#modification, are permitted provided that the following conditions
+#are met:
+#1. Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+#2. Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in the
+#   documentation and/or other materials provided with the distribution.
+#3. Neither the name of the author nor the names of other contributors
+#   may be used to endorse or promote products derived from this software
+#   without specific prior written permission.
+#
+#THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+#IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+#WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+#LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+#CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+#SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+#BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+#OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+#EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+log_end_msg () {
+    # If no arguments were passed, return
+    if [ -z "${1:-}" ]; then
+        return 1
+    fi
+
+    retval=$1
+
+    log_end_msg_pre "$@"
+
+    # Only do the fancy stuff if we have an appropriate terminal
+    # and if /usr is already mounted
+    if log_use_fancy_output; then
+        RED=`$TPUT setaf 1`
+        YELLOW=`$TPUT setaf 3`
+        NORMAL=`$TPUT op`
+    else
+        RED=''
+        YELLOW=''
+        NORMAL=''
+    fi
+
+    if [ $1 -eq 0 ]; then
+        echo "."
+    elif [ $1 -eq 255 ]; then
+        /bin/echo -e " ${YELLOW}(warning).${NORMAL}"
+    else
+        /bin/echo -e " ${RED}failed!${NORMAL}"
+    fi
+    log_end_msg_post "$@"
+    return $retval
+}
+
+log_daemon_msg () {
+    if [ -z "${1:-}" ]; then
+        return 1
+    fi
+    log_daemon_msg_pre "$@"
+
+    if [ -z "${2:-}" ]; then
+        echo -n "$1:"
+        return
+    fi
+
+    echo -n "$1: $2"
+    log_daemon_msg_post "$@"
+}
+
+log_use_fancy_output () {
+    TPUT=/usr/bin/tput
+    EXPR=/usr/bin/expr
+    if [ -t 1 ] && [ "x${TERM:-}" != "x" ] && [ "x${TERM:-}" != "xdumb" ] && [ -x $TPUT ] && [ -x $EXPR ] && $TPUT hpa 60 >/dev/null 2>&1 && $TPUT setaf 1 >/dev/null 2>&1; then
+        [ -z $FANCYTTY ] && FANCYTTY=1 || true
+    else
+        FANCYTTY=0
+    fi
+    case "$FANCYTTY" in
+        1|Y|yes|true)   true;;
+        *)              false;;
+    esac
+}
+
+log_daemon_msg_pre () { :; }
+log_daemon_msg_post () { :; }
+log_end_msg_pre () { :; }
+log_end_msg_post () { :; }
+log_action_end_msg_pre () { :; }
+log_action_end_msg_post () { :; }
+
+LOG_DAEMON_MSG=""
+
+log_use_plymouth () {
+    if [ "${loop:-n}" = y ]; then
+        return 1
+    fi
+    plymouth --ping >/dev/null 2>&1
+}
+
+log_success_msg () {
+    echo " * $@"
+}
+
+log_failure_msg () {
+    if log_use_fancy_output; then
+        RED=`$TPUT setaf 1`
+        NORMAL=`$TPUT op`
+        echo " $RED*$NORMAL $@"
+    else
+        echo " * $@"
+    fi
+}
+
+log_warning_msg () {
+    if log_use_fancy_output; then
+        YELLOW=`$TPUT setaf 3`
+        NORMAL=`$TPUT op`
+        echo " $YELLOW*$NORMAL $@"
+    else
+        echo " * $@"
+    fi
+}
+
+log_begin_msg () {
+    log_daemon_msg "$1"
+}
+
+log_daemon_msg () {
+    if [ -z "$1" ]; then
+        return 1
+    fi
+
+    if log_use_fancy_output && $TPUT xenl >/dev/null 2>&1; then
+        COLS=`$TPUT cols`
+        if [ "$COLS" ] && [ "$COLS" -gt 6 ]; then
+            COL=`$EXPR $COLS - 7`
+        else
+            COLS=80
+            COL=73
+        fi
+
+        if log_use_plymouth; then
+            # If plymouth is running, don't output anything at this time
+            # to avoid buffering problems (LP: #752393)
+            if [ -z "$LOG_DAEMON_MSG" ]; then
+                LOG_DAEMON_MSG=$*
+                return
+            fi
+        fi
+
+        # We leave the cursor `hanging' about-to-wrap (see terminfo(5)
+        # xenl, which is approximately right). That way if the script
+        # prints anything then we will be on the next line and not
+        # overwrite part of the message.
+
+        # Previous versions of this code attempted to colour-code the
+        # asterisk but this can't be done reliably because in practice
+        # init scripts sometimes print messages even when they succeed
+        # and we won't be able to reliably know where the colourful
+        # asterisk ought to go.
+
+        printf " * $*       "
+        # Enough trailing spaces for ` [fail]' to fit in; if the message
+        # is too long it wraps here rather than later, which is what we
+        # want.
+        $TPUT hpa `$EXPR $COLS - 1`
+        printf ' '
+    else
+        echo " * $@"
+        COL=
+    fi
+}
+
+log_progress_msg () {
+    :
+}
+
+log_end_msg () {
+    if [ -z "$1" ]; then
+        return 1
+    fi
+
+    if [ "$COL" ] && [ -x "$TPUT" ]; then
+        # If plymouth is running, print previously stored output
+        # to avoid buffering problems (LP: #752393)
+        if log_use_plymouth; then
+            if [ -n "$LOG_DAEMON_MSG" ]; then
+                log_daemon_msg $LOG_DAEMON_MSG
+                LOG_DAEMON_MSG=""
+            fi
+        fi
+
+        printf "\r"
+        $TPUT hpa $COL
+        if [ "$1" -eq 0 ]; then
+            echo "[ OK ]"
+        else
+            printf '['
+            $TPUT setaf 1 # red
+            printf fail
+            $TPUT op # normal
+            echo ']'
+        fi
+    else
+        if [ "$1" -eq 0 ]; then
+            echo "   ...done."
+        else
+            echo "   ...fail!"
+        fi
+    fi
+    return $1
+}
+
+log_action_msg () {
+    echo " * $@"
+}
+
+log_action_begin_msg () {
+    log_daemon_msg "$@..."
+}
+
+log_action_cont_msg () {
+    log_daemon_msg "$@..."
+}
+
+log_action_end_msg () {
+    # In the future this may do something with $2 as well.
+    log_end_msg "$1" || true
+}
+
+## End of Ubuntu logging Functions
+
+check_status() {
+
+    QUERY="all"
+    if [ -n "$1" ] && [ "$1" != "all" ] && [ "$1" != "essential" ] && [ "$1" != "optional" ]; then
+        echo "Valid arguments for $0: all | essential | optional"
+    elif [ -n "$1" ]; then
+        QUERY=$1
+    fi
+
+    ESSENTIAL=0
+    OPTIONAL=0
+    FAIL=1
+
+    # If the socket exists, we can use supervisorctl
+    if [ -e $SUPERVISOR_SOCK ]; then
+        # If we're using supervisor, check the number of datadog processes
+        # supervisor is currently controlling, and make sure that it's the
+        # same as the number of programs specified in the supervisor config
+        # file:
+
+        supervisor_processes=$($SUPERVISORCTL_PATH -c $SUPERVISOR_FILE status)
+
+        # Number of RUNNING supervisord programs (ignoring dogstatsd, jmxfetch and go-metro)
+        datadog_supervisor_processes=$(echo "$supervisor_processes" |
+                                       grep -Ev $DD_OPT_PROC_REGEX |
+                                       grep $NAME |
+                                       grep -c RUNNING)
+
+        # Number of non-failed OPTIONAL supervisord programs (dogstatsd, jmxfetch and go-metro)
+        datadog_supervisor_opt_processes=$(echo "$supervisor_processes" |
+                                       grep -E $DD_OPT_PROC_REGEX |
+                                       grep $NAME |
+                                       grep -cv FATAL)
+
+        # Number of expected running supervisord programs (ignoring dogstatsd, jmxfetch and go-metro)
+        supervisor_config_programs=$(grep -Ev $DD_OPT_PROC_REGEX $SUPERVISOR_FILE |
+                                     grep -c '\[program:')
+
+        # Number of expected optional supervisord programs (dogstatsd, jmxfetch and go-metro)
+        supervisor_config_opt_programs=$(grep -E $DD_OPT_PROC_REGEX $SUPERVISOR_FILE |
+                                     grep -c '\[program:')
+
+        if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
+            ESSENTIAL=1
+        fi
+
+        if [ "$datadog_supervisor_opt_processes" -ne "$supervisor_config_opt_programs" ]  ; then
+            OPTIONAL=1
+        fi
+
+        if [ "$QUERY" = "essential" ] && [ "$ESSENTIAL" -eq 0 ]; then
+            FAIL=0
+        elif [ "$QUERY" = "optional" ] && [ "$OPTIONAL" -eq 0 ]; then
+            FAIL=0
+        elif [ "$QUERY" = "all" ] && [ "$ESSENTIAL" = "$OPTIONAL" ] && [ $ESSENTIAL -eq 0 ]; then
+            FAIL=0
+        fi
+
+        if [ "$FAIL" -gt 0 ]; then
+            echo "$supervisor_processes"
+            echo "$DESC (supervisor) is NOT running all child processes"
+            return 1
+        else
+            echo "$DESC (supervisor) is running all child processes"
+            return 0
+        fi
+
+
+    else
+        echo "$DESC (supervisor) is not running"
+        return 1
+    fi
+}
+
+# Action to take
+case "$1" in
+    start)
+        if [ ! -f $AGENTCONF ]; then
+            echo "$AGENTCONF not found. Exiting."
+            exit 3
+        fi
+
+        check_status essential > /dev/null
+        if [ $? -eq 0 ]; then
+            echo "$DESC is already running"
+            exit 0
+        else
+            $0 stop > /dev/null 2>&1
+        fi
+
+        su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            log_daemon_msg "Invalid check configuration. Please run sudo /etc/init.d/datadog-agent configtest for more details."
+            log_daemon_msg "Resuming starting process."
+        fi
+
+
+        log_daemon_msg "Starting $DESC (using supervisord)" "$NAME"
+        PATH=$SYSTEM_PATH /sbin/start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD_PATH -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
+        if [ $? -ne 0 ]; then
+            log_end_msg 1
+        fi
+
+        # check if the agent is running once per second for 10 seconds
+        retries=10
+        while [ $retries -gt 1 ]; do
+          if check_status essential > /dev/null; then
+              # We've started up successfully. Exit cleanly
+              log_end_msg 0
+              exit 0
+          else
+              retries=$(($retries - 1))
+              sleep 1
+          fi
+        done
+        # After 10 tries the agent didn't start. Report an error
+        log_end_msg 1
+        check_status # report what went wrong
+        $0 stop
+        exit 1
+        ;;
+    stop)
+        log_daemon_msg "Stopping $DESC (stopping supervisord)" "$NAME"
+        /sbin/start-stop-daemon --stop --quiet --oknodo --pidfile $SUPERVISOR_PIDFILE
+
+        log_end_msg $?
+
+        ;;
+
+    info)
+        shift # Shift 'info' out of args so we can pass any
+              # addtional options to the real command
+              # (right now only dd-agent supports additional flags)
+        su $AGENTUSER -c "$AGENTPATH info $@"
+        COLLECTOR_RETURN=$?
+        su $AGENTUSER -c "$DOGSTATSDPATH info"
+        DOGSTATSD_RETURN=$?
+        su $AGENTUSER -c "$FORWARDERPATH info"
+        FORWARDER_RETURN=$?
+        exit $(($COLLECTOR_RETURN+$DOGSTATSD_RETURN+$FORWARDER_RETURN))
+        ;;
+
+    status)
+        # Note: sh does not support arrays
+        # Check for kernel version 3.18+ - overlayfs has known bug affecting unix domain sockets
+        major=$(echo "$( uname -r )" | cut -d"." -f1)
+        minor=$(echo "$( uname -r )" | cut -d"." -f2)
+        # If major version 3, and minor version 18+, OR major version 4+
+        if [ "$DOCKER_DD_AGENT" != "" ] && ( ( [ $major -eq 3 ] && [ $minor -ge 18 ] ) || [ $major -gt 3 ] ); then
+            RED='\033[0;31m' # Red Text
+            NC='\033[0m' # No Color
+            echo "${RED}Warning: Known bug in Linux Kernel 3.18+ causes 'status' to fail.${NC}"
+            echo "Calling 'info', instead..."
+            service datadog-agent info
+            if [ $? -ne 0 ]; then
+                exit 1
+            fi
+        else
+            check_status
+        fi
+        exit $?
+        ;;
+
+    reload)
+        $KILL_PATH -HUP `cat $COLLECTOR_PIDFILE`
+        exit $?
+        ;;
+
+    restart|force-reload)
+        $0 stop
+        $0 start
+        ;;
+
+    configcheck)
+        su $AGENTUSER -c "$AGENTPATH configcheck"
+        exit $?
+        ;;
+
+    configtest)
+        su $AGENTUSER -c "$AGENTPATH configcheck"
+        exit $?
+        ;;
+
+    jmx)
+        shift
+        su $AGENTUSER -c "$AGENTPATH jmx $@"
+        exit $?
+        ;;
+
+    flare)
+        shift
+        $AGENTPATH flare $@
+        exit $?
+        ;;
+
+    *)
+        N=/etc/init.d/$NAME
+        echo "Usage: $N {start|stop|restart|info|status|reload|configcheck|configtest|jmx|flare}"
+        exit 1
+        ;;
+esac
+
+exit $?
