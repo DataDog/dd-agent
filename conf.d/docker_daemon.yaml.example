@@ -57,7 +57,11 @@ instances:
     #       Container Healthchecks are available starting with docker 1.12, enabling with older
     #       versions will result in an UNKNOWN state for the service check.
     #
+    # You should whitelist the container images you wish to submit health service checks for.
+    # Example: ["tomcat", "nginx", "etcd"]
+    #
     # health_service_checks: false
+    # health_service_check_whitelist: []
 
     # Collect images stats
     # Number of available active images and intermediate images as gauges.

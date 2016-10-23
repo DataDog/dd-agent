@@ -242,7 +242,8 @@ class DockerDaemon(AgentCheck):
 
         # Report docker healthcheck SC's where available
         if health_service_checks:
-            self._send_container_healthcheck_sc(containers_by_id)
+            health_scs_whitelist = set(instance.get('health_service_check_whitelist', []))
+            self._send_container_healthcheck_sc(containers_by_id, health_scs_whitelist)
 
     def _count_and_weigh_images(self):
         try:
@@ -477,8 +478,12 @@ class DockerDaemon(AgentCheck):
                     self, 'docker.container.size_rootfs', container['SizeRootFs'],
                     tags=tags)
 
-    def _send_container_healthcheck_sc(self, containers_by_id):
+    def _send_container_healthcheck_sc(self, containers_by_id, whitelist):
+        """Send health service checks for containers. Whitelist should preferably be a set."""
         for container in containers_by_id.itervalues():
+            if container.get('Image') not in whitelist:
+                continue
+
             health = container.get('health', {})
             tags = self._get_tags(container, CONTAINER)
             status = AgentCheck.UNKNOWN
