@@ -29,34 +29,47 @@ control_chars = ''.join(map(unichr, range(0, 32) + range(127, 160)))
 control_char_re = re.compile('[%s]' % re.escape(control_chars))
 
 
-def remove_control_chars(s):
+def remove_control_chars(s, log):
     if isinstance(s, str):
         sanitized = control_char_re.sub('', s)
     elif isinstance(s, unicode):
         sanitized = ''.join(['' if unicodedata.category(c) in ['Cc','Cf'] else c
                             for c in u'{}'.format(s)])
-
+    if sanitized != s:
+        log.warning('Removed control chars from string: ' + s)
     return sanitized
 
-def remove_control_chars_from(item, log=None):
+def remove_undecodable_chars(s, log):
+    sanitized = s
+    if isinstance(s, str):
+        try:
+            s.decode('utf8')
+        except UnicodeDecodeError:
+            sanitized = s.decode('utf8', errors='ignore')
+            log.warning(u'Removed undecodable chars from string: ' + s.decode('utf8', errors='replace'))
+    return sanitized
+
+def sanitize_payload(item, log, sanitize_func):
     if isinstance(item, dict):
         newdict = {}
         for k, v in item.iteritems():
-            newval = remove_control_chars_from(v, log)
-            newkey = remove_control_chars(k)
+            newval = sanitize_payload(v, log, sanitize_func)
+            newkey = sanitize_func(k, log)
             newdict[newkey] = newval
         return newdict
     if isinstance(item, list):
         newlist = []
         for listitem in item:
-            newlist.append(remove_control_chars_from(listitem, log))
+            newlist.append(sanitize_payload(listitem, log, sanitize_func))
         return newlist
+    if isinstance(item, tuple):
+        newlist = []
+        for listitem in item:
+            newlist.append(sanitize_payload(listitem, log, sanitize_func))
+        return tuple(newlist)
     if isinstance(item, basestring):
-        newstr = remove_control_chars(item)
-        if item != newstr:
-            if log is not None:
-                log.warning('changed string: ' + newstr)
-            return newstr
+        return sanitize_func(item, log)
+
     return item
 
 def http_emitter(message, log, agentConfig, endpoint):
@@ -70,8 +83,13 @@ def http_emitter(message, log, agentConfig, endpoint):
         try:
             payload = json.dumps(message)
         except UnicodeDecodeError:
-            newmessage = remove_control_chars_from(message, log)
-            payload = json.dumps(newmessage)
+            newmessage = sanitize_payload(message, log, remove_control_chars)
+            try:
+                payload = json.dumps(newmessage)
+            except UnicodeDecodeError:
+                log.info('Removing undecodable characters from payload')
+                newmessage = sanitize_payload(newmessage, log, remove_undecodable_chars)
+                payload = json.dumps(newmessage)
     except UnicodeDecodeError as ude:
         log.error('http_emitter: Unable to convert message to json %s', ude)
         # early return as we can't actually process the message
