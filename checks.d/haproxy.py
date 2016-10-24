@@ -125,6 +125,8 @@ class HAProxy(AgentCheck):
         services_incl_filter = instance.get('services_include', [])
         services_excl_filter = instance.get('services_exclude', [])
 
+        custom_tags = instance.get('tags', [])
+
         verify = not _is_affirmative(instance.get('disable_ssl_validation', False))
 
         self.log.debug('Processing HAProxy data for %s' % url)
@@ -142,6 +144,7 @@ class HAProxy(AgentCheck):
             services_excl_filter=services_excl_filter,
             collate_status_tags_per_host=collate_status_tags_per_host,
             count_status_by_service=count_status_by_service,
+            custom_tags=custom_tags,
         )
 
     def _fetch_data(self, url, username, password, verify):
@@ -162,7 +165,7 @@ class HAProxy(AgentCheck):
                       collect_status_metrics=False, collect_status_metrics_by_host=False,
                       tag_service_check_by_host=False, services_incl_filter=None,
                       services_excl_filter=None, collate_status_tags_per_host=False,
-                      count_status_by_service=True):
+                      count_status_by_service=True, custom_tags=[]):
         ''' Main data-processing loop. For each piece of useful data, we'll
         either save a metric, save an event or both. '''
 
@@ -199,13 +202,15 @@ class HAProxy(AgentCheck):
                 self._process_metrics(
                     data_dict, url,
                     services_incl_filter=services_incl_filter,
-                    services_excl_filter=services_excl_filter
+                    services_excl_filter=services_excl_filter,
+                    custom_tags=custom_tags
                 )
             if process_events:
                 self._process_event(
                     data_dict, url,
                     services_incl_filter=services_incl_filter,
-                    services_excl_filter=services_excl_filter
+                    services_excl_filter=services_excl_filter,
+                    custom_tags=custom_tags
                 )
             self._process_service_check(
                 data_dict, url,
@@ -407,7 +412,7 @@ class HAProxy(AgentCheck):
                 self.gauge("haproxy.count_per_status", count, tags=service_tags + ('status:%s' % status, ))
 
     def _process_metrics(self, data, url, services_incl_filter=None,
-                         services_excl_filter=None):
+                         services_excl_filter=None, custom_tags=[]):
         """
         Data is a dictionary related to one host
         (one line) extracted from the csv.
@@ -419,6 +424,7 @@ class HAProxy(AgentCheck):
         back_or_front = data['back_or_front']
         tags = ["type:%s" % back_or_front, "instance_url:%s" % url]
         tags.append("service:%s" % service_name)
+        tags.extend(custom_tags)
 
         if self._is_service_excl_filtered(service_name, services_incl_filter,
                                           services_excl_filter):
@@ -437,7 +443,7 @@ class HAProxy(AgentCheck):
                     self.gauge(name, value, tags=tags)
 
     def _process_event(self, data, url, services_incl_filter=None,
-                       services_excl_filter=None):
+                       services_excl_filter=None, custom_tags=[]):
         '''
         Main event processing loop. An event will be created for a service
         status change.
@@ -466,14 +472,15 @@ class HAProxy(AgentCheck):
             # Create the event object
             ev = self._create_event(
                 data['status'], hostname, lastchg, service_name,
-                data['back_or_front']
+                data['back_or_front'], custom_tags=custom_tags
             )
             self.event(ev)
 
             # Store this host status so we can check against it later
             self.host_status[url][key] = data['status']
 
-    def _create_event(self, status, hostname, lastchg, service_name, back_or_front):
+    def _create_event(self, status, hostname, lastchg, service_name, back_or_front,
+                      custom_tags=[]):
         HAProxy_agent = self.hostname.decode('utf-8')
         if status == 'down':
             alert_type = "error"
@@ -488,6 +495,7 @@ class HAProxy(AgentCheck):
         tags = ["service:%s" % service_name]
         if back_or_front == Services.BACKEND:
             tags.append('backend:%s' % hostname)
+        tags.extend(custom_tags)
         return {
             'timestamp': int(time.time() - lastchg),
             'event_type': EVENT_TYPE,
