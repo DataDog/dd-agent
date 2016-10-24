@@ -107,7 +107,8 @@ class Varnish(AgentCheck):
 
     def _get_version_info(self, varnishstat_path):
         # Get the varnish version from varnishstat
-        output, error, _ = get_subprocess_output([varnishstat_path, "-V"], self.log)
+        output, error, _ = get_subprocess_output([varnishstat_path, "-V"], self.log,
+            raise_on_empty_output=False)
 
         # Assumptions regarding varnish's version
         use_xml = True
