@@ -215,3 +215,4 @@ b,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,
 
         self.assertMetricTag('haproxy.backend.session.current', 'new-tag')
         self.assertMetricTag('haproxy.backend.session.current', 'my:new:tag')
+        self.assertMetricTag('haproxy.count_per_status', 'my:new:tag')

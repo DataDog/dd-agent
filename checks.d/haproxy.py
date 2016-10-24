@@ -216,7 +216,8 @@ class HAProxy(AgentCheck):
                 data_dict, url,
                 tag_by_host=tag_service_check_by_host,
                 services_incl_filter=services_incl_filter,
-                services_excl_filter=services_excl_filter
+                services_excl_filter=services_excl_filter,
+                custom_tags=custom_tags
             )
 
         if collect_status_metrics:
@@ -225,13 +226,15 @@ class HAProxy(AgentCheck):
                 services_incl_filter=services_incl_filter,
                 services_excl_filter=services_excl_filter,
                 collate_status_tags_per_host=collate_status_tags_per_host,
-                count_status_by_service=count_status_by_service
+                count_status_by_service=count_status_by_service,
+                custom_tags=custom_tags
             )
 
             self._process_backend_hosts_metric(
                 self.hosts_statuses,
                 services_incl_filter=services_incl_filter,
-                services_excl_filter=services_excl_filter
+                services_excl_filter=services_excl_filter,
+                custom_tags=custom_tags
             )
 
         return data
@@ -323,7 +326,7 @@ class HAProxy(AgentCheck):
         return formatted_status
 
     def _process_backend_hosts_metric(self, hosts_statuses, services_incl_filter=None,
-                                      services_excl_filter=None):
+                                      services_excl_filter=None, custom_tags=[]):
         agg_statuses = defaultdict(lambda: {status: 0 for status in Services.COLLATED_STATUSES})
         for host_status, count in hosts_statuses.iteritems():
             try:
@@ -343,6 +346,7 @@ class HAProxy(AgentCheck):
 
         for service in agg_statuses:
             tags = ['service:%s' % service]
+            tags.extend(custom_tags)
             self.gauge(
                 'haproxy.backend_hosts',
                 agg_statuses[service][Services.AVAILABLE],
@@ -355,7 +359,7 @@ class HAProxy(AgentCheck):
 
     def _process_status_metric(self, hosts_statuses, collect_status_metrics_by_host,
                                services_incl_filter=None, services_excl_filter=None,
-                               collate_status_tags_per_host=False, count_status_by_service=True):
+                               collate_status_tags_per_host=False, count_status_by_service=True, custom_tags=[]):
         agg_statuses_counter = defaultdict(lambda: {status: 0 for status in Services.COLLATED_STATUSES})
 
         # Initialize `statuses_counter`: every value is a defaultdict initialized with the correct
@@ -386,6 +390,8 @@ class HAProxy(AgentCheck):
                 tags.append('service:%s' % service)
             if hostname:
                 tags.append('backend:%s' % hostname)
+
+            tags.extend(custom_tags)
 
             counter_status = status
             if collate_status_tags_per_host:
@@ -508,7 +514,7 @@ class HAProxy(AgentCheck):
         }
 
     def _process_service_check(self, data, url, tag_by_host=False,
-                               services_incl_filter=None, services_excl_filter=None):
+                               services_incl_filter=None, services_excl_filter=None, custom_tags=[]):
         ''' Report a service check, tagged by the service and the backend.
             Statuses are defined in `STATUS_TO_SERVICE_CHECK` mapping.
         '''
@@ -523,6 +529,7 @@ class HAProxy(AgentCheck):
 
         if status in Services.STATUS_TO_SERVICE_CHECK:
             service_check_tags = ["service:%s" % service_name]
+            service_check_tags.extend(custom_tags)
             hostname = data['svname']
             if data['back_or_front'] == Services.BACKEND:
                 service_check_tags.append('backend:%s' % hostname)
