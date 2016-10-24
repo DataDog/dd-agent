@@ -120,7 +120,7 @@ if [ $OS = "RedHat" ]; then
     else
         PROTOCOL="https"
     fi
-    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = $PROTOCOL://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=1\npriority=1\ngpgkey=$PROTOCOL://yum.datadoghq.com/DATADOG_RPM_KEY.public' > /etc/yum.repos.d/datadog.repo"
+    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = $PROTOCOL://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=1\npriority=1\ngpgkey=$PROTOCOL://yum.datadoghq.com/DATADOG_RPM_KEY.public\n$PROTOCOL://yum.datadoghq.com/DATADOG_RPM_KEY_E09422B3.public' > /etc/yum.repos.d/datadog.repo"
 
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
 
@@ -139,6 +139,7 @@ elif [ $OS = "Debian" ]; then
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
     $sudo_cmd sh -c "echo 'deb https://apt.datadoghq.com/ stable main' > /etc/apt/sources.list.d/datadog.list"
     $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
+    $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 382E94DE
 
     printf "\033[34m\n* Installing the Datadog Agent package\n\033[0m\n"
     ERROR_MESSAGE="ERROR
