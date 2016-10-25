@@ -314,3 +314,38 @@ class TestMongo(unittest.TestCase):
             metric_name = m[0]
             if metric_name in metric_val_checks:
                 self.assertTrue(metric_val_checks[metric_name](m[2]))
+
+    def testMongoFsyncLock(self):
+        server = "mongodb://localhost:%s/test" % PORT1
+        cli = pymongo.mongo_client.MongoClient(
+            server,
+            socketTimeoutMS=30000,
+            read_preference=pymongo.ReadPreference.PRIMARY_PREFERRED,)
+
+        try:
+            cli.fsync(lock=True)
+
+            self.config = {'instances': [{'server': server}]}
+
+            # Test mongodb with checks.d
+            self.check = load_check('mongo', self.config, {})
+
+            # Run the check against our server
+            self.check.check(self.config['instances'][0])
+
+            # Metric assertions
+            metrics = self.check.get_metrics()
+            assert metrics
+            self.assertTrue(isinstance(metrics, ListType))
+            self.assertTrue(len(metrics) > 0)
+
+            metric_val_checks = {
+                'mongodb.fsyncLocked': lambda x: x == 1,
+            }
+
+            for m in metrics:
+                metric_name = m[0]
+                if metric_name in metric_val_checks:
+                    self.assertTrue(metric_val_checks[metric_name](m[2]))
+        finally:
+            cli.unlock()
