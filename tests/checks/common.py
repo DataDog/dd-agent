@@ -14,6 +14,7 @@ import sys
 import time
 import traceback
 import unittest
+import json
 
 # project
 from checks import AgentCheck
@@ -132,6 +133,9 @@ class Fixtures(object):
                 contents = contents.decode('string-escape')
             return contents.decode("utf-8")
 
+    @staticmethod
+    def read_json_file(file_name, string_escape=True):
+        return json.loads(Fixtures.read_file(file_name, string_escape=string_escape))
 
 class AgentCheckTest(unittest.TestCase):
     DEFAULT_AGENT_CONFIG = {

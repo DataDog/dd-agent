@@ -43,6 +43,7 @@ class Marathon(AgentCheck):
             auth = (user,password)
         else:
             auth = None
+
         instance_tags = instance.get('tags', [])
         default_timeout = self.init_config.get('default_timeout', self.DEFAULT_TIMEOUT)
         timeout = float(instance.get('timeout', default_timeout))
@@ -55,6 +56,11 @@ class Marathon(AgentCheck):
                 for attr in self.APP_METRICS:
                     if attr in app:
                         self.gauge('marathon.' + attr, app[attr], tags=tags)
+
+        if instance.get('enable_deployment_metrics', False):
+            response = self.get_json(urljoin(url, "v2/deployments"), timeout, auth)
+            if response is not None:
+                self.gauge('marathon.deployments', len(response), tags=instance_tags)
 
     def get_json(self, url, timeout, auth):
         try:
