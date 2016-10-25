@@ -77,6 +77,10 @@ class Processes(Check):
 
         return self.get_metrics()
 
+    def stop(self):
+        if self.wmi_sampler:
+            self.wmi_sampler.stop()
+
 
 class Memory(Check):
     def __init__(self, logger):
@@ -196,6 +200,11 @@ class Memory(Check):
 
         return self.get_metrics()
 
+    def stop(self):
+        if self.os_wmi_sampler:
+            self.os_wmi_sampler.stop()
+        if self.mem_wmi_sampler:
+            self.mem_wmi_sampler.stop()
 
 class Cpu(Check):
     def __init__(self, logger):
@@ -261,6 +270,9 @@ class Cpu(Check):
 
         return val
 
+    def stop(self):
+        if self.wmi_sampler:
+            self.wmi_sampler.stop()
 
 class Network(Check):
     def __init__(self, logger):
@@ -305,6 +317,9 @@ class Network(Check):
                                  device_name=name)
         return self.get_metrics()
 
+    def stop(self):
+        if self.wmi_sampler:
+            self.wmi_sampler.stop()
 
 class IO(Check):
     def __init__(self, logger):
@@ -368,6 +383,9 @@ class IO(Check):
                                  device_name=name)
         return self.get_metrics()
 
+    def stop(self):
+        if self.wmi_sampler:
+            self.wmi_sampler.stop()
 
 class System(Check):
     def __init__(self, logger):

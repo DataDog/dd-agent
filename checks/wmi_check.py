@@ -44,6 +44,11 @@ class WinWMICheck(AgentCheck):
         self.wmi_samplers = {}
         self.wmi_props = {}
 
+    def stop(self):
+        self.log.info("Stopping WMI Samplers")
+        for sampler in self.wmi_samplers:
+            sampler.stop()
+
     def _format_tag_query(self, sampler, wmi_obj, tag_query):
         """
         Format `tag_query` or raise on incorrect parameters.
@@ -137,6 +142,8 @@ class WinWMICheck(AgentCheck):
             tag_name=target_property.lower(),
             tag_value="_".join(link_value.split())
         )
+        # samplers must now be stopped.
+        tag_query_sampler.stop()
 
         self.log.debug(u"Extracted `tag_queries` tag: '{tag}'".format(tag=tag))
         return tag
