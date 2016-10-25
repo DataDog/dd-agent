@@ -72,6 +72,7 @@ class MongoDb(AgentCheck):
         "cursors.totalOpen": GAUGE,
         "extra_info.heap_usage_bytes": RATE,
         "extra_info.page_faults": RATE,
+        "fsyncLocked": GAUGE,
         "globalLock.activeClients.readers": GAUGE,
         "globalLock.activeClients.total": GAUGE,
         "globalLock.activeClients.writers": GAUGE,
@@ -727,6 +728,9 @@ class MongoDb(AgentCheck):
 
         if status['ok'] == 0:
             raise Exception(status['errmsg'].__str__())
+
+        ops = db['$cmd.sys.inprog'].find_one()
+        status['fsyncLocked'] = 1 if ops.get('fsyncLock') else 0
 
         status['stats'] = db.command('dbstats')
         dbstats = {}
