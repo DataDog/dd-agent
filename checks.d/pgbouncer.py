@@ -137,7 +137,7 @@ class PgBouncer(AgentCheck):
             raise CheckException(
                 "Please specify a user to connect to PgBouncer as.")
 
-        if host.lower() in ('localhost', '127.0.0.1') and password == '':
+        if host in ('localhost', '127.0.0.1') and password == '':
             return {  # Use ident method
                 'dsn': "user={} dbname={}".format(user, self.DB_NAME)
             }
