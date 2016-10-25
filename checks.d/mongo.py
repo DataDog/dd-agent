@@ -157,6 +157,8 @@ class MongoDb(AgentCheck):
         "replSet.health": GAUGE,
         "replSet.replicationLag": GAUGE,
         "replSet.state": GAUGE,
+        "replSet.votes": GAUGE,
+        "replSet.voteFraction": GAUGE,
         "stats.avgObjSize": GAUGE,
         "stats.collections": GAUGE,
         "stats.dataSize": GAUGE,
@@ -793,6 +795,16 @@ class MongoDb(AgentCheck):
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
+
+                if current is not None:
+                    total = 0.0
+                    cfg = cli['local']['system.replset'].find_one()
+                    for member in cfg.get('members'):
+                        total += member.get('votes', 1)
+                        if member['_id'] == current['_id']:
+                            data['votes'] = member.get('votes', 1)
+                    data['voteFraction'] = data['votes'] / total
+
                 status['replSet'] = data
 
                 # Submit events
