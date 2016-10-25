@@ -187,7 +187,6 @@ class PgBouncer(AgentCheck):
 
         if database_url:
             key = database_url
-
         else:
             key = '%s:%s' % (host, port)
 
