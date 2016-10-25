@@ -165,6 +165,10 @@ class PgBouncer(AgentCheck):
                 pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
             self.log.debug('pgbouncer status: %s' % AgentCheck.OK)
 
+        # re-raise the ChceckExcpetions raised by _get_connect_kwargs()
+        except CheckException:
+            raise
+
         except Exception:
             message = u'Cannot establish connection to pgbouncer://%s:%s/%s' % (host, port, self.DB_NAME)
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
