@@ -643,55 +643,77 @@ class DockerDaemon(AgentCheck):
     def _format_events(self, aggregated_events, containers_by_id):
         events = []
         for image_name, event_group in aggregated_events.iteritems():
-            max_timestamp = 0
-            status = defaultdict(int)
-            status_change = []
             container_tags = set()
+            low_prio_events = []
+            normal_prio_events = []
+
             for event in event_group:
-                max_timestamp = max(max_timestamp, int(event['time']))
-                status[event['status']] += 1
                 container_name = event['id'][:11]
+
                 if event['id'] in containers_by_id:
                     cont = containers_by_id[event['id']]
                     container_name = DockerUtil.container_name_extractor(cont)[0]
                     container_tags.update(self._get_tags(cont, PERFORMANCE))
                     container_tags.add('container_name:%s' % container_name)
 
-                status_change.append([container_name, event['status']])
+                # health checks generate tons of these so we treat them separately and lower their priority
+                if event['status'].startswith('exec_create:') or event['status'].startswith('exec_start:'):
+                    low_prio_events.append((event, container_name))
+                else:
+                    normal_prio_events.append((event, container_name))
 
-            status_text = ", ".join(["%d %s" % (count, st) for st, count in status.iteritems()])
-            msg_title = "%s %s on %s" % (image_name, status_text, self.hostname)
-            msg_body = (
-                "%%%\n"
-                "{image_name} {status} on {hostname}\n"
-                "```\n{status_changes}\n```\n"
-                "%%%"
-            ).format(
-                image_name=image_name,
-                status=status_text,
-                hostname=self.hostname,
-                status_changes="\n".join(
-                    ["%s \t%s" % (change[1].upper(), change[0]) for change in status_change])
-            )
+            exec_event = self._create_dd_event(low_prio_events, image_name, container_tags, priority='Low')
+            events.append(exec_event)
 
-            if any(error in status_text for error in ERROR_ALERT_TYPE):
-                alert_type = "error"
-            else:
-                alert_type = None
-
-            events.append({
-                'timestamp': max_timestamp,
-                'host': self.hostname,
-                'event_type': EVENT_TYPE,
-                'msg_title': msg_title,
-                'msg_text': msg_body,
-                'source_type_name': EVENT_TYPE,
-                'event_object': 'docker:%s' % image_name,
-                'tags': list(container_tags),
-                'alert_type': alert_type
-            })
+            normal_event = self._create_dd_event(normal_prio_events, image_name, container_tags, priority='Normal')
+            events.append(normal_event)
 
         return events
+
+    def _create_dd_event(self, events, image, c_tags, priority='Normal'):
+        """Create the actual event to submit from a list of similar docker events"""
+        max_timestamp = 0
+        status = defaultdict(int)
+        status_change = []
+
+        for ev, c_name in events:
+            max_timestamp = max(max_timestamp, int(ev['time']))
+            status[ev['status']] += 1
+            status_change.append([c_name, ev['status']])
+
+        status_text = ", ".join(["%d %s" % (count, st) for st, count in status.iteritems()])
+        msg_title = "%s %s on %s" % (image, status_text, self.hostname)
+        msg_body = (
+            "%%%\n"
+            "{image_name} {status} on {hostname}\n"
+            "```\n{status_changes}\n```\n"
+            "%%%"
+        ).format(
+            image_name=image,
+            status=status_text,
+            hostname=self.hostname,
+            status_changes="\n".join(
+                ["%s \t%s" % (change[1].upper(), change[0]) for change in status_change])
+        )
+
+        if any(error in status_text for error in ERROR_ALERT_TYPE):
+            alert_type = "error"
+        else:
+            alert_type = None
+
+        return {
+            'timestamp': max_timestamp,
+            'host': self.hostname,
+            'event_type': EVENT_TYPE,
+            'msg_title': msg_title,
+            'msg_text': msg_body,
+            'source_type_name': EVENT_TYPE,
+            'event_object': 'docker:%s' % image,
+            'tags': list(c_tags),
+            'alert_type': alert_type,
+            'priority': priority
+        }
+
 
     def _report_disk_stats(self):
         """Report metrics about the volume space usage"""
