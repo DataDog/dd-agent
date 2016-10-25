@@ -201,65 +201,20 @@ class Cpu(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
 
-        # Sampler(s)
-        self.wmi_sampler = WMISampler(
-            logger,
-            "Win32_PerfRawData_PerfOS_Processor",
-            ["Name", "PercentInterruptTime"]
-        )
-
         self.counter('system.cpu.user')
         self.counter('system.cpu.idle')
-        self.gauge('system.cpu.interrupt')
         self.counter('system.cpu.system')
+        self.counter('system.cpu.interrupt')
 
     def check(self, agentConfig):
-        try:
-            self.wmi_sampler.sample()
-        except TimeoutException:
-            self.logger.warning(
-                u"Timeout while querying Win32_PerfRawData_PerfOS_Processor WMI class."
-                u" CPU metrics will be returned at next iteration."
-            )
-            return []
-
-        if not (len(self.wmi_sampler)):
-            self.logger.warning('Missing Win32_PerfRawData_PerfOS_Processor WMI class.'
-                             ' No CPU metrics will be returned')
-            return []
-
-        cpu_interrupt = self._average_metric(self.wmi_sampler, 'PercentInterruptTime')
-        if cpu_interrupt is not None:
-            self.save_sample('system.cpu.interrupt', cpu_interrupt)
-
         cpu_percent = psutil.cpu_times()
 
         self.save_sample('system.cpu.user', 100 * cpu_percent.user / psutil.cpu_count())
         self.save_sample('system.cpu.idle', 100 * cpu_percent.idle / psutil.cpu_count())
         self.save_sample('system.cpu.system', 100 * cpu_percent.system / psutil.cpu_count())
+        self.save_sample('system.cpu.interrupt', 100 * cpu_percent.interrupt / psutil.cpu_count())
 
         return self.get_metrics()
-
-    def _average_metric(self, sampler, wmi_prop):
-        ''' Sum all of the values of a metric from a WMI class object, excluding
-            the value for "_Total"
-        '''
-        val = 0
-        counter = 0
-        for wmi_object in sampler:
-            if wmi_object['Name'] == '_Total':
-                # Skip the _Total value
-                continue
-
-            wmi_prop_value = wmi_object.get(wmi_prop)
-            if wmi_prop_value is not None:
-                counter += 1
-                val += float(wmi_prop_value)
-
-        if counter > 0:
-            return val / counter
-
-        return val
 
 
 class Network(Check):
