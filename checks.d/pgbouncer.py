@@ -124,7 +124,6 @@ class PgBouncer(AgentCheck):
         """
         Get the params to pass to psycopg2.connect() based on passed-in vals
         from yaml settings file
-
         """
         if database_url:
             return {'dsn': database_url}
