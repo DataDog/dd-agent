@@ -56,8 +56,8 @@ else
 fi
 
 if [ ! $apikey ]; then
-  printf "\033[31mAPI key not available in DD_API_KEY environment variable.\033[0m\n"
-  exit 1;
+    printf "\033[31mAPI key not available in DD_API_KEY environment variable.\033[0m\n"
+    exit 1;
 fi
 
 # OS/Distro Detection
@@ -163,14 +163,14 @@ If the cause is unclear, please contact Datadog support.
 elif [ $OS = "SUSE" ]; then
   UNAME_M=$(uname -m)
   if [ "$UNAME_M"  == "i686" -o "$UNAME_M"  == "i386" -o "$UNAME_M"  == "x86" ]; then
-    printf "The Datadog Agent installer is only available for 64 bit SUSE Enterprise machines."
-    exit;
+      printf "\033[31mThe Datadog Agent installer is only available for 64 bit SUSE Enterprise machines.\033[0m\n"
+      exit;
   else
       ARCHI="x86_64"
   fi
 
   echo -e "\033[34m\n* Installing YUM Repository for Datadog\n\033[0m"
-  $sudo_cmd sh -c "echo -e '[datadog]\nname=datadog\nenabled=1\nautorefresh=0\nbaseurl=https://yum.datad0g.com/suse-testing/x86_64\ntype=rpm-md\ngpgcheck=1\nrepo_gpgcheck=0\ngpgkey=https://yum.datadoghq.com/DATADOG_RPM_KEY.public' > /etc/zypp/repos.d/datadog.repo"
+  $sudo_cmd sh -c "echo -e '[datadog]\nname=datadog\nenabled=1\nbaseurl=https://yum.datadoghq.com/suse-testing/x86_64\ntype=rpm-md\ngpgcheck=1\nrepo_gpgcheck=0\ngpgkey=https://yum.datadoghq.com/DATADOG_RPM_KEY.public' > /etc/zypp/repos.d/datadog.repo"
 
   echo -e "\033[34m\n* Refreshing repositories\n\033[0m"
   $sudo_cmd zypper --non-interactive refresh
