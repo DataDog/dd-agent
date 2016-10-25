@@ -165,7 +165,7 @@ class PgBouncer(AgentCheck):
                 pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
             self.log.debug('pgbouncer status: %s' % AgentCheck.OK)
 
-        # re-raise the ChceckExcpetions raised by _get_connect_kwargs()
+        # re-raise the ChceckExceptions raised by _get_connect_kwargs()
         except CheckException:
             raise
 
