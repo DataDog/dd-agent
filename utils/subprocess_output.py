@@ -9,16 +9,13 @@ import logging
 import subprocess
 import tempfile
 
-# project
-from utils.platform import Platform
-
 log = logging.getLogger(__name__)
 
 class SubprocessOutputEmptyError(Exception):
     pass
 
 # FIXME: python 2.7 has a far better way to do this
-def get_subprocess_output(command, log, shell=False, stdin=None, output_expected=True):
+def get_subprocess_output(command, log, raise_on_empty_output=True):
     """
     Run the given subprocess command and return it's output. Raise an Exception
     if an error occurs.
@@ -28,23 +25,18 @@ def get_subprocess_output(command, log, shell=False, stdin=None, output_expected
     # docs warn that the data read is buffered in memory. They suggest not to
     # use subprocess.PIPE if the data size is large or unlimited.
     with nested(tempfile.TemporaryFile(), tempfile.TemporaryFile()) as (stdout_f, stderr_f):
-        proc = subprocess.Popen(command,
-                                close_fds=not Platform.is_windows(),  # only set to True when on Unix, for WIN compatibility
-                                shell=shell,
-                                stdin=stdin,
-                                stdout=stdout_f,
-                                stderr=stderr_f)
+
+        proc = subprocess.Popen(command, stdout=stdout_f, stderr=stderr_f)
         proc.wait()
         stderr_f.seek(0)
         err = stderr_f.read()
         if err:
-            log.debug("Error while running {0} : {1}".format(" ".join(command),
-                                                             err))
+            log.debug("Error while running {0} : {1}".format(" ".join(command), err))
 
         stdout_f.seek(0)
         output = stdout_f.read()
 
-    if output_expected and output is None:
+    if not output and raise_on_empty_output:
         raise SubprocessOutputEmptyError("get_subprocess_output expected output but had none.")
 
     return (output, err, proc.returncode)
