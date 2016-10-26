@@ -7,6 +7,9 @@
 Collects metrics from the pgbouncer database.
 """
 # 3p
+import re
+import urlparse
+
 import psycopg2 as pg
 
 # project
@@ -165,12 +168,21 @@ class PgBouncer(AgentCheck):
                 pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
             self.log.debug('pgbouncer status: %s' % AgentCheck.OK)
 
-        # re-raise the ChceckExceptions raised by _get_connect_kwargs()
+        # re-raise the CheckExceptions raised by _get_connect_kwargs()
         except CheckException:
             raise
 
         except Exception:
-            message = u'Cannot establish connection to pgbouncer://%s:%s/%s' % (host, port, self.DB_NAME)
+            if database_url:
+                # blank out password before emitting to logs
+                url_parts = list(urlparse.urlsplit(database_url))
+                url_parts[1] = re.sub(r'^(\w+):(\w+)\@', r'\1:********@',
+                                      url_parts[1])
+                message = u'Cannot establish connection to pgbouncer at {}'.format(
+                    urlparse.urlunsplit(url_parts))
+            else:
+                message = u'Cannot establish connection to pgbouncer://%s:%s/%s' % (host, port, self.DB_NAME)
+
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                                tags=self._get_service_checks_tags(host, port),
                                message=message)
