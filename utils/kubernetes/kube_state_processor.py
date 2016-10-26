@@ -64,6 +64,7 @@ class KubeStateProcessor:
         return None
 
     def kube_node_status_capacity_cpu_cores(self, message, **kwargs):
+        """ The total CPU resources of the node. """
         metric_name = NAMESPACE + '.node.cpu_capacity'
         for metric in message.metric:
             val = metric.gauge.value
@@ -71,6 +72,7 @@ class KubeStateProcessor:
             self.gauge(metric_name, val, tags)
 
     def kube_node_status_capacity_memory_bytes(self, message, **kwargs):
+        """ The total memory resources of the node. """
         metric_name = NAMESPACE + '.node.memory_capacity'
         for metric in message.metric:
             val = metric.gauge.value
@@ -78,6 +80,7 @@ class KubeStateProcessor:
             self.gauge(metric_name, val, tags)
 
     def kube_node_status_capacity_pods(self, message, **kwargs):
+        """ The total pod resources of the node. """
         metric_name = NAMESPACE + '.node.pods_capacity'
         for metric in message.metric:
             val = metric.gauge.value
@@ -85,6 +88,7 @@ class KubeStateProcessor:
             self.gauge(metric_name, val, tags)
 
     def kube_node_status_allocatable_cpu_cores(self, message, **kwargs):
+        """ The CPU resources of a node that are available for scheduling. """
         metric_name = NAMESPACE + '.node.cpu_allocatable'
         for metric in message.metric:
             val = metric.gauge.value
@@ -92,6 +96,7 @@ class KubeStateProcessor:
             self.gauge(metric_name, val, tags)
 
     def kube_node_status_allocatable_memory_bytes(self, message, **kwargs):
+        """ The memory resources of a node that are available for scheduling. """
         metric_name = NAMESPACE + '.node.memory_allocatable'
         for metric in message.metric:
             val = metric.gauge.value
@@ -99,6 +104,7 @@ class KubeStateProcessor:
             self.gauge(metric_name, val, tags)
 
     def kube_node_status_allocatable_pods(self, message, **kwargs):
+        """ The pod resources of a node that are available for scheduling. """
         metric_name = NAMESPACE + '.node.pods_allocatable'
         for metric in message.metric:
             val = metric.gauge.value
@@ -106,6 +112,7 @@ class KubeStateProcessor:
             self.gauge(metric_name, val, tags)
 
     def kube_deployment_status_replicas_available(self, message, **kwargs):
+        """ The number of available replicas per deployment. """
         metric_name = NAMESPACE + '.deployment.replicas_available'
         for metric in message.metric:
             val = metric.gauge.value
@@ -113,6 +120,7 @@ class KubeStateProcessor:
             self.gauge(metric_name, val, tags)
 
     def kube_deployment_status_replicas_unavailable(self, message, **kwargs):
+        """ The number of unavailable replicas per deployment. """
         metric_name = NAMESPACE + '.deployment.replicas_unavailable'
         for metric in message.metric:
             val = metric.gauge.value
@@ -120,6 +128,7 @@ class KubeStateProcessor:
             self.gauge(metric_name, val, tags)
 
     def kube_deployment_status_replicas_updated(self, message, **kwargs):
+        """ The number of updated replicas per deployment. """
         metric_name = NAMESPACE + '.deployment.replicas_updated'
         for metric in message.metric:
             val = metric.gauge.value
@@ -127,6 +136,7 @@ class KubeStateProcessor:
             self.gauge(metric_name, val, tags)
 
     def kube_deployment_spec_replicas(self, message, **kwargs):
+        """ Number of desired pods for a deployment. """
         metric_name = NAMESPACE + '.deployment.replicas_desired'
         for metric in message.metric:
             val = metric.gauge.value
@@ -134,6 +144,7 @@ class KubeStateProcessor:
             self.gauge(metric_name, val, tags)
 
     def kube_node_status_ready(self, message, **kwargs):
+        """ The ready status of a cluster node. """
         service_check_name = NAMESPACE + '.node.ready'
         for metric in message.metric:
             name, val = self._eval_metric_condition(metric)
@@ -146,6 +157,7 @@ class KubeStateProcessor:
                 self.kube_check.service_check(service_check_name, self.kube_check.UNKNOWN, tags=tags)
 
     def kube_node_status_out_of_disk(self, message, **kwargs):
+        """ Whether the node is out of disk space. """
         service_check_name = NAMESPACE + '.node.out_of_disk'
         for metric in message.metric:
             name, val = self._eval_metric_condition(metric)
@@ -156,3 +168,15 @@ class KubeStateProcessor:
                 self.kube_check.service_check(service_check_name, self.kube_check.OK, tags=tags)
             elif name == 'unknown' and val:
                 self.kube_check.service_check(service_check_name, self.kube_check.UNKNOWN, tags=tags)
+
+    def kube_node_spec_unschedulable(self, message, **kwargs):
+        """ Whether a node can schedule new pods. """
+        metric_name = NAMESPACE + '.node.unschedulable'
+        statuses = ('available', 'unavailable')
+        for metric in message.metric:
+            tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
+            status = statuses[int(metric.gauge.value)]  # value can be 0 or 1
+            tags.append('status:{}'.format(status))
+            self.gauge(metric_name, 1, tags)  # metric value is always one, value is on the tags
+
+

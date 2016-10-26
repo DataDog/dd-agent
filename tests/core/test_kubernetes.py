@@ -266,3 +266,22 @@ class TestKubeStateProcessor(unittest.TestCase):
             self.assertEqual(args[0], NAMESPACE + '.node.out_of_disk')
             self.assertEqual(args[1], self.processor.kube_check.OK)
             self.assertEqual(kwargs['tags'], expected[i])
+
+    def test_kube_node_spec_unschedulable(self):
+        msg = self.messages['kube_node_spec_unschedulable']
+        self.processor.kube_node_spec_unschedulable(msg)
+
+        expected = [
+            (NAMESPACE + '.node.unschedulable', 1,
+             ['node:gke-cluster-massi-agent59-default-pool-6087cc76-9cfa', 'status:available']),
+            (NAMESPACE + '.node.unschedulable', 1,
+             ['node:gke-cluster-massi-agent59-default-pool-6087cc76-aah4', 'status:available']),
+            (NAMESPACE + '.node.unschedulable', 1,
+             ['node:gke-cluster-massi-agent59-default-pool-6087cc76-fgnk', 'status:available']),
+        ]
+
+        calls = self.check.gauge.mock_calls
+        self.assertEqual(len(calls), 3)
+        for i, call in enumerate(calls):
+            args = call[1]
+            self.assertEqual(args, expected[i])
