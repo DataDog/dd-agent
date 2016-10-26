@@ -45,6 +45,7 @@ httplib2==0.9
 
 # checks.d/kafka_consumer.py
 kafka-python==1.2.5
+kazoo==2.2.1
 
 # checks.d/postgres.py
 pg8000==1.10.1
