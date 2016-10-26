@@ -442,7 +442,10 @@ class ESCheck(AgentCheck):
         """
         try:
             data = self._get_data(config.url, config, send_sc=False)
-            version = map(int, data['version']['number'].split('.')[0:3])
+            # pre-release versions of elasticearch are suffixed with -rcX etc..
+            # peel that off so that the map below doesn't error out
+            version = data['version']['number'].split('-')[0]
+            version = map(int, version.split('.')[0:3])
         except Exception as e:
             self.warning(
                 "Error while trying to get Elasticsearch version "
@@ -450,6 +453,7 @@ class ESCheck(AgentCheck):
                 % (config.url, str(e))
             )
             version = [1, 0, 0]
+
 
         self.service_metadata('version', version)
         self.log.debug("Elasticsearch version is %s" % version)
@@ -469,9 +473,13 @@ class ESCheck(AgentCheck):
 
             # For "external" clusters, we want to collect from all nodes.
             if cluster_stats:
-                stats_url = "/_nodes/stats?all=true"
+                stats_url = "/_nodes/stats"
             else:
-                stats_url = "/_nodes/_local/stats?all=true"
+                stats_url = "/_nodes/_local/stats"
+
+            if version < [5, 0, 0]:
+                # version 5 errors out if the `all` parameter is set
+                stats_url += "?all=true"
 
             additional_metrics = self.JVM_METRICS_POST_0_90_10
         else:
