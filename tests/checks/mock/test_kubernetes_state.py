@@ -38,8 +38,9 @@ class TestKubernetesState(AgentCheckTest):
 
     def test__update_kube_state_metrics(self):
         f_name = os.path.join(os.path.dirname(__file__), '..', '..', 'core', 'fixtures', 'prometheus', 'protobuf.bin')
-        f = open(f_name, 'rb')
-        mocked = mock.MagicMock(return_value=f.read())
+        mocked = mock.MagicMock()
+        with open(f_name, 'rb') as f:
+            mocked.return_value = f.read()
 
         mocks = {
             '_perform_kubelet_checks': mock.MagicMock(),

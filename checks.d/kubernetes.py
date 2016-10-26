@@ -135,7 +135,6 @@ class Kubernetes(AgentCheck):
         self.use_histogram = _is_affirmative(instance.get('use_histogram', DEFAULT_USE_HISTOGRAM))
         self.publish_rate = FUNC_MAP[RATE][self.use_histogram]
         self.publish_gauge = FUNC_MAP[GAUGE][self.use_histogram]
-        self.kube_state_url = instance.get('kube_state_url')
 
         pods_list = self.kubeutil.retrieve_pods_list()
 

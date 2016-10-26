@@ -34,11 +34,10 @@ class KubernetesState(AgentCheck):
             payload = self._get_kube_state(kube_state_url)
             msg = "Got a payload of size {} from Kube State API at url:{}".format(len(payload), kube_state_url)
             self.log.debug(msg)
+            for metric in parse_metric_family(payload):
+                self.kube_state_processor.process(metric, instance=instance)
         except Exception as e:
             self.log.error("Unable to retrieve metrics from Kube State API: {}".format(e))
-
-        for metric in parse_metric_family(payload):
-            self.kube_state_processor.process(metric, instance=instance)
 
     def _get_kube_state(self, endpoint):
         """
@@ -49,4 +48,5 @@ class KubernetesState(AgentCheck):
             'accept-encoding': 'gzip',
         }
         r = requests.get(endpoint, headers=headers)
+        r.raise_for_status()
         return r.content
