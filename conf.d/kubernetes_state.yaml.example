@@ -6,8 +6,3 @@ init_config:
 instances:
   # To enable Kube State metrics you must specify the url exposing the API
   - kube_state_url: http://example.com:8080/metrics
-
-  # Provide an additional service check monitoring whether the listed pods are ready to serve requests.
-  # status_ready_for_pods:
-  #  - pod_name_1
-  #  - pod_name_2
