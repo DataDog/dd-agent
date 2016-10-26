@@ -53,7 +53,6 @@ class TestKubernetesState(AgentCheckTest):
             'instances': [{
                 'host': 'foo',
                 'kube_state_url': 'http://foo',
-                'status_ready_for_pods': ['dd-agent']
             }]
         }
 
@@ -61,7 +60,6 @@ class TestKubernetesState(AgentCheckTest):
 
         self.assertServiceCheck(NAMESPACE + '.node.ready', self.check.OK)
         self.assertServiceCheck(NAMESPACE + '.node.out_of_disk', self.check.OK)
-        self.assertServiceCheck(NAMESPACE + '.pod.ready', self.check.OK, tags=['namespace:default', 'pod:dd-agent'])
 
         self.assertMetric(NAMESPACE + '.node.cpu_capacity')
         self.assertMetric(NAMESPACE + '.node.memory_capacity')

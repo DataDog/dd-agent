@@ -156,33 +156,3 @@ class KubeStateProcessor:
                 self.kube_check.service_check(service_check_name, self.kube_check.OK, tags=tags)
             elif name == 'unknown' and val:
                 self.kube_check.service_check(service_check_name, self.kube_check.UNKNOWN, tags=tags)
-
-    def kube_pod_status_ready(self, message, **kwargs):
-        """
-        We only send service checks for those pods explicitly listed in the
-        configuration file.
-        """
-        service_check_name = NAMESPACE + '.pod.ready'
-        configured_pods = kwargs.get('instance', {}).get('status_ready_for_pods')
-        if configured_pods is None:
-            self.log.debug('no pods configured, kube_pod_status_ready has nothing to do, returning...')
-            return
-
-        for metric in message.metric:
-            pod_name = self._extract_label_value("pod", metric.label)
-            if pod_name not in configured_pods:
-                continue
-
-            name, val = self._eval_metric_condition(metric)
-
-            tags = [
-                'namespace:{}'.format(self._extract_label_value("namespace", metric.label)),
-                'pod:{}'.format(pod_name)
-            ]
-
-            if name == 'true' and val:
-                self.kube_check.service_check(service_check_name, self.kube_check.OK, tags=tags)
-            if name == 'false' and val:
-                self.kube_check.service_check(service_check_name, self.kube_check.CRITICAL, tags=tags)
-            elif name == 'unknown' and val:
-                self.kube_check.service_check(service_check_name, self.kube_check.UNKNOWN, tags=tags)

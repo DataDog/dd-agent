@@ -266,37 +266,3 @@ class TestKubeStateProcessor(unittest.TestCase):
             self.assertEqual(args[0], NAMESPACE + '.node.out_of_disk')
             self.assertEqual(args[1], self.processor.kube_check.OK)
             self.assertEqual(kwargs['tags'], expected[i])
-
-    def test_kube_pod_status_ready(self):
-        msg = self.messages['kube_pod_status_ready']
-        instance = {
-            'status_ready_for_pods': []
-        }
-
-        # invoke the method without passing an instance, no service checks expected
-        self.processor.kube_pod_status_ready(msg)
-        self.assertEqual(self.check.service_check.mock_calls, [])
-
-        # pass an empty dict
-        self.processor.kube_pod_status_ready(msg, instance=dict())
-        self.assertEqual(self.check.service_check.mock_calls, [])
-
-        # pass the instance with an empty list
-        self.processor.kube_pod_status_ready(msg, instance=instance)
-        self.assertEqual(self.check.service_check.mock_calls, [])
-
-        instance['status_ready_for_pods'] = ['foo']
-
-        # pass the instance, no matching pods
-        self.processor.kube_pod_status_ready(msg, instance=instance)
-        self.assertEqual(self.check.service_check.mock_calls, [])
-
-        instance['status_ready_for_pods'] = ['dd-agent']
-
-        # pass a running pod
-        self.processor.kube_pod_status_ready(msg, instance=instance)
-        calls = self.check.service_check.mock_calls
-        self.assertEqual(len(calls), 1)
-        args, kwargs = calls[0][1], calls[0][2]
-        self.assertEqual(args, (NAMESPACE + '.pod.ready', self.processor.kube_check.OK))
-        self.assertEqual(kwargs['tags'], ['namespace:default', 'pod:dd-agent'])
