@@ -178,5 +178,3 @@ class KubeStateProcessor:
             status = statuses[int(metric.gauge.value)]  # value can be 0 or 1
             tags.append('status:{}'.format(status))
             self.gauge(metric_name, 1, tags)  # metric value is always one, value is on the tags
-
-
