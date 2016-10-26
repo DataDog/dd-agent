@@ -586,7 +586,7 @@ class ESCheck(AgentCheck):
                 verify=verify,
                 cert=cert
             )
- 
+
             resp.raise_for_status()
         except Exception as e:
             if send_sc:
