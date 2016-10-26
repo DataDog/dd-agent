@@ -5,6 +5,7 @@ import time
 import unittest
 
 # 3rd party
+import mock
 from nose.plugins.attrib import attr
 import requests
 import simplejson as json
@@ -20,6 +21,19 @@ from ddagent import (
     THROTTLING_DELAY,
 )
 from transaction import Transaction, TransactionManager
+
+
+class FakeIOLoop(object):
+    @classmethod
+    def current(cls):
+        return FakeIOLoop()
+
+    def remove_timeout(self, timeout):
+        pass
+
+    def add_timeout(self, delay, function):
+        time.sleep(delay.total_seconds())
+        function()
 
 
 class memTransaction(Transaction):
@@ -39,8 +53,6 @@ class memTransaction(Transaction):
             self._trManager.tr_success(self)
         else:
             self._trManager.tr_error(self)
-
-        self._trManager.flush_next()
 
 
 class SleepingTransaction(Transaction):
@@ -64,8 +76,6 @@ class SleepingTransaction(Transaction):
             self._trManager.tr_success(self)
         else:
             self._trManager.tr_error(self)
-
-        self._trManager.flush_next()
 
 
 @attr(requires='core_integration')
@@ -116,13 +126,13 @@ class TestTransaction(unittest.TestCase):
         trManager.flush()
         self.assertEqual(len(trManager._transactions), 0)
 
-    def testThrottling(self):
+    @mock.patch('transaction.ioloop.IOLoop.current', side_effect=FakeIOLoop.current)
+    def testThrottling(self, fake_ioloop):
         """Test throttling while flushing"""
 
         # No throttling, no delay for replay
         trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
                                        THROTTLING_DELAY, max_endpoint_errors=100)
-        trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
 
         # Add 3 transactions, make sure no memory limit is in the way
         oneTrSize = MAX_QUEUE_SIZE / 10
@@ -137,7 +147,8 @@ class TestTransaction(unittest.TestCase):
         self.assertTrue((after - before) > 3 * THROTTLING_DELAY - timedelta(microseconds=100000),
                         "before = %s after = %s" % (before, after))
 
-    def testCustomEndpoint(self):
+    @mock.patch('transaction.ioloop.IOLoop.current', side_effect=FakeIOLoop.current)
+    def testCustomEndpoint(self, mock_fake_ioloop):
         MetricTransaction._endpoints = []
 
         config = {
@@ -154,7 +165,6 @@ class TestTransaction(unittest.TestCase):
 
         trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
                                        THROTTLING_DELAY, max_endpoint_errors=100)
-        trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
         MetricTransaction._trManager = trManager
         MetricTransaction.set_application(app)
         MetricTransaction.set_endpoints(config['endpoints'])
@@ -167,7 +177,8 @@ class TestTransaction(unittest.TestCase):
         expected = ['https://foo.bar.com/intake/msgtype?api_key=foo']
         self.assertEqual(endpoints, expected, (endpoints, expected))
 
-    def testEndpoints(self):
+    @mock.patch('transaction.ioloop.IOLoop.current', side_effect=FakeIOLoop.current)
+    def testEndpoints(self, mock_fake_ioloop):
         """
         Tests that the logic behind the agent version specific endpoints is ok.
         Also tests that these endpoints actually exist.
@@ -188,7 +199,6 @@ class TestTransaction(unittest.TestCase):
 
         trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
                                        THROTTLING_DELAY, max_endpoint_errors=100)
-        trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
         MetricTransaction._trManager = trManager
         MetricTransaction.set_application(app)
         MetricTransaction.set_endpoints(config['endpoints'])
@@ -278,25 +288,29 @@ class TestTransaction(unittest.TestCase):
         self.assertEqual(len(trManager._transactions), 0)
 
     @attr('unix')
-    def test_parallelism(self):
+    @mock.patch('transaction.ioloop.IOLoop.current', side_effect=FakeIOLoop.current)
+    def test_parallelism(self, mock_ioloop):
         step = 4
         trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
-                                       timedelta(seconds=0), max_parallelism=step,
+                                       timedelta(seconds=0.1), max_parallelism=step,
                                        max_endpoint_errors=100)
         for i in xrange(step):
             trManager.append(SleepingTransaction(trManager))
 
-        trManager.flush()
+        flush = threading.Thread(target=trManager.flush)
+        flush.start()
+        time.sleep(0.5)
         self.assertEqual(trManager._running_flushes, step)
         self.assertEqual(trManager._finished_flushes, 0)
+        self.assertEqual(trManager._trs_to_flush, [], time.time())
         # If _trs_to_flush != None, it means that it's still running as it should be
-        self.assertEqual(trManager._trs_to_flush, [])
         time.sleep(1)
 
         # It should be finished
         self.assertEqual(trManager._running_flushes, 0)
         self.assertEqual(trManager._finished_flushes, step)
         self.assertIs(trManager._trs_to_flush, None)
+        flush.join()
 
     def test_no_parallelism(self):
         step = 2
@@ -317,7 +331,8 @@ class TestTransaction(unittest.TestCase):
         self.assertEqual(trManager._finished_flushes, 2)
         self.assertIs(trManager._trs_to_flush, None)
 
-    def test_multiple_endpoints(self):
+    @mock.patch('transaction.ioloop.IOLoop.current', side_effect=FakeIOLoop.current)
+    def test_multiple_endpoints(self, mock_fake_ioloop):
         config = {
             "endpoints": {
                 "https://app.datadoghq.com": ['api_key'],
@@ -333,7 +348,6 @@ class TestTransaction(unittest.TestCase):
         app.use_simple_http_client = True
         trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE,
                                        THROTTLING_DELAY, max_endpoint_errors=100)
-        trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
         MetricTransaction._trManager = trManager
         MetricTransaction.set_application(app)
         MetricTransaction.set_endpoints(config['endpoints'])
