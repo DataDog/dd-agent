@@ -25,7 +25,11 @@ MAX_CUSTOM_RESULTS = 100
 TABLE_COUNT_LIMIT = 200
 
 def psycopg2_connect(*args, **kwargs):
-    del kwargs['ssl']
+    if 'ssl' in kwargs:
+        del kwargs['ssl']
+    if 'unix_sock' in kwargs:
+        kwargs['host'] = kwargs['unix_sock']
+        del kwargs['unix_sock']
     return psycopg2.connect(*args, **kwargs)
 
 
@@ -605,7 +609,7 @@ SELECT s.schemaname,
                 elif host.startswith('/'):
                     # If the hostname starts with /, it's probably a path
                     # to a UNIX socket. This is similar behaviour to psql
-                    connection = pg.connect(unix_sock=host, user=user,
+                    connection = connect_fct(unix_sock=host, user=user,
                         password=password, database=dbname)
                 else:
                     connection = connect_fct(host=host, user=user, password=password,
