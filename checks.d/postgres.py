@@ -602,6 +602,11 @@ SELECT s.schemaname,
                 elif port != '':
                     connection = connect_fct(host=host, port=port, user=user,
                         password=password, database=dbname, ssl=ssl)
+                elif host.startswith('/'):
+                    # If the hostname starts with /, it's probably a path
+                    # to a UNIX socket. This is similar behaviour to psql
+                    connection = pg.connect(unix_sock=host, user=user,
+                        password=password, database=dbname)
                 else:
                     connection = connect_fct(host=host, user=user, password=password,
                         database=dbname, ssl=ssl)

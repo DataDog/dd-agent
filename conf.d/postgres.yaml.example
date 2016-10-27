@@ -12,6 +12,10 @@ instances:
 #      - optional_tag1
 #      - optional_tag2
 
+# Connect using a UNIX socket (host must begin with a /)
+#  - host: /run/postgresql/.s.PGSQL.5433
+#    dbname: db_name
+
 # Track per-relation (table) metrics
 # The list of relations/tables must be specified here.
 # Each relation generates many metrics (10 + 10 per index)
