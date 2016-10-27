@@ -6,10 +6,10 @@
 
 Collects metrics from the pgbouncer database.
 """
-# 3p
-import re
+# stdlib
 import urlparse
 
+# 3p
 import psycopg2 as pg
 
 # project
@@ -67,7 +67,12 @@ class PgBouncer(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.dbs = {}
 
-    def _get_service_checks_tags(self, host, port):
+    def _get_service_checks_tags(self, host, port, database_url):
+        if database_url:
+            parsed_url = urlparse.parse(database_url)
+            host = parsed_url.hostname
+            port = parsed_url.port
+
         service_checks_tags = [
             "host:%s" % host,
             "port:%s" % port,
@@ -166,31 +171,31 @@ class PgBouncer(AgentCheck):
             connection = pg.connect(**connect_kwargs)
             connection.set_isolation_level(
                 pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-            self.log.debug('pgbouncer status: %s' % AgentCheck.OK)
 
         # re-raise the CheckExceptions raised by _get_connect_kwargs()
         except CheckException:
             raise
 
         except Exception:
-            if database_url:
-                # blank out password before emitting to logs
-                url_parts = list(urlparse.urlsplit(database_url))
-                url_parts[1] = re.sub(r'^(\w+):(\w+)\@', r'\1:********@',
-                                      url_parts[1])
-                message = u'Cannot establish connection to pgbouncer at {}'.format(
-                    urlparse.urlunsplit(url_parts))
-            else:
-                message = u'Cannot establish connection to pgbouncer://%s:%s/%s' % (host, port, self.DB_NAME)
+            redacted_url = self._get_redacted_dsn(host, port, user, database_url)
+            message = u'Cannot establish connection to {}'.format(redacted_url)
 
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                               tags=self._get_service_checks_tags(host, port),
+                               tags=self._get_service_checks_tags(host, port, database_url),
                                message=message)
-            self.log.debug('pgbouncer status: %s' % AgentCheck.CRITICAL)
             raise
 
         self.dbs[key] = connection
         return connection
+
+    def _get_redacted_dsn(self, host, port, user, database_url):
+        if not database_url:
+            return u'pgbouncer://%s:******@%s:%s/%s' % (user, host, port, self.DB_NAME)
+
+        parsed_url = urlparse.urlparse(database_url)
+        if parsed_url.password:
+            return database_url.replace(parsed_url.password, '******')
+        return database_url
 
     def check(self, instance):
         host = instance.get('host', '')
@@ -219,8 +224,9 @@ class PgBouncer(AgentCheck):
             db = self._get_connection(key, host, port, user, password, use_cached=False)
             self._collect_stats(db, tags)
 
-        message = u'Established connection to pgbouncer://%s:%s/%s' % (host, port, self.DB_NAME)
+        redacted_dsn = self._get_redacted_dsn(host, port, user, database_url)
+        message = u'Established connection to {}'.format(redacted_dsn)
+
         self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
-                           tags=self._get_service_checks_tags(host, port),
+                           tags=self._get_service_checks_tags(host, port, database_url),
                            message=message)
-        self.log.debug('pgbouncer status: %s' % AgentCheck.OK)
