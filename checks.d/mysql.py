@@ -904,7 +904,7 @@ class MySql(AgentCheck):
         if cursor.rowcount < 1:
             # No data from SHOW ENGINE STATUS, even though the engine is enabled.
             # EG: This could be an Aurora Read Instance
-            self.warning("""'SHOW ENGINE INNODB STATUS' returned no data. 
+            self.warning("""'SHOW ENGINE INNODB STATUS' returned no data.
                 If you are running an Aurora Read Instace, this is expected and you should disable the innodb metrics collection""")
             return {}
 
