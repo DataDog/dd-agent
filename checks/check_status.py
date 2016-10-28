@@ -248,7 +248,7 @@ class AgentStatus(object):
                 return pickle.load(f)
             finally:
                 f.close()
-        except IOError:
+        except (IOError, EOFError):
             return None
 
     @classmethod
