@@ -18,6 +18,7 @@ from utils.dockerutil import DockerUtil, MountException
 from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.sd_backend import get_sd_backend
+from utils.service_discovery.config_stores import get_config_store
 
 
 EVENT_TYPE = 'docker'
@@ -121,6 +122,7 @@ IMAGE = "image"
 ECS_INTROSPECT_DEFAULT_PORT = 51678
 
 ERROR_ALERT_TYPE = ['oom', 'kill']
+
 
 class DockerDaemon(AgentCheck):
     """Collect metrics and events from Docker API and cgroups."""
