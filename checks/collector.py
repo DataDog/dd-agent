@@ -283,59 +283,59 @@ class Collector(object):
         service_checks = payload['service_checks']
 
         # Run the system checks. Checks will depend on the OS
-        if Platform.is_windows():
-            # Win32 system checks
-            try:
-                metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['cpu'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['network'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['io'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['proc'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['system'].check(self.agentConfig))
-            except Exception:
-                log.exception('Unable to fetch Windows system metrics.')
-        else:
-            # Unix system checks
-            sys_checks = self._unix_system_checks
+        try:
+            if Platform.is_windows():
+                # Win32 system checks
+                    metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
+                    metrics.extend(self._win32_system_checks['cpu'].check(self.agentConfig))
+                    metrics.extend(self._win32_system_checks['network'].check(self.agentConfig))
+                    metrics.extend(self._win32_system_checks['io'].check(self.agentConfig))
+                    metrics.extend(self._win32_system_checks['proc'].check(self.agentConfig))
+                    metrics.extend(self._win32_system_checks['system'].check(self.agentConfig))
+            else:
+                # Unix system checks
+                sys_checks = self._unix_system_checks
 
-            load = sys_checks['load'].check(self.agentConfig)
-            payload.update(load)
+                load = sys_checks['load'].check(self.agentConfig)
+                payload.update(load)
 
-            system = sys_checks['system'].check(self.agentConfig)
-            payload.update(system)
+                system = sys_checks['system'].check(self.agentConfig)
+                payload.update(system)
 
-            memory = sys_checks['memory'].check(self.agentConfig)
+                memory = sys_checks['memory'].check(self.agentConfig)
 
-            if memory:
-                memstats = {
-                    'memPhysUsed': memory.get('physUsed'),
-                    'memPhysPctUsable': memory.get('physPctUsable'),
-                    'memPhysFree': memory.get('physFree'),
-                    'memPhysTotal': memory.get('physTotal'),
-                    'memPhysUsable': memory.get('physUsable'),
-                    'memSwapUsed': memory.get('swapUsed'),
-                    'memSwapFree': memory.get('swapFree'),
-                    'memSwapPctFree': memory.get('swapPctFree'),
-                    'memSwapTotal': memory.get('swapTotal'),
-                    'memCached': memory.get('physCached'),
-                    'memBuffers': memory.get('physBuffers'),
-                    'memShared': memory.get('physShared'),
-                    'memSlab': memory.get('physSlab'),
-                    'memPageTables': memory.get('physPageTables'),
-                    'memSwapCached': memory.get('swapCached')
-                }
-                payload.update(memstats)
+                if memory:
+                    memstats = {
+                        'memPhysUsed': memory.get('physUsed'),
+                        'memPhysPctUsable': memory.get('physPctUsable'),
+                        'memPhysFree': memory.get('physFree'),
+                        'memPhysTotal': memory.get('physTotal'),
+                        'memPhysUsable': memory.get('physUsable'),
+                        'memSwapUsed': memory.get('swapUsed'),
+                        'memSwapFree': memory.get('swapFree'),
+                        'memSwapPctFree': memory.get('swapPctFree'),
+                        'memSwapTotal': memory.get('swapTotal'),
+                        'memCached': memory.get('physCached'),
+                        'memBuffers': memory.get('physBuffers'),
+                        'memShared': memory.get('physShared'),
+                        'memSlab': memory.get('physSlab'),
+                        'memPageTables': memory.get('physPageTables'),
+                        'memSwapCached': memory.get('swapCached')
+                    }
+                    payload.update(memstats)
 
-            ioStats = sys_checks['io'].check(self.agentConfig)
-            if ioStats:
-                payload['ioStats'] = ioStats
+                ioStats = sys_checks['io'].check(self.agentConfig)
+                if ioStats:
+                    payload['ioStats'] = ioStats
 
-            processes = sys_checks['processes'].check(self.agentConfig)
-            payload.update({'processes': processes})
+                processes = sys_checks['processes'].check(self.agentConfig)
+                payload.update({'processes': processes})
 
-            cpuStats = sys_checks['cpu'].check(self.agentConfig)
-            if cpuStats:
-                payload.update(cpuStats)
+                cpuStats = sys_checks['cpu'].check(self.agentConfig)
+                if cpuStats:
+                    payload.update(cpuStats)
+        except Exception:
+            log.exception('Unable to fetch some system metrics.')
 
         # Run old-style checks
         if self._ganglia is not None:
