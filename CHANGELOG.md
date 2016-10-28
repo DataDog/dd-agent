@@ -15,9 +15,9 @@ _TODO_
 
 ### RPM package for SUSE
 The Agent is now available as an RPM package for SUSE. Please follow the instructions on our
-[Agent installation page][https://app.datadoghq.com/account/settings#agent] to use it.
+[Agent installation page](https://app.datadoghq.com/account/settings#agent) to use it.
 
-For more details, see related PRs [#2900][], [#2937][], [omnibus-software-72][https://github.com/DataDog/omnibus-software/pull/72], [dd-agent-omnibus-90][https://github.com/DataDog/dd-agent-omnibus/pull/90]
+For more details, see related PRs [#2900][], [#2937][], [omnibus-software-72](https://github.com/DataDog/omnibus-software/pull/72), [dd-agent-omnibus-90](https://github.com/DataDog/dd-agent-omnibus/pull/90)
 
 ### Linux packages: change of ownership of `/opt/datadog-agent` directory
 The Linux packages (`deb` and `rpm`) now make the `dd-agent` user and group own the `/opt/datadog-agent` folder and
@@ -25,14 +25,14 @@ its contents when they're installed. This shouldn't cause any change on regular 
 but please take this change into account if you customize the ownership/permissions of the `/opt/datadog-agent` directory or
 its contents.
 
-For more details, see related PR: [dd-agent-omnibus-97][https://github.com/DataDog/dd-agent-omnibus/pull/97]
+For more details, see related PR: [dd-agent-omnibus-97](https://github.com/DataDog/dd-agent-omnibus/pull/97)
 
 ### Python dependencies upgrade
 We have updated the following python dependencies shipped with the Agent. If you happen to run any
 custom checks that rely on the former versions please make necessary amends:
 
-* kazoo `2.2.1` (previously `1.3.1`). See [Kazoo's changelog][https://github.com/python-zk/kazoo/blob/master/CHANGES.rst].
-* psutil `4.4.1` (previously `3.3.0`). See [psutil's changelog][https://github.com/giampaolo/psutil/blob/master/HISTORY.rst].
+* kazoo `2.2.1` (previously `1.3.1`). See [Kazoo's changelog](https://github.com/python-zk/kazoo/blob/master/CHANGES.rst).
+* psutil `4.4.1` (previously `3.3.0`). See [psutil's changelog](https://github.com/giampaolo/psutil/blob/master/HISTORY.rst).
 
 ### Updated integrations
 
@@ -68,12 +68,12 @@ custom checks that rely on the former versions please make necessary amends:
 * [IMPROVEMENT] Docker: Set `alert_type` to `error` for oom and kill events. See [#2866][]
 * [IMPROVEMENT] Docker: Set exec events' priority to low. See [#2960][]
 * [IMPROVEMENT] Kafka: Document specifying multiple Kafka / ZK nodes. See [#2956][] (Thanks [@jeffwidman][])
-* [IMPROVEMENT] Kafka: Upgrade `kazoo` dep to `2.2.1`. See [#2964][], [omnibus-software-84][https://github.com/DataDog/omnibus-software/pull/84]
+* [IMPROVEMENT] Kafka: Upgrade `kazoo` dep to `2.2.1`. See [#2964][], [omnibus-software-84](https://github.com/DataDog/omnibus-software/pull/84)
 * [IMPROVEMENT] Kubernetes: Use the env var `KUBERNETES_SERVICE_HOST` if present. See [#2921][] (Thanks [@arohner][])
 * [IMPROVEMENT] Kubernetes: Add some tags to events. See [#2926][]
 * [IMPROVEMENT] Marathon: Count running/pending deployments. See [#2788][] (Thanks [@bradhe][])
-* [IMPROVEMENT] Packaging: Upgrade `psutil` to 4.4.1. See [#2957][], [omnibus-software-82][https://github.com/DataDog/omnibus-software/pull/82]
-* [IMPROVEMENT] Packaging: Upgrade version of `datadogpy` shipped with Linux packages. See [omnibus-software-80][https://github.com/DataDog/omnibus-software/pull/80]
+* [IMPROVEMENT] Packaging: Upgrade `psutil` to 4.4.1. See [#2957][], [omnibus-software-82](https://github.com/DataDog/omnibus-software/pull/82)
+* [IMPROVEMENT] Packaging: Upgrade version of `datadogpy` shipped with Linux packages. See [omnibus-software-80](https://github.com/DataDog/omnibus-software/pull/80)
 * [IMPROVEMENT] PGBouncer: Support SSL connections to PGBouncer. See [#2885][], [#2967][] (Thanks [@dblackdblack][])
 * [IMPROVEMENT] Postgres: Allow UNIX socket path as `host` config value. See [#2734][], [#2968][] (Thanks [@DylanFrese][])
 * [IMPROVEMENT] Redis: Fix tags on `can_connect` service check. See [#2803][] (Thanks [@gphat][])
