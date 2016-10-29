@@ -39,6 +39,7 @@ from config import (
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
+from utils.platform import Platform
 import rpc.service_discovery_pb2
 
 #3p
@@ -67,6 +68,9 @@ DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
 JMX_SUPERVISOR_ENTRY = 'datadog-agent:jmxfetch'
 JMX_GRACE_SECS = 2
 SERVICE_DISCOVERY_PREFIX = 'SD-'
+SD_PIPE_NAME = "dd-service_discovery"
+SD_PIPE_WIN_PATH = "\\\\.\\pipe\\{pipename}"
+SD_CONFIG_SEP = "#### SERVICE-DISCOVERY ####"
 
 DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
@@ -99,6 +103,15 @@ class Agent(Daemon):
         )
         channel = grpc.insecure_channel('localhost:50051')
         self.rpcstub = rpc.service_discovery_pb2.ServiceDiscoveryStub(channel)
+
+        if Platform.is_windows():
+            pipe_name = SD_PIPE_WIN_PATH.format(pipename=SD_PIPE_NAME)
+        else:
+            pipe_name = os.path.join("/tmp", "dd-service_discovery")
+
+        if not os.path.exists(pipe_name):
+            os.mkfifo(pipe_name)
+        self.sd_pipe = os.open(pipe_name, os.O_WRONLY) 
 
     def _handle_sigterm(self, signum, frame):
         """Handles SIGTERM and SIGINT, which gracefully stops the agent."""
@@ -156,10 +169,14 @@ class Agent(Daemon):
                 time.sleep(JMX_GRACE_SECS)
                 # TODO jaime: we probably have to wait for the the process to come up...
 
+            buffer = ""
             for name, yaml in jmx_sd_configs.iteritems():
                 try:
                     res = self.rpcstub.SetConfig(rpc.service_discovery_pb2.SDConfig(name="{}{}".format(
                         SERVICE_DISCOVERY_PREFIX, name), config=yaml))
+                    buffer += SD_CONFIG_SEP
+                    buffer += "# {}".format(name)
+                    buffer += yaml
                 except Exception as e:
                     log.exception("unable to submit YAML via RPC: %s", e)
                 else:
@@ -169,6 +186,8 @@ class Agent(Daemon):
                         log.info("JMX SD Config submitted via RPC for %s failed. \
                                  Perhaps overriden by file config or bad YAML.", name)
 
+            if buffer:
+                os.write(self.sd_pipe, buffer)
 
         # Logging
         num_checks = len(self._checksd['initialized_checks'])
