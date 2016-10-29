@@ -374,7 +374,7 @@ class ProcessCheck(AgentCheck):
             if vals:
                 self.rate('system.processes.%s' % mname, sum(vals), tags=tags)
 
-        self._process_service_check(name, len(pids), instance.get('thresholds', None))
+        self._process_service_check(name, len(pids), instance.get('thresholds', None), tags)
 
     def _get_pid_set(self, pid):
         try:
@@ -382,14 +382,15 @@ class ProcessCheck(AgentCheck):
         except psutil.NoSuchProcess:
             return set()
 
-    def _process_service_check(self, name, nb_procs, bounds):
+    def _process_service_check(self, name, nb_procs, bounds, tags):
         """
         Report a service check, for each process in search_string.
         Report as OK if the process is in the warning thresholds
                    CRITICAL             out of the critical thresholds
                    WARNING              out of the warning thresholds
         """
-        tag = ["process:%s" % name]
+        # FIXME 6.x remove the `process:name` tag
+        service_check_tags = tags + ["process:%s" % name]
         status = AgentCheck.OK
         message_str = "PROCS %s: %s processes found for %s"
         status_str = {
@@ -412,6 +413,6 @@ class ProcessCheck(AgentCheck):
         self.service_check(
             "process.up",
             status,
-            tags=tag,
+            tags=service_check_tags,
             message=message_str % (status_str[status], nb_procs, name)
         )
