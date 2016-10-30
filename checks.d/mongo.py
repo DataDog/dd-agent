@@ -72,6 +72,7 @@ class MongoDb(AgentCheck):
         "cursors.totalOpen": GAUGE,
         "extra_info.heap_usage_bytes": RATE,
         "extra_info.page_faults": RATE,
+        "fsyncLocked": GAUGE,
         "globalLock.activeClients.readers": GAUGE,
         "globalLock.activeClients.total": GAUGE,
         "globalLock.activeClients.writers": GAUGE,
@@ -156,6 +157,8 @@ class MongoDb(AgentCheck):
         "replSet.health": GAUGE,
         "replSet.replicationLag": GAUGE,
         "replSet.state": GAUGE,
+        "replSet.votes": GAUGE,
+        "replSet.voteFraction": GAUGE,
         "stats.avgObjSize": GAUGE,
         "stats.collections": GAUGE,
         "stats.dataSize": GAUGE,
@@ -728,6 +731,9 @@ class MongoDb(AgentCheck):
         if status['ok'] == 0:
             raise Exception(status['errmsg'].__str__())
 
+        ops = db['$cmd.sys.inprog'].find_one()
+        status['fsyncLocked'] = 1 if ops.get('fsyncLock') else 0
+
         status['stats'] = db.command('dbstats')
         dbstats = {}
         dbstats[db_name] = {'stats': status['stats']}
@@ -789,6 +795,16 @@ class MongoDb(AgentCheck):
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
+
+                if current is not None:
+                    total = 0.0
+                    cfg = cli['local']['system.replset'].find_one()
+                    for member in cfg.get('members'):
+                        total += member.get('votes', 1)
+                        if member['_id'] == current['_id']:
+                            data['votes'] = member.get('votes', 1)
+                    data['voteFraction'] = data['votes'] / total
+
                 status['replSet'] = data
 
                 # Submit events
