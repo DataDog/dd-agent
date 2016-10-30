@@ -70,7 +70,7 @@ JMX_GRACE_SECS = 2
 SERVICE_DISCOVERY_PREFIX = 'SD-'
 SD_PIPE_NAME = "dd-service_discovery"
 SD_PIPE_WIN_PATH = "\\\\.\\pipe\\{pipename}"
-SD_CONFIG_SEP = "#### SERVICE-DISCOVERY ####"
+SD_CONFIG_SEP = "#### SERVICE-DISCOVERY ####\n"
 
 DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
@@ -111,7 +111,8 @@ class Agent(Daemon):
 
         if not os.path.exists(pipe_name):
             os.mkfifo(pipe_name)
-        self.sd_pipe = os.open(pipe_name, os.O_WRONLY) 
+        # self.sd_pipe = os.open(pipe_name, os.O_WRONLY)
+        self.sd_pipe = os.open(pipe_name, os.O_RDWR) # to avoid blocking
 
     def _handle_sigterm(self, signum, frame):
         """Handles SIGTERM and SIGINT, which gracefully stops the agent."""
@@ -175,7 +176,7 @@ class Agent(Daemon):
                     res = self.rpcstub.SetConfig(rpc.service_discovery_pb2.SDConfig(name="{}{}".format(
                         SERVICE_DISCOVERY_PREFIX, name), config=yaml))
                     buffer += SD_CONFIG_SEP
-                    buffer += "# {}".format(name)
+                    buffer += "# {}\n".format(name)
                     buffer += yaml
                 except Exception as e:
                     log.exception("unable to submit YAML via RPC: %s", e)
