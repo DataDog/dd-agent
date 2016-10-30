@@ -51,6 +51,7 @@ BAD_CITIZENS = {
   'sysstat' => 'system',
   'elastic' => 'elasticsearch',
   'gearmand' => 'gearman',
+  'mongo' => 'mongodb',
   'mcache' => 'memcache',
   'php_fpm' => 'phpfpm',
   'redisdb' => 'redis',
