@@ -250,13 +250,9 @@ class ProcessCheckTest(AgentCheckTest):
         self.run_check(config, mocks={'get_pagefault_stats': noop_get_pagefault_stats})
 
     def mock_find_pids(self, name, search_string, exact_match=True, ignore_ad=True,
-                       refresh_ad_cache=True, pid=None, pid_file=None):
+                       refresh_ad_cache=True):
         if search_string is not None:
             idx = search_string[0].split('_')[1]
-        elif pid is not None:
-            idx = pid
-        elif pid_file is not None:
-            idx = pid_file.split('_')[1]
         return self.CONFIG_STUBS[int(idx)]['mocked_processes']
 
     def mock_psutil_wrapper(self, process, method, accessors, *args, **kwargs):
