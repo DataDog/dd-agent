@@ -98,7 +98,7 @@ class Wait
         s = TCPSocket.new('localhost', port)
         s.close
         return true
-      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH, EOFError
         return false
       end
     end
@@ -111,7 +111,7 @@ class Wait
       begin
         r = HTTParty.get(url)
         return (200...300).cover? r.code
-      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH, EOFError
         return false
       end
     end
