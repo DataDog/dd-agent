@@ -11,7 +11,7 @@ from docker.errors import NullResource, NotFound
 
 # project
 from utils.dockerutil import DockerUtil
-from utils.kubeutil import KubeUtil
+from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store, TRACE_CONFIG

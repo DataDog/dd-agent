@@ -20,7 +20,8 @@ import simplejson as json
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-from utils.kubeutil import KubeUtil
+from utils.kubernetes import KubeUtil
+
 
 NAMESPACE = "kubernetes"
 DEFAULT_MAX_DEPTH = 10
@@ -124,7 +125,6 @@ class Kubernetes(AgentCheck):
                 self.service_check(service_check_base, AgentCheck.CRITICAL)
 
     def check(self, instance):
-
         self.max_depth = instance.get('max_depth', DEFAULT_MAX_DEPTH)
         enabled_gauges = instance.get('enabled_gauges', DEFAULT_ENABLED_GAUGES)
         self.enabled_gauges = ["{0}.{1}".format(NAMESPACE, x) for x in enabled_gauges]

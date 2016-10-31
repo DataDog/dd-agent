@@ -1,0 +1,8 @@
+init_config:
+  #    tags:
+  #      - optional_tag1
+  #      - optional_tag2
+
+instances:
+  # To enable Kube State metrics you must specify the url exposing the API
+  - kube_state_url: http://example.com:8080/metrics
