@@ -173,19 +173,20 @@ class Agent(Daemon):
             buffer = ""
             for name, yaml in jmx_sd_configs.iteritems():
                 try:
-                    res = self.rpcstub.SetConfig(rpc.service_discovery_pb2.SDConfig(name="{}{}".format(
-                        SERVICE_DISCOVERY_PREFIX, name), config=yaml))
+                    # res = self.rpcstub.SetConfig(rpc.service_discovery_pb2.SDConfig(name="{}{}".format(
+                    #     SERVICE_DISCOVERY_PREFIX, name), config=yaml))
                     buffer += SD_CONFIG_SEP
                     buffer += "# {}\n".format(name)
                     buffer += yaml
                 except Exception as e:
                     log.exception("unable to submit YAML via RPC: %s", e)
                 else:
-                    if res.success:
-                        log.info("JMX SD Config submitted via RPC for %s successfully.", name)
-                    else:
-                        log.info("JMX SD Config submitted via RPC for %s failed. \
-                                 Perhaps overriden by file config or bad YAML.", name)
+                    log.info("JMX SD Config via named pip %s successfully.", name)
+                    # if res.success:
+                    #     log.info("JMX SD Config submitted via RPC for %s successfully.", name)
+                    # else:
+                    #     log.info("JMX SD Config submitted via RPC for %s failed. \
+                    #              Perhaps overriden by file config or bad YAML.", name)
 
             if buffer:
                 os.write(self.sd_pipe, buffer)
