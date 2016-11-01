@@ -12,7 +12,7 @@ from utils.service_discovery.consul_config_store import ConsulStore
 from utils.service_discovery.etcd_config_store import EtcdStore
 from utils.service_discovery.abstract_config_store import AbstractConfigStore, CONFIG_FROM_KUBE
 from utils.service_discovery.sd_backend import get_sd_backend
-from utils.service_discovery.sd_docker_backend import SDDockerBackend
+from utils.service_discovery.sd_docker_backend import SDDockerBackend, _SDDockerBackendConfigFetchState
 
 
 def clear_singletons(agentConfig):
@@ -34,7 +34,7 @@ class Response(object):
 
 def _get_container_inspect(c_id):
     """Return a mocked container inspect dict from self.container_inspects."""
-    for co, _, _, _ in TestServiceDiscovery.container_inspects:
+    for co, _, _, _, _ in TestServiceDiscovery.container_inspects:
         if co.get('Id') == c_id:
             return co
         return None
@@ -178,7 +178,10 @@ class TestServiceDiscovery(unittest.TestCase):
 
     @mock.patch('utils.http.requests.get')
     @mock.patch('utils.kubernetes.kubeutil.check_yaml')
-    def test_get_host_address(self, mock_check_yaml, mock_get):
+    @mock.patch.object(AbstractConfigStore, '__init__', return_value=None)
+    @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
+    @mock.patch('utils.kubernetes.kubeutil.get_conf_path', return_value=None)
+    def test_get_host_address(self, mock_check_yaml, mock_get, *args):
         kubernetes_config = {'instances': [{'kubelet_port': 1337}]}
         pod_list = {
             'items': [{
@@ -234,35 +237,34 @@ class TestServiceDiscovery(unittest.TestCase):
         mock_get.return_value = Response(pod_list)
 
         for c_ins, tpl_var, expected_ip in ip_address_inspects:
-            with mock.patch.object(AbstractConfigStore, '__init__', return_value=None):
-                with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
-                    with mock.patch('utils.kubernetes.kubeutil.get_conf_path', return_value=None):
-                        sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
-                        self.assertEquals(sd_backend._get_host_address(c_ins, tpl_var), expected_ip)
-                        clear_singletons(self.auto_conf_agentConfig)
+            state = _SDDockerBackendConfigFetchState(lambda _: c_ins)
+            sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
+            self.assertEquals(sd_backend._get_host_address(state, 'container id', tpl_var), expected_ip)
+            clear_singletons(self.auto_conf_agentConfig)
 
-    def test_get_port(self):
-        with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
-            for c_ins, _, var_tpl, expected_ports, _ in self.container_inspects:
-                sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
-                if isinstance(expected_ports, str):
-                    self.assertEquals(sd_backend._get_port(c_ins, var_tpl), expected_ports)
-                else:
-                    self.assertRaises(expected_ports, sd_backend._get_port, c_ins, var_tpl)
-                clear_singletons(self.auto_conf_agentConfig)
+    @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
+    def test_get_port(self, _):
+        for c_ins, _, var_tpl, expected_ports, _ in self.container_inspects:
+            state = _SDDockerBackendConfigFetchState(lambda _: c_ins)
+            sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
+            if isinstance(expected_ports, str):
+                self.assertEquals(sd_backend._get_port(state, 'container id', var_tpl), expected_ports)
+            else:
+                self.assertRaises(expected_ports, sd_backend._get_port, state, 'c_id', var_tpl)
+            clear_singletons(self.auto_conf_agentConfig)
 
     @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
     @mock.patch.object(SDDockerBackend, '_get_host_address', return_value='127.0.0.1')
     @mock.patch.object(SDDockerBackend, '_get_port', return_value='1337')
-    @mock.patch('docker.Client.inspect_container', side_effect=_get_container_inspect)
     @mock.patch.object(SDDockerBackend, '_get_config_templates', side_effect=_get_conf_tpls)
     def test_get_check_configs(self, *args):
         """Test get_check_config with mocked container inspect and config template"""
         c_id = self.docker_container_inspect.get('Id')
         for image in self.mock_templates.keys():
             sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
+            state = _SDDockerBackendConfigFetchState(_get_container_inspect)
             self.assertEquals(
-                sd_backend._get_check_configs(c_id, image)[0],
+                sd_backend._get_check_configs(state, c_id, image)[0],
                 self.mock_templates[image][1])
             clear_singletons(self.auto_conf_agentConfig)
 
@@ -317,7 +319,10 @@ class TestServiceDiscovery(unittest.TestCase):
                             self.assertEquals(config, None)
                             clear_singletons(agentConfig)
 
-    def test_fill_tpl(self):
+    @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
+    @mock.patch.object(EtcdStore, 'get_client', return_value=None)
+    @mock.patch.object(ConsulStore, 'get_client', return_value=None)
+    def test_fill_tpl(self, *args):
         """Test _fill_tpl with mocked docker client"""
 
         valid_configs = [
@@ -468,32 +473,28 @@ class TestServiceDiscovery(unittest.TestCase):
             )
         ]
 
-        with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
-            with mock.patch.object(EtcdStore, 'get_client', return_value=None):
-                with mock.patch.object(ConsulStore, 'get_client', return_value=None):
-                    for ac in self.agentConfigs:
-                        sd_backend = get_sd_backend(agentConfig=ac)
-                        try:
-                            for co in valid_configs + edge_cases:
-                                inspect, tpl, variables, tags = co[0]
-                                instance_tpl, var_values = sd_backend._fill_tpl(inspect, tpl, variables, tags)
-                                for key in instance_tpl.keys():
-                                    if isinstance(instance_tpl[key], list):
-                                        self.assertEquals(len(instance_tpl[key]), len(co[1][0].get(key)))
-                                        for elem in instance_tpl[key]:
-                                            self.assertTrue(elem in co[1][0].get(key))
-                                    else:
-                                        self.assertEquals(instance_tpl[key], co[1][0].get(key))
-                                self.assertEquals(var_values, co[1][1])
+        for ac in self.agentConfigs:
+            sd_backend = get_sd_backend(agentConfig=ac)
+            try:
+                for co in valid_configs + edge_cases:
+                    inspect, tpl, variables, tags = co[0]
+                    state = _SDDockerBackendConfigFetchState(lambda _: inspect)
+                    instance_tpl, var_values = sd_backend._fill_tpl(state, 'c_id', tpl, variables, tags)
+                    for key in instance_tpl.keys():
+                        if isinstance(instance_tpl[key], list):
+                            self.assertEquals(len(instance_tpl[key]), len(co[1][0].get(key)))
+                            for elem in instance_tpl[key]:
+                                self.assertTrue(elem in co[1][0].get(key))
+                        else:
+                            self.assertEquals(instance_tpl[key], co[1][0].get(key))
+                    self.assertEquals(var_values, co[1][1])
 
-                            for co in invalid_config:
-                                inspect, tpl, variables, tags = co[0]
-                                self.assertRaises(co[1], sd_backend._fill_tpl(inspect, tpl, variables, tags))
-
-                            clear_singletons(ac)
-                        except Exception:
-                            clear_singletons(ac)
-                            raise
+                for co in invalid_config:
+                    inspect, tpl, variables, tags = co[0]
+                    state = _SDDockerBackendConfigFetchState(lambda _: inspect)
+                    self.assertRaises(co[1], sd_backend._fill_tpl(state, 'c_id', tpl, variables, tags))
+            finally:
+                clear_singletons(ac)
 
     # config_stores tests
 
@@ -546,9 +547,9 @@ class TestServiceDiscovery(unittest.TestCase):
                     kube_pod_name=image,
                     kube_container_name='foo',
                     kube_annotations=dict(zip(
-                        ['sd.datadoghq.com/foo/check_names',
-                         'sd.datadoghq.com/foo/init_configs',
-                         'sd.datadoghq.com/foo/instances'],
+                        ['service-discovery.datadoghq.com/foo.check_names',
+                         'service-discovery.datadoghq.com/foo.init_configs',
+                         'service-discovery.datadoghq.com/foo.instances'],
                         self.mock_tpls[image][0]))))
 
     def test_get_config_id(self):

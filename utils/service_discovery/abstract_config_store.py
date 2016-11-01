@@ -27,7 +27,7 @@ INIT_CONFIGS = 'init_configs'
 INSTANCES = 'instances'
 KUBE_ANNOTATIONS = 'kube_annotations'
 KUBE_CONTAINER_NAME = 'kube_container_name'
-KUBE_ANNOTATION_PREFIX = 'sd.datadoghq.com'
+KUBE_ANNOTATION_PREFIX = 'service-discovery.datadoghq.com'
 
 
 class KeyNotFound(Exception):
@@ -101,7 +101,7 @@ class AbstractConfigStore(object):
 
     def _get_kube_config(self, identifier, kube_annotations, kube_container_name):
         try:
-            prefix = '{}/{}/'.format(KUBE_ANNOTATION_PREFIX, kube_container_name)
+            prefix = '{}/{}.'.format(KUBE_ANNOTATION_PREFIX, kube_container_name)
             check_names = json.loads(kube_annotations[prefix + CHECK_NAMES])
             init_config_tpls = json.loads(kube_annotations[prefix + INIT_CONFIGS])
             instance_tpls = json.loads(kube_annotations[prefix + INSTANCES])
