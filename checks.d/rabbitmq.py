@@ -89,6 +89,13 @@ METRIC_SUFFIX = {
     NODE_TYPE: "node",
 }
 
+OPERATION_MAP = {
+    'float': float,
+    'int': int,
+    'bool': bool,
+    'len': len
+}
+
 
 class RabbitMQException(Exception):
     pass
@@ -138,6 +145,12 @@ class RabbitMQ(AgentCheck):
                     raise TypeError(
                         "{0} / {0}_regexes parameter must be a list".format(object_type))
 
+        additional_metrics = instance.get('additional_metrics', [])
+        if type(additional_metrics) == dict:
+            self.log.debug('RabbitMQ Additional Metrics defined')
+            self._parse_additional_metrics(additional_metrics, 'node', NODE_ATTRIBUTES)
+            self._parse_additional_metrics(additional_metrics, 'queue', QUEUE_ATTRIBUTES)
+
         auth = (username, password)
 
         return base_url, max_detailed, specified, auth
@@ -161,6 +174,14 @@ class RabbitMQ(AgentCheck):
             msg = "Error executing check: {}".format(e)
             self.service_check('rabbitmq.status', AgentCheck.CRITICAL, message=msg)
             self.log.error(msg)
+
+    def _parse_additional_metrics(self, all_additional_metrics, type, existing_metrics):
+        additional_metrics = all_additional_metrics.get(type,[])
+        for attribute, metric_name, operation_name in additional_metrics:
+            operation = OPERATION_MAP[operation_name]
+            new_metric = (attribute, metric_name, operation)
+            self.log.debug(new_metric)
+            existing_metrics.append(new_metric)
 
     def _get_data(self, url, auth=None):
         try:
