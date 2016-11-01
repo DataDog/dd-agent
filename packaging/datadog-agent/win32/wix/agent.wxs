@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
     <Product Name="Datadog Agent" Id="*" UpgradeCode="82210ed1-bbe4-4051-aa15-002ea31dde15"
     Language="1033" Codepage="1252" Version="$(var.AgentVersion)" Manufacturer="Datadog Inc.">
         <Package Id="*" Keywords="Installer" Description="Datadog Agent v$(var.AgentVersion)"
@@ -33,6 +33,15 @@
                 <Directory Id="ApplicationProgramsFolder" Name="Datadog"/>
             </Directory>
         </Directory>
+
+        <util:CloseApplication 
+            Id="CloseTrayApp" 
+            CloseMessage="yes" 
+            Target="agent-manager.exe" 
+            ElevatedCloseMessage="yes"
+            TerminateProcess="1"
+            Timeout="1"
+            RebootPrompt="no"/>
 
         <Binary Id="FindReplace" SourceFile="$(var.WixRoot)\FindReplace.exe" />
         <CustomAction
@@ -152,6 +161,8 @@
             <Custom Action="ReplaceAPIKey" Before="StartServices" />
             <Custom Action="ReplaceTags" Before="StartServices" />
             <Custom Action="ReplaceHostname" Before="StartServices" />
+            <Custom Action="WixCloseApplications"
+                After="InstallInitialize"><![CDATA[REMOVE="ALL" OR REINSTALL]]></Custom>
         </InstallExecuteSequence>
 
         <CustomAction Id="LaunchApplication"
