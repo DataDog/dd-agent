@@ -416,26 +416,29 @@ class ConsulCheck(AgentCheck):
 
         # Intra-datacenter
         nodes = self._get_coord_nodes(instance)
-        for node in nodes:
-            node_name = node['Node']
-            latencies = []
-            for other in nodes:
-                other_name = other['Node']
-                if node_name == other_name:
-                    continue
-                latencies.append(distance(node, other))
-            latencies.sort()
-            n = len(latencies)
-            half_n = int(floor(n / 2))
-            if n % 2:
-                median = latencies[half_n]
-            else:
-                median = (latencies[half_n - 1] + latencies[half_n]) / 2
-            self.gauge('consul.net.node.latency.min', latencies[0], hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.p25', latencies[ceili(n * 0.25) - 1], hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.median', median, hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.p75', latencies[ceili(n * 0.75) - 1], hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.p90', latencies[ceili(n * 0.90) - 1], hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.p95', latencies[ceili(n * 0.95) - 1], hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.p99', latencies[ceili(n * 0.99) - 1], hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.max', latencies[-1], hostname=node_name, tags=main_tags)
+        if len(nodes) == 1:
+            self.log.debug("Only 1 node in cluster, skipping network latency metrics.")
+        else:
+            for node in nodes:
+                node_name = node['Node']
+                latencies = []
+                for other in nodes:
+                    other_name = other['Node']
+                    if node_name == other_name:
+                        continue
+                    latencies.append(distance(node, other))
+                latencies.sort()
+                n = len(latencies)
+                half_n = int(floor(n / 2))
+                if n % 2:
+                    median = latencies[half_n]
+                else:
+                    median = (latencies[half_n - 1] + latencies[half_n]) / 2
+                self.gauge('consul.net.node.latency.min', latencies[0], hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.p25', latencies[ceili(n * 0.25) - 1], hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.median', median, hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.p75', latencies[ceili(n * 0.75) - 1], hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.p90', latencies[ceili(n * 0.90) - 1], hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.p95', latencies[ceili(n * 0.95) - 1], hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.p99', latencies[ceili(n * 0.99) - 1], hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.max', latencies[-1], hostname=node_name, tags=main_tags)
