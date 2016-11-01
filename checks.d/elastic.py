@@ -475,7 +475,7 @@ class ESCheck(AgentCheck):
                 stats_url = "/_nodes/_local/stats"
 
             additional_metrics = self.JVM_METRICS_POST_0_90_10
-        if version >= [0, 90, 10]:
+        elif version >= [0, 90, 10]:
             # ES versions 0.90.10 and above
             health_url = "/_cluster/health?pretty=true"
             nodes_url = "/_nodes?network=true"
