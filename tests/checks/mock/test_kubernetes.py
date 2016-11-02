@@ -113,10 +113,10 @@ class TestKubernetes(AgentCheckTest):
             (['kube_replication_controller:kube-dns-v8','kube_namespace:kube-system', 'container_name:k8s_healthz.4469a25d_kube-dns-v8-smhcb_kube-system_b80ffab3-3619-11e5-84ce-42010af01c62_241c34d1', 'pod_name:kube-system/kube-dns-v8-smhcb'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['kube_replication_controller:fluentd-cloud-logging-kubernetes-minion','kube_namespace:kube-system', 'container_name:k8s_fluentd-cloud-logging.7721935b_fluentd-cloud-logging-kubernetes-minion-mu4w_kube-system_d0feac1ad02da9e97c4bf67970ece7a1_2c3c0879', 'pod_name:kube-system/fluentd-cloud-logging-kubernetes-minion-mu4w'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['container_name:dd-agent', 'pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
-            (['kube_replication_controller:l7-lb-controller'], [PODS]),
-            (['kube_replication_controller:redis-slave'], [PODS]),
-            (['kube_replication_controller:frontend'], [PODS]),
-            (['kube_replication_controller:heapster-v11'], [PODS]),
+            (['kube_replication_controller:l7-lb-controller', 'kube_namespace:kube-system'], [PODS]),
+            (['kube_replication_controller:redis-slave', 'kube_namespace:default'], [PODS]),
+            (['kube_replication_controller:frontend', 'kube_namespace:default'], [PODS]),
+            (['kube_replication_controller:heapster-v11', 'kube_namespace:kube-system'], [PODS]),
             ([], [LIM, REQ, CAP])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
         for m, _type in METRICS:
@@ -161,10 +161,10 @@ class TestKubernetes(AgentCheckTest):
             (['kube_replication_controller:kube-ui-v1','kube_namespace:kube-system', 'pod_name:kube-system/kube-ui-v1-sv2sq'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['kube_replication_controller:propjoe', 'kube_namespace:default', 'pod_name:default/propjoe-lkc3l'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['kube_replication_controller:haproxy-6db79c7bbcac01601ac35bcdb18868b3', 'kube_namespace:default', 'pod_name:default/haproxy-6db79c7bbcac01601ac35bcdb18868b3-rr7la'], [MEM, CPU, FS, NET, NET_ERRORS]),
-            (['kube_replication_controller:l7-lb-controller'], [PODS]),
-            (['kube_replication_controller:redis-slave'], [PODS]),
-            (['kube_replication_controller:frontend'], [PODS]),
-            (['kube_replication_controller:heapster-v11'], [PODS]),
+            (['kube_replication_controller:l7-lb-controller', 'kube_namespace:kube-system'], [PODS]),
+            (['kube_replication_controller:redis-slave', 'kube_namespace:default'], [PODS]),
+            (['kube_replication_controller:frontend', 'kube_namespace:default'], [PODS]),
+            (['kube_replication_controller:heapster-v11', 'kube_namespace:kube-system'], [PODS]),
             ([], [LIM, REQ, CAP])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
 
@@ -225,7 +225,7 @@ class TestKubernetes(AgentCheckTest):
             (['container_name:k8s_dd-agent.7b520f3f_dd-agent-1rxlh_default_12c7be82-33ca-11e6-ac8f-42010af00003_321fecb4',
               'pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar',
               'kube_bar:baz', 'kube_replication_controller:dd-agent'], [LIM, REQ, MEM, CPU, NET, DISK, DISK_USAGE]),
-            (['kube_replication_controller:dd-agent'], [PODS]),
+            (['kube_replication_controller:dd-agent', 'kube_namespace:default'], [PODS]),
             ([], [LIM, REQ, CAP])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
 
@@ -272,7 +272,7 @@ class TestKubernetes(AgentCheckTest):
               'kube_bar:baz',
               'kube_replication_controller:dd-agent'], [MEM, CPU, NET, DISK, NET_ERRORS, DISK_USAGE, LIM, REQ]),
             (['pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
-            (['kube_replication_controller:dd-agent'], [PODS]),
+            (['kube_replication_controller:dd-agent', 'kube_namespace:default'], [PODS]),
             ([], [LIM, REQ, CAP])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
 
