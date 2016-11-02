@@ -33,6 +33,7 @@ custom checks that rely on the former versions please make necessary amends:
 
 * kazoo `2.2.1` (previously `1.3.1`). See [Kazoo's changelog](https://github.com/python-zk/kazoo/blob/master/CHANGES.rst).
 * psutil `4.4.1` (previously `3.3.0`). See [psutil's changelog](https://github.com/giampaolo/psutil/blob/master/HISTORY.rst).
+* curl `7.51.0` (previously `7.50.0`). See [curl's changelog](https://curl.haxx.se/changes.html#7_51_0).
 
 ### Updated integrations
 
