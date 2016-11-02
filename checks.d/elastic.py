@@ -397,6 +397,7 @@ class ESCheck(AgentCheck):
         # (URLs and metrics) accordingly
         version = self._get_es_version(config)
 
+
         health_url, nodes_url, stats_url, pshard_stats_url, pending_tasks_url, stats_metrics, \
             pshard_stats_metrics = self._define_params(version, config.cluster_stats)
 
@@ -442,6 +443,9 @@ class ESCheck(AgentCheck):
         """
         try:
             data = self._get_data(config.url, config, send_sc=False)
+            #pre-release versions of elasticearch are suffixed with -rcX etc..
+            #peel that off so that the map below doesn't error out
+            data['version']['number'] = data['version']['number'].split('-')[0]
             version = map(int, data['version']['number'].split('.')[0:3])
         except Exception as e:
             self.warning(
@@ -450,6 +454,7 @@ class ESCheck(AgentCheck):
                 % (config.url, str(e))
             )
             version = [1, 0, 0]
+
 
         self.service_metadata('version', version)
         self.log.debug("Elasticsearch version is %s" % version)
@@ -462,6 +467,8 @@ class ESCheck(AgentCheck):
 
         pshard_stats_url = "/_stats"
 
+        stats_url_all_param = True
+
         if version >= [0, 90, 10]:
             # ES versions 0.90.10 and above
             health_url = "/_cluster/health?pretty=true"
@@ -470,9 +477,9 @@ class ESCheck(AgentCheck):
 
             # For "external" clusters, we want to collect from all nodes.
             if cluster_stats:
-                stats_url = "/_nodes/stats?all=true"
+                stats_url = "/_nodes/stats"
             else:
-                stats_url = "/_nodes/_local/stats?all=true"
+                stats_url = "/_nodes/_local/stats"
 
             additional_metrics = self.JVM_METRICS_POST_0_90_10
         else:
@@ -480,9 +487,9 @@ class ESCheck(AgentCheck):
             nodes_url = "/_cluster/nodes?network=true"
             pending_tasks_url = None
             if cluster_stats:
-                stats_url = "/_cluster/nodes/stats?all=true"
+                stats_url = "/_cluster/nodes/stats"
             else:
-                stats_url = "/_cluster/nodes/_local/stats?all=true"
+                stats_url = "/_cluster/nodes/_local/stats"
 
             additional_metrics = self.JVM_METRICS_PRE_0_90_10
 
@@ -529,11 +536,19 @@ class ESCheck(AgentCheck):
         if version >= [2, 1, 0]:
             stats_metrics.update(self.ADDITIONAL_METRICS_POST_2_1)
 
+        if version >= [5, 0, 0]:
+            stats_url_all_param = False
+
         # Version specific stats metrics about the primary shards
         pshard_stats_metrics = dict(self.PRIMARY_SHARD_METRICS)
 
         if version >= [1, 0, 0]:
             additional_metrics = self.PRIMARY_SHARD_METRICS_POST_1_0
+
+
+        #version 5 errors out if this parameter is set
+        if stats_url_all_param:
+            stats_url += "?all=true"
 
         pshard_stats_metrics.update(additional_metrics)
 
@@ -571,6 +586,7 @@ class ESCheck(AgentCheck):
                 verify=verify,
                 cert=cert
             )
+
             resp.raise_for_status()
         except Exception as e:
             if send_sc:
