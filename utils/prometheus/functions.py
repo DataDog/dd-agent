@@ -4,7 +4,7 @@
 
 from google.protobuf.internal.decoder import _DecodeVarint32  # pylint: disable=E0611,E0401
 
-from . import metrics_pdb2
+from . import metrics_pb2
 
 
 def parse_metric_family(buf):
@@ -22,6 +22,6 @@ def parse_metric_family(buf):
         msg_buf = buf[n:n+msg_len]
         n += msg_len
 
-        message = metrics_pdb2.MetricFamily()
+        message = metrics_pb2.MetricFamily()
         message.ParseFromString(msg_buf)
         yield message
