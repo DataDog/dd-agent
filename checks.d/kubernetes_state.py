@@ -14,8 +14,8 @@ class KubernetesState(AgentCheck):
 
     [0] https://github.com/kubernetes/kube-state-metrics
     """
-    def __init__(self, name, init_config, agent_config, instances=None):
-        super(KubernetesState, self).__init__(name, init_config, agent_config, instances)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        super(KubernetesState, self).__init__(name, init_config, agentConfig, instances)
         self.kube_state_processor = KubeStateProcessor(self)
 
     def check(self, instance):
