@@ -368,25 +368,25 @@ class Kubernetes(AgentCheck):
             "ReplicaSet",
         ]
 
-        controllers_map = defaultdict(lambda: {'count': 0, 'namespace': None})
+        # (create-by, namespace): count
+        controllers_map = defaultdict(int)
         for pod in pods['items']:
             try:
                 created_by = json.loads(pod['metadata']['annotations']['kubernetes.io/created-by'])
                 kind = created_by['reference']['kind']
                 if kind in supported_kinds:
-                    controllers_map[created_by['reference']['name']]['count'] += 1
                     namespace = created_by['reference']['namespace']
-                    controllers_map[created_by['reference']['name']]['namespace'] = namespace
+                    controllers_map[(created_by['reference']['name'], namespace)] += 1
             except (KeyError, ValueError) as e:
                 self.log.debug("Unable to retrieve pod kind for pod %s: %s", pod, e)
                 continue
 
         tags = instance.get('tags', [])
-        for ctrl, values in controllers_map.iteritems():
+        for (ctrl, namespace), pod_count in controllers_map.iteritems():
             _tags = tags[:]  # copy base tags
             _tags.append('kube_replication_controller:{0}'.format(ctrl))
-            _tags.append('kube_namespace:{0}'.format(values['namespace']))
-            self.publish_gauge(self, NAMESPACE + '.pods.running', values['count'], _tags)
+            _tags.append('kube_namespace:{0}'.format(namespace))
+            self.publish_gauge(self, NAMESPACE + '.pods.running', pod_count, _tags)
 
     def _process_events(self, instance, pods_list):
         """
