@@ -1,3 +1,4 @@
+# (C) Datadog, Inc. 2010-2016
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
@@ -70,8 +71,6 @@ LEGACY_DATADOG_URLS = [
     "app.datadoghq.com",
     "app.datad0g.com",
 ]
-
-JMX_SD_CONF_TEMPLATE = '.jmx.{}.yaml'
 
 
 class PathNotFound(Exception):
@@ -378,7 +377,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig['developer_mode'] = True
 
         # Core config
-        #ap
         if not config.has_option('Main', 'api_key'):
             log.warning(u"No API key was found. Aborting.")
             sys.exit(2)
@@ -1117,18 +1115,13 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
         if check_name in checknames and check_name in JMX_CHECKS:
             log.debug('Generating JMX config for: %s' % check_name)
 
-            # Why is sd_init_config a dict and sd_instances a list of dicts?
             sd_init_config, sd_instances = service_disco_check_config
-            for idx, instance in enumerate(sd_instances):
-                check_config = {}
-                check_config.update(sd_init_config)
-                check_config.update(instance)
-
-                try:
-                    yaml = config_to_yaml(check_config)
-                    generated["{}_{}".format(check_name, idx)] = yaml
-                except Exception as e:
-                    log.exception("Unable to generate YAML config for %s: %s", check_name, e)
+            check_config = {'init_config': sd_init_config, 'instances': sd_instances}
+            try:
+                yaml = config_to_yaml(check_config)
+                generated[check_name] = yaml
+            except Exception:
+                log.exception("Unable to generate YAML config for %s", check_name)
 
     return generated
 

@@ -275,6 +275,7 @@ class AbstractConfigStore(object):
         # Initialize the config index reference
         if self.previous_config_index is None:
             self.previous_config_index = config_index
+            # FIXME haissam: this always triggers a reload at second run, it shouldn't be needed.
             return True
         # Config has been modified since last crawl
         # in this case a full config reload is triggered and the identifier_to_checks cache is rebuilt

@@ -148,8 +148,8 @@ def dump_yaml(path, config):
     '''
     try:
         yaml = config_to_yaml(config)
-    except Exception as e:
-        log.exception("Unable to convert config to YAML: %s", e)
+    except Exception:
+        log.exception("Unable to convert config to YAML.")
     else:
         with open(path, 'w+') as f:
             f.write(yaml)

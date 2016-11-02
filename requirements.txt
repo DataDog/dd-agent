@@ -28,7 +28,6 @@ simplejson==3.6.5
 supervisor==3.3.0
 tornado==3.2.2
 uptime==3.0.1
-grpcio==1.0.0
 
 ###########################################################
 # These modules are for checks. But they are
