@@ -7,8 +7,9 @@ Changes
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.9.1...5.10.0
 
-### Kubernetes: metrics from Kube State API
-_TODO_
+### Kubernetes: metrics from the Kube State API
+
+The new `kubernetes_state` check pulls metrics from the Kubernetes State API. See [#2890][] for more details.
 
 ### Service discovery support in JMXFetch
 _TODO_
@@ -41,6 +42,8 @@ custom checks that rely on the former versions please make necessary amends:
 * Ceph
 * Consul
 * Docker
+* Elasticsearch
+* FluentD
 * Haproxy
 * Http check
 * Kafka
@@ -49,6 +52,7 @@ custom checks that rely on the former versions please make necessary amends:
 * Mesos
 * Mongo
 * MySQL
+* Openstack
 * PGBouncer
 * Postgres
 * Redis
@@ -61,16 +65,21 @@ custom checks that rely on the former versions please make necessary amends:
 * [FEATURE] Consul: Add net latency metrics. See [#2757][] (Thanks [@ross][])
 * [FEATURE] Haproxy: Allow per-instance custom tags. See [#2649][], [#2951][] (Thanks [@theojulienne][])
 * [FEATURE] Kubernetes: Add CPU and memory capacity reporting. See [#2935][] (Thanks [@markine][])
+* [FEATURE] Mongo: Add metrics for fsyncLocked-ness, replset votes and vote fraction. See [#2975][] (Thanks [@ebroder][])
 * [FEATURE] Spark: Support clusters provisioned using Apache Mesos. See [#2797][] (Thanks [@zachradtka][])
 * [IMPROVEMENT] Ceph: Handle `HEALTH_WARNING` status. See [#2929][] (Thanks [@ccocsas][])
 * [IMPROVEMENT] Consul: Remove warning when no whitelist is defined. See [#2955][]
 * [IMPROVEMENT] Consul: Support multiple instances. See [#2948][]
 * [IMPROVEMENT] Core: forwarder: Do not requeue all responses. See [#2840][]
+* [IMPROVEMENT] Core: collector: Catch exceptions raised by system checks. See [#2973][]
 * [IMPROVEMENT] Docker: Set `alert_type` to `error` for oom and kill events. See [#2866][]
 * [IMPROVEMENT] Docker: Set exec events' priority to low. See [#2960][]
+* [IMPROVEMENT] Elasticsearch: Add support for ES 5.x. See [#2989][] (Thanks [@ptinsley][] and [@alexef][])
+* [IMPROVEMENT] FluentD: Add collection timeout. See [#2978][] (Thanks [@mattrobenolt][])
 * [IMPROVEMENT] Kafka: Document specifying multiple Kafka / ZK nodes. See [#2956][] (Thanks [@jeffwidman][])
 * [IMPROVEMENT] Kafka: Upgrade `kazoo` dep to `2.2.1`. See [#2964][], [omnibus-software-84](https://github.com/DataDog/omnibus-software/pull/84)
 * [IMPROVEMENT] Kubernetes: Use the env var `KUBERNETES_SERVICE_HOST` if present. See [#2921][] (Thanks [@arohner][])
+* [IMPROVEMENT] Kubernetes: Add `namespace` tag to `kubernetes.pods.running`. See [#2931][]
 * [IMPROVEMENT] Kubernetes: Add some tags to events. See [#2926][]
 * [IMPROVEMENT] Marathon: Count running/pending deployments. See [#2788][] (Thanks [@bradhe][])
 * [IMPROVEMENT] Packaging: Upgrade `psutil` to 4.4.1. See [#2957][], [omnibus-software-82](https://github.com/DataDog/omnibus-software/pull/82)
@@ -96,6 +105,7 @@ custom checks that rely on the former versions please make necessary amends:
 * [BUGFIX] Mongo: Fix case when check would send password in clear. See [#2940][]
 * [BUGFIX] Mongo: Fix hostname detection when username/password are part of the uri. See [#2894][] (Thanks [@ibwhite][])
 * [BUGFIX] MySQL: Improve innodb engine status check on RDS Aurora. See [#2971][] (Thanks [@scottgeary][])
+* [BUGFIX] Openstack: Add missing SSL `verify` param to 2 `requests` calls. See [#2877][] (Thanks [@jcejohnson][])
 
 # 5.9.1 / 09-30-2016
 **Linux, Docker and Source Install**
@@ -3579,9 +3589,11 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2858]: https://github.com/DataDog/dd-agent/issues/2858
 [#2866]: https://github.com/DataDog/dd-agent/issues/2866
 [#2873]: https://github.com/DataDog/dd-agent/issues/2873
+[#2877]: https://github.com/DataDog/dd-agent/issues/2877
 [#2879]: https://github.com/DataDog/dd-agent/issues/2879
 [#2885]: https://github.com/DataDog/dd-agent/issues/2885
 [#2887]: https://github.com/DataDog/dd-agent/issues/2887
+[#2890]: https://github.com/DataDog/dd-agent/issues/2890
 [#2894]: https://github.com/DataDog/dd-agent/issues/2894
 [#2897]: https://github.com/DataDog/dd-agent/issues/2897
 [#2900]: https://github.com/DataDog/dd-agent/issues/2900
@@ -3592,6 +3604,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2926]: https://github.com/DataDog/dd-agent/issues/2926
 [#2928]: https://github.com/DataDog/dd-agent/issues/2928
 [#2929]: https://github.com/DataDog/dd-agent/issues/2929
+[#2931]: https://github.com/DataDog/dd-agent/issues/2931
 [#2934]: https://github.com/DataDog/dd-agent/issues/2934
 [#2935]: https://github.com/DataDog/dd-agent/issues/2935
 [#2937]: https://github.com/DataDog/dd-agent/issues/2937
@@ -3614,6 +3627,10 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2970]: https://github.com/DataDog/dd-agent/issues/2970
 [#2971]: https://github.com/DataDog/dd-agent/issues/2971
 [#2972]: https://github.com/DataDog/dd-agent/issues/2972
+[#2973]: https://github.com/DataDog/dd-agent/issues/2973
+[#2975]: https://github.com/DataDog/dd-agent/issues/2975
+[#2978]: https://github.com/DataDog/dd-agent/issues/2978
+[#2989]: https://github.com/DataDog/dd-agent/issues/2989
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -3632,6 +3649,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@a20012251]: https://github.com/a20012251
 [@adriandoolittle]: https://github.com/adriandoolittle
 [@alaz]: https://github.com/alaz
+[@alexef]: https://github.com/alexef
 [@allixsenos]: https://github.com/allixsenos
 [@alz]: https://github.com/alz
 [@antifuchs]: https://github.com/antifuchs
@@ -3666,6 +3684,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@donalguy]: https://github.com/donalguy
 [@dougbarth]: https://github.com/dougbarth
 [@dspangen]: https://github.com/dspangen
+[@ebroder]: https://github.com/ebroder
 [@echohead]: https://github.com/echohead
 [@ejholmes]: https://github.com/ejholmes
 [@ensonik]: https://github.com/ensonik
@@ -3689,6 +3708,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@jamesandariese]: https://github.com/jamesandariese
 [@jamescrowley]: https://github.com/jamescrowley
 [@janeczku]: https://github.com/janeczku
+[@jcejohnson]: https://github.com/jcejohnson
 [@jeffwidman]: https://github.com/jeffwidman
 [@jgmchan]: https://github.com/jgmchan
 [@jkoppe]: https://github.com/jkoppe
@@ -3707,6 +3727,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@lowl4tency]: https://github.com/lowl4tency
 [@markine]: https://github.com/markine
 [@mastrolinux]: https://github.com/mastrolinux
+[@mattrobenolt]: https://github.com/mattrobenolt
 [@mausch]: https://github.com/mausch
 [@mcclurmc]: https://github.com/mcclurmc
 [@mdelaney]: https://github.com/mdelaney
@@ -3739,6 +3760,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@pfmooney]: https://github.com/pfmooney
 [@pidah]: https://github.com/pidah
 [@polynomial]: https://github.com/polynomial
+[@ptinsley]: https://github.com/ptinsley
 [@rdxiang]: https://github.com/rdxiang
 [@rhwlo]: https://github.com/rhwlo
 [@ricky26]: https://github.com/ricky26
