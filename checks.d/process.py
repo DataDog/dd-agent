@@ -332,8 +332,7 @@ class ProcessCheck(AgentCheck):
         elif pid_file is not None:
             with open(pid_file, 'r') as file_pid:
                 pid_line = file_pid.readline().strip()
-                pids = set([psutil.Process(int(pid_line[-1])).pid])
-            file_pid.close()
+                pids = set([psutil.Process(int(pid_line)).pid])
         else:
             raise ValueError('The "search_string" or "pid" options are required for process identification')
 
