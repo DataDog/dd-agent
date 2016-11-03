@@ -40,7 +40,7 @@ class KubeUtil:
     NAMESPACE_LABEL = "io.kubernetes.pod.namespace"
 
     def __init__(self, instance=None):
-        self.dockerutil = DockerUtil()
+        self.docker_util = DockerUtil()
         if instance is None:
             try:
                 config_file_path = get_conf_path(KUBERNETES_CHECK_NAME)
@@ -56,7 +56,7 @@ class KubeUtil:
                 instance = {}
 
         self.method = instance.get('method', KubeUtil.DEFAULT_METHOD)
-        self.host = instance.get("host") or self.dockerutil.get_hostname()
+        self.host = instance.get("host") or self.docker_util.get_hostname()
         self._node_ip = self._node_name = None  # lazy evaluation
         self.host_name = os.environ.get('HOSTNAME')
 
@@ -225,7 +225,7 @@ class KubeUtil:
         """
         Because it is a pain to call it from the kubernetes check otherwise.
         """
-        return self.dockerutil.are_tags_filtered(tags)
+        return self.docker_util.are_tags_filtered(tags)
 
     @classmethod
     def get_auth_token(cls):

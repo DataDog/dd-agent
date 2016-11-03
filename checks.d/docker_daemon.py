@@ -142,14 +142,7 @@ class DockerDaemon(AgentCheck):
         try:
             instance = self.instances[0]
 
-            # if service discovery is enabled dockerutil will need a reference to the config store
-            if self._service_discovery:
-                self.docker_util = DockerUtil(
-                    agentConfig=self.agentConfig,
-                    config_store=get_config_store(self.agentConfig)
-                )
-            else:
-                self.docker_util = DockerUtil()
+            self.docker_util = DockerUtil()
 
             self.docker_client = self.docker_util.client
             self.docker_gateway = DockerUtil.get_gateway()
