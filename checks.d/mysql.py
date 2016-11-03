@@ -325,7 +325,7 @@ class MySql(AgentCheck):
         self.mysql_sock = instance.get('sock', '')
         self.defaults_file = instance.get('defaults_file', '')
         user = instance.get('user', '')
-        password = instance.get('pass', '')
+        password = str(instance.get('pass', ''))
         tags = instance.get('tags', [])
         options = instance.get('options', {})
         queries = instance.get('queries', [])
