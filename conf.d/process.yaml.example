@@ -31,29 +31,28 @@ instances:
 #
 # Examples:
 #
-
-  - name: ssh
-    search_string: ['ssh', 'sshd']
-    # tags:
-    #   - env:staging
-    #   - cluster:big-data
-    thresholds:
-      # critical if no sshd or more than 8 sshd are running
-      critical: [1, 7]
-      # warning if 1, 2, 6, 7 sshd processes are running
-      warning: [3, 5]
-      # ok if 3, 4, 5 processes are running
-
-  - name: postgres
-    search_string: ['postgres']
-    ignore_denied_access: True
-
-  - name: nodeserver
-    search_string: ['node server.js']
-
-  - name: pid_process
-    pid: 1278
-    # Do not use search_string when searching by pid or multiple processes will be grabbed
-
-  - name: pid_file
-    pid_file: /var/run/sshd.pid
+#  - name: ssh
+#    search_string: ['ssh', 'sshd']
+#    tags:
+#      - env:staging
+#      - cluster:big-data
+#    thresholds:
+#      critical if no sshd or more than 8 sshd are running
+#      critical: [1, 7]
+#      warning if 1, 2, 6, 7 sshd processes are running
+#      warning: [3, 5]
+#      ok if 3, 4, 5 processes are running
+#
+#  - name: postgres
+#    search_string: ['postgres']
+#    ignore_denied_access: True
+#
+#  - name: nodeserver
+#    search_string: ['node server.js']
+#
+#  - name: pid_process
+#    pid: 1278
+#    Do not use search_string when searching by pid or multiple processes will be grabbed
+#
+#  - name: pid_file
+#    pid_file: /var/run/sshd.pid
