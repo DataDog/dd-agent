@@ -20,6 +20,10 @@ pycurl==7.19.5.1
 # checks.d/system_core.py
 psutil==4.4.1
 
+# checks.d/kubernetes_state.py -> used in utils/prometheus/*
+# Pure python module for dev purposes, the Agent is shipped with the optimized version built with --cpp_implementation
+protobuf==3.1.0
+
 # checks.d/snmp.py
 # Require a compiler because pycrypto is a dep
 pysnmp-mibs==0.1.4
