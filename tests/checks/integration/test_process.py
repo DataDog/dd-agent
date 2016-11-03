@@ -31,6 +31,9 @@ except Exception:
 
 
 class MockProcess(object):
+    def __init__(self):
+        self.pid = None
+
     def is_running(self):
         return True
 
@@ -122,6 +125,20 @@ class ProcessCheckTest(AgentCheckTest):
                     'critical': [2, 4],
                     'warning': [1, 5]
                 }
+            },
+            'mocked_processes': set([1])
+        },
+        {
+            'config': {
+                'name': 'test_8',
+                'pid': 1,
+            },
+            'mocked_processes': set([1])
+        },
+        {
+            'config': {
+                'name': 'test_9',
+                'pid_file': 'tests/checks/fixtures/process/test_pid_file',
             },
             'mocked_processes': set([1])
         }
@@ -234,7 +251,8 @@ class ProcessCheckTest(AgentCheckTest):
 
     def mock_find_pids(self, name, search_string, exact_match=True, ignore_ad=True,
                        refresh_ad_cache=True):
-        idx = search_string[0].split('_')[1]
+        if search_string is not None:
+            idx = search_string[0].split('_')[1]
         return self.CONFIG_STUBS[int(idx)]['mocked_processes']
 
     def mock_psutil_wrapper(self, process, method, accessors, *args, **kwargs):
@@ -318,7 +336,6 @@ class ProcessCheckTest(AgentCheckTest):
                 self.assertServiceCheckWarning('process.up', count=1, tags=expected_tags)
             else:
                 self.assertServiceCheckOK('process.up', count=1, tags=expected_tags)
-
 
         # Raises when coverage < 100%
         self.coverage_report()

@@ -11,11 +11,14 @@ instances:
 # The `system.processes.cpu.pct` metric sent by this check is only accurate for processes that live
 # for more than 30 seconds. Do not expect its value to be accurate for shorter-lived processes.
 #
+#  One and only one of search_string, pid or pid_file must be specified
 #  - name: (required) STRING. It will be used to uniquely identify your metrics as they will be tagged with this name
-#    search_string: (required) LIST OF STRINGS. If one of the elements in the list matches,
-#                    return the counter of all the processes that contain the string
+#    search_string: LIST OF STRINGS. If one of the elements in the list matches,
+#                   return the counter of all the processes that contain the string
+#    pid: STRING. A Process id.
+#    pid_file: STRING. A Pid file.
 #    exact_match: (optional) Boolean. Default to True, if you want to look for an arbitrary
-#                 string, use exact_match: False
+#                 string only use search_string, use exact_match: False
 #    ignore_denied_access: (optional) Boolean. Default to True, when getting the number of files descriptors, dd-agent user might
 #    get a denied access. Set this to true to not issue a warning if that happens.
 #    thresholds: (optional) Two ranges: critical and warning
@@ -25,7 +28,6 @@ instances:
 #                   above the second one, the process check will return CRITICAL.
 #     In this example, process check will return OK for 3 to 5 process. WARNING for 1, 2, 6, 7 processes and Critical below 1 or above 7.
 #     CRITICAL is always dominant in case of overlapping.
-#
 #
 # Examples:
 #
@@ -50,5 +52,8 @@ instances:
     search_string: ['node server.js']
 
   - name: pid_process
-    pid: 1278 
+    pid: 1278
     # Do not use search_string when searching by pid or multiple processes will be grabbed
+
+  - name: pid_file
+    pid_file: /var/run/sshd.pid
