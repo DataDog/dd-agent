@@ -9,10 +9,9 @@ https://github.com/DataDog/dd-agent/compare/5.9.1...5.10.0
 
 ### Kubernetes: metrics from the Kube State API
 
-The new `kubernetes_state` check pulls metrics from the Kubernetes State API. See [#2890][] for more details.
+The new `kubernetes_state` check pulls metrics from the Kubernetes State API.
 
-### Service discovery support in JMXFetch
-_TODO_
+See [#2890][], [#2984][] and [omnibus-software-72](https://github.com/DataDog/omnibus-software/pull/85) for more details.
 
 ### RPM package for SUSE
 The Agent is now available as an RPM package for SUSE. Please follow the instructions on our
@@ -55,6 +54,7 @@ custom checks that rely on the former versions please make necessary amends:
 * Openstack
 * PGBouncer
 * Postgres
+* Process
 * Redis
 * Spark
 * SSH check
@@ -66,6 +66,7 @@ custom checks that rely on the former versions please make necessary amends:
 * [FEATURE] Haproxy: Allow per-instance custom tags. See [#2649][], [#2951][] (Thanks [@theojulienne][])
 * [FEATURE] Kubernetes: Add CPU and memory capacity reporting. See [#2935][] (Thanks [@markine][])
 * [FEATURE] Mongo: Add metrics for fsyncLocked-ness, replset votes and vote fraction. See [#2975][] (Thanks [@ebroder][])
+* [FEATURE] Process: Support pid file. See [#2607][] (Thanks [@n0ts][])
 * [FEATURE] Spark: Support clusters provisioned using Apache Mesos. See [#2797][] (Thanks [@zachradtka][])
 * [IMPROVEMENT] Ceph: Handle `HEALTH_WARNING` status. See [#2929][] (Thanks [@ccocsas][])
 * [IMPROVEMENT] Consul: Remove warning when no whitelist is defined. See [#2955][]
@@ -74,6 +75,7 @@ custom checks that rely on the former versions please make necessary amends:
 * [IMPROVEMENT] Core: collector: Catch exceptions raised by system checks. See [#2973][]
 * [IMPROVEMENT] Docker: Set `alert_type` to `error` for oom and kill events. See [#2866][]
 * [IMPROVEMENT] Docker: Set exec events' priority to low. See [#2960][]
+* [IMPROVEMENT] Docker/Kubernetes: Filter containers consistently. See [#2836][]
 * [IMPROVEMENT] Elasticsearch: Add support for ES 5.x. See [#2989][] (Thanks [@ptinsley][] and [@alexef][])
 * [IMPROVEMENT] FluentD: Add collection timeout. See [#2978][] (Thanks [@mattrobenolt][])
 * [IMPROVEMENT] Kafka: Document specifying multiple Kafka / ZK nodes. See [#2956][] (Thanks [@jeffwidman][])
@@ -3500,6 +3502,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2600]: https://github.com/DataDog/dd-agent/issues/2600
 [#2603]: https://github.com/DataDog/dd-agent/issues/2603
 [#2605]: https://github.com/DataDog/dd-agent/issues/2605
+[#2607]: https://github.com/DataDog/dd-agent/issues/2607
 [#2608]: https://github.com/DataDog/dd-agent/issues/2608
 [#2609]: https://github.com/DataDog/dd-agent/issues/2609
 [#2610]: https://github.com/DataDog/dd-agent/issues/2610
@@ -3578,6 +3581,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2826]: https://github.com/DataDog/dd-agent/issues/2826
 [#2829]: https://github.com/DataDog/dd-agent/issues/2829
 [#2833]: https://github.com/DataDog/dd-agent/issues/2833
+[#2836]: https://github.com/DataDog/dd-agent/issues/2836
 [#2840]: https://github.com/DataDog/dd-agent/issues/2840
 [#2843]: https://github.com/DataDog/dd-agent/issues/2843
 [#2844]: https://github.com/DataDog/dd-agent/issues/2844
@@ -3630,6 +3634,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2973]: https://github.com/DataDog/dd-agent/issues/2973
 [#2975]: https://github.com/DataDog/dd-agent/issues/2975
 [#2978]: https://github.com/DataDog/dd-agent/issues/2978
+[#2984]: https://github.com/DataDog/dd-agent/issues/2984
 [#2989]: https://github.com/DataDog/dd-agent/issues/2989
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
