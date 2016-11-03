@@ -109,6 +109,7 @@ custom checks that rely on the former versions please make necessary amends:
 * [BUGFIX] MySQL: Improve innodb engine status check on RDS Aurora. See [#2971][] (Thanks [@scottgeary][])
 * [BUGFIX] MySQL: Cast password to string to avoid issues with number-only passwords. See [#2983][] (Thanks [@michalyao][])
 * [BUGFIX] Openstack: Add missing SSL `verify` param to 2 `requests` calls. See [#2877][] (Thanks [@jcejohnson][])
+* [BUGFIX] Windows packaging: Terminate `agent-manager.exe` on uninstall/upgrade. See [#2982][]
 
 # 5.9.1 / 09-30-2016
 **Linux, Docker and Source Install**
@@ -3635,6 +3636,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2973]: https://github.com/DataDog/dd-agent/issues/2973
 [#2975]: https://github.com/DataDog/dd-agent/issues/2975
 [#2978]: https://github.com/DataDog/dd-agent/issues/2978
+[#2982]: https://github.com/DataDog/dd-agent/issues/2982
 [#2983]: https://github.com/DataDog/dd-agent/issues/2983
 [#2984]: https://github.com/DataDog/dd-agent/issues/2984
 [#2989]: https://github.com/DataDog/dd-agent/issues/2989
