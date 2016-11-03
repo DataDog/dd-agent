@@ -9,6 +9,17 @@ instances:
   - rabbitmq_api_url: http://localhost:15672/api/
     rabbitmq_user: guest
     rabbitmq_pass: guest
+    # The (optional) ssl_verify can be used to tell the check
+    # to skip the verification of the SSL certificate of the
+    # RabbitMQ management web endpoint.
+    # This is mostly useful when checking SSL connections signed with
+    # certificates that are not themselves signed by a public authority.
+    # When false, the check logs a warning in collector.log
+    # Defaults to true; set to false if you want to disable
+    # SSL certificate verification.
+    #
+    # ssl_verify: false
+
     # tag_families: true
     # Use the `nodes` or `nodes_regexes` parameters to specify the nodes you'd like to
     # collect metrics on (up to 100 nodes).
