@@ -221,6 +221,12 @@ class KubeUtil:
 
         return tags
 
+    def are_tags_filtered(self, tags):
+        """
+        Because it is a pain to call it from the kubernetes check otherwise.
+        """
+        return self.docker_util.are_tags_filtered(tags)
+
     @classmethod
     def get_auth_token(cls):
         """

@@ -135,6 +135,8 @@ class Kubernetes(AgentCheck):
         self.use_histogram = _is_affirmative(instance.get('use_histogram', DEFAULT_USE_HISTOGRAM))
         self.publish_rate = FUNC_MAP[RATE][self.use_histogram]
         self.publish_gauge = FUNC_MAP[GAUGE][self.use_histogram]
+        # initialized by _filter_containers
+        self._filtered_containers = set()
 
         pods_list = self.kubeutil.retrieve_pods_list()
 
@@ -223,6 +225,7 @@ class Kubernetes(AgentCheck):
         return tags
 
     def _update_container_metrics(self, instance, subcontainer, kube_labels):
+        """Publish metrics for a subcontainer and handle filtering on tags"""
         tags = list(instance.get('tags', []))  # add support for custom tags
 
         if len(subcontainer.get('aliases', [])) >= 1:
@@ -233,6 +236,10 @@ class Kubernetes(AgentCheck):
             container_name = subcontainer['name']
 
         tags.append('container_name:%s' % container_name)
+
+        container_image = subcontainer['spec'].get('image')
+        if container_image:
+            tags.append('container_image:%s' % container_image)
 
         try:
             cont_labels = subcontainer['spec']['labels']
@@ -253,6 +260,12 @@ class Kubernetes(AgentCheck):
             # Those are containers that are not part of a pod.
             # They are top aggregate views and don't have the previous metadata.
             tags.append("pod_name:no_pod")
+
+        # if the container should be filtered we return its tags without publishing its metrics
+        is_filtered = self.kubeutil.are_tags_filtered(tags)
+        if is_filtered:
+            self._filtered_containers.add(subcontainer['id'])
+            return tags
 
         stats = subcontainer['stats'][-1]  # take the latest
         self._publish_raw_metrics(NAMESPACE, stats, tags)
@@ -319,7 +332,13 @@ class Kubernetes(AgentCheck):
 
             for container in containers:
                 c_name = container.get('name')
-                _tags = container_tags.get(name2id.get(c_name), [])
+                c_id = name2id.get(c_name)
+
+                if c_id in self._filtered_containers:
+                    self.log.debug('Container {} is excluded'.format(c_name))
+                    continue
+
+                _tags = container_tags.get(c_id, [])
 
                 # limits
                 try:
