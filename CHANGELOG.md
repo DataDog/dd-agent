@@ -11,7 +11,7 @@ https://github.com/DataDog/dd-agent/compare/5.9.1...5.10.0
 
 The new `kubernetes_state` check pulls metrics from the Kubernetes State API.
 
-See [#2890][], [#2984][] and [omnibus-software-72](https://github.com/DataDog/omnibus-software/pull/85) for more details.
+See [#2890][], [#2984][] and [omnibus-software-85](https://github.com/DataDog/omnibus-software/pull/85) for more details.
 
 ### RPM package for SUSE
 The Agent is now available as an RPM package for SUSE. Please follow the instructions on our
@@ -107,6 +107,7 @@ custom checks that rely on the former versions please make necessary amends:
 * [BUGFIX] Mongo: Fix case when check would send password in clear. See [#2940][]
 * [BUGFIX] Mongo: Fix hostname detection when username/password are part of the uri. See [#2894][] (Thanks [@ibwhite][])
 * [BUGFIX] MySQL: Improve innodb engine status check on RDS Aurora. See [#2971][] (Thanks [@scottgeary][])
+* [BUGFIX] MySQL: Cast password to string to avoid issues with number-only passwords. See [#2983][] (Thanks [@michalyao][])
 * [BUGFIX] Openstack: Add missing SSL `verify` param to 2 `requests` calls. See [#2877][] (Thanks [@jcejohnson][])
 
 # 5.9.1 / 09-30-2016
@@ -3634,6 +3635,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2973]: https://github.com/DataDog/dd-agent/issues/2973
 [#2975]: https://github.com/DataDog/dd-agent/issues/2975
 [#2978]: https://github.com/DataDog/dd-agent/issues/2978
+[#2983]: https://github.com/DataDog/dd-agent/issues/2983
 [#2984]: https://github.com/DataDog/dd-agent/issues/2984
 [#2989]: https://github.com/DataDog/dd-agent/issues/2989
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
@@ -3737,6 +3739,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@mcclurmc]: https://github.com/mcclurmc
 [@mdelaney]: https://github.com/mdelaney
 [@mderomph-coolblue]: https://github.com/mderomph-coolblue
+[@michalyao]: https://github.com/michalyao
 [@micktwomey]: https://github.com/micktwomey
 [@mike-lerch]: https://github.com/mike-lerch
 [@mikekap]: https://github.com/mikekap
