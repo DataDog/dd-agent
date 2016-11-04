@@ -66,12 +66,14 @@ def translate_to_travis(checks)
 end
 
 # rubocop:disable Metrics/AbcSize
-# [15.39/15]....
+# rubocop:disable Metrics/MethodLength
 def can_skip?
   return false, [] unless travis_pr?
 
   modified_checks = []
-  git_output = `git diff-tree --no-commit-id --name-only -r #{ENV['TRAVIS_COMMIT']} #{ENV['TRAVIS_BRANCH']}`
+  puts "Comparing #{ENV['TRAVIS_PULL_REQUEST_SHA']} with #{ENV['TRAVIS_BRANCH']}"
+  git_output = `git diff --name-only #{ENV['TRAVIS_BRANCH']}...#{ENV['TRAVIS_PULL_REQUEST_SHA']}`
+  puts "Git diff: \n#{git_output}"
   git_output.each_line do |filename|
     filename.strip!
     if filename.start_with? 'checks.d'
@@ -88,6 +90,7 @@ def can_skip?
   [true, translate_to_travis(modified_checks)]
 end
 # rubocop:enable Metrics/AbcSize
+# rubocop:enable Metrics/MethodLength
 
 # helper class to wait for TCP/HTTP services to boot
 class Wait
