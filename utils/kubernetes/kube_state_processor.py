@@ -171,8 +171,8 @@ class KubeStateProcessor:
 
     def kube_node_spec_unschedulable(self, message, **kwargs):
         """ Whether a node can schedule new pods. """
-        metric_name = NAMESPACE + '.node.unschedulable'
-        statuses = ('available', 'unavailable')
+        metric_name = NAMESPACE + '.node.status'
+        statuses = ('schedulable', 'unschedulable')
         for metric in message.metric:
             tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
             status = statuses[int(metric.gauge.value)]  # value can be 0 or 1

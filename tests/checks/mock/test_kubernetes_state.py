@@ -67,7 +67,7 @@ class TestKubernetesState(AgentCheckTest):
         self.assertMetric(NAMESPACE + '.node.cpu_allocatable')
         self.assertMetric(NAMESPACE + '.node.memory_allocatable')
         self.assertMetric(NAMESPACE + '.node.pods_allocatable')
-        self.assertMetric(NAMESPACE + '.node.unschedulable')
+        self.assertMetric(NAMESPACE + '.node.status')
         self.assertMetric(NAMESPACE + '.deployment.replicas_available')
         self.assertMetric(NAMESPACE + '.deployment.replicas_unavailable')
         self.assertMetric(NAMESPACE + '.deployment.replicas_desired')
