@@ -35,34 +35,24 @@ class MarathonCheckTest(AgentCheckTest):
         def side_effect(url, timeout, auth):
             if "v2/apps" in url:
                 return Fixtures.read_json_file("apps.json")
-            else:
-                raise Exception("unknown url:" + url)
-
-        self.run_check(DEFAULT_CONFIG, mocks={"get_json": side_effect})
-        self.assertMetric('marathon.apps', value=1)
-
-        # deployment-related metrics aren't included by default.
-        self.assertTrue('marathon.deployments' not in getMetricNames(self.metrics))
-
-    def test_empty_responses(self):
-        def side_effect(url, timeout, auth):
-            if "v2/apps" in url:
-                return {"apps": []}
-            else:
-                raise Exception("unknown url:" + url)
-
-        self.run_check(DEFAULT_CONFIG, mocks={"get_json": side_effect})
-        self.assertMetric('marathon.apps', value=0)
-
-    def test_enabled_deployment_metrics(self):
-        def side_effect(url, timeout, auth):
-            if "v2/apps" in url:
-                return Fixtures.read_json_file("apps.json")
             elif "v2/deployments" in url:
                 return Fixtures.read_json_file("deployments.json")
             else:
                 raise Exception("unknown url:" + url)
 
-        self.run_check(DEPLOYMENT_METRICS_CONFIG, mocks={"get_json": side_effect})
+        self.run_check(DEFAULT_CONFIG, mocks={"get_json": side_effect})
         self.assertMetric('marathon.apps', value=1)
         self.assertMetric('marathon.deployments', value=1)
+
+
+    def test_empty_responses(self):
+        def side_effect(url, timeout, auth):
+            if "v2/apps" in url:
+                return {"apps": []}
+            elif "v2/deployments" in url:
+                return {"deployments": []}
+            else:
+                raise Exception("unknown url:" + url)
+
+        self.run_check(DEFAULT_CONFIG, mocks={"get_json": side_effect})
+        self.assertMetric('marathon.apps', value=0)
