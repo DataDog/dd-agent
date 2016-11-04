@@ -13,7 +13,8 @@ instances:
 #      - optional_tag2
 
 # Connect using a UNIX socket (host must begin with a /)
-# If `use_psycopg2` is enabled, use the directory of the UNIX socket (ex: `/run/postgresql/`)
+# If `use_psycopg2` is enabled, use the directory containing the UNIX socket (ex: `/run/postgresql/`)
+# otherwise, use the full path to the socket file (ex: `/run/postgresql/.s.PGSQL.5433`).
 #  - host: /run/postgresql/.s.PGSQL.5433
 #    dbname: db_name
 
