@@ -69,7 +69,7 @@ class PgBouncer(AgentCheck):
 
     def _get_service_checks_tags(self, host, port, database_url):
         if database_url:
-            parsed_url = urlparse.parse(database_url)
+            parsed_url = urlparse.urlparse(database_url)
             host = parsed_url.hostname
             port = parsed_url.port
 
