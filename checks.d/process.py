@@ -110,6 +110,7 @@ class ProcessCheck(AgentCheck):
 
         matching_pids = set()
 
+        self.log.debug("Finding matching processes")
         for proc in psutil.process_iter():
             # Skip access denied processes
             if not refresh_ad_cache and proc.pid in self.ad_cache:
@@ -128,6 +129,7 @@ class ProcessCheck(AgentCheck):
                         cmdline = proc.cmdline()
                         if string in ' '.join(cmdline):
                             found = True
+                            self.log.debug("%s matches %s", string, ' '.join(cmdline))
                 except psutil.NoSuchProcess:
                     self.log.warning('Process disappeared while scanning')
                 except psutil.AccessDenied as e:
@@ -143,6 +145,7 @@ class ProcessCheck(AgentCheck):
                     if found:
                         matching_pids.add(proc.pid)
                         break
+                    self.log.debug("%s does not match %s", string, ' '.join(proc.cmdline()))
 
         self.pid_cache[name] = matching_pids
         self.last_pid_cache_ts[name] = time.time()
