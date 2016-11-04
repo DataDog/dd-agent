@@ -272,12 +272,12 @@ class TestKubeStateProcessor(unittest.TestCase):
         self.processor.kube_node_spec_unschedulable(msg)
 
         expected = [
-            (NAMESPACE + '.node.unschedulable', 1,
-             ['node:gke-cluster-massi-agent59-default-pool-6087cc76-9cfa', 'status:available']),
-            (NAMESPACE + '.node.unschedulable', 1,
-             ['node:gke-cluster-massi-agent59-default-pool-6087cc76-aah4', 'status:available']),
-            (NAMESPACE + '.node.unschedulable', 1,
-             ['node:gke-cluster-massi-agent59-default-pool-6087cc76-fgnk', 'status:available']),
+            (NAMESPACE + '.node.status', 1,
+             ['node:gke-cluster-massi-agent59-default-pool-6087cc76-9cfa', 'status:schedulable']),
+            (NAMESPACE + '.node.status', 1,
+             ['node:gke-cluster-massi-agent59-default-pool-6087cc76-aah4', 'status:schedulable']),
+            (NAMESPACE + '.node.status', 1,
+             ['node:gke-cluster-massi-agent59-default-pool-6087cc76-fgnk', 'status:schedulable']),
         ]
 
         calls = self.check.gauge.mock_calls
