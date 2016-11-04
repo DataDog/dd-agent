@@ -33,7 +33,7 @@ DEFAULT_VERSION = 'auto'
 CHECK_NAME = 'docker_daemon'
 CONFIG_RELOAD_STATUS = ['start', 'die', 'stop', 'kill']  # used to trigger service discovery
 
-DEFAULT_CONTAINER_EXCLUDE = ["container_image:gcr.io/google_containers/pause.*"]
+DEFAULT_CONTAINER_EXCLUDE = ["docker_image:gcr.io/google_containers/pause.*"]
 
 log = logging.getLogger(__name__)
 
