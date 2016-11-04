@@ -55,6 +55,7 @@ custom checks that rely on the former versions please make necessary amends:
 * PGBouncer
 * Postgres
 * Process
+* RabbitMQ
 * Redis
 * Spark
 * SSH check
@@ -88,6 +89,7 @@ custom checks that rely on the former versions please make necessary amends:
 * [IMPROVEMENT] Packaging: Upgrade version of `datadogpy` shipped with Linux packages. See [omnibus-software-80](https://github.com/DataDog/omnibus-software/pull/80)
 * [IMPROVEMENT] PGBouncer: Support SSL connections to PGBouncer. See [#2885][], [#2967][] (Thanks [@dblackdblack][])
 * [IMPROVEMENT] Postgres: Allow UNIX socket path as `host` config value. See [#2734][], [#2968][] (Thanks [@DylanFrese][])
+* [IMPROVEMENT] RabbitMQ: Add option to skip SSL verification. See [#2991][] (Thanks [@iancward][])
 * [IMPROVEMENT] Redis: Fix tags on `can_connect` service check. See [#2803][] (Thanks [@gphat][])
 * [IMPROVEMENT] Redis: Enable monitoring of SSL-ified redis servers. See [#2674][] (Thanks [@dblackdblack][])
 * [IMPROVEMENT] SSH Check: Support ECDSA keys (<= 256bits). See [#2965][] (Thanks [@n0ts][])
@@ -3640,6 +3642,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2983]: https://github.com/DataDog/dd-agent/issues/2983
 [#2984]: https://github.com/DataDog/dd-agent/issues/2984
 [#2989]: https://github.com/DataDog/dd-agent/issues/2989
+[#2991]: https://github.com/DataDog/dd-agent/issues/2991
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -3708,6 +3711,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@handigarde]: https://github.com/handigarde
 [@hjkatz]: https://github.com/hjkatz
 [@host]: https://github.com/host
+[@iancward]: https://github.com/iancward
 [@ibwhite]: https://github.com/ibwhite
 [@igor47]: https://github.com/igor47
 [@igroenewold]: https://github.com/igroenewold
