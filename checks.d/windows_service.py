@@ -74,7 +74,10 @@ class WindowsService(WinWMICheck):
                 status = self.STATE_TO_VALUE.get(wmi_obj["state"], AgentCheck.UNKNOWN)
                 self.service_check("windows_service.state", status,
                                tags=tags + ['service:{0}'.format(sc_name)])
-
+                self.log.debug("Sending service check windows_service.state with status %d for service %s",
+                               status, sc_name)
             else:
                 self.service_check("windows_service.state", AgentCheck.CRITICAL,
                                tags=tags + ['service:{0}'.format(service)])
+                self.log.debug("Sending service check windows_service.state with status %d for service %s",
+                               AgentCheck.CRITICAL, service)
