@@ -626,15 +626,20 @@ class DockerDaemon(AgentCheck):
                     normal_prio_events.append((event, container_name))
 
             exec_event = self._create_dd_event(low_prio_events, image_name, container_tags, priority='Low')
-            events.append(exec_event)
+            if exec_event:
+                events.append(exec_event)
 
             normal_event = self._create_dd_event(normal_prio_events, image_name, container_tags, priority='Normal')
-            events.append(normal_event)
+            if normal_event:
+                events.append(normal_event)
 
         return events
 
     def _create_dd_event(self, events, image, c_tags, priority='Normal'):
         """Create the actual event to submit from a list of similar docker events"""
+        if not events:
+            return
+
         max_timestamp = 0
         status = defaultdict(int)
         status_change = []
