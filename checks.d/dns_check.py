@@ -28,6 +28,14 @@ class DNSCheck(NetworkCheck):
     DEFAULT_TIMEOUT = 5
 
     def __init__(self, name, init_config, agentConfig, instances):
+        # Now that the DNS check is a Network check, we must provide a `name` for each
+        # instance before calling NetworkCheck to make backwards compatible with old yaml.
+        for idx, inst in enumerate(instances):
+            try:
+                inst['name'] = inst['name']
+            except KeyError:
+                inst['name'] = 'dns-check-%s' % idx
+
         NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
 
         self.default_timeout = init_config.get('default_timeout', self.DEFAULT_TIMEOUT)
