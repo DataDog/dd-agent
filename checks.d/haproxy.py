@@ -10,6 +10,8 @@ import time
 
 # 3rd party
 import requests
+import requests_unixsocket
+requests_unixsocket.monkeypatch()
 
 # project
 from checks import AgentCheck

@@ -23,6 +23,7 @@ pyyaml==3.11
 # note: requests is also used in many checks
 # upgrade with caution
 requests==2.6.2
+requests-unixsocket==0.1.5
 # note: simplejson is used in many checks to inteface APIs
 simplejson==3.6.5
 supervisor==3.3.0

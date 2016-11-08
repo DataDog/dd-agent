@@ -1,5 +1,6 @@
 # stdlib
 import os
+import urllib
 
 # 3p
 from nose.plugins.attrib import attr
@@ -93,6 +94,14 @@ class HaproxyTest(AgentCheckTest):
         self.config_open = {
             'instances': [{
                 'url': 'http://localhost:3836/stats',
+                'collect_aggregates_only': False,
+            }]
+        }
+        self.unixsocket_path = os.path.join(os.environ['VOLATILE_DIR'], 'datadog-haproxy-stats.sock')
+        self.unixsocket_url = 'http+unix://{0}/stats'.format(urllib.quote(self.unixsocket_path, ''))
+        self.config_unixsocket = {
+            'instances': [{
+                'url': 'http+unix://{0}/stats'.format(os.environ['VOLATILE_DIR']),
                 'collect_aggregates_only': False,
             }]
         }
@@ -203,5 +212,16 @@ class HaproxyTest(AgentCheckTest):
 
         # This time, make sure the hostname is empty
         self.assertEquals(self.service_checks[0]['host_name'], '')
+
+        self.coverage_report()
+
+    def test_unixsocket_config(self):
+        self.run_check_twice(self.config_unixsocket)
+
+        shared_tag = ['instance_url:{0}'.format(self.unixsocket_url)]
+
+        self._test_frontend_metrics(shared_tag)
+        self._test_backend_metrics(shared_tag)
+        self._test_service_checks()
 
         self.coverage_report()
