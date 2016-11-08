@@ -53,7 +53,10 @@ class SDDockerBackend(AbstractSDBackend):
             try:
                 inspect = self.docker_client.inspect_container(id_)
             except (NullResource, NotFound):
-                inspect = {}
+                # if the container was removed we can't tell which check is concerned
+                # so we have to reload everything
+                self.reload_check_configs = True
+                return
 
             checks = self._get_checks_from_inspect(inspect)
             conf_reload_set.update(set(checks))
