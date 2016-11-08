@@ -19,6 +19,8 @@ import os
 import signal
 import sys
 import time
+import supervisor.xmlrpc
+import xmlrpclib
 from copy import copy
 
 # For pickle & PID files, see issue 293
@@ -32,10 +34,15 @@ from config import (
     get_parsed_args,
     get_system_stats,
     load_check_directory,
-    load_check
+    load_check,
+    generate_jmx_configs
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
+import rpc.service_discovery_pb2
+
+#3p
+import grpc
 
 # utils
 from util import Watchdog
@@ -50,12 +57,16 @@ from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.sd_backend import get_sd_backend
 
 # Constants
+from jmxfetch import JMX_CHECKS
 PID_NAME = "dd-agent"
 PID_DIR = None
 WATCHDOG_MULTIPLIER = 10
 RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 START_COMMANDS = ['start', 'restart', 'foreground']
 DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
+JMX_SUPERVISOR_ENTRY = 'datadog-agent:jmxfetch'
+JMX_GRACE_SECS = 2
+SERVICE_DISCOVERY_PREFIX = 'SD-'
 
 DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
@@ -81,6 +92,13 @@ class Agent(Daemon):
         # this flag can be set to True, False, or a list of checks (for partial reload)
         self.reload_configs_flag = False
         self.sd_backend = None
+        self.supervisor_proxy = xmlrpclib.ServerProxy(
+            'http://127.0.0.1',
+            transport=supervisor.xmlrpc.SupervisorTransport(
+                None, None, serverurl='unix:///opt/datadog-agent/run/datadog-supervisor.sock')
+        )
+        channel = grpc.insecure_channel('localhost:50051')
+        self.rpcstub = rpc.service_discovery_pb2.ServiceDiscoveryStub(channel)
 
     def _handle_sigterm(self, signum, frame):
         """Handles SIGTERM and SIGINT, which gracefully stops the agent."""
@@ -115,12 +133,42 @@ class Agent(Daemon):
                 check.stop()
 
             self._checksd = load_check_directory(self._agentConfig, hostname)
+            jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
         else:
             new_checksd = copy(self._checksd)
 
-            self.refresh_specific_checks(hostname, new_checksd, checks_to_reload)
+            jmx_checks = [check for check in checks_to_reload if check in JMX_CHECKS]
+            py_checks = set(checks_to_reload) - set(jmx_checks)
+            self.refresh_specific_checks(hostname, new_checksd, py_checks)
+            jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname, jmx_checks)
+
             # once the reload is done, replace existing checks with the new ones
             self._checksd = new_checksd
+
+        # restart jmx
+        if jmx_sd_configs:
+            # TODO jaime: set guards here this is unix specific.
+            jmx_state = self.supervisor_proxy.supervisor.getProcessInfo(JMX_SUPERVISOR_ENTRY)
+            log.debug("Current JMX check state: %s", jmx_state['statename'])
+            if jmx_state['statename'] in ['STOPPED', 'EXITED', 'FATAL'] and self._agentConfig.get('sd_jmx_enable'):
+                log.debug("Starting JMX...")
+                self.supervisor_proxy.supervisor.startProcess(JMX_SUPERVISOR_ENTRY)
+                time.sleep(JMX_GRACE_SECS)
+                # TODO jaime: we probably have to wait for the the process to come up...
+
+            for name, yaml in jmx_sd_configs.iteritems():
+                try:
+                    res = self.rpcstub.SetConfig(rpc.service_discovery_pb2.SDConfig(name="{}{}".format(
+                        SERVICE_DISCOVERY_PREFIX, name), config=yaml))
+                except Exception as e:
+                    log.exception("unable to submit YAML via RPC: %s", e)
+                else:
+                    if res.success:
+                        log.info("JMX SD Config submitted via RPC for %s successfully.", name)
+                    else:
+                        log.info("JMX SD Config submitted via RPC for %s failed. \
+                                 Perhaps overriden by file config or bad YAML.", name)
+
 
         # Logging
         num_checks = len(self._checksd['initialized_checks'])

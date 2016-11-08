@@ -124,6 +124,37 @@ def check_yaml(conf_path):
         else:
             return check_config
 
+def config_to_yaml(config):
+    '''
+    Convert a config dict to YAML
+    '''
+    assert 'init_config' in config, "No 'init_config' section found"
+    assert 'instances' in config, "No 'instances' section found"
+
+    valid_instances = True
+    if config['instances'] is None or not isinstance(config['instances'], list):
+        valid_instances = False
+    else:
+        yaml_output = yaml.safe_dump(config, default_flow_style=False)
+
+    if not valid_instances:
+        raise Exception('You need to have at least one instance defined in your config.')
+
+    return yaml_output
+
+def dump_yaml(path, config):
+    '''
+    Dump config dict to YAML file in path
+    '''
+    try:
+        yaml = config_to_yaml(config)
+    except Exception as e:
+        log.exception("Unable to convert config to YAML: %s", e)
+    else:
+        with open(path, 'w+') as f:
+            f.write(yaml)
+
+
 class Watchdog(object):
     """
     Simple signal-based watchdog. Restarts the process when:
