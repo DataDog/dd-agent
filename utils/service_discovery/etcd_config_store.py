@@ -49,7 +49,7 @@ class EtcdStore(AbstractConfigStore):
                 modified_indices = (res.modifiedIndex, ) + tuple(leaf.modifiedIndex for leaf in res.leaves)
                 return max(modified_indices)
             elif kwargs.get('all', False):
-                # we use it in _populate_identifier_to_checks
+                # we use it in _populate_identifier_to_tpls
                 return [(child.key, child.value) for child in res.children]
             else:
                 return res.value

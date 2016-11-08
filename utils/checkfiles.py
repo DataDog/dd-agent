@@ -75,11 +75,11 @@ def get_auto_conf(agentConfig, check_name):
     return auto_conf
 
 
-def get_auto_conf_images(agentConfig):
+def get_auto_conf_images(agentConfig, full_tpl=True):
     """Walk through the auto_config folder and build a dict of auto-configurable images."""
     from config import PathNotFound, get_auto_confd_path
     auto_conf_images = {
-        # image_name: check_name
+        # image_name: check_name or [check_name, init_tpl, instance_tpl]
     }
 
     try:
@@ -100,5 +100,10 @@ def get_auto_conf_images(agentConfig):
         # extract the supported image list
         images = auto_conf.get('docker_images', [])
         for image in images:
-            auto_conf_images[image] = check_name
+            if full_tpl:
+                init_tpl = auto_conf.get('init_config', None)
+                instance_tpl = auto_conf.get('instances', [])
+                auto_conf_images[image] = [check_name, init_tpl, instance_tpl]
+            else:
+                auto_conf_images[image] = check_name
     return auto_conf_images

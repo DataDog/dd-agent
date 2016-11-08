@@ -557,8 +557,8 @@ class TestServiceDiscovery(unittest.TestCase):
                 clear_singletons(self.auto_conf_agentConfig)
 
     @mock.patch.object(AbstractConfigStore, '_issue_read', side_effect=issue_read)
-    def test_read_config_from_store(self, issue_read):
-        """Test read_config_from_store"""
+    def test_retrieve_config_tpl(self, issue_read):
+        """Test retrieve_config_tpl"""
         valid_idents = [('nginx', 'nginx'), ('nginx:latest', 'nginx:latest'),
                         ('custom-nginx', 'custom-nginx'), ('custom-nginx:latest', 'custom-nginx'),
                         ('repo/custom-nginx:latest', 'custom-nginx'),
@@ -566,8 +566,8 @@ class TestServiceDiscovery(unittest.TestCase):
         invalid_idents = ['foo']
         config_store = get_config_store(self.auto_conf_agentConfig)
         for ident, expected_key in valid_idents:
-            tpl = config_store.read_config_from_store(ident)
+            tpl = config_store.retrieve_config_tpl(ident)
             # source is added after reading from the store
-            self.assertEquals(tpl, ('template',) + self.mock_tpls.get(expected_key))
+            self.assertEquals(tpl, self.mock_tpls.get(expected_key))
         for ident in invalid_idents:
-            self.assertEquals(config_store.read_config_from_store(ident), [])
+            self.assertEquals(config_store.retrieve_config_tpl(ident), [])
