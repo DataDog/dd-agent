@@ -114,3 +114,13 @@ class CheckEtcdTest(AgentCheckTest):
                                         tags=['url:http://localhost:4001/test/v2/stats/self'])
 
         self.coverage_report()
+
+    def test_closed_port(self):
+        self.assertRaises(Exception,
+                          lambda: self.run_check({"instances": [{"url": "http://localhost:9999"}]}))
+
+        self.assertServiceCheckCritical(self.check.SERVICE_CHECK_NAME,
+                                        count=1,
+                                        tags=['url:http://localhost:9999/v2/stats/self'])
+
+        self.coverage_report()

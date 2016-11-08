@@ -3,6 +3,8 @@
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
+import sys
+
 # 3rd party
 import requests
 
@@ -171,6 +173,11 @@ class Etcd(AgentCheck):
             # If there's a timeout
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                                message="Timeout when hitting %s" % url,
+                               tags=["url:{0}".format(url)])
+            raise
+        except:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                               message="Error hitting %s. Error: %s" % (url, sys.exc_info()[1]),
                                tags=["url:{0}".format(url)])
             raise
 
