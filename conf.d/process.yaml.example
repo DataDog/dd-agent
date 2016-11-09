@@ -5,6 +5,7 @@ init_config:
   # pid_cache_duration: 120
   #
   # used to override the default procfs path, e.g. for docker containers with the outside fs mounted at /host/proc
+  # DEPRECATED: please specify `procfs_path` globally in `datadog.conf` instead
   # procfs_path: /proc
 
 instances:
