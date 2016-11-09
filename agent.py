@@ -54,8 +54,6 @@ PID_NAME = "dd-agent"
 PID_DIR = None
 WATCHDOG_MULTIPLIER = 10
 RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
-START_COMMANDS = ['start', 'restart', 'foreground']
-DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
 
 DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
@@ -362,6 +360,7 @@ def main():
     autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
     in_developer_mode = agentConfig.get('developer_mode')
+
     COMMANDS_AGENT = [
         'start',
         'stop',
@@ -389,17 +388,13 @@ def main():
         sys.stderr.write("Unknown command: %s\n" % command)
         return 3
 
-    # Deprecation notice
-    if command not in DD_AGENT_COMMANDS:
-        # Will become an error message and exit after deprecation period
-        from utils.deprecations import deprecate_old_command_line_tools
-        deprecate_old_command_line_tools()
+    # TODO: actually kill the start/stop/restart/status command for 5.11
+    if command in ['start', 'stop', 'restart', 'status'] and not in_developer_mode:
+        logging.error('Please use supervisor to manage the agent')
+        return 1
 
     if command in COMMANDS_AGENT:
         agent = Agent(PidFile(PID_NAME, PID_DIR).get_path(), autorestart, in_developer_mode=in_developer_mode)
-
-    if command in START_COMMANDS:
-        log.info('Agent version %s' % get_version())
 
     if 'start' == command:
         log.info('Start daemon')
@@ -420,6 +415,7 @@ def main():
         return Agent.info(verbose=options.verbose)
 
     elif 'foreground' == command:
+        log.info('Agent version %s' % get_version())
         if autorestart:
             # Set-up the supervisor callbacks and fork it.
             logging.info('Running Agent with auto-restart ON')

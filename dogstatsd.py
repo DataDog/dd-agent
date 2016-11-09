@@ -544,10 +544,6 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
 
 def main(config_path=None):
     """ The main entry point for the unix version of dogstatsd. """
-    # Deprecation notice
-    from utils.deprecations import deprecate_old_command_line_tools
-    deprecate_old_command_line_tools()
-
     COMMANDS_START_DOGSTATSD = [
         'start',
         'stop',
@@ -560,10 +556,12 @@ def main(config_path=None):
                       dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
+    in_developer_mode = False
     if not args or args[0] in COMMANDS_START_DOGSTATSD:
         reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder, args=args)
         daemon = Dogstatsd(PidFile(PID_NAME, PID_DIR).get_path(), server, reporter,
                            cnf.get('autorestart', False))
+        in_developer_mode = cnf.get('developer_mode')
 
     # If no args were passed in, run the server in the foreground.
     if not args:
@@ -573,6 +571,11 @@ def main(config_path=None):
     # Otherwise, we're process the deamon command.
     else:
         command = args[0]
+
+        # TODO: actually kill the start/stop/restart/status command for 5.11
+        if command in ['start', 'stop', 'restart', 'status'] and not in_developer_mode:
+            logging.error('Please use supervisor to manage the agent')
+            return 1
 
         if command == 'start':
             daemon.start()
