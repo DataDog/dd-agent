@@ -62,7 +62,7 @@ fi
 
 # OS/Distro Detection
 # Try lsb_release, fallback with /etc/issue then uname command
-KNOWN_DISTRIBUTION="(Debian|Ubuntu|RedHat|CentOS|openSUSE|Amazon|Arista)"
+KNOWN_DISTRIBUTION="(Debian|Ubuntu|RedHat|CentOS|openSUSE|Amazon|Arista|SUSE)"
 DISTRIBUTION=$(lsb_release -d 2>/dev/null | grep -Eo $KNOWN_DISTRIBUTION  || grep -Eo $KNOWN_DISTRIBUTION /etc/issue 2>/dev/null || grep -Eo $KNOWN_DISTRIBUTION /etc/Eos-release 2>/dev/null || uname -s)
 
 if [ $DISTRIBUTION = "Darwin" ]; then
@@ -81,6 +81,8 @@ elif [ -f /etc/system-release -o "$DISTRIBUTION" == "Amazon" ]; then
 # Arista is based off of Fedora14/18 but do not have /etc/redhat-release
 elif [ -f /etc/Eos-release -o "$DISTRIBUTION" == "Arista" ]; then
     OS="RedHat"
+elif [ "$DISTRIBUTION" == "SUSE" ]; then
+    OS="SUSE"
 fi
 
 # Root user detection
@@ -158,6 +160,22 @@ If the cause is unclear, please contact Datadog support.
 "
     $sudo_cmd apt-get install -y --force-yes datadog-agent
     ERROR_MESSAGE=""
+elif [ $OS = "SUSE" ]; then
+  UNAME_M=$(uname -m)
+  if [ "$UNAME_M"  == "i686" -o "$UNAME_M"  == "i386" -o "$UNAME_M"  == "x86" ]; then
+      printf "\033[31mThe Datadog Agent installer is only available for 64 bit SUSE Enterprise machines.\033[0m\n"
+      exit;
+  fi
+
+  echo -e "\033[34m\n* Installing YUM Repository for Datadog\n\033[0m"
+  $sudo_cmd sh -c "echo -e '[datadog]\nname=datadog\nenabled=1\nbaseurl=https://yum.datadoghq.com/suse/rpm/x86_64\ntype=rpm-md\ngpgcheck=1\nrepo_gpgcheck=0\ngpgkey=https://yum.datadoghq.com/DATADOG_RPM_KEY.public' > /etc/zypp/repos.d/datadog.repo"
+
+  echo -e "\033[34m\n* Refreshing repositories\n\033[0m"
+  $sudo_cmd zypper --non-interactive refresh
+
+  echo -e "\033[34m\n* Installing Datadog Agent\n\033[0m"
+  $sudo_cmd zypper --non-interactive install datadog-agent
+
 else
     printf "\033[31mYour OS or distribution are not supported by this install script.
 Please follow the instructions on the Agent setup page:
