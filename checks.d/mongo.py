@@ -731,8 +731,16 @@ class MongoDb(AgentCheck):
         if status['ok'] == 0:
             raise Exception(status['errmsg'].__str__())
 
-        ops = db['$cmd.sys.inprog'].find_one()
-        status['fsyncLocked'] = 1 if ops.get('fsyncLock') else 0
+        if tuple(map(int, cli.server_info()['version'].split('.'))) > (3, 2, 0):
+            fsyncLock = False
+            ops = admindb.command('currentOp', True)
+            if 'fsyncLock' in ops:
+                fsyncLock = ops['fsyncLock']
+        else:
+            ops = db['$cmd.sys.inprog'].find_one()
+            fsyncLock = ops.get('fsyncLock')
+
+        status['fsyncLocked'] = 1 if fsyncLock else 0
 
         status['stats'] = db.command('dbstats')
         dbstats = {}
