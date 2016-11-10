@@ -42,6 +42,7 @@ def travis_pr?
   !ENV['TRAVIS'].nil? && ENV['TRAVIS_EVENT_TYPE'] == 'pull_request'
 end
 
+# Dict converting check.d name to Travis flavor names
 BAD_CITIZENS = {
   'couch' => 'couchdb',
   'disk' => 'system',
@@ -61,7 +62,8 @@ BAD_CITIZENS = {
 
 def translate_to_travis(checks)
   checks.map do |check_name|
-    BAD_CITIZENS.key? check_name ? BAD_CITIZENS[check_name] : check_name
+    check_name = BAD_CITIZENS[check_name] if BAD_CITIZENS.key? check_name
+    check_name
   end
 end
 
