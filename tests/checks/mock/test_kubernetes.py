@@ -48,6 +48,13 @@ METRICS = [
 ]
 
 
+def KubeUtil_fake_retrieve_json_auth(url, auth_token, timeout=10):
+    if url.endswith("/namespaces"):
+        return json.loads(Fixtures.read_file("namespaces.json", string_escape=False))
+    if url.endswith("/events"):
+        return json.loads(Fixtures.read_file("events.json", string_escape=False))
+    return {}
+
 class TestKubernetes(AgentCheckTest):
 
     CHECK_NAME = 'kubernetes'
@@ -295,7 +302,7 @@ class TestKubernetes(AgentCheckTest):
     @mock.patch('utils.kubernetes.KubeUtil.filter_pods_list',
                 side_effect=lambda x, y: x)
     @mock.patch('utils.kubernetes.KubeUtil.retrieve_json_auth',
-                side_effect=lambda x,y: json.loads(Fixtures.read_file("events.json", string_escape=False)))
+            side_effect=KubeUtil_fake_retrieve_json_auth)
     @mock.patch('utils.kubernetes.KubeUtil.retrieve_machine_info')
     @mock.patch('utils.kubernetes.KubeUtil.retrieve_metrics')
     @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list',
@@ -311,10 +318,58 @@ class TestKubernetes(AgentCheckTest):
         self.run_check(config, force_reload=True)
         self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=1, exact_match=False)
 
+        # with no namespaces, only catch event from 'default'
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=0, exact_match=False)
+
         # again, now the timestamp is set and the event is discarded b/c too old
         self.run_check(config)
         self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)
 
+    @mock.patch('utils.kubernetes.KubeUtil.get_node_info',
+                side_effect=lambda: ('Foo', 'Bar'))
+    @mock.patch('utils.kubernetes.KubeUtil.filter_pods_list')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_json_auth',
+            side_effect=KubeUtil_fake_retrieve_json_auth)
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_machine_info')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_metrics')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list')
+    def test_namespaced_events(self, *args):
+        # reset last event pulling time
+        KubeUtil().last_event_collection_ts = 0
+
+        # Verify that we are retro compatible with the old 'namespace' configuration key
+        config = {'instances': [{'host': 'bar', 'collect_events': True, 'namespace': 'test-namespace-1'}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=1, exact_match=False)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=1, exact_match=False)
+
+        # reset last event pulling time
+        KubeUtil().last_event_collection_ts = 0
+
+        # Using 'namespaces' list
+        config = {'instances': [{'host': 'bar', 'collect_events': True, 'namespaces': ['test-namespace-1', 'test-namespace-2']}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=1, exact_match=False)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)
+
+        # reset last event pulling time
+        KubeUtil().last_event_collection_ts = 0
+
+        # Using 'namespace_name_regexp' (since 'namespaces' is not set it should
+        # fallback to ['default'] and add any namespaces that matched with the regexp
+        config = {'instances': [{'host': 'bar', 'collect_events': True, 'namespace_name_regexp': 'test-namespace.*'}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=1, exact_match=False)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=1, exact_match=False)
+
+        # reset last event pulling time
+        KubeUtil().last_event_collection_ts = 0
+
+        # muting the 'default' namespace
+        config = {'instances': [{'host': 'bar', 'collect_events': True, 'namespaces': [], 'namespace_name_regexp': 'test-namespace.*'}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=1, exact_match=False)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)
 
 class TestKubeutil(unittest.TestCase):
     def setUp(self):
