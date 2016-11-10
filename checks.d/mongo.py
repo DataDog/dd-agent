@@ -430,12 +430,6 @@ class MongoDb(AgentCheck):
         else:
             return 'UNKNOWN'
 
-    def get_version(self, client):
-        """
-        Return MongoDB version.
-        """
-        return tuple(map(int, client.server_info()['version'].split('.')))
-
     def _report_replica_set_state(self, state, clean_server_name, replset_name, agentConfig):
         """
         Report the member's replica set state
@@ -737,11 +731,7 @@ class MongoDb(AgentCheck):
         if status['ok'] == 0:
             raise Exception(status['errmsg'].__str__())
 
-        if self.get_version(cli) >= (3, 2, 0):
-            ops = admindb.command('currentOp', True)
-        else:
-            ops = db['$cmd.sys.inprog'].find_one()
-
+        ops = db.current_op()
         status['fsyncLocked'] = 1 if ops.get('fsyncLock') else 0
 
         status['stats'] = db.command('dbstats')
