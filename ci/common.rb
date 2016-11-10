@@ -239,12 +239,16 @@ namespace :ci do
       flavor = attr[:flavor]
       # flavor.scope.path is ci:cassandra
       # flavor.scope.path[3..-1] is cassandra
-      check_name = flavor.scope.path[3..-1]
+      travis_flavor = flavor.scope.path[3..-1]
 
       can_skip, checks = can_skip?
-      can_skip &&= !%w(default core_integration checks_mock).include?(check_name)
-      if can_skip && !checks.include?(check_name)
-        puts "Skipping #{check_name} tests, not affected by the change".yellow
+      can_skip &&= !%w(default core_integration checks_mock).include?(travis_flavor)
+
+      puts "Travis flavor: #{travis_flavor}"
+      puts "Detected modified checks: #{checks.join(' | ')}"
+
+      if can_skip && !checks.include?(travis_flavor)
+        puts "Skipping #{travis_flavor} tests, not affected by the change".yellow
         next
       end
       exception = nil
