@@ -79,6 +79,7 @@ class TransactionManager(object):
         self._THROTTLING_DELAY = throttling_delay
         self._MAX_PARALLELISM = max_parallelism
         self._MAX_ENDPOINT_ERRORS = max_endpoint_errors
+        self._MAX_FLUSH_DURATION = timedelta(seconds=10)
 
         self._flush_without_ioloop = False # useful for tests
 
@@ -197,6 +198,12 @@ class TransactionManager(object):
     def flush_next(self):
 
         if self._trs_to_flush is not None and len(self._trs_to_flush) > 0:
+            # Running for too long?
+            if datetime.utcnow() - self._flush_time >= self._MAX_FLUSH_DURATION:
+                log.warn('Flush %s is taking more than 10s, stopping it', self._flush_count)
+                self._trs_to_flush = []
+                return self.flush_next()
+
             td = self._last_flush + self._THROTTLING_DELAY - datetime.utcnow()
             delay = td.total_seconds()
 
