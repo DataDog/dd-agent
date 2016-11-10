@@ -283,8 +283,6 @@ class AgentTransaction(Transaction):
         else:
             self._trManager.tr_success(self)
 
-        self._trManager.flush_next()
-
 
 class MetricTransaction(AgentTransaction):
     _type = "metrics"
