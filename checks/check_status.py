@@ -31,6 +31,7 @@ from utils.ntp import NTPUtil
 from utils.pidfile import PidFile
 from utils.platform import Platform
 from utils.profile import pretty_statistics
+from utils.proxy import get_proxy
 
 
 STATUS_OK = 'OK'
@@ -116,10 +117,14 @@ def get_ntp_info():
         ntp_styles = []
     return ntp_offset, ntp_styles
 
-def validate_api_key(api_key):
+def validate_api_key(config):
     try:
+        proxy = get_proxy(agentConfig=config)
+        request_proxy = {}
+        if proxy:
+            request_proxy = {'https': "http://{user}:{password}@{host}:{port}".format(**proxy)}
         r = requests.get("https://app.datadoghq.com/api/v1/validate",
-            params={'api_key': api_key}, timeout=3)
+            params={'api_key': config.get('api_key')}, proxies=request_proxy, timeout=3)
 
         if r.status_code == 403:
             return "API Key is invalid"
@@ -800,7 +805,7 @@ class ForwarderStatus(AgentStatus):
             "Transactions received: %s" % self.transactions_received,
             "Transactions flushed: %s" % self.transactions_flushed,
             "Transactions rejected: %s" % self.transactions_rejected,
-            "API Key Status: %s" % validate_api_key(get_config().get('api_key')),
+            "API Key Status: %s" % validate_api_key(config=get_config()),
             "",
         ]
 
