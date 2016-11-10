@@ -311,7 +311,8 @@ class ProcessCheck(AgentCheck):
 
         if self._conflicting_procfs:
             self.warning('The `procfs_path` defined in `process.yaml` is different from the one defined in '
-                         '`datadog.conf`. This is currently not supported by the Agent')
+                         '`datadog.conf`. This is currently not supported by the Agent. Defaulting to the '
+                         'value defined in `datadog.conf`: {}'.format(psutil.PROCFS_PATH))
         elif self._deprecated_init_procfs:
             self.warning('DEPRECATION NOTICE: Specifying `procfs_path` in `process.yaml` is deprecated. '
                          'Please specify it in `datadog.conf` instead')
