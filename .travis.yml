@@ -24,7 +24,6 @@ env:
     - NOSE_FILTER="not windows"
     - INTEGRATIONS_DIR=$HOME/embedded
     - PIP_CACHE=$HOME/.cache/pip
-    - SKIP_CLEANUP=true
     - VOLATILE_DIR=/tmp
     - DD_CASHER_DIR=/tmp/casher
   matrix:
