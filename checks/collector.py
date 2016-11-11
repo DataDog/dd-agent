@@ -292,27 +292,30 @@ class Collector(object):
         service_checks = payload['service_checks']
 
         # Run the system checks. Checks will depend on the OS
-        try:
-            if Platform.is_windows():
-                # Win32 system checks
-                    metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
-                    metrics.extend(self._win32_system_checks['cpu'].check(self.agentConfig))
-                    metrics.extend(self._win32_system_checks['network'].check(self.agentConfig))
-                    metrics.extend(self._win32_system_checks['io'].check(self.agentConfig))
-                    metrics.extend(self._win32_system_checks['proc'].check(self.agentConfig))
-                    metrics.extend(self._win32_system_checks['system'].check(self.agentConfig))
-            else:
-                # Unix system checks
-                sys_checks = self._unix_system_checks
+        if Platform.is_windows():
+            # Win32 system checks
+            for check_name in ['memory', 'cpu', 'network', 'io', 'proc', 'system']:
+                try:
+                    metrics.extend(self._win32_system_checks[check_name].check(self.agentConfig))
+                except Exception:
+                    log.exception('Unable to get %s metrics', check_name)
+        else:
+            # Unix system checks
+            sys_checks = self._unix_system_checks
 
-                load = sys_checks['load'].check(self.agentConfig)
-                payload.update(load)
+            for check_name in ['load', 'system', 'cpu']:
+                try:
+                    result_check = sys_checks[check_name].check(self.agentConfig)
+                    if result_check:
+                        payload.update(result_check)
+                except Exception:
+                    log.exception('Unable to get %s metrics', check_name)
 
-                system = sys_checks['system'].check(self.agentConfig)
-                payload.update(system)
-
+            try:
                 memory = sys_checks['memory'].check(self.agentConfig)
-
+            except Exception:
+                    log.exception('Unable to get memory metrics')
+            else:
                 if memory:
                     memstats = {
                         'memPhysUsed': memory.get('physUsed'),
@@ -333,18 +336,20 @@ class Collector(object):
                     }
                     payload.update(memstats)
 
+            try:
                 ioStats = sys_checks['io'].check(self.agentConfig)
+            except Exception:
+                    log.exception('Unable to get io metrics')
+            else:
                 if ioStats:
                     payload['ioStats'] = ioStats
 
+            try:
                 processes = sys_checks['processes'].check(self.agentConfig)
+            except Exception:
+                    log.exception('Unable to get processes metrics')
+            else:
                 payload.update({'processes': processes})
-
-                cpuStats = sys_checks['cpu'].check(self.agentConfig)
-                if cpuStats:
-                    payload.update(cpuStats)
-        except Exception:
-            log.exception('Unable to fetch some system metrics.')
 
         # Run old-style checks
         if self._ganglia is not None:
