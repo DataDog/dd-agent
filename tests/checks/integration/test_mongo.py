@@ -48,7 +48,7 @@ class TestMongoUnit(AgentCheckTest):
         DEFAULT_METRICS = {
             m_name: m_type for d in [
                 self.check.BASE_METRICS, self.check.DURABILITY_METRICS,
-                self.check.LOCKS_METRICS, self.check.WIREDTIGER_METRICS,]
+                self.check.LOCKS_METRICS, self.check.WIREDTIGER_METRICS, ]
             for m_name, m_type in d.iteritems()
         }
 

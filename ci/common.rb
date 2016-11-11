@@ -77,10 +77,12 @@ def can_skip?
   puts "Git diff: \n#{git_output}"
   git_output.each_line do |filename|
     filename.strip!
+    puts filename
     if filename.start_with? 'checks.d'
       check_name = File.basename(filename, '.py')
     elsif filename.start_with?('tests/checks/integration', 'tests/checks/mock')
-      check_name = File.basename(filename, '.py').slice 'test_'
+      # 5 is test_
+      check_name = File.basename(filename, '.py').slice(5, 100)
     elsif filename.start_with?('tests/checks/fixtures', 'conf.d')
       next
     else
