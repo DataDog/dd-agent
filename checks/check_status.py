@@ -126,9 +126,11 @@ def validate_api_key(api_key):
 
         r.raise_for_status()
 
+    except requests.RequestException:
+        return "Unable to validate API Key. Please try again later"
     except Exception:
         log.exception("Unable to validate API Key")
-        return "Unable to validate API Key. Please try again later"
+        return "Unable to validate API Key (unexpected error). Please try again later"
 
     return "API Key is valid"
 
