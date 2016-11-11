@@ -20,7 +20,6 @@ except ImportError:
 # project
 from config import _is_affirmative
 from checks import AgentCheck
-from util import Platform
 
 GAUGE = "gauge"
 RATE = "rate"
@@ -289,11 +288,6 @@ class MySql(AgentCheck):
         return {"pymysql": pymysql.__version__}
 
     def check(self, instance):
-
-        if Platform.is_linux() and PSUTIL_AVAILABLE:
-            procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
-            psutil.PROCFS_PATH = procfs_path
-
         host, port, user, password, mysql_sock, defaults_file, tags, options, queries, ssl, connect_timeout = \
             self._get_config(instance)
 

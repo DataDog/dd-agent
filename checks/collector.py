@@ -12,6 +12,11 @@ import sys
 import time
 
 # 3p
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 import simplejson as json
 
 # project
@@ -189,6 +194,10 @@ class Collector(object):
         self.hostname_metadata_cache = None
         self.initialized_checks_d = []
         self.init_failed_checks_d = {}
+
+        if Platform.is_linux() and psutil is not None:
+            procfs_path = agentConfig.get('procfs_path', '/proc').rstrip('/')
+            psutil.PROCFS_PATH = procfs_path
 
         # Unix System Checks
         self._unix_system_checks = {

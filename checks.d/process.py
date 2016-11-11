@@ -76,12 +76,16 @@ class ProcessCheck(AgentCheck):
             )
         )
 
+        self._conflicting_procfs = False
+        self._deprecated_init_procfs = False
         if Platform.is_linux():
             procfs_path = init_config.get('procfs_path')
-            if not procfs_path:
-                procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
-
-            psutil.PROCFS_PATH = procfs_path
+            if procfs_path:
+                if 'procfs_path' in agentConfig and procfs_path != agentConfig.get('procfs_path').rstrip('/'):
+                    self._conflicting_procfs = True
+                else:
+                    self._deprecated_init_procfs = True
+                    psutil.PROCFS_PATH = procfs_path
 
         # Process cache, indexed by instance
         self.process_cache = defaultdict(dict)
@@ -304,6 +308,14 @@ class ProcessCheck(AgentCheck):
         ignore_ad = _is_affirmative(instance.get('ignore_denied_access', True))
         pid = instance.get('pid')
         pid_file = instance.get('pid_file', None)
+
+        if self._conflicting_procfs:
+            self.warning('The `procfs_path` defined in `process.yaml` is different from the one defined in '
+                         '`datadog.conf`. This is currently not supported by the Agent. Defaulting to the '
+                         'value defined in `datadog.conf`: {}'.format(psutil.PROCFS_PATH))
+        elif self._deprecated_init_procfs:
+            self.warning('DEPRECATION NOTICE: Specifying `procfs_path` in `process.yaml` is deprecated. '
+                         'Please specify it in `datadog.conf` instead')
 
         if not isinstance(search_string, list) and pid is None and pid_file is None:
             raise ValueError('"search_string" or "pid" or "pid_file" parameter is required')
