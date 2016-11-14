@@ -48,7 +48,6 @@ class CheckEtcdTest(AgentCheckTest):
                                   tags=['url:http://localhost:4001'])
         self.coverage_report()
 
-
     # FIXME: not really an integration test, should be pretty easy
     # to spin up a cluster to test that.
     def test_followers(self):
@@ -116,6 +115,7 @@ class CheckEtcdTest(AgentCheckTest):
         self.coverage_report()
 
     def test_closed_port(self):
+        # We expect port 9999 to be closed - there should not be a process listening there.
         self.assertRaises(Exception,
                           lambda: self.run_check({"instances": [{"url": "http://localhost:9999"}]}))
 
