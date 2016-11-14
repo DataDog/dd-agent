@@ -175,9 +175,9 @@ class Etcd(AgentCheck):
                                message="Timeout when hitting %s" % url,
                                tags=["url:{0}".format(url)])
             raise
-        except:
+        except Exception as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                               message="Error hitting %s. Error: %s" % (url, sys.exc_info()[1]),
+                               message="Error hitting %s. Error: %s" % (url, e.message),
                                tags=["url:{0}".format(url)])
             raise
 
