@@ -3,8 +3,6 @@
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
-import sys
-
 # 3rd party
 import requests
 
