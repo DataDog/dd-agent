@@ -1,6 +1,5 @@
 # stdlib
 import os
-import urllib
 
 # 3p
 from nose.plugins.attrib import attr
