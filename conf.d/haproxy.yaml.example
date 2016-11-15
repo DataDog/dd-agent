@@ -2,6 +2,7 @@ init_config:
 
 instances:
   - url: http://localhost/admin?stats
+    # url: http+unix://%2fvar%2frun%2fhaproxy.sock/admin?stats
     # username: username
     # password: password
     #
