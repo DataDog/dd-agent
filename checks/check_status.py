@@ -19,6 +19,7 @@ import time
 
 # 3p
 import ntplib
+import requests
 import yaml
 
 # project
@@ -30,6 +31,7 @@ from utils.ntp import NTPUtil
 from utils.pidfile import PidFile
 from utils.platform import Platform
 from utils.profile import pretty_statistics
+from utils.proxy import get_proxy
 
 
 STATUS_OK = 'OK'
@@ -115,6 +117,27 @@ def get_ntp_info():
         ntp_styles = []
     return ntp_offset, ntp_styles
 
+def validate_api_key(config):
+    try:
+        proxy = get_proxy(agentConfig=config)
+        request_proxy = {}
+        if proxy:
+            request_proxy = {'https': "http://{user}:{password}@{host}:{port}".format(**proxy)}
+        r = requests.get("https://app.datadoghq.com/api/v1/validate",
+            params={'api_key': config.get('api_key')}, proxies=request_proxy, timeout=3)
+
+        if r.status_code == 403:
+            return "API Key is invalid"
+
+        r.raise_for_status()
+
+    except requests.RequestException:
+        return "Unable to validate API Key. Please try again later"
+    except Exception:
+        log.exception("Unable to validate API Key")
+        return "Unable to validate API Key (unexpected error). Please try again later"
+
+    return "API Key is valid"
 
 class AgentStatus(object):
     """
@@ -232,7 +255,7 @@ class AgentStatus(object):
                 return pickle.load(f)
             finally:
                 f.close()
-        except IOError:
+        except (IOError, EOFError):
             return None
 
     @classmethod
@@ -763,7 +786,7 @@ class ForwarderStatus(AgentStatus):
     NAME = 'Forwarder'
 
     def __init__(self, queue_length=0, queue_size=0, flush_count=0, transactions_received=0,
-                 transactions_flushed=0, too_big_count=0):
+                 transactions_flushed=0, transactions_rejected=0):
         AgentStatus.__init__(self)
         self.queue_length = queue_length
         self.queue_size = queue_size
@@ -772,7 +795,7 @@ class ForwarderStatus(AgentStatus):
         self.transactions_flushed = transactions_flushed
         self.hidden_username = None
         self.hidden_password = None
-        self.too_big_count = too_big_count
+        self.transactions_rejected = transactions_rejected
 
     def body_lines(self):
         lines = [
@@ -781,8 +804,9 @@ class ForwarderStatus(AgentStatus):
             "Flush Count: %s" % self.flush_count,
             "Transactions received: %s" % self.transactions_received,
             "Transactions flushed: %s" % self.transactions_flushed,
-            "Transactions rejected: %s" % self.too_big_count,
-            ""
+            "Transactions rejected: %s" % self.transactions_rejected,
+            "API Key Status: %s" % validate_api_key(config=get_config()),
+            "",
         ]
 
         return lines
@@ -796,7 +820,7 @@ class ForwarderStatus(AgentStatus):
             'flush_count': self.flush_count,
             'queue_length': self.queue_length,
             'queue_size': self.queue_size,
-            'too_big_count': self.too_big_count,
+            'transactions_rejected': self.transactions_rejected,
             'transactions_received': self.transactions_received,
             'transactions_flushed': self.transactions_flushed
         })

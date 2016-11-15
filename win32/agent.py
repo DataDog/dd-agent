@@ -33,7 +33,7 @@ import dogstatsd
 from emitter import http_emitter
 from jmxfetch import JMXFetch
 import modules
-from util import get_hostname
+from utils.hostname import get_hostname
 from utils.jmx import JMXFiles
 from utils.profile import AgentProfiler
 
@@ -112,7 +112,9 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             # Restart any processes that might have died.
             for name, proc in self.procs.iteritems():
                 if not proc.is_alive() and proc.is_enabled():
-                    servicemanager.LogInfoMsg("%s has died. Restarting..." % name)
+                    servicemanager.LogErrorMsg(
+                        u"`{}` has died. Restarting...".format(name)
+                    )
                     proc.restart()
 
             self._check_collector_blocked()
@@ -127,8 +129,9 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         else:
             self._collector_failed_heartbeats += 1
             if self._collector_failed_heartbeats > self._max_failed_heartbeats:
-                servicemanager.LogInfoMsg(
-                    "%s was unresponsive for too long. Restarting..." % 'collector')
+                servicemanager.LogErrorMsg(
+                    u"`{}` was unresponsive for too long. Restarting...".format(u'collector')
+                )
                 self.procs['collector'].restart()
                 self._collector_failed_heartbeats = 0
 
@@ -171,28 +174,37 @@ class ProcessWatchDog(object):
 
     def restart(self):
         if not self._can_restart():
-            servicemanager.LogInfoMsg(
-                "{0} reached the limit of restarts ({1} tries during the last {2}s"
-                " (max authorized: {3})). Not restarting..."
-                .format(self._name, len(self._restarts),
-                        self._RESTART_TIMEFRAME, self._max_restarts)
+            servicemanager.LogWarningMsg(
+                u"`{0}` reached the limit of restarts ({1} tries during the last {2}s"
+                u" (max authorized: {3})). Not restarting..."
+                .format(
+                    self._name, len(self._restarts),
+                    self._RESTART_TIMEFRAME, self._max_restarts
+                )
             )
             self._process.is_enabled = False
             return
 
+        try:
+            # Make a new proc instances because multiprocessing
+            # won't let you call .start() twice on the same instance.
+            if self._process.is_alive():
+                self._process.terminate()
+
+            # Recreate a new process
+            self._process = self._process.__class__(
+                self._process.config, self._process.hostname,
+                **self._process.options
+            )
+            self._process.start()
+        except WindowsError as e:  # pylint: disable=E0602
+            servicemanager.LogErrorMsg(
+                u"Fail to restart `{process}`: {err}".format(
+                    process=self._name, err=e
+                )
+            )
+
         self._restarts.append(time.time())
-        # Make a new proc instances because multiprocessing
-        # won't let you call .start() twice on the same instance.
-        if self._process.is_alive():
-            self._process.terminate()
-
-        # Recreate a new process
-        self._process = self._process.__class__(
-            self._process.config, self._process.hostname,
-            **self._process.options
-        )
-
-        self._process.start()
 
 
 class DDAgent(multiprocessing.Process):

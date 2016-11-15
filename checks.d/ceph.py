@@ -8,6 +8,7 @@ Collects metrics from ceph clusters
 
 # stdlib
 import os
+import re
 
 # project
 from checks import AgentCheck
@@ -41,7 +42,7 @@ class Ceph(AgentCheck):
             raise Exception('Unable to run cmd=%s: %s' % (' '.join(args), str(e)))
 
         raw = {}
-        for cmd in ('mon_status', 'status', 'df detail', 'osd pool stats', 'osd perf'):
+        for cmd in ('mon_status', 'status', 'df detail', 'osd pool stats', 'osd perf', 'health detail'):
             try:
                 args = ceph_args + cmd.split() + ['-fjson']
                 output,_,_ = get_subprocess_output(args, self.log)
@@ -82,12 +83,67 @@ class Ceph(AgentCheck):
             self.log.debug('Error retrieving osdperf metrics')
 
         try:
+            health = {'num_near_full_osds': 0, 'num_full_osds': 0}
+            # Health summary will be empty if no bad news
+            if raw['health_detail']['summary'] != []:
+                for osdhealth in raw['health_detail']['detail']:
+                    osd, pct = self._osd_pct_used(osdhealth)
+                    if osd:
+                        local_tags = tags + ['ceph_osd:%s' % osd.replace('.','')]
+
+                        if 'near' in osdhealth:
+                            health['num_near_full_osds'] += 1
+                            local_health = {'osd.pct_used': pct}
+                            self._publish(local_health, self.gauge, ['osd.pct_used'], local_tags)
+                        else:
+                            health['num_full_osds'] += 1
+                            local_health = {'osd.pct_used': pct}
+                            self._publish(local_health, self.gauge, ['osd.pct_used'], local_tags)
+
+            self._publish(health, self.gauge, ['num_full_osds'], tags)
+            self._publish(health, self.gauge, ['num_near_full_osds'], tags)
+        except KeyError:
+            self.log.debug('Error retrieving health metrics')
+
+        try:
             for osdinfo in raw['osd_pool_stats']:
-                name = osdinfo['pool_name']
+                name = osdinfo.get('pool_name')
                 local_tags = tags + ['ceph_pool:%s' % name]
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'op_per_sec'], local_tags)
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_bytes_sec'], local_tags)
-                self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_bytes_sec'], local_tags)
+                ops = 0
+                try:
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_op_per_sec'], local_tags)
+                    ops += osdinfo['client_io_rate']['read_op_per_sec']
+                except KeyError:
+                    osdinfo['client_io_rate'].update({'read_op_per_sec' : 0})
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_op_per_sec'], local_tags)
+
+                try:
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_op_per_sec'], local_tags)
+                    ops += osdinfo['client_io_rate']['write_op_per_sec']
+                except KeyError:
+                    osdinfo['client_io_rate'].update({'write_op_per_sec' : 0})
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_op_per_sec'], local_tags)
+
+                try:
+                    osdinfo['client_io_rate']['op_per_sec']
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'op_per_sec'], local_tags)
+                except KeyError:
+                    osdinfo['client_io_rate'].update({'op_per_sec' : ops})
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'op_per_sec'], local_tags)
+
+                try:
+                    osdinfo['client_io_rate']['read_bytes_sec']
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_bytes_sec'], local_tags)
+                except KeyError:
+                    osdinfo['client_io_rate'].update({'read_bytes_sec' : 0})
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'read_bytes_sec'], local_tags)
+
+                try:
+                    osdinfo['client_io_rate']['write_bytes_sec']
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_bytes_sec'], local_tags)
+                except KeyError:
+                    osdinfo['client_io_rate'].update({'write_bytes_sec' : 0})
+                    self._publish(osdinfo, self.gauge, ['client_io_rate', 'write_bytes_sec'], local_tags)
         except KeyError:
             self.log.debug('Error retrieving osd_pool_stats metrics')
 
@@ -96,6 +152,7 @@ class Ceph(AgentCheck):
             self._publish(osdstatus, self.gauge, ['num_osds'], tags)
             self._publish(osdstatus, self.gauge, ['num_in_osds'], tags)
             self._publish(osdstatus, self.gauge, ['num_up_osds'], tags)
+
         except KeyError:
             self.log.debug('Error retrieving osdstatus metrics')
 
@@ -125,7 +182,7 @@ class Ceph(AgentCheck):
             l_pools = raw['df_detail']['pools']
             self.gauge(self.NAMESPACE + '.num_pools', len(l_pools), tags)
             for pdata in l_pools:
-                local_tags = list(tags + [self.NAMESPACE + '_pool_name:%s' % pdata['name']])
+                local_tags = list(tags + [self.NAMESPACE + '_pool:%s' % pdata['name']])
                 stats = pdata['stats']
                 used = float(stats['bytes_used'])
                 avail = float(stats['max_avail'])
@@ -139,11 +196,24 @@ class Ceph(AgentCheck):
         except (KeyError, ValueError):
             self.log.debug('Error retrieving df_detail metrics')
 
+    def _osd_pct_used(self, health):
+            """Take a single health check string, return (OSD name, percentage used)"""
+            # Full string looks like: osd.2 is full at 95%
+            # Near full string: osd.1 is near full at 94%
+            pct = re.compile('\d+%').findall(health)
+            osd = re.compile('osd.\d+').findall(health)
+            if len(pct) > 0 and len(osd) > 0:
+                return osd[0], int(pct[0][:-1])
+            else:
+                return None, None
+
     def _perform_service_checks(self, raw, tags):
         if 'status' in raw:
             s_status = raw['status']['health']['overall_status']
             if s_status.find('_OK') != -1:
                 status = AgentCheck.OK
+            elif s_status.find('_WARN') != -1:
+                status = AgentCheck.WARNING
             else:
                 status = AgentCheck.CRITICAL
             self.service_check(self.NAMESPACE + '.overall_status', status)

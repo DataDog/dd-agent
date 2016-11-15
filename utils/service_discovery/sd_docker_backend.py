@@ -6,13 +6,20 @@
 import logging
 import simplejson as json
 
+# 3rd party
+from docker.errors import NullResource, NotFound
+
 # project
 from utils.dockerutil import DockerUtil
-from utils.kubeutil import KubeUtil, is_k8s
+from utils.kubernetes import KubeUtil
+from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store, TRACE_CONFIG
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
+K8S_ANNOTATION_CHECK_NAMES = 'com.datadoghq.sd/check_names'
+K8S_ANNOTATION_INIT_CONFIGS = 'com.datadoghq.sd/init_configs'
+K8S_ANNOTATION_INSTANCES = 'com.datadoghq.sd/instances'
 log = logging.getLogger(__name__)
 
 
@@ -20,10 +27,6 @@ class SDDockerBackend(AbstractSDBackend):
     """Docker-based service discovery"""
 
     def __init__(self, agentConfig):
-        self.docker_client = DockerUtil().client
-        if is_k8s():
-            self.kubeutil = KubeUtil()
-
         try:
             self.config_store = get_config_store(agentConfig=agentConfig)
         except Exception as e:
@@ -31,6 +34,10 @@ class SDDockerBackend(AbstractSDBackend):
                       'Auto-config only will be used. %s' % str(e))
             agentConfig['sd_config_backend'] = None
             self.config_store = get_config_store(agentConfig=agentConfig)
+
+        self.docker_client = DockerUtil(config_store=self.config_store).client
+        if Platform.is_k8s():
+            self.kubeutil = KubeUtil()
 
         self.VAR_MAPPING = {
             'host': self._get_host_address,
@@ -40,30 +47,54 @@ class SDDockerBackend(AbstractSDBackend):
 
         AbstractSDBackend.__init__(self, agentConfig)
 
+    def update_checks(self, changed_containers):
+        conf_reload_set = set()
+        for id_ in changed_containers:
+            try:
+                inspect = self.docker_client.inspect_container(id_)
+            except (NullResource, NotFound):
+                # if the container was removed we can't tell which check is concerned
+                # so we have to reload everything
+                self.reload_check_configs = True
+                return
+
+            checks = self._get_checks_from_inspect(inspect)
+            conf_reload_set.update(set(checks))
+
+        if conf_reload_set:
+            self.reload_check_configs = conf_reload_set
+
+    def _get_checks_from_inspect(self, inspect):
+        """Get the list of checks applied to a container from the identifier_to_checks cache in the config store.
+        Use the DATADOG_ID label or the image."""
+        identifier = inspect.get('Config', {}).get('Labels', {}).get(DATADOG_ID) or \
+            inspect.get('Config', {}).get('Image')
+        annotations = (self._get_kube_config(inspect.get('Id'), 'metadata') or {}).get('annotations') if Platform.is_k8s() else None
+
+        return self.config_store.get_checks_to_refresh(identifier, kube_annotations=annotations)
+
     def _get_host_address(self, c_inspect, tpl_var):
         """Extract the container IP from a docker inspect object, or the kubelet API."""
         c_id, c_img = c_inspect.get('Id', ''), c_inspect.get('Config', {}).get('Image', '')
-        tpl_parts = tpl_var.split('_')
 
-        # a specifier was given
-        if len(tpl_parts) > 1:
-            networks = c_inspect.get('NetworkSettings', {}).get('Networks') or {}
-            ip_dict = {}
-            for net_name, net_desc in networks.iteritems():
-                ip = net_desc.get('IPAddress')
-                if ip:
-                    ip_dict[net_name] = ip
-            ip_addr = self._extract_ip_from_networks(ip_dict, tpl_var)
-            if ip_addr:
-                return ip_addr
+        networks = c_inspect.get('NetworkSettings', {}).get('Networks') or {}
+        ip_dict = {}
+        for net_name, net_desc in networks.iteritems():
+            ip = net_desc.get('IPAddress')
+            if ip:
+                ip_dict[net_name] = ip
+        ip_addr = self._extract_ip_from_networks(ip_dict, tpl_var)
+        if ip_addr:
+            return ip_addr
 
-        # try to get the bridge IP address
-        log.debug("No network found for container %s (%s), trying with IPAddress field" % (c_id[:12], c_img))
+        # try to get the bridge (default) IP address
+        log.debug("No IP address was found in container %s (%s) "
+            "networks, trying with the IPAddress field" % (c_id[:12], c_img))
         ip_addr = c_inspect.get('NetworkSettings', {}).get('IPAddress')
         if ip_addr:
             return ip_addr
 
-        if is_k8s():
+        if Platform.is_k8s():
             # kubernetes case
             log.debug("Couldn't find the IP address for container %s (%s), "
                       "using the kubernetes way." % (c_id[:12], c_img))
@@ -86,7 +117,7 @@ class SDDockerBackend(AbstractSDBackend):
         """Extract a single IP from a dictionary made of network names and IPs."""
         if not ip_dict:
             return None
-        tpl_parts = tpl_var.split('_')
+        tpl_parts = tpl_var.split('_', 1)
 
         # no specifier
         if len(tpl_parts) < 2:
@@ -107,7 +138,7 @@ class SDDockerBackend(AbstractSDBackend):
             return ip_dict['bridge']
         else:
             last_key = sorted(ip_dict.iterkeys())[-1]
-            log.warning("Trying with the last key: '%s'." % last_key)
+            log.warning("Trying with the last (sorted) network: '%s'." % last_key)
             return ip_dict[last_key]
 
     def _get_port(self, container_inspect, tpl_var):
@@ -121,7 +152,7 @@ class SDDockerBackend(AbstractSDBackend):
             ports = map(lambda x: x.split('/')[0], container_inspect['Config'].get('ExposedPorts', {}).keys())
 
             # if it failed, try with the kubernetes API
-            if not ports and is_k8s():
+            if not ports and Platform.is_k8s():
                 log.debug("Didn't find the port for container %s (%s), trying the kubernetes way." %
                           (c_id[:12], container_inspect.get('Config', {}).get('Image', '')))
                 co_statuses = self._get_kube_config(c_id, 'status').get('containerStatuses', [])
@@ -141,7 +172,7 @@ class SDDockerBackend(AbstractSDBackend):
         if not ports:
             return None
 
-        tpl_parts = tpl_var.split('_')
+        tpl_parts = tpl_var.split('_', 1)
 
         if len(tpl_parts) == 1:
             log.debug("No index was passed for template variable %s. "
@@ -160,7 +191,7 @@ class SDDockerBackend(AbstractSDBackend):
     def get_tags(self, c_inspect):
         """Extract useful tags from docker or platform APIs. These are collected by default."""
         tags = []
-        if is_k8s():
+        if Platform.is_k8s():
             pod_metadata = self._get_kube_config(c_inspect.get('Id'), 'metadata')
 
             if pod_metadata is None:
@@ -184,7 +215,7 @@ class SDDockerBackend(AbstractSDBackend):
 
     def _get_additional_tags(self, container_inspect, *args):
         tags = []
-        if is_k8s():
+        if Platform.is_k8s():
             pod_metadata = self._get_kube_config(container_inspect.get('Id'), 'metadata')
             pod_spec = self._get_kube_config(container_inspect.get('Id'), 'spec')
             if pod_metadata is None or pod_spec is None:
@@ -254,7 +285,8 @@ class SDDockerBackend(AbstractSDBackend):
     def _get_check_configs(self, c_id, identifier, trace_config=False):
         """Retrieve configuration templates and fill them with data pulled from docker and tags."""
         inspect = self.docker_client.inspect_container(c_id)
-        config_templates = self._get_config_templates(identifier, trace_config=trace_config)
+        annotations = (self._get_kube_config(inspect.get('Id'), 'metadata') or {}).get('annotations') if Platform.is_k8s() else None
+        config_templates = self._get_config_templates(identifier, trace_config=trace_config, kube_annotations=annotations)
         if not config_templates:
             log.debug('No config template for container %s with identifier %s. '
                       'It will be left unconfigured.' % (c_id[:12], identifier))
@@ -280,7 +312,7 @@ class SDDockerBackend(AbstractSDBackend):
 
         return check_configs
 
-    def _get_config_templates(self, identifier, trace_config=False):
+    def _get_config_templates(self, identifier, trace_config=False, kube_annotations=None):
         """Extract config templates for an identifier from a K/V store and returns it as a dict object."""
         config_backend = self.agentConfig.get('sd_config_backend')
         templates = []
@@ -293,7 +325,7 @@ class SDDockerBackend(AbstractSDBackend):
         # format: [('ident', {init_tpl}, {instance_tpl})] without trace_config
         # or      [(source, ('ident', {init_tpl}, {instance_tpl}))] with trace_config
         raw_tpls = self.config_store.get_check_tpls(
-            identifier, auto_conf=auto_conf, trace_config=trace_config)
+            identifier, auto_conf=auto_conf, trace_config=trace_config, kube_annotations=kube_annotations)
         for tpl in raw_tpls:
             if trace_config and tpl is not None:
                 # each template can come from either auto configuration or user-supplied templates

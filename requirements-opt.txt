@@ -18,7 +18,11 @@ pycurl==7.19.5.1
 # checks.d/gunicorn.py
 # checks.d/btrfs.py
 # checks.d/system_core.py
-psutil==3.3.0
+psutil==4.4.1
+
+# checks.d/kubernetes_state.py -> used in utils/prometheus/*
+# Pure python module for dev purposes, the Agent is shipped with the optimized version built with --cpp_implementation
+protobuf==3.1.0
 
 # checks.d/snmp.py
 # Require a compiler because pycrypto is a dep
@@ -30,10 +34,6 @@ pysnmp==4.2.5
 # Require a compiler
 # TODO: our checks are not compatible with 3.x
 pymongo==3.2
-
-# checks.d/kafka_consumer.py
-# Requires a compiler because zope.interface is a dep
-kazoo==1.3.1
 
 # checks.d/ssh_check.py
 winrandom-ctypes

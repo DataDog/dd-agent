@@ -28,6 +28,7 @@ import zlib
 os.umask(022)
 
 # 3p
+import simplejson as json
 try:
     import pycurl
 except ImportError:
@@ -50,12 +51,10 @@ from config import (
 )
 import modules
 from transaction import Transaction, TransactionManager
-from util import (
-    get_hostname,
-    get_tornado_ioloop,
-    get_uuid,
-    json,
-)
+from util import get_uuid
+
+
+from utils.hostname import get_hostname
 from utils.logger import RedactedLogRecord
 from utils.watchdog import new_watchdog
 
@@ -84,6 +83,9 @@ MAX_WAIT_FOR_REPLAY = timedelta(seconds=90)
 
 # Maximum queue size in bytes (when this is reached, old messages are dropped)
 MAX_QUEUE_SIZE = 30 * 1024 * 1024  # 30MB
+
+# Some responses should be rejected, rather than replayed. This list will be rejected.
+RESPONSES_TO_REJECT = [413, 400]
 
 THROTTLING_DELAY = timedelta(microseconds=1000000 / 2)  # 2 msg/second
 
@@ -272,8 +274,8 @@ class AgentTransaction(Transaction):
     def on_response(self, response):
         if response.error:
             log.error("Response: %s" % response)
-            if response.code == 413:
-                self._trManager.tr_error_too_big(self)
+            if response.code in RESPONSES_TO_REJECT:
+                self._trManager.tr_error_reject_request(self)
             else:
                 self._trManager.tr_error(self)
         else:
@@ -397,6 +399,8 @@ class Application(tornado.web.Application):
         self._metrics = {}
         AgentTransaction.set_application(self)
         AgentTransaction.set_endpoints(agentConfig['endpoints'])
+        if agentConfig['endpoints'] == {}:
+            log.warning(u"No valid endpoint found. Forwarder will drop all incoming payloads.")
         AgentTransaction.set_request_timeout(agentConfig['forwarder_timeout'])
 
         max_parallelism = self.NO_PARALLELISM
@@ -512,7 +516,7 @@ class Application(tornado.web.Application):
         log.info("Listening on port %d" % self._port)
 
         # Register callbacks
-        self.mloop = get_tornado_ioloop()
+        self.mloop = tornado.ioloop.IOLoop.current()
 
         logging.getLogger().setLevel(get_logging_config()['log_level'] or logging.INFO)
 
@@ -571,10 +575,6 @@ def init(skip_ssl_validation=False, use_simple_http_client=False):
 
 
 def main():
-    # Deprecation notice
-    from utils.deprecations import deprecate_old_command_line_tools
-    deprecate_old_command_line_tools()
-
     define("sslcheck", default=1, help="Verify SSL hostname, on by default")
     define("use_simple_http_client", default=0, help="Use Tornado SimpleHTTPClient instead of CurlAsyncHTTPClient")
     args = parse_command_line()

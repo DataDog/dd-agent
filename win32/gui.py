@@ -132,7 +132,6 @@ EXCLUDED_WINDOWS_CHECKS = [
     'marathon',
     'mcache',
     'mesos',
-    'network',
     'postfix',
     'zk',
 ]
@@ -866,6 +865,10 @@ if __name__ == '__main__':
     if Platform.is_windows():
         # Let's kill any other running instance of our GUI/SystemTray before starting a new one.
         kill_old_process()
+        if len(sys.argv) > 1 and "-stop" in sys.argv:
+            # just return.  The kill_old_process() should have terminated the process,
+            # and now we're done.
+            sys.exit(0)
 
     app = QApplication([])
     if Platform.is_mac():

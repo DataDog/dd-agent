@@ -7,7 +7,7 @@ from nose.plugins.attrib import attr
 # project
 from checks import AgentCheck
 from tests.checks.common import AgentCheckTest
-from util import get_hostname
+from utils.hostname import get_hostname
 
 
 @attr(requires='haproxy')

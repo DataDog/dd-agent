@@ -12,7 +12,7 @@ logger = logging.getLogger(__file__)
 from checks.system.unix import Cpu
 
 
-@attr(requires='sysstat')
+@attr(requires='system')
 class TestSystem(unittest.TestCase):
 
     def testCPU(self):

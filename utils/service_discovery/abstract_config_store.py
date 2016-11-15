@@ -3,6 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 # std
+from collections import defaultdict
 import logging
 import simplejson as json
 from os import path
@@ -19,10 +20,13 @@ log = logging.getLogger(__name__)
 CONFIG_FROM_AUTOCONF = 'auto-configuration'
 CONFIG_FROM_FILE = 'YAML file'
 CONFIG_FROM_TEMPLATE = 'template'
+CONFIG_FROM_KUBE = 'Kubernetes Pod Annotation'
 TRACE_CONFIG = 'trace_config'  # used for tracing config load by service discovery
 CHECK_NAMES = 'check_names'
 INIT_CONFIGS = 'init_configs'
 INSTANCES = 'instances'
+KUBE_ANNOTATIONS = 'kube_annotations'
+KUBE_ANNOTATION_PREFIX = 'com.datadoghq.sd/'
 
 
 class KeyNotFound(Exception):
@@ -43,6 +47,17 @@ class AbstractConfigStore(object):
         self.sd_template_dir = agentConfig.get('sd_template_dir')
         self.auto_conf_images = get_auto_conf_images(agentConfig)
 
+        # cache used by dockerutil to determine which check to reload based on the image linked to an event
+        #
+        # it is invalidated entirely when a change is detected in the kv store
+        #
+        # this is a defaultdict(set) and some calls to it rely on this property
+        # so if you're planning on changing that, track its references
+        #
+        # TODO Haissam: this should be fleshed out a bit more and used as a cache instead
+        # of querying the kv store for each template
+        self.identifier_to_checks = self._populate_identifier_to_checks()
+
     @classmethod
     def _drop(cls):
         """Drop the config store instance. This is only used for testing."""
@@ -60,6 +75,41 @@ class AbstractConfigStore(object):
 
     def dump_directory(self, path, **kwargs):
         raise NotImplementedError()
+
+    def _populate_identifier_to_checks(self):
+        """Populate the identifier_to_checks cache with templates pulled
+        from the config store and from the auto-config folder"""
+        identifier_to_checks = defaultdict(set)
+        # config store templates
+        try:
+            templates = self.client_read(self.sd_template_dir.lstrip('/'), all=True)
+        except (NotImplementedError, TimeoutError, AttributeError):
+            templates = []
+        for tpl in templates:
+            split_tpl = tpl[0].split('/')
+            ident, var = split_tpl[-2], split_tpl[-1]
+            if var == CHECK_NAMES:
+                identifier_to_checks[ident].update(set(json.loads(tpl[1])))
+
+        # auto-config templates
+        templates = get_auto_conf_images(self.agentConfig)
+        for image, check in templates.iteritems():
+            identifier_to_checks[image].add(check)
+
+        return identifier_to_checks
+
+    def _get_kube_config(self, identifier, kube_annotations):
+        try:
+            check_names = json.loads(kube_annotations[KUBE_ANNOTATION_PREFIX + CHECK_NAMES])
+            init_config_tpls = json.loads(kube_annotations[KUBE_ANNOTATION_PREFIX + INIT_CONFIGS])
+            instance_tpls = json.loads(kube_annotations[KUBE_ANNOTATION_PREFIX + INSTANCES])
+            return [check_names, init_config_tpls, instance_tpls]
+        except KeyError:
+            return None
+        except json.JSONDecodeError:
+            log.exception('Could not decode the JSON configuration template '
+                          'for the kubernetes pod with ident %s...' % identifier)
+            return None
 
     def _get_auto_config(self, image_name):
         ident = self._get_image_ident(image_name)
@@ -79,14 +129,38 @@ class AbstractConfigStore(object):
 
         return None
 
+    def get_checks_to_refresh(self, identifier, **kwargs):
+        if identifier in self.identifier_to_checks:
+            to_check = set(self.identifier_to_checks[identifier])
+        else:
+            # auto_conf templates use the canonical image name
+            to_check = set(self.identifier_to_checks[self._get_image_ident(identifier)])
+        kube_annotations = kwargs.get('kube_annotations')
+        if kube_annotations:
+            kube_config = self._get_kube_config(identifier, kube_annotations)
+            if kube_config is not None:
+                to_check.update(kube_config[0])
+
+        return to_check
+
     def get_check_tpls(self, identifier, **kwargs):
         """Retrieve template configs for an identifier from the config_store or auto configuration."""
-        templates = []
         trace_config = kwargs.get(TRACE_CONFIG, False)
 
         # this flag is used when no valid configuration store was provided
         # it makes the method skip directly to the auto_conf
         if kwargs.get('auto_conf') is True:
+            # When not using a configuration store on kubernetes, check the pod
+            # annotations for configs before falling back to autoconf.
+            kube_annotations = kwargs.get(KUBE_ANNOTATIONS)
+            if kube_annotations:
+                kube_config = self._get_kube_config(identifier, kube_annotations)
+                if kube_config is not None:
+                    check_names, init_config_tpls, instance_tpls = kube_config
+                    source = CONFIG_FROM_KUBE
+                    return [(source, vs) if trace_config else vs
+                            for vs in zip(check_names, init_config_tpls, instance_tpls)]
+
             # in auto config mode, identifier is the image name
             auto_config = self._get_auto_config(identifier)
             if auto_config is not None:
@@ -110,12 +184,11 @@ class AbstractConfigStore(object):
                       'will not be configured by the service discovery'.format(identifier))
             return []
 
-        for idx, c_name in enumerate(check_names):
-            if trace_config:
-                templates.append((source, (c_name, init_config_tpls[idx], instance_tpls[idx])))
-            else:
-                templates.append((c_name, init_config_tpls[idx], instance_tpls[idx]))
-        return templates
+        # Try to update the identifier_to_checks cache
+        self._update_identifier_to_checks(identifier, check_names)
+
+        return [(source, values) if trace_config else values
+                for values in zip(check_names, init_config_tpls, instance_tpls)]
 
     def read_config_from_store(self, identifier):
         """Try to read from the config store, falls back to auto-config in case of failure."""
@@ -208,8 +281,21 @@ class AbstractConfigStore(object):
             self.previous_config_index = config_index
             return False
         # Config has been modified since last crawl
+        # in this case a full config reload is triggered and the identifier_to_checks cache is rebuilt
         if config_index != self.previous_config_index:
-            log.info('Detected an update in config template, reloading check configs...')
+            log.info('Detected an update in config templates, reloading check configs...')
             self.previous_config_index = config_index
+            self.identifier_to_checks = self._populate_identifier_to_checks()
             return True
         return False
+
+    def _update_identifier_to_checks(self, identifier, check_names):
+        """Try to insert in the identifier_to_checks cache the mapping between
+           an identifier and its check names.
+           This should very rarely happen.
+           When/If it does we can correct the cache if the key was missing but not if there is a conflict."""
+        if identifier not in self.identifier_to_checks:
+            self.identifier_to_checks[identifier] = set(check_names)
+        elif self.identifier_to_checks[identifier] != set(check_names):
+            log.warning("Trying to cache check names for ident %s but a different value is already there."
+                        "Not updating." % identifier)

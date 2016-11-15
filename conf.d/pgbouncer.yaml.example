@@ -8,3 +8,8 @@ instances:
 #     tags:
 #       - optional_tag1
 #       - optional_tag2
+#
+#   - database_url: postgresql://user:pass@host:5432/dbname?sslmode=require
+#     tags:
+#       - optional_tag3
+#       - optional_tag4

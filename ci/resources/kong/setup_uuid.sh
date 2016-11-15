@@ -4,9 +4,11 @@ set -e
 
 
 pushd $INTEGRATIONS_DIR
-mkdir $UUID_DIR
+mkdir -p $UUID_DIR
 
-curl https://www.kernel.org/pub/linux/utils/util-linux/v2.27/util-linux-2.27.tar.gz | tar xz
+rsync rsync://rsync.kernel.org/pub/linux/utils/util-linux/v2.27/util-linux-2.27.tar.gz util-linux-2.27.tar.gz
+tar xzf util-linux-2.27.tar.gz
+
 echo $TRAVIS_PYTHON_VERSION
 pushd util-linux-2.27
 ./configure \

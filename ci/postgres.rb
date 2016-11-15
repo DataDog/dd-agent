@@ -51,8 +51,7 @@ namespace :ci do
       # Wait a tiny bit more, for PG to accept connections
       sleep_for 2
       sh %(#{pg_rootdir}/bin/psql\
-           -p 15432 -U $USER\
-           postgres < $TRAVIS_BUILD_DIR/ci/resources/postgres/postgres.sql)
+           -p 15432 postgres < $TRAVIS_BUILD_DIR/ci/resources/postgres/postgres.sql)
       sh %(#{pg_rootdir}/bin/psql\
            -p 15432 -U datadog\
            datadog_test < $TRAVIS_BUILD_DIR/ci/resources/postgres/datadog_test.sql)
@@ -80,23 +79,7 @@ namespace :ci do
     end
 
     task :execute do
-      exception = nil
-      begin
-        %w(before_install install before_script
-           script before_cache).each do |t|
-          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
-        end
-      rescue => e
-        exception = e
-        puts "Failed task: #{e.class} #{e.message}".red
-      end
-      if ENV['SKIP_CLEANUP']
-        puts 'Skipping cleanup, disposable environments are great'.yellow
-      else
-        puts 'Cleaning up'
-        Rake::Task["#{flavor.scope.path}:cleanup"].invoke
-      end
-      raise exception if exception
+      Rake::Task['ci:common:execute'].invoke(flavor)
     end
   end
 end

@@ -8,7 +8,6 @@ from urlparse import urljoin
 
 # project
 from checks import AgentCheck
-from util import get_hostname
 
 # 3p
 import requests
@@ -370,13 +369,13 @@ class OpenStackCheck(AgentCheck):
         # Mapping of Nova-managed servers to tags
         self.external_host_tags = {}
 
-    def _make_request_with_auth_fallback(self, url, headers=None, verify=True, params=None):
+    def _make_request_with_auth_fallback(self, url, headers=None, params=None):
         """
         Generic request handler for OpenStack API requests
         Raises specialized Exceptions for commonly encountered error codes
         """
         try:
-            resp = requests.get(url, headers=headers, verify=verify, params=params,
+            resp = requests.get(url, headers=headers, verify=self._ssl_verify, params=params,
                                 timeout=DEFAULT_API_REQUEST_TIMEOUT, proxies=self.proxies)
             resp.raise_for_status()
         except requests.exceptions.HTTPError:
@@ -460,7 +459,7 @@ class OpenStackCheck(AgentCheck):
 
         network_ids = []
         try:
-            net_details = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+            net_details = self._make_request_with_auth_fallback(url, headers)
             for network in net_details['networks']:
                 network_ids.append(network['id'])
         except Exception as e:
@@ -470,7 +469,7 @@ class OpenStackCheck(AgentCheck):
     def get_stats_for_single_network(self, network_id):
         url = '{0}/{1}/networks/{2}'.format(self.get_neutron_endpoint(), DEFAULT_NEUTRON_API_VERSION, network_id)
         headers = {'X-Auth-Token': self.get_auth_token()}
-        net_details = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+        net_details = self._make_request_with_auth_fallback(url, headers)
 
         service_check_tags = ['network:{0}'.format(network_id)]
 
@@ -516,7 +515,7 @@ class OpenStackCheck(AgentCheck):
 
             hypervisor_ids = []
             try:
-                hv_list = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+                hv_list = self._make_request_with_auth_fallback(url, headers)
                 for hv in hv_list['hypervisors']:
                     if filter_by_host and hv['hypervisor_hostname'] == filter_by_host:
                         # Assume one-one relationship between hypervisor and host, return the 1st found
@@ -540,7 +539,7 @@ class OpenStackCheck(AgentCheck):
 
         hypervisor_aggregate_map = {}
         try:
-            aggregate_list = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+            aggregate_list = self._make_request_with_auth_fallback(url, headers)
             for v in aggregate_list['aggregates']:
                 for host in v['hosts']:
                     hypervisor_aggregate_map[host] = {
@@ -557,14 +556,14 @@ class OpenStackCheck(AgentCheck):
         url = '{0}/os-hypervisors/{1}/uptime'.format(self.get_nova_endpoint(), hyp_id)
         headers = {'X-Auth-Token': self.get_auth_token()}
 
-        resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+        resp = self._make_request_with_auth_fallback(url, headers)
         uptime = resp['hypervisor']['uptime']
         return self._parse_uptime_string(uptime)
 
     def get_stats_for_single_hypervisor(self, hyp_id, host_tags=None):
         url = '{0}/os-hypervisors/{1}'.format(self.get_nova_endpoint(), hyp_id)
         headers = {'X-Auth-Token': self.get_auth_token()}
-        resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+        resp = self._make_request_with_auth_fallback(url, headers)
         hyp = resp['hypervisor']
         host_tags = host_tags or []
         tags = [
@@ -623,7 +622,7 @@ class OpenStackCheck(AgentCheck):
 
         server_ids = []
         try:
-            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify, params=query_params)
+            resp = self._make_request_with_auth_fallback(url, headers, params=query_params)
 
             server_ids = [s['id'] for s in resp['servers']]
         except Exception as e:
@@ -640,7 +639,7 @@ class OpenStackCheck(AgentCheck):
         server_stats = {}
 
         try:
-            server_stats = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+            server_stats = self._make_request_with_auth_fallback(url, headers)
         except InstancePowerOffFailure:
             self.warning("Server %s is powered off and cannot be monitored" % server_id)
         except Exception as e:
@@ -862,7 +861,7 @@ class OpenStackCheck(AgentCheck):
         """
         Returns a best guess for the hostname registered with OpenStack for this host
         """
-        return self.init_config.get("os_host") or get_hostname(self.agentConfig)
+        return self.init_config.get("os_host") or self.hostname
 
     def get_servers_managed_by_hypervisor(self):
         return self.get_all_server_ids(filter_by_host=self.get_my_hostname())

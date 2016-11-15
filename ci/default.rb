@@ -53,8 +53,8 @@ namespace :ci do
         sh %(pwd)
         sh %(flake8)
         sh %(find . -name '*.py' -not\
-               \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' -or -path '*.git*' \\)\
-               | xargs -n 100 -P 8 pylint --rcfile=./.pylintrc)
+               \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' -or -path '*.git*' -or -path \
+               '*.ropeproject*' \\) | xargs -n 80 -P 8 pylint --rcfile=./.pylintrc)
       end
     end
 
@@ -67,23 +67,7 @@ namespace :ci do
     task cleanup: ['ci:common:cleanup']
 
     task :execute do
-      exception = nil
-      begin
-        %w(before_install install before_script
-           script).each do |t|
-          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
-        end
-      rescue => e
-        exception = e
-        puts "Failed task: #{e.class} #{e.message}".red
-      end
-      if ENV['SKIP_CLEANUP']
-        puts 'Skipping cleanup, disposable environments are great'.yellow
-      else
-        puts 'Cleaning up'
-        Rake::Task["#{flavor.scope.path}:cleanup"].invoke
-      end
-      raise exception if exception
+      Rake::Task['ci:common:execute'].invoke(flavor)
     end
   end
 end

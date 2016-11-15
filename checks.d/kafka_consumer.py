@@ -6,8 +6,8 @@
 from collections import defaultdict
 
 # 3p
-from kafka.client import KafkaClient
-from kafka.common import OffsetRequest
+from kafka import KafkaClient
+from kafka.common import OffsetRequestPayload as OffsetRequest
 from kazoo.client import KazooClient
 from kazoo.exceptions import NoNodeError
 

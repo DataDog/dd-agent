@@ -96,34 +96,51 @@ STATS_METRICS = {  # Metrics that are common to all Elasticsearch versions
     "elasticsearch.thread_pool.bulk.active": ("gauge", "thread_pool.bulk.active"),
     "elasticsearch.thread_pool.bulk.threads": ("gauge", "thread_pool.bulk.threads"),
     "elasticsearch.thread_pool.bulk.queue": ("gauge", "thread_pool.bulk.queue"),
-    "elasticsearch.thread_pool.bulk.rejected": ("gauge", "thread_pool.bulk.rejected"),
+    "elasticsearch.thread_pool.bulk.rejected": ("rate", "thread_pool.bulk.rejected"),
     "elasticsearch.thread_pool.flush.active": ("gauge", "thread_pool.flush.active"),
     "elasticsearch.thread_pool.flush.threads": ("gauge", "thread_pool.flush.threads"),
     "elasticsearch.thread_pool.flush.queue": ("gauge", "thread_pool.flush.queue"),
+    "elasticsearch.thread_pool.flush.rejected": ("rate", "thread_pool.flush.rejected"),
     "elasticsearch.thread_pool.generic.active": ("gauge", "thread_pool.generic.active"),
     "elasticsearch.thread_pool.generic.threads": ("gauge", "thread_pool.generic.threads"),
     "elasticsearch.thread_pool.generic.queue": ("gauge", "thread_pool.generic.queue"),
+    "elasticsearch.thread_pool.generic.rejected": ("rate", "thread_pool.generic.rejected"),
     "elasticsearch.thread_pool.get.active": ("gauge", "thread_pool.get.active"),
     "elasticsearch.thread_pool.get.threads": ("gauge", "thread_pool.get.threads"),
     "elasticsearch.thread_pool.get.queue": ("gauge", "thread_pool.get.queue"),
+    "elasticsearch.thread_pool.get.rejected": ("rate", "thread_pool.get.rejected"),
     "elasticsearch.thread_pool.index.active": ("gauge", "thread_pool.index.active"),
     "elasticsearch.thread_pool.index.threads": ("gauge", "thread_pool.index.threads"),
     "elasticsearch.thread_pool.index.queue": ("gauge", "thread_pool.index.queue"),
+    "elasticsearch.thread_pool.index.rejected": ("rate", "thread_pool.index.rejected"),
     "elasticsearch.thread_pool.management.active": ("gauge", "thread_pool.management.active"),
     "elasticsearch.thread_pool.management.threads": ("gauge", "thread_pool.management.threads"),
     "elasticsearch.thread_pool.management.queue": ("gauge", "thread_pool.management.queue"),
+    "elasticsearch.thread_pool.management.rejected": ("rate", "thread_pool.management.rejected"),
     "elasticsearch.thread_pool.percolate.active": ("gauge", "thread_pool.percolate.active"),
     "elasticsearch.thread_pool.percolate.threads": ("gauge", "thread_pool.percolate.threads"),
     "elasticsearch.thread_pool.percolate.queue": ("gauge", "thread_pool.percolate.queue"),
+    "elasticsearch.thread_pool.percolate.rejected": ("rate", "thread_pool.percolate.rejected"),
     "elasticsearch.thread_pool.refresh.active": ("gauge", "thread_pool.refresh.active"),
     "elasticsearch.thread_pool.refresh.threads": ("gauge", "thread_pool.refresh.threads"),
     "elasticsearch.thread_pool.refresh.queue": ("gauge", "thread_pool.refresh.queue"),
+    "elasticsearch.thread_pool.refresh.rejected": ("rate", "thread_pool.refresh.rejected"),
     "elasticsearch.thread_pool.search.active": ("gauge", "thread_pool.search.active"),
     "elasticsearch.thread_pool.search.threads": ("gauge", "thread_pool.search.threads"),
     "elasticsearch.thread_pool.search.queue": ("gauge", "thread_pool.search.queue"),
+    "elasticsearch.thread_pool.search.rejected": ("rate", "thread_pool.search.rejected"),
     "elasticsearch.thread_pool.snapshot.active": ("gauge", "thread_pool.snapshot.active"),
     "elasticsearch.thread_pool.snapshot.threads": ("gauge", "thread_pool.snapshot.threads"),
     "elasticsearch.thread_pool.snapshot.queue": ("gauge", "thread_pool.snapshot.queue"),
+    "elasticsearch.thread_pool.snapshot.rejected": ("rate", "thread_pool.snapshot.rejected"),
+    "elasticsearch.thread_pool.suggest.active": ("gauge", "thread_pool.suggest.active"),
+    "elasticsearch.thread_pool.suggest.threads": ("gauge", "thread_pool.suggest.threads"),
+    "elasticsearch.thread_pool.suggest.queue": ("gauge", "thread_pool.suggest.queue"),
+    "elasticsearch.thread_pool.suggest.rejected": ("rate", "thread_pool.suggest.rejected"),
+    "elasticsearch.thread_pool.warmer.active": ("gauge", "thread_pool.warmer.active"),
+    "elasticsearch.thread_pool.warmer.threads": ("gauge", "thread_pool.warmer.threads"),
+    "elasticsearch.thread_pool.warmer.queue": ("gauge", "thread_pool.warmer.queue"),
+    "elasticsearch.thread_pool.warmer.rejected": ("rate", "thread_pool.warmer.rejected"),
     "elasticsearch.http.current_open": ("gauge", "http.current_open"),
     "elasticsearch.http.total_opened": ("gauge", "http.total_opened"),
     "jvm.mem.heap_committed": ("gauge", "jvm.mem.heap_committed_in_bytes"),
@@ -196,14 +213,73 @@ ADDITIONAL_METRICS_POST_1_3_0 = {
 }
 
 ADDITIONAL_METRICS_POST_1_4_0 = {
+    "elasticsearch.indices.indexing.throttle_time": ("rate", "indices.indexing.throttle_time_in_millis", lambda v: float(v)/1000),
+    "elasticsearch.indices.query_cache.memory_size_in_bytes": ("gauge", "indices.query_cache.memory_size_in_bytes"),
+    "elasticsearch.indices.query_cache.hit_count": ("rate", "indices.query_cache.hit_count"),
+    "elasticsearch.indices.query_cache.miss_count": ("rate", "indices.query_cache.miss_count"),
+    "elasticsearch.indices.query_cache.evictions": ("rate", "indices.query_cache.evictions"),
     "elasticsearch.indices.segments.index_writer_max_memory_in_bytes": ("gauge", "indices.segments.index_writer_max_memory_in_bytes"),
     "elasticsearch.indices.segments.fixed_bit_set_memory_in_bytes": ("gauge", "indices.segments.fixed_bit_set_memory_in_bytes"),
+    "elasticsearch.breakers.fielddata.estimated_size_in_bytes": ("gauge", "breakers.fielddata.estimated_size_in_bytes"),
+    "elasticsearch.breakers.fielddata.overhead": ("gauge", "breakers.fielddata.overhead"),
+    "elasticsearch.breakers.fielddata.tripped": ("rate", "breakers.fielddata.tripped"),
+    "elasticsearch.breakers.parent.estimated_size_in_bytes": ("gauge", "breakers.parent.estimated_size_in_bytes"),
+    "elasticsearch.breakers.parent.overhead": ("gauge", "breakers.parent.overhead"),
+    "elasticsearch.breakers.parent.tripped": ("rate", "breakers.parent.tripped"),
+    "elasticsearch.breakers.request.estimated_size_in_bytes": ("gauge", "breakers.request.estimated_size_in_bytes"),
+    "elasticsearch.breakers.request.overhead": ("gauge", "breakers.request.overhead"),
+    "elasticsearch.breakers.request.tripped": ("rate", "breakers.request.tripped"),
+    "elasticsearch.thread_pool.listener.active": ("gauge", "thread_pool.listener.active"),
+    "elasticsearch.thread_pool.listener.threads": ("gauge", "thread_pool.listener.threads"),
+    "elasticsearch.thread_pool.listener.queue": ("gauge", "thread_pool.listener.queue"),
+    "elasticsearch.thread_pool.listener.rejected": ("rate", "thread_pool.listener.rejected"),
+}
+
+ADDITIONAL_METRICS_POST_1_5_0 = {
+    "elasticsearch.indices.recovery.current_as_source": ("gauge", "indices.recovery.current_as_source"),
+    "elasticsearch.indices.recovery.current_as_target": ("gauge", "indices.recovery.current_as_target"),
+    "elasticsearch.indices.recovery.throttle_time": ("rate", "indices.recovery.throttle_time_in_millis", lambda v: float(v)/1000),
+}
+
+ADDITIONAL_METRICS_POST_1_6_0 = {
+    "elasticsearch.thread_pool.fetch_shard_started.active": ("gauge", "thread_pool.fetch_shard_started.active"),
+    "elasticsearch.thread_pool.fetch_shard_started.threads": ("gauge", "thread_pool.fetch_shard_started.threads"),
+    "elasticsearch.thread_pool.fetch_shard_started.queue": ("gauge", "thread_pool.fetch_shard_started.queue"),
+    "elasticsearch.thread_pool.fetch_shard_started.rejected": ("rate", "thread_pool.fetch_shard_started.rejected"),
+    "elasticsearch.thread_pool.fetch_shard_store.active": ("gauge", "thread_pool.fetch_shard_store.active"),
+    "elasticsearch.thread_pool.fetch_shard_store.threads": ("gauge", "thread_pool.fetch_shard_store.threads"),
+    "elasticsearch.thread_pool.fetch_shard_store.queue": ("gauge", "thread_pool.fetch_shard_store.queue"),
+    "elasticsearch.thread_pool.fetch_shard_store.rejected": ("rate", "thread_pool.fetch_shard_store.rejected"),
 }
 
 ADDITIONAL_METRICS_PRE_2_0 = {
     "elasticsearch.thread_pool.merge.active": ("gauge", "thread_pool.merge.active"),
     "elasticsearch.thread_pool.merge.threads": ("gauge", "thread_pool.merge.threads"),
     "elasticsearch.thread_pool.merge.queue": ("gauge", "thread_pool.merge.queue"),
+    "elasticsearch.thread_pool.merge.rejected": ("rate", "thread_pool.merge.rejected"),
+}
+
+ADDITIONAL_METRICS_POST_2_0 = {
+    "elasticsearch.indices.query_cache.cache_size": ("gauge", "indices.query_cache.cache_size"),
+    "elasticsearch.indices.query_cache.cache_count": ("rate", "indices.query_cache.cache_count"),
+    "elasticsearch.indices.query_cache.total_count": ("rate", "indices.query_cache.total_count"),
+    "elasticsearch.indices.segments.doc_values_memory_in_bytes": ("gauge", "indices.segments.doc_values_memory_in_bytes"),
+    "elasticsearch.indices.segments.norms_memory_in_bytes": ("gauge", "indices.segments.norms_memory_in_bytes"),
+    "elasticsearch.indices.segments.stored_fields_memory_in_bytes": ("gauge", "indices.segments.stored_fields_memory_in_bytes"),
+    "elasticsearch.indices.segments.term_vectors_memory_in_bytes": ("gauge", "indices.segments.term_vectors_memory_in_bytes"),
+    "elasticsearch.indices.segments.terms_memory_in_bytes": ("gauge", "indices.segments.terms_memory_in_bytes"),
+    "elasticsearch.indices.request_cache.memory_size_in_bytes": ("gauge", "indices.request_cache.memory_size_in_bytes"),
+    "elasticsearch.indices.request_cache.evictions": ("rate", "indices.request_cache.evictions"),
+    "elasticsearch.indices.request_cache.hit_count": ("rate", "indices.request_cache.hit_count"),
+    "elasticsearch.indices.request_cache.miss_count": ("rate", "indices.request_cache.miss_count"),
+}
+
+ADDITIONAL_METRICS_POST_2_1 = {
+    "elasticsearch.indices.indexing.index_failed": ("rate", "indices.indexing.index_failed"),
+    "elasticsearch.thread_pool.force_merge.active": ("gauge", "thread_pool.force_merge.active"),
+    "elasticsearch.thread_pool.force_merge.threads": ("gauge", "thread_pool.force_merge.threads"),
+    "elasticsearch.thread_pool.force_merge.queue": ("gauge", "thread_pool.force_merge.queue"),
+    "elasticsearch.thread_pool.force_merge.rejected": ("rate", "thread_pool.force_merge.rejected"),
 }
 
 CLUSTER_HEALTH_METRICS = {
@@ -245,6 +321,7 @@ class TestElastic(AgentCheckTest):
         }
 
         tags = [u"foo:bar", u"baz"]
+        cluster_tag = [u"cluster_name:elasticsearch"]
         url = 'http://localhost:{0}'.format(port)
         bad_url = 'http://localhost:{0}'.format(bad_port)
 
@@ -297,6 +374,18 @@ class TestElastic(AgentCheckTest):
         if es_version >= [1, 4, 0]:
             expected_metrics.update(ADDITIONAL_METRICS_POST_1_4_0)
 
+        if es_version >= [1, 5, 0]:
+            expected_metrics.update(ADDITIONAL_METRICS_POST_1_5_0)
+
+        if es_version >= [1, 6, 0]:
+            expected_metrics.update(ADDITIONAL_METRICS_POST_1_6_0)
+
+        if es_version >= [2, 0, 0]:
+            expected_metrics.update(ADDITIONAL_METRICS_POST_2_0)
+
+        if es_version >= [2, 1, 0]:
+            expected_metrics.update(ADDITIONAL_METRICS_POST_2_1)
+
         local_hostname = socket.gethostname() if es_version < [2, 0, 0] else '127.0.0.1'
         contexts = [
             (conf_hostname, default_tags + tags),
@@ -310,6 +399,7 @@ class TestElastic(AgentCheckTest):
 
         for m_name, desc in expected_metrics.iteritems():
             for hostname, m_tags in contexts:
+                m_tags = m_tags + cluster_tag
                 if (m_name in CLUSTER_HEALTH_METRICS
                         and hostname == local_hostname):
                     hostname = conf_hostname
@@ -351,7 +441,8 @@ class TestElastic(AgentCheckTest):
                                            count=1)
             # Assert event
             self.assertEvent('ElasticSearch: foo just reported as yellow', count=1,
-                             tags=default_tags+tags, msg_title='foo is yellow',
+                             tags=default_tags+tags+cluster_tag,
+                             msg_title='foo is yellow',
                              event_type='elasticsearch', alert_type='warning',
                              source_type_name='elasticsearch')
 
@@ -414,6 +505,8 @@ class TestElastic(AgentCheckTest):
 
     def test_health_event(self):
         dummy_tags = ['foo:bar', 'elastique:recherche']
+        server_tags = ['cluster_name:elasticsearch']
+
         config = {'instances': [
             {'url': 'http://localhost:9200', 'tags': dummy_tags}
         ]}
@@ -425,7 +518,7 @@ class TestElastic(AgentCheckTest):
         self.assertEquals(len(self.events), 1)
         self.assertIn('yellow', self.events[0]['msg_title'])
         self.assertEquals(
-            ['url:http://localhost:9200'] + dummy_tags,
+            ['url:http://localhost:9200'] + dummy_tags + server_tags,
             self.events[0]['tags']
         )
         self.assertServiceCheckWarning(
@@ -443,7 +536,7 @@ class TestElastic(AgentCheckTest):
         self.assertEquals(len(self.events), 1)
         self.assertIn('green', self.events[0]['msg_title'])
         self.assertEquals(
-            ['url:http://localhost:9200'] + dummy_tags,
+            ['url:http://localhost:9200'] + dummy_tags + server_tags,
             self.events[0]['tags']
         )
         self.assertServiceCheckOK(

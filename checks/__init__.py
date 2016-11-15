@@ -29,7 +29,8 @@ import yaml
 
 # project
 from checks import check_status
-from util import get_hostname, get_next_id, yLoader
+from util import get_next_id, yLoader
+from utils.hostname import get_hostname
 from utils.proxy import get_proxy
 from utils.platform import Platform
 from utils.profile import pretty_statistics
@@ -296,6 +297,8 @@ class AgentCheck(object):
 
     SOURCE_TYPE_NAME = None
 
+    DEFAULT_EXPIRY_SECONDS = 300
+
     DEFAULT_MIN_COLLECTION_INTERVAL = 0
 
     _enabled_checks = []
@@ -323,20 +326,22 @@ class AgentCheck(object):
         self.agentConfig = agentConfig
         self.in_developer_mode = agentConfig.get('developer_mode') and psutil
         self._internal_profiling_stats = None
+        self.default_integration_http_timeout = float(agentConfig.get('default_integration_http_timeout', 9))
 
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
+
+        self.min_collection_interval = self.init_config.get('min_collection_interval',
+                                                            self.DEFAULT_MIN_COLLECTION_INTERVAL)
+
         self.aggregator = MetricsAggregator(
             self.hostname,
+            expiry_seconds = self.min_collection_interval + self.DEFAULT_EXPIRY_SECONDS,
             formatter=agent_formatter,
             recent_point_threshold=agentConfig.get('recent_point_threshold', None),
             histogram_aggregates=agentConfig.get('histogram_aggregates'),
             histogram_percentiles=agentConfig.get('histogram_percentiles')
         )
-
-        if Platform.is_linux() and psutil is not None:
-            procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
-            psutil.PROCFS_PATH = procfs_path
 
         self.events = []
         self.service_checks = []
@@ -747,12 +752,8 @@ class AgentCheck(object):
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
-                min_collection_interval = instance.get(
-                    'min_collection_interval', self.init_config.get(
-                        'min_collection_interval',
-                        self.DEFAULT_MIN_COLLECTION_INTERVAL
-                    )
-                )
+                min_collection_interval = instance.get('min_collection_interval', self.min_collection_interval)
+
                 now = time.time()
                 if now - self.last_collection_time[i] < min_collection_interval:
                     self.log.debug("Not running instance #{0} of check {1} as it ran less than {2}s ago".format(i, self.name, min_collection_interval))

@@ -41,7 +41,9 @@ from checks.check_status import DogstatsdStatus
 from checks.metric_types import MetricTypes
 from config import get_config, get_version
 from daemon import AgentSupervisor, Daemon
-from util import chunks, get_hostname, get_uuid, plural
+from util import chunks, get_uuid, plural
+from utils.hostname import get_hostname
+from utils.pidfile import PidFile
 from utils.net import inet_pton
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
 from utils.pidfile import PidFile
@@ -152,7 +154,7 @@ def mapto_v6(addr):
     return None
 
 
-def get_socket_address(host, port):
+def get_socket_address(host, port, ipv4_only=False):
     """
     Gather informations to open the server socket.
     Try to resolve the name giving precedence to IPv4 for retro compatibility
@@ -160,16 +162,23 @@ def get_socket_address(host, port):
     """
     try:
         info = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_DGRAM)
-    except socket.gaierror:
+    except socket.gaierror as e:
         try:
-            info = socket.getaddrinfo(host, port, socket.AF_INET6, socket.SOCK_DGRAM)
+            if not ipv4_only:
+                info = socket.getaddrinfo(host, port, socket.AF_INET6, socket.SOCK_DGRAM)
+            elif host == 'localhost':
+                log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
+                info = socket.getaddrinfo('127.0.0.1', port, socket.AF_INET, socket.SOCK_DGRAM)
+            else:
+                log.error('Error processing host %s and port %s: %s', host, port, e)
+                return None
         except socket.gaierror as e:
             log.error('Error processing host %s and port %s: %s', host, port, e)
             return None
 
     # we get the first item of the list and map the address for IPv4 hosts
     sockaddr = info[0][-1]
-    if info[0][0] == socket.AF_INET:
+    if info[0][0] == socket.AF_INET and not ipv4_only:
         mapped_host = mapto_v6(sockaddr[0])
         sockaddr = (mapped_host, sockaddr[1], 0, 0)
     return sockaddr
@@ -336,9 +345,11 @@ class Server(object):
     A statsd udp server.
     """
     def __init__(self, metrics_aggregator, host, port, forward_to_host=None, forward_to_port=None):
-        self.sockaddr = get_socket_address(host, int(port))
+        self.sockaddr = None
         self.socket = None
         self.metrics_aggregator = metrics_aggregator
+        self.host = host
+        self.port = port
         self.buffer_size = 1024 * 8
 
         self.running = False
@@ -362,12 +373,22 @@ class Server(object):
         """
         Run the server.
         """
-        # Bind to the UDP socket in IPv4 and IPv6 compatibility mode
-        self.socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        # Configure the socket so that it accepts connections from both
-        # IPv4 and IPv6 networks in a portable manner.
-        self.socket.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
+        ipv4_only = False
+        try:
+            # Bind to the UDP socket in IPv4 and IPv6 compatibility mode
+            self.socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+            # Configure the socket so that it accepts connections from both
+            # IPv4 and IPv6 networks in a portable manner.
+            self.socket.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
+        except Exception:
+            log.info('unable to create IPv6 socket, falling back to IPv4.')
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            ipv4_only = True
+
         self.socket.setblocking(0)
+
+        #let's get the sockaddr
+        self.sockaddr = get_socket_address(self.host, int(self.port), ipv4_only=ipv4_only)
 
         try:
             self.socket.bind(self.sockaddr)
@@ -390,6 +411,7 @@ class Server(object):
 
         # Run our select loop.
         self.running = True
+        message = None
         while self.running:
             try:
                 ready = select_select(sock, [], [], timeout)
@@ -407,7 +429,7 @@ class Server(object):
             except (KeyboardInterrupt, SystemExit):
                 break
             except Exception:
-                log.exception('Error receiving datagram')
+                log.exception('Error receiving datagram `%s`', message)
 
     def stop(self):
         self.running = False
@@ -522,10 +544,6 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
 
 def main(config_path=None):
     """ The main entry point for the unix version of dogstatsd. """
-    # Deprecation notice
-    from utils.deprecations import deprecate_old_command_line_tools
-    deprecate_old_command_line_tools()
-
     COMMANDS_START_DOGSTATSD = [
         'start',
         'stop',
@@ -538,10 +556,12 @@ def main(config_path=None):
                       dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
+    in_developer_mode = False
     if not args or args[0] in COMMANDS_START_DOGSTATSD:
         reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder, args=args)
         daemon = Dogstatsd(PidFile(PID_NAME, PID_DIR).get_path(), server, reporter,
                            cnf.get('autorestart', False))
+        in_developer_mode = cnf.get('developer_mode')
 
     # If no args were passed in, run the server in the foreground.
     if not args:
@@ -551,6 +571,11 @@ def main(config_path=None):
     # Otherwise, we're process the deamon command.
     else:
         command = args[0]
+
+        # TODO: actually kill the start/stop/restart/status command for 5.11
+        if command in ['start', 'stop', 'restart', 'status'] and not in_developer_mode:
+            logging.error('Please use supervisor to manage the agent')
+            return 1
 
         if command == 'start':
             daemon.start()

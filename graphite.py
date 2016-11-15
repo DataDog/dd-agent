@@ -11,6 +11,9 @@ import struct
 from tornado.ioloop import IOLoop
 from tornado.tcpserver import TCPServer
 
+# project
+from utils.hostname import get_hostname
+
 log = logging.getLogger(__name__)
 
 
@@ -112,7 +115,6 @@ class GraphiteConnection(object):
         self.stream.read_bytes(4, self._on_read_header)
 
 def start_graphite_listener(port):
-    from util import get_hostname
     echo_server = GraphiteServer(None, get_hostname(None))
     echo_server.listen(port)
     IOLoop.instance().start()

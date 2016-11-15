@@ -6,6 +6,9 @@
 
 Collects metrics from the pgbouncer database.
 """
+# stdlib
+import urlparse
+
 # 3p
 import psycopg2 as pg
 
@@ -64,7 +67,12 @@ class PgBouncer(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.dbs = {}
 
-    def _get_service_checks_tags(self, host, port):
+    def _get_service_checks_tags(self, host, port, database_url):
+        if database_url:
+            parsed_url = urlparse.urlparse(database_url)
+            host = parsed_url.hostname
+            port = parsed_url.port
+
         service_checks_tags = [
             "host:%s" % host,
             "port:%s" % port,
@@ -120,41 +128,74 @@ class PgBouncer(AgentCheck):
             self.log.error("Connection error: %s" % str(e))
             raise ShouldRestartException
 
-    def _get_connection(self, key, host, port, user, password, use_cached=True):
+    def _get_connect_kwargs(self, host, port, user, password, database_url):
+        """
+        Get the params to pass to psycopg2.connect() based on passed-in vals
+        from yaml settings file
+        """
+        if database_url:
+            return {'dsn': database_url}
+
+        if not host:
+            raise CheckException(
+                "Please specify a PgBouncer host to connect to.")
+
+        if not user:
+            raise CheckException(
+                "Please specify a user to connect to PgBouncer as.")
+
+        if host in ('localhost', '127.0.0.1') and password == '':
+            return {  # Use ident method
+                'dsn': "user={} dbname={}".format(user, self.DB_NAME)
+            }
+
+        if port:
+            return {'host': host, 'user': user, 'password': password,
+                    'database': self.DB_NAME, 'port': port}
+
+        return {'host': host, 'user': user, 'password': password,
+                'database': self.DB_NAME}
+
+    def _get_connection(self, key, host='', port='', user='',
+                        password='', database_url='', use_cached=True):
         "Get and memoize connections to instances"
         if key in self.dbs and use_cached:
             return self.dbs[key]
 
-        elif host != "" and user != "":
-            try:
-                if host == 'localhost' and password == '':
-                    # Use ident method
-                    connection = pg.connect("user=%s dbname=%s" % (user, self.DB_NAME))
-                elif port != '':
-                    connection = pg.connect(host=host, port=port, user=user,
-                                            password=password, database=self.DB_NAME)
-                else:
-                    connection = pg.connect(host=host, user=user, password=password,
-                                            database=self.DB_NAME)
+        try:
+            connect_kwargs = self._get_connect_kwargs(
+                host=host, port=port, user=user,
+                password=password, database_url=database_url
+            )
 
-                connection.set_isolation_level(pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-                self.log.debug('pgbouncer status: %s' % AgentCheck.OK)
+            connection = pg.connect(**connect_kwargs)
+            connection.set_isolation_level(
+                pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 
-            except Exception:
-                message = u'Cannot establish connection to pgbouncer://%s:%s/%s' % (host, port, self.DB_NAME)
-                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                                   tags=self._get_service_checks_tags(host, port),
-                                   message=message)
-                self.log.debug('pgbouncer status: %s' % AgentCheck.CRITICAL)
-                raise
-        else:
-            if not host:
-                raise CheckException("Please specify a PgBouncer host to connect to.")
-            elif not user:
-                raise CheckException("Please specify a user to connect to PgBouncer as.")
+        # re-raise the CheckExceptions raised by _get_connect_kwargs()
+        except CheckException:
+            raise
+
+        except Exception:
+            redacted_url = self._get_redacted_dsn(host, port, user, database_url)
+            message = u'Cannot establish connection to {}'.format(redacted_url)
+
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                               tags=self._get_service_checks_tags(host, port, database_url),
+                               message=message)
+            raise
 
         self.dbs[key] = connection
         return connection
+
+    def _get_redacted_dsn(self, host, port, user, database_url):
+        if not database_url:
+            return u'pgbouncer://%s:******@%s:%s/%s' % (user, host, port, self.DB_NAME)
+
+        parsed_url = urlparse.urlparse(database_url)
+        if parsed_url.password:
+            return database_url.replace(parsed_url.password, '******')
+        return database_url
 
     def check(self, instance):
         host = instance.get('host', '')
@@ -162,8 +203,12 @@ class PgBouncer(AgentCheck):
         user = instance.get('username', '')
         password = instance.get('password', '')
         tags = instance.get('tags', [])
+        database_url = instance.get('database_url')
 
-        key = '%s:%s' % (host, port)
+        if database_url:
+            key = database_url
+        else:
+            key = '%s:%s' % (host, port)
 
         if tags is None:
             tags = []
@@ -171,15 +216,17 @@ class PgBouncer(AgentCheck):
             tags = list(set(tags))
 
         try:
-            db = self._get_connection(key, host, port, user, password)
+            db = self._get_connection(key, host, port, user, password,
+                                      database_url=database_url)
             self._collect_stats(db, tags)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
             db = self._get_connection(key, host, port, user, password, use_cached=False)
             self._collect_stats(db, tags)
 
-        message = u'Established connection to pgbouncer://%s:%s/%s' % (host, port, self.DB_NAME)
+        redacted_dsn = self._get_redacted_dsn(host, port, user, database_url)
+        message = u'Established connection to {}'.format(redacted_dsn)
+
         self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
-                           tags=self._get_service_checks_tags(host, port),
+                           tags=self._get_service_checks_tags(host, port, database_url),
                            message=message)
-        self.log.debug('pgbouncer status: %s' % AgentCheck.OK)

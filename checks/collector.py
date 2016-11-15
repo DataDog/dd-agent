@@ -4,6 +4,7 @@
 
 # stdlib
 import collections
+import locale
 import logging
 import pprint
 import socket
@@ -11,6 +12,11 @@ import sys
 import time
 
 # 3p
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 import simplejson as json
 
 # project
@@ -29,15 +35,13 @@ import checks.system.unix as u
 import checks.system.win32 as w32
 import modules
 from util import (
-    EC2,
-    GCE,
-    get_os,
     get_uuid,
     Timer,
 )
+from utils.cloud_metadata import GCE, EC2
 from utils.logger import log_exceptions
 from utils.jmx import JMXFiles
-from utils.platform import Platform
+from utils.platform import Platform, get_os
 from utils.subprocess_output import get_subprocess_output
 
 log = logging.getLogger(__name__)
@@ -191,6 +195,10 @@ class Collector(object):
         self.initialized_checks_d = []
         self.init_failed_checks_d = {}
 
+        if Platform.is_linux() and psutil is not None:
+            procfs_path = agentConfig.get('procfs_path', '/proc').rstrip('/')
+            psutil.PROCFS_PATH = procfs_path
+
         # Unix System Checks
         self._unix_system_checks = {
             'io': u.IO(log),
@@ -286,57 +294,62 @@ class Collector(object):
         # Run the system checks. Checks will depend on the OS
         if Platform.is_windows():
             # Win32 system checks
-            try:
-                metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['cpu'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['network'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['io'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['proc'].check(self.agentConfig))
-                metrics.extend(self._win32_system_checks['system'].check(self.agentConfig))
-            except Exception:
-                log.exception('Unable to fetch Windows system metrics.')
+            for check_name in ['memory', 'cpu', 'network', 'io', 'proc', 'system']:
+                try:
+                    metrics.extend(self._win32_system_checks[check_name].check(self.agentConfig))
+                except Exception:
+                    log.exception('Unable to get %s metrics', check_name)
         else:
             # Unix system checks
             sys_checks = self._unix_system_checks
 
-            load = sys_checks['load'].check(self.agentConfig)
-            payload.update(load)
+            for check_name in ['load', 'system', 'cpu']:
+                try:
+                    result_check = sys_checks[check_name].check(self.agentConfig)
+                    if result_check:
+                        payload.update(result_check)
+                except Exception:
+                    log.exception('Unable to get %s metrics', check_name)
 
-            system = sys_checks['system'].check(self.agentConfig)
-            payload.update(system)
+            try:
+                memory = sys_checks['memory'].check(self.agentConfig)
+            except Exception:
+                    log.exception('Unable to get memory metrics')
+            else:
+                if memory:
+                    memstats = {
+                        'memPhysUsed': memory.get('physUsed'),
+                        'memPhysPctUsable': memory.get('physPctUsable'),
+                        'memPhysFree': memory.get('physFree'),
+                        'memPhysTotal': memory.get('physTotal'),
+                        'memPhysUsable': memory.get('physUsable'),
+                        'memSwapUsed': memory.get('swapUsed'),
+                        'memSwapFree': memory.get('swapFree'),
+                        'memSwapPctFree': memory.get('swapPctFree'),
+                        'memSwapTotal': memory.get('swapTotal'),
+                        'memCached': memory.get('physCached'),
+                        'memBuffers': memory.get('physBuffers'),
+                        'memShared': memory.get('physShared'),
+                        'memSlab': memory.get('physSlab'),
+                        'memPageTables': memory.get('physPageTables'),
+                        'memSwapCached': memory.get('swapCached')
+                    }
+                    payload.update(memstats)
 
-            memory = sys_checks['memory'].check(self.agentConfig)
+            try:
+                ioStats = sys_checks['io'].check(self.agentConfig)
+            except Exception:
+                    log.exception('Unable to get io metrics')
+            else:
+                if ioStats:
+                    payload['ioStats'] = ioStats
 
-            if memory:
-                memstats = {
-                    'memPhysUsed': memory.get('physUsed'),
-                    'memPhysPctUsable': memory.get('physPctUsable'),
-                    'memPhysFree': memory.get('physFree'),
-                    'memPhysTotal': memory.get('physTotal'),
-                    'memPhysUsable': memory.get('physUsable'),
-                    'memSwapUsed': memory.get('swapUsed'),
-                    'memSwapFree': memory.get('swapFree'),
-                    'memSwapPctFree': memory.get('swapPctFree'),
-                    'memSwapTotal': memory.get('swapTotal'),
-                    'memCached': memory.get('physCached'),
-                    'memBuffers': memory.get('physBuffers'),
-                    'memShared': memory.get('physShared'),
-                    'memSlab': memory.get('physSlab'),
-                    'memPageTables': memory.get('physPageTables'),
-                    'memSwapCached': memory.get('swapCached')
-                }
-                payload.update(memstats)
-
-            ioStats = sys_checks['io'].check(self.agentConfig)
-            if ioStats:
-                payload['ioStats'] = ioStats
-
-            processes = sys_checks['processes'].check(self.agentConfig)
-            payload.update({'processes': processes})
-
-            cpuStats = sys_checks['cpu'].check(self.agentConfig)
-            if cpuStats:
-                payload.update(cpuStats)
+            try:
+                processes = sys_checks['processes'].check(self.agentConfig)
+            except Exception:
+                    log.exception('Unable to get processes metrics')
+            else:
+                payload.update({'processes': processes})
 
         # Run old-style checks
         if self._ganglia is not None:
@@ -380,12 +393,15 @@ class Collector(object):
             if res:
                 metrics.extend(res)
 
+        # Use `info` log level for some messages on the first run only, then `debug`
+        log_at_first_run = log.info if self._is_first_run() else log.debug
+
         # checks.d checks
         check_statuses = []
         for check in self.initialized_checks_d:
             if not self.continue_running:
                 return
-            log.info("Running check %s" % check.name)
+            log_at_first_run("Running check %s", check.name)
             instance_statuses = []
             metric_count = 0
             event_count = 0
@@ -440,7 +456,8 @@ class Collector(object):
             current_check_service_checks = check.get_service_checks()
             if current_check_service_checks:
                 service_checks.extend(current_check_service_checks)
-            service_check_count = len(current_check_service_checks)
+            # -1 because the user doesn't care about the service check for check failure
+            service_check_count = len(current_check_service_checks) - 1
 
             # Update the check status with the correct service_check_count
             check_status.service_check_count = service_check_count
@@ -734,7 +751,7 @@ class Collector(object):
             pass
 
         metadata["hostname"] = self.hostname
-        metadata["timezones"] = sanitize_tzname(time.tzname)
+        metadata["timezones"] = self._decode_tzname(time.tzname)
 
         # Add cloud provider aliases
         host_aliases = GCE.get_host_aliases(self.agentConfig)
@@ -777,12 +794,16 @@ class Collector(object):
 
         return output
 
+    @staticmethod
+    def _decode_tzname(tzname):
+        """ On Windows, decodes the timezone from the system-preferred encoding
+        """
+        if Platform.is_windows():
+            try:
+                decoded_tzname = map(lambda tz: tz.decode(locale.getpreferredencoding()), tzname)
+            except Exception:
+                log.exception("Failed decoding timezone with encoding %s", locale.getpreferredencoding())
+                return ('', '')
+            return tuple(decoded_tzname)
 
-def sanitize_tzname(tzname):
-    """ Returns the tzname given, and deals with Japanese encoding issue
-    """
-    if tzname[0] == '\x93\x8c\x8b\x9e (\x95W\x8f\x80\x8e\x9e)':
-        log.debug('tzname from TOKYO detected and converted')
-        return ('JST', 'JST')
-    else:
         return tzname

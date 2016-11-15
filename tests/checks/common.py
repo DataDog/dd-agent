@@ -14,12 +14,15 @@ import sys
 import time
 import traceback
 import unittest
+import json
 
 # project
 from checks import AgentCheck
 from config import get_checksd_path
-from util import get_hostname, get_os
+
 from utils.debug import get_check  # noqa -  FIXME 5.5.0 AgentCheck tests should not use this
+from utils.hostname import get_hostname
+from utils.platform import get_os
 
 log = logging.getLogger('tests')
 
@@ -94,7 +97,7 @@ def load_check(name, config, agentConfig):
 
     # init the check class
     try:
-        return check_class(name, init_config=init_config, agentConfig=agentConfig, instances=instances)
+        return check_class(name, init_config, agentConfig, instances=instances)
     except TypeError as e:
         raise Exception("Check is using old API, {0}".format(e))
     except Exception:
@@ -130,6 +133,9 @@ class Fixtures(object):
                 contents = contents.decode('string-escape')
             return contents.decode("utf-8")
 
+    @staticmethod
+    def read_json_file(file_name, string_escape=True):
+        return json.loads(Fixtures.read_file(file_name, string_escape=string_escape))
 
 class AgentCheckTest(unittest.TestCase):
     DEFAULT_AGENT_CONFIG = {
