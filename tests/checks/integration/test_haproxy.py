@@ -98,7 +98,7 @@ class HaproxyTest(AgentCheckTest):
             }]
         }
         self.unixsocket_path = os.path.join(os.environ['VOLATILE_DIR'], 'datadog-haproxy-stats.sock')
-        self.unixsocket_url = 'http+unix://{0}/stats'.format(urllib.quote(self.unixsocket_path, ''))
+        self.unixsocket_url = 'unix://{0}'.format(self.unixsocket_path)
         self.config_unixsocket = {
             'instances': [{
                 'url': self.unixsocket_url,
