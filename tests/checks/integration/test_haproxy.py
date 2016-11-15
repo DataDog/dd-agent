@@ -101,7 +101,7 @@ class HaproxyTest(AgentCheckTest):
         self.unixsocket_url = 'http+unix://{0}/stats'.format(urllib.quote(self.unixsocket_path, ''))
         self.config_unixsocket = {
             'instances': [{
-                'url': 'http+unix://{0}/stats'.format(os.environ['VOLATILE_DIR']),
+                'url': self.unixsocket_url,
                 'collect_aggregates_only': False,
             }]
         }
