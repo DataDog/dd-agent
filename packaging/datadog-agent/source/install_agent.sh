@@ -120,7 +120,7 @@ if [ $OS = "RedHat" ]; then
     if [ -n "$REDHAT_MAJOR_VERSION" ] && [ "$REDHAT_MAJOR_VERSION" -le "5" ]; then
         PROTOCOL="http"
     else
-        PROTOCOL="http"
+        PROTOCOL="https"
     fi
     $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = $PROTOCOL://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=1\npriority=1\ngpgkey=$PROTOCOL://yum.datadoghq.com/DATADOG_RPM_KEY.public' > /etc/yum.repos.d/datadog.repo"
 
