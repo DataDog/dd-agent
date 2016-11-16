@@ -117,11 +117,40 @@ TAG_EXTRACTORS = {
 CONTAINER = "container"
 PERFORMANCE = "performance"
 FILTERED = "filtered"
+HEALTHCHECK = "healthcheck"
 IMAGE = "image"
 
 ECS_INTROSPECT_DEFAULT_PORT = 51678
 
 ERROR_ALERT_TYPE = ['oom', 'kill']
+
+def compile_filter_rules(rules):
+    patterns = []
+    tag_names = []
+
+    for rule in rules:
+        patterns.append(re.compile(rule))
+        tag_names.append(rule.split(':')[0])
+
+    return patterns, tag_names
+
+def get_filters(include, exclude):
+    # The reasoning is to check exclude first, so we can skip if there is no exclude
+    if not exclude:
+        return
+
+    filtered_tag_names = []
+    exclude_patterns = []
+    include_patterns = []
+
+    # Compile regex
+    exclude_patterns, tag_names = compile_filter_rules(exclude)
+    filtered_tag_names.extend(tag_names)
+
+    include_patterns, tag_names = compile_filter_rules(include)
+    filtered_tag_names.extend(tag_names)
+
+    return set(exclude_patterns), set(include_patterns), set(filtered_tag_names)
 
 
 class DockerDaemon(AgentCheck):
@@ -176,6 +205,15 @@ class DockerDaemon(AgentCheck):
             if self.docker_util.filtering_enabled:
                 self.tag_names[FILTERED] = self.docker_util.filtered_tag_names
 
+
+            # get the health check whitelist
+            health_scs_whitelist = instance.get('health_service_check_whitelist', [])
+            if health_scs_whitelist:
+                patterns, whitelist_tags = compile_filter_rules(health_scs_whitelist)
+                self.whitelist_patterns = set(patterns)
+                self.tag_names[HEALTHCHECK] = set(whitelist_tags)
+
+
             # Other options
             self.collect_image_stats = _is_affirmative(instance.get('collect_images_stats', False))
             self.collect_container_size = _is_affirmative(instance.get('collect_container_size', False))
@@ -219,10 +257,8 @@ class DockerDaemon(AgentCheck):
         # containers running with custom cgroups?
         custom_cgroups = _is_affirmative(instance.get('custom_cgroups', False))
 
-        # submit healtcheck service checks?
-        health_service_checks = _is_affirmative(instance.get('health_service_checks', False))
-
         # Get the list of containers and the index of their names
+        health_service_checks = True if self.whitelist_patterns else False
         containers_by_id = self._get_and_count_containers(custom_cgroups, health_service_checks)
         containers_by_id = self._crawl_container_pids(containers_by_id, custom_cgroups)
 
@@ -240,10 +276,8 @@ class DockerDaemon(AgentCheck):
         if self.collect_disk_stats:
             self._report_disk_stats()
 
-        # Report docker healthcheck SC's where available
         if health_service_checks:
-            health_scs_whitelist = set(instance.get('health_service_check_whitelist', []))
-            self._send_container_healthcheck_sc(containers_by_id, health_scs_whitelist)
+            self._send_container_healthcheck_sc(containers_by_id)
 
     def _count_and_weigh_images(self):
         try:
@@ -478,23 +512,34 @@ class DockerDaemon(AgentCheck):
                     self, 'docker.container.size_rootfs', container['SizeRootFs'],
                     tags=tags)
 
-    def _send_container_healthcheck_sc(self, containers_by_id, whitelist):
-        """Send health service checks for containers. Whitelist should preferably be a set."""
+    def _send_container_healthcheck_sc(self, containers_by_id):
+        """Send health service checks for containers."""
         for container in containers_by_id.itervalues():
-            if container.get('Image') not in whitelist:
-                continue
+            healthcheck_tags = self._get_tags(container, HEALTHCHECK)
+            match = False
+            for tag in healthcheck_tags:
+                for rule in self.whitelist_patterns:
+                    if re.match(rule, tag):
+                        match = True
 
-            health = container.get('health', {})
-            tags = self._get_tags(container, CONTAINER)
-            status = AgentCheck.UNKNOWN
-            if health:
-                _health = health.get('Status', '')
-                if _health == 'unhealthy':
-                    status = AgentCheck.CRITICAL
-                elif _health == 'healthy':
-                    status = AgentCheck.OK
+                        self._submit_healthcheck_sc(container)
+                        break
 
-            self.service_check(HEALTHCHECK_SERVICE_CHECK_NAME, status, tags=tags)
+                if match:
+                    break
+
+    def _submit_healthcheck_sc(self, container):
+        health = container.get('health', {})
+        status = AgentCheck.UNKNOWN
+        if health:
+            _health = health.get('Status', '')
+            if _health == 'unhealthy':
+                status = AgentCheck.CRITICAL
+            elif _health == 'healthy':
+                status = AgentCheck.OK
+
+        tags = self._get_tags(container, CONTAINER)
+        self.service_check(HEALTHCHECK_SERVICE_CHECK_NAME, status, tags=tags)
 
     def _report_image_size(self, images):
         for image in images:
