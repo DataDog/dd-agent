@@ -114,12 +114,14 @@ class AbstractConfigStore(object):
             return None
 
     def _get_auto_config(self, image_name):
+        from jmxfetch import JMX_CHECKS
+
         ident = self._get_image_ident(image_name)
         if ident in self.auto_conf_images:
             check_name = self.auto_conf_images[ident]
 
             # get the check class to verify it matches
-            check = get_check_class(self.agentConfig, check_name)
+            check = get_check_class(self.agentConfig, check_name) if check_name not in JMX_CHECKS else True
             if check is None:
                 log.info("Could not find an auto configuration template for %s."
                          " Leaving it unconfigured." % image_name)
