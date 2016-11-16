@@ -20,6 +20,7 @@ from util import headers
 
 STATS_URL = "/;csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
+BUFSIZE = 8192
 
 
 class Services(object):
@@ -179,10 +180,10 @@ class HAProxy(AgentCheck):
         sock.send("show stat\r\n")
 
         response = ""
-        output = sock.recv(8192)
+        output = sock.recv(BUFSIZE)
         while output:
             response += output.decode("ASCII")
-            output = sock.recv(8192)
+            output = sock.recv(BUFSIZE)
 
         sock.close()
 
