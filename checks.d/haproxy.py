@@ -8,10 +8,7 @@ import copy
 import re
 import socket
 import time
-try:
-    import urlparse
-except LoadError:
-    import urllib.parse as urlparse
+import urlparse
 
 # 3rd party
 import requests
