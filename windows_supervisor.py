@@ -27,7 +27,7 @@ import win32api
 from config import (
     get_config,
 )
-from util import get_hostname
+from utils.hostname import get_hostname
 from utils.jmx import JMXFiles
 
 

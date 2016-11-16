@@ -6,7 +6,6 @@
 import logging
 import platform
 import re
-import sys
 import time
 import uuid
 

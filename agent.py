@@ -38,7 +38,6 @@ from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
 
 # utils
-from util import Watchdog
 from utils.cloud_metadata import EC2
 from utils.configcheck import configcheck, sd_configcheck
 from utils.flare import Flare
