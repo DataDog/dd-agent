@@ -64,7 +64,7 @@
   "frameworks": [
     {
       "user": "root",
-      "checkpoint": 'true',
+      "checkpoint": true,
       "completed_executors": [],
       "executors": [
         {

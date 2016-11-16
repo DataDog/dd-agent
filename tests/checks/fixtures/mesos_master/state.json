@@ -18,7 +18,7 @@
       "id": "20150410-134224-16777343-5050-1778-S0",
       "hostname": "localhost",
       "attributes": {},
-      "active": 'true'
+      "active": true
     }
   ],
   "pid": "master@127.0.0.1:5050",
@@ -81,8 +81,8 @@
       "hostname": "vagrant-ubuntu-trusty-64",
       "failover_timeout": 604800,
       "completed_tasks": [],
-      "checkpoint": 'true',
-      "active": 'true',
+      "checkpoint": true,
+      "active": true,
       "offers": [],
       "registered_time": 1428951955.38871,
       "reregistered_time": 1428951955.38872,
