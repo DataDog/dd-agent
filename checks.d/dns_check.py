@@ -52,23 +52,30 @@ class DNSCheck(AgentCheck):
             resolver.nameservers = [nameserver]
 
         record_type = instance.get('record_type', 'A')
+        expected_results = instance.get('addresses', [])
 
         status = AgentCheck.CRITICAL
         start_time = time.time()
         try:
             self.log.debug('Querying "%s" record for hostname "%s"...' % (record_type, hostname))
             answer = resolver.query(hostname, rdtype=record_type)
-            assert(answer.rrset.items[0].to_text())
+            resolved_results = map(lambda x: x.to_text(), answer.rrset.items)
             end_time = time.time()
+
         except dns.exception.Timeout:
             self.log.error('DNS resolution of %s timed out' % hostname)
             self.service_check(self.SERVICE_CHECK_NAME, status, tags=self._get_tags(instance))
             raise
-        except Exception:
-            self.log.exception('DNS resolution of %s has failed.' % hostname)
-            self.service_check(self.SERVICE_CHECK_NAME, status, tags=self._get_tags(instance))
+        except Exception as err:
+            self.log.exception(err)
+            self.service_check(self.SERVICE_CHECK_NAME, status, tags=self._get_tags(instance), message=err)
             raise
         else:
+            if len(expected_results) > 0:
+                missing_values = list(set(expected_results, resolved_results))
+                if len(missing_values) > 0:
+                    self.log.error('DNS resolution of %s did not contain expected address(es) %s.' % (hostname, ", ".join(missing_values)))
+                    self.service_check(self.SERVICE_CHECK_NAME, status, tags=self._get_tags(instance))
             if end_time - start_time > 0:
                 self.gauge('dns.response_time', end_time - start_time, tags=tags)
                 self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=self._get_tags(instance))
