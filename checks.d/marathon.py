@@ -28,7 +28,10 @@ class Marathon(AgentCheck):
         'mem',
         'taskRateLimit',
         'tasksRunning',
-        'tasksStaged'
+        'tasksStaged',
+        'tasksHealthy',
+        'tasksUnhealthy'
+
     ]
 
     def check(self, instance):
