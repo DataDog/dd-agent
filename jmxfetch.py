@@ -25,6 +25,7 @@ from config import (
     DEFAULT_CHECK_FREQUENCY,
     get_confd_path,
     get_config,
+    get_jmx_pipe_path,
     get_logging_config,
     PathNotFound,
     _is_affirmative
@@ -277,6 +278,9 @@ class JMXFetch(object):
                 subprocess_args.insert(len(subprocess_args) - 1, path_to_exit_file)
 
             if self.service_discovery:
+                pipe_path = get_jmx_pipe_path()
+                subprocess_args.insert(4, '--tmp_directory')
+                subprocess_args.insert(5, pipe_path)
                 subprocess_args.insert(4, '--sd_standby')
 
             if jmx_checks:

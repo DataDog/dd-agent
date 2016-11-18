@@ -31,12 +31,15 @@ from checks.check_status import CollectorStatus
 from checks.collector import Collector
 from config import (
     get_config,
+    get_jmx_pipe_path,
     get_parsed_args,
     get_system_stats,
     load_check_directory,
     load_check,
     generate_jmx_configs,
-    _is_affirmative
+    _is_affirmative,
+    SD_PIPE_NAME
+
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
@@ -64,9 +67,6 @@ RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 JMX_SUPERVISOR_ENTRY = 'datadog-agent:jmxfetch'
 JMX_GRACE_SECS = 2
 SERVICE_DISCOVERY_PREFIX = 'SD-'
-SD_PIPE_NAME = "dd-service_discovery"
-SD_PIPE_UNIX_PATH = "/tmp"
-SD_PIPE_WIN_PATH = "\\\\.\\pipe\\{pipename}"
 SD_CONFIG_SEP = "#### SERVICE-DISCOVERY ####\n"
 
 DEFAULT_SUPERVISOR_SOCKET = '/opt/datadog-agent/run/datadog-supervisor.sock'
@@ -246,17 +246,21 @@ class Agent(Daemon):
             self.sd_backend = get_sd_backend(self._agentConfig)
 
         if _is_affirmative(self._agentConfig.get('sd_jmx_enable')):
+            pipe_path = get_jmx_pipe_path()
             if Platform.is_windows():
-                pipe_name = SD_PIPE_WIN_PATH.format(pipename=SD_PIPE_NAME)
+                pipe_name = pipe_path.format(pipename=SD_PIPE_NAME)
             else:
-                pipe_name = os.path.join(SD_PIPE_UNIX_PATH, SD_PIPE_NAME)
+                pipe_name = os.path.join(pipe_path, SD_PIPE_NAME)
 
-            if not os.path.exists(pipe_name):
-                os.mkfifo(pipe_name)
-            self.sd_pipe = os.open(pipe_name, os.O_RDWR) # RW to avoid blocking (will only W)
+            if os.access(pipe_path, os.W_OK):
+                if not os.path.exists(pipe_name):
+                    os.mkfifo(pipe_name)
+                self.sd_pipe = os.open(pipe_name, os.O_RDWR) # RW to avoid blocking (will only W)
 
-            # Initialize Supervisor proxy
-            self.supervisor_proxy = self._get_supervisor_socket(self._agentConfig)
+                # Initialize Supervisor proxy
+                self.supervisor_proxy = self._get_supervisor_socket(self._agentConfig)
+            else:
+                log.debug('Unable to create pipe in temporary directory. JMX service discovery disabled.')
 
         # Load the checks.d checks
         self._checksd = load_check_directory(self._agentConfig, hostname)

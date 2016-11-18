@@ -42,6 +42,9 @@ MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 10 * 1024 * 1024
 SDK_INTEGRATIONS_DIR = 'integrations'
+SD_PIPE_NAME = "dd-service_discovery"
+SD_PIPE_UNIX_PATH = '/opt/datadog-agent/run'
+SD_PIPE_WIN_PATH = "\\\\.\\pipe\\{pipename}"
 
 log = logging.getLogger(__name__)
 
@@ -743,6 +746,16 @@ def get_sdk_integrations_path(osname=None):
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
+
+def get_jmx_pipe_path():
+    if Platform.is_windows():
+        pipe_path = SD_PIPE_WIN_PATH
+    else:
+        pipe_path = SD_PIPE_UNIX_PATH
+        if not os.path.isdir(pipe_path):
+            pipe_path = '/tmp'
+
+    return pipe_path
 
 
 def get_auto_confd_path(osname=None):
