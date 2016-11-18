@@ -1,3 +1,4 @@
+# (C) Datadog, Inc. 2010-2016
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
@@ -1121,8 +1122,8 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
                 # generated["{}_{}".format(check_name, idx)] = yaml
                 generated["{}_{}".format(check_name, 0)] = yaml
                 log.debug("YAML generated: %s", yaml)
-            except Exception as e:
-                log.exception("Unable to generate YAML config for %s: %s", check_name, e)
+            except Exception:
+                log.exception("Unable to generate YAML config for %s", check_name)
 
     return generated
 

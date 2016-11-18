@@ -35,7 +35,8 @@ from config import (
     get_system_stats,
     load_check_directory,
     load_check,
-    generate_jmx_configs
+    generate_jmx_configs,
+    _is_affirmative
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
@@ -94,15 +95,8 @@ class Agent(Daemon):
         self.reload_configs_flag = False
         self.sd_backend = None
         self.supervisor_proxy = None
+        self.sd_pipe = None
 
-        if Platform.is_windows():
-            pipe_name = SD_PIPE_WIN_PATH.format(pipename=SD_PIPE_NAME)
-        else:
-            pipe_name = os.path.join(SD_PIPE_UNIX_PATH, SD_PIPE_NAME)
-
-        if not os.path.exists(pipe_name):
-            os.mkfifo(pipe_name)
-        self.sd_pipe = os.open(pipe_name, os.O_RDWR) # RW to avoid blocking (will only W)
 
     def _handle_sigterm(self, signum, frame):
         """Handles SIGTERM and SIGINT, which gracefully stops the agent."""
@@ -128,6 +122,7 @@ class Agent(Daemon):
            Can also reload only an explicit set of checks."""
         log.info("Attempting a configuration reload...")
         hostname = get_hostname(self._agentConfig)
+        jmx_sd_configs = None
 
         # if no check was given, reload them all
         if not checks_to_reload:
@@ -137,14 +132,16 @@ class Agent(Daemon):
                 check.stop()
 
             self._checksd = load_check_directory(self._agentConfig, hostname)
-            jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
+            if self._jmx_service_discovery_enabled:
+                jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
         else:
             new_checksd = copy(self._checksd)
 
             jmx_checks = [check for check in checks_to_reload if check in JMX_CHECKS]
             py_checks = set(checks_to_reload) - set(jmx_checks)
             self.refresh_specific_checks(hostname, new_checksd, py_checks)
-            jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname, jmx_checks)
+            if self._jmx_service_discovery_enabled:
+                jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname, jmx_checks)
 
             # once the reload is done, replace existing checks with the new ones
             self._checksd = new_checksd
@@ -248,16 +245,27 @@ class Agent(Daemon):
         if self._agentConfig.get('service_discovery'):
             self.sd_backend = get_sd_backend(self._agentConfig)
 
-        # Initialize Supervisor proxy (unix specific)
-        self.supervisor_proxy = self._get_supervisor_socket(self._agentConfig)
+        if _is_affirmative(self._agentConfig.get('sd_jmx_enable')):
+            if Platform.is_windows():
+                pipe_name = SD_PIPE_WIN_PATH.format(pipename=SD_PIPE_NAME)
+            else:
+                pipe_name = os.path.join(SD_PIPE_UNIX_PATH, SD_PIPE_NAME)
+
+            if not os.path.exists(pipe_name):
+                os.mkfifo(pipe_name)
+            self.sd_pipe = os.open(pipe_name, os.O_RDWR) # RW to avoid blocking (will only W)
+
+            # Initialize Supervisor proxy
+            self.supervisor_proxy = self._get_supervisor_socket(self._agentConfig)
 
         # Load the checks.d checks
         self._checksd = load_check_directory(self._agentConfig, hostname)
 
         # Load JMX configs if available
-        jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
-        if jmx_sd_configs:
-            self._submit_jmx_service_discovery(jmx_sd_configs)
+        if self._jmx_service_discovery_enabled:
+            jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
+            if jmx_sd_configs:
+                self._submit_jmx_service_discovery(jmx_sd_configs)
 
         # Initialize the Collector
         self.collector = Collector(self._agentConfig, emitters, systemStats, hostname)
@@ -395,9 +403,13 @@ class Agent(Daemon):
 
         return supervisor_proxy
 
+    @property
+    def _jmx_service_discovery_enabled(self):
+        return self.sd_pipe is not None
+
     def _submit_jmx_service_discovery(self, jmx_sd_configs):
 
-        if not jmx_sd_configs:
+        if not jmx_sd_configs or not self.sd_pipe:
             return
 
         if self.supervisor_proxy is not None:

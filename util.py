@@ -142,18 +142,6 @@ def config_to_yaml(config):
 
     return yaml_output
 
-def dump_yaml(path, config):
-    '''
-    Dump config dict to YAML file in path
-    '''
-    try:
-        yaml = config_to_yaml(config)
-    except Exception as e:
-        log.exception("Unable to convert config to YAML: %s", e)
-    else:
-        with open(path, 'w+') as f:
-            f.write(yaml)
-
 
 class Watchdog(object):
     """
