@@ -99,6 +99,15 @@ class IISTestCase(AgentCheckTest, TestCommonWMI):
         self.run_check_twice(config)
 
         # Test metrics
+        query = ("Select ServiceUptime,TotalBytesSent,TotalBytesReceived,TotalBytesTransfered,"
+                 "CurrentConnections,TotalFilesSent,TotalFilesReceived,TotalConnectionAttemptsAllInstances,"
+                 "TotalGetRequests,TotalPostRequests,TotalHeadRequests,TotalPutRequests,TotalDeleteRequests,"
+                 "TotalOptionsRequests,TotalTraceRequests,TotalNotFoundErrors,TotalLockedErrors,TotalAnonymousUsers,"
+                 "TotalNonAnonymousUsers,TotalCGIRequests,TotalISAPIExtensionRequests"
+                 " from Win32_PerfFormattedData_W3SVC_WebService WHERE "
+                 "( Name = 'Failing site' ) OR ( Name = 'Working site' ) OR ( Name = 'Default Web Site' )")
+
+        self.assertWMIQuery(query)
 
         # Normalize site-names
         default_site_name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", config['instances'][0]['sites'][0])
