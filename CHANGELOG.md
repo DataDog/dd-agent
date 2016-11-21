@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 5.10.1 / Unreleased
+# 5.10.1 / 11-21-2016
 **Linux, Windows, Docker and Source Install**
 
 ### Details
