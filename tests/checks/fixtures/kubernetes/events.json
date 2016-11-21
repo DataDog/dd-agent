@@ -527,6 +527,33 @@
       "lastTimestamp": "2016-05-27T16:37:13Z",
       "count": 1,
       "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "dd-agent-a769.148751928c4f601b",
+        "namespace": "test-namespace-1",
+        "selfLink": "/api/v1/namespaces/test-namespace-1/events/dd-agent-a769.148751928c4f601b",
+        "uid": "b3aff766-ab6f-11e6-819b-42010a84006e",
+        "resourceVersion": "2432",
+        "creationTimestamp": "2016-11-15T20:11:32Z"
+      },
+      "involvedObject": {
+        "kind": "DaemonSet",
+        "namespace": "test-namespace-1",
+        "name": "dd-agent-a769",
+        "uid": "8469b0d3-a769-11e6-b048-42010a84006e",
+        "apiVersion": "extensions",
+        "resourceVersion": "2835032"
+      },
+      "reason": "SuccessfulDelete",
+      "message": "Deleted pod: dd-agent-a769-zbdic",
+      "source": {
+        "component": "daemon-set"
+      },
+      "firstTimestamp": "2016-11-15T20:11:32Z",
+      "lastTimestamp": "2016-11-15T20:11:32Z",
+      "count": 1,
+      "type": "Normal"
     }
   ]
 }

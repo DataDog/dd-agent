@@ -74,7 +74,7 @@ class KubeUtil:
 
         # keep track of the latest k8s event we collected and posted
         # default value is 0 but TTL for k8s events is one hour anyways
-        self.last_event_collection_ts = defaultdict(int)
+        self.last_event_collection_ts = 0
 
     def get_kube_labels(self, excluded_keys=None):
         pods = self.retrieve_pods_list()
