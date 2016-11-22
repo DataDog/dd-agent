@@ -74,7 +74,7 @@ class Flare(object):
     ]
     MAIN_CREDENTIALS = [
         CredentialPattern(
-            re.compile('^api_key:( *\w+(\w{5}) ?,?)+$'),
+            re.compile('^\s*api_key:( *\w+(\w{5}) ?,?)+$'),
             lambda matchobj:  'api_key: ' + ', '.join(map(
                 lambda key: '*' * 26 + key[-5:],
                 map(lambda x: x.strip(),
