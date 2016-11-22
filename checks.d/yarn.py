@@ -148,7 +148,14 @@ class YarnCheck(AgentCheck):
 
         # Get properties from conf file
         rm_address = instance.get('resourcemanager_uri', DEFAULT_RM_URI)
-        app_tags = instance.get('application_tags', [])
+        app_tags = instance.get('application_tags', {})
+
+        if type(app_tags) is not dict:
+            self.log.error('application_tags is incorrect: %s is not a dictionary', app_tags)
+            app_tags = {}
+
+        # Collected by default
+        app_tags['app_name'] = 'name'
 
         # Get additional tags from the conf file
         tags = instance.get('tags', [])
@@ -187,32 +194,29 @@ class YarnCheck(AgentCheck):
         '''
         Get metrics for running applications
         '''
-        metrics_json = self._rest_request_to_json(rm_address,
+        metrics_json = self._rest_request_to_json(
+            rm_address,
             YARN_APPS_PATH,
-            states=YARN_APPLICATION_STATES)
+            states=YARN_APPLICATION_STATES
+        )
 
-        if metrics_json:
-            if metrics_json['apps'] is not None:
-                if metrics_json['apps']['app'] is not None:
+        if (metrics_json and metrics_json['apps'] is not None and
+            metrics_json['apps']['app'] is not None):
 
-                    for app_json in metrics_json['apps']['app']:
+            for app_json in metrics_json['apps']['app']:
 
-                        tags = []
+                tags = []
+                for dd_tag, yarn_key in app_tags.iteritems():
+                    try:
+                        tags.append("{tag}:{value}".format(
+                            tag=dd_tag, value=app_json[yarn_key]
+                        ))
+                    except KeyError:
+                        self.log.error("Invalid value %s for application_tag", yarn_key)
 
-                        for tag in app_tags:
-                            try:
-                                key, value = tag.split(':')
-                                tags.append("{tag}:{value}".format(
-                                    tag=value, value=str(app_json[key])
-                                ))
-                            except ValueError:
-                                self.log.error("Invalid value %s for application_tag", tag)
-                            except KeyError:
-                                self.log.warning("Application tag %s not found, so it will be ignored", key)
+                tags.extend(addl_tags)
 
-                        tags.extend(addl_tags)
-
-                        self._set_yarn_metrics_from_json(tags, app_json, YARN_APP_METRICS)
+                self._set_yarn_metrics_from_json(tags, app_json, YARN_APP_METRICS)
 
     def _yarn_node_metrics(self, rm_address, addl_tags):
         '''
@@ -220,17 +224,16 @@ class YarnCheck(AgentCheck):
         '''
         metrics_json = self._rest_request_to_json(rm_address, YARN_NODES_PATH)
 
-        if metrics_json:
-            if metrics_json['nodes'] is not None:
-                if metrics_json['nodes']['node'] is not None:
+        if (metrics_json and metrics_json['nodes'] is not None and
+            metrics_json['nodes']['node'] is not None):
 
-                    for node_json in metrics_json['nodes']['node']:
-                        node_id = node_json['id']
+            for node_json in metrics_json['nodes']['node']:
+                node_id = node_json['id']
 
-                        tags = ['node_id:%s' % str(node_id)]
-                        tags.extend(addl_tags)
+                tags = ['node_id:%s' % str(node_id)]
+                tags.extend(addl_tags)
 
-                        self._set_yarn_metrics_from_json(tags, node_json, YARN_NODE_METRICS)
+                self._set_yarn_metrics_from_json(tags, node_json, YARN_NODE_METRICS)
 
     def _set_yarn_metrics_from_json(self, tags, metrics_json, yarn_metrics):
         '''
@@ -254,7 +257,7 @@ class YarnCheck(AgentCheck):
         elif metric_type == INCREMENT:
             self.increment(metric_name, value, tags=tags, device_name=device_name)
         else:
-            self.log.error('Metric type "%s" unknown' % (metric_type))
+            self.log.error('Metric type "%s" unknown', metric_type)
 
     def _rest_request_to_json(self, address, object_path, *args, **kwargs):
         '''

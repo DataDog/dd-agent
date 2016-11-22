@@ -57,10 +57,9 @@ class YARNCheck(AgentCheckTest):
         'tags': [
             'opt_key:opt_value'
         ],
-        'application_tags': [
-            'id:app_id',
-            'name:app_name'
-        ]
+        'application_tags': {
+            'app_id': 'id'
+        }
     }
 
     YARN_CLUSTER_METRICS_VALUES = {
