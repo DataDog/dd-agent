@@ -58,7 +58,8 @@ class YARNCheck(AgentCheckTest):
             'opt_key:opt_value'
         ],
         'application_tags': {
-            'app_id': 'id'
+            'app_id': 'id',
+            'app_queue': 'queue'
         }
     }
 
@@ -108,7 +109,7 @@ class YARNCheck(AgentCheckTest):
     YARN_APP_METRICS_TAGS = [
         'cluster_name:%s' % CLUSTER_NAME,
         'app_name:word count',
-        'app_id:application_1326815542473_0001',
+        'app_queue:default',
         'opt_key:opt_value'
     ]
 
