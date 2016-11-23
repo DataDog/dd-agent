@@ -111,6 +111,13 @@ class SDDockerBackend(AbstractSDBackend):
         """Get the list of checks applied to a container from the identifier_to_checks cache in the config store.
         Use the DATADOG_ID label or the image."""
         inspect = state.inspect_container(c_id)
+
+        # if the container was removed we can't tell which check is concerned
+        # so we have to reload everything
+        if not inspect:
+            self.reload_check_configs = True
+            return
+
         identifier = inspect.get('Config', {}).get('Labels', {}).get(DATADOG_ID) or \
             inspect.get('Config', {}).get('Image')
 
