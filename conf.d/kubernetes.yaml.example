@@ -1,7 +1,4 @@
 init_config:
-  #    tags:
-  #      - optional_tag1
-  #      - optional_tag2
 
 instances:
   # The kubernetes check retrieves metrics from cadvisor running under kubelet.
@@ -34,7 +31,6 @@ instances:
   #
   # namespace_name_regexp:
 
-
   # use_histogram controls whether we send detailed metrics, i.e. one per container.
   # When false, we send detailed metrics corresponding to individual containers, tagging by container id
   # to keep them unique.
@@ -51,3 +47,9 @@ instances:
   #
   # enabled_gauges:
   #   - filesystem.*
+  #
+  #
+  # Custom tags that should be applied to kubernetes metrics
+  # tags:
+  #   - optional_tag1
+  #   - optional_tag2
