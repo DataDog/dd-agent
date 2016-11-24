@@ -207,6 +207,7 @@ class DockerDaemon(AgentCheck):
 
 
             # get the health check whitelist
+            self.whitelist_patterns = None
             health_scs_whitelist = instance.get('health_service_check_whitelist', [])
             if health_scs_whitelist:
                 patterns, whitelist_tags = compile_filter_rules(health_scs_whitelist)
