@@ -3,7 +3,8 @@ init_config:
 instances:
   # The kubernetes check retrieves metrics from cadvisor running under kubelet.
   # By default we will assume we're running under docker and will use the address
-  # of the default router to reach the cadvisor api.
+  # of the default router to reach the cadvisor api unless the environment variable
+  # KUBERNETES_KUBELET_HOST is found.
   #
   # To override, e.g. in the case of a standalone cadvisor instance, use the following:
   #
