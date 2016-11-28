@@ -1038,16 +1038,11 @@ def load_check_directory(agentConfig, hostname):
         if check_name in initialized_checks or check_name in init_failed_checks:
             continue
 
-        # if TRACE_CONFIG is set, service_disco_check_config looks like:
-        # (config_src, (sd_init_config, sd_instances)) instead of
-        # (sd_init_config, sd_instances)
+        sd_init_config, sd_instances = service_disco_check_config[1]
         if agentConfig.get(TRACE_CONFIG):
-            sd_init_config, sd_instances = service_disco_check_config[1]
             configs_and_sources[check_name] = (
                 service_disco_check_config[0],
                 {'init_config': sd_init_config, 'instances': sd_instances})
-        else:
-            sd_init_config, sd_instances = service_disco_check_config
 
         check_config = {'init_config': sd_init_config, 'instances': sd_instances}
 
@@ -1065,8 +1060,7 @@ def load_check_directory(agentConfig, hostname):
         return configs_and_sources
 
     return {'initialized_checks': initialized_checks.values(),
-            'init_failed_checks': init_failed_checks,
-            }
+            'init_failed_checks': init_failed_checks}
 
 
 def load_check(agentConfig, hostname, checkname):
@@ -1089,7 +1083,7 @@ def load_check(agentConfig, hostname, checkname):
     # the check was not found, try with service discovery
     for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
         if check_name == checkname:
-            sd_init_config, sd_instances = service_disco_check_config
+            sd_init_config, sd_instances = service_disco_check_config[1]
             check_config = {'init_config': sd_init_config, 'instances': sd_instances}
 
             # try to load the check and return the result
