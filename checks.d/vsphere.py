@@ -662,7 +662,7 @@ class VSphereCheck(AgentCheck):
         i_key = self._instance_key(instance)
         self.log.debug("Caching the morlist for vcenter instance %s" % i_key)
         for resource_type in RESOURCE_TYPE_MAP:
-            if i_key in self.morlist_raw and len(self.morlist_raw[i_key][resource_type]) > 0:
+            if i_key in self.morlist_raw and len(self.morlist_raw[i_key].get(resource_type, [])) > 0:
                 self.log.debug(
                     "Skipping morlist collection now, RAW results "
                     "processing not over (latest refresh was {0}s ago)".format(
