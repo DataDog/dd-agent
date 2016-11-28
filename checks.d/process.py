@@ -307,7 +307,7 @@ class ProcessCheck(AgentCheck):
         search_string = instance.get('search_string', None)
         ignore_ad = _is_affirmative(instance.get('ignore_denied_access', True))
         pid = instance.get('pid')
-        pid_file = instance.get('pid_file', None)
+        pid_file = instance.get('pid_file')
 
         if self._conflicting_procfs:
             self.warning('The `procfs_path` defined in `process.yaml` is different from the one defined in '
@@ -340,11 +340,11 @@ class ProcessCheck(AgentCheck):
         elif pid is not None:
             # we use Process(pid) as a means to search, if pid not found
             # psutil.NoSuchProcess is raised.
-            pids = set([psutil.Process(pid).pid])
+            pids = self._get_pid_set(pid)
         elif pid_file is not None:
             with open(pid_file, 'r') as file_pid:
                 pid_line = file_pid.readline().strip()
-                pids = set([psutil.Process(int(pid_line)).pid])
+                pids = self._get_pid_set(int(pid_line))
         else:
             raise ValueError('The "search_string" or "pid" options are required for process identification')
 
@@ -376,13 +376,19 @@ class ProcessCheck(AgentCheck):
 
         self._process_service_check(name, len(pids), instance.get('thresholds', None))
 
+    def _get_pid_set(self, pid):
+        try:
+            return {psutil.Process(pid).pid}
+        except psutil.NoSuchProcess:
+            return set()
+
     def _process_service_check(self, name, nb_procs, bounds):
-        '''
+        """
         Report a service check, for each process in search_string.
         Report as OK if the process is in the warning thresholds
                    CRITICAL             out of the critical thresholds
                    WARNING              out of the warning thresholds
-        '''
+        """
         tag = ["process:%s" % name]
         status = AgentCheck.OK
         message_str = "PROCS %s: %s processes found for %s"
