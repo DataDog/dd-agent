@@ -596,6 +596,9 @@ class VSphereCheck(AgentCheck):
 
             for c in container.view:
                 if not self._is_excluded(c, regexes, include_only_marked):
+                    if isinstance(c, vim.VirtualMachine) and \
+                            c.runtime.powerState == vim.VirtualMachinePowerState.poweredOff:
+                        continue
                     obj_list.append(dict(mor_type=vimtype, mor=c, hostname=c.name, tags=tags))
 
             return obj_list
@@ -751,7 +754,8 @@ class VSphereCheck(AgentCheck):
                     self.pool.apply_async(self._cache_morlist_process_atomic, args=(instance, mor))
                 except (IndexError, KeyError):
                     self.log.debug("No more work to process in morlist_raw")
-            return
+                    break
+        return
 
     def _vacuum_morlist(self, instance):
         """ Check if self.morlist doesn't have some old MORs that are gone, ie
