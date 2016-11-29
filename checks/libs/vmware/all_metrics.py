@@ -463,6 +463,22 @@ DATASTORE_METRICS = {
         'rollup': 'average',
         'entity': ['VirtualMachine', 'HostSystem', 'Datastore']
     },
+    # Datastore latency observed by VM's
+    # Compatibility: 6.0.0
+    'datastore.datastoreVMObservedLatency': {
+        's_type': 'absolute',
+        'unit': 'microsecond',
+        'rollup': 'average',
+        'entity': ['HostSystem']
+    },
+    # Storage I/O Control actively controlled datastore latency
+    # Compatibility: 6.0.0
+    'datastore.siocActiveTimePercentage': {
+        's_type': 'absolute',
+        'unit': 'percent',
+        'rollup': 'average',
+        'entity': ['HostSystem']
+    },
 }
 
 
@@ -1255,8 +1271,57 @@ MEM_METRICS = {
         'rollup': 'average',
         'entity': ['VirtualMachine']
     },
+    # Trailing average of the ratio of capacity misses to compulsory misses for
+    # the VMFS PB Cache
+    # Compatibility: 6.0.0
+    'mem.vmfs.pbc.capMissRatio': {
+        's_type': 'absolute',
+        'unit': 'percent',
+        'rollup': 'latest',
+        'entity': ['hostsystem']
+    },
+    # amount of vmfs heap used by vmfs cache
+    # Compatibility: 6.0.0
+    'mem.vmfs.pbc.overhead': {
+        's_type': 'absolute',
+        'unit': 'kilobytes',
+        'rollup': 'latest',
+        'entity': ['hostsystem']
+    },
+    # Space used for VMFS pointer blocks
+    # Compatibility: 6.0.0
+    'mem.vmfs.pbc.size': {
+        's_type': 'absolute',
+        'unit': 'megaBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Max Space used for VMFS pointer blocks
+    # Compatibility: 6.0.0
+    'mem.vmfs.pbc.sizeMax': {
+        's_type': 'absolute',
+        'unit': 'megaBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # File blocks with addresses cached
+    # Compatibility: 6.0.0
+    'mem.vmfs.pbc.workingSet': {
+        's_type': 'absolute',
+        'unit': 'teraBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Max File blocks with addresses cached
+    # Compatibility: 6.0.0
+    'mem.vmfs.pbc.workingSetMax': {
+        's_type': 'absolute',
+        'unit': 'teraBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
     # Zero
-    # Compatibility: UNKNOWN
+    # Compatibility: 6.0.0
     'mem.zero': {
         's_type': 'absolute',
         'unit': 'kiloBytes',
@@ -2158,13 +2223,6 @@ SYSTEM_METRICS = {
         'rollup': 'summation',
         'entity': ['VirtualMachine']
     },
-    # Compatibility: 6.0.0
-    'sys.heartbeat': {
-        's_type': 'delta',
-        'unit': 'number',
-        'rollup': 'summation',
-        'entity': ['VirtualMachine']
-    },
     # OS Uptime
     # Compatibility: 5.0.0
     'system.osUptime': {
@@ -2364,13 +2422,6 @@ SYSTEM_METRICS = {
         'rollup': 'summation',
         'entity': ['VirtualMachine']
     },
-    # Compatibility: 6.0.0
-    'sys.heartbeat': {
-        's_type': 'delta',
-        'unit': 'number',
-        'rollup': 'summation',
-        'entity': ['VirtualMachine']
-    },
     # OS Uptime
     # Compatibility: 6.0.0
     'sys.osUptime': {
@@ -2459,6 +2510,14 @@ SYSTEM_METRICS = {
         'rollup': 'average',
         'entity': ['HostSystem']
     },
+    # Resource FD usage ({rollupType})
+    # Compatibility: 6.0.0
+    'sys.resourceFdUsage': {
+        's_type': 'absolute',
+        'unit': 'number',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
     # Resource memory allocation maximum, in KB
     # Compatibility: 6.0.0
     'sys.resourceMemAllocMax': {
@@ -2480,6 +2539,14 @@ SYSTEM_METRICS = {
     'sys.resourceMemAllocShares': {
         's_type': 'absolute',
         'unit': 'number',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource memory allocation maximum, in KB
+    # Compatibility: 6.0.0
+    'sys.resourceMemConsumed': {
+        's_type': 'absolute',
+        'unit': 'kiloBytes',
         'rollup': 'latest',
         'entity': ['HostSystem']
     },
