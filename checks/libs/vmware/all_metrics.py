@@ -19,6 +19,14 @@ CPU_METRICS = {
         'rollup': 'average',
         'entity': ['ResourcePool']
     },
+    # CPU Capacity entitle vs demand ratio
+    # Compatibility: 5.0.0
+    'cpu.demandEntitlementRatio': {
+        's_type': 'absolute',
+        'unit': 'percent',
+        'rollup': 'latest',
+        'entity': ['VirtualMachine']
+    },
     # CPU Capacity Entitlement
     # Compatibility: 3.5.0 / 4.0.0 / 4.1.0 / 5.0.0
     'cpu.capacity.entitlement': {
@@ -161,6 +169,14 @@ CPU_METRICS = {
         's_type': 'delta',
         'unit': 'millisecond',
         'rollup': 'summation',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # Readiness
+    # Compatibility: 6.0.0
+    'cpu.readiness': {
+        's_type': 'absolute',
+        'unit': 'percent',
+        'rollup': 'average',
         'entity': ['VirtualMachine', 'HostSystem']
     },
     # Reserved capacity
@@ -1483,6 +1499,221 @@ NETWORK_METRICS = {
         'rollup': 'average',
         'entity': ['VirtualMachine', 'HostSystem']
     },
+    # Compatibility: 6.0.0
+    'net.broadcastRx': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # Broadcast transmits
+    # Compatibility: 6.0.0
+    'net.broadcastTx': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # Data receive rate
+    # Compatibility: 6.0.0
+    'net.bytesRx': {
+        's_type': 'rate',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # Data transmit rate
+    # Compatibility: 6.0.0
+    'net.bytesTx': {
+        's_type': 'rate',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # Receive packets dropped
+    # Compatibility: 6.0.0
+    'net.droppedRx': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # Transmit packets dropped
+    # Compatibility: 4.0.0 / 4.1.0 / 6.0.0
+    'net.droppedTx': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # Packet receive errors
+    # Compatibility: 6.0.0
+    'net.errorsRx': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['HostSystem']
+    },
+    # Packet transmit errors
+    # Compatibility: 6.0.0
+    'net.errorsTx': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['HostSystem']
+    },
+    # Multicast receives
+    # Compatibility: 6.0.0
+    'net.multicastRx': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # Multicast transmits
+    # Compatibility: 6.0.0
+    'net.multicastTx': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # Packets received
+    # Compatibility: 6.0.0
+    'net.packetsRx': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # Packets transmitted
+    # Compatibility: 6.0.0
+    'net.packetsTx': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # Data receive rate
+    # Compatibility: 6.0.0
+    'net.received': {
+        's_type': 'rate',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # vNic Throughput Contention
+    # Compatibility: 6.0.0
+    'net.throughput.contention': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['ResourcePool']
+    },
+    # pNic Packets Received and Transmitted per Second
+    # Compatibility: 6.0.0
+    'net.throughput.packetsPerSec': {
+        's_type': 'rate',
+        'unit': 'number',
+        'rollup': 'average',
+        'entity': []
+    },
+    # pNic Throughput Provisioned
+    # Compatibility: 6.0.0
+    'net.throughput.provisioned': {
+        's_type': 'absolute',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': []
+    },
+    # pNic Throughput Usable
+    # Compatibility: 6.0.0
+    'net.throughput.usable': {
+        's_type': 'absolute',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': []
+    },
+    # vNic Throughput Usage
+    # Compatibility: 6.0.0
+    'net.throughput.usage': {
+        's_type': 'rate',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': ['ResourcePool']
+    },
+    # pNic Throughput Usage for FT
+    # Compatibility: 6.0.0
+    'net.throughput.usage.ft': {
+        's_type': 'rate',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': []
+    },
+    # pNic Throughput Usage for HBR
+    # Compatibility: 6.0.0
+    'net.throughput.usage.hbr': {
+        's_type': 'rate',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': []
+    },
+    # pNic Throughput Usage for iSCSI
+    # Compatibility: 6.0.0
+    'net.throughput.usage.iscsi': {
+        's_type': 'rate',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': []
+    },
+    # pNic Throughput Usage for NFS
+    # Compatibility: 6.0.0
+    'net.throughput.usage.nfs': {
+        's_type': 'rate',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': []
+    },
+    # pNic Throughput Usage for VMs
+    # Compatibility: 6.0.0
+    'net.throughput.usage.vm': {
+        's_type': 'rate',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': []
+    },
+    # pNic Throughput Usage for vMotion
+    # Compatibility: 6.0.0
+    'net.throughput.usage.vmotion': {
+        's_type': 'rate',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': []
+    },
+    # Data transmit rate
+    # Compatibility: 6.0.0
+    'net.transmitted': {
+        's_type': 'rate',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
+    # Unknown protocol frames
+    # Compatibility: 6.0.0
+    'net.unknownProtos': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['HostSystem']
+    },
+    # Usage
+    # Compatibility: UNKNOWN
+    'net.usage': {
+        's_type': 'rate',
+        'unit': 'kiloBytesPerSecond',
+        'rollup': 'average',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
 }
 
 
@@ -1927,6 +2158,13 @@ SYSTEM_METRICS = {
         'rollup': 'summation',
         'entity': ['VirtualMachine']
     },
+    # Compatibility: 6.0.0
+    'sys.heartbeat': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['VirtualMachine']
+    },
     # OS Uptime
     # Compatibility: 5.0.0
     'system.osUptime': {
@@ -2103,6 +2341,211 @@ SYSTEM_METRICS = {
         'rollup': 'latest',
         'entity': ['VirtualMachine', 'HostSystem']
     },
+    # Compatibility: 6.0.0
+    'sys.cosDiskUsage': {
+        's_type': 'absolute',
+        'unit': 'percent',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Disk usage
+    # Compatibility: 6.0.0
+    'sys.diskUsage': {
+        's_type': 'absolute',
+        'unit': 'percent',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Heartbeat
+    # Compatibility: 6.0.0
+    'sys.heartbeat': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['VirtualMachine']
+    },
+    # Compatibility: 6.0.0
+    'sys.heartbeat': {
+        's_type': 'delta',
+        'unit': 'number',
+        'rollup': 'summation',
+        'entity': ['VirtualMachine']
+    },
+    # OS Uptime
+    # Compatibility: 6.0.0
+    'sys.osUptime': {
+        's_type': 'absolute',
+        'unit': 'second',
+        'rollup': 'latest',
+        'entity': ['VirtualMachine']
+    },
+    # Resource CPU active (1 min. average)
+    # Compatibility: 6.0.0
+    'sys.resourceCpuAct1': {
+        's_type': 'absolute',
+        'unit': 'percent',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource CPU active (5 min. average)
+    # Compatibility: 6.0.0
+    'sys.resourceCpuAct5': {
+        's_type': 'absolute',
+        'unit': 'percent',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource CPU allocation maximum, in MHz
+    # Compatibility: 6.0.0
+    'sys.resourceCpuAllocMax': {
+        's_type': 'absolute',
+        'unit': 'megaHertz',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource CPU allocation minimum, in MHz
+    # Compatibility: 6.0.0
+    'sys.resourceCpuAllocMin': {
+        's_type': 'absolute',
+        'unit': 'megaHertz',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource CPU allocation shares
+    # Compatibility: 6.0.0
+    'sys.resourceCpuAllocShares': {
+        's_type': 'absolute',
+        'unit': 'number',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource CPU maximum limited (1 min.)
+    # Compatibility: 6.0.0
+    'sys.resourceCpuMaxLimited1': {
+        's_type': 'absolute',
+        'unit': 'percent',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource CPU maximum limited (5 min.)
+    # Compatibility: 6.0.0
+    'sys.resourceCpuMaxLimited5': {
+        's_type': 'absolute',
+        'unit': 'percent',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource CPU running (1 min. average)
+    # Compatibility: 6.0.0
+    'sys.resourceCpuRun1': {
+        's_type': 'absolute',
+        'unit': 'percent',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource CPU running (5 min. average)
+    # Compatibility: 6.0.0
+    'sys.resourceCpuRun5': {
+        's_type': 'absolute',
+        'unit': 'percent',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource CPU usage ({rollupType})
+    # Compatibility: 6.0.0
+    'sys.resourceCpuUsage': {
+        's_type': 'rate',
+        'unit': 'megaHertz',
+        'rollup': 'average',
+        'entity': ['HostSystem']
+    },
+    # Resource memory allocation maximum, in KB
+    # Compatibility: 6.0.0
+    'sys.resourceMemAllocMax': {
+        's_type': 'absolute',
+        'unit': 'kiloBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource memory allocation minimum, in KB
+    # Compatibility: 6.0.0
+    'sys.resourceMemAllocMin': {
+        's_type': 'absolute',
+        'unit': 'kiloBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource memory allocation shares
+    # Compatibility: 6.0.0
+    'sys.resourceMemAllocShares': {
+        's_type': 'absolute',
+        'unit': 'number',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource memory shared
+    # Compatibility: 6.0.0
+    'sys.resourceMemCow': {
+        's_type': 'absolute',
+        'unit': 'kiloBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource memory mapped
+    # Compatibility: 6.0.0
+    'sys.resourceMemMapped': {
+        's_type': 'absolute',
+        'unit': 'kiloBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource memory overhead
+    # Compatibility: 6.0.0
+    'sys.resourceMemOverhead': {
+        's_type': 'absolute',
+        'unit': 'kiloBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource memory share saved
+    # Compatibility: 6.0.0
+    'sys.resourceMemShared': {
+        's_type': 'absolute',
+        'unit': 'kiloBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource memory swapped
+    # Compatibility: 6.0.0
+    'sys.resourceMemSwapped': {
+        's_type': 'absolute',
+        'unit': 'kiloBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource memory touched
+    # Compatibility: 6.0.0
+    'sys.resourceMemTouched': {
+        's_type': 'absolute',
+        'unit': 'kiloBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Resource memory zero
+    # Compatibility: 6.0.0
+    'sys.resourceMemZero': {
+        's_type': 'absolute',
+        'unit': 'kiloBytes',
+        'rollup': 'latest',
+        'entity': ['HostSystem']
+    },
+    # Compatibility: 6.0.0
+    'sys.uptime': {
+        's_type': 'absolute',
+        'unit': 'second',
+        'rollup': 'latest',
+        'entity': ['VirtualMachine', 'HostSystem']
+    },
 }
 
 
@@ -2216,6 +2659,55 @@ VIRTUALDISK_METRICS = {
     'virtualDisk.writeOIO': {
         's_type': 'absolute',
         'unit': 'number',
+        'rollup': 'latest',
+        'entity': ['VirtualMachine']
+    },
+    # Average number of outstanding write requests
+    # Compatibility: 6.0.0
+    'virtualDisk.largeSeeks': {
+        's_type': 'absolute',
+        'unit': 'number',
+        'rollup': 'latest',
+        'entity': ['VirtualMachine']
+    },
+    # Compatibility: 6.0.0
+    'virtualDisk.mediumSeeks': {
+        's_type': 'absolute',
+        'unit': 'number',
+        'rollup': 'latest',
+        'entity': ['VirtualMachine']
+    },
+    # Compatibility: 6.0.0
+    'virtualDisk.smallSeeks': {
+        's_type': 'absolute',
+        'unit': 'number',
+        'rollup': 'latest',
+        'entity': ['VirtualMachine']
+    },
+    # Compatibility: 6.0.0
+    'virtualDisk.writeIOSize': {
+        's_type': 'absolute',
+        'unit': 'number',
+        'rollup': 'latest',
+        'entity': ['VirtualMachine']
+    },
+    # Compatibility: 6.0.0
+    'virtualDisk.readIOSize': {
+        's_type': 'absolute',
+        'unit': 'number',
+        'rollup': 'latest',
+        'entity': ['VirtualMachine']
+    },
+    # Compatibility: 6.0.0
+    'virtualDisk.writeLatencyUS': {
+        's_type': 'absolute',
+        'unit': 'microsecond',
+        'rollup': 'latest',
+        'entity': ['VirtualMachine']
+    },
+    'virtualDisk.readLatencyUS': {
+        's_type': 'absolute',
+        'unit': 'microsecond',
         'rollup': 'latest',
         'entity': ['VirtualMachine']
     },
