@@ -595,11 +595,20 @@ class VSphereCheck(AgentCheck):
                 True)
 
             for c in container.view:
+                instance_tags = []
                 if not self._is_excluded(c, regexes, include_only_marked):
-                    if isinstance(c, vim.VirtualMachine) and \
-                            c.runtime.powerState == vim.VirtualMachinePowerState.poweredOff:
-                        continue
-                    obj_list.append(dict(mor_type=vimtype, mor=c, hostname=c.name, tags=tags))
+                    if isinstance(c, vim.VirtualMachine):
+                        if c.runtime.powerState == vim.VirtualMachinePowerState.poweredOff:
+                            continue
+                        instance_tags = ['vsphere_type:vm']
+                    elif isinstance(c, vim.HostSystem):
+                        instance_tags = ['vsphere_type:host']
+                    elif isinstance(c, vim.Datastore):
+                        instance_tags = ['vsphere_type:datastore']
+                    elif isinstance(c, vim.Datacenter):
+                        instance_tags = ['vsphere_type:datacenter']
+
+                    obj_list.append(dict(mor_type=vimtype, mor=c, hostname=c.name, tags=tags+instance_tags))
 
             return obj_list
 
