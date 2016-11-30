@@ -338,14 +338,14 @@ class Memcache(AgentCheck):
                 self.OPTIONAL_STATS["items"][2] = Memcache.get_items_stats
                 self.OPTIONAL_STATS["slabs"][2] = Memcache.get_slabs_stats
                 self._get_optional_metrics(mc, tags, options)
-        except AssertionError:
+        except AssertionError as e:
             self.service_check(
                 self.SERVICE_CHECK, AgentCheck.CRITICAL,
                 tags=service_check_tags,
                 message="Unable to fetch stats from server")
             raise Exception(
-                "Unable to retrieve stats from memcache instance: {0}:{1}."
-                "Please check your configuration".format(server, port))
+                "Unable to retrieve stats from memcache instance: {0}:{1}. "
+                "Please check your configuration. ({})".format(server, port, e))
 
         if mc is not None:
             mc.disconnect_all()
