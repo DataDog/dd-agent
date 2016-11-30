@@ -860,16 +860,13 @@ class VSphereCheck(AgentCheck):
                     self.log.debug(u"Skipping unknown `%s` metric.", metric_name)
                     continue
 
-                if ALL_METRICS[metric_name]['s_type'] == 'rate':
-                    record_metric = self.rate
-                else:
-                    record_metric = self.gauge
-
-                record_metric(
+                # vsphere "rates" should be submitted as gauges (rate is
+                # precomputed).
+                self.gauge(
                     "vsphere.%s" % metric_name,
                     value,
                     hostname=mor['hostname'],
-                    tags=['instance:%s' % instance_name]
+                    tags=['instance:%s' % instance_name] + mor['tags']
                 )
 
         ### <TEST-INSTRUMENTATION>
