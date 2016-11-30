@@ -21,6 +21,7 @@ class CheckSSH(AgentCheck):
         ('username', True, None, str),
         ('password', False, None, str),
         ('private_key_file', False, None, str),
+        ('private_key_type', False, 'rsa', str),
         ('sftp_check', False, True, bool),
         ('add_missing_keys', False, False, bool),
     ]
@@ -31,6 +32,7 @@ class CheckSSH(AgentCheck):
         'username',
         'password',
         'private_key_file',
+        'private_key_type',
         'sftp_check',
         'add_missing_keys',
     ])
@@ -53,11 +55,18 @@ class CheckSSH(AgentCheck):
         conf = self._load_conf(instance)
         tags = ["instance:{0}-{1}".format(conf.host, conf.port)]
 
+        private_key = None
         try:
-            private_key = paramiko.RSAKey.from_private_key_file(conf.private_key_file)
-        except Exception:
-            self.warning("Private key could not be found")
-            private_key = None
+            if conf.private_key_type == 'ecdsa':
+                private_key = paramiko.ECDSAKey.from_private_key_file(conf.private_key_file)
+            else:
+                private_key = paramiko.RSAKey.from_private_key_file(conf.private_key_file)
+        except IOError:
+            self.warning("Unable to find private key file: {}".format(conf.private_key_file))
+        except paramiko.ssh_exception.PasswordRequiredException:
+            self.warning("Private key file is encrypted but no password was given")
+        except paramiko.ssh_exception.SSHException:
+            self.warning("Private key file is invalid")
 
         client = paramiko.SSHClient()
         if conf.add_missing_keys:
@@ -65,11 +74,11 @@ class CheckSSH(AgentCheck):
         client.load_system_host_keys()
 
         exception_message = None
-        #Service Availability to check status of SSH
+        # Service Availability to check status of SSH
         try:
             client.connect(conf.host, port=conf.port, username=conf.username,
                 password=conf.password, pkey=private_key)
-            self.service_check('ssh.can_connect', AgentCheck.OK,  tags=tags,
+            self.service_check('ssh.can_connect', AgentCheck.OK, tags=tags,
                 message=exception_message)
 
         except Exception as e:
@@ -82,7 +91,7 @@ class CheckSSH(AgentCheck):
                     message=exception_message)
             raise
 
-        #Service Availability to check status of SFTP
+        # Service Availability to check status of SFTP
         if conf.sftp_check:
             try:
                 sftp = client.open_sftp()

@@ -125,6 +125,22 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
             {'system.io.bytes_per_s': float(0),}
         )
 
+
+        linux_output_dashes = """Linux 3.13.0-32-generic (ubuntu-1204)  05/20/2016  _x86_64_    (2 CPU)
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+sda               5.77     8.20    7.79   30.08   320.67   219.91    28.55     0.05    1.32    1.53    1.27   0.32   1.20
+dm-0              0.00     0.00   11.71   37.97   313.61   219.90    21.48     0.11    2.16    2.13    2.17   0.24   1.20
+dm-1              0.00     0.00    0.08    0.00     0.32     0.00     8.00     0.00    1.68    1.68    0.00   1.07   0.01
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+sda               0.00     0.00    0.00    1.00     0.00     4.00     8.00     0.00    0.00    0.00    0.00   0.00   0.00
+dm-0              0.00     0.00    0.00    1.00     0.00     4.00     8.00     0.00    0.00    0.00    0.00   0.00   0.00
+dm-1              0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00    0.00    0.00   0.00   0.00
+"""
+        results = checker._parse_linux2(linux_output_dashes)
+        self.assertTrue(sorted(results.keys()) == ['dm-0', 'dm-1', 'sda'])
+
     def testNetwork(self):
         # FIXME: cx_state to true, but needs sysstat installed
         config = """

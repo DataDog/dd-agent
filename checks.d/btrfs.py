@@ -119,6 +119,7 @@ class BTRFS(AgentCheck):
     def check(self, instance):
         btrfs_devices = {}
         excluded_devices = instance.get('excluded_devices', [])
+
         for p in psutil.disk_partitions():
             if (p.fstype == 'btrfs' and p.device not in btrfs_devices
                     and p.device not in excluded_devices):

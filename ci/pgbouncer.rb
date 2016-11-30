@@ -56,8 +56,6 @@ namespace :ci do
 
     task before_cache: ['ci:common:before_cache']
 
-    task cache: ['ci:common:cache']
-
     task :cleanup do
       sh %(killall pgbouncer)
       sh %(rm -rf $VOLATILE_DIR/pgbouncer*)
@@ -65,23 +63,7 @@ namespace :ci do
     end
 
     task :execute do
-      exception = nil
-      begin
-        %w(before_install install before_script
-           script before_cache cache).each do |t|
-          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
-        end
-      rescue => e
-        exception = e
-        puts "Failed task: #{e.class} #{e.message}".red
-      end
-      if ENV['SKIP_CLEANUP']
-        puts 'Skipping cleanup, disposable environments are great'.yellow
-      else
-        puts 'Cleaning up'
-        Rake::Task["#{flavor.scope.path}:cleanup"].invoke
-      end
-      raise exception if exception
+      Rake::Task['ci:common:execute'].invoke(flavor)
     end
   end
 end

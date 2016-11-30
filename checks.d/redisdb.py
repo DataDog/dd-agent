@@ -127,7 +127,8 @@ class Redis(AgentCheck):
 
                 # Only send useful parameters to the redis client constructor
                 list_params = ['host', 'port', 'db', 'password', 'socket_timeout',
-                               'connection_pool', 'charset', 'errors', 'unix_socket_path']
+                               'connection_pool', 'charset', 'errors', 'unix_socket_path', 'ssl',
+                               'ssl_certfile', 'ssl_keyfile', 'ssl_ca_certs', 'ssl_cert_reqs']
 
                 # Set a default timeout (in seconds) if no timeout is specified in the instance config
                 instance['socket_timeout'] = instance.get('socket_timeout', 5)
@@ -157,12 +158,12 @@ class Redis(AgentCheck):
 
         tags = sorted(tags.union(tags_to_add))
 
-        return tags, tags_to_add
+        return tags
 
     def _check_db(self, instance, custom_tags=None):
         conn = self._get_conn(instance)
 
-        tags, tags_to_add = self._get_tags(custom_tags, instance)
+        tags = self._get_tags(custom_tags, instance)
 
         # Ping the database for info, and track the latency.
         # Process the service check: the check passes if we can connect to Redis
@@ -171,15 +172,15 @@ class Redis(AgentCheck):
         try:
             info = conn.info()
             status = AgentCheck.OK
-            self.service_check('redis.can_connect', status, tags=tags_to_add)
+            self.service_check('redis.can_connect', status, tags=tags)
             self._collect_metadata(info)
         except ValueError:
             status = AgentCheck.CRITICAL
-            self.service_check('redis.can_connect', status, tags=tags_to_add)
+            self.service_check('redis.can_connect', status, tags=tags)
             raise
         except Exception:
             status = AgentCheck.CRITICAL
-            self.service_check('redis.can_connect', status, tags=tags_to_add)
+            self.service_check('redis.can_connect', status, tags=tags)
             raise
 
         latency_ms = round((time.time() - start) * 1000, 2)
@@ -288,7 +289,7 @@ class Redis(AgentCheck):
         """
         conn = self._get_conn(instance)
 
-        tags, _ = self._get_tags(custom_tags, instance)
+        tags = self._get_tags(custom_tags, instance)
 
         if not instance.get(MAX_SLOW_ENTRIES_KEY):
             try:
@@ -325,9 +326,16 @@ class Redis(AgentCheck):
             if slowlog['start_time'] > max_ts:
                 max_ts = slowlog['start_time']
 
-            command_tag = 'command:{0}'.format(slowlog['command'].split()[0])
+            slowlog_tags = list(tags)
+            command = slowlog['command'].split()
+            # When the "Garantia Data" custom Redis is used, redis-py returns
+            # an empty `command` field
+            # FIXME when https://github.com/andymccurdy/redis-py/pull/622 is released in redis-py
+            if command:
+                slowlog_tags.append('command:{0}'.format(command[0]))
+
             value = slowlog['duration']
-            self.histogram('redis.slowlog.micros', value, tags=tags + [command_tag])
+            self.histogram('redis.slowlog.micros', value, tags=slowlog_tags)
 
         self.last_timestamp_seen[ts_key] = max_ts
 

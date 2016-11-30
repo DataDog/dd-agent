@@ -1,0 +1,559 @@
+{
+  "kind": "EventList",
+  "apiVersion": "v1",
+  "metadata": {
+    "selfLink": "/api/v1/namespaces/default/events",
+    "resourceVersion": "4002"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "hello-node-47289321-91tfd.14527a0ef5236be9",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321-91tfd.14527a0ef5236be9",
+        "uid": "440bdb23-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3991",
+        "creationTimestamp": "2016-05-27T16:37:13Z",
+        "deletionTimestamp": "2016-05-27T17:37:13Z"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "namespace": "default",
+        "name": "hello-node-47289321-91tfd",
+        "uid": "5754714c-0054-11e6-9a89-42010af00098",
+        "apiVersion": "v1",
+        "resourceVersion": "265433"
+      },
+      "reason": "Scheduled",
+      "message": "Successfully assigned hello-node-47289321-91tfd to gke-test-agent58-massi-default-pool-a5024221-klj2",
+      "source": {
+        "component": "default-scheduler"
+      },
+      "firstTimestamp": "2016-05-27T16:37:13Z",
+      "lastTimestamp": "2016-05-27T16:37:13Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321-91tfd.14527a0f08a86f99",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321-91tfd.14527a0f08a86f99",
+        "uid": "443ba407-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3994",
+        "creationTimestamp": "2016-05-27T16:37:13Z",
+        "deletionTimestamp": "2016-05-27T17:37:13Z"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "namespace": "default",
+        "name": "hello-node-47289321-91tfd",
+        "uid": "43fed8e2-2429-11e6-b9c2-42010af00026",
+        "apiVersion": "v1",
+        "resourceVersion": "265438",
+        "fieldPath": "spec.containers{hello-node}"
+      },
+      "reason": "Pulled",
+      "message": "Container image \"gcr.io/datadoghq.com/api-project-590215963173/hello-node:v1\" already present on machine",
+      "source": {
+        "component": "kubelet",
+        "host": "gke-test-agent58-massi-default-pool-a5024221-klj2"
+      },
+      "firstTimestamp": "2016-05-27T16:37:13Z",
+      "lastTimestamp": "2016-05-27T16:37:13Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321-91tfd.14527a0f0eae341d",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321-91tfd.14527a0f0eae341d",
+        "uid": "444aed88-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3996",
+        "creationTimestamp": "2016-05-27T16:37:13Z",
+        "deletionTimestamp": "2016-05-27T17:37:13Z"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "namespace": "default",
+        "name": "hello-node-47289321-91tfd",
+        "uid": "43fed8e2-2429-11e6-b9c2-42010af00026",
+        "apiVersion": "v1",
+        "resourceVersion": "265438",
+        "fieldPath": "spec.containers{hello-node}"
+      },
+      "reason": "Created",
+      "message": "Created container with docker id f8fd21f7256b",
+      "source": {
+        "component": "kubelet",
+        "host": "gke-test-agent58-massi-default-pool-a5024221-klj2"
+      },
+      "firstTimestamp": "2016-05-27T16:37:13Z",
+      "lastTimestamp": "2016-05-27T16:37:13Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321-91tfd.14527a0f12e90221",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321-91tfd.14527a0f12e90221",
+        "uid": "4455ee11-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3998",
+        "creationTimestamp": "2016-05-27T16:37:14Z",
+        "deletionTimestamp": "2016-05-27T17:37:14Z"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "namespace": "default",
+        "name": "hello-node-47289321-91tfd",
+        "uid": "43fed8e2-2429-11e6-b9c2-42010af00026",
+        "apiVersion": "v1",
+        "resourceVersion": "265438",
+        "fieldPath": "spec.containers{hello-node}"
+      },
+      "reason": "Started",
+      "message": "Started container with docker id f8fd21f7256b",
+      "source": {
+        "component": "kubelet",
+        "host": "gke-test-agent58-massi-default-pool-a5024221-klj2"
+      },
+      "firstTimestamp": "2016-05-27T16:37:14Z",
+      "lastTimestamp": "2016-05-27T16:37:14Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321-a3x8n.14527a0efb469137",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321-a3x8n.14527a0efb469137",
+        "uid": "441b3674-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3993",
+        "creationTimestamp": "2016-05-27T16:37:13Z",
+        "deletionTimestamp": "2016-05-27T17:37:13Z"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "namespace": "default",
+        "name": "hello-node-47289321-a3x8n",
+        "uid": "43ffaae0-2429-11e6-b9c2-42010af00026",
+        "apiVersion": "v1",
+        "resourceVersion": "265435"
+      },
+      "reason": "Scheduled",
+      "message": "Successfully assigned hello-node-47289321-a3x8n to gke-test-agent58-massi-default-pool-a5024221-ieeh",
+      "source": {
+        "component": "default-scheduler"
+      },
+      "firstTimestamp": "2016-05-27T16:37:13Z",
+      "lastTimestamp": "2016-05-27T16:37:13Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321-a3x8n.14527a0f1427b775",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321-a3x8n.14527a0f1427b775",
+        "uid": "44590d45-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3999",
+        "creationTimestamp": "2016-05-27T16:37:14Z",
+        "deletionTimestamp": "2016-05-27T17:37:14Z"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "namespace": "default",
+        "name": "hello-node-47289321-a3x8n",
+        "uid": "43ffaae0-2429-11e6-b9c2-42010af00026",
+        "apiVersion": "v1",
+        "resourceVersion": "265442",
+        "fieldPath": "spec.containers{hello-node}"
+      },
+      "reason": "Pulled",
+      "message": "Container image \"gcr.io/datadoghq.com/api-project-590215963173/hello-node:v1\" already present on machine",
+      "source": {
+        "component": "kubelet",
+        "host": "gke-test-agent58-massi-default-pool-a5024221-ieeh"
+      },
+      "firstTimestamp": "2016-05-27T16:37:14Z",
+      "lastTimestamp": "2016-05-27T16:37:14Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321-a3x8n.14527a0f19c5ef70",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321-a3x8n.14527a0f19c5ef70",
+        "uid": "44675282-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "4001",
+        "creationTimestamp": "2016-05-27T16:37:14Z",
+        "deletionTimestamp": "2016-05-27T17:37:14Z"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "namespace": "default",
+        "name": "hello-node-47289321-a3x8n",
+        "uid": "43ffaae0-2429-11e6-b9c2-42010af00026",
+        "apiVersion": "v1",
+        "resourceVersion": "265442",
+        "fieldPath": "spec.containers{hello-node}"
+      },
+      "reason": "Created",
+      "message": "Created container with docker id 330e8cfdd201",
+      "source": {
+        "component": "kubelet",
+        "host": "gke-test-agent58-massi-default-pool-a5024221-ieeh"
+      },
+      "firstTimestamp": "2016-05-27T16:37:14Z",
+      "lastTimestamp": "2016-05-27T16:37:14Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321-a3x8n.14527a0f1e0f7145",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321-a3x8n.14527a0f1e0f7145",
+        "uid": "44726204-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "4002",
+        "creationTimestamp": "2016-05-27T16:37:14Z",
+        "deletionTimestamp": "2016-05-27T17:37:14Z"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "namespace": "default",
+        "name": "hello-node-47289321-a3x8n",
+        "uid": "43ffaae0-2429-11e6-b9c2-42010af00026",
+        "apiVersion": "v1",
+        "resourceVersion": "265442",
+        "fieldPath": "spec.containers{hello-node}"
+      },
+      "reason": "Started",
+      "message": "Started container with docker id 330e8cfdd201",
+      "source": {
+        "component": "kubelet",
+        "host": "gke-test-agent58-massi-default-pool-a5024221-ieeh"
+      },
+      "firstTimestamp": "2016-05-27T16:37:14Z",
+      "lastTimestamp": "2016-05-27T16:37:14Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321-lr676.14527a0ef883841a",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321-lr676.14527a0ef883841a",
+        "uid": "4414c0f7-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3992",
+        "creationTimestamp": "2016-05-27T16:37:13Z",
+        "deletionTimestamp": "2016-05-27T17:37:13Z"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "namespace": "default",
+        "name": "hello-node-47289321-lr676",
+        "uid": "43ff4e32-2429-11e6-b9c2-42010af00026",
+        "apiVersion": "v1",
+        "resourceVersion": "265434"
+      },
+      "reason": "Scheduled",
+      "message": "Successfully assigned hello-node-47289321-lr676 to gke-test-agent58-massi-default-pool-a5024221-leul",
+      "source": {
+        "component": "default-scheduler"
+      },
+      "firstTimestamp": "2016-05-27T16:37:13Z",
+      "lastTimestamp": "2016-05-27T16:37:13Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321-lr676.14527a0f0bb85494",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321-lr676.14527a0f0bb85494",
+        "uid": "44437f7a-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3995",
+        "creationTimestamp": "2016-05-27T16:37:13Z",
+        "deletionTimestamp": "2016-05-27T17:37:13Z"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "namespace": "default",
+        "name": "hello-node-47289321-lr676",
+        "uid": "43ff4e32-2429-11e6-b9c2-42010af00026",
+        "apiVersion": "v1",
+        "resourceVersion": "265440",
+        "fieldPath": "spec.containers{hello-node}"
+      },
+      "reason": "Pulled",
+      "message": "Container image \"gcr.io/datadoghq.com/api-project-590215963173/hello-node:v1\" already present on machine",
+      "source": {
+        "component": "kubelet",
+        "host": "gke-test-agent58-massi-default-pool-a5024221-leul"
+      },
+      "firstTimestamp": "2016-05-27T16:37:13Z",
+      "lastTimestamp": "2016-05-27T16:37:13Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321-lr676.14527a0f10cf3d9a",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321-lr676.14527a0f10cf3d9a",
+        "uid": "44505e4f-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3997",
+        "creationTimestamp": "2016-05-27T16:37:13Z",
+        "deletionTimestamp": "2016-05-27T17:37:13Z"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "namespace": "default",
+        "name": "hello-node-47289321-lr676",
+        "uid": "43ff4e32-2429-11e6-b9c2-42010af00026",
+        "apiVersion": "v1",
+        "resourceVersion": "265440",
+        "fieldPath": "spec.containers{hello-node}"
+      },
+      "reason": "Created",
+      "message": "Created container with docker id 9bef4c78b302",
+      "source": {
+        "component": "kubelet",
+        "host": "gke-test-agent58-massi-default-pool-a5024221-leul"
+      },
+      "firstTimestamp": "2016-05-27T16:37:13Z",
+      "lastTimestamp": "2016-05-27T16:37:13Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321-lr676.14527a0f14f8d749",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321-lr676.14527a0f14f8d749",
+        "uid": "445b621c-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "4000",
+        "creationTimestamp": "2016-05-27T16:37:14Z",
+        "deletionTimestamp": "2016-05-27T17:37:14Z"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "namespace": "default",
+        "name": "hello-node-47289321-lr676",
+        "uid": "43ff4e32-2429-11e6-b9c2-42010af00026",
+        "apiVersion": "v1",
+        "resourceVersion": "265440",
+        "fieldPath": "spec.containers{hello-node}"
+      },
+      "reason": "Started",
+      "message": "Started container with docker id 9bef4c78b302",
+      "source": {
+        "component": "kubelet",
+        "host": "gke-test-agent58-massi-default-pool-a5024221-leul"
+      },
+      "firstTimestamp": "2016-05-27T16:37:14Z",
+      "lastTimestamp": "2016-05-27T16:37:14Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321.14527a0d1e4cd257",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321.14527a0d1e4cd257",
+        "uid": "3f544bdb-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3985",
+        "creationTimestamp": "2016-05-27T16:37:05Z",
+        "deletionTimestamp": "2016-05-27T17:37:05Z"
+      },
+      "involvedObject": {
+        "kind": "ReplicaSet",
+        "namespace": "default",
+        "name": "hello-node-47289321",
+        "uid": "e6161e98-1c0f-11e6-b9c2-42010af00026",
+        "apiVersion": "extensions",
+        "resourceVersion": "265418"
+      },
+      "reason": "SuccessfulDelete",
+      "message": "Deleted pod: hello-node-47289321-iw34d",
+      "source": {
+        "component": "replicaset-controller"
+      },
+      "firstTimestamp": "2016-05-27T16:37:05Z",
+      "lastTimestamp": "2016-05-27T16:37:05Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321.14527a0d1edd64a3",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321.14527a0d1edd64a3",
+        "uid": "3f58f33f-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3986",
+        "creationTimestamp": "2016-05-27T16:37:05Z",
+        "deletionTimestamp": "2016-05-27T17:37:05Z"
+      },
+      "involvedObject": {
+        "kind": "ReplicaSet",
+        "namespace": "default",
+        "name": "hello-node-47289321",
+        "uid": "e6161e98-1c0f-11e6-b9c2-42010af00026",
+        "apiVersion": "extensions",
+        "resourceVersion": "265418"
+      },
+      "reason": "SuccessfulDelete",
+      "message": "Deleted pod: hello-node-47289321-z4ap9",
+      "source": {
+        "component": "replicaset-controller"
+      },
+      "firstTimestamp": "2016-05-27T16:37:05Z",
+      "lastTimestamp": "2016-05-27T16:37:05Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321.14527a0d1ee371ea",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321.14527a0d1ee371ea",
+        "uid": "3f5ada17-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3987",
+        "creationTimestamp": "2016-05-27T16:37:05Z",
+        "deletionTimestamp": "2016-05-27T17:37:05Z"
+      },
+      "involvedObject": {
+        "kind": "ReplicaSet",
+        "namespace": "default",
+        "name": "hello-node-47289321",
+        "uid": "e6161e98-1c0f-11e6-b9c2-42010af00026",
+        "apiVersion": "extensions",
+        "resourceVersion": "265418"
+      },
+      "reason": "SuccessfulDelete",
+      "message": "Deleted pod: hello-node-47289321-pib40",
+      "source": {
+        "component": "replicaset-controller"
+      },
+      "firstTimestamp": "2016-05-27T16:37:05Z",
+      "lastTimestamp": "2016-05-27T16:37:05Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321.14527a0ef18f9373",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321.14527a0ef18f9373",
+        "uid": "44019fcc-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3988",
+        "creationTimestamp": "2016-05-27T16:37:13Z",
+        "deletionTimestamp": "2016-05-27T17:37:13Z"
+      },
+      "involvedObject": {
+        "kind": "ReplicaSet",
+        "namespace": "default",
+        "name": "hello-node-47289321",
+        "uid": "e6161e98-1c0f-11e6-b9c2-42010af00026",
+        "apiVersion": "extensions",
+        "resourceVersion": "265432"
+      },
+      "reason": "SuccessfulCreate",
+      "message": "Created pod: hello-node-47289321-lr676",
+      "source": {
+        "component": "replicaset-controller"
+      },
+      "firstTimestamp": "2016-05-27T16:37:13Z",
+      "lastTimestamp": "2016-05-27T16:37:13Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321.14527a0ef2424590",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321.14527a0ef2424590",
+        "uid": "44043ba8-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3989",
+        "creationTimestamp": "2016-05-27T16:37:13Z",
+        "deletionTimestamp": "2016-05-27T17:37:13Z"
+      },
+      "involvedObject": {
+        "kind": "ReplicaSet",
+        "namespace": "default",
+        "name": "hello-node-47289321",
+        "uid": "e6161e98-1c0f-11e6-b9c2-42010af00026",
+        "apiVersion": "extensions",
+        "resourceVersion": "265432"
+      },
+      "reason": "SuccessfulCreate",
+      "message": "Created pod: hello-node-47289321-91tfd",
+      "source": {
+        "component": "replicaset-controller"
+      },
+      "firstTimestamp": "2016-05-27T16:37:13Z",
+      "lastTimestamp": "2016-05-27T16:37:13Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "hello-node-47289321.14527a0ef2e10858",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/hello-node-47289321.14527a0ef2e10858",
+        "uid": "4405edc4-2429-11e6-b9c2-42010af00026",
+        "resourceVersion": "3990",
+        "creationTimestamp": "2016-05-27T16:37:13Z",
+        "deletionTimestamp": "2016-05-27T17:37:13Z"
+      },
+      "involvedObject": {
+        "kind": "ReplicaSet",
+        "namespace": "default",
+        "name": "hello-node-47289321",
+        "uid": "e6161e98-1c0f-11e6-b9c2-42010af00026",
+        "apiVersion": "extensions",
+        "resourceVersion": "265432"
+      },
+      "reason": "SuccessfulCreate",
+      "message": "Created pod: hello-node-47289321-a3x8n",
+      "source": {
+        "component": "replicaset-controller"
+      },
+      "firstTimestamp": "2016-05-27T16:37:13Z",
+      "lastTimestamp": "2016-05-27T16:37:13Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "dd-agent-a769.148751928c4f601b",
+        "namespace": "test-namespace-1",
+        "selfLink": "/api/v1/namespaces/test-namespace-1/events/dd-agent-a769.148751928c4f601b",
+        "uid": "b3aff766-ab6f-11e6-819b-42010a84006e",
+        "resourceVersion": "2432",
+        "creationTimestamp": "2016-11-15T20:11:32Z"
+      },
+      "involvedObject": {
+        "kind": "DaemonSet",
+        "namespace": "test-namespace-1",
+        "name": "dd-agent-a769",
+        "uid": "8469b0d3-a769-11e6-b048-42010a84006e",
+        "apiVersion": "extensions",
+        "resourceVersion": "2835032"
+      },
+      "reason": "SuccessfulDelete",
+      "message": "Deleted pod: dd-agent-a769-zbdic",
+      "source": {
+        "component": "daemon-set"
+      },
+      "firstTimestamp": "2016-11-15T20:11:32Z",
+      "lastTimestamp": "2016-11-15T20:11:32Z",
+      "count": 1,
+      "type": "Normal"
+    }
+  ]
+}

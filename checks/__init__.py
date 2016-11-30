@@ -29,7 +29,9 @@ import yaml
 
 # project
 from checks import check_status
-from util import get_hostname, get_next_id, LaconicFilter, yLoader
+from util import get_next_id, yLoader
+from utils.hostname import get_hostname
+from utils.proxy import get_proxy
 from utils.platform import Platform
 from utils.profile import pretty_statistics
 if Platform.is_windows():
@@ -87,10 +89,6 @@ class Check(object):
         self._sample_store = {}
         self._counters = {}  # metric_name: bool
         self.logger = logger
-        try:
-            self.logger.addFilter(LaconicFilter())
-        except Exception:
-            self.logger.exception("Trying to install laconic log filter and failed")
 
     def normalize(self, metric, prefix=None):
         """Turn a metric into a well-formed metric name
@@ -161,7 +159,7 @@ class Check(object):
             raise CheckException("Saving a sample for an undefined metric: %s" % metric)
         try:
             value = cast_metric_val(value)
-        except ValueError, ve:
+        except ValueError as ve:
             raise NaN(ve)
 
         # Sort and validate tags
@@ -206,7 +204,7 @@ class Check(object):
             raise
         except UnknownValue:
             raise
-        except Exception, e:
+        except Exception as e:
             raise NaN(e)
 
     def get_sample_with_timestamp(self, metric, tags=None, device_name=None, expire=True):
@@ -299,6 +297,8 @@ class AgentCheck(object):
 
     SOURCE_TYPE_NAME = None
 
+    DEFAULT_EXPIRY_SECONDS = 300
+
     DEFAULT_MIN_COLLECTION_INTERVAL = 0
 
     _enabled_checks = []
@@ -326,11 +326,17 @@ class AgentCheck(object):
         self.agentConfig = agentConfig
         self.in_developer_mode = agentConfig.get('developer_mode') and psutil
         self._internal_profiling_stats = None
+        self.default_integration_http_timeout = float(agentConfig.get('default_integration_http_timeout', 9))
 
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
+
+        self.min_collection_interval = self.init_config.get('min_collection_interval',
+                                                            self.DEFAULT_MIN_COLLECTION_INTERVAL)
+
         self.aggregator = MetricsAggregator(
             self.hostname,
+            expiry_seconds = self.min_collection_interval + self.DEFAULT_EXPIRY_SECONDS,
             formatter=agent_formatter,
             recent_point_threshold=agentConfig.get('recent_point_threshold', None),
             histogram_aggregates=agentConfig.get('histogram_aggregates'),
@@ -346,6 +352,25 @@ class AgentCheck(object):
         self._instance_metadata = []
         self.svc_metadata = []
         self.historate_dict = {}
+
+        # Set proxy settings
+        self.proxy_settings = get_proxy(self.agentConfig)
+        self._use_proxy = False if init_config is None else init_config.get("use_agent_proxy", True)
+        self.proxies = {
+            "http": None,
+            "https": None,
+        }
+        if self.proxy_settings and self._use_proxy:
+            uri = "{host}:{port}".format(
+                host=self.proxy_settings['host'],
+                port=self.proxy_settings['port'])
+            if self.proxy_settings['user'] and self.proxy_settings['password']:
+                uri = "{user}:{password}@{uri}".format(
+                    user=self.proxy_settings['user'],
+                    password=self.proxy_settings['password'],
+                    uri=uri)
+            self.proxies['http'] = "http://{uri}".format(uri=uri)
+            self.proxies['https'] = "https://{uri}".format(uri=uri)
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -727,12 +752,8 @@ class AgentCheck(object):
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
-                min_collection_interval = instance.get(
-                    'min_collection_interval', self.init_config.get(
-                        'min_collection_interval',
-                        self.DEFAULT_MIN_COLLECTION_INTERVAL
-                    )
-                )
+                min_collection_interval = instance.get('min_collection_interval', self.min_collection_interval)
+
                 now = time.time()
                 if now - self.last_collection_time[i] < min_collection_interval:
                     self.log.debug("Not running instance #{0} of check {1} as it ran less than {2}s ago".format(i, self.name, min_collection_interval))
@@ -759,7 +780,7 @@ class AgentCheck(object):
                         i, check_status.STATUS_OK,
                         instance_check_stats=instance_check_stats
                     )
-            except Exception, e:
+            except Exception as e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
                 instance_status = check_status.InstanceStatus(
                     i, check_status.STATUS_ERROR,

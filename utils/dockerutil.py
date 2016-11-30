@@ -5,17 +5,26 @@
 # stdlib
 import logging
 import os
+import re
+import socket
+import struct
 import time
 
 # 3rd party
-from docker import Client
-from docker import tls
+from docker import Client, tls
 
 # project
+from utils.platform import Platform
 from utils.singleton import Singleton
+
+DATADOG_ID = 'com.datadoghq.sd.check.id'
 
 
 class MountException(Exception):
+    pass
+
+
+class CGroupException(Exception):
     pass
 
 # Default docker client settings
@@ -24,16 +33,22 @@ DEFAULT_VERSION = 'auto'
 CHECK_NAME = 'docker_daemon'
 CONFIG_RELOAD_STATUS = ['start', 'die', 'stop', 'kill']  # used to trigger service discovery
 
+DEFAULT_CONTAINER_EXCLUDE = ["docker_image:gcr.io/google_containers/pause.*"]
+
 log = logging.getLogger(__name__)
 
 
-class DockerUtil():
+class DockerUtil:
     __metaclass__ = Singleton
 
     DEFAULT_SETTINGS = {"version": DEFAULT_VERSION}
+    DEFAULT_PROCFS_GW_PATH = "proc/net/route"
 
     def __init__(self, **kwargs):
         self._docker_root = None
+        self.events = []
+        self.hostname = None
+        self._default_gateway = None
 
         if 'init_config' in kwargs and 'instance' in kwargs:
             init_config = kwargs.get('init_config')
@@ -55,6 +70,24 @@ class DockerUtil():
         except Exception:
             pass
 
+        # Build include/exclude patterns for containers
+        self._include, self._exclude = instance.get('include', []), instance.get('exclude', [])
+        if not self._exclude:
+            # In Kubernetes, pause containers are not interesting to monitor.
+            # This part could be reused for other platforms where containers can be safely ignored.
+            if Platform.is_k8s():
+                self.filtering_enabled = True
+                self._exclude = DEFAULT_CONTAINER_EXCLUDE
+            else:
+                if self._include:
+                    log.warning("You must specify an exclude section to enable filtering")
+                self.filtering_enabled = False
+        else:
+            self.filtering_enabled = True
+
+        if self.filtering_enabled:
+            self.build_filters()
+
     def get_check_config(self):
         """Read the config from docker_daemon.yaml"""
         from util import check_yaml
@@ -62,8 +95,8 @@ class DockerUtil():
         init_config, instances = {}, []
         try:
             conf_path = get_conf_path(CHECK_NAME)
-        except IOError as ex:
-            log.debug(ex.message)
+        except IOError:
+            log.debug("Couldn't find docker settings, trying with defaults.")
             return init_config, {}
 
         if conf_path is not None and os.path.exists(conf_path):
@@ -89,28 +122,68 @@ class DockerUtil():
 
     def get_events(self):
         self.events = []
-        should_reload_conf = False
+        changed_container_ids = set()
         now = int(time.time())
 
         event_generator = self.client.events(since=self._latest_event_collection_ts,
                                              until=now, decode=True)
         self._latest_event_collection_ts = now
         for event in event_generator:
-            if event != '':
-                self.events.append(event)
-            if event.get('status') in CONFIG_RELOAD_STATUS:
-                should_reload_conf = True
-        return (self.events, should_reload_conf)
+            # due to [0] it might happen that the returned `event` is not a dict as expected but a string,
+            #
+            # [0]: https://github.com/docker/docker-py/pull/1082
+            if not isinstance(event, dict):
+                log.debug('Unable to parse Docker event: %s', event)
+                continue
 
-    def get_hostname(self):
-        """Return the `Name` param from `docker info` to use as the hostname"""
-        if self.is_dockerized():
-            try:
-                return self.client.info().get("Name")
-            except Exception:
-                log.critical("Unable to find docker host hostname")
+            if event.get('status') in CONFIG_RELOAD_STATUS:
+                changed_container_ids.add(event.get('id'))
+            self.events.append(event)
+        return self.events, changed_container_ids
+
+    @classmethod
+    def get_gateway(cls, proc_prefix=""):
+        procfs_route = os.path.join("/", proc_prefix, cls.DEFAULT_PROCFS_GW_PATH)
+
+        try:
+            with open(procfs_route) as f:
+                for line in f.readlines():
+                    fields = line.strip().split()
+                    if fields[1] == '00000000':
+                        return socket.inet_ntoa(struct.pack('<L', int(fields[2], 16)))
+        except IOError, e:
+            log.error('Unable to open {}: %s'.format(procfs_route), e)
 
         return None
+
+    def get_hostname(self, use_default_gw=True):
+        '''
+        Return the `Name` param from `docker info` to use as the hostname
+        Falls back to the default route.
+        '''
+
+        if self.hostname is not None:
+            # Use cache
+            return self.hostname
+
+        if self._default_gateway is not None and use_default_gw:
+            return self._default_gateway
+
+        try:
+            docker_host_name = self.client.info().get("Name")
+            socket.gethostbyname(docker_host_name) # make sure we can resolve it
+            self.hostname = docker_host_name
+            return docker_host_name
+
+        except Exception as e:
+            log.debug("Unable to retrieve hostname using docker API, %s", str(e))
+            if not use_default_gw:
+                return None
+
+        log.warning("Unable to find docker host hostname. Trying default route")
+        self._default_gateway = DockerUtil.get_gateway()
+
+        return self._default_gateway
 
     @property
     def client(self):
@@ -139,42 +212,138 @@ class DockerUtil():
             tls_config = tls.TLSConfig(client_cert=client_cert, verify=verify)
             self.settings["tls"] = tls_config
 
-    @classmethod
-    def is_dockerized(cls):
-        return os.environ.get("DOCKER_DD_AGENT") == "yes"
-
     def get_mountpoints(self, cgroup_metrics):
         mountpoints = {}
         for metric in cgroup_metrics:
-            mountpoints[metric["cgroup"]] = self.find_cgroup(metric["cgroup"])
+            try:
+                mountpoints[metric["cgroup"]] = self.find_cgroup(metric["cgroup"])
+            except CGroupException as e:
+                log.exception("Unable to find cgroup: %s", e)
+
+        if not len(mountpoints):
+            raise CGroupException("No cgroups were found!")
+
         return mountpoints
 
     def find_cgroup(self, hierarchy):
-            """Find the mount point for a specified cgroup hierarchy.
+        """Find the mount point for a specified cgroup hierarchy.
 
-            Works with old style and new style mounts.
-            """
-            with open(os.path.join(self._docker_root, "/proc/mounts"), 'r') as fp:
-                mounts = map(lambda x: x.split(), fp.read().splitlines())
-            cgroup_mounts = filter(lambda x: x[2] == "cgroup", mounts)
-            if len(cgroup_mounts) == 0:
-                raise Exception(
-                    "Can't find mounted cgroups. If you run the Agent inside a container,"
-                    " please refer to the documentation.")
-            # Old cgroup style
-            if len(cgroup_mounts) == 1:
-                return os.path.join(self._docker_root, cgroup_mounts[0][1])
+        Works with old style and new style mounts.
 
-            candidate = None
-            for _, mountpoint, _, opts, _, _ in cgroup_mounts:
-                if hierarchy in opts and os.path.exists(mountpoint):
-                    if mountpoint.startswith("/host/"):
-                        return os.path.join(self._docker_root, mountpoint)
-                    candidate = mountpoint
+        An example of what the output of /proc/mounts looks like:
 
-            if candidate is not None:
-                return os.path.join(self._docker_root, candidate)
-            raise Exception("Can't find mounted %s cgroups." % hierarchy)
+            cgroup /sys/fs/cgroup/cpuset cgroup rw,relatime,cpuset 0 0
+            cgroup /sys/fs/cgroup/cpu cgroup rw,relatime,cpu 0 0
+            cgroup /sys/fs/cgroup/cpuacct cgroup rw,relatime,cpuacct 0 0
+            cgroup /sys/fs/cgroup/memory cgroup rw,relatime,memory 0 0
+            cgroup /sys/fs/cgroup/devices cgroup rw,relatime,devices 0 0
+            cgroup /sys/fs/cgroup/freezer cgroup rw,relatime,freezer 0 0
+            cgroup /sys/fs/cgroup/blkio cgroup rw,relatime,blkio 0 0
+            cgroup /sys/fs/cgroup/perf_event cgroup rw,relatime,perf_event 0 0
+            cgroup /sys/fs/cgroup/hugetlb cgroup rw,relatime,hugetlb 0 0
+        """
+        with open(os.path.join(self._docker_root, "/proc/mounts"), 'r') as fp:
+            mounts = map(lambda x: x.split(), fp.read().splitlines())
+        cgroup_mounts = filter(lambda x: x[2] == "cgroup", mounts)
+        if len(cgroup_mounts) == 0:
+            raise Exception(
+                "Can't find mounted cgroups. If you run the Agent inside a container,"
+                " please refer to the documentation.")
+        # Old cgroup style
+        if len(cgroup_mounts) == 1:
+            return os.path.join(self._docker_root, cgroup_mounts[0][1])
+
+        candidate = None
+        for _, mountpoint, _, opts, _, _ in cgroup_mounts:
+            if any(opt == hierarchy for opt in opts.split(',')) and os.path.exists(mountpoint):
+                if mountpoint.startswith("/host/"):
+                    return os.path.join(self._docker_root, mountpoint)
+                candidate = mountpoint
+
+        if candidate is not None:
+            return os.path.join(self._docker_root, candidate)
+        raise CGroupException("Can't find mounted %s cgroups." % hierarchy)
+
+    def build_filters(self):
+        """Build sets of include/exclude patters and of all filtered tag names based on these"""
+        # The reasoning is to check exclude first, so we can skip if there is no exclude
+        if not self._exclude:
+            return
+
+        filtered_tag_names = []
+        exclude_patterns = []
+        include_patterns = []
+
+        # Compile regex
+        for rule in self._exclude:
+            exclude_patterns.append(re.compile(rule))
+            filtered_tag_names.append(rule.split(':')[0])
+        for rule in self._include:
+            include_patterns.append(re.compile(rule))
+            filtered_tag_names.append(rule.split(':')[0])
+
+        self._exclude_patterns, self._include_patterns = set(exclude_patterns), set(include_patterns)
+        self._filtered_tag_names = set(filtered_tag_names)
+
+    @property
+    def filtered_tag_names(self):
+        return list(self._filtered_tag_names)
+
+    def are_tags_filtered(self, tags):
+        if not self.filtering_enabled:
+            return False
+        if self._tags_match_patterns(tags, self._exclude_patterns):
+            if self._tags_match_patterns(tags, self._include_patterns):
+                return False
+            return True
+        return False
+
+    def _tags_match_patterns(self, tags, filters):
+        for rule in filters:
+            for tag in tags:
+                if re.match(rule, tag):
+                    return True
+        return False
+
+    @classmethod
+    def find_cgroup_from_proc(cls, mountpoints, pid, subsys, docker_root='/'):
+        proc_path = os.path.join(docker_root, 'proc', str(pid), 'cgroup')
+        with open(proc_path, 'r') as fp:
+            lines = map(lambda x: x.split(':'), fp.read().splitlines())
+            subsystems = dict(zip(map(lambda x: x[1], lines), map(lambda x: x[2] if x[2][0] != '/' else x[2][1:], lines)))
+
+        if subsys not in subsystems and subsys == 'cpuacct':
+            for form in "{},cpu", "cpu,{}":
+                _subsys = form.format(subsys)
+                if _subsys in subsystems:
+                    subsys = _subsys
+                    break
+
+        # In Ubuntu Xenial, we've encountered containers with no `cpu`
+        # cgroup in /proc/<pid>/cgroup
+        if subsys == 'cpu' and subsys not in subsystems:
+            for sub, mountpoint in subsystems.iteritems():
+                if 'cpuacct' in sub:
+                    subsystems['cpu'] = mountpoint
+                    break
+
+        if subsys in subsystems:
+            for mountpoint in mountpoints.itervalues():
+                stat_file_path = os.path.join(mountpoint, subsystems[subsys])
+                if subsys == mountpoint.split('/')[-1] and os.path.exists(stat_file_path):
+                    return os.path.join(stat_file_path, '%(file)s')
+
+                # CentOS7 will report `cpu,cpuacct` and then have the path on
+                # `cpuacct,cpu`
+                if 'cpuacct' in mountpoint and ('cpuacct' in subsys or 'cpu' in subsys):
+                    flipkey = subsys.split(',')
+                    flipkey = "{},{}".format(flipkey[1], flipkey[0]) if len(flipkey) > 1 else flipkey[0]
+                    mountpoint = os.path.join(os.path.split(mountpoint)[0], flipkey)
+                    stat_file_path = os.path.join(mountpoint, subsystems[subsys])
+                    if os.path.exists(stat_file_path):
+                        return os.path.join(stat_file_path, '%(file)s')
+
+        raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
     @classmethod
     def find_cgroup_filename_pattern(cls, mountpoints, container_id):

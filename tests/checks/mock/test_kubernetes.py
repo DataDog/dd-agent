@@ -3,6 +3,8 @@
 # Licensed under Simplified BSD License (see LICENSE)
 # stdlib
 import mock
+import unittest
+import os
 
 # 3p
 import simplejson as json
@@ -10,6 +12,8 @@ import simplejson as json
 # project
 from tests.checks.common import AgentCheckTest, Fixtures
 from checks import AgentCheck
+from utils.kubernetes import KubeUtil
+from utils.platform import Platform
 
 CPU = "CPU"
 MEM = "MEM"
@@ -19,6 +23,9 @@ NET_ERRORS = "net_errors"
 DISK = "disk"
 DISK_USAGE = "disk_usage"
 PODS = "pods"
+LIM = "limits"
+REQ = "requests"
+CAP = "capacity"
 
 METRICS = [
     ('kubernetes.memory.usage', MEM),
@@ -32,31 +39,51 @@ METRICS = [
     ('kubernetes.filesystem.usage_pct', DISK_USAGE),
     ('kubernetes.filesystem.usage', DISK_USAGE),
     ('kubernetes.pods.running', PODS),
+    ('kubernetes.cpu.limits', LIM),
+    ('kubernetes.cpu.requests', REQ),
+    ('kubernetes.cpu.capacity', CAP),
+    ('kubernetes.memory.limits', LIM),
+    ('kubernetes.memory.requests', REQ),
+    ('kubernetes.memory.capacity', CAP),
 ]
 
+
+def KubeUtil_fake_retrieve_json_auth(url, auth_token, timeout=10):
+    if url.endswith("/namespaces"):
+        return json.loads(Fixtures.read_file("namespaces.json", string_escape=False))
+    if url.endswith("/events"):
+        return json.loads(Fixtures.read_file("events.json", string_escape=False))
+    return {}
 
 class TestKubernetes(AgentCheckTest):
 
     CHECK_NAME = 'kubernetes'
 
-    def test_fail_1_1(self):
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_json_auth')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_machine_info')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_metrics',
+                side_effect=lambda: json.loads(Fixtures.read_file("metrics_1.1.json")))
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list',
+                side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False)))
+    def test_fail_1_1(self, *args):
         # To avoid the disparition of some gauges during the second check
-        mocks = {
-            '_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics_1.1.json")),
-        }
         config = {
             "instances": [{"host": "foo"}]
         }
 
-        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False))):
-                # Can't use run_check_twice due to specific metrics
-                self.run_check(config, mocks=mocks, force_reload=True)
-                self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL, tags=None, count=1)
+        # Can't use run_check_twice due to specific metrics
+        self.run_check(config, force_reload=True)
+        self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL, tags=None, count=1)
 
-    def test_metrics_1_1(self):
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_json_auth')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_machine_info')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_metrics',
+                side_effect=lambda: json.loads(Fixtures.read_file("metrics_1.1.json")))
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list',
+                side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False)))
+    def test_metrics_1_1(self, *args):
         # To avoid the disparition of some gauges during the second check
         mocks = {
-            '_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics_1.1.json")),
             '_perform_kubelet_checks': lambda x: None,
         }
         config = {
@@ -67,10 +94,8 @@ class TestKubernetes(AgentCheckTest):
                 }
             ]
         }
-        # parts of the json returned by the kubelet api is escaped, keep it untouched
-        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False))):
-                # Can't use run_check_twice due to specific metrics
-                self.run_check_twice(config, mocks=mocks, force_reload=True)
+        # Can't use run_check_twice due to specific metrics
+        self.run_check_twice(config, mocks=mocks, force_reload=True)
 
         expected_tags = [
             (['container_name:/kubelet', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
@@ -95,10 +120,11 @@ class TestKubernetes(AgentCheckTest):
             (['kube_replication_controller:kube-dns-v8','kube_namespace:kube-system', 'container_name:k8s_healthz.4469a25d_kube-dns-v8-smhcb_kube-system_b80ffab3-3619-11e5-84ce-42010af01c62_241c34d1', 'pod_name:kube-system/kube-dns-v8-smhcb'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['kube_replication_controller:fluentd-cloud-logging-kubernetes-minion','kube_namespace:kube-system', 'container_name:k8s_fluentd-cloud-logging.7721935b_fluentd-cloud-logging-kubernetes-minion-mu4w_kube-system_d0feac1ad02da9e97c4bf67970ece7a1_2c3c0879', 'pod_name:kube-system/fluentd-cloud-logging-kubernetes-minion-mu4w'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['container_name:dd-agent', 'pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
-            (['kube_replication_controller:l7-lb-controller'], [PODS]),
-            (['kube_replication_controller:redis-slave'], [PODS]),
-            (['kube_replication_controller:frontend'], [PODS]),
-            (['kube_replication_controller:heapster-v11'], [PODS]),
+            (['kube_replication_controller:l7-lb-controller', 'kube_namespace:kube-system'], [PODS]),
+            (['kube_replication_controller:redis-slave', 'kube_namespace:default'], [PODS]),
+            (['kube_replication_controller:frontend', 'kube_namespace:default'], [PODS]),
+            (['kube_replication_controller:heapster-v11', 'kube_namespace:kube-system'], [PODS]),
+            ([], [LIM, REQ, CAP])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
         for m, _type in METRICS:
             for tags, types in expected_tags:
@@ -107,10 +133,15 @@ class TestKubernetes(AgentCheckTest):
 
         self.coverage_report()
 
-    def test_historate_1_1(self):
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_json_auth')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_machine_info')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_metrics',
+                side_effect=lambda: json.loads(Fixtures.read_file("metrics_1.1.json")))
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list',
+                side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False)))
+    def test_historate_1_1(self, *args):
         # To avoid the disparition of some gauges during the second check
         mocks = {
-            '_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics_1.1.json")),
             '_perform_kubelet_checks': lambda x: None,
         }
         config = {
@@ -122,11 +153,8 @@ class TestKubernetes(AgentCheckTest):
                 }
             ]
         }
-
-        # parts of the json returned by the kubelet api is escaped, keep it untouched
-        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False))):
-                # Can't use run_check_twice due to specific metrics
-                self.run_check_twice(config, mocks=mocks, force_reload=True)
+        # Can't use run_check_twice due to specific metrics
+        self.run_check_twice(config, mocks=mocks, force_reload=True)
 
         metric_suffix = ["count", "avg", "median", "max", "95percentile"]
 
@@ -140,10 +168,11 @@ class TestKubernetes(AgentCheckTest):
             (['kube_replication_controller:kube-ui-v1','kube_namespace:kube-system', 'pod_name:kube-system/kube-ui-v1-sv2sq'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['kube_replication_controller:propjoe', 'kube_namespace:default', 'pod_name:default/propjoe-lkc3l'], [MEM, CPU, FS, NET, NET_ERRORS]),
             (['kube_replication_controller:haproxy-6db79c7bbcac01601ac35bcdb18868b3', 'kube_namespace:default', 'pod_name:default/haproxy-6db79c7bbcac01601ac35bcdb18868b3-rr7la'], [MEM, CPU, FS, NET, NET_ERRORS]),
-            (['kube_replication_controller:l7-lb-controller'], [PODS]),
-            (['kube_replication_controller:redis-slave'], [PODS]),
-            (['kube_replication_controller:frontend'], [PODS]),
-            (['kube_replication_controller:heapster-v11'], [PODS]),
+            (['kube_replication_controller:l7-lb-controller', 'kube_namespace:kube-system'], [PODS]),
+            (['kube_replication_controller:redis-slave', 'kube_namespace:default'], [PODS]),
+            (['kube_replication_controller:frontend', 'kube_namespace:default'], [PODS]),
+            (['kube_replication_controller:heapster-v11', 'kube_namespace:kube-system'], [PODS]),
+            ([], [LIM, REQ, CAP])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
 
         for m, _type in METRICS:
@@ -154,23 +183,32 @@ class TestKubernetes(AgentCheckTest):
 
         self.coverage_report()
 
-
-    def test_fail_1_2(self):
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_json_auth')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_machine_info',
+                side_effect=lambda: json.loads(Fixtures.read_file("machine_info_1.2.json")))
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_metrics',
+                side_effect=lambda: json.loads(Fixtures.read_file("metrics_1.2.json")))
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list',
+                side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False)))
+    def test_fail_1_2(self, *args):
         # To avoid the disparition of some gauges during the second check
-        mocks = {'_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics_1.2.json"))}
         config = {
             "instances": [{"host": "foo"}]
         }
 
-        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))):
-                # Can't use run_check_twice due to specific metrics
-                self.run_check(config, mocks=mocks, force_reload=True)
-                self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL)
+        # Can't use run_check_twice due to specific metrics
+        self.run_check(config, force_reload=True)
+        self.assertServiceCheck("kubernetes.kubelet.check", status=AgentCheck.CRITICAL)
 
-
-    def test_metrics_1_2(self):
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_json_auth')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_machine_info',
+                side_effect=lambda: json.loads(Fixtures.read_file("machine_info_1.2.json")))
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_metrics',
+                side_effect=lambda: json.loads(Fixtures.read_file("metrics_1.2.json")))
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list',
+                side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False)))
+    def test_metrics_1_2(self, *args):
         mocks = {
-            '_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics_1.2.json")),
             '_perform_kubelet_checks': lambda x: None,
         }
         config = {
@@ -181,32 +219,24 @@ class TestKubernetes(AgentCheckTest):
                 }
             ]
         }
-        # parts of the json returned by the kubelet api is escaped, keep it untouched
-        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))):
-                # Can't use run_check_twice due to specific metrics
-                self.run_check_twice(config, mocks=mocks, force_reload=True)
+        # Can't use run_check_twice due to specific metrics
+        self.run_check_twice(config, mocks=mocks, force_reload=True)
 
         expected_tags = [
             (['container_name:/kubelet', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
-            (['container_name:k8s_POD.e2764897_kube-dns-v11-63tae_kube-system_5754714c-0054-11e6-9a89-42010af00098_c33e4b64', 'pod_name:kube-system/kube-dns-v11-63tae', 'kube_namespace:kube-system', 'kube_k8s-app:kube-dns', 'kube_version:v11', 'kube_kubernetes.io/cluster-service:true', 'kube_replication_controller:kube-dns-v11'], [MEM, CPU, FS, NET, NET_ERRORS]),
-            (['container_name:k8s_dd-agent.67c1e3c5_dd-agent-idydc_default_adecdd57-f5c3-11e5-8f7c-42010af00098_5154bb06', 'pod_name:default/dd-agent-idydc', 'kube_namespace:default', 'kube_app:dd-agent', 'kube_replication_controller:dd-agent'], [MEM, CPU, FS, NET, DISK]),
+            (['container_name:k8s_POD.35220667_dd-agent-1rxlh_default_12c7be82-33ca-11e6-ac8f-42010af00003_f5cf585f',
+              'container_image:gcr.io/google_containers/pause:2.0', 'pod_name:default/dd-agent-1rxlh',
+              'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar','kube_bar:baz',
+              'kube_replication_controller:dd-agent'],
+            [MEM, CPU, FS, NET, NET_ERRORS]),
             (['container_name:/', 'pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
-            (['container_name:/docker-daemon', 'pod_name:no_pod'], [MEM, CPU, DISK, NET]),
-            (['container_name:k8s_skydns.7ad23ad1_kube-dns-v11-63tae_kube-system_5754714c-0054-11e6-9a89-42010af00098_b082387b', 'pod_name:kube-system/kube-dns-v11-63tae', 'kube_namespace:kube-system', 'kube_k8s-app:kube-dns', 'kube_version:v11', 'kube_kubernetes.io/cluster-service:true', 'kube_replication_controller:kube-dns-v11'], [MEM, CPU, FS, NET]),
-
-            ([u'container_name:/system', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
-
-            ([u'kube_k8s-app:kube-dns', u'kube_namespace:kube-system', u'kube_kubernetes.io/cluster-service:true', u'kube_replication_controller:kube-dns-v11', u'pod_name:kube-system/kube-dns-v11-63tae', u'kube_version:v11', u'container_name:k8s_kube2sky.8cbc016c_kube-dns-v11-63tae_kube-system_5754714c-0054-11e6-9a89-42010af00098_d6df3862'], [MEM, CPU, FS, NET]),
-            ([u'kube_namespace:default', u'kube_app:dd-agent', u'kube_replication_controller:dd-agent', u'container_name:k8s_POD.35220667_dd-agent-idydc_default_adecdd57-f5c3-11e5-8f7c-42010af00098_e2c005a0', u'pod_name:default/dd-agent-idydc'], [MEM, CPU, FS, NET, NET_ERRORS]),
-            ([u'kube_k8s-app:kube-dns', u'kube_namespace:kube-system', u'kube_kubernetes.io/cluster-service:true', u'kube_replication_controller:kube-dns-v11', u'pod_name:kube-system/kube-dns-v11-63tae', u'kube_version:v11', u'container_name:k8s_etcd.81a33530_kube-dns-v11-63tae_kube-system_5754714c-0054-11e6-9a89-42010af00098_e811864e'], [MEM, CPU, FS, DISK, NET]),
-            ([u'kube_namespace:kube-system', u'pod_name:kube-system/kube-proxy-gke-cluster-remi-62c0dd29-node-29lx', u'container_name:k8s_kube-proxy.cf23f4be_kube-proxy-gke-cluster-remi-62c0dd29-node-29lx_kube-system_f70c43857a22d5495bf204918d5ab984_4e315ef3', u'kube_replication_controller:kube-proxy-gke-cluster-remi-62c0dd29-node'], [MEM, CPU, FS, NET, DISK]),
-            ([u'kube_namespace:kube-system', u'pod_name:kube-system/fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node-29lx', u'kube_k8s-app:fluentd-logging', u'container_name:k8s_fluentd-cloud-logging.fe59dd68_fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node-29lx_kube-system_da7e41ef0372c29c65a24b417b5dd69f_3cacfb32', u'kube_replication_controller:fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node'], [MEM, CPU, FS, NET]),
-            ([u'kube_namespace:kube-system', u'container_name:k8s_POD.6059dfa2_kube-proxy-gke-cluster-remi-62c0dd29-node-29lx_kube-system_f70c43857a22d5495bf204918d5ab984_e17ace7a', u'pod_name:kube-system/kube-proxy-gke-cluster-remi-62c0dd29-node-29lx', u'kube_replication_controller:kube-proxy-gke-cluster-remi-62c0dd29-node'], [MEM, CPU, FS, NET, NET_ERRORS]),
-            ([u'kube_k8s-app:kube-dns', u'kube_namespace:kube-system', u'kube_kubernetes.io/cluster-service:true', u'container_name:k8s_healthz.4039147e_kube-dns-v11-63tae_kube-system_5754714c-0054-11e6-9a89-42010af00098_d8e1d132', u'kube_replication_controller:kube-dns-v11', u'pod_name:kube-system/kube-dns-v11-63tae', u'kube_version:v11'], [MEM, CPU, FS, NET]),
-            ([u'kube_namespace:kube-system', u'pod_name:kube-system/fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node-29lx', u'kube_k8s-app:fluentd-logging', u'container_name:k8s_POD.6059dfa2_fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node-29lx_kube-system_da7e41ef0372c29c65a24b417b5dd69f_b4d7ed62', u'kube_replication_controller:fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node'], [MEM, CPU, FS, NET, NET_ERRORS]),
-
-            (['kube_replication_controller:kube-dns-v11'], [PODS]),
-            (['kube_replication_controller:dd-agent'], [PODS]),
+            (['container_name:/system', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
+            (['container_name:k8s_dd-agent.7b520f3f_dd-agent-1rxlh_default_12c7be82-33ca-11e6-ac8f-42010af00003_321fecb4',
+              'container_image:datadog/docker-dd-agent:massi_ingest_k8s_events', 'pod_name:default/dd-agent-1rxlh',
+              'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar',
+              'kube_bar:baz', 'kube_replication_controller:dd-agent'], [LIM, REQ, MEM, CPU, NET, DISK, DISK_USAGE]),
+            (['kube_replication_controller:dd-agent', 'kube_namespace:default'], [PODS]),
+            ([], [LIM, REQ, CAP])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
 
         for m, _type in METRICS:
@@ -214,13 +244,22 @@ class TestKubernetes(AgentCheckTest):
                 if _type in types:
                     self.assertMetric(m, count=1, tags=tags)
 
+        # Verify exact capacity values read from machine_info_1.2.json fixture.
+        self.assertMetric('kubernetes.cpu.capacity', value=2)
+        self.assertMetric('kubernetes.memory.capacity', value=8391204864)
 
         self.coverage_report()
 
-    def test_historate_1_2(self):
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_json_auth')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_machine_info',
+                side_effect=lambda: json.loads(Fixtures.read_file("machine_info_1.2.json")))
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_metrics',
+                side_effect=lambda: json.loads(Fixtures.read_file("metrics_1.2.json")))
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list',
+                side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False)))
+    def test_historate_1_2(self, *args):
         # To avoid the disparition of some gauges during the second check
         mocks = {
-            '_retrieve_metrics': lambda x: json.loads(Fixtures.read_file("metrics_1.2.json")),
             '_perform_kubelet_checks': lambda x: None,
         }
         config = {
@@ -233,24 +272,21 @@ class TestKubernetes(AgentCheckTest):
             ]
         }
 
-        # parts of the json returned by the kubelet api is escaped, keep it untouched
-        with mock.patch('utils.kubeutil.KubeUtil.retrieve_pods_list', side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))):
-                # Can't use run_check_twice due to specific metrics
-                self.run_check_twice(config, mocks=mocks, force_reload=True)
+        # Can't use run_check_twice due to specific metrics
+        self.run_check_twice(config, mocks=mocks, force_reload=True)
 
         metric_suffix = ["count", "avg", "median", "max", "95percentile"]
 
         expected_tags = [
-            (['pod_name:kube-system/kube-dns-v11-63tae', 'kube_namespace:kube-system', 'kube_k8s-app:kube-dns', 'kube_version:v11', 'kube_kubernetes.io/cluster-service:true', 'kube_replication_controller:kube-dns-v11'], [MEM, CPU, FS, DISK, NET, NET_ERRORS]),
-            (['pod_name:default/dd-agent-idydc', 'kube_namespace:default', 'kube_app:dd-agent', 'kube_replication_controller:dd-agent'], [MEM, CPU, FS, NET, DISK]),
+            (['container_image:datadog/docker-dd-agent:massi_ingest_k8s_events', 'pod_name:default/dd-agent-1rxlh',
+              'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar','kube_bar:baz',
+              'kube_replication_controller:dd-agent'], [MEM, CPU, NET, DISK, DISK_USAGE, LIM, REQ]),
+            (['container_image:gcr.io/google_containers/pause:2.0', 'pod_name:default/dd-agent-1rxlh',
+              'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar','kube_bar:baz',
+              'kube_replication_controller:dd-agent'], [MEM, CPU, NET, NET_ERRORS, DISK_USAGE]),
             (['pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
-
-            ([u'kube_namespace:default', u'kube_app:dd-agent', u'kube_replication_controller:dd-agent', u'pod_name:default/dd-agent-idydc'], [MEM, CPU, FS, NET, NET_ERRORS]),
-            ([u'kube_namespace:kube-system', u'pod_name:kube-system/kube-proxy-gke-cluster-remi-62c0dd29-node-29lx', u'kube_replication_controller:kube-proxy-gke-cluster-remi-62c0dd29-node'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
-            ([u'kube_namespace:kube-system', u'pod_name:kube-system/fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node-29lx', u'kube_k8s-app:fluentd-logging', u'kube_replication_controller:fluentd-cloud-logging-gke-cluster-remi-62c0dd29-node'], [MEM, CPU, FS, NET, NET_ERRORS]),
-
-            (['kube_replication_controller:kube-dns-v11'], [PODS]),
-            (['kube_replication_controller:dd-agent'], [PODS]),
+            (['kube_replication_controller:dd-agent', 'kube_namespace:default'], [PODS]),
+            ([], [LIM, REQ, CAP])  # container from kubernetes api doesn't have a corresponding entry in Cadvisor
         ]
 
         for m, _type in METRICS:
@@ -260,3 +296,234 @@ class TestKubernetes(AgentCheckTest):
                         self.assertMetric("{0}.{1}".format(m, m_suffix), count=1, tags=tags)
 
         self.coverage_report()
+
+    @mock.patch('utils.kubernetes.KubeUtil.get_node_info',
+                side_effect=lambda: ('Foo', 'Bar'))
+    @mock.patch('utils.kubernetes.KubeUtil.filter_pods_list',
+                side_effect=lambda x, y: x)
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_json_auth',
+            side_effect=KubeUtil_fake_retrieve_json_auth)
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_machine_info')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_metrics')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list',
+                side_effect=lambda: json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False)))
+    def test_events(self, *args):
+        # default value for collect_events is False
+        config = {'instances': [{'host': 'foo'}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)
+
+        # again, with the feature enabled
+        config = {'instances': [{'host': 'bar', 'collect_events': True}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=1, exact_match=False)
+
+        # with no namespaces, only catch event from 'default'
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=0, exact_match=False)
+
+        # again, now the timestamp is set and the event is discarded b/c too old
+        self.run_check(config)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)
+
+    @mock.patch('utils.kubernetes.KubeUtil.get_node_info',
+                side_effect=lambda: ('Foo', 'Bar'))
+    @mock.patch('utils.kubernetes.KubeUtil.filter_pods_list')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_json_auth',
+            side_effect=KubeUtil_fake_retrieve_json_auth)
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_machine_info')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_metrics')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list')
+    def test_namespaced_events(self, *args):
+        # reset last event pulling time
+        KubeUtil().last_event_collection_ts = 0
+
+        # Verify that we are retro compatible with the old 'namespace' configuration key
+        config = {'instances': [{'host': 'bar', 'collect_events': True, 'namespace': 'test-namespace-1'}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=1, exact_match=False)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=1, exact_match=False)
+
+        # reset last event pulling time
+        KubeUtil().last_event_collection_ts = 0
+
+        # Using 'namespaces' list
+        config = {'instances': [{'host': 'bar', 'collect_events': True, 'namespaces': ['test-namespace-1', 'test-namespace-2']}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=1, exact_match=False)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)
+
+        # reset last event pulling time
+        KubeUtil().last_event_collection_ts = 0
+
+        # Using 'namespace_name_regexp' (since 'namespaces' is not set it should
+        # fallback to ['default'] and add any namespaces that matched with the regexp
+        config = {'instances': [{'host': 'bar', 'collect_events': True, 'namespace_name_regexp': 'test-namespace.*'}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=1, exact_match=False)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=1, exact_match=False)
+
+        # reset last event pulling time
+        KubeUtil().last_event_collection_ts = 0
+
+        # muting the 'default' namespace
+        config = {'instances': [{'host': 'bar', 'collect_events': True, 'namespaces': [], 'namespace_name_regexp': 'test-namespace.*'}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=1, exact_match=False)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)
+
+class TestKubeutil(unittest.TestCase):
+    def setUp(self):
+        self.kubeutil = KubeUtil()
+
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list', side_effect=['foo'])
+    @mock.patch('utils.kubernetes.KubeUtil.extract_kube_labels')
+    def test_get_kube_labels(self, extract_kube_labels, retrieve_pods_list):
+        self.kubeutil.get_kube_labels(excluded_keys='bar')
+        retrieve_pods_list.assert_called_once()
+        extract_kube_labels.assert_called_once_with('foo', excluded_keys='bar')
+
+    def test_extract_kube_labels(self):
+        """
+        Test with both 1.1 and 1.2 version payloads
+        """
+        res = self.kubeutil.extract_kube_labels({}, ['foo'])
+        self.assertEqual(len(res), 0)
+
+        pods = json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False))
+        res = self.kubeutil.extract_kube_labels(pods, ['foo'])
+        labels = set(inn for out in res.values() for inn in out)
+        self.assertEqual(len(labels), 8)
+        res = self.kubeutil.extract_kube_labels(pods, ['k8s-app'])
+        labels = set(inn for out in res.values() for inn in out)
+        self.assertEqual(len(labels), 6)
+
+        pods = json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))
+        res = self.kubeutil.extract_kube_labels(pods, ['foo'])
+        labels = set(inn for out in res.values() for inn in out)
+        self.assertEqual(len(labels), 3)
+        res = self.kubeutil.extract_kube_labels(pods, ['k8s-app'])
+        labels = set(inn for out in res.values() for inn in out)
+        self.assertEqual(len(labels), 3)
+
+    def test_extract_meta(self):
+        """
+        Test with both 1.1 and 1.2 version payloads
+        """
+        res = self.kubeutil.extract_meta({}, 'foo')
+        self.assertEqual(len(res), 0)
+
+        pods = json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False))
+        res = self.kubeutil.extract_meta(pods, 'foo')
+        self.assertEqual(len(res), 0)
+        res = self.kubeutil.extract_meta(pods, 'uid')
+        self.assertEqual(len(res), 6)
+
+        pods = json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))
+        res = self.kubeutil.extract_meta(pods, 'foo')
+        self.assertEqual(len(res), 0)
+        res = self.kubeutil.extract_meta(pods, 'uid')
+        self.assertEqual(len(res), 4)
+
+    @mock.patch('utils.kubernetes.kubeutil.retrieve_json')
+    def test_retrieve_pods_list(self, retrieve_json):
+        self.kubeutil.retrieve_pods_list()
+        retrieve_json.assert_called_once_with(self.kubeutil.pods_list_url)
+
+    @mock.patch('utils.kubernetes.kubeutil.retrieve_json')
+    def test_retrieve_machine_info(self, retrieve_json):
+        self.kubeutil.retrieve_machine_info()
+        retrieve_json.assert_called_once_with(self.kubeutil.machine_info_url)
+
+    @mock.patch('utils.kubernetes.kubeutil.retrieve_json')
+    def test_retrieve_metrics(self, retrieve_json):
+        self.kubeutil.retrieve_metrics()
+        retrieve_json.assert_called_once_with(self.kubeutil.metrics_url)
+
+    def test_filter_pods_list(self):
+        """
+        Test with both 1.1 and 1.2 version payloads
+        """
+        res = self.kubeutil.filter_pods_list({}, 'foo')
+        self.assertEqual(len(res.get('items')), 0)
+
+        pods = json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False))
+        res = self.kubeutil.filter_pods_list(pods, '10.240.0.9')
+        self.assertEqual(len(res.get('items')), 5)
+
+        pods = json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False))
+        res = self.kubeutil.filter_pods_list(pods, 'foo')
+        self.assertEqual(len(res.get('items')), 0)
+
+        pods = json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))
+        res = self.kubeutil.filter_pods_list(pods, '10.240.0.5')
+        self.assertEqual(len(res.get('items')), 1)
+
+        pods = json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))
+        res = self.kubeutil.filter_pods_list(pods, 'foo')
+        self.assertEqual(len(res.get('items')), 0)
+
+    @mock.patch('utils.kubernetes.kubeutil.requests')
+    def test_retrieve_json_auth(self, r):
+        self.kubeutil.retrieve_json_auth('url', 'foo_tok')
+        r.get.assert_called_once_with('url', verify=False, timeout=10, headers={'Authorization': 'Bearer foo_tok'})
+
+        self.kubeutil.CA_CRT_PATH = __file__
+        self.kubeutil.retrieve_json_auth('url', 'foo_tok')
+        r.get.assert_called_with('url', verify=__file__, timeout=10, headers={'Authorization': 'Bearer foo_tok'})
+
+    def test_get_node_info(self):
+        with mock.patch('utils.kubernetes.KubeUtil._fetch_host_data') as f:
+            self.kubeutil.get_node_info()
+            f.assert_called_once()
+
+            f.reset_mock()
+
+            self.kubeutil._node_ip = 'foo'
+            self.kubeutil._node_name = 'bar'
+            ip, name = self.kubeutil.get_node_info()
+            self.assertEqual(ip, 'foo')
+            self.assertEqual(name, 'bar')
+            f.assert_not_called()
+
+    def test__fetch_host_data(self):
+        """
+        Test with both 1.1 and 1.2 version payloads
+        """
+        with mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list') as mock_pods:
+            self.kubeutil.host_name = 'dd-agent-1rxlh'
+            mock_pods.return_value = json.loads(Fixtures.read_file("pods_list_1.2.json", string_escape=False))
+            self.kubeutil._fetch_host_data()
+            self.assertEqual(self.kubeutil._node_ip, '10.240.0.9')
+            self.assertEqual(self.kubeutil._node_name, 'kubernetes-massi-minion-k23m')
+
+            self.kubeutil.host_name = 'heapster-v11-l8sh1'
+            mock_pods.return_value = json.loads(Fixtures.read_file("pods_list_1.1.json", string_escape=False))
+            self.kubeutil._fetch_host_data()
+            self.assertEqual(self.kubeutil._node_ip, '10.240.0.9')
+            self.assertEqual(self.kubeutil._node_name, 'gke-cluster-1-8046fdfa-node-ld35')
+
+    def test_get_auth_token(self):
+        KubeUtil.AUTH_TOKEN_PATH = '/foo/bar'
+        self.assertIsNone(KubeUtil.get_auth_token())
+        KubeUtil.AUTH_TOKEN_PATH = Fixtures.file('events.json')  # any file could do the trick
+        self.assertIsNotNone(KubeUtil.get_auth_token())
+
+    def test_is_k8s(self):
+        os.unsetenv('KUBERNETES_PORT')
+        self.assertFalse(Platform.is_k8s())
+        os.environ['KUBERNETES_PORT'] = '999'
+        self.assertTrue(Platform.is_k8s())
+
+    def test_extract_event_tags(self):
+        events = json.loads(Fixtures.read_file("events.json", string_escape=False))['items']
+        for ev in events:
+            tags = KubeUtil().extract_event_tags(ev)
+            # there should be 4 tags except for some events where source.host is missing
+            self.assertTrue(len(tags) >= 3)
+
+            tag_names = [tag.split(':')[0] for tag in tags]
+            self.assertIn('reason', tag_names)
+            self.assertIn('namespace', tag_names)
+            self.assertIn('object_type', tag_names)
+            if len(tags) == 4:
+                self.assertIn('node_name', tag_names)

@@ -3,7 +3,13 @@ import subprocess
 import tempfile
 import unittest
 
+# 3p
+from nose.plugins.attrib import attr
 
+
+# Don't run these tests on Windows because the temp file scheme used in them
+# is hard to support on Windows
+@attr('unix')
 class TestTail(unittest.TestCase):
     def setUp(self):
         self.log_file = tempfile.NamedTemporaryFile()

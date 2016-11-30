@@ -125,7 +125,7 @@ case "$1" in
             $0 stop > /dev/null 2>&1
         fi
 
-        su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null
+        su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null 2>&1
         if [ $? -ne 0 ]; then
             log_daemon_msg "Invalid check configuration. Please run sudo /etc/init.d/datadog-agent configtest for more details."
             log_daemon_msg "Resuming starting process."
@@ -183,7 +183,7 @@ case "$1" in
         major=$(echo "$( uname -r )" | cut -d"." -f1)
         minor=$(echo "$( uname -r )" | cut -d"." -f2)
         # If major version 3, and minor version 18+, OR major version 4+
-        if ( [ $major -eq 3 ] && [ $minor -ge 18 ] ) || [ $major -gt 3 ]; then
+        if [ "$DOCKER_DD_AGENT" != "" ] && ( ( [ $major -eq 3 ] && [ $minor -ge 18 ] ) || [ $major -gt 3 ] ); then
             RED='\033[0;31m' # Red Text
             NC='\033[0m' # No Color
             echo "${RED}Warning: Known bug in Linux Kernel 3.18+ causes 'status' to fail.${NC}"

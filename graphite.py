@@ -11,6 +11,9 @@ import struct
 from tornado.ioloop import IOLoop
 from tornado.tcpserver import TCPServer
 
+# project
+from utils.hostname import get_hostname
+
 log = logging.getLogger(__name__)
 
 
@@ -44,7 +47,7 @@ class GraphiteConnection(object):
             size = struct.unpack("!L", data)[0]
             log.debug("Receiving a string of size:" + str(size))
             self.stream.read_bytes(size, self._on_read_line)
-        except Exception, e:
+        except Exception as e:
             log.error(e)
 
     def _on_read_line(self, data):
@@ -103,7 +106,7 @@ class GraphiteConnection(object):
         for (metric, datapoint) in datapoints:
             try:
                 datapoint = (float(datapoint[0]), float(datapoint[1]))
-            except Exception, e:
+            except Exception as e:
                 log.error(e)
                 continue
 
@@ -112,7 +115,6 @@ class GraphiteConnection(object):
         self.stream.read_bytes(4, self._on_read_header)
 
 def start_graphite_listener(port):
-    from util import get_hostname
     echo_server = GraphiteServer(None, get_hostname(None))
     echo_server.listen(port)
     IOLoop.instance().start()

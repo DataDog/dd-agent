@@ -8,7 +8,6 @@ from urlparse import urljoin
 
 # project
 from checks import AgentCheck
-from util import get_hostname
 
 # 3p
 import requests
@@ -16,8 +15,10 @@ import simplejson as json
 
 SOURCE_TYPE = 'openstack'
 
+V21_NOVA_API_VERSION = 'v2.1'
+
 DEFAULT_KEYSTONE_API_VERSION = 'v3'
-DEFAULT_NOVA_API_VERSION = 'v2.1'
+DEFAULT_NOVA_API_VERSION = V21_NOVA_API_VERSION
 DEFAULT_NEUTRON_API_VERSION = 'v2.0'
 
 DEFAULT_API_REQUEST_TIMEOUT = 5 # seconds
@@ -126,7 +127,7 @@ class OpenStackProjectScope(object):
         self.service_catalog = service_catalog
 
     @classmethod
-    def from_config(cls, init_config, instance_config):
+    def from_config(cls, init_config, instance_config, proxy_config=None):
         keystone_server_url = init_config.get("keystone_server_url")
         if not keystone_server_url:
             raise IncompleteConfig()
@@ -137,10 +138,32 @@ class OpenStackProjectScope(object):
         auth_scope = cls.get_auth_scope(instance_config)
         identity = cls.get_user_identity(instance_config)
 
+        exception_msg = None
         try:
-            auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify)
+            auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify, proxy_config)
         except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            raise KeystoneUnreachable()
+            exception_msg = "Failed keystone auth with identity:{id} scope:{scope} @{url}".format(
+                id=identity,
+                scope=auth_scope,
+                url=keystone_server_url)
+
+        if exception_msg:
+            try:
+                identity['password']['user']['domain']['name'] = identity['password']['user']['domain'].pop('id')
+
+                if 'domain' in auth_scope['project']:
+                    auth_scope['project']['domain']['name'] = auth_scope['project']['domain'].pop('id')
+                else:
+                    auth_scope['project']['name'] = auth_scope['project'].pop('id')
+                auth_resp = cls.request_auth_token(auth_scope, identity, keystone_server_url, ssl_verify, proxy_config)
+            except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                exception_msg = "{msg} and also failed kaystone auth with identity:{id} scope:{scope} @{url}: {ex}".format(
+                    msg=exception_msg,
+                    id=identity,
+                    scope=auth_scope,
+                    url=keystone_server_url,
+                    ex=e)
+                raise KeystoneUnreachable(exception_msg)
 
         auth_token = auth_resp.headers.get('X-Subject-Token')
 
@@ -216,12 +239,12 @@ class OpenStackProjectScope(object):
         return identity
 
     @classmethod
-    def request_auth_token(cls, auth_scope, identity, keystone_server_url, ssl_verify):
+    def request_auth_token(cls, auth_scope, identity, keystone_server_url, ssl_verify, proxy=None):
         payload = {"auth": {"scope": auth_scope, "identity": identity}}
         auth_url = urljoin(keystone_server_url, "{0}/auth/tokens".format(DEFAULT_KEYSTONE_API_VERSION))
         headers = {'Content-Type': 'application/json'}
 
-        resp = requests.post(auth_url, headers=headers, data=json.dumps(payload), verify=ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT)
+        resp = requests.post(auth_url, headers=headers, data=json.dumps(payload), verify=ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT, proxies=proxy)
         resp.raise_for_status()
 
         return resp
@@ -254,7 +277,7 @@ class KeystoneCatalog(object):
 
         neutron_endpoint = None
         for entry in catalog:
-            if entry['name'] == match:
+            if entry['name'] == match or 'Networking' in entry['name']:
                 valid_endpoints = {}
                 for ep in entry['endpoints']:
                     interface = ep.get('interface','')
@@ -280,10 +303,10 @@ class KeystoneCatalog(object):
         nova_version = nova_api_version or DEFAULT_NOVA_API_VERSION
         catalog = json_resp.get('token', {}).get('catalog', [])
 
-        nova_match = 'novav21' if nova_version == 'v2.1' else 'nova'
+        nova_match = 'novav21' if nova_version == V21_NOVA_API_VERSION else 'nova'
 
         for entry in catalog:
-            if entry['name'] == nova_match:
+            if entry['name'] == nova_match or 'Compute' in entry['name']:
                 # Collect any endpoints on the public or internal interface
                 valid_endpoints = {}
                 for ep in entry['endpoints']:
@@ -346,13 +369,14 @@ class OpenStackCheck(AgentCheck):
         # Mapping of Nova-managed servers to tags
         self.external_host_tags = {}
 
-    def _make_request_with_auth_fallback(self, url, headers=None, verify=True, params=None):
+    def _make_request_with_auth_fallback(self, url, headers=None, params=None):
         """
         Generic request handler for OpenStack API requests
         Raises specialized Exceptions for commonly encountered error codes
         """
         try:
-            resp = requests.get(url, headers=headers, verify=verify, params=params, timeout=DEFAULT_API_REQUEST_TIMEOUT)
+            resp = requests.get(url, headers=headers, verify=self._ssl_verify, params=params,
+                                timeout=DEFAULT_API_REQUEST_TIMEOUT, proxies=self.proxies)
             resp.raise_for_status()
         except requests.exceptions.HTTPError:
             if resp.status_code == 401:
@@ -435,7 +459,7 @@ class OpenStackCheck(AgentCheck):
 
         network_ids = []
         try:
-            net_details = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+            net_details = self._make_request_with_auth_fallback(url, headers)
             for network in net_details['networks']:
                 network_ids.append(network['id'])
         except Exception as e:
@@ -445,7 +469,7 @@ class OpenStackCheck(AgentCheck):
     def get_stats_for_single_network(self, network_id):
         url = '{0}/{1}/networks/{2}'.format(self.get_neutron_endpoint(), DEFAULT_NEUTRON_API_VERSION, network_id)
         headers = {'X-Auth-Token': self.get_auth_token()}
-        net_details = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+        net_details = self._make_request_with_auth_fallback(url, headers)
 
         service_check_tags = ['network:{0}'.format(network_id)]
 
@@ -485,13 +509,13 @@ class OpenStackCheck(AgentCheck):
 
     def get_all_hypervisor_ids(self, filter_by_host=None):
         nova_version = self.init_config.get("nova_api_version", DEFAULT_NOVA_API_VERSION)
-        if nova_version == "v2.1":
+        if nova_version >= V21_NOVA_API_VERSION:
             url = '{0}/os-hypervisors'.format(self.get_nova_endpoint())
             headers = {'X-Auth-Token': self.get_auth_token()}
 
             hypervisor_ids = []
             try:
-                hv_list = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+                hv_list = self._make_request_with_auth_fallback(url, headers)
                 for hv in hv_list['hypervisors']:
                     if filter_by_host and hv['hypervisor_hostname'] == filter_by_host:
                         # Assume one-one relationship between hypervisor and host, return the 1st found
@@ -515,7 +539,7 @@ class OpenStackCheck(AgentCheck):
 
         hypervisor_aggregate_map = {}
         try:
-            aggregate_list = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+            aggregate_list = self._make_request_with_auth_fallback(url, headers)
             for v in aggregate_list['aggregates']:
                 for host in v['hosts']:
                     hypervisor_aggregate_map[host] = {
@@ -532,14 +556,14 @@ class OpenStackCheck(AgentCheck):
         url = '{0}/os-hypervisors/{1}/uptime'.format(self.get_nova_endpoint(), hyp_id)
         headers = {'X-Auth-Token': self.get_auth_token()}
 
-        resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+        resp = self._make_request_with_auth_fallback(url, headers)
         uptime = resp['hypervisor']['uptime']
         return self._parse_uptime_string(uptime)
 
     def get_stats_for_single_hypervisor(self, hyp_id, host_tags=None):
         url = '{0}/os-hypervisors/{1}'.format(self.get_nova_endpoint(), hyp_id)
         headers = {'X-Auth-Token': self.get_auth_token()}
-        resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+        resp = self._make_request_with_auth_fallback(url, headers)
         hyp = resp['hypervisor']
         host_tags = host_tags or []
         tags = [
@@ -598,7 +622,7 @@ class OpenStackCheck(AgentCheck):
 
         server_ids = []
         try:
-            resp = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify, params=query_params)
+            resp = self._make_request_with_auth_fallback(url, headers, params=query_params)
 
             server_ids = [s['id'] for s in resp['servers']]
         except Exception as e:
@@ -615,7 +639,7 @@ class OpenStackCheck(AgentCheck):
         server_stats = {}
 
         try:
-            server_stats = self._make_request_with_auth_fallback(url, headers, verify=self._ssl_verify)
+            server_stats = self._make_request_with_auth_fallback(url, headers)
         except InstancePowerOffFailure:
             self.warning("Server %s is powered off and cannot be monitored" % server_id)
         except Exception as e:
@@ -667,23 +691,30 @@ class OpenStackCheck(AgentCheck):
         headers = {"X-Auth-Token": instance_scope.auth_token}
 
         try:
-            requests.get(instance_scope.service_catalog.nova_endpoint, headers=headers, verify=self._ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT)
-            self.service_check(self.COMPUTE_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+            requests.get(instance_scope.service_catalog.nova_endpoint, headers=headers,
+                         verify=self._ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT, proxies=self.proxies)
+            self.service_check(self.COMPUTE_API_SC, AgentCheck.OK,
+                               tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
         except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+            self.service_check(self.COMPUTE_API_SC, AgentCheck.CRITICAL,
+                               tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
 
         # Neutron
         try:
-            requests.get(instance_scope.service_catalog.neutron_endpoint, headers=headers, verify=self._ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT)
-            self.service_check(self.NETWORK_API_SC, AgentCheck.OK, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+            requests.get(instance_scope.service_catalog.neutron_endpoint, headers=headers,
+                         verify=self._ssl_verify, timeout=DEFAULT_API_REQUEST_TIMEOUT, proxies=self.proxies)
+            self.service_check(self.NETWORK_API_SC, AgentCheck.OK,
+                               tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
         except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL, tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
+            self.service_check(self.NETWORK_API_SC, AgentCheck.CRITICAL,
+                               tags=["keystone_server:%s" % self.init_config.get("keystone_server_url")])
 
     def ensure_auth_scope(self, instance):
         """
         Guarantees a valid auth scope for this instance, and returns it
 
-        Communicates with the identity server and initializes a new scope when one is absent, or has been forcibly removed due to token expiry
+        Communicates with the identity server and initializes a new scope when one is absent, or has been forcibly
+        removed due to token expiry
         """
         instance_scope = None
 
@@ -694,10 +725,11 @@ class OpenStackCheck(AgentCheck):
             # We're missing a project scope for this instance
             # Let's populate it now
             try:
-                instance_scope = OpenStackProjectScope.from_config(self.init_config, instance)
+                instance_scope = OpenStackProjectScope.from_config(self.init_config, instance, self.proxies)
                 self.service_check(self.IDENTITY_API_SC, AgentCheck.OK, tags=["server:%s" % self.init_config.get("keystone_server_url")])
-            except KeystoneUnreachable:
+            except KeystoneUnreachable as e:
                 self.warning("The agent could not contact the specified identity server at %s . Are you sure it is up at that address?" % self.init_config.get("keystone_server_url"))
+                self.log.debug("Problem grabbing auth token: %s", e)
                 self.service_check(self.IDENTITY_API_SC, AgentCheck.CRITICAL, tags=["server:%s" % self.init_config.get("keystone_server_url")])
 
                 # If Keystone is down/unreachable, we default the Nova and Neutron APIs to UNKNOWN since we cannot access the service catalog
@@ -829,7 +861,7 @@ class OpenStackCheck(AgentCheck):
         """
         Returns a best guess for the hostname registered with OpenStack for this host
         """
-        return self.init_config.get("os_host") or get_hostname(self.agentConfig)
+        return self.init_config.get("os_host") or self.hostname
 
     def get_servers_managed_by_hypervisor(self):
         return self.get_all_server_ids(filter_by_host=self.get_my_hostname())

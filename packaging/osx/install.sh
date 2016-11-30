@@ -64,7 +64,10 @@ $sudo_cmd hdiutil detach "/Volumes/datadog_agent" >/dev/null
 # Set the configuration
 if egrep 'api_key:( APIKEY)?$' "/opt/datadog-agent/etc/datadog.conf" > /dev/null 2>&1; then
     printf "\033[34m\n* Adding your API key to the Agent configuration: datadog.conf\n\033[0m\n"
-    $sudo_cmd sh -c "sed -i '' 's/api_key:.*/api_key: $apikey/' \"/opt/datadog-agent/etc/datadog.conf\""
+    # Check for vanilla OS X sed or GNU sed
+    i_cmd="-i ''"
+    if [ $(sed --version 2>/dev/null | grep -c "GNU") -ne 0 ]; then i_cmd="-i"; fi
+    $sudo_cmd sh -c "sed $i_cmd 's/api_key:.*/api_key: $apikey/' \"/opt/datadog-agent/etc/datadog.conf\""
     $sudo_cmd chown $real_user:admin "/opt/datadog-agent/etc/datadog.conf"
     $sudo_cmd chmod 640 /opt/datadog-agent/etc/datadog.conf
     printf "\033[34m* Restarting the Agent...\n\033[0m\n"

@@ -26,6 +26,7 @@ class WMICheck(WinWMICheck):
         # Connection information
         host = instance.get('host', "localhost")
         namespace = instance.get('namespace', "root\\cimv2")
+        provider = instance.get('provider')
         username = instance.get('username', "")
         password = instance.get('password', "")
 
@@ -48,7 +49,7 @@ class WMICheck(WinWMICheck):
             instance_key,
             wmi_class, properties,
             tag_by=tag_by, filters=filters,
-            host=host, namespace=namespace,
+            host=host, namespace=namespace, provider=provider,
             username=username, password=password,
         )
 

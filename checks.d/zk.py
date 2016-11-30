@@ -79,7 +79,6 @@ import struct
 
 # project
 from checks import AgentCheck
-from util import get_hostname
 
 
 class ZKConnectionFailure(Exception):
@@ -131,7 +130,7 @@ class ZookeeperCheck(AgentCheck):
         tags = instance.get('tags', [])
         cx_args = (host, port, timeout)
         sc_tags = ["host:{0}".format(host), "port:{0}".format(port)]
-        hostname = get_hostname(self.agentConfig)
+        hostname = self.hostname
         report_instance_mode = instance.get("report_instance_mode", True)
 
         zk_version = None  # parse_stat will parse and set version string

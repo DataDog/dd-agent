@@ -130,7 +130,7 @@ start() {
         exit 3
     fi
 
-    su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null
+    su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo -n $'\n'"Invalid check configuration. Please run sudo /etc/init.d/datadog-agent configtest for more details."
         echo -n $'\n'"Resuming starting process."$'\n'

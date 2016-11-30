@@ -8,6 +8,9 @@ from tempfile import gettempdir, NamedTemporaryFile
 import time
 import unittest
 
+# 3p
+from nose.plugins.attrib import attr
+
 # project
 from checks.datadog import Dogstreams, EventDefaults
 
@@ -97,7 +100,9 @@ class TailTestCase(unittest.TestCase):
     def tearDown(self):
         self.log_file.close()
 
-
+# Don't run these tests on Windows because the temp file scheme used in them
+# is hard to support on Windows
+@attr('unix')
 class TestDogstream(TailTestCase):
     gauge = {'metric_type': 'gauge'}
     counter = {'metric_type': 'counter'}
@@ -139,7 +144,7 @@ class TestDogstream(TailTestCase):
 
         actual_output = self.dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
-        for metric, timestamp, val, attr in expected_output['dogstream']:
+        for metric, timestamp, val, attrib in expected_output['dogstream']:
             assert isinstance(val, float)
 
     def test_dogstream_counter(self):
@@ -168,7 +173,7 @@ class TestDogstream(TailTestCase):
 
         actual_output = self.dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
-        for metric, timestamp, val, attr in expected_output['dogstream']:
+        for metric, timestamp, val, attrib in expected_output['dogstream']:
             assert isinstance(val, (int, long))
 
     def test_dogstream_bad_input(self):

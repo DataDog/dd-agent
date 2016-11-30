@@ -1,0 +1,7 @@
+docker_images:
+  - kube-state-metrics
+
+init_config:
+instances:
+  # To enable Kube State metrics you must specify the url exposing the API
+  - kube_state_url: http://%%host%%:%%port%%/metrics

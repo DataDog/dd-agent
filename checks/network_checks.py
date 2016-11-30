@@ -74,13 +74,14 @@ class NetworkCheck(AgentCheck):
         # to keep track of statuses
         names = []
         for inst in instances:
-            name = inst.get('name', None)
-            if not name:
+            inst_name = inst.get('name', None)
+            if not inst_name:
                 raise Exception("All instances should have a 'name' parameter,"
                                 " error on instance: {0}".format(inst))
-            if name in names:
+            if inst_name in names:
                 raise Exception("Duplicate names for instances with name {0}"
-                                .format(inst['name']))
+                                .format(inst_name))
+            names.append(inst_name)
 
     def stop(self):
         self.stop_pool()
@@ -147,6 +148,9 @@ class NetworkCheck(AgentCheck):
                     self.resultsq.put((status, msg, sc_name, instance))
 
         except Exception:
+            self.log.exception(
+                u"Failed to process instance '%s'.", instance.get('Name', u"")
+            )
             result = (FAILURE, FAILURE, FAILURE, instance)
             self.resultsq.put(result)
 

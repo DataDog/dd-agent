@@ -15,13 +15,14 @@ from math import ceil
 from checks import AgentCheck
 from config import _is_affirmative
 from utils.dockerutil import DockerUtil, MountException
-from utils.kubeutil import KubeUtil
+from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.sd_backend import get_sd_backend
 
 
 EVENT_TYPE = 'docker'
 SERVICE_CHECK_NAME = 'docker.service_up'
+HEALTHCHECK_SERVICE_CHECK_NAME = 'docker.container_health'
 SIZE_REFRESH_RATE = 5  # Collect container sizes every 5 iterations of the check
 MAX_CGROUP_LISTING_RETRIES = 3
 CONTAINER_ID_RE = re.compile('[0-9a-f]{64}')
@@ -69,6 +70,13 @@ CGROUP_METRICS = [
         },
     },
     {
+        "cgroup": "cpu",
+        "file": "cpu.stat",
+        "metrics": {
+            "nr_throttled": ("docker.cpu.throttled", RATE)
+        },
+    },
+    {
         "cgroup": "blkio",
         "file": 'blkio.throttle.io_service_bytes',
         "metrics": {
@@ -109,8 +117,22 @@ TAG_EXTRACTORS = {
 CONTAINER = "container"
 PERFORMANCE = "performance"
 FILTERED = "filtered"
+HEALTHCHECK = "healthcheck"
 IMAGE = "image"
 
+ECS_INTROSPECT_DEFAULT_PORT = 51678
+
+ERROR_ALERT_TYPE = ['oom', 'kill']
+
+def compile_filter_rules(rules):
+    patterns = []
+    tag_names = []
+
+    for rule in rules:
+        patterns.append(re.compile(rule))
+        tag_names.append(rule.split(':')[0])
+
+    return patterns, tag_names
 
 def get_filters(include, exclude):
     # The reasoning is to check exclude first, so we can skip if there is no exclude
@@ -122,12 +144,11 @@ def get_filters(include, exclude):
     include_patterns = []
 
     # Compile regex
-    for rule in exclude:
-        exclude_patterns.append(re.compile(rule))
-        filtered_tag_names.append(rule.split(':')[0])
-    for rule in include:
-        include_patterns.append(re.compile(rule))
-        filtered_tag_names.append(rule.split(':')[0])
+    exclude_patterns, tag_names = compile_filter_rules(exclude)
+    filtered_tag_names.extend(tag_names)
+
+    include_patterns, tag_names = compile_filter_rules(include)
+    filtered_tag_names.extend(tag_names)
 
     return set(exclude_patterns), set(include_patterns), set(filtered_tag_names)
 
@@ -142,23 +163,24 @@ class DockerDaemon(AgentCheck):
                             agentConfig, instances=instances)
 
         self.init_success = False
-        self.init()
         self._service_discovery = agentConfig.get('service_discovery') and \
             agentConfig.get('service_discovery_backend') == 'docker'
-
-    def is_k8s(self):
-        return 'KUBERNETES_PORT' in os.environ
+        self.init()
 
     def init(self):
         try:
             instance = self.instances[0]
 
+            self.docker_util = DockerUtil()
+
+            self.docker_client = self.docker_util.client
+            self.docker_gateway = DockerUtil.get_gateway()
+
+            if Platform.is_k8s():
+                self.kubeutil = KubeUtil()
+
             # We configure the check with the right cgroup settings for this host
             # Just needs to be done once
-            self.docker_util = DockerUtil()
-            self.docker_client = self.docker_util.client
-            if self.is_k8s():
-                self.kubeutil = KubeUtil()
             self._mountpoints = self.docker_util.get_mountpoints(CGROUP_METRICS)
             self.cgroup_listing_retries = 0
             self._latest_size_query = 0
@@ -180,16 +202,18 @@ class DockerDaemon(AgentCheck):
             }
 
             # Set filtering settings
-            if not instance.get("exclude"):
-                self._filtering_enabled = False
-                if instance.get("include"):
-                    self.log.warning("You must specify an exclude section to enable filtering")
-            else:
-                self._filtering_enabled = True
-                include = instance.get("include", [])
-                exclude = instance.get("exclude", [])
-                self._exclude_patterns, self._include_patterns, _filtered_tag_names = get_filters(include, exclude)
-                self.tag_names[FILTERED] = _filtered_tag_names
+            if self.docker_util.filtering_enabled:
+                self.tag_names[FILTERED] = self.docker_util.filtered_tag_names
+
+
+            # get the health check whitelist
+            self.whitelist_patterns = None
+            health_scs_whitelist = instance.get('health_service_check_whitelist', [])
+            if health_scs_whitelist:
+                patterns, whitelist_tags = compile_filter_rules(health_scs_whitelist)
+                self.whitelist_patterns = set(patterns)
+                self.tag_names[HEALTHCHECK] = set(whitelist_tags)
+
 
             # Other options
             self.collect_image_stats = _is_affirmative(instance.get('collect_images_stats', False))
@@ -201,7 +225,7 @@ class DockerDaemon(AgentCheck):
 
             self.ecs_tags = {}
 
-        except Exception, e:
+        except Exception as e:
             self.log.critical(e)
             self.warning("Initialization failed. Will retry at next iteration")
         else:
@@ -224,16 +248,20 @@ class DockerDaemon(AgentCheck):
         if self.collect_ecs_tags:
             self.refresh_ecs_tags()
 
-        if self.is_k8s():
+        if Platform.is_k8s():
             try:
                 self.kube_labels = self.kubeutil.get_kube_labels()
             except Exception as e:
                 self.log.warning('Could not retrieve kubernetes labels: %s' % str(e))
                 self.kube_labels = {}
 
+        # containers running with custom cgroups?
+        custom_cgroups = _is_affirmative(instance.get('custom_cgroups', False))
+
         # Get the list of containers and the index of their names
-        containers_by_id = self._get_and_count_containers()
-        containers_by_id = self._crawl_container_pids(containers_by_id)
+        health_service_checks = True if self.whitelist_patterns else False
+        containers_by_id = self._get_and_count_containers(custom_cgroups, health_service_checks)
+        containers_by_id = self._crawl_container_pids(containers_by_id, custom_cgroups)
 
         # Send events from Docker API
         if self.collect_events or self._service_discovery:
@@ -249,6 +277,9 @@ class DockerDaemon(AgentCheck):
         if self.collect_disk_stats:
             self._report_disk_stats()
 
+        if health_service_checks:
+            self._send_container_healthcheck_sc(containers_by_id)
+
     def _count_and_weigh_images(self):
         try:
             tags = self._get_tags()
@@ -261,11 +292,11 @@ class DockerDaemon(AgentCheck):
             if self.collect_image_size:
                 self._report_image_size(active_images)
 
-        except Exception, e:
+        except Exception as e:
             # It's not an important metric, keep going if it fails
             self.warning("Failed to count Docker images. Exception: {0}".format(e))
 
-    def _get_and_count_containers(self):
+    def _get_and_count_containers(self, custom_cgroups=False, healthchecks=False):
         """List all the containers from the API, filter and count them."""
 
         # Querying the size of containers is slow, we don't do it at each run
@@ -277,7 +308,7 @@ class DockerDaemon(AgentCheck):
 
         try:
             containers = self.docker_client.containers(all=True, size=must_query_size)
-        except Exception, e:
+        except Exception as e:
             message = "Unable to list Docker containers: {0}".format(e)
             self.service_check(SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                                message=message)
@@ -286,7 +317,8 @@ class DockerDaemon(AgentCheck):
         else:
             self.service_check(SERVICE_CHECK_NAME, AgentCheck.OK)
 
-        # Filter containers according to the exclude/include rules
+        # Create a set of filtered containers based on the exclude/include rules
+        # and cache these rules in docker_util
         self._filter_containers(containers)
 
         containers_by_id = {}
@@ -306,6 +338,17 @@ class DockerDaemon(AgentCheck):
                 continue
 
             containers_by_id[container['Id']] = container
+
+            # grab pid via API if custom cgroups - otherwise we won't find process when
+            # crawling for pids.
+            if custom_cgroups or healthchecks:
+                try:
+                    inspect_dict = self.docker_client.inspect_container(container_name)
+                    container['_pid'] = inspect_dict['State']['Pid']
+                    container['health'] = inspect_dict['State'].get('Health', {})
+                except Exception as e:
+                    self.log.debug("Unable to inspect Docker container: %s", e)
+
 
         for tags, count in running_containers_count.iteritems():
             self.gauge("docker.containers.running", count, tags=list(tags))
@@ -330,7 +373,7 @@ class DockerDaemon(AgentCheck):
         tags = list(self.custom_tags)
 
         # Collect pod names as tags on kubernetes
-        if self.is_k8s() and KubeUtil.POD_NAME_LABEL not in self.collect_labels_as_tags:
+        if Platform.is_k8s() and KubeUtil.POD_NAME_LABEL not in self.collect_labels_as_tags:
             self.collect_labels_as_tags.append(KubeUtil.POD_NAME_LABEL)
 
         if entity is not None:
@@ -342,7 +385,7 @@ class DockerDaemon(AgentCheck):
                 for k in self.collect_labels_as_tags:
                     if k in labels:
                         v = labels[k]
-                        if k == KubeUtil.POD_NAME_LABEL and self.is_k8s():
+                        if k == KubeUtil.POD_NAME_LABEL and Platform.is_k8s():
                             pod_name = v
                             k = "pod_name"
                             if "-" in pod_name:
@@ -364,7 +407,7 @@ class DockerDaemon(AgentCheck):
                         else:
                             tags.append("%s:%s" % (k,v))
 
-                    if k == KubeUtil.POD_NAME_LABEL and self.is_k8s() and k not in labels:
+                    if k == KubeUtil.POD_NAME_LABEL and Platform.is_k8s() and k not in labels:
                         tags.append("pod_name:no_pod")
 
             # Get entity specific tags
@@ -384,7 +427,7 @@ class DockerDaemon(AgentCheck):
                     tags.extend(ecs_tags)
 
             # Add kube labels
-            if self.is_k8s():
+            if Platform.is_k8s():
                 kube_tags = self.kube_labels.get(pod_name)
                 if kube_tags:
                     tags.extend(list(kube_tags))
@@ -413,41 +456,38 @@ class DockerDaemon(AgentCheck):
         ip = ecs_config.get('NetworkSettings', {}).get('IPAddress')
         ports = ecs_config.get('NetworkSettings', {}).get('Ports')
         port = ports.keys()[0].split('/')[0] if ports else None
+        if not ip:
+            port = ECS_INTROSPECT_DEFAULT_PORT
+            if Platform.is_containerized() and self.docker_gateway:
+                ip = self.docker_gateway
+            else:
+                ip = "localhost"
+
         ecs_tags = {}
-        if ip and port:
-            tasks = requests.get('http://%s:%s/v1/tasks' % (ip, port)).json()
-            for task in tasks.get('Tasks', []):
-                for container in task.get('Containers', []):
-                    tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
-                    ecs_tags[container['DockerId']] = tags
+        try:
+            if ip and port:
+                tasks = requests.get('http://%s:%s/v1/tasks' % (ip, port)).json()
+                for task in tasks.get('Tasks', []):
+                    for container in task.get('Containers', []):
+                        tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
+                        ecs_tags[container['DockerId']] = tags
+        except (requests.exceptions.HTTPError, requests.exceptions.HTTPError) as e:
+            self.log.warning("Unable to collect ECS task names: %s" % e)
 
         self.ecs_tags = ecs_tags
 
     def _filter_containers(self, containers):
-        if not self._filtering_enabled:
+        if not self.docker_util.filtering_enabled:
             return
 
         self._filtered_containers = set()
         for container in containers:
             container_tags = self._get_tags(container, FILTERED)
-            if self._are_tags_filtered(container_tags):
+            # exclude/include patterns are stored in docker_util to share them with other container-related checks
+            if self.docker_util.are_tags_filtered(container_tags):
                 container_name = DockerUtil.container_name_extractor(container)[0]
                 self._filtered_containers.add(container_name)
                 self.log.debug("Container {0} is filtered".format(container_name))
-
-    def _are_tags_filtered(self, tags):
-        if self._tags_match_patterns(tags, self._exclude_patterns):
-            if self._tags_match_patterns(tags, self._include_patterns):
-                return False
-            return True
-        return False
-
-    def _tags_match_patterns(self, tags, filters):
-        for rule in filters:
-            for tag in tags:
-                if re.match(rule, tag):
-                    return True
-        return False
 
     def _is_container_excluded(self, container):
         """Check if a container is excluded according to the filter rules.
@@ -472,6 +512,35 @@ class DockerDaemon(AgentCheck):
                 m_func(
                     self, 'docker.container.size_rootfs', container['SizeRootFs'],
                     tags=tags)
+
+    def _send_container_healthcheck_sc(self, containers_by_id):
+        """Send health service checks for containers."""
+        for container in containers_by_id.itervalues():
+            healthcheck_tags = self._get_tags(container, HEALTHCHECK)
+            match = False
+            for tag in healthcheck_tags:
+                for rule in self.whitelist_patterns:
+                    if re.match(rule, tag):
+                        match = True
+
+                        self._submit_healthcheck_sc(container)
+                        break
+
+                if match:
+                    break
+
+    def _submit_healthcheck_sc(self, container):
+        health = container.get('health', {})
+        status = AgentCheck.UNKNOWN
+        if health:
+            _health = health.get('Status', '')
+            if _health == 'unhealthy':
+                status = AgentCheck.CRITICAL
+            elif _health == 'healthy':
+                status = AgentCheck.OK
+
+        tags = self._get_tags(container, CONTAINER)
+        self.service_check(HEALTHCHECK_SERVICE_CHECK_NAME, status, tags=tags)
 
     def _report_image_size(self, images):
         for image in images:
@@ -500,7 +569,7 @@ class DockerDaemon(AgentCheck):
         if containers_without_proc_root:
             message = "Couldn't find pid directory for containers: {0}. They'll be missing network metrics".format(
                 ", ".join(containers_without_proc_root))
-            if not self.is_k8s():
+            if not Platform.is_k8s():
                 self.warning(message)
             else:
                 # On kubernetes, this is kind of expected. Network metrics will be collected by the kubernetes integration anyway
@@ -509,7 +578,7 @@ class DockerDaemon(AgentCheck):
     def _report_cgroup_metrics(self, container, tags):
         try:
             for cgroup in CGROUP_METRICS:
-                stat_file = self._get_cgroup_file(cgroup["cgroup"], container['Id'], cgroup['file'])
+                stat_file = self._get_cgroup_from_proc(cgroup["cgroup"], container['_pid'], cgroup['file'])
                 stats = self._parse_cgroup_file(stat_file)
                 if stats:
                     for key, (dd_key, metric_func) in cgroup['metrics'].iteritems():
@@ -561,7 +630,7 @@ class DockerDaemon(AgentCheck):
                         m_func(self, "docker.net.bytes_rcvd", long(x[0]), tags)
                         m_func(self, "docker.net.bytes_sent", long(x[8]), tags)
                         break
-        except Exception, e:
+        except Exception as e:
             # It is possible that the container got stopped between the API call and now
             self.warning("Failed to report IO metrics from file {0}. Exception: {1}".format(proc_net_file, e))
 
@@ -577,7 +646,7 @@ class DockerDaemon(AgentCheck):
         except (socket.timeout, urllib2.URLError):
             self.warning('Timeout when collecting events. Events will be missing.')
             return
-        except Exception, e:
+        except Exception as e:
             self.warning("Unexpected exception when collecting events: {0}. "
                          "Events will be missing".format(e))
             return
@@ -588,9 +657,9 @@ class DockerDaemon(AgentCheck):
 
     def _get_events(self):
         """Get the list of events."""
-        events, should_reload_conf = self.docker_util.get_events()
-        if should_reload_conf and self._service_discovery:
-            get_sd_backend(self.agentConfig).reload_check_configs = True
+        events, changed_container_ids = self.docker_util.get_events()
+        if changed_container_ids and self._service_discovery:
+            get_sd_backend(self.agentConfig).update_checks(changed_container_ids)
         return events
 
     def _pre_aggregate_events(self, api_events, containers_by_id):
@@ -611,48 +680,82 @@ class DockerDaemon(AgentCheck):
     def _format_events(self, aggregated_events, containers_by_id):
         events = []
         for image_name, event_group in aggregated_events.iteritems():
-            max_timestamp = 0
-            status = defaultdict(int)
-            status_change = []
             container_tags = set()
+            low_prio_events = []
+            normal_prio_events = []
+
             for event in event_group:
-                max_timestamp = max(max_timestamp, int(event['time']))
-                status[event['status']] += 1
                 container_name = event['id'][:11]
+
                 if event['id'] in containers_by_id:
                     cont = containers_by_id[event['id']]
                     container_name = DockerUtil.container_name_extractor(cont)[0]
                     container_tags.update(self._get_tags(cont, PERFORMANCE))
                     container_tags.add('container_name:%s' % container_name)
 
-                status_change.append([container_name, event['status']])
+                # health checks generate tons of these so we treat them separately and lower their priority
+                if event['status'].startswith('exec_create:') or event['status'].startswith('exec_start:'):
+                    low_prio_events.append((event, container_name))
+                else:
+                    normal_prio_events.append((event, container_name))
 
-            status_text = ", ".join(["%d %s" % (count, st) for st, count in status.iteritems()])
-            msg_title = "%s %s on %s" % (image_name, status_text, self.hostname)
-            msg_body = (
-                "%%%\n"
-                "{image_name} {status} on {hostname}\n"
-                "```\n{status_changes}\n```\n"
-                "%%%"
-            ).format(
-                image_name=image_name,
-                status=status_text,
-                hostname=self.hostname,
-                status_changes="\n".join(
-                    ["%s \t%s" % (change[1].upper(), change[0]) for change in status_change])
-            )
-            events.append({
-                'timestamp': max_timestamp,
-                'host': self.hostname,
-                'event_type': EVENT_TYPE,
-                'msg_title': msg_title,
-                'msg_text': msg_body,
-                'source_type_name': EVENT_TYPE,
-                'event_object': 'docker:%s' % image_name,
-                'tags': list(container_tags)
-            })
+            exec_event = self._create_dd_event(low_prio_events, image_name, container_tags, priority='Low')
+            if exec_event:
+                events.append(exec_event)
+
+            normal_event = self._create_dd_event(normal_prio_events, image_name, container_tags, priority='Normal')
+            if normal_event:
+                events.append(normal_event)
 
         return events
+
+    def _create_dd_event(self, events, image, c_tags, priority='Normal'):
+        """Create the actual event to submit from a list of similar docker events"""
+        if not events:
+            return
+
+        max_timestamp = 0
+        status = defaultdict(int)
+        status_change = []
+
+        for ev, c_name in events:
+            max_timestamp = max(max_timestamp, int(ev['time']))
+            status[ev['status']] += 1
+            status_change.append([c_name, ev['status']])
+
+        status_text = ", ".join(["%d %s" % (count, st) for st, count in status.iteritems()])
+        msg_title = "%s %s on %s" % (image, status_text, self.hostname)
+        msg_body = (
+            "%%%\n"
+            "{image_name} {status} on {hostname}\n"
+            "```\n{status_changes}\n```\n"
+            "%%%"
+        ).format(
+            image_name=image,
+            status=status_text,
+            hostname=self.hostname,
+            status_changes="\n".join(
+                ["%s \t%s" % (change[1].upper(), change[0]) for change in status_change])
+        )
+
+        if any(error in status_text for error in ERROR_ALERT_TYPE):
+            alert_type = "error"
+        else:
+            alert_type = None
+
+        return {
+            'timestamp': max_timestamp,
+            'host': self.hostname,
+            'event_type': EVENT_TYPE,
+            'msg_title': msg_title,
+            'msg_text': msg_body,
+            'source_type_name': EVENT_TYPE,
+            'event_object': 'docker:%s' % image,
+            'tags': list(c_tags),
+            'alert_type': alert_type,
+            'priority': priority
+        }
+
 
     def _report_disk_stats(self):
         """Report metrics about the volume space usage"""
@@ -718,9 +821,10 @@ class DockerDaemon(AgentCheck):
             total = stats.get('docker.{0}.total'.format(mtype))
             free = stats.get('docker.{0}.free'.format(mtype))
             if used and total and free and ceil(total) < free + used:
-                self.log.error('used, free, and total disk metrics may be wrong, '
-                               'unable to calculate percentage.')
-                return {}
+                self.log.debug('used, free, and total disk metrics may be wrong, '
+                               'used: %s, free: %s, total: %s',
+                               used, free, total)
+                total = used + free
             try:
                 if isinstance(used, int):
                     percs['docker.{0}.percent'.format(mtype)] = round(100 * float(used) / float(total), 2)
@@ -732,16 +836,12 @@ class DockerDaemon(AgentCheck):
         return percs
 
     # Cgroups
-
-    def _get_cgroup_file(self, cgroup, container_id, filename):
+    def _get_cgroup_from_proc(self, cgroup, pid, filename):
         """Find a specific cgroup file, containing metrics to extract."""
         params = {
-            "mountpoint": self._mountpoints[cgroup],
-            "id": container_id,
             "file": filename,
         }
-
-        return DockerUtil.find_cgroup_filename_pattern(self._mountpoints, container_id) % (params)
+        return DockerUtil.find_cgroup_from_proc(self._mountpoints, pid, cgroup, self.docker_util._docker_root) % (params)
 
     def _parse_cgroup_file(self, stat_file):
         """Parse a cgroup pseudo file for key/values."""
@@ -753,8 +853,9 @@ class DockerDaemon(AgentCheck):
                 else:
                     return dict(map(lambda x: x.split(' ', 1), fp.read().splitlines()))
         except IOError:
-            # It is possible that the container got stopped between the API call and now
-            self.log.info("Can't open %s. Metrics for this container are skipped." % stat_file)
+            # It is possible that the container got stopped between the API call and now.
+            # Some files can also be missing (like cpu.stat) and that's fine.
+            self.log.info("Can't open %s. Some metrics for this container may be missing." % stat_file)
 
     def _parse_blkio_metrics(self, stats):
         """Parse the blkio metrics."""
@@ -769,8 +870,19 @@ class DockerDaemon(AgentCheck):
                 metrics['io_write'] += int(line.split()[2])
         return metrics
 
+    def _is_container_cgroup(self, line, selinux_policy):
+        if line[1] not in ('cpu,cpuacct', 'cpuacct,cpu', 'cpuacct') or line[2] == '/docker-daemon':
+            return False
+        if 'docker' in line[2]: # general case
+            return True
+        if 'docker' in selinux_policy: # selinux
+            return True
+        if line[2].startswith('/') and re.match(CONTAINER_ID_RE, line[2][1:]): # kubernetes
+            return True
+        return False
+
     # proc files
-    def _crawl_container_pids(self, container_dict):
+    def _crawl_container_pids(self, container_dict, custom_cgroups=False):
         """Crawl `/proc` to find container PIDs and add them to `containers_by_id`."""
         proc_path = os.path.join(self.docker_util._docker_root, 'proc')
         pid_dirs = [_dir for _dir in os.listdir(proc_path) if _dir.isdigit()]
@@ -792,18 +904,24 @@ class DockerDaemon(AgentCheck):
                 path = os.path.join(proc_path, folder, 'cgroup')
                 with open(path, 'r') as f:
                     content = [line.strip().split(':') for line in f.readlines()]
+
+                selinux_policy = ''
+                path = os.path.join(proc_path, folder, 'attr', 'current')
+                if os.path.exists(path):
+                    with open(path, 'r') as f:
+                        selinux_policy = f.readlines()[0]
             except IOError, e:
                 #  Issue #2074
                 self.log.debug("Cannot read %s, "
                                "process likely raced to finish : %s" %
                                (path, str(e)))
-            except Exception, e:
+            except Exception as e:
                 self.warning("Cannot read %s : %s" % (path, str(e)))
                 continue
 
             try:
                 for line in content:
-                    if line[1] in ('cpu,cpuacct', 'cpuacct,cpu', 'cpuacct') and 'docker' in line[2]:
+                    if self._is_container_cgroup(line, selinux_policy):
                         cpuacct = line[2]
                         break
                 else:
@@ -817,6 +935,12 @@ class DockerDaemon(AgentCheck):
                         continue
                     container_dict[container_id]['_pid'] = folder
                     container_dict[container_id]['_proc_root'] = os.path.join(proc_path, folder)
+                elif custom_cgroups: # if we match by pid that should be enough (?) - O(n) ugh!
+                    for _, container in container_dict.iteritems():
+                        if container.get('_pid') == int(folder):
+                            container['_proc_root'] = os.path.join(proc_path, folder)
+                            break
+
             except Exception, e:
                 self.warning("Cannot parse %s content: %s" % (path, str(e)))
                 continue

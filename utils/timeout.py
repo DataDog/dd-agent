@@ -33,7 +33,7 @@ class ThreadMethod(Thread):
     def run(self):
         try:
             self.result = self.target(*self.args, **self.kwargs)
-        except Exception, e:
+        except Exception as e:
             self.exception = e
         else:
             self.exception = None

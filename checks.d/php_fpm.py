@@ -42,6 +42,7 @@ class PHPFPMCheck(AgentCheck):
         password = instance.get('password')
 
         tags = instance.get('tags', [])
+        http_host = instance.get('http_host')
 
         if user and password:
             auth = (user, password)
@@ -53,25 +54,25 @@ class PHPFPMCheck(AgentCheck):
         status_exception = None
         if status_url is not None:
             try:
-                pool = self._process_status(status_url, auth, tags)
+                pool = self._process_status(status_url, auth, tags, http_host)
             except Exception as e:
                 status_exception = e
                 pass
 
         if ping_url is not None:
-            self._process_ping(ping_url, ping_reply, auth, tags, pool)
+            self._process_ping(ping_url, ping_reply, auth, tags, pool, http_host)
 
         # pylint doesn't understand that we are raising this only if it's here
         if status_exception is not None:
             raise status_exception  # pylint: disable=E0702
 
-    def _process_status(self, status_url, auth, tags):
+    def _process_status(self, status_url, auth, tags, http_host):
         data = {}
         try:
             # TODO: adding the 'full' parameter gets you per-process detailed
             # informations, which could be nice to parse and output as metrics
             resp = requests.get(status_url, auth=auth,
-                                headers=headers(self.agentConfig),
+                                headers=headers(self.agentConfig, http_host=http_host),
                                 params={'json': True})
             resp.raise_for_status()
 
@@ -98,7 +99,7 @@ class PHPFPMCheck(AgentCheck):
         # return pool, to tag the service check with it if we have one
         return pool_name
 
-    def _process_ping(self, ping_url, ping_reply, auth, tags, pool_name):
+    def _process_ping(self, ping_url, ping_reply, auth, tags, pool_name, http_host):
         if ping_reply is None:
             ping_reply = 'pong'
 
@@ -108,7 +109,7 @@ class PHPFPMCheck(AgentCheck):
             # TODO: adding the 'full' parameter gets you per-process detailed
             # informations, which could be nice to parse and output as metrics
             resp = requests.get(ping_url, auth=auth,
-                                headers=headers(self.agentConfig))
+                                headers=headers(self.agentConfig, http_host=http_host))
             resp.raise_for_status()
 
             if ping_reply not in resp.text:

@@ -98,13 +98,7 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task before_cache: ['ci:common:before_cache'] do
-      # It's the pid file which changes eveytime,
-      # so let's actually cleanup before cache
-      Rake::Task['ci:couchdb:cleanup'].invoke
-    end
-
-    task cache: ['ci:common:cache']
+    task before_cache: :cleanup
 
     task cleanup: ['ci:common:cleanup'] do
       sh %(#{couchdb_rootdir}/bin/couchdb -k)
@@ -112,23 +106,7 @@ namespace :ci do
     end
 
     task :execute do
-      exception = nil
-      begin
-        %w(before_install install before_script
-           script before_cache cache).each do |t|
-          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
-        end
-      rescue => e
-        exception = e
-        puts "Failed task: #{e.class} #{e.message}".red
-      end
-      if ENV['SKIP_CLEANUP']
-        puts 'Skipping cleanup, disposable environments are great'.yellow
-      else
-        puts 'Cleaning up'
-        Rake::Task["#{flavor.scope.path}:cleanup"].invoke
-      end
-      raise exception if exception
+      Rake::Task['ci:common:execute'].invoke(flavor)
     end
   end
 end

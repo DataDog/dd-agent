@@ -73,33 +73,18 @@ namespace :ci do
 
     task before_cache: ['ci:common:before_cache'] do
       # Useless to cache the conf, as it is regenerated every time
-      sh %(rm -f #{apache_rootdir}/conf/httpd.conf)
+      sh %(mkdir -p $VOLATILE_DIR/apache)
+      sh %(mv #{apache_rootdir}/conf/httpd.conf $VOLATILE_DIR/apache/httpd.conf)
     end
 
-    task cache: ['ci:common:cache']
-
     task cleanup: ['ci:common:cleanup'] do
+      # We need to move the conf back to apache's dir before stopping
+      sh %(mv $VOLATILE_DIR/apache/httpd.conf #{apache_rootdir}/conf/httpd.conf)
       sh %(#{apache_rootdir}/bin/apachectl stop)
     end
 
     task :execute do
-      exception = nil
-      begin
-        %w(before_install install before_script
-           script before_cache cache).each do |t|
-          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
-        end
-      rescue => e
-        exception = e
-        puts "Failed task: #{e.class} #{e.message}".red
-      end
-      if ENV['SKIP_CLEANUP']
-        puts 'Skipping cleanup, disposable environments are great'.yellow
-      else
-        puts 'Cleaning up'
-        Rake::Task["#{flavor.scope.path}:cleanup"].invoke
-      end
-      raise exception if exception
+      Rake::Task['ci:common:execute'].invoke(flavor)
     end
   end
 end

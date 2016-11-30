@@ -60,8 +60,6 @@ namespace :ci do
       Rake::Task['ci:riak:cleanup'].invoke
     end
 
-    task cache: ['ci:common:cache']
-
     task cleanup: ['ci:common:cleanup'] do
       %w(dev1 dev2).each do |dev|
         sh %(#{riak_rootdir}/#{dev}/bin/riak stop)
@@ -70,28 +68,7 @@ namespace :ci do
     end
 
     task :execute do
-      exception = nil
-      # Compilation takes too long on Travis
-      if ENV['TRAVIS']
-        puts "Riak tests won't run, compilation takes too long on Travis"
-      else
-        begin
-          %w(before_install install before_script
-             script before_cache cache).each do |t|
-            Rake::Task["#{flavor.scope.path}:#{t}"].invoke
-          end
-        rescue => e
-          exception = e
-          puts "Failed task: #{e.class} #{e.message}".red
-        end
-        if ENV['SKIP_CLEANUP']
-          puts 'Skipping cleanup, disposable environments are great'.yellow
-        else
-          puts 'Cleaning up'
-          Rake::Task["#{flavor.scope.path}:cleanup"].invoke
-        end
-        raise exception if exception
-      end
+      Rake::Task['ci:common:execute'].invoke(flavor)
     end
   end
 end

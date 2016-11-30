@@ -61,6 +61,7 @@ class SQLServer(AgentCheck):
     SERVICE_CHECK_NAME = 'sqlserver.can_connect'
     # FIXME: 6.x, set default to 5s (like every check)
     DEFAULT_COMMAND_TIMEOUT = 30
+    DEFAULT_DATABASE = 'master'
 
     METRICS = [
         ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio', ''),  # RAW_LARGE_FRACTION
@@ -87,12 +88,12 @@ class SQLServer(AgentCheck):
         custom_metrics = init_config.get('custom_metrics', [])
         for instance in instances:
             try:
+                self.open_db_connections(instance)
                 self._make_metric_list_to_collect(instance, custom_metrics)
                 self.close_db_connections(instance)
             except SQLConnectionError:
                 self.log.exception("Skipping SQL Server instance")
                 continue
-
 
     def _make_metric_list_to_collect(self, instance, custom_metrics):
         """
@@ -173,7 +174,7 @@ class SQLServer(AgentCheck):
         host = instance.get('host', '127.0.0.1,1433')
         username = instance.get('username')
         password = instance.get('password')
-        database = instance.get('database', 'master')
+        database = instance.get('database', self.DEFAULT_DATABASE)
         return host, username, password, database
 
     def _conn_key(self, instance):
@@ -199,48 +200,12 @@ class SQLServer(AgentCheck):
             conn_str += 'Integrated Security=SSPI;'
         return conn_str
 
-    def get_cursor(self, instance, cache_failure=False):
+    def get_cursor(self, instance):
         '''
         Return a cursor to execute query against the db
         Cursor are cached in the self.connections dict
         '''
         conn_key = self._conn_key(instance)
-        host = instance.get('host')
-        database = instance.get('database')
-        service_check_tags = [
-            'host:%s' % host,
-            'db:%s' % database
-        ]
-
-        if conn_key in self.failed_connections:
-            raise self.failed_connections[conn_key]
-
-        if conn_key not in self.connections:
-            try:
-                timeout = int(instance.get('command_timeout',
-                                           self.DEFAULT_COMMAND_TIMEOUT))
-                conn = adodbapi.connect(self._conn_string(instance=instance),
-                                        timeout=timeout)
-                self.connections[conn_key] = {'conn': conn, 'timeout': timeout}
-                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
-                                   tags=service_check_tags)
-            except Exception:
-                cx = "%s - %s" % (host, database)
-                message = "Unable to connect to SQL Server for instance %s." % cx
-                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                                   tags=service_check_tags, message=message)
-
-                password = instance.get('password')
-                tracebk = traceback.format_exc()
-                if password is not None:
-                    tracebk = tracebk.replace(password, "*" * 6)
-
-                # Avoid multiple connection timeouts (too slow):
-                # save the exception, re-raise it when needed
-                cxn_failure_exp = SQLConnectionError("%s \n %s" % (message, tracebk))
-                if cache_failure:
-                    self.failed_connections[conn_key] = cxn_failure_exp
-                raise cxn_failure_exp
 
         conn = self.connections[conn_key]['conn']
         cursor = conn.cursor()
@@ -253,7 +218,7 @@ class SQLServer(AgentCheck):
         If the sql_type is one that needs a base (PERF_RAW_LARGE_FRACTION and
         PERF_AVERAGE_BULK), the name of the base counter will also be returned
         '''
-        cursor = self.get_cursor(instance, cache_failure=True)
+        cursor = self.get_cursor(instance)
         cursor.execute(COUNTER_TYPE_QUERY, (counter_name,))
         (sql_type,) = cursor.fetchone()
         if sql_type == PERF_LARGE_RAW_BASE:
@@ -273,7 +238,7 @@ class SQLServer(AgentCheck):
                 cursor.execute(BASE_NAME_QUERY, candidates)
                 base_name = cursor.fetchone().counter_name.strip()
                 self.log.debug("Got base metric: %s for metric: %s", base_name, counter_name)
-            except Exception, e:
+            except Exception as e:
                 self.log.warning("Could not get counter_name of base for metric: %s", e)
 
         self.close_cursor(cursor)
@@ -294,7 +259,7 @@ class SQLServer(AgentCheck):
         for metric in metrics_to_collect:
             try:
                 metric.fetch_metric(cursor, custom_tags)
-            except Exception, e:
+            except Exception as e:
                 self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
         self.close_cursor(cursor)
@@ -323,6 +288,7 @@ class SQLServer(AgentCheck):
 
         try:
             self.connections[conn_key]['conn'].close()
+            del self.connections[conn_key]
         except Exception as e:
             self.log.warning("Could not close adodbapi db connection\n{0}".format(e))
 
@@ -337,9 +303,19 @@ class SQLServer(AgentCheck):
         conn_key = self._conn_key(instance)
         timeout = int(instance.get('command_timeout',
                                    self.DEFAULT_COMMAND_TIMEOUT))
+
+        host = instance.get('host')
+        database = instance.get('database', self.DEFAULT_DATABASE)
+        service_check_tags = [
+            'host:%s' % host,
+            'db:%s' % database
+        ]
+
         try:
             rawconn = adodbapi.connect(self._conn_string(instance=instance),
-                                    timeout=timeout)
+                                       timeout=timeout)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                               tags=service_check_tags)
             if conn_key not in self.connections:
                 self.connections[conn_key] = {'conn': rawconn, 'timeout': timeout}
             else:
@@ -351,7 +327,19 @@ class SQLServer(AgentCheck):
 
                 self.connections[conn_key]['conn'] = rawconn
         except Exception as e:
-            self.log.warning("Could not connect to SQL Server\n{0}".format(e))
+            cx = "%s - %s" % (host, database)
+            message = "Unable to connect to SQL Server for instance %s." % cx
+            self.log.warning("%s Exception: %s", message, e)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                               tags=service_check_tags, message=message)
+
+            password = instance.get('password')
+            tracebk = traceback.format_exc()
+            if password is not None:
+                tracebk = tracebk.replace(password, "*" * 6)
+
+            cxn_failure_exp = SQLConnectionError("%s \n %s" % (message, tracebk))
+            raise cxn_failure_exp
 
 
 class SqlServerMetric(object):

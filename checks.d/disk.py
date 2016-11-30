@@ -12,11 +12,15 @@ try:
 except ImportError:
     psutil = None
 
-# project
+# datadog
 from checks import AgentCheck
 from config import _is_affirmative
 from util import Platform
 from utils.subprocess_output import get_subprocess_output
+from utils.timeout import (
+    timeout,
+    TimeoutException,
+)
 
 
 class Disk(AgentCheck):
@@ -88,12 +92,18 @@ class Disk(AgentCheck):
             # we check all exclude conditions
             if self._exclude_disk_psutil(part):
                 continue
+
             # Get disk metrics here to be able to exclude on total usage
             try:
-                disk_usage = psutil.disk_usage(part.mountpoint)
-            except Exception, e:
-                self.log.debug("Unable to get disk metrics for %s: %s",
-                               part.mountpoint, e)
+                disk_usage = timeout(5)(psutil.disk_usage)(part.mountpoint)
+            except TimeoutException:
+                self.log.warn(
+                    u"Timeout while retrieving the disk usage of `%s` mountpoint. Skipping...",
+                    part.mountpoint
+                )
+                continue
+            except Exception as e:
+                self.log.warn("Unable to get disk metrics for %s: %s", part.mountpoint, e)
                 continue
             # Exclude disks with total disk size 0
             if disk_usage.total == 0:
@@ -105,21 +115,10 @@ class Disk(AgentCheck):
             tags = [part.fstype] if self._tag_by_filesystem else []
             device_name = part.mountpoint if self._use_mount else part.device
 
-            # Note: psutil (0.3.0 to at least 3.1.1) calculates in_use as (used / total)
-            #       The problem here is that total includes reserved space the user
-            #       doesn't have access to. This causes psutil to calculate a misleadng
-            #       percentage for in_use; a lower percentage than df shows.
-
-            # Calculate in_use w/o reserved space; consistent w/ df's Use% metric.
-            pmets = self._collect_part_metrics(part, disk_usage)
-            used = 'system.disk.used'
-            free = 'system.disk.free'
-            pmets['system.disk.in_use'] = pmets[used] / (pmets[used] + pmets[free])
-
             # legacy check names c: vs psutil name C:\\
             if Platform.is_win32():
                 device_name = device_name.strip('\\').lower()
-            for metric_name, metric_value in pmets.iteritems():
+            for metric_name, metric_value in self._collect_part_metrics(part, disk_usage).iteritems():
                 self.gauge(metric_name, metric_value,
                            tags=tags, device_name=device_name)
         # And finally, latency metrics, a legacy gift from the old Windows Check
@@ -174,7 +173,19 @@ class Disk(AgentCheck):
 
     def _collect_inodes_metrics(self, mountpoint):
         metrics = {}
-        inodes = os.statvfs(mountpoint)
+        # we need to timeout this, too.
+        try:
+            inodes = timeout(5)(os.statvfs)(mountpoint)
+        except TimeoutException:
+            self.log.warn(
+                u"Timeout while retrieving the disk usage of `%s` mountpoint. Skipping...",
+                mountpoint
+            )
+            return metrics
+        except Exception as e:
+            self.log.warn("Unable to get disk metrics for %s: %s", mountpoint, e)
+            return metrics
+
         if inodes.f_files != 0:
             total = inodes.f_files
             free = inodes.f_ffree
@@ -247,7 +258,7 @@ class Disk(AgentCheck):
         for parts in devices:
             if len(parts) == 1:
                 previous = parts[0]
-            elif previous and self._is_number(parts[0]):
+            elif previous is not None:
                 # collate with previous line
                 parts.insert(0, previous)
                 previous = None

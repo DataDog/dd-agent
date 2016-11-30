@@ -9,6 +9,11 @@ instances:
   # instance per host. Note: If you also want to check the counters on the
   # current machine, you will have to create an instance with empty params.
   #
+  # The optional `provider` parameter allows to specify a WMI provider
+  # (default to `32` on Datadog Agent 32-bit or `64`). It is used to request
+  # WMI data from the non-default provider. Available options are: `32` or `64`.
+  # For more information: https://msdn.microsoft.com/en-us/library/aa393067(v=vs.85).aspx
+  #
   # The `sites` parameter allows you to specify a list of sites you want to
   # read metrics from. With sites specified, metrics will be tagged with the
   # site name. If you don't define any sites, the check will pull the

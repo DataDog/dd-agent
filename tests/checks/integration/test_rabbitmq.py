@@ -84,6 +84,7 @@ class RabbitMQCheckTest(AgentCheckTest):
                                  mname, 'rabbitmq_queue:test1', count=1)
 
         self.assertServiceCheckOK('rabbitmq.aliveness', tags=['vhost:/'])
+        self.assertServiceCheckOK('rabbitmq.status')
 
         self.coverage_report()
 
@@ -103,6 +104,7 @@ class RabbitMQCheckTest(AgentCheckTest):
                                  mname, 'rabbitmq_queue:tralala', count=0)
 
         self.assertServiceCheckOK('rabbitmq.aliveness', tags=['vhost:/'])
+        self.assertServiceCheckOK('rabbitmq.status')
 
         self.coverage_report()
 
@@ -118,5 +120,6 @@ class RabbitMQCheckTest(AgentCheckTest):
                                  mname, 'rabbitmq_queue_family:test', count=2)
 
         self.assertServiceCheckOK('rabbitmq.aliveness', tags=['vhost:/'])
+        self.assertServiceCheckOK('rabbitmq.status')
 
         self.coverage_report()

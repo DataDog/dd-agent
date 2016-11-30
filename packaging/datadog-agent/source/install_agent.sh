@@ -62,7 +62,7 @@ fi
 
 # OS/Distro Detection
 # Try lsb_release, fallback with /etc/issue then uname command
-KNOWN_DISTRIBUTION="(Debian|Ubuntu|RedHat|CentOS|openSUSE|Amazon|Arista)"
+KNOWN_DISTRIBUTION="(Debian|Ubuntu|RedHat|CentOS|openSUSE|Amazon|Arista|SUSE)"
 DISTRIBUTION=$(lsb_release -d 2>/dev/null | grep -Eo $KNOWN_DISTRIBUTION  || grep -Eo $KNOWN_DISTRIBUTION /etc/issue 2>/dev/null || grep -Eo $KNOWN_DISTRIBUTION /etc/Eos-release 2>/dev/null || uname -s)
 
 if [ $DISTRIBUTION = "Darwin" ]; then
@@ -81,6 +81,8 @@ elif [ -f /etc/system-release -o "$DISTRIBUTION" == "Amazon" ]; then
 # Arista is based off of Fedora14/18 but do not have /etc/redhat-release
 elif [ -f /etc/Eos-release -o "$DISTRIBUTION" == "Arista" ]; then
     OS="RedHat"
+elif [ "$DISTRIBUTION" == "SUSE" ]; then
+    OS="SUSE"
 fi
 
 # Root user detection
@@ -120,7 +122,7 @@ if [ $OS = "RedHat" ]; then
     else
         PROTOCOL="https"
     fi
-    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = $PROTOCOL://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=1\npriority=1\ngpgkey=$PROTOCOL://yum.datadoghq.com/DATADOG_RPM_KEY.public' > /etc/yum.repos.d/datadog.repo"
+    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = $PROTOCOL://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=1\npriority=1\ngpgkey=$PROTOCOL://yum.datadoghq.com/DATADOG_RPM_KEY.public\n       $PROTOCOL://yum.datadoghq.com/DATADOG_RPM_KEY_E09422B3.public' > /etc/yum.repos.d/datadog.repo"
 
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
 
@@ -131,7 +133,7 @@ if [ $OS = "RedHat" ]; then
             $sudo_cmd yum -y remove datadog-agent-base
         fi
     fi
-    $sudo_cmd yum -y --disablerepo='*' --enablerepo='datadog' install datadog-agent
+    $sudo_cmd yum -y --disablerepo='*' --enablerepo='datadog' install datadog-agent || $sudo_cmd yum -y install datadog-agent
 elif [ $OS = "Debian" ]; then
     printf "\033[34m\n* Installing apt-transport-https\n\033[0m\n"
     $sudo_cmd apt-get update || printf "\033[31m'apt-get update' failed, the script will not install the latest version of apt-transport-https.\033[0m\n"
@@ -139,6 +141,7 @@ elif [ $OS = "Debian" ]; then
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
     $sudo_cmd sh -c "echo 'deb https://apt.datadoghq.com/ stable main' > /etc/apt/sources.list.d/datadog.list"
     $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
+    $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 382E94DE
 
     printf "\033[34m\n* Installing the Datadog Agent package\n\033[0m\n"
     ERROR_MESSAGE="ERROR
@@ -158,6 +161,22 @@ If the cause is unclear, please contact Datadog support.
 "
     $sudo_cmd apt-get install -y --force-yes datadog-agent
     ERROR_MESSAGE=""
+elif [ $OS = "SUSE" ]; then
+  UNAME_M=$(uname -m)
+  if [ "$UNAME_M"  == "i686" -o "$UNAME_M"  == "i386" -o "$UNAME_M"  == "x86" ]; then
+      printf "\033[31mThe Datadog Agent installer is only available for 64 bit SUSE Enterprise machines.\033[0m\n"
+      exit;
+  fi
+
+  echo -e "\033[34m\n* Installing YUM Repository for Datadog\n\033[0m"
+  $sudo_cmd sh -c "echo -e '[datadog]\nname=datadog\nenabled=1\nbaseurl=https://yum.datadoghq.com/suse/rpm/x86_64\ntype=rpm-md\ngpgcheck=1\nrepo_gpgcheck=0\ngpgkey=https://yum.datadoghq.com/DATADOG_RPM_KEY.public' > /etc/zypp/repos.d/datadog.repo"
+
+  echo -e "\033[34m\n* Refreshing repositories\n\033[0m"
+  $sudo_cmd zypper --non-interactive refresh
+
+  echo -e "\033[34m\n* Installing Datadog Agent\n\033[0m"
+  $sudo_cmd zypper --non-interactive install datadog-agent
+
 else
     printf "\033[31mYour OS or distribution are not supported by this install script.
 Please follow the instructions on the Agent setup page:
@@ -174,7 +193,7 @@ else
     $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
     if [ $dd_hostname ]; then
         printf "\033[34m\n* Adding your HOSTNAME to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
-        $sudo_cmd sh -c "sed -i 's/#hostname:.*/hostname: $dd_hostname/' /etc/dd-agent/datadog.conf"
+        $sudo_cmd sh -c "sed -i 's/# hostname:.*/hostname: $dd_hostname/' /etc/dd-agent/datadog.conf"
     fi
     $sudo_cmd chown dd-agent:root /etc/dd-agent/datadog.conf
     $sudo_cmd chmod 640 /etc/dd-agent/datadog.conf

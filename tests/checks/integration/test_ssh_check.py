@@ -15,7 +15,7 @@ class SshTestCase(unittest.TestCase):
     def test_ssh(self):
         config = {
             'instances': [{
-                'host': 'io.smashthestack.org',
+                'host': 'io.netgarage.org',
                 'port': 22,
                 'username': 'level1',
                 'password': 'level1',
@@ -45,18 +45,18 @@ class SshTestCase(unittest.TestCase):
         agentConfig = {}
         self.check = load_check('ssh_check', config, agentConfig)
 
-        #Testing that connection will work
+        # Testing that connection will work
         self.check.check(config['instances'][0])
 
         service = self.check.get_service_checks()
         self.assertEqual(service[0].get('status'), AgentCheck.OK)
         self.assertEqual(service[0].get('message'), None)
-        self.assertEqual(service[0].get('tags'), ["instance:io.smashthestack.org-22"])
+        self.assertEqual(service[0].get('tags'), ["instance:io.netgarage.org-22"])
 
-        #Testing that bad authentication will raise exception
+        # Testing that bad authentication will raise exception
         self.assertRaises(Exception, self.check.check, config['instances'][1])
-        #Testing that bad hostname will raise exception
+        # Testing that bad hostname will raise exception
         self.assertRaises(Exception, self.check.check, config['instances'][2])
         service_fail = self.check.get_service_checks()
-        #Check failure status
+        # Check failure status
         self.assertEqual(service_fail[0].get('status'), AgentCheck.CRITICAL)

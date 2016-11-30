@@ -13,6 +13,7 @@ cache:
   directories:
     - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION.9
     - vendor/cache
+    - $HOME/embedded
 
 matrix:
   fast_finish: true
@@ -23,7 +24,6 @@ env:
     - NOSE_FILTER="not windows"
     - INTEGRATIONS_DIR=$HOME/embedded
     - PIP_CACHE=$HOME/.cache/pip
-    - SKIP_CLEANUP=true
     - VOLATILE_DIR=/tmp
     - DD_CASHER_DIR=/tmp/casher
   matrix:
@@ -60,8 +60,8 @@ env:
     - TRAVIS_FLAVOR=memcache
     - TRAVIS_FLAVOR=mongo FLAVOR_VERSION=2.6.9
     - TRAVIS_FLAVOR=mongo FLAVOR_VERSION=3.0.1
+    - TRAVIS_FLAVOR=mongo FLAVOR_VERSION=3.2.10
     - TRAVIS_FLAVOR=mysql
-    - TRAVIS_FLAVOR=network
     - TRAVIS_FLAVOR=nginx FLAVOR_VERSION=1.6.2
     - TRAVIS_FLAVOR=nginx FLAVOR_VERSION=1.7.11
     - TRAVIS_FLAVOR=pgbouncer
@@ -78,10 +78,10 @@ env:
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.8.19
 # Compilation takes too much time on Travis
 #   - TRAVIS_FLAVOR=riak
-    - TRAVIS_FLAVOR=snmpd
+    - TRAVIS_FLAVOR=snmp
     - TRAVIS_FLAVOR=ssh
     - TRAVIS_FLAVOR=supervisord
-    - TRAVIS_FLAVOR=sysstat
+    - TRAVIS_FLAVOR=system
 # FIXME: reenable, but right now cannot run on Travis because
 # hugepages are enabled
 #    - TRAVIS_FLAVOR=tokumx
@@ -102,8 +102,6 @@ script:
   # Needed if no cache exists
   - mkdir -p $INTEGRATIONS_DIR
   - ls -al $INTEGRATIONS_DIR
-  - rm -rf /home/travis/virtualenv/python$TRAVIS_PYTHON_VERSION.9/lib/python$TRAVIS_PYTHON_VERSION/site-packages/pip-6.0.7.dist-info
-  - rm -rf /home/travis/virtualenv/python$TRAVIS_PYTHON_VERSION.9/lib/python$TRAVIS_PYTHON_VERSION/site-packages/setuptools-12.0.5.dist-info
   - 'rake ci:run'
   - ls -al $INTEGRATIONS_DIR
 

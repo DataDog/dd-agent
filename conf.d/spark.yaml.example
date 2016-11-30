@@ -2,17 +2,31 @@ init_config:
 
 instances:
   #
-  # The Spark check retrieves metrics from YARN's ResourceManager. This
-  # check must be run from the Master Node and the ResourceManager URI must
-  # be specified below. The ResourceManager URI is composed of the 
-  # ResourceManager's hostname and port.
+  # The Spark check can retrieve metrics from Standalone Spark, YARN and
+  # Mesos. All methods require the `spark_url` to be configured.
   #
-  # The ResourceManager hostname can be found in the yarn-site.xml conf file
-  # under the property yarn.resourcemanager.address
+  # For Spark Standalone, `spark_url` must be set to the Spark master's web
+  # UI. This is "http://localhost:8080" by default.
   #
-  # The ResourceManager port can be found in the yarn-site.xml conf file under
-  # the property yarn.resourcemanager.webapp.address
-  - resourcemanager_uri: http://localhost:8088
+  # For YARN, `spark_url` must be set to YARN's resource manager address. The
+  # ResourceManager host name can be found in the yarn-site.xml conf file
+  # under the `property yarn.resourcemanager.address` The ResourceManager port
+  # can be found in the yarn-site.xml conf file under the property
+  # `yarn.resourcemanager.webapp.address`. This is "http://localhost:8088"
+  # by default.
+  #
+  # For Mesos, `spark_url` must be set to the Mesos master's web UI. This is
+  # "http://<master_ip>:5050" by default, where `<master_ip>` is the IP
+  # address or resolvable host name for the Mesos master.
+  #
+  # The use of `resourcemanager_uri` has been deprecated, but is still functional.
+  - spark_url: http://localhost:8088
+
+    # To enable monitoring of a Standalone Spark cluster, the spark cluster
+    # mode must be set. Uncomment the cluster mode that applies.
+    # spark_cluster_mode: spark_yarn_mode
+    # spark_cluster_mode: spark_standalone_mode
+    # spark_cluster_mode: spark_mesos_mode
 
     # A Required friendly name for the cluster.
     # cluster_name: MySparkCluster

@@ -31,12 +31,23 @@ class MoreUnixCheck(AgentCheck):
 
         prio_counts = defaultdict(int)
 
-        with open('/proc/sys/fs/inode-nr', 'r') as inode_info:
+        proc_location = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
+
+        proc_path_map = {
+            "inode_info": "sys/fs/inode-nr",
+            "stat_info": "stat",
+            "entropy_info": "sys/kernel/random/entropy_avail",
+        }
+
+        for key, path in proc_path_map.iteritems():
+            proc_path_map[key] = "{procfs}/{path}".format(procfs=proc_location, path=path)
+
+        with open(proc_path_map['inode_info'], 'r') as inode_info:
             inode_stats = inode_info.readline().split()
             self.gauge('system.inodes.total', float(inode_stats[0]), tags=tags)
             self.gauge('system.inodes.used', float(inode_stats[1]), tags=tags)
 
-        with open('/proc/stat', 'r') as stat_info:
+        with open(proc_path_map['stat_info'], 'r') as stat_info:
             lines = [line.strip() for line in stat_info.readlines()]
 
             for line in lines:
@@ -50,7 +61,7 @@ class MoreUnixCheck(AgentCheck):
                     interrupts = int(line.split(' ')[1])
                     self.monotonic_count('system.linux.interrupts', interrupts, tags=tags)
 
-        with open('/proc/sys/kernel/random/entropy_avail') as entropy_info:
+        with open(proc_path_map['entropy_info'], 'r') as entropy_info:
             entropy = entropy_info.readline()
             self.gauge('system.entropy.available', float(entropy), tags=tags)
 

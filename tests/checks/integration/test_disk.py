@@ -5,7 +5,7 @@ from nose.plugins.attrib import attr
 from tests.checks.common import AgentCheckTest
 
 
-@attr(requires='sysstat')
+@attr(requires='system')
 class TestCheckDisk(AgentCheckTest):
     CHECK_NAME = 'disk'
 

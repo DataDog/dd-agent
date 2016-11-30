@@ -4,6 +4,7 @@
 
 # stdlib
 from datetime import datetime
+import _strptime # noqa
 import os.path
 from os import environ
 import re
@@ -31,9 +32,10 @@ from requests.packages.urllib3.packages.ssl_match_hostname import \
 from checks.network_checks import EventType, NetworkCheck, Status
 from config import _is_affirmative
 from util import headers as agent_headers
-from utils.proxy import get_proxy
 
 DEFAULT_EXPECTED_CODE = "(1|2|3)\d\d"
+CONTENT_LENGTH = 200
+
 
 class WeakCiphersHTTPSConnection(urllib3.connection.VerifiedHTTPSConnection):
 
@@ -149,35 +151,18 @@ class HTTPCheck(NetworkCheck):
     SC_SSL_CERT = 'http.ssl_cert'
 
     def __init__(self, name, init_config, agentConfig, instances):
+        NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
+
         self.ca_certs = init_config.get('ca_certs', get_ca_certs_path())
-        proxy_settings = get_proxy(agentConfig)
-        self.proxies = {
-            "http": None,
-            "https": None,
-        }
-        if proxy_settings:
-            uri = "{host}:{port}".format(
-                host=proxy_settings['host'],
-                port=proxy_settings['port'])
-            if proxy_settings['user'] and proxy_settings['password']:
-                uri = "{user}:{password}@{uri}".format(
-                    user=proxy_settings['user'],
-                    password=proxy_settings['password'],
-                    uri=uri)
-            self.proxies['http'] = "http://{uri}".format(uri=uri)
-            self.proxies['https'] = "https://{uri}".format(uri=uri)
-        else:
-            self.proxies['http'] = environ.get('HTTP_PROXY', None)
-            self.proxies['https'] = environ.get('HTTPS_PROXY', None)
 
         self.proxies['no'] = environ.get('no_proxy',
                                          environ.get('NO_PROXY', None)
                                          )
 
-        NetworkCheck.__init__(self, name, init_config, agentConfig, instances)
-
     def _load_conf(self, instance):
         # Fetches the conf
+        method = instance.get('method', 'get')
+        data = instance.get('data', {})
         tags = instance.get('tags', [])
         username = instance.get('username')
         password = instance.get('password')
@@ -198,15 +183,16 @@ class HTTPCheck(NetworkCheck):
         weakcipher = _is_affirmative(instance.get('weakciphers', False))
         ignore_ssl_warning = _is_affirmative(instance.get('ignore_ssl_warning', False))
         skip_proxy = _is_affirmative(instance.get('no_proxy', False))
+        allow_redirects = _is_affirmative(instance.get('allow_redirects', True))
 
-        return url, username, password, http_response_status_code, timeout, include_content,\
+        return url, username, password, method, data, http_response_status_code, timeout, include_content,\
             headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs,\
-            weakcipher, ignore_ssl_warning, skip_proxy
+            weakcipher, ignore_ssl_warning, skip_proxy, allow_redirects
 
     def _check(self, instance):
-        addr, username, password, http_response_status_code, timeout, include_content, headers,\
+        addr, username, password, method, data, http_response_status_code, timeout, include_content, headers,\
             response_time, content_match, tags, disable_ssl_validation,\
-            ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning, skip_proxy = self._load_conf(instance)
+            ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning, skip_proxy, allow_redirects = self._load_conf(instance)
         start = time.time()
 
         service_checks = []
@@ -224,7 +210,7 @@ class HTTPCheck(NetworkCheck):
                 instance_proxy.pop('http')
                 instance_proxy.pop('https')
             else:
-                for url in self.proxies['no'].replace(';',',').split(","):
+                for url in self.proxies['no'].replace(';', ',').split(","):
                     if url in parsed_uri.netloc:
                         instance_proxy.pop('http')
                         instance_proxy.pop('https')
@@ -243,8 +229,10 @@ class HTTPCheck(NetworkCheck):
                 self.log.debug("Weak Ciphers will be used for {0}. Suppoted Cipherlist: {1}".format(
                     base_addr, WeakCiphersHTTPSConnection.SUPPORTED_CIPHERS))
 
-            r = sess.request('GET', addr, auth=auth, timeout=timeout, headers=headers, proxies=instance_proxy,
-                             verify=False if disable_ssl_validation else instance_ca_certs)
+            r = sess.request(method.upper(), addr, auth=auth, timeout=timeout, headers=headers,
+                             proxies = instance_proxy, allow_redirects=allow_redirects,
+                             verify=False if disable_ssl_validation else instance_ca_certs,
+                             json = data if method == 'post' else None)
 
         except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             length = int((time.time() - start) * 1000)
@@ -256,7 +244,7 @@ class HTTPCheck(NetworkCheck):
                 "%s. Connection failed after %s ms" % (str(e), length)
             ))
 
-        except socket.error, e:
+        except socket.error as e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms"
                           % (addr, repr(e), length))
@@ -266,7 +254,7 @@ class HTTPCheck(NetworkCheck):
                 "Socket error: %s. Connection failed after %s ms" % (repr(e), length)
             ))
 
-        except Exception, e:
+        except Exception as e:
             length = int((time.time() - start) * 1000)
             self.log.error("Unhandled exception %s. Connection failed after %s ms"
                            % (str(e), length))
@@ -288,8 +276,10 @@ class HTTPCheck(NetworkCheck):
             else:
                 expected_code = http_response_status_code
 
-            message = "Incorrect HTTP return code for url %s. Expected %s, got %s" % (
+            message = "Incorrect HTTP return code for url %s. Expected %s, got %s." % (
                 addr, expected_code, str(r.status_code))
+            if include_content:
+                message += '\nContent: {}'.format(r.content[:CONTENT_LENGTH])
 
             self.log.info(message)
 
@@ -312,10 +302,13 @@ class HTTPCheck(NetworkCheck):
                 else:
                     self.log.info("%s not found in content" % content_match)
                     self.log.debug("Content returned:\n%s" % content)
+                    message = 'Content "%s" not found in response.' % content_match
+                    if include_content:
+                        message += '\nContent: {}'.format(content[:CONTENT_LENGTH])
                     service_checks.append((
                         self.SC_STATUS,
                         Status.DOWN,
-                        'Content "%s" not found in response' % content_match
+                        message
                     ))
             else:
                 self.log.debug("%s is UP" % addr)

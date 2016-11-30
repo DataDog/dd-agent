@@ -15,7 +15,7 @@ from checks import (
 )
 from checks.collector import Collector
 from tests.checks.common import load_check
-from util import get_hostname
+from utils.hostname import get_hostname
 from utils.ntp import NTPUtil
 from utils.proxy import get_proxy
 
@@ -240,8 +240,11 @@ class TestCore(unittest.TestCase):
         # Clear the env variables set
         del env["http_proxy"]
         del env["https_proxy"]
-        del env["HTTP_PROXY"]
-        del env["HTTPS_PROXY"]
+        if "HTTP_PROXY" in env:
+            # on some platforms (e.g. Windows) env var names are case-insensitive, so we have to avoid
+            # deleting the same key twice
+            del env["HTTP_PROXY"]
+            del env["HTTPS_PROXY"]
 
     def test_get_proxy(self):
 
@@ -281,7 +284,8 @@ class TestCore(unittest.TestCase):
 
         # default min collection interval for that check was 20sec
         check = load_check('disk', config, agentConfig)
-        check.DEFAULT_MIN_COLLECTION_INTERVAL = 20
+        check.min_collection_interval = 20
+        check.aggregator.expiry_seconds = 20 + 300
 
         check.run()
         metrics = check.get_metrics()
@@ -301,7 +305,7 @@ class TestCore(unittest.TestCase):
         check.run()
         metrics = check.get_metrics()
         self.assertEquals(len(metrics), 0, metrics)
-        check.DEFAULT_MIN_COLLECTION_INTERVAL = 0
+        check.min_collection_interval = 0
         check.run()
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)

@@ -17,6 +17,10 @@ instances:
   #
   # `namespace` is the optionnal WMI namespace to connect to (default to `cimv2`).
   #
+  # `provider` is the optional WMI provider (default to `32` on Datadog Agent 32-bit or `64`).
+  # It is used to request WMI data from the non-default provider. Available options are: `32` or `64`.
+  # For more information: https://msdn.microsoft.com/en-us/library/aa393067(v=vs.85).aspx
+  #
   # `metrics` is a list of metrics you want to capture, with each item in the
   # list being a set of [WMI property name, metric name, metric type].
   #
@@ -29,13 +33,11 @@ instances:
   # - The metric type is from the standard choices for all agent checks, such
   #   as gauge, rate, histogram or counter.
   #
-  #
   # `filters` is a list of filters on the WMI query you may want. For example,
   # for a process-based WMI class you may want metrics for only certain
   # processes running on your machine, so you could add a filter for each
   # process name. You can also use the '%' character as a wildcard.
   # See below for examples.
-  #
   #
   # `tag_by` optionally lets you tag each metric with a property from the
   # WMI class you're using. This is only useful when you will have multiple

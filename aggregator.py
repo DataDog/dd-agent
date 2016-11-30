@@ -258,13 +258,15 @@ class Histogram(Metric):
         min_ = self.samples[0]
         max_ = self.samples[-1]
         med = self.samples[int(round(length/2 - 1))]
-        avg = sum(self.samples) / float(length)
+        sum_ = sum(self.samples)
+        avg = sum_ / float(length)
 
         aggregators = [
             ('min', min_, MetricTypes.GAUGE),
             ('max', max_, MetricTypes.GAUGE),
             ('median', med, MetricTypes.GAUGE),
             ('avg', avg, MetricTypes.GAUGE),
+            ('sum', sum_, MetricTypes.GAUGE),
             ('count', self.count/interval, MetricTypes.RATE),
         ]
 
@@ -441,7 +443,7 @@ class Aggregator(object):
         name_and_metadata = packet.split(':', 1)
 
         if len(name_and_metadata) != 2:
-            raise Exception('Unparseable metric packet: %s' % packet)
+            raise Exception(u'Unparseable metric packet: %s' % packet)
 
         name = name_and_metadata[0]
         broken_split = name_and_metadata[1].split(':')
@@ -462,7 +464,7 @@ class Aggregator(object):
             value_and_metadata = datum.split('|')
 
             if len(value_and_metadata) < 2:
-                raise Exception('Unparseable metric packet: %s' % packet)
+                raise Exception(u'Unparseable metric packet: %s' % packet)
 
             # Submit the metric
             raw_value = value_and_metadata[0]
@@ -480,21 +482,24 @@ class Aggregator(object):
                         value = float(raw_value)
                     except ValueError:
                         # Otherwise, raise an error saying it must be a number
-                        raise Exception('Metric value must be a number: %s, %s' % (name, raw_value))
-
+                        raise Exception(u'Metric value must be a number: %s, %s' % (name, raw_value))
 
             # Parse the optional values - sample rate & tags.
             sample_rate = 1
             tags = None
-            for m in value_and_metadata[2:]:
-                # Parse the sample rate
-                if m[0] == '@':
-                    sample_rate = float(m[1:])
-                    assert 0 <= sample_rate <= 1
-                elif m[0] == '#':
-                    tags = tuple(sorted(m[1:].split(',')))
-
-            parsed_packets.append((name, value, metric_type, tags,sample_rate))
+            try:
+                for m in value_and_metadata[2:]:
+                    # Parse the sample rate
+                    if m[0] == '@':
+                        sample_rate = float(m[1:])
+                        assert 0 <= sample_rate <= 1
+                    elif m[0] == '#':
+                        tags = tuple(sorted(m[1:].split(',')))
+            except (IndexError, AssertionError):
+                log.warning(u'Incorrect metric metadata: metric_name:%s, metadata:%s',
+                            name, u' '.join(value_and_metadata[2:]))
+                sample_rate = 1  # In case it's in a bad state
+            parsed_packets.append((name, value, metric_type, tags, sample_rate))
 
         return parsed_packets
 
@@ -596,21 +601,20 @@ class Aggregator(object):
                 continue
 
             if packet.startswith('_e'):
-                self.event_count += 1
                 event = self.parse_event_packet(packet)
                 self.event(**event)
+                self.event_count += 1
             elif packet.startswith('_sc'):
-                self.service_check_count += 1
                 service_check = self.parse_sc_packet(packet)
                 self.service_check(**service_check)
+                self.service_check_count += 1
             else:
-                self.count += 1
                 parsed_packets = self.parse_metric_packet(packet)
+                self.count += 1
                 for name, value, mtype, tags, sample_rate in parsed_packets:
                     hostname, device_name, tags = self._extract_magic_tags(tags)
                     self.submit_metric(name, value, mtype, tags=tags, hostname=hostname,
-                        device_name=device_name, sample_rate=sample_rate)
-
+                                       device_name=device_name, sample_rate=sample_rate)
 
     def _extract_magic_tags(self, tags):
         """Magic tags (host, device) override metric hostname and device_name attributes"""

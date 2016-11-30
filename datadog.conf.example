@@ -3,7 +3,7 @@
 # The host of the Datadog intake server to send Agent data to
 dd_url: https://app.datadoghq.com
 
-# If you need a proxy to connect to the Internet, provide the settings here
+# If you need a proxy to connect to the Internet, provide the settings here (default: disabled)
 # proxy_host: my-proxy.com
 # proxy_port: 3128
 # proxy_user: user
@@ -12,19 +12,31 @@ dd_url: https://app.datadoghq.com
 # See http://stackoverflow.com/questions/8156073/curl-violate-rfc-2616-10-3-2-and-switch-from-post-to-get
 # proxy_forbid_method_switch: no
 
-# If you run the agent behind haproxy, you might want to set this to yes
+# If you run the agent behind haproxy, you might want to enable this
 # skip_ssl_validation: no
 
 # The Datadog api key to associate your Agent's data with your organization.
 # Can be found here:
 # https://app.datadoghq.com/account/settings
+# This can be a comma-separated list of api keys.
+# (default: None, the agent doesn't start without it)
 api_key:
 
-# Force the hostname to whatever you want.
-#hostname: mymachine.mydomain
+# Force the hostname to whatever you want. (default: auto-detected)
+# hostname: mymachine.mydomain
 
-# Set the host's tags
-#tags: mytag, env:prod, role:database
+# Set the host's tags (optional)
+# tags: mytag, env:prod, role:database
+
+# Set timeout in seconds for outgoing requests to Datadog. (default: 20)
+# When a request timeout, it will be retried after some time.
+# It will only be deleted if the forwarder queue becomes too big. (30 MB by default)
+# forwarder_timeout: 20
+
+# Set timeout in seconds for integrations that use HTTP to fetch metrics, since
+# unbounded timeouts can potentially block the collector indefinitely and cause
+# problems!
+# default_integration_http_timeout: 9
 
 # Add one "dd_check:checkname" tag per running check. It makes it possible to slice
 # and dice per monitored app (= running Agent Check) on Datadog's backend.
@@ -32,7 +44,6 @@ api_key:
 
 # Collect AWS EC2 custom tags as agent tags (requires an IAM role associated with the instance)
 # collect_ec2_tags: no
-
 # Incorporate security-groups into tags collected from AWS EC2
 # collect_security_groups: no
 
@@ -43,24 +54,24 @@ api_key:
 # collector_profile_interval: 20
 
 # use unique hostname for GCE hosts, see http://dtdg.co/1eAynZk
+# when not specified, default: no
 gce_updated_hostname: yes
 
 # Set the threshold for accepting points to allow anything
-# with recent_point_threshold seconds
-# Defaults to 30 seconds if no value is provided
+# within recent_point_threshold seconds (default: 30)
 # recent_point_threshold: 30
 
 # Use mount points instead of volumes to track disk and fs metrics
 # DEPRECATED: use conf.d/disk.yaml instead to configure it
-use_mount: no
+# use_mount: no
 
-# Change port the Agent is listening to
+# Forwarder listening port
 # listen_port: 17123
 
-# Start a graphite listener on this port
+# Graphite listener port
 # graphite_listen_port: 17124
 
-# Additional directory to look for Datadog checks
+# Additional directory to look for Datadog checks (optional)
 # additional_checksd: /etc/dd-agent/checks.d/
 
 # Allow non-local traffic to this Agent
@@ -70,9 +81,9 @@ use_mount: no
 # https://github.com/DataDog/dd-agent/wiki/Network-Traffic-and-Proxy-Configuration
 # non_local_traffic: no
 
-# Select the Tornado HTTP Client in the forwarder
-# Default to the simple http client
-# use_curl_http_client: False
+# Select the Tornado HTTP Client to be used in the Forwarder,
+# between curl client and simple http client (default: simple http client)
+# use_curl_http_client: no
 
 # The loopback address the Forwarder and Dogstatsd will bind.
 # Optional, it is mainly used when running the agent on Openshift
@@ -111,24 +122,32 @@ use_mount: no
 # `/datadog/check_configs` key in the back-end. If you wish otherwise, uncomment this option
 # and modify its value.
 # sd_template_dir: /datadog/check_configs
+#
+# ========================================================================== #
+# Other                                                                      #
+# ========================================================================== #
+#
+# In some environments we may have the procfs file system mounted in a
+# miscellaneous location. The procfs_path configuration paramenter allows
+# us to override the standard default location '/proc'
+# procfs_path: /proc
 
 # ========================================================================== #
 # DogStatsd configuration                                                    #
+# DogStatsd is a small server that aggregates your custom app metrics. For   #
+# usage information, check out http://docs.datadoghq.com/guides/dogstatsd/   #
 # ========================================================================== #
 
 # If you don't want to enable the DogStatsd server, set this option to no
 # use_dogstatsd: yes
 
-# DogStatsd is a small server that aggregates your custom app metrics. For
-# usage information, check out http://docs.datadoghq.com/guides/dogstatsd/
-
 #  Make sure your client is sending to the same port.
-# dogstatsd_port : 8125
+# dogstatsd_port: 8125
 
 # By default dogstatsd will post aggregate metrics to the Agent (which handles
 # errors/timeouts/retries/etc). To send directly to the datadog api, set this
 # to https://app.datadoghq.com.
-# dogstatsd_target : http://localhost:17123
+# dogstatsd_target: http://localhost:17123
 
 # If you want to forward every packet received by the dogstatsd server
 # to another statsd server, uncomment these lines.
@@ -158,13 +177,13 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 
 # Ganglia host where gmetad is running
-#ganglia_host: localhost
+# ganglia_host: localhost
 
 # Ganglia port where gmetad is running
-#ganglia_port: 8651
+# ganglia_port: 8651
 
 # -------------------------------------------------------------------------- #
-#  Dogstream (log file parser)
+#  Dogstream (log file parser)												 #
 # -------------------------------------------------------------------------- #
 
 # Comma-separated list of logs to parse and optionally custom parsers to use.

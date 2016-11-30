@@ -23,7 +23,6 @@ require './ci/lighttpd'
 require './ci/memcache'
 require './ci/mongo'
 require './ci/mysql'
-require './ci/network'
 require './ci/nginx'
 require './ci/pgbouncer'
 require './ci/phpfpm'
@@ -32,10 +31,10 @@ require './ci/powerdns_recursor'
 require './ci/rabbitmq'
 require './ci/redis'
 require './ci/riak'
-require './ci/snmpd'
+require './ci/snmp'
 require './ci/ssh'
 require './ci/supervisord'
-require './ci/sysstat'
+require './ci/system'
 require './ci/tokumx'
 require './ci/tomcat'
 require './ci/varnish'
@@ -60,7 +59,7 @@ desc 'Setup a development environment for the Agent'
 task 'setup_env' do
   `mkdir -p venv`
   `wget -O venv/virtualenv.py https://raw.github.com/pypa/virtualenv/1.11.6/virtualenv.py`
-  `python venv/virtualenv.py  --no-site-packages --no-pip --no-setuptools venv/`
+  `python venv/virtualenv.py -p python2 --no-site-packages --no-pip --no-setuptools venv/`
   `wget -O venv/ez_setup.py https://bootstrap.pypa.io/ez_setup.py`
   `venv/bin/python venv/ez_setup.py --version="20.9.0"`
   `wget -O venv/get-pip.py https://bootstrap.pypa.io/get-pip.py`

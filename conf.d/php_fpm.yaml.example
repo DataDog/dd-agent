@@ -19,6 +19,10 @@ instances:
     # Use this if you have basic authentication on these pages
     # user: bits
     # password: D4T4D0G
+    # 
+    # If your FPM pool is only accessible via a specific HTTP vhost, you can
+    # pass in a custom Host header like so
+    # http_host: such.production.host
     #
     # Array of custom tags
     # By default metrics and service check will be tagged by pool and host

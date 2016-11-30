@@ -17,3 +17,8 @@ instances:
     # If ssl_cert_validation is enabled, you can provide a custom file
     # that lists trusted CA certificates (optional).
     # ssl_ca_certs: /path/to/CA/certificate/file
+
+    # optionally, add tags:
+    # tags:
+    # - foo
+    # - bar

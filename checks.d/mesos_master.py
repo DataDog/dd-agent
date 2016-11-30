@@ -6,11 +6,15 @@
 
 Collects metrics from mesos master node, only the leader is sending metrics.
 """
+# stdlib
+from urlparse import urlparse
+
 # 3rd party
 import requests
 
 # project
 from checks import AgentCheck, CheckException
+from config import _is_affirmative
 
 
 class MesosMaster(AgentCheck):
@@ -123,12 +127,21 @@ class MesosMaster(AgentCheck):
         'master/valid_status_updates'                       : ('mesos.cluster.valid_status_updates', GAUGE),
     }
 
-    def _get_json(self, url, timeout):
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+        for instance in instances or []:
+            url = instance.get('url', '')
+            parsed_url = urlparse(url)
+            ssl_verify = not _is_affirmative(instance.get('disable_ssl_validation', False))
+            if not ssl_verify and parsed_url.scheme == 'https':
+                self.log.warning('Skipping SSL cert validation for %s based on configuration.' % url)
+
+    def _get_json(self, url, timeout, verify=True):
         tags = ["url:%s" % url]
         msg = None
         status = None
         try:
-            r = requests.get(url, timeout=timeout)
+            r = requests.get(url, timeout=timeout, verify=verify)
             if r.status_code != 200:
                 status = AgentCheck.CRITICAL
                 msg = "Got %s when hitting %s" % (r.status_code, url)
@@ -157,21 +170,21 @@ class MesosMaster(AgentCheck):
 
         return r.json()
 
-    def _get_master_state(self, url, timeout):
-        return self._get_json(url + '/state.json', timeout)
+    def _get_master_state(self, url, timeout, verify):
+        return self._get_json(url + '/state.json', timeout, verify)
 
-    def _get_master_stats(self, url, timeout):
+    def _get_master_stats(self, url, timeout, verify):
         if self.version >= [0, 22, 0]:
             endpoint = '/metrics/snapshot'
         else:
             endpoint = '/stats.json'
-        return self._get_json(url + endpoint, timeout)
+        return self._get_json(url + endpoint, timeout, verify)
 
-    def _get_master_roles(self, url, timeout):
-        return self._get_json(url + '/roles.json', timeout)
+    def _get_master_roles(self, url, timeout, verify):
+        return self._get_json(url + '/roles.json', timeout, verify)
 
-    def _check_leadership(self, url, timeout):
-        state_metrics = self._get_master_state(url, timeout)
+    def _check_leadership(self, url, timeout, verify):
+        state_metrics = self._get_master_state(url, timeout, verify)
         self.leader = False
 
         if state_metrics is not None:
@@ -189,8 +202,9 @@ class MesosMaster(AgentCheck):
         instance_tags = instance.get('tags', [])
         default_timeout = self.init_config.get('default_timeout', 5)
         timeout = float(instance.get('timeout', default_timeout))
+        ssl_verify = not _is_affirmative(instance.get('disable_ssl_validation', False))
 
-        state_metrics = self._check_leadership(url, timeout)
+        state_metrics = self._check_leadership(url, timeout, ssl_verify)
         if state_metrics:
             tags = [
                 'mesos_pid:{0}'.format(state_metrics['pid']),
@@ -211,7 +225,7 @@ class MesosMaster(AgentCheck):
                     for key_name, (metric_name, metric_func) in self.FRAMEWORK_METRICS.iteritems():
                         metric_func(self, metric_name, resources[key_name], tags=framework_tags)
 
-                role_metrics = self._get_master_roles(url, timeout)
+                role_metrics = self._get_master_roles(url, timeout, ssl_verify)
                 if role_metrics is not None:
                     for role in role_metrics['roles']:
                         role_tags = ['mesos_role:' + role['name']] + tags
@@ -220,7 +234,7 @@ class MesosMaster(AgentCheck):
                         for key_name, (metric_name, metric_func) in self.ROLE_RESOURCES_METRICS.iteritems():
                             metric_func(self, metric_name, role['resources'][key_name], tags=role_tags)
 
-            stats_metrics = self._get_master_stats(url, timeout)
+            stats_metrics = self._get_master_stats(url, timeout, ssl_verify)
             if stats_metrics is not None:
                 metrics = [self.SYSTEM_METRICS]
                 if self.leader:

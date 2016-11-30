@@ -44,8 +44,13 @@ namespace :ci do
 
     task before_script: ['ci:common:before_script'] do
       %w(haproxy haproxy-open).each do |name|
+        # Older haproxy doesn't support ENV interpolation
+        config = File.read("#{ENV['TRAVIS_BUILD_DIR']}/ci/resources/haproxy/#{name}.cfg")
+        config.gsub!('$VOLATILE_DIR', ENV['VOLATILE_DIR'])
+        File.write("#{ENV['VOLATILE_DIR']}/#{name}.cfg", config)
+
         pid = spawn("#{haproxy_rootdir}/haproxy", '-d', '-f',
-                    "#{ENV['TRAVIS_BUILD_DIR']}/ci/resources/haproxy/#{name}.cfg",
+                    "#{ENV['VOLATILE_DIR']}/#{name}.cfg",
                     out: '/dev/null')
         Process.detach(pid)
         sh %(echo #{pid} > $VOLATILE_DIR/#{name}.pid)
@@ -63,8 +68,6 @@ namespace :ci do
 
     task before_cache: ['ci:common:before_cache']
 
-    task cache: ['ci:common:cache']
-
     task cleanup: ['ci:common:cleanup'] do
       %w(haproxy haproxy-open).each do |name|
         sh %(kill `cat $VOLATILE_DIR/#{name}.pid`)
@@ -72,23 +75,7 @@ namespace :ci do
     end
 
     task :execute do
-      exception = nil
-      begin
-        %w(before_install install before_script
-           script before_cache cache).each do |t|
-          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
-        end
-      rescue => e
-        exception = e
-        puts "Failed task: #{e.class} #{e.message}".red
-      end
-      if ENV['SKIP_CLEANUP']
-        puts 'Skipping cleanup, disposable environments are great'.yellow
-      else
-        puts 'Cleaning up'
-        Rake::Task["#{flavor.scope.path}:cleanup"].invoke
-      end
-      raise exception if exception
+      Rake::Task['ci:common:execute'].invoke(flavor)
     end
   end
 end

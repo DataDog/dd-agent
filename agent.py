@@ -19,6 +19,7 @@ import os
 import signal
 import sys
 import time
+from copy import copy
 
 # For pickle & PID files, see issue 293
 os.umask(022)
@@ -31,20 +32,21 @@ from config import (
     get_parsed_args,
     get_system_stats,
     load_check_directory,
+    load_check
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from util import (
-    EC2,
-    get_hostname,
-    Watchdog,
-)
-from utils.flare import configcheck, Flare
+
+# utils
+from util import Watchdog
+from utils.cloud_metadata import EC2
+from utils.configcheck import configcheck, sd_configcheck
+from utils.flare import Flare
+from utils.hostname import get_hostname
 from utils.jmx import jmx_command
 from utils.pidfile import PidFile
 from utils.profile import AgentProfiler
-from utils.service_discovery.configcheck import sd_configcheck
-from utils.service_discovery.config_stores import get_config_store, TRACE_CONFIG
+from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.sd_backend import get_sd_backend
 
 # Constants
@@ -52,8 +54,6 @@ PID_NAME = "dd-agent"
 PID_DIR = None
 WATCHDOG_MULTIPLIER = 10
 RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
-START_COMMANDS = ['start', 'restart', 'foreground']
-DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
 
 DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
 
@@ -76,7 +76,8 @@ class Agent(Daemon):
         self._checksd = []
         self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
         self.check_frequency = None
-        self.configs_reloaded = False
+        # this flag can be set to True, False, or a list of checks (for partial reload)
+        self.reload_configs_flag = False
         self.sd_backend = None
 
     def _handle_sigterm(self, signum, frame):
@@ -95,25 +96,87 @@ class Agent(Daemon):
 
     def _handle_sighup(self, signum, frame):
         """Handles SIGHUP, which signals a configuration reload."""
-        log.info("SIGHUP caught!")
-        self.reload_configs()
-        self.configs_reloaded = True
+        log.info("SIGHUP caught! Scheduling configuration reload before next collection run.")
+        self.reload_configs_flag = True
 
-    def reload_configs(self):
-        """Reloads the agent configuration and checksd configurations."""
+    def reload_configs(self, checks_to_reload=set()):
+        """Reload the agent configuration and checksd configurations.
+           Can also reload only an explicit set of checks."""
         log.info("Attempting a configuration reload...")
-
-        # Reload checksd configs
         hostname = get_hostname(self._agentConfig)
-        self._checksd = load_check_directory(self._agentConfig, hostname)
+
+        # if no check was given, reload them all
+        if not checks_to_reload:
+            log.debug("No check list was passed, reloading every check")
+            # stop checks
+            for check in self._checksd.get('initialized_checks', []):
+                check.stop()
+
+            self._checksd = load_check_directory(self._agentConfig, hostname)
+        else:
+            new_checksd = copy(self._checksd)
+
+            self.refresh_specific_checks(hostname, new_checksd, checks_to_reload)
+            # once the reload is done, replace existing checks with the new ones
+            self._checksd = new_checksd
 
         # Logging
         num_checks = len(self._checksd['initialized_checks'])
         if num_checks > 0:
-            log.info("Successfully reloaded {num_checks} checks".
-                     format(num_checks=num_checks))
+            opt_msg = " (refreshed %s checks)" % len(checks_to_reload) if checks_to_reload else ''
+
+            msg = "Check reload was successful. Running {num_checks} checks{opt_msg}.".format(
+                num_checks=num_checks, opt_msg=opt_msg)
+            log.info(msg)
         else:
             log.info("No checksd configs found")
+
+    def refresh_specific_checks(self, hostname, checksd, checks):
+        """take a list of checks and for each of them:
+            - remove it from the init_failed_checks if it was there
+            - load a fresh config for it
+            - replace its old config with the new one in initialized_checks if there was one
+            - disable the check if no new config was found
+            - otherwise, append it to initialized_checks
+        """
+        for check_name in checks:
+            idx = None
+            for num, check in enumerate(checksd['initialized_checks']):
+                if check.name == check_name:
+                    idx = num
+                    # stop the existing check before reloading it
+                    check.stop()
+
+            if not idx and check_name in checksd['init_failed_checks']:
+                # if the check previously failed to load, pop it from init_failed_checks
+                checksd['init_failed_checks'].pop(check_name)
+
+            fresh_check = load_check(self._agentConfig, hostname, check_name)
+
+            # this is an error dict
+            # checks that failed to load are added to init_failed_checks
+            # and poped from initialized_checks
+            if isinstance(fresh_check, dict) and 'error' in fresh_check.keys():
+                checksd['init_failed_checks'][fresh_check.keys()[0]] = fresh_check.values()[0]
+                if idx:
+                    checksd['initialized_checks'].pop(idx)
+
+            elif not fresh_check:
+                # no instance left of it to monitor so the check was not loaded
+                if idx:
+                    checksd['initialized_checks'].pop(idx)
+                # the check was not previously running so we were trying to instantiate it and it failed
+                else:
+                    log.error("Configuration for check %s was not found, it won't be reloaded." % check_name)
+
+            # successfully reloaded check are added to initialized_checks
+            # (appended or replacing a previous version)
+            else:
+                if idx is not None:
+                    checksd['initialized_checks'][idx] = fresh_check
+                # it didn't exist before and doesn't need to be replaced so we append it
+                else:
+                    checksd['initialized_checks'].append(fresh_check)
 
     @classmethod
     def info(cls, verbose=None):
@@ -144,7 +207,9 @@ class Agent(Daemon):
 
         self._agentConfig = self._set_agent_config_hostname(config)
         hostname = get_hostname(self._agentConfig)
-        systemStats = get_system_stats()
+        systemStats = get_system_stats(
+            proc_path=self._agentConfig.get('procfs_path', '/proc').rstrip('/')
+        )
         emitters = self._get_emitters()
 
         # Initialize service discovery
@@ -158,8 +223,13 @@ class Agent(Daemon):
         self.collector = Collector(self._agentConfig, emitters, systemStats, hostname)
 
         # In developer mode, the number of runs to be included in a single collector profile
-        self.collector_profile_interval = self._agentConfig.get('collector_profile_interval',
-                                                                DEFAULT_COLLECTOR_PROFILE_INTERVAL)
+        try:
+            self.collector_profile_interval = int(
+                self._agentConfig.get('collector_profile_interval', DEFAULT_COLLECTOR_PROFILE_INTERVAL))
+        except ValueError:
+            log.warn('collector_profile_interval is invalid. '
+                     'Using default value instead (%s).' % DEFAULT_COLLECTOR_PROFILE_INTERVAL)
+            self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
 
         # Configure the watchdog.
         self.check_frequency = int(self._agentConfig['check_freq'])
@@ -174,8 +244,6 @@ class Agent(Daemon):
 
         # Run the main loop.
         while self.run_forever:
-            log.debug("Found {num_checks} checks".format(num_checks=len(self._checksd['initialized_checks'])))
-
             # Setup profiling if necessary
             if self.in_developer_mode and not profiled:
                 try:
@@ -185,16 +253,19 @@ class Agent(Daemon):
                 except Exception as e:
                     log.warn("Cannot enable profiler: %s" % str(e))
 
-            # Do the work.
+            if self.reload_configs_flag:
+                if isinstance(self.reload_configs_flag, set):
+                    self.reload_configs(checks_to_reload=self.reload_configs_flag)
+                else:
+                    self.reload_configs()
+
+            # Do the work. Pass `configs_reloaded` to let the collector know if it needs to
+            # look for the AgentMetrics check and pop it out.
             self.collector.run(checksd=self._checksd,
                                start_event=self.start_event,
-                               configs_reloaded=self.configs_reloaded)
+                               configs_reloaded=True if self.reload_configs_flag else False)
 
-            # This flag is used to know if the check configs have been reloaded at the current
-            # run of the agent yet or not. It's used by the collector to know if it needs to
-            # look for the AgentMetrics check and pop it out.
-            # See: https://github.com/DataDog/dd-agent/blob/5.6.x/checks/collector.py#L265-L272
-            self.configs_reloaded = False
+            self.reload_configs_flag = False
 
             # Look for change in the config template store.
             # The self.sd_backend.reload_check_configs flag is set
@@ -212,8 +283,7 @@ class Agent(Daemon):
             # using ConfigStore.crawl_config_template
             if self._agentConfig.get('service_discovery') and self.sd_backend and \
                self.sd_backend.reload_check_configs:
-                self.reload_configs()
-                self.configs_reloaded = True
+                self.reload_configs_flag = self.sd_backend.reload_check_configs
                 self.sd_backend.reload_check_configs = False
 
             if profiled:
@@ -290,6 +360,7 @@ def main():
     autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
     in_developer_mode = agentConfig.get('developer_mode')
+
     COMMANDS_AGENT = [
         'start',
         'stop',
@@ -317,17 +388,13 @@ def main():
         sys.stderr.write("Unknown command: %s\n" % command)
         return 3
 
-    # Deprecation notice
-    if command not in DD_AGENT_COMMANDS:
-        # Will become an error message and exit after deprecation period
-        from utils.deprecations import deprecate_old_command_line_tools
-        deprecate_old_command_line_tools()
+    # TODO: actually kill the start/stop/restart/status command for 5.11
+    if command in ['start', 'stop', 'restart', 'status'] and not in_developer_mode:
+        logging.error('Please use supervisor to manage the agent')
+        return 1
 
     if command in COMMANDS_AGENT:
         agent = Agent(PidFile(PID_NAME, PID_DIR).get_path(), autorestart, in_developer_mode=in_developer_mode)
-
-    if command in START_COMMANDS:
-        log.info('Agent version %s' % get_version())
 
     if 'start' == command:
         log.info('Start daemon')
@@ -348,7 +415,7 @@ def main():
         return Agent.info(verbose=options.verbose)
 
     elif 'foreground' == command:
-        logging.info('Running in foreground')
+        log.info('Agent version %s' % get_version())
         if autorestart:
             # Set-up the supervisor callbacks and fork it.
             logging.info('Running Agent with auto-restart ON')
@@ -399,19 +466,7 @@ def main():
 
     elif 'configcheck' == command or 'configtest' == command:
         configcheck()
-
-        if agentConfig.get('service_discovery', False):
-            # set the TRACE_CONFIG flag to True to make load_check_directory return
-            # the source of config objects.
-            # Then call load_check_directory here and pass the result to sd_configcheck
-            # to avoid circular imports
-            agentConfig[TRACE_CONFIG] = True
-            configs = {
-                # check_name: (config_source, config)
-            }
-            print("\nLoading check configurations...\n\n")
-            configs = load_check_directory(agentConfig, hostname)
-            sd_configcheck(agentConfig, configs)
+        sd_configcheck(agentConfig)
 
     elif 'jmx' == command:
         jmx_command(args[1:], agentConfig)
@@ -423,7 +478,7 @@ def main():
         f.collect()
         try:
             f.upload()
-        except Exception, e:
+        except Exception as e:
             print 'The upload failed:\n{0}'.format(str(e))
 
     return 0

@@ -1,6 +1,7 @@
 # stdlib
 import re
 import time
+import urllib
 
 # 3p
 import pymongo
@@ -71,6 +72,7 @@ class MongoDb(AgentCheck):
         "cursors.totalOpen": GAUGE,
         "extra_info.heap_usage_bytes": RATE,
         "extra_info.page_faults": RATE,
+        "fsyncLocked": GAUGE,
         "globalLock.activeClients.readers": GAUGE,
         "globalLock.activeClients.total": GAUGE,
         "globalLock.activeClients.writers": GAUGE,
@@ -155,6 +157,8 @@ class MongoDb(AgentCheck):
         "replSet.health": GAUGE,
         "replSet.replicationLag": GAUGE,
         "replSet.state": GAUGE,
+        "replSet.votes": GAUGE,
+        "replSet.voteFraction": GAUGE,
         "stats.avgObjSize": GAUGE,
         "stats.collections": GAUGE,
         "stats.dataSize": GAUGE,
@@ -335,6 +339,18 @@ class MongoDb(AgentCheck):
         "writeLock.time": GAUGE,
     }
 
+    COLLECTION_METRICS = {
+        'collection.size': GAUGE,
+        'collection.avgObjSize': GAUGE,
+        'collection.count': GAUGE,
+        'collection.capped': GAUGE,
+        'collection.max': GAUGE,
+        'collection.maxSize': GAUGE,
+        'collection.storageSize': GAUGE,
+        'collection.nindexes': GAUGE,
+        'collection.indexSizes': GAUGE,
+    }
+
     """
     Mapping for case-sensitive metric name suffixes.
 
@@ -364,6 +380,7 @@ class MongoDb(AgentCheck):
         'metrics.commands': COMMANDS_METRICS,
         'tcmalloc': TCMALLOC_METRICS,
         'top': TOP_METRICS,
+        'collection': COLLECTION_METRICS,
     }
 
     # Replication states
@@ -394,6 +411,10 @@ class MongoDb(AgentCheck):
         # List of metrics to collect per instance
         self.metrics_to_collect_by_instance = {}
 
+        self.collection_metrics_names = []
+        for (key, value) in self.COLLECTION_METRICS.iteritems():
+            self.collection_metrics_names.append(key.split('.')[1])
+
     def get_library_versions(self):
         return {"pymongo": pymongo.version}
 
@@ -423,7 +444,10 @@ class MongoDb(AgentCheck):
     def hostname_for_event(self, clean_server_name, agentConfig):
         """Return a reasonable hostname for a replset membership event to mention."""
         uri = urlsplit(clean_server_name)
-        hostname = uri.netloc.split(':')[0]
+        if '@' in uri.netloc:
+            hostname = uri.netloc.split('@')[1].split(':')[0]
+        else:
+            hostname = uri.netloc.split(':')[0]
         if hostname == 'localhost':
             hostname = self.hostname
         return hostname
@@ -508,7 +532,6 @@ class MongoDb(AgentCheck):
         submit_method = metrics_to_collect[original_metric_name][0] \
             if isinstance(metrics_to_collect[original_metric_name], tuple) \
             else metrics_to_collect[original_metric_name]
-
         metric_name = metrics_to_collect[original_metric_name][1] \
             if isinstance(metrics_to_collect[original_metric_name], tuple) \
             else original_metric_name
@@ -533,6 +556,38 @@ class MongoDb(AgentCheck):
             metric_prefix=metric_prefix, metric_suffix=metric_suffix
         )
 
+    def _authenticate(self, database, username, password, use_x509):
+        """
+        Authenticate to the database.
+
+        Available mechanisms:
+        * Username & password
+        * X.509
+
+        More information:
+        https://api.mongodb.com/python/current/examples/authentication.html
+        """
+        authenticated = False
+        try:
+            # X.509
+            if use_x509:
+                self.log.debug(
+                    u"Authenticate `%s`  to `%s` using `MONGODB-X509` mechanism",
+                    username, database
+                )
+                authenticated = database.authenticate(username, mechanism='MONGODB-X509')
+
+            # Username & password
+            else:
+                authenticated = database.authenticate(username, password)
+
+        except pymongo.errors.PyMongoError as e:
+            self.log.error(
+                u"Authentication failed due to invalid credentials or configuration issues. %s", e
+            )
+
+        return authenticated
+
     def check(self, instance):
         """
         Returns a dictionary that looks a lot like what's sent back by
@@ -555,8 +610,7 @@ class MongoDb(AgentCheck):
         if 'server' not in instance:
             raise Exception("Missing 'server' in mongo config")
 
-        server = instance['server']
-
+        # x.509 authentication
         ssl_params = {
             'ssl': instance.get('ssl', None),
             'ssl_keyfile': instance.get('ssl_keyfile', None),
@@ -570,16 +624,25 @@ class MongoDb(AgentCheck):
                 del ssl_params[key]
 
         # Configuration a URL, mongodb://user:pass@server/db
+        server = instance['server']
         parsed = pymongo.uri_parser.parse_uri(server)
         username = parsed.get('username')
         password = parsed.get('password')
         db_name = parsed.get('database')
-        clean_server_name = server.replace(password, "*" * 5) if password is not None else server
-
         additional_metrics = instance.get('additional_metrics', [])
 
-        tags = instance.get('tags', [])
-        tags.append('server:%s' % clean_server_name)
+        # IF the password contains a URL encoded character (for example '/'), then the
+        # raw server string will have %2F, but the password string will have the '/'.
+        # Therefore, the string replace (below) won't work, because it won't have an
+        # exact match.  Convert the password *back* to URL encoded, so the string
+        # replace works properly.
+        encoded_password = urllib.quote_plus(password) if password else None
+
+        clean_server_name = server.replace(encoded_password, "*" * 5) if encoded_password else server
+
+        if ssl_params:
+            username_uri = u"{}@".format(urllib.quote(username))
+            clean_server_name = clean_server_name.replace(username_uri, "")
 
         # Get the list of metrics to collect
         collect_tcmalloc_metrics = 'tcmalloc' in additional_metrics
@@ -588,7 +651,9 @@ class MongoDb(AgentCheck):
             additional_metrics
         )
 
-        # de-dupe tags to avoid a memory leak
+        # Tagging
+        tags = instance.get('tags', [])
+        # ...de-dupe tags to avoid a memory leak
         tags = list(set(tags))
 
         if not db_name:
@@ -598,6 +663,11 @@ class MongoDb(AgentCheck):
         service_check_tags = [
             "db:%s" % db_name
         ]
+        service_check_tags.extend(tags)
+
+        # ...add the `server` tag to the metrics' tags only
+        # (it's added in the backend for service checks)
+        tags.append('server:%s' % clean_server_name)
 
         nodelist = parsed.get('nodelist')
         if nodelist:
@@ -607,11 +677,6 @@ class MongoDb(AgentCheck):
                 "host:%s" % host,
                 "port:%s" % port
             ]
-
-        do_auth = True
-        if username is None or password is None:
-            self.log.debug("Mongo: cannot extract username and password from config %s" % server)
-            do_auth = False
 
         timeout = float(instance.get('timeout', DEFAULT_TIMEOUT)) * 1000
         try:
@@ -630,8 +695,18 @@ class MongoDb(AgentCheck):
                 tags=service_check_tags)
             raise
 
-        if do_auth and not db.authenticate(username, password):
-            message = "Mongo: cannot connect with config %s" % server
+        # Authenticate
+        do_auth = True
+        use_x509 = ssl_params and not password
+
+        if not username:
+            self.log.debug(
+                u"A username is required to authenticate to `%s`", server
+            )
+            do_auth = False
+
+        if do_auth and not self._authenticate(db, username, password, use_x509):
+            message = u"Mongo: cannot connect with config `%s`" % clean_server_name
             self.service_check(
                 self.SERVICE_CHECK_NAME,
                 AgentCheck.CRITICAL,
@@ -639,14 +714,25 @@ class MongoDb(AgentCheck):
                 message=message)
             raise Exception(message)
 
-        self.service_check(
-            self.SERVICE_CHECK_NAME,
-            AgentCheck.OK,
-            tags=service_check_tags)
+        try:
+            status = db.command('serverStatus', tcmalloc=collect_tcmalloc_metrics)
+        except Exception:
+            self.service_check(
+                self.SERVICE_CHECK_NAME,
+                AgentCheck.CRITICAL,
+                tags=service_check_tags)
+            raise
+        else:
+            self.service_check(
+                self.SERVICE_CHECK_NAME,
+                AgentCheck.OK,
+                tags=service_check_tags)
 
-        status = db.command('serverStatus', tcmalloc=collect_tcmalloc_metrics)
         if status['ok'] == 0:
             raise Exception(status['errmsg'].__str__())
+
+        ops = db.current_op()
+        status['fsyncLocked'] = 1 if ops.get('fsyncLock') else 0
 
         status['stats'] = db.command('dbstats')
         dbstats = {}
@@ -674,7 +760,7 @@ class MongoDb(AgentCheck):
                     **ssl_params)
                 db = cli[db_name]
 
-                if do_auth and not db.authenticate(username, password):
+                if do_auth and not self._authenticate(db, username, password, use_x509):
                     message = ("Mongo: cannot connect with config %s" % server)
                     self.service_check(
                         self.SERVICE_CHECK_NAME,
@@ -701,13 +787,24 @@ class MongoDb(AgentCheck):
 
                 # Compute a lag time
                 if current is not None and primary is not None:
-                    lag = primary['optimeDate'] - current['optimeDate']
-                    data['replicationLag'] = total_seconds(lag)
+                    if 'optimeDate' in primary and 'optimeDate' in current:
+                        lag = primary['optimeDate'] - current['optimeDate']
+                        data['replicationLag'] = total_seconds(lag)
 
                 if current is not None:
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
+
+                if current is not None:
+                    total = 0.0
+                    cfg = cli['local']['system.replset'].find_one()
+                    for member in cfg.get('members'):
+                        total += member.get('votes', 1)
+                        if member['_id'] == current['_id']:
+                            data['votes'] = member.get('votes', 1)
+                    data['voteFraction'] = data['votes'] / total
+
                 status['replSet'] = data
 
                 # Submit events
@@ -825,47 +922,86 @@ class MongoDb(AgentCheck):
                         submit_method, metric_name_alias = \
                             self._resolve_metric(m, metrics_to_collect, prefix="usage")
                         submit_method(self, metric_name_alias, value, tags=ns_tags)
-            except Exception, e:
+            except Exception as e:
                 self.log.warning('Failed to record `top` metrics %s' % str(e))
 
-        # Fetch information analogous to Mongo's db.getReplicationInfo()
-        localdb = cli['local']
 
-        oplog_data = {}
+        if 'local' in dbnames: # it might not be if we are connectiing through mongos
+            # Fetch information analogous to Mongo's db.getReplicationInfo()
+            localdb = cli['local']
 
-        for ol_collection_name in ("oplog.rs", "oplog.$main"):
-            ol_metadata = localdb.system.namespaces.find_one({"name": "local.%s" % ol_collection_name})
+            oplog_data = {}
+
+            for ol_collection_name in ("oplog.rs", "oplog.$main"):
+                ol_metadata = localdb.system.namespaces.find_one({"name": "local.%s" % ol_collection_name})
+                if ol_metadata:
+                    break
+
             if ol_metadata:
-                break
-
-        if ol_metadata:
-            try:
-                oplog_data['logSizeMB'] = round(
-                    ol_metadata['options']['size'] / 2.0 ** 20, 2
-                )
-
-                oplog = localdb[ol_collection_name]
-
-                oplog_data['usedSizeMB'] = round(
-                    localdb.command("collstats", ol_collection_name)['size'] / 2.0 ** 20, 2
-                )
-
-                op_asc_cursor = oplog.find().sort("$natural", pymongo.ASCENDING).limit(1)
-                op_dsc_cursor = oplog.find().sort("$natural", pymongo.DESCENDING).limit(1)
-
                 try:
-                    first_timestamp = op_asc_cursor[0]['ts'].as_datetime()
-                    last_timestamp = op_dsc_cursor[0]['ts'].as_datetime()
-                    oplog_data['timeDiff'] = total_seconds(last_timestamp - first_timestamp)
-                except (IndexError, KeyError):
-                    # if the oplog collection doesn't have any entries
-                    # if an object in the collection doesn't have a ts value, we ignore it
-                    pass
-            except KeyError:
-                # encountered an error trying to access options.size for the oplog collection
-                self.log.warning(u"Failed to record `ReplicationInfo` metrics.")
+                    oplog_data['logSizeMB'] = round(
+                        ol_metadata['options']['size'] / 2.0 ** 20, 2
+                    )
 
-        for (m, value) in oplog_data.iteritems():
-            submit_method, metric_name_alias = \
-                self._resolve_metric('oplog.%s' % m, metrics_to_collect)
-            submit_method(self, metric_name_alias, value, tags=tags)
+                    oplog = localdb[ol_collection_name]
+
+                    oplog_data['usedSizeMB'] = round(
+                        localdb.command("collstats", ol_collection_name)['size'] / 2.0 ** 20, 2
+                    )
+
+                    op_asc_cursor = oplog.find().sort("$natural", pymongo.ASCENDING).limit(1)
+                    op_dsc_cursor = oplog.find().sort("$natural", pymongo.DESCENDING).limit(1)
+
+                    try:
+                        first_timestamp = op_asc_cursor[0]['ts'].as_datetime()
+                        last_timestamp = op_dsc_cursor[0]['ts'].as_datetime()
+                        oplog_data['timeDiff'] = total_seconds(last_timestamp - first_timestamp)
+                    except (IndexError, KeyError):
+                        # if the oplog collection doesn't have any entries
+                        # if an object in the collection doesn't have a ts value, we ignore it
+                        pass
+                except KeyError:
+                    # encountered an error trying to access options.size for the oplog collection
+                    self.log.warning(u"Failed to record `ReplicationInfo` metrics.")
+
+            for (m, value) in oplog_data.iteritems():
+                submit_method, metric_name_alias = \
+                    self._resolve_metric('oplog.%s' % m, metrics_to_collect)
+                submit_method(self, metric_name_alias, value, tags=tags)
+
+        else:
+            self.log.debug('"local" database not in dbnames. Not collecting ReplicationInfo metrics')
+
+        # get collection level stats
+        try:
+            # Ensure that you're on the right db
+            db = cli[db_name]
+            # grab the collections from the configutation
+            coll_names = instance.get('collections', [])
+            # loop through the collections
+            for coll_name in coll_names:
+                # grab the stats from the collection
+                stats = db.command("collstats", coll_name)
+                # loop through the metrics
+                for m in self.collection_metrics_names:
+                    coll_tags = tags + ["db:%s" % db_name, "collection:%s" % coll_name]
+                    value = stats.get(m, None)
+                    if not value:
+                        continue
+
+                    # if it's the index sizes, then it's a dict.
+                    if m == 'indexSizes':
+                        submit_method, metric_name_alias = \
+                            self._resolve_metric('collection.%s' % m, self.COLLECTION_METRICS)
+                        # loop through the indexes
+                        for (idx, val) in value.iteritems():
+                            # we tag the index
+                            idx_tags = coll_tags + ["index:%s" % idx]
+                            submit_method(self, metric_name_alias, val, tags=idx_tags)
+                    else:
+                        submit_method, metric_name_alias = \
+                            self._resolve_metric('collection.%s' % m, self.COLLECTION_METRICS)
+                        submit_method(self, metric_name_alias, value, tags=coll_tags)
+        except Exception as e:
+            self.log.warning(u"Failed to record `collection` metrics.")
+            self.log.exception(e)
