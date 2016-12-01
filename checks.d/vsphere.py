@@ -543,21 +543,6 @@ class VSphereCheck(AgentCheck):
         return external_host_tags
 
 
-    def _process_registry(self, instance):
-        i_key = self._instance_key(instance)
-        registry = self._get_registry(instance)
-        for mortype, obj in RESOURCE_TYPE_MAP:
-            entities = registry[i_key].get(mortype)
-            for entity in entities:
-                if mortype == 'vm':
-                    pass
-                elif mortype == 'host':
-                    pass
-                elif mortype == 'datacenter':
-                    pass
-                elif mortype == 'datastore':
-                    pass
-
     def _discover_mor(self, instance, tags, regexes=None, include_only_marked=False):
         """
         Explore vCenter infrastructure to discover hosts, virtual machines
@@ -600,7 +585,9 @@ class VSphereCheck(AgentCheck):
                     if isinstance(c, vim.VirtualMachine):
                         if c.runtime.powerState == vim.VirtualMachinePowerState.poweredOff:
                             continue
-                        instance_tags = ['vsphere_type:vm']
+                        host = c.runtime.host.name
+                        instance_tags = ['vsphere_type:vm', 'vsphere_host:{}'.format(host)]
+
                     elif isinstance(c, vim.HostSystem):
                         instance_tags = ['vsphere_type:host']
                     elif isinstance(c, vim.Datastore):
