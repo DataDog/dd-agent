@@ -2,6 +2,7 @@
 import copy
 import mock
 import unittest
+from collections import defaultdict
 
 # 3p
 from nose.plugins.attrib import attr
@@ -11,7 +12,8 @@ from config import generate_jmx_configs
 from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.consul_config_store import ConsulStore
 from utils.service_discovery.etcd_config_store import EtcdStore
-from utils.service_discovery.abstract_config_store import AbstractConfigStore, CONFIG_FROM_KUBE
+from utils.service_discovery.abstract_config_store import AbstractConfigStore, \
+    _TemplateCache, CONFIG_FROM_KUBE, CONFIG_FROM_TEMPLATE, CONFIG_FROM_AUTOCONF
 from utils.service_discovery.sd_backend import get_sd_backend
 from utils.service_discovery.sd_docker_backend import SDDockerBackend, _SDDockerBackendConfigFetchState
 
@@ -66,11 +68,11 @@ def client_read(path, **kwargs):
     if 'all' in kwargs:
         return {}
     else:
-        return TestServiceDiscovery.mock_tpls.get(image)[0][config_parts.index(config_part)]
+        return TestServiceDiscovery.mock_raw_templates.get(image)[0][config_parts.index(config_part)]
 
 
 def issue_read(identifier):
-    return TestServiceDiscovery.mock_tpls.get(identifier)
+    return TestServiceDiscovery.mock_raw_templates.get(identifier)
 
 @attr('unix')
 class TestServiceDiscovery(unittest.TestCase):
@@ -122,7 +124,7 @@ class TestServiceDiscovery(unittest.TestCase):
     }
 
     # raw templates coming straight from the config store
-    mock_tpls = {
+    mock_raw_templates = {
         # image_name: ('[check_name]', '[init_tpl]', '[instance_tpl]', expected_python_tpl_list)
         'image_0': (
             ('["check_0"]', '[{}]', '[{"host": "%%host%%"}]'),
@@ -509,12 +511,12 @@ class TestServiceDiscovery(unittest.TestCase):
     def test_get_auto_config(self):
         """Test _get_auto_config"""
         expected_tpl = {
-            'redis': ('redisdb', None, {"host": "%%host%%", "port": "%%port%%"}),
-            'consul': ('consul', None, {
-                "url": "http://%%host%%:%%port%%", "catalog_checks": True, "new_leader_checks": True
-            }),
-            'redis:v1': ('redisdb', None, {"host": "%%host%%", "port": "%%port%%"}),
-            'foobar': None
+            'redis': [('redisdb', None, {"host": "%%host%%", "port": "%%port%%"})],
+            'consul': [('consul', None, {
+                        "url": "http://%%host%%:%%port%%", "catalog_checks": True, "new_leader_checks": True
+                        })],
+            'redis:v1': [('redisdb', None, {"host": "%%host%%", "port": "%%port%%"})],
+            'foobar': []
         }
 
         config_store = get_config_store(self.auto_conf_agentConfig)
@@ -529,10 +531,10 @@ class TestServiceDiscovery(unittest.TestCase):
         invalid_config = ['bad_image_0', 'bad_image_1']
         config_store = get_config_store(self.auto_conf_agentConfig)
         for image in valid_config:
-            tpl = self.mock_tpls.get(image)[1]
+            tpl = self.mock_raw_templates.get(image)[1]
             self.assertEquals(tpl, config_store.get_check_tpls(image))
         for image in invalid_config:
-            tpl = self.mock_tpls.get(image)[1]
+            tpl = self.mock_raw_templates.get(image)[1]
             self.assertEquals(tpl, config_store.get_check_tpls(image))
 
     @mock.patch.object(AbstractConfigStore, 'client_read', side_effect=client_read)
@@ -542,7 +544,7 @@ class TestServiceDiscovery(unittest.TestCase):
         invalid_config = ['bad_image_0']
         config_store = get_config_store(self.auto_conf_agentConfig)
         for image in valid_config + invalid_config:
-            tpl = self.mock_tpls.get(image)[1]
+            tpl = self.mock_raw_templates.get(image)[1]
             tpl = [(CONFIG_FROM_KUBE, t[1]) for t in tpl]
             if tpl:
                 self.assertNotEquals(
@@ -558,7 +560,7 @@ class TestServiceDiscovery(unittest.TestCase):
                         ['service-discovery.datadoghq.com/foo.check_names',
                          'service-discovery.datadoghq.com/foo.init_configs',
                          'service-discovery.datadoghq.com/foo.instances'],
-                        self.mock_tpls[image][0]))))
+                        self.mock_raw_templates[image][0]))))
 
     def test_get_config_id(self):
         """Test get_config_id"""
@@ -570,8 +572,8 @@ class TestServiceDiscovery(unittest.TestCase):
                     expected_ident)
                 clear_singletons(self.auto_conf_agentConfig)
 
-    @mock.patch.object(AbstractConfigStore, '_issue_read', side_effect=issue_read)
-    def test_read_config_from_store(self, issue_read):
+    @mock.patch.object(_TemplateCache, '_issue_read', side_effect=issue_read)
+    def test_read_config_from_store(self, args):
         """Test read_config_from_store"""
         valid_idents = [('nginx', 'nginx'), ('nginx:latest', 'nginx:latest'),
                         ('custom-nginx', 'custom-nginx'), ('custom-nginx:latest', 'custom-nginx'),
@@ -582,7 +584,13 @@ class TestServiceDiscovery(unittest.TestCase):
         for ident, expected_key in valid_idents:
             tpl = config_store.read_config_from_store(ident)
             # source is added after reading from the store
-            self.assertEquals(tpl, ('template',) + self.mock_tpls.get(expected_key))
+            self.assertEquals(
+                tpl,
+                {
+                    CONFIG_FROM_AUTOCONF: None,
+                    CONFIG_FROM_TEMPLATE: self.mock_raw_templates.get(expected_key)
+                }
+            )
         for ident in invalid_idents:
             self.assertEquals(config_store.read_config_from_store(ident), [])
 
@@ -600,3 +608,72 @@ class TestServiceDiscovery(unittest.TestCase):
         for check in self.jmx_sd_configs:
             key = '{}_0'.format(check)
             self.assertEquals(jmx_configs[key], valid_configs[key])
+
+    # Template cache
+    @mock.patch('utils.service_discovery.abstract_config_store.get_auto_conf_images')
+    def test_populate_auto_conf(self, mock_get_auto_conf_images):
+        """test _populate_auto_conf"""
+        auto_tpls = {
+            'foo': [['check0', 'check1'], [{}, {}], [{}, {}]],
+            'bar': [['check2', 'check3', 'check3'], [{}, {}, {}], [{}, {'foo': 'bar'}, {'bar': 'foo'}]],
+        }
+        cache = _TemplateCache(issue_read, '')
+        cache.auto_conf_templates = defaultdict(lambda: [[]] * 3)
+        mock_get_auto_conf_images.return_value = auto_tpls
+
+        cache._populate_auto_conf()
+        self.assertEquals(cache.auto_conf_templates['foo'], auto_tpls['foo'])
+        self.assertEquals(cache.auto_conf_templates['bar'],
+            [['check2', 'check3'], [{}, {}], [{}, {'foo': 'bar'}]])
+
+    @mock.patch.object(_TemplateCache, '_issue_read', return_value=None)
+    def test_get_templates(self, args):
+        """test get_templates"""
+        kv_tpls = {
+            'foo': [['check0', 'check1'], [{}, {}], [{}, {}]],
+            'bar': [['check2', 'check3'], [{}, {}], [{}, {}]],
+        }
+        auto_tpls = {
+            'foo': [['check3', 'check5'], [{}, {}], [{}, {}]],
+            'bar': [['check2', 'check6'], [{}, {}], [{}, {}]],
+            'foobar': [['check4'], [{}], [{}]],
+        }
+        cache = _TemplateCache(issue_read, '')
+        cache.kv_templates = kv_tpls
+        cache.auto_conf_templates = auto_tpls
+        self.assertEquals(cache.get_templates('foo'),
+            {CONFIG_FROM_TEMPLATE: [['check0', 'check1'], [{}, {}], [{}, {}]],
+                CONFIG_FROM_AUTOCONF: [['check3', 'check5'], [{}, {}], [{}, {}]]}
+        )
+
+        self.assertEquals(cache.get_templates('bar'),
+            # check3 must come from template not autoconf
+            {CONFIG_FROM_TEMPLATE: [['check2', 'check3'], [{}, {}], [{}, {}]],
+                CONFIG_FROM_AUTOCONF: [['check6'], [{}], [{}]]}
+        )
+
+        self.assertEquals(cache.get_templates('foobar'),
+            {CONFIG_FROM_TEMPLATE: None,
+                CONFIG_FROM_AUTOCONF: [['check4'], [{}], [{}]]}
+        )
+
+        self.assertEquals(cache.get_templates('baz'), None)
+
+    def test_get_check_names(self):
+        """Test get_check_names"""
+        kv_tpls = {
+            'foo': [['check0', 'check1'], [{}, {}], [{}, {}]],
+            'bar': [['check2', 'check3'], [{}, {}], [{}, {}]],
+        }
+        auto_tpls = {
+            'foo': [['check4', 'check5'], [{}, {}], [{}, {}]],
+            'bar': [['check2', 'check6'], [{}, {}], [{}, {}]],
+            'foobar': None,
+        }
+        cache = _TemplateCache(issue_read, '')
+        cache.kv_templates = kv_tpls
+        cache.auto_conf_templates = auto_tpls
+        self.assertEquals(cache.get_check_names('foo'), set(['check0', 'check1', 'check4', 'check5']))
+        self.assertEquals(cache.get_check_names('bar'), set(['check2', 'check3', 'check6']))
+        self.assertEquals(cache.get_check_names('foobar'), set())
+        self.assertEquals(cache.get_check_names('baz'), set())

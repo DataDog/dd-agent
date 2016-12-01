@@ -1108,7 +1108,7 @@ def load_check(agentConfig, hostname, checkname):
 
             # try to load the check and return the result
             load_success, load_failure = load_check_from_places(check_config, check_name, checks_places, agentConfig)
-            return load_success.values()[0] or load_failure
+            return load_success.values()[0] if load_success else load_failure
 
     return None
 

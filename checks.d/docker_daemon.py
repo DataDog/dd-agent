@@ -855,7 +855,7 @@ class DockerDaemon(AgentCheck):
         except IOError:
             # It is possible that the container got stopped between the API call and now.
             # Some files can also be missing (like cpu.stat) and that's fine.
-            self.log.info("Can't open %s. Some metrics for this container may be missing." % stat_file)
+            self.log.debug("Can't open %s. Its metrics will be missing." % stat_file)
 
     def _parse_blkio_metrics(self, stats):
         """Parse the blkio metrics."""

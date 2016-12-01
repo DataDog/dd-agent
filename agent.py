@@ -91,7 +91,7 @@ class Agent(Daemon):
         self._checksd = []
         self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
         self.check_frequency = None
-        # this flag can be set to True, False, or a list of checks (for partial reload)
+        # this flag can be set to True, False, or a set of checks (for partial reload)
         self.reload_configs_flag = False
         self.sd_backend = None
         self.supervisor_proxy = None
@@ -161,7 +161,7 @@ class Agent(Daemon):
             log.info("No checksd configs found")
 
     def refresh_specific_checks(self, hostname, checksd, checks):
-        """take a list of checks and for each of them:
+        """take a set of checks and for each of them:
             - remove it from the init_failed_checks if it was there
             - load a fresh config for it
             - replace its old config with the new one in initialized_checks if there was one
@@ -245,7 +245,7 @@ class Agent(Daemon):
         if self._agentConfig.get('service_discovery'):
             self.sd_backend = get_sd_backend(self._agentConfig)
 
-        if _is_affirmative(self._agentConfig.get('sd_jmx_enable')):
+        if _is_affirmative(self._agentConfig.get('sd_jmx_enable', False)):
             pipe_path = get_jmx_pipe_path()
             if Platform.is_windows():
                 pipe_name = pipe_path.format(pipename=SD_PIPE_NAME)
