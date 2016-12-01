@@ -569,6 +569,24 @@ class VSphereCheck(AgentCheck):
         If it's a node we want to query metric for, queue it in `self.morlist_raw` that
         will be processed by another job.
         """
+        def _get_parent_tags(mor):
+            tags = []
+            if mor.parent:
+                if isinstance(mor.parent, vim.HostSystem):
+                    tag = 'vsphere_host:{}'.format(mor.parent.name)
+                elif isinstance(mor.parent, vim.Folder):
+                    tag = 'vsphere_folder:{}'.format(mor.parent.name)
+                elif isinstance(mor.parent, vim.ComputeResource):
+                    tag = 'vsphere_compute:{}'.format(mor.parent.name)
+                elif isinstance(mor.parent, vim.Datacenter):
+                    tag = 'vsphere_datacenter:{}'.format(mor.parent.name)
+
+                tags = _get_parent_tags(mor.parent)
+                tags.append(tag)
+
+            return tags
+
+
         def _get_all_objs(content, vimtype, regexes=None, include_only_marked=False, tags=[]):
             """
             Get all the vsphere objects associated with a given type
@@ -582,20 +600,27 @@ class VSphereCheck(AgentCheck):
             for c in container.view:
                 instance_tags = []
                 if not self._is_excluded(c, regexes, include_only_marked):
+                    hostname = c.name
+                    if c.parent:
+                        instance_tags += _get_parent_tags(c)
+
                     if isinstance(c, vim.VirtualMachine):
+                        vsphere_type = 'vsphere_type:vm'
                         if c.runtime.powerState == vim.VirtualMachinePowerState.poweredOff:
                             continue
                         host = c.runtime.host.name
-                        instance_tags = ['vsphere_type:vm', 'vsphere_host:{}'.format(host)]
-
+                        instance_tags.append('vsphere_host:{}'.format(host))
                     elif isinstance(c, vim.HostSystem):
-                        instance_tags = ['vsphere_type:host']
+                        vsphere_type = 'vsphere_type:host'
                     elif isinstance(c, vim.Datastore):
-                        instance_tags = ['vsphere_type:datastore']
+                        vsphere_type = 'vsphere_type:datastore'
+                        hostname = None
                     elif isinstance(c, vim.Datacenter):
-                        instance_tags = ['vsphere_type:datacenter']
+                        vsphere_type = 'vsphere_type:datacenter'
+                        hostname = None
 
-                    obj_list.append(dict(mor_type=vimtype, mor=c, hostname=c.name, tags=tags+instance_tags))
+                    instance_tags.append(vsphere_type)
+                    obj_list.append(dict(mor_type=vimtype, mor=c, hostname=hostname, tags=tags+instance_tags))
 
             return obj_list
 
