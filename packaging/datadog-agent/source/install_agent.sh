@@ -195,7 +195,7 @@ else
         printf "\033[34m\n* Adding your HOSTNAME to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
         $sudo_cmd sh -c "sed -i 's/# hostname:.*/hostname: $dd_hostname/' /etc/dd-agent/datadog.conf"
     fi
-    $sudo_cmd chown dd-agent:root /etc/dd-agent/datadog.conf
+    $sudo_cmd chown dd-agent:dd-agent /etc/dd-agent/datadog.conf
     $sudo_cmd chmod 640 /etc/dd-agent/datadog.conf
 fi
 
