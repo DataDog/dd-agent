@@ -244,66 +244,41 @@ class Network(AgentCheck):
                 self._submit_devicemetrics(iface, metrics)
 
         try:
-            proc_snmp_path = "{}/net/snmp".format(proc_location)
-            proc = open(proc_snmp_path, 'r')
+            output, _, _ = get_subprocess_output(["nstat", "-a", "-z"], self.log)
+            lines = output.splitlines()
 
-            # IP:      Forwarding   DefaultTTL InReceives     InHdrErrors  ...
-            # IP:      2            64         377145470      0            ...
-            # Icmp:    InMsgs       InErrors   InDestUnreachs InTimeExcds  ...
-            # Icmp:    1644495      1238       1643257        0            ...
-            # IcmpMsg: InType3      OutType3
-            # IcmpMsg: 1643257      1643257
-            # Tcp:     RtoAlgorithm RtoMin     RtoMax         MaxConn      ...
-            # Tcp:     1            200        120000         -1           ...
-            # Udp:     InDatagrams  NoPorts    InErrors       OutDatagrams ...
-            # Udp:     24249494     1643257    0              25892947     ...
-            # UdpLite: InDatagrams  Noports    InErrors       OutDatagrams ...
-            # UdpLite: 0            0          0              0            ...
-            try:
-                lines = proc.readlines()
-            finally:
-                proc.close()
+            # #kernel
+            # IpInReceives                    18282552136        0.0
+            # IpInHdrErrors                   0                  0.0
+            # IpInAddrErrors                  70                 0.0
+            # IpForwDatagrams                 0                  0.0
+            # IpInUnknownProtos               0                  0.0
+            # IpInDiscards                    0                  0.0
 
-            tcp_lines = [line for line in lines if line.startswith('Tcp:')]
-            udp_lines = [line for line in lines if line.startswith('Udp:')]
-
-            tcp_column_names = tcp_lines[0].strip().split()
-            tcp_values = tcp_lines[1].strip().split()
-            tcp_metrics = dict(zip(tcp_column_names, tcp_values))
-
-            udp_column_names = udp_lines[0].strip().split()
-            udp_values = udp_lines[1].strip().split()
-            udp_metrics = dict(zip(udp_column_names, udp_values))
-
-            # line start indicating what kind of metrics we're looking at
-            assert(tcp_metrics['Tcp:'] == 'Tcp:')
-
-            tcp_metrics_name = {
-                'RetransSegs': 'system.net.tcp.retrans_segs',
-                'InSegs'     : 'system.net.tcp.in_segs',
-                'OutSegs'    : 'system.net.tcp.out_segs'
+            nstat_metrics_name = {
+                'TcpRetransSegs': 'system.net.tcp.retrans_segs',
+                'TcpExtListenOverflows': 'system.net.tcp.listen_overflows',
+                'TcpExtListenDrops': 'system.net.tcp.listen_drops',
+                'TcpExtTCPBacklogDrop': 'system.net.tcp.backlog_drops',
+                'TcpInSegs': 'system.net.tcp.in_segs',
+                'TcpOutSegs': 'system.net.tcp.out_segs',
+                'UdpInDatagrams': 'system.net.udp.in_datagrams',
+                'UdpInErrors': 'system.net.udp.in_errors',
+                'UdpNoPorts': 'system.net.udp.no_ports',
+                'UdpOutDatagrams': 'system.net.udp.out_datagrams',
+                'UdpRcvbufErrors': 'system.net.udp.rcv_buf_errors',
+                'UdpSndbufErrors': 'system.net.udp.snd_buf_errors'
             }
 
-            for key, metric in tcp_metrics_name.iteritems():
-                self.rate(metric, self._parse_value(tcp_metrics[key]))
+            # Skip the first line, as it's junk
+            for l in lines[1:]:
+                stats = l.split()
+                # We only care about metrics that are in our list
+                if stats[0] in nstat_metrics_name:
+                    self.rate(nstat_metrics_name[stats[0]], self._parse_value(stats[1]))
 
-            assert(udp_metrics['Udp:'] == 'Udp:')
-
-            udp_metrics_name = {
-                'InDatagrams': 'system.net.udp.in_datagrams',
-                'NoPorts': 'system.net.udp.no_ports',
-                'InErrors': 'system.net.udp.in_errors',
-                'OutDatagrams': 'system.net.udp.out_datagrams',
-                'RcvbufErrors': 'system.net.udp.rcv_buf_errors',
-                'SndbufErrors': 'system.net.udp.snd_buf_errors'
-            }
-            for key, metric in udp_metrics_name.iteritems():
-                if key in udp_metrics:
-                    self.rate(metric, self._parse_value(udp_metrics[key]))
-
-        except IOError:
-            # On Openshift, /proc/net/snmp is only readable by root
-            self.log.debug("Unable to read %s.", proc_snmp_path)
+        except:
+            self.log.error("Unable to collect network stats, verify nstat works?")
 
     # Parse the output of the command that retrieves the connection state (either `ss` or `netstat`)
     # Returns a dict metric_name -> value
