@@ -3,7 +3,14 @@
 # to `agent_metrics.yaml` and make your changes on that file.
 
 init_config:
+    # log the number of total number of metrics and events seen by agent_metrics
+    # NOTE: This will NOT count old style checks (most of system metrics)
+    #       Nor dogstatsd metrics
+    #       Nor does it differentiate between integration metrics and custom metrics
+    #       Thus, it is not entirely useful to monitor Datadog billing
+    #       Although, it is still useful for monitoring agent activity in-the-wild
     log_num_metrics: no
+
     process_metrics:
         - name: memory_info
           type: gauge
