@@ -887,6 +887,7 @@ def _service_disco_configs(agentConfig):
             service_disco_configs = sd_backend.get_configs()
         except Exception:
             log.exception("Loading service discovery configurations failed.")
+            return {}
     else:
         service_disco_configs = {}
 
