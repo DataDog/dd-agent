@@ -123,6 +123,9 @@ gce_updated_hostname: yes
 # and modify its value.
 # sd_template_dir: /datadog/check_configs
 #
+# Enable JMX checks for service disocvery
+# sd_jmx_enable: no
+#
 # ========================================================================== #
 # Other                                                                      #
 # ========================================================================== #

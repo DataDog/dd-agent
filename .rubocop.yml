@@ -23,3 +23,6 @@ Style/Documentation:
 # Configuration parameters: Methods.
 Style/SingleLineBlockParams:
   Enabled: false
+
+BlockLength:
+  Max: 110
