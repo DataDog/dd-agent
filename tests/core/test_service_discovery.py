@@ -7,6 +7,7 @@ import unittest
 from nose.plugins.attrib import attr
 
 # project
+from config import generate_jmx_configs  # noqa
 from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.consul_config_store import ConsulStore
 from utils.service_discovery.etcd_config_store import EtcdStore
@@ -70,7 +71,6 @@ def client_read(path, **kwargs):
 
 def issue_read(identifier):
     return TestServiceDiscovery.mock_tpls.get(identifier)
-
 
 @attr('unix')
 class TestServiceDiscovery(unittest.TestCase):
@@ -147,6 +147,14 @@ class TestServiceDiscovery(unittest.TestCase):
         'bad_image_0': ('invalid template'),
         'bad_image_1': [('invalid template')],
         'bad_image_2': None
+    }
+
+    jmx_sd_configs = {
+        'tomcat': ({}, [{"host": "localhost", "port": "9012"}]),
+        'solr': ({}, [
+            {"host": "localhost", "port": "9999", "username": "foo", "password": "bar"},
+            {"host": "remotehost", "port": "5555", "username": "haz", "password": "bar"},
+        ]),
     }
 
     def setUp(self):
@@ -577,3 +585,18 @@ class TestServiceDiscovery(unittest.TestCase):
             self.assertEquals(tpl, ('template',) + self.mock_tpls.get(expected_key))
         for ident in invalid_idents:
             self.assertEquals(config_store.read_config_from_store(ident), [])
+
+    @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
+    @mock.patch.object(SDDockerBackend, 'get_configs', return_value=jmx_sd_configs)
+    def test_read_jmx_config_from_store(self, *args):
+        """Test JMX configs are read and converted to YAML"""
+        jmx_configs = generate_jmx_configs(self.auto_conf_agentConfig, "jmxhost")
+        valid_configs = {
+            'solr_0': "init_config: {}\ninstances:\n- host: localhost\n  password: bar\n  "
+            "port: '9999'\n  username: foo\n- host: remotehost\n  password: bar\n  "
+            "port: '5555'\n  username: haz\n",
+            'tomcat_0': "init_config: {}\ninstances:\n- host: localhost\n  port: '9012'\n"
+        }
+        for check in self.jmx_sd_configs:
+            key = '{}_0'.format(check)
+            self.assertEquals(jmx_configs[key], valid_configs[key])
