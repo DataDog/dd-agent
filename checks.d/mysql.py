@@ -20,7 +20,6 @@ except ImportError:
 # project
 from config import _is_affirmative
 from checks import AgentCheck
-from util import Platform
 
 GAUGE = "gauge"
 RATE = "rate"
@@ -289,11 +288,6 @@ class MySql(AgentCheck):
         return {"pymysql": pymysql.__version__}
 
     def check(self, instance):
-
-        if Platform.is_linux() and PSUTIL_AVAILABLE:
-            procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
-            psutil.PROCFS_PATH = procfs_path
-
         host, port, user, password, mysql_sock, defaults_file, tags, options, queries, ssl, connect_timeout = \
             self._get_config(instance)
 
@@ -325,7 +319,7 @@ class MySql(AgentCheck):
         self.mysql_sock = instance.get('sock', '')
         self.defaults_file = instance.get('defaults_file', '')
         user = instance.get('user', '')
-        password = instance.get('pass', '')
+        password = str(instance.get('pass', ''))
         tags = instance.get('tags', [])
         options = instance.get('options', {})
         queries = instance.get('queries', [])
@@ -898,13 +892,20 @@ class MySql(AgentCheck):
         try:
             with closing(db.cursor()) as cursor:
                 cursor.execute("SHOW /*!50000 ENGINE*/ INNODB STATUS")
-                innodb_status = cursor.fetchone()
-                innodb_status_text = innodb_status[2]
         except (pymysql.err.InternalError, pymysql.err.OperationalError, pymysql.err.NotSupportedError) as e:
             self.warning("Privilege error or engine unavailable accessing the INNODB status \
                          tables (must grant PROCESS): %s" % str(e))
             return {}
 
+        if cursor.rowcount < 1:
+            # No data from SHOW ENGINE STATUS, even though the engine is enabled.
+            # EG: This could be an Aurora Read Instance
+            self.warning("""'SHOW ENGINE INNODB STATUS' returned no data.
+                If you are running an Aurora Read Instace, this is expected and you should disable the innodb metrics collection""")
+            return {}
+
+        innodb_status = cursor.fetchone()
+        innodb_status_text = innodb_status[2]
         results = defaultdict(int)
 
         # Here we now parse InnoDB STATUS one line at a time

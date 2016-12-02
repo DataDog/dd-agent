@@ -42,17 +42,48 @@ def travis_pr?
   !ENV['TRAVIS'].nil? && ENV['TRAVIS_EVENT_TYPE'] == 'pull_request'
 end
 
+# Dict converting check.d name to Travis flavor names
+BAD_CITIZENS = {
+  'couch' => 'couchdb',
+  'disk' => 'system',
+  'dns_check' => 'system',
+  'network' => 'system',
+  'tcp_check' => 'system',
+  'http_check' => 'system',
+  'sysstat' => 'system',
+  'elastic' => 'elasticsearch',
+  'gearmand' => 'gearman',
+  'mcache' => 'memcache',
+  'php_fpm' => 'phpfpm',
+  'redisdb' => 'redis',
+  'ssh_check' => 'ssh',
+  'zk' => 'zookeeper'
+}.freeze
+
+def translate_to_travis(checks)
+  checks.map do |check_name|
+    check_name = BAD_CITIZENS[check_name] if BAD_CITIZENS.key? check_name
+    check_name
+  end
+end
+
+# rubocop:disable Metrics/AbcSize
+# rubocop:disable Metrics/MethodLength
 def can_skip?
   return false, [] unless travis_pr?
 
   modified_checks = []
-  git_output = `git diff-tree --no-commit-id --name-only -r #{ENV['TRAVIS_COMMIT']} #{ENV['TRAVIS_BRANCH']}`
+  puts "Comparing #{ENV['TRAVIS_PULL_REQUEST_SHA']} with #{ENV['TRAVIS_BRANCH']}"
+  git_output = `git diff --name-only #{ENV['TRAVIS_BRANCH']}...#{ENV['TRAVIS_PULL_REQUEST_SHA']}`
+  puts "Git diff: \n#{git_output}"
   git_output.each_line do |filename|
     filename.strip!
+    puts filename
     if filename.start_with? 'checks.d'
       check_name = File.basename(filename, '.py')
     elsif filename.start_with?('tests/checks/integration', 'tests/checks/mock')
-      check_name = File.basename(filename, '.py').slice 'test_'
+      # 5 is test_
+      check_name = File.basename(filename, '.py').slice(5, 100)
     elsif filename.start_with?('tests/checks/fixtures', 'conf.d')
       next
     else
@@ -60,8 +91,10 @@ def can_skip?
     end
     modified_checks << check_name unless modified_checks.include? check_name
   end
-  [true, modified_checks]
+  [true, translate_to_travis(modified_checks)]
 end
+# rubocop:enable Metrics/AbcSize
+# rubocop:enable Metrics/MethodLength
 
 # helper class to wait for TCP/HTTP services to boot
 class Wait
@@ -210,12 +243,16 @@ namespace :ci do
       flavor = attr[:flavor]
       # flavor.scope.path is ci:cassandra
       # flavor.scope.path[3..-1] is cassandra
-      check_name = flavor.scope.path[3..-1]
+      travis_flavor = flavor.scope.path[3..-1]
 
       can_skip, checks = can_skip?
-      can_skip &&= !%w(default core_integration checks_mock).include?(check_name)
-      if can_skip && !checks.include?(check_name)
-        puts "Skipping #{check_name} tests, not affected by the change".yellow
+      can_skip &&= !%w(default core_integration checks_mock).include?(travis_flavor)
+
+      puts "Travis flavor: #{travis_flavor}"
+      puts "Detected modified checks: #{checks.join(' | ')}"
+
+      if can_skip && !checks.include?(travis_flavor)
+        puts "Skipping #{travis_flavor} tests, not affected by the change".yellow
         next
       end
       exception = nil

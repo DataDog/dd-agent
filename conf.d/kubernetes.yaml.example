@@ -1,7 +1,4 @@
 init_config:
-  #    tags:
-  #      - optional_tag1
-  #      - optional_tag2
 
 instances:
   # The kubernetes check retrieves metrics from cadvisor running under kubelet.
@@ -18,9 +15,23 @@ instances:
   # collect_events controls whether the agent should fetch events from the kubernetes API and
   # ingest them in Datadog. To avoid duplicates, only one agent at a time across the entire
   # cluster should have this feature enabled. To enable the feature, set the parameter to `true`.
+  #
   # collect_events: false
+  #
+  #
+  # The namespaces for which events should be collected.
+  # If not modified, the 'default' namespace will be used.
+  #
+  # namespaces:
+  #  - default
 
-  # use_histogram controls whether we send detailed metrics, i.e. one per container. 
+  # The regexp used to select namespaces for which events should be collected.
+  # The matched namespaces will be added to the "namespaces" list.
+  # If empty, regexp selection will be ignored.
+  #
+  # namespace_name_regexp:
+
+  # use_histogram controls whether we send detailed metrics, i.e. one per container.
   # When false, we send detailed metrics corresponding to individual containers, tagging by container id
   # to keep them unique.
   # When true, we aggregate data based on container image.
@@ -36,3 +47,9 @@ instances:
   #
   # enabled_gauges:
   #   - filesystem.*
+  #
+  #
+  # Custom tags that should be applied to kubernetes metrics
+  # tags:
+  #   - optional_tag1
+  #   - optional_tag2

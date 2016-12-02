@@ -4,42 +4,42 @@
 
 require './ci/common'
 
-def snmpd_rootdir
-  "#{ENV['INTEGRATIONS_DIR']}/snmpd"
+def snmp_rootdir
+  "#{ENV['INTEGRATIONS_DIR']}/snmp"
 end
 
 namespace :ci do
-  namespace :snmpd do |flavor|
+  namespace :snmp do |flavor|
     task before_install: ['ci:common:before_install']
 
     task install: ['ci:common:install'] do
       # Downloads
       # http://sourceforge.net/projects/net-snmp/files/net-snmp/5.7.3/net-snmp-5.7.3.tar.gz/download
-      unless Dir.exist? File.expand_path(snmpd_rootdir)
+      unless Dir.exist? File.expand_path(snmp_rootdir)
         sh %(curl -s -L\
-             -o $VOLATILE_DIR/snmpd.tar.gz\
+             -o $VOLATILE_DIR/snmp.tar.gz\
              https://s3.amazonaws.com/dd-agent-tarball-mirror/net-snmp-5.7.3.tar.gz)
-        sh %(mkdir -p $VOLATILE_DIR/snmpd)
-        sh %(mkdir -p #{snmpd_rootdir})
-        sh %(tar zxf $VOLATILE_DIR/snmpd.tar.gz\
-             -C $VOLATILE_DIR/snmpd --strip-components=1)
-        sh %(cd $VOLATILE_DIR/snmpd\
-             && yes '' | ./configure --disable-embedded-perl --without-perl-modules --prefix=#{snmpd_rootdir}\
+        sh %(mkdir -p $VOLATILE_DIR/snmp)
+        sh %(mkdir -p #{snmp_rootdir})
+        sh %(tar zxf $VOLATILE_DIR/snmp.tar.gz\
+             -C $VOLATILE_DIR/snmp --strip-components=1)
+        sh %(cd $VOLATILE_DIR/snmp\
+             && yes '' | ./configure --disable-embedded-perl --without-perl-modules --prefix=#{snmp_rootdir}\
              && make -j $CONCURRENCY\
              && make install)
       end
     end
 
     task before_script: ['ci:common:before_script'] do
-      sh %(#{snmpd_rootdir}/sbin/snmpd -Ln\
-          -c $TRAVIS_BUILD_DIR/ci/resources/snmpd/snmpd.conf\
+      sh %(#{snmp_rootdir}/sbin/snmpd -Ln\
+          -c $TRAVIS_BUILD_DIR/ci/resources/snmp/snmpd.conf\
           -x TCP:11111 UDP:11111\
           -p $VOLATILE_DIR/snmpd.pid)
     end
 
     task script: ['ci:common:script'] do
       this_provides = [
-        'snmpd'
+        'snmp'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end

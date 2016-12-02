@@ -47,6 +47,9 @@ class Apache(AgentCheck):
 
         url = self.assumed_url.get(instance['apache_status_url'], instance['apache_status_url'])
 
+        connect_timeout = int(instance.get('connect_timeout', 5))
+        receive_timeout = int(instance.get('receive_timeout', 15))
+
         tags = instance.get('tags', [])
 
         disable_ssl_validation = _is_affirmative(instance.get('disable_ssl_validation', False))
@@ -62,17 +65,21 @@ class Apache(AgentCheck):
         service_check_name = 'apache.can_connect'
         service_check_tags = ['host:%s' % apache_host, 'port:%s' % apache_port]
         try:
-            r = requests.get(url, auth=auth, headers=headers(self.agentConfig), verify=not disable_ssl_validation)
+            self.log.debug('apache check initiating request, connect timeout %d receive %d' %
+                           (connect_timeout, receive_timeout))
+            r = requests.get(url, auth=auth, headers=headers(self.agentConfig),
+                             verify=not disable_ssl_validation, timeout=(connect_timeout, receive_timeout))
             r.raise_for_status()
 
-        except Exception:
+        except Exception as e:
+            self.log.warning("Caught exception %s" % str(e))
             self.service_check(service_check_name, AgentCheck.CRITICAL,
                                tags=service_check_tags)
             raise
         else:
             self.service_check(service_check_name, AgentCheck.OK,
                                tags=service_check_tags)
-
+        self.log.debug("apache check succeeded")
         response = r.content
         metric_count = 0
         # Loop through and extract the numerical values

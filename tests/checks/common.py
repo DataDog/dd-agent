@@ -14,6 +14,7 @@ import sys
 import time
 import traceback
 import unittest
+import json
 
 # project
 from checks import AgentCheck
@@ -96,7 +97,7 @@ def load_check(name, config, agentConfig):
 
     # init the check class
     try:
-        return check_class(name, init_config=init_config, agentConfig=agentConfig, instances=instances)
+        return check_class(name, init_config, agentConfig, instances=instances)
     except TypeError as e:
         raise Exception("Check is using old API, {0}".format(e))
     except Exception:
@@ -132,6 +133,9 @@ class Fixtures(object):
                 contents = contents.decode('string-escape')
             return contents.decode("utf-8")
 
+    @staticmethod
+    def read_json_file(file_name, string_escape=True):
+        return json.loads(Fixtures.read_file(file_name, string_escape=string_escape))
 
 class AgentCheckTest(unittest.TestCase):
     DEFAULT_AGENT_CONFIG = {

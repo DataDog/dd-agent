@@ -73,10 +73,13 @@ namespace :ci do
 
     task before_cache: ['ci:common:before_cache'] do
       # Useless to cache the conf, as it is regenerated every time
-      sh %(rm -f #{apache_rootdir}/conf/httpd.conf)
+      sh %(mkdir -p $VOLATILE_DIR/apache)
+      sh %(mv #{apache_rootdir}/conf/httpd.conf $VOLATILE_DIR/apache/httpd.conf)
     end
 
     task cleanup: ['ci:common:cleanup'] do
+      # We need to move the conf back to apache's dir before stopping
+      sh %(mv $VOLATILE_DIR/apache/httpd.conf #{apache_rootdir}/conf/httpd.conf)
       sh %(#{apache_rootdir}/bin/apachectl stop)
     end
 

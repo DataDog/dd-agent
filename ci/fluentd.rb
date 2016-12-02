@@ -14,9 +14,8 @@ namespace :ci do
     end
 
     task before_script: ['ci:common:before_script'] do
-      pid = spawn %(fluentd -c $TRAVIS_BUILD_DIR/ci/resources/fluentd/td-agent.conf)
-      Process.detach(pid)
-      sh %(echo #{pid} > $VOLATILE_DIR/fluentd.pid)
+      sh %(fluentd -c $TRAVIS_BUILD_DIR/ci/resources/fluentd/td-agent.conf\
+           -d $VOLATILE_DIR/fluentd.pid)
       # Waiting for fluentd to start
       Wait.for 24_220
     end

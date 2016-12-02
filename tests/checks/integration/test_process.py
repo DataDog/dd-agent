@@ -31,6 +31,9 @@ except Exception:
 
 
 class MockProcess(object):
+    def __init__(self):
+        self.pid = None
+
     def is_running(self):
         return True
 
@@ -122,6 +125,20 @@ class ProcessCheckTest(AgentCheckTest):
                     'critical': [2, 4],
                     'warning': [1, 5]
                 }
+            },
+            'mocked_processes': set([1])
+        },
+        {
+            'config': {
+                'name': 'test_8',
+                'pid': 1,
+            },
+            'mocked_processes': set([1])
+        },
+        {
+            'config': {
+                'name': 'test_9',
+                'pid_file': 'tests/checks/fixtures/process/test_pid_file',
             },
             'mocked_processes': set([1])
         }
@@ -234,7 +251,8 @@ class ProcessCheckTest(AgentCheckTest):
 
     def mock_find_pids(self, name, search_string, exact_match=True, ignore_ad=True,
                        refresh_ad_cache=True):
-        idx = search_string[0].split('_')[1]
+        if search_string is not None:
+            idx = search_string[0].split('_')[1]
         return self.CONFIG_STUBS[int(idx)]['mocked_processes']
 
     def mock_psutil_wrapper(self, process, method, accessors, *args, **kwargs):
@@ -319,7 +337,6 @@ class ProcessCheckTest(AgentCheckTest):
             else:
                 self.assertServiceCheckOK('process.up', count=1, tags=expected_tags)
 
-
         # Raises when coverage < 100%
         self.coverage_report()
 
@@ -389,7 +406,7 @@ class ProcessCheckTest(AgentCheckTest):
         _fake_procfs({
             '1': {
                 'status': (
-                    "Name:\t%s\n"
+                    "Name:\t%s\nThreads:\t1\n"
                 ) % unique_process_name,
                 'stat': ('1 (%s) S 0 1 1 ' + ' 0' * 46) % unique_process_name,
                 'cmdline': unique_process_name,
@@ -428,30 +445,12 @@ class ProcessCheckTest(AgentCheckTest):
                     return m
                 return orig_import(name, i_globals, i_locals, fromlist, level)
 
-            orig_open = open
-
-            def open_mock(name, *args):
-                from mock import MagicMock
-
-                # Work around issue addressed here: https://github.com/giampaolo/psutil/pull/715
-                # TODO: Remove open_mock if the patch lands
-                # We can't use patch here because 1) we're reloading psutil, and 2) the problem is happening during the import.
-                # NB: The values generated here are mostly ignored, and will correctly be overwritten once we set PROCFS_PATH
-                if name == '/proc/stat':
-                    handle = MagicMock(spec=file)
-                    handle.write.return_value = None
-                    handle.__enter__.return_value = handle
-                    handle.readline.return_value = 'cpu  13002 0 18504 377363817 1986 2 2960 0 0 0'
-                    return handle
-                return orig_open(name, *args)
-
             # contextlib.nested is deprecated in favor of with MGR1, MGR2, ... etc, but we have too many mocks to fit on one line and apparently \ line
             # continuation is not flake8 compliant, even when semantically required (as here). Patch is unlikely to throw errors that are suppressed, so
             # the main downside of contextlib is avoided.
             with contextlib.nested(patch('sys.platform', 'linux'),
                                    patch('socket.AF_PACKET', create=True),
-                                   patch('__builtin__.__import__', side_effect=import_mock),
-                                   patch('__builtin__.open', side_effect=open_mock)):
+                                   patch('__builtin__.__import__', side_effect=import_mock)):
                 if not already_linux:
                     # Reloading psutil fails on linux, but we only need to do so if we didn't start out on a linux platform
                     reload(psutil)
@@ -470,6 +469,7 @@ class ProcessCheckTest(AgentCheckTest):
         self.assertServiceCheckOK('process.up', count=1, tags=['process:moved_procfs'])
 
         self.assertMetric('system.processes.number', at_least=1, tags=expected_tags)
+        self.assertMetric('system.processes.threads', at_least=1, tags=expected_tags)
         self.assertMetric('system.processes.run_time.avg', at_least=1, tags=expected_tags)
         self.assertMetric('system.processes.run_time.max', at_least=1, tags=expected_tags)
         self.assertMetric('system.processes.run_time.min', at_least=1, tags=expected_tags)

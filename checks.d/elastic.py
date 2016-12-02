@@ -343,7 +343,7 @@ class ESCheck(AgentCheck):
     def get_instance_config(self, instance):
         url = instance.get('url')
         if url is None:
-            raise Exception("An url must be specified in the instance")
+            raise Exception("A URL must be specified in the instance")
 
         pshard_stats = _is_affirmative(instance.get('pshard_stats', False))
 
@@ -397,7 +397,7 @@ class ESCheck(AgentCheck):
         # (URLs and metrics) accordingly
         version = self._get_es_version(config)
 
-        health_url, nodes_url, stats_url, pshard_stats_url, pending_tasks_url, stats_metrics, \
+        health_url, stats_url, pshard_stats_url, pending_tasks_url, stats_metrics, \
             pshard_stats_metrics = self._define_params(version, config.cluster_stats)
 
         # Load stats data.
@@ -410,7 +410,7 @@ class ESCheck(AgentCheck):
             # retreive the cluster name from the data, and append it to the
             # master tag list.
             config.tags.append("cluster_name:{}".format(stats_data['cluster_name']))
-        self._process_stats_data(nodes_url, stats_data, stats_metrics, config)
+        self._process_stats_data(stats_data, stats_metrics, config)
 
         # Load clusterwise data
         if config.pshard_stats:
@@ -442,7 +442,10 @@ class ESCheck(AgentCheck):
         """
         try:
             data = self._get_data(config.url, config, send_sc=False)
-            version = map(int, data['version']['number'].split('.')[0:3])
+            # pre-release versions of elasticearch are suffixed with -rcX etc..
+            # peel that off so that the map below doesn't error out
+            version = data['version']['number'].split('-')[0]
+            version = map(int, version.split('.')[0:3])
         except Exception as e:
             self.warning(
                 "Error while trying to get Elasticsearch version "
@@ -450,6 +453,7 @@ class ESCheck(AgentCheck):
                 % (config.url, str(e))
             )
             version = [1, 0, 0]
+
 
         self.service_metadata('version', version)
         self.log.debug("Elasticsearch version is %s" % version)
@@ -465,19 +469,21 @@ class ESCheck(AgentCheck):
         if version >= [0, 90, 10]:
             # ES versions 0.90.10 and above
             health_url = "/_cluster/health?pretty=true"
-            nodes_url = "/_nodes?network=true"
             pending_tasks_url = "/_cluster/pending_tasks?pretty=true"
 
             # For "external" clusters, we want to collect from all nodes.
             if cluster_stats:
-                stats_url = "/_nodes/stats?all=true"
+                stats_url = "/_nodes/stats"
             else:
-                stats_url = "/_nodes/_local/stats?all=true"
+                stats_url = "/_nodes/_local/stats"
+
+            if version < [5, 0, 0]:
+                # version 5 errors out if the `all` parameter is set
+                stats_url += "?all=true"
 
             additional_metrics = self.JVM_METRICS_POST_0_90_10
         else:
             health_url = "/_cluster/health?pretty=true"
-            nodes_url = "/_cluster/nodes?network=true"
             pending_tasks_url = None
             if cluster_stats:
                 stats_url = "/_cluster/nodes/stats?all=true"
@@ -537,7 +543,7 @@ class ESCheck(AgentCheck):
 
         pshard_stats_metrics.update(additional_metrics)
 
-        return health_url, nodes_url, stats_url, pshard_stats_url, pending_tasks_url, \
+        return health_url, stats_url, pshard_stats_url, pending_tasks_url, \
             stats_metrics, pshard_stats_metrics
 
     def _get_data(self, url, config, send_sc=True):
@@ -601,7 +607,7 @@ class ESCheck(AgentCheck):
             desc = self.CLUSTER_PENDING_TASKS[metric]
             self._process_metric(node_data, metric, *desc, tags=config.tags)
 
-    def _process_stats_data(self, nodes_url, data, stats_metrics, config):
+    def _process_stats_data(self, data, stats_metrics, config):
         cluster_stats = config.cluster_stats
         for node_data in data['nodes'].itervalues():
             metric_hostname = None

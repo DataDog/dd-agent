@@ -7,4 +7,6 @@ instances:
     # port: 22                    # optional, leaving blank defaults to port 22
     # sftp_check: True            # optional, leaving blank defaults to True
     # private_key_file:           # optional, file path to private key
+    # private_key_type:           # optional, private key type rsa or ecdsa (defaults to rsa)
+                                  # warning: only ecdsa keys <= 256bits are supported
     # add_missing_keys: True      # optional, leaving blank defaults to False

@@ -20,7 +20,8 @@ import simplejson as json
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-from utils.kubeutil import KubeUtil
+from utils.kubernetes import KubeUtil
+
 
 NAMESPACE = "kubernetes"
 DEFAULT_MAX_DEPTH = 10
@@ -32,6 +33,7 @@ DEFAULT_ENABLED_RATES = [
     'network.??_bytes',
     'cpu.*.total']
 DEFAULT_COLLECT_EVENTS = False
+DEFAULT_NAMESPACES = ['default']
 
 NET_ERRORS = ['rx_errors', 'tx_errors', 'rx_dropped', 'tx_dropped']
 
@@ -50,6 +52,28 @@ FUNC_MAP = {
 
 EVENT_TYPE = 'kubernetes'
 
+# Suffixes per
+# https://github.com/kubernetes/kubernetes/blob/8fd414537b5143ab039cb910590237cabf4af783/pkg/api/resource/suffix.go#L108
+FACTORS = {
+    'n': float(1)/(1000*1000*1000),
+    'u': float(1)/(1000*1000),
+    'm': float(1)/1000,
+    'k': 1000,
+    'M': 1000*1000,
+    'G': 1000*1000*1000,
+    'T': 1000*1000*1000*1000,
+    'P': 1000*1000*1000*1000*1000,
+    'E': 1000*1000*1000*1000*1000*1000,
+    'Ki': 1024,
+    'Mi': 1024*1024,
+    'Gi': 1024*1024*1024,
+    'Ti': 1024*1024*1024*1024,
+    'Pi': 1024*1024*1024*1024*1024,
+    'Ei': 1024*1024*1024*1024*1024*1024,
+}
+
+QUANTITY_EXP = re.compile(r'[-+]?\d+[\.]?\d*[numkMGTPE]?i?')
+
 
 class Kubernetes(AgentCheck):
     """ Collect metrics and events from kubelet """
@@ -67,11 +91,20 @@ class Kubernetes(AgentCheck):
         if not self.kubeutil.host:
             raise Exception('Unable to retrieve Docker hostname and host parameter is not set')
 
+        self.k8s_namespace_regexp = None
+        if inst:
+            regexp = inst.get('namespace_name_regexp', None)
+            if regexp:
+                try:
+                    self.k8s_namespace_regexp = re.compile(regexp)
+                except re.error as e:
+                    self.log.warning('Invalid regexp for "namespace_name_regexp" in configuration (ignoring regexp): %s' % str(e))
+
     def _perform_kubelet_checks(self, url):
         service_check_base = NAMESPACE + '.kubelet.check'
         is_ok = True
         try:
-            r = requests.get(url)
+            r = requests.get(url, params={'verbose': True})
             for line in r.iter_lines():
 
                 # avoid noise; this check is expected to fail since we override the container hostname
@@ -102,7 +135,6 @@ class Kubernetes(AgentCheck):
                 self.service_check(service_check_base, AgentCheck.CRITICAL)
 
     def check(self, instance):
-
         self.max_depth = instance.get('max_depth', DEFAULT_MAX_DEPTH)
         enabled_gauges = instance.get('enabled_gauges', DEFAULT_ENABLED_GAUGES)
         self.enabled_gauges = ["{0}.{1}".format(NAMESPACE, x) for x in enabled_gauges]
@@ -113,6 +145,8 @@ class Kubernetes(AgentCheck):
         self.use_histogram = _is_affirmative(instance.get('use_histogram', DEFAULT_USE_HISTOGRAM))
         self.publish_rate = FUNC_MAP[RATE][self.use_histogram]
         self.publish_gauge = FUNC_MAP[GAUGE][self.use_histogram]
+        # initialized by _filter_containers
+        self._filtered_containers = set()
 
         pods_list = self.kubeutil.retrieve_pods_list()
 
@@ -201,6 +235,7 @@ class Kubernetes(AgentCheck):
         return tags
 
     def _update_container_metrics(self, instance, subcontainer, kube_labels):
+        """Publish metrics for a subcontainer and handle filtering on tags"""
         tags = list(instance.get('tags', []))  # add support for custom tags
 
         if len(subcontainer.get('aliases', [])) >= 1:
@@ -211,6 +246,10 @@ class Kubernetes(AgentCheck):
             container_name = subcontainer['name']
 
         tags.append('container_name:%s' % container_name)
+
+        container_image = subcontainer['spec'].get('image')
+        if container_image:
+            tags.append('container_image:%s' % container_image)
 
         try:
             cont_labels = subcontainer['spec']['labels']
@@ -232,6 +271,12 @@ class Kubernetes(AgentCheck):
             # They are top aggregate views and don't have the previous metadata.
             tags.append("pod_name:no_pod")
 
+        # if the container should be filtered we return its tags without publishing its metrics
+        is_filtered = self.kubeutil.are_tags_filtered(tags)
+        if is_filtered:
+            self._filtered_containers.add(subcontainer['id'])
+            return tags
+
         stats = subcontainer['stats'][-1]  # take the latest
         self._publish_raw_metrics(NAMESPACE, stats, tags)
 
@@ -249,6 +294,16 @@ class Kubernetes(AgentCheck):
         return tags
 
     def _update_metrics(self, instance, pods_list):
+        def parse_quantity(s):
+            number = ''
+            unit = ''
+            for c in s:
+                if c.isdigit() or c == '.':
+                    number += c
+                else:
+                    unit += c
+            return float(number) * FACTORS.get(unit, 1)
+
         metrics = self.kubeutil.retrieve_metrics()
 
         excluded_labels = instance.get('excluded_labels')
@@ -287,14 +342,18 @@ class Kubernetes(AgentCheck):
 
             for container in containers:
                 c_name = container.get('name')
-                _tags = container_tags.get(name2id.get(c_name), [])
+                c_id = name2id.get(c_name)
 
-                prog = re.compile(r'[-+]?\d+[\.]?\d*')
+                if c_id in self._filtered_containers:
+                    self.log.debug('Container {} is excluded'.format(c_name))
+                    continue
+
+                _tags = container_tags.get(c_id, [])
 
                 # limits
                 try:
                     for limit, value_str in container['resources']['limits'].iteritems():
-                        values = [float(s) for s in prog.findall(value_str)]
+                        values = [parse_quantity(s) for s in QUANTITY_EXP.findall(value_str)]
                         if len(values) != 1:
                             self.log.warning("Error parsing limits value string: %s", value_str)
                             continue
@@ -306,7 +365,7 @@ class Kubernetes(AgentCheck):
                 # requests
                 try:
                     for request, value_str in container['resources']['requests'].iteritems():
-                        values = [float(s) for s in prog.findall(value_str)]
+                        values = [parse_quantity(s) for s in QUANTITY_EXP.findall(value_str)]
                         if len(values) != 1:
                             self.log.warning("Error parsing requests value string: %s", value_str)
                             continue
@@ -316,6 +375,18 @@ class Kubernetes(AgentCheck):
                     self.log.debug("Container object for {}: {}".format(c_name, container))
 
         self._update_pods_metrics(instance, pods_list)
+        self._update_node(instance)
+
+    def _update_node(self, instance):
+        machine_info = self.kubeutil.retrieve_machine_info()
+        num_cores = machine_info.get('num_cores', 0)
+        memory_capacity = machine_info.get('memory_capacity', 0)
+
+        tags = instance.get('tags', [])
+        self.publish_gauge(self, NAMESPACE + '.cpu.capacity', float(num_cores), tags)
+        self.publish_gauge(self, NAMESPACE + '.memory.capacity', float(memory_capacity), tags)
+        # TODO(markine): Report 'allocatable' which is capacity minus capacity
+        # reserved for system/Kubernetes.
 
     def _update_pods_metrics(self, instance, pods):
         supported_kinds = [
@@ -326,21 +397,24 @@ class Kubernetes(AgentCheck):
             "ReplicaSet",
         ]
 
+        # (create-by, namespace): count
         controllers_map = defaultdict(int)
         for pod in pods['items']:
             try:
                 created_by = json.loads(pod['metadata']['annotations']['kubernetes.io/created-by'])
                 kind = created_by['reference']['kind']
                 if kind in supported_kinds:
-                    controllers_map[created_by['reference']['name']] += 1
+                    namespace = created_by['reference']['namespace']
+                    controllers_map[(created_by['reference']['name'], namespace)] += 1
             except (KeyError, ValueError) as e:
                 self.log.debug("Unable to retrieve pod kind for pod %s: %s", pod, e)
                 continue
 
         tags = instance.get('tags', [])
-        for ctrl, pod_count in controllers_map.iteritems():
+        for (ctrl, namespace), pod_count in controllers_map.iteritems():
             _tags = tags[:]  # copy base tags
             _tags.append('kube_replication_controller:{0}'.format(ctrl))
+            _tags.append('kube_namespace:{0}'.format(namespace))
             self.publish_gauge(self, NAMESPACE + '.pods.running', pod_count, _tags)
 
     def _process_events(self, instance, pods_list):
@@ -359,16 +433,38 @@ class Kubernetes(AgentCheck):
         node_ip, node_name = self.kubeutil.get_node_info()
         self.log.debug('Processing events on {} [{}]'.format(node_name, node_ip))
 
-        k8s_namespace = instance.get('namespace', 'default')
-        events_endpoint = '{}/namespaces/{}/events'.format(self.kubeutil.kubernetes_api_url, k8s_namespace)
+        k8s_namespaces = instance.get('namespaces', DEFAULT_NAMESPACES)
+        if not isinstance(k8s_namespaces, list):
+            self.log.warning('Configuration key "namespaces" is not a list: fallback to the default value')
+            k8s_namespaces = DEFAULT_NAMESPACES
+
+        # handle old config value
+        if 'namespace' in instance and instance.get('namespace') not in (None, 'default'):
+            self.log.warning('''The 'namespace' parameter is deprecated and will stop being supported starting '''
+                             '''from 5.12. Please use 'namespaces' and/or 'namespace_name_regexp' instead.''')
+            k8s_namespaces.append(instance.get('namespace'))
+
+        if self.k8s_namespace_regexp:
+            namespaces_endpoint = '{}/namespaces'.format(self.kubeutil.kubernetes_api_url)
+            self.log.debug('Kubernetes API endpoint to query namespaces: %s' % namespaces_endpoint)
+
+            namespaces = self.kubeutil.retrieve_json_auth(namespaces_endpoint, self.kubeutil.get_auth_token())
+            for namespace in namespaces.get('items', []):
+                name = namespace.get('metadata', {}).get('name', None)
+                if name and self.k8s_namespace_regexp.match(name):
+                    k8s_namespaces.append(name)
+
+        k8s_namespaces = set(k8s_namespaces)
+
+        events_endpoint = '{}/events'.format(self.kubeutil.kubernetes_api_url)
         self.log.debug('Kubernetes API endpoint to query events: %s' % events_endpoint)
 
         events = self.kubeutil.retrieve_json_auth(events_endpoint, self.kubeutil.get_auth_token())
         event_items = events.get('items') or []
-        last_read = self.kubeutil.last_event_collection_ts[k8s_namespace]
+        last_read = self.kubeutil.last_event_collection_ts
         most_recent_read = 0
 
-        self.log.debug('Found {} events, filtering out using timestamp: {}'.format(len(event_items), last_read))
+        self.log.debug('Found {} events, filtering out using timestamp: {} and namespaces: {}'.format(len(event_items), last_read, k8s_namespaces))
 
         for event in event_items:
             # skip if the event is too old
@@ -377,6 +473,12 @@ class Kubernetes(AgentCheck):
                 continue
 
             involved_obj = event.get('involvedObject', {})
+
+            # filter events by white listed namespaces (empty namespace belong to the 'default' one)
+            if involved_obj.get('namespace', 'default') not in k8s_namespaces:
+                continue
+
+            tags = self.kubeutil.extract_event_tags(event)
 
             # compute the most recently seen event, without relying on items order
             if event_ts > most_recent_read:
@@ -396,9 +498,10 @@ class Kubernetes(AgentCheck):
                 'msg_text': msg_body,
                 'source_type_name': EVENT_TYPE,
                 'event_object': 'kubernetes:{}'.format(involved_obj.get('name')),
+                'tags': tags,
             }
             self.event(dd_event)
 
         if most_recent_read > 0:
-            self.kubeutil.last_event_collection_ts[k8s_namespace] = most_recent_read
-            self.log.debug('_last_event_collection_ts is now {}'.format(most_recent_read))
+            self.kubeutil.last_event_collection_ts = most_recent_read
+            self.log.debug('last_event_collection_ts is now {}'.format(most_recent_read))

@@ -79,6 +79,7 @@ class TransactionManager(object):
         self._THROTTLING_DELAY = throttling_delay
         self._MAX_PARALLELISM = max_parallelism
         self._MAX_ENDPOINT_ERRORS = max_endpoint_errors
+        self._MAX_FLUSH_DURATION = timedelta(seconds=10)
 
         self._flush_without_ioloop = False # useful for tests
 
@@ -90,7 +91,7 @@ class TransactionManager(object):
         self._transactions_received = 0
         self._transactions_flushed = 0
 
-        self._too_big_count = 0
+        self._transactions_rejected = 0
 
         # Global counter to assign a number to each transaction: we may have an issue
         #  if this overlaps
@@ -192,11 +193,17 @@ class TransactionManager(object):
             flush_count=self._flush_count,
             transactions_received=self._transactions_received,
             transactions_flushed=self._transactions_flushed,
-            too_big_count=self._too_big_count).persist()
+            transactions_rejected=self._transactions_rejected).persist()
 
     def flush_next(self):
 
         if self._trs_to_flush is not None and len(self._trs_to_flush) > 0:
+            # Running for too long?
+            if datetime.utcnow() - self._flush_time >= self._MAX_FLUSH_DURATION:
+                log.warn('Flush %s is taking more than 10s, stopping it', self._flush_count)
+                self._trs_to_flush = []
+                return self.flush_next()
+
             td = self._last_flush + self._THROTTLING_DELAY - datetime.utcnow()
             delay = td.total_seconds()
 
@@ -262,7 +269,7 @@ class TransactionManager(object):
 
             self._trs_to_flush = new_trs_to_flush
 
-    def tr_error_too_big(self, tr):
+    def tr_error_reject_request(self, tr):
         self._running_flushes -= 1
         self._finished_flushes += 1
         tr.inc_error_count()
@@ -275,14 +282,14 @@ class TransactionManager(object):
         self._total_size -= tr.get_size()
         self._transactions_flushed += 1
         self.print_queue_stats()
-        self._too_big_count += 1
+        self._transactions_rejected += 1
         ForwarderStatus(
             queue_length=self._total_count,
             queue_size=self._total_size,
             flush_count=self._flush_count,
             transactions_received=self._transactions_received,
             transactions_flushed=self._transactions_flushed,
-            too_big_count=self._too_big_count).persist()
+            transactions_rejected=self._transactions_rejected).persist()
 
     def tr_success(self, tr):
         self._running_flushes -= 1

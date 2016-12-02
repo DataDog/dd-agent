@@ -10,27 +10,27 @@ def sysstat_version
   '11.0.1'
 end
 
-def sysstat_rootdir
-  "#{ENV['INTEGRATIONS_DIR']}/sysstat_#{sysstat_version}"
+def system_rootdir
+  "#{ENV['INTEGRATIONS_DIR']}/system_#{sysstat_version}"
 end
 
 namespace :ci do
-  namespace :sysstat do |flavor|
+  namespace :system do |flavor|
     task before_install: ['ci:common:before_install']
 
     task install: ['ci:common:install'] do
-      unless Dir.exist? File.expand_path(sysstat_rootdir)
+      unless Dir.exist? File.expand_path(system_rootdir)
         sh %(curl -s -L\
-             -o $VOLATILE_DIR/sysstat-#{sysstat_version}.tar.xz\
+             -o $VOLATILE_DIR/system-#{sysstat_version}.tar.xz\
              https://s3.amazonaws.com/dd-agent-tarball-mirror/sysstat-11.0.1.tar.xz)
-        sh %(mkdir -p $VOLATILE_DIR/sysstat)
-        sh %(mkdir -p #{sysstat_rootdir})
-        sh %(mkdir -p #{sysstat_rootdir}/var/log/sa)
-        sh %(tar Jxf $VOLATILE_DIR/sysstat-#{sysstat_version}.tar.xz\
-             -C $VOLATILE_DIR/sysstat --strip-components=1)
-        sh %(cd $VOLATILE_DIR/sysstat\
-             && conf_dir=#{sysstat_rootdir}/etc/sysconfig sa_dir=#{sysstat_rootdir}/var/log/sa\
-                ./configure --prefix=#{sysstat_rootdir} --disable-man-group\
+        sh %(mkdir -p $VOLATILE_DIR/system)
+        sh %(mkdir -p #{system_rootdir})
+        sh %(mkdir -p #{system_rootdir}/var/log/sa)
+        sh %(tar Jxf $VOLATILE_DIR/system-#{sysstat_version}.tar.xz\
+             -C $VOLATILE_DIR/system --strip-components=1)
+        sh %(cd $VOLATILE_DIR/system\
+             && conf_dir=#{system_rootdir}/etc/sysconfig sa_dir=#{system_rootdir}/var/log/sa\
+                ./configure --prefix=#{system_rootdir} --disable-man-group\
              && make\
              && make install)
       end
@@ -39,12 +39,12 @@ namespace :ci do
     task before_script: ['ci:common:before_script'] do
       sh %(mkdir -p $INTEGRATIONS_DIR/bin)
       sh %(rm -f $INTEGRATIONS_DIR/bin/mpstat)
-      sh %(ln -s #{sysstat_rootdir}/bin/mpstat $INTEGRATIONS_DIR/bin/mpstat)
+      sh %(ln -s #{system_rootdir}/bin/mpstat $INTEGRATIONS_DIR/bin/mpstat)
     end
 
     task script: ['ci:common:script'] do
       this_provides = [
-        'sysstat'
+        'system'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end

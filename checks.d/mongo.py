@@ -72,6 +72,7 @@ class MongoDb(AgentCheck):
         "cursors.totalOpen": GAUGE,
         "extra_info.heap_usage_bytes": RATE,
         "extra_info.page_faults": RATE,
+        "fsyncLocked": GAUGE,
         "globalLock.activeClients.readers": GAUGE,
         "globalLock.activeClients.total": GAUGE,
         "globalLock.activeClients.writers": GAUGE,
@@ -156,6 +157,8 @@ class MongoDb(AgentCheck):
         "replSet.health": GAUGE,
         "replSet.replicationLag": GAUGE,
         "replSet.state": GAUGE,
+        "replSet.votes": GAUGE,
+        "replSet.voteFraction": GAUGE,
         "stats.avgObjSize": GAUGE,
         "stats.collections": GAUGE,
         "stats.dataSize": GAUGE,
@@ -441,7 +444,10 @@ class MongoDb(AgentCheck):
     def hostname_for_event(self, clean_server_name, agentConfig):
         """Return a reasonable hostname for a replset membership event to mention."""
         uri = urlsplit(clean_server_name)
-        hostname = uri.netloc.split(':')[0]
+        if '@' in uri.netloc:
+            hostname = uri.netloc.split('@')[1].split(':')[0]
+        else:
+            hostname = uri.netloc.split(':')[0]
         if hostname == 'localhost':
             hostname = self.hostname
         return hostname
@@ -625,7 +631,14 @@ class MongoDb(AgentCheck):
         db_name = parsed.get('database')
         additional_metrics = instance.get('additional_metrics', [])
 
-        clean_server_name = server.replace(password, "*" * 5) if password else server
+        # IF the password contains a URL encoded character (for example '/'), then the
+        # raw server string will have %2F, but the password string will have the '/'.
+        # Therefore, the string replace (below) won't work, because it won't have an
+        # exact match.  Convert the password *back* to URL encoded, so the string
+        # replace works properly.
+        encoded_password = urllib.quote_plus(password) if password else None
+
+        clean_server_name = server.replace(encoded_password, "*" * 5) if encoded_password else server
 
         if ssl_params:
             username_uri = u"{}@".format(urllib.quote(username))
@@ -718,6 +731,9 @@ class MongoDb(AgentCheck):
         if status['ok'] == 0:
             raise Exception(status['errmsg'].__str__())
 
+        ops = db.current_op()
+        status['fsyncLocked'] = 1 if ops.get('fsyncLock') else 0
+
         status['stats'] = db.command('dbstats')
         dbstats = {}
         dbstats[db_name] = {'stats': status['stats']}
@@ -779,6 +795,16 @@ class MongoDb(AgentCheck):
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
+
+                if current is not None:
+                    total = 0.0
+                    cfg = cli['local']['system.replset'].find_one()
+                    for member in cfg.get('members'):
+                        total += member.get('votes', 1)
+                        if member['_id'] == current['_id']:
+                            data['votes'] = member.get('votes', 1)
+                    data['voteFraction'] = data['votes'] / total
+
                 status['replSet'] = data
 
                 # Submit events

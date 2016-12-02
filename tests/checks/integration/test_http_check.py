@@ -160,7 +160,7 @@ CONFIG_POST_METHOD = {
 }
 
 
-@attr(requires='network')
+@attr(requires='system')
 class HTTPCheckTest(AgentCheckTest):
     CHECK_NAME = 'http_check'
 

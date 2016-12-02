@@ -7,17 +7,11 @@ import psutil
 
 # project
 from checks import AgentCheck
-from utils.platform import Platform
 
 
 class SystemCore(AgentCheck):
 
     def check(self, instance):
-
-        if Platform.is_linux():
-            procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
-            psutil.PROCFS_PATH = procfs_path
-
         cpu_times = psutil.cpu_times(percpu=True)
         self.gauge("system.core.count", len(cpu_times))
 

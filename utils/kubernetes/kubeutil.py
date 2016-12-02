@@ -21,10 +21,12 @@ log = logging.getLogger('collector')
 
 KUBERNETES_CHECK_NAME = 'kubernetes'
 
+
 class KubeUtil:
     __metaclass__ = Singleton
 
     DEFAULT_METHOD = 'http'
+    MACHINE_INFO_PATH = '/api/v1.3/machine/'
     METRICS_PATH = '/api/v1.3/subcontainers/'
     PODS_LIST_PATH = '/pods/'
     DEFAULT_CADVISOR_PORT = 4194
@@ -63,15 +65,16 @@ class KubeUtil:
 
         self.kubelet_api_url = '%s://%s:%d' % (self.method, self.host, self.kubelet_port)
         self.cadvisor_url = '%s://%s:%d' % (self.method, self.host, self.cadvisor_port)
-        self.kubernetes_api_url = 'https://%s/api/v1' % self.DEFAULT_MASTER_NAME
+        self.kubernetes_api_url = 'https://%s/api/v1' % (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME)
 
         self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
+        self.machine_info_url = urljoin(self.cadvisor_url, KubeUtil.MACHINE_INFO_PATH)
         self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
         self.kube_health_url = urljoin(self.kubelet_api_url, 'healthz')
 
         # keep track of the latest k8s event we collected and posted
         # default value is 0 but TTL for k8s events is one hour anyways
-        self.last_event_collection_ts = defaultdict(int)
+        self.last_event_collection_ts = 0
 
     def get_kube_labels(self, excluded_keys=None):
         pods = self.retrieve_pods_list()
@@ -123,6 +126,12 @@ class KubeUtil:
         TODO: the list of pods could be cached with some policy to be decided.
         """
         return retrieve_json(self.pods_list_url)
+
+    def retrieve_machine_info(self):
+        """
+        Retrieve machine info from Cadvisor.
+        """
+        return retrieve_json(self.machine_info_url)
 
     def retrieve_metrics(self):
         """
@@ -194,6 +203,29 @@ class KubeUtil:
                 self._node_ip = status.get('hostIP', '')
                 self._node_name = spec.get('nodeName', '')
                 break
+
+    def extract_event_tags(self, event):
+        """
+        Return a list of tags extracted from an event object
+        """
+        tags = []
+
+        if 'reason' in event:
+            tags.append('reason:%s' % event.get('reason', '').lower())
+        if 'namespace' in event.get('metadata', {}):
+            tags.append('namespace:%s' % event['metadata']['namespace'])
+        if 'host' in event.get('source', {}):
+            tags.append('node_name:%s' % event['source']['host'])
+        if 'kind' in event.get('involvedObject', {}):
+            tags.append('object_type:%s' % event['involvedObject'].get('kind', '').lower())
+
+        return tags
+
+    def are_tags_filtered(self, tags):
+        """
+        Because it is a pain to call it from the kubernetes check otherwise.
+        """
+        return self.docker_util.are_tags_filtered(tags)
 
     @classmethod
     def get_auth_token(cls):

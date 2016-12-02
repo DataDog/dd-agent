@@ -8,8 +8,16 @@ def kong_rootdir
   "#{ENV['INTEGRATIONS_DIR']}/kong"
 end
 
+def kong_bin
+  "#{kong_rootdir}/bin/kong"
+end
+
 def cassandra_rootdir
   "#{ENV['INTEGRATIONS_DIR']}/cassandra"
+end
+
+def cassandra_bin
+  "#{cassandra_rootdir}/bin/cassandra"
 end
 
 # rubocop:disable AbcSize
@@ -46,8 +54,16 @@ namespace :ci do
     task before_install: ['ci:common:before_install']
 
     task install: ['ci:common:install'] do
-      unless Dir.exist? File.expand_path(kong_rootdir)
-        # Download Kong, Cassandra. curl, openjdk 1.8, wget, make, gcc must be already installed
+      unless File.exist? cassandra_bin
+        sh %(curl -s -S -L -o $VOLATILE_DIR/apache-cassandra-2.2.8-bin.tar.gz\
+          http://apache.trisect.eu/cassandra/2.2.8/apache-cassandra-2.2.8-bin.tar.gz)
+        sh %(mkdir -p #{cassandra_rootdir})
+        sh %(tar zxf $VOLATILE_DIR/apache-cassandra-2.2.8-bin.tar.gz\
+          -C #{cassandra_rootdir} --strip-components=1)
+      end
+
+      unless File.exist? kong_bin
+        # Download Kong. curl, openjdk 1.8, wget, make, gcc must be already installed
         sh %(mkdir -p #{kong_rootdir})
         sh %(cp $TRAVIS_BUILD_DIR/ci/resources/kong/*.sh #{kong_rootdir})
         set_kong_env
@@ -57,12 +73,8 @@ namespace :ci do
         sh %(bash #{kong_rootdir}/setup_serf.sh)
         sh %(bash #{kong_rootdir}/setup_dnsmasq.sh)
         set_kong_path
-        sh %(curl -s -L -o $VOLATILE_DIR/apache-cassandra-2.2.6-bin.tar.gz\
-             http://mirror.metrocast.net/apache/cassandra/2.2.6/apache-cassandra-2.2.6-bin.tar.gz)
-        sh %(mkdir -p #{cassandra_rootdir})
-        sh %(tar zxf $VOLATILE_DIR/apache-cassandra-2.2.6-bin.tar.gz\
-             -C #{cassandra_rootdir} --strip-components=1)
         sh %(bash #{kong_rootdir}/kong_install.sh)
+        sh %(cd #{kong_rootdir} && make install)
       end
     end
 
@@ -73,7 +85,6 @@ namespace :ci do
       sh %(#{cassandra_rootdir}/bin/cassandra -p $VOLATILE_DIR/cass.pid > /dev/null)
       Wait.for 9042, 60
       kong_yml = "#{ENV['TRAVIS_BUILD_DIR']}/ci/resources/kong/kong_DEVELOPMENT.yml"
-      sh %(cd #{kong_rootdir} && make install)
       sh %(kong migrations -c #{kong_yml} up)
       sh %(kong start -c #{kong_yml})
       Wait.for 8001, 10

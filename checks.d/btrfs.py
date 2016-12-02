@@ -15,7 +15,6 @@ import psutil
 
 # project
 from checks import AgentCheck
-from utils.platform import Platform
 
 MIXED = "mixed"
 DATA = "data"
@@ -120,10 +119,6 @@ class BTRFS(AgentCheck):
     def check(self, instance):
         btrfs_devices = {}
         excluded_devices = instance.get('excluded_devices', [])
-
-        if Platform.is_linux():
-            procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
-            psutil.PROCFS_PATH = procfs_path
 
         for p in psutil.disk_partitions():
             if (p.fstype == 'btrfs' and p.device not in btrfs_devices

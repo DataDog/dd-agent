@@ -1,0 +1,12 @@
+init_config:
+  #    tags:
+  #      - optional_tag1
+  #      - optional_tag2
+
+instances:
+  # To enable Kube State metrics you must specify the url exposing the API
+  #
+  # Note for RHEL and SUSE users: due to compatibility issues, the check does not make use of
+  # the CPP extension to process Protocol buffer messages coming from the api. Depending
+  # on the metrics volume, the check may run very slowly.
+  - kube_state_url: http://example.com:8080/metrics

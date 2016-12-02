@@ -143,12 +143,15 @@ class MesosSlave(AgentCheck):
 
     def _get_constant_attributes(self, url, timeout, master_port, verify):
         state_metrics = None
+        parsed_url = urlparse(url)
         if self.cluster_name is None:
             state_metrics = self._get_state(url, timeout, verify)
             if state_metrics is not None:
                 self.version = map(int, state_metrics['version'].split('.'))
                 master_state = self._get_state(
-                    'http://{0}:{1}'.format(state_metrics['master_hostname'], master_port),
+                    '{0}://{1}:{2}'.format(parsed_url.scheme,
+                                           state_metrics['master_hostname'],
+                                           master_port),
                     timeout,
                     verify
                 )

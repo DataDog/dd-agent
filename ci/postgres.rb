@@ -51,8 +51,7 @@ namespace :ci do
       # Wait a tiny bit more, for PG to accept connections
       sleep_for 2
       sh %(#{pg_rootdir}/bin/psql\
-           -p 15432 -U $USER\
-           postgres < $TRAVIS_BUILD_DIR/ci/resources/postgres/postgres.sql)
+           -p 15432 postgres < $TRAVIS_BUILD_DIR/ci/resources/postgres/postgres.sql)
       sh %(#{pg_rootdir}/bin/psql\
            -p 15432 -U datadog\
            datadog_test < $TRAVIS_BUILD_DIR/ci/resources/postgres/datadog_test.sql)

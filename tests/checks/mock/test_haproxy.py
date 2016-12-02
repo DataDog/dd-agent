@@ -205,3 +205,15 @@ b,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,
         self.check._process_data(data, True, True, collect_status_metrics=True,
                                  collect_status_metrics_by_host=True)
         self.assertEquals(self.check.hosts_statuses, expected_hosts_statuses)
+
+    @mock.patch('requests.get', return_value=mock.Mock(content=MOCK_DATA))
+    def test_optional_tags(self, mock_requests):
+        config = copy.deepcopy(self.BASE_CONFIG)
+        config['instances'][0]['tags'] = ['new-tag', 'my:new:tag']
+
+        self.run_check(config)
+
+        self.assertMetricTag('haproxy.backend.session.current', 'new-tag')
+        self.assertMetricTag('haproxy.backend.session.current', 'my:new:tag')
+        self.assertMetricTag('haproxy.count_per_status', 'my:new:tag')
+        self.assertServiceCheck('haproxy.backend_up', tags=['service:a', 'new-tag', 'my:new:tag', 'backend:BACKEND'])

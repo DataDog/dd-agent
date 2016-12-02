@@ -11,6 +11,7 @@ from urlparse import urljoin
 
 # project
 from checks import AgentCheck
+from utils.containers import hash_mutable
 
 # 3p
 import requests
@@ -39,6 +40,13 @@ def ceili(v):
     return int(ceil(v))
 
 
+class ConsulCheckInstanceState(object):
+    def __init__(self):
+        self.local_config = None
+        self.last_config_fetch_time = None
+        self.last_known_leader = None
+
+
 class ConsulCheck(AgentCheck):
     CONSUL_CHECK = 'consul.up'
     HEALTH_CHECK = 'consul.check'
@@ -59,12 +67,8 @@ class ConsulCheck(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
-        if instances is not None and len(instances) > 1:
-            raise Exception("Consul check only supports one configured instance.")
 
-        self._local_config = None
-        self._last_config_fetch_time = None
-        self._last_known_leader = None
+        self._instance_states = defaultdict(lambda: ConsulCheckInstanceState())
 
     def consul_request(self, instance, endpoint):
         url = urljoin(instance.get('url'), endpoint)
@@ -90,42 +94,42 @@ class ConsulCheck(AgentCheck):
         return resp.json()
 
     ### Consul Config Accessors
-    def _get_local_config(self, instance):
-        if not self._local_config or datetime.now() - self._last_config_fetch_time > timedelta(seconds=self.MAX_CONFIG_TTL):
-            self._local_config = self.consul_request(instance, '/v1/agent/self')
-            self._last_config_fetch_time = datetime.now()
+    def _get_local_config(self, instance, instance_state):
+        if not instance_state.local_config or datetime.now() - instance_state.last_config_fetch_time > timedelta(seconds=self.MAX_CONFIG_TTL):
+            instance_state.local_config = self.consul_request(instance, '/v1/agent/self')
+            instance_state.last_config_fetch_time = datetime.now()
 
-        return self._local_config
+        return instance_state.local_config
 
     def _get_cluster_leader(self, instance):
         return self.consul_request(instance, '/v1/status/leader')
 
-    def _get_agent_url(self, instance):
+    def _get_agent_url(self, instance, instance_state):
         self.log.debug("Starting _get_agent_url")
-        local_config = self._get_local_config(instance)
+        local_config = self._get_local_config(instance, instance_state)
         agent_addr = local_config.get('Config', {}).get('AdvertiseAddr')
         agent_port = local_config.get('Config', {}).get('Ports', {}).get('Server')
         agent_url = "{0}:{1}".format(agent_addr, agent_port)
         self.log.debug("Agent url is %s" % agent_url)
         return agent_url
 
-    def _get_agent_datacenter(self, instance):
-        local_config = self._get_local_config(instance)
+    def _get_agent_datacenter(self, instance, instance_state):
+        local_config = self._get_local_config(instance, instance_state)
         agent_dc = local_config.get('Config', {}).get('Datacenter')
         return agent_dc
 
     ### Consul Leader Checks
-    def _is_instance_leader(self, instance):
+    def _is_instance_leader(self, instance, instance_state):
         try:
-            agent_url = self._get_agent_url(instance)
-            leader = self._last_known_leader or self._get_cluster_leader(instance)
+            agent_url = self._get_agent_url(instance, instance_state)
+            leader = instance_state.last_known_leader or self._get_cluster_leader(instance)
             self.log.debug("Consul agent lives at %s . Consul Leader lives at %s" % (agent_url,leader))
             return agent_url == leader
 
         except Exception:
             return False
 
-    def _check_for_leader_change(self, instance):
+    def _check_for_leader_change(self, instance, instance_state):
         perform_new_leader_checks = instance.get('new_leader_checks',
                                                  self.init_config.get('new_leader_checks', False))
         perform_self_leader_check = instance.get('self_leader_check',
@@ -148,20 +152,20 @@ class ConsulCheck(AgentCheck):
             self.log.warn('Consul Leader information is not available!')
             return
 
-        if not self._last_known_leader:
+        if not instance_state.last_known_leader:
             # We have no state preserved, store some and return
-            self._last_known_leader = leader
+            instance_state.last_known_leader = leader
             return
 
-        agent = self._get_agent_url(instance)
-        agent_dc = self._get_agent_datacenter(instance)
+        agent = self._get_agent_url(instance, instance_state)
+        agent_dc = self._get_agent_datacenter(instance, instance_state)
 
-        if leader != self._last_known_leader:
+        if leader != instance_state.last_known_leader:
             # There was a leadership change
             if perform_new_leader_checks or (perform_self_leader_check and agent == leader):
                 # We either emit all leadership changes or emit when we become the leader and that just happened
                 self.log.info(('Leader change from {0} to {1}. Sending new leader event').format(
-                    self._last_known_leader, leader))
+                    instance_state.last_known_leader, leader))
 
                 self.event({
                     "timestamp": int(datetime.now().strftime("%s")),
@@ -173,12 +177,12 @@ class ConsulCheck(AgentCheck):
                         leader,
                         agent_dc
                     ),
-                    "tags": ["prev_consul_leader:{0}".format(self._last_known_leader),
+                    "tags": ["prev_consul_leader:{0}".format(instance_state.last_known_leader),
                              "curr_consul_leader:{0}".format(leader),
                              "consul_datacenter:{0}".format(agent_dc)]
                 })
 
-        self._last_known_leader = leader
+        instance_state.last_known_leader = leader
 
     ### Consul Catalog Accessors
     def get_peers_in_cluster(self, instance):
@@ -200,7 +204,7 @@ class ConsulCheck(AgentCheck):
             services = [s for s in services if s in service_whitelist][:self.MAX_SERVICES]
         else:
             if len(services) <= self.MAX_SERVICES:
-                self.warning('Consul service whitelist not defined. Agent will poll for all %d services found' % len(services))
+                self.log.debug('Consul service whitelist not defined. Agent will poll for all %d services found', len(services))
             else:
                 self.warning('Consul service whitelist not defined. Agent will poll for at most %d services' % self.MAX_SERVICES)
                 services = list(islice(services.iterkeys(), 0, self.MAX_SERVICES))
@@ -208,16 +212,22 @@ class ConsulCheck(AgentCheck):
         return services
 
     def check(self, instance):
-        self._check_for_leader_change(instance)
+        # Instance state is mutable, any changes to it will be reflected in self._instance_states
+        instance_state = self._instance_states[hash_mutable(instance)]
+
+        self._check_for_leader_change(instance, instance_state)
 
         peers = self.get_peers_in_cluster(instance)
         main_tags = []
-        agent_dc = self._get_agent_datacenter(instance)
+        agent_dc = self._get_agent_datacenter(instance, instance_state)
 
         if agent_dc is not None:
             main_tags.append('consul_datacenter:{0}'.format(agent_dc))
 
-        if not self._is_instance_leader(instance):
+        for tag in instance.get('tags', []):
+            main_tags.append(tag)
+
+        if not self._is_instance_leader(instance, instance_state):
             self.gauge("consul.peers", len(peers), tags=main_tags + ["mode:follower"])
             self.log.debug("This consul agent is not the cluster leader." +
                            "Skipping service and catalog checks for this instance")
@@ -406,26 +416,29 @@ class ConsulCheck(AgentCheck):
 
         # Intra-datacenter
         nodes = self._get_coord_nodes(instance)
-        for node in nodes:
-            node_name = node['Node']
-            latencies = []
-            for other in nodes:
-                other_name = other['Node']
-                if node_name == other_name:
-                    continue
-                latencies.append(distance(node, other))
-            latencies.sort()
-            n = len(latencies)
-            half_n = int(floor(n / 2))
-            if n % 2:
-                median = latencies[half_n]
-            else:
-                median = (latencies[half_n - 1] + latencies[half_n]) / 2
-            self.gauge('consul.net.node.latency.min', latencies[0], hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.p25', latencies[ceili(n * 0.25) - 1], hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.median', median, hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.p75', latencies[ceili(n * 0.75) - 1], hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.p90', latencies[ceili(n * 0.90) - 1], hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.p95', latencies[ceili(n * 0.95) - 1], hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.p99', latencies[ceili(n * 0.99) - 1], hostname=node_name, tags=main_tags)
-            self.gauge('consul.net.node.latency.max', latencies[-1], hostname=node_name, tags=main_tags)
+        if len(nodes) == 1:
+            self.log.debug("Only 1 node in cluster, skipping network latency metrics.")
+        else:
+            for node in nodes:
+                node_name = node['Node']
+                latencies = []
+                for other in nodes:
+                    other_name = other['Node']
+                    if node_name == other_name:
+                        continue
+                    latencies.append(distance(node, other))
+                latencies.sort()
+                n = len(latencies)
+                half_n = int(floor(n / 2))
+                if n % 2:
+                    median = latencies[half_n]
+                else:
+                    median = (latencies[half_n - 1] + latencies[half_n]) / 2
+                self.gauge('consul.net.node.latency.min', latencies[0], hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.p25', latencies[ceili(n * 0.25) - 1], hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.median', median, hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.p75', latencies[ceili(n * 0.75) - 1], hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.p90', latencies[ceili(n * 0.90) - 1], hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.p95', latencies[ceili(n * 0.95) - 1], hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.p99', latencies[ceili(n * 0.99) - 1], hostname=node_name, tags=main_tags)
+                self.gauge('consul.net.node.latency.max', latencies[-1], hostname=node_name, tags=main_tags)

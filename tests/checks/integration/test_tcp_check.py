@@ -30,7 +30,7 @@ CONFIG = {
 }
 
 
-@attr(requires='network')
+@attr(requires='system')
 class TCPCheckTest(AgentCheckTest):
     CHECK_NAME = 'tcp_check'
 

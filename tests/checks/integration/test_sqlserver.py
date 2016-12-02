@@ -91,6 +91,7 @@ class SQLServerTest(AgentCheckTest):
 
         self.coverage_report()
 
+    @attr('fixme')
     def test_check_2008(self):
         config = copy.deepcopy(CONFIG)
         config['instances'] = [SQL2008_INSTANCE]
@@ -101,6 +102,7 @@ class SQLServerTest(AgentCheckTest):
         config['instances'] = [SQL2012_INSTANCE]
         self._test_check(config)
 
+    @attr('fixme')
     def test_check_2014(self):
         config = copy.deepcopy(CONFIG)
         config['instances'] = [SQL2014_INSTANCE]

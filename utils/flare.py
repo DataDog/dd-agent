@@ -67,14 +67,14 @@ class Flare(object):
             'password'
         ),
         CredentialPattern(
-            re.compile('(.*\ [A-Za-z0-9]+)\:\/\/([A-Za-z0-9]+)\:(.+)\@'),
+            re.compile('(.*\ [A-Za-z0-9]+)\:\/\/([A-Za-z0-9_]+)\:(.+)\@'),
             r'\1://\2:********@',
             'password in a uri'
         ),
     ]
     MAIN_CREDENTIALS = [
         CredentialPattern(
-            re.compile('^api_key:( *\w+(\w{5}) ?,?)+$'),
+            re.compile('^\s*api_key:( *\w+(\w{5}) ?,?)+$'),
             lambda matchobj:  'api_key: ' + ', '.join(map(
                 lambda key: '*' * 26 + key[-5:],
                 map(lambda x: x.strip(),

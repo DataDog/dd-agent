@@ -26,6 +26,9 @@ class TestPgbouncer(AgentCheckTest):
                     'port': 15433,
                     'username': 'datadog',
                     'password': 'datadog'
+                },
+                {
+                    'database_url': 'postgresql://datadog:datadog@localhost:15433/datadog_test',
                 }
             ]
         }

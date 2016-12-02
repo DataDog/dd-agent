@@ -343,10 +343,6 @@ class AgentCheck(object):
             histogram_percentiles=agentConfig.get('histogram_percentiles')
         )
 
-        if Platform.is_linux() and psutil is not None:
-            procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
-            psutil.PROCFS_PATH = procfs_path
-
         self.events = []
         self.service_checks = []
         self.instances = instances or []

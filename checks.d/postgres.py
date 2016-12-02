@@ -25,7 +25,11 @@ MAX_CUSTOM_RESULTS = 100
 TABLE_COUNT_LIMIT = 200
 
 def psycopg2_connect(*args, **kwargs):
-    del kwargs['ssl']
+    if 'ssl' in kwargs:
+        del kwargs['ssl']
+    if 'unix_sock' in kwargs:
+        kwargs['host'] = kwargs['unix_sock']
+        del kwargs['unix_sock']
     return psycopg2.connect(*args, **kwargs)
 
 
@@ -70,6 +74,9 @@ SELECT datname,
         'tup_inserted'      : ('postgresql.rows_inserted', RATE),
         'tup_updated'       : ('postgresql.rows_updated', RATE),
         'tup_deleted'       : ('postgresql.rows_deleted', RATE),
+    }
+
+    DATABASE_SIZE_METRICS = {
         'pg_database_size(datname) as pg_database_size' : ('postgresql.database_size', GAUGE),
     }
 
@@ -345,7 +352,7 @@ SELECT s.schemaname,
     def _is_9_2_or_above(self, key, db):
         return self._is_above(key, db, [9,2,0])
 
-    def _get_instance_metrics(self, key, db):
+    def _get_instance_metrics(self, key, db, database_size_metrics):
         """Use either COMMON_METRICS or COMMON_METRICS + NEWER_92_METRICS
         depending on the postgres version.
         Uses a dictionnary to save the result for each instance
@@ -370,6 +377,10 @@ SELECT s.schemaname,
                 self.instance_metrics[key] = dict(self.COMMON_METRICS, **self.NEWER_92_METRICS)
             else:
                 self.instance_metrics[key] = dict(self.COMMON_METRICS)
+
+            if database_size_metrics:
+                self.instance_metrics[key] = dict(self.instance_metrics[key], **self.DATABASE_SIZE_METRICS)
+
             metrics = self.instance_metrics.get(key)
         return metrics
 
@@ -434,7 +445,7 @@ SELECT s.schemaname,
                 self.log.warn('Failed to parse config element=%s, check syntax' % str(element))
         return config
 
-    def _collect_stats(self, key, db, instance_tags, relations, custom_metrics, function_metrics, count_metrics, interface_error, programming_error):
+    def _collect_stats(self, key, db, instance_tags, relations, custom_metrics, function_metrics, count_metrics, database_size_metrics, interface_error, programming_error):
         """Query pg_stat_* for various metrics
         If relations is not an empty list, gather per-relation metrics
         on top of that.
@@ -453,7 +464,7 @@ SELECT s.schemaname,
             metric_scope.append(self.COUNT_METRICS)
 
         # These are added only once per PG server, thus the test
-        db_instance_metrics = self._get_instance_metrics(key, db)
+        db_instance_metrics = self._get_instance_metrics(key, db, database_size_metrics)
         bgw_instance_metrics = self._get_bgw_metrics(key, db)
 
         if db_instance_metrics is not None:
@@ -602,6 +613,11 @@ SELECT s.schemaname,
                 elif port != '':
                     connection = connect_fct(host=host, port=port, user=user,
                         password=password, database=dbname, ssl=ssl)
+                elif host.startswith('/'):
+                    # If the hostname starts with /, it's probably a path
+                    # to a UNIX socket. This is similar behaviour to psql
+                    connection = connect_fct(unix_sock=host, user=user,
+                        password=password, database=dbname)
                 else:
                     connection = connect_fct(host=host, user=user, password=password,
                         database=dbname, ssl=ssl)
@@ -659,6 +675,7 @@ SELECT s.schemaname,
         function_metrics = _is_affirmative(instance.get('collect_function_metrics', False))
         # Default value for `count_metrics` is True for backward compatibility
         count_metrics = _is_affirmative(instance.get('collect_count_metrics', True))
+        database_size_metrics = _is_affirmative(instance.get('collect_database_size_metrics', True))
 
         if relations and not dbname:
             self.warning('"dbname" parameter must be set when using the "relations" parameter.')
@@ -693,11 +710,11 @@ SELECT s.schemaname,
             db = self.get_connection(key, host, port, user, password, dbname, ssl, connect_fct)
             version = self._get_version(key, db)
             self.log.debug("Running check against version %s" % version)
-            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics, count_metrics, interface_error, programming_error)
+            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics, count_metrics, database_size_metrics, interface_error, programming_error)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, ssl, connect_fct, use_cached=False)
-            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics, count_metrics, interface_error, programming_error)
+            self._collect_stats(key, db, tags, relations, custom_metrics, function_metrics, count_metrics, database_size_metrics, interface_error, programming_error)
 
         if db is not None:
             service_check_tags = self._get_service_check_tags(host, port, dbname)

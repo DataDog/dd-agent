@@ -43,9 +43,6 @@ class Disk(AgentCheck):
         # Windows and Mac will always have psutil
         # (we have packaged for both of them)
         if self._psutil():
-            if Platform.is_linux():
-                procfs_path = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
-                psutil.PROCFS_PATH = procfs_path
             self.collect_metrics_psutil()
         else:
             # FIXME: implement all_partitions (df -a)
@@ -118,21 +115,10 @@ class Disk(AgentCheck):
             tags = [part.fstype] if self._tag_by_filesystem else []
             device_name = part.mountpoint if self._use_mount else part.device
 
-            # Note: psutil (0.3.0 to at least 3.1.1) calculates in_use as (used / total)
-            #       The problem here is that total includes reserved space the user
-            #       doesn't have access to. This causes psutil to calculate a misleadng
-            #       percentage for in_use; a lower percentage than df shows.
-
-            # Calculate in_use w/o reserved space; consistent w/ df's Use% metric.
-            pmets = self._collect_part_metrics(part, disk_usage)
-            used = 'system.disk.used'
-            free = 'system.disk.free'
-            pmets['system.disk.in_use'] = pmets[used] / (pmets[used] + pmets[free])
-
             # legacy check names c: vs psutil name C:\\
             if Platform.is_win32():
                 device_name = device_name.strip('\\').lower()
-            for metric_name, metric_value in pmets.iteritems():
+            for metric_name, metric_value in self._collect_part_metrics(part, disk_usage).iteritems():
                 self.gauge(metric_name, metric_value,
                            tags=tags, device_name=device_name)
         # And finally, latency metrics, a legacy gift from the old Windows Check

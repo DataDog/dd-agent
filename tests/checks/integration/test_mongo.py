@@ -1,7 +1,6 @@
 # stdlib
 from types import ListType
 import time
-import unittest
 
 # 3p
 from mock import Mock
@@ -49,7 +48,7 @@ class TestMongoUnit(AgentCheckTest):
         DEFAULT_METRICS = {
             m_name: m_type for d in [
                 self.check.BASE_METRICS, self.check.DURABILITY_METRICS,
-                self.check.LOCKS_METRICS, self.check.WIREDTIGER_METRICS,]
+                self.check.LOCKS_METRICS, self.check.WIREDTIGER_METRICS, ]
             for m_name, m_type in d.iteritems()
         }
 
@@ -153,8 +152,12 @@ class TestMongoUnit(AgentCheckTest):
         unknown_desc = self.check.get_state_description(500)
         self.assertTrue(unknown_desc.find('500') != -1)
 
+
 @attr(requires='mongo')
-class TestMongo(unittest.TestCase):
+class TestMongo(AgentCheckTest):
+
+    CHECK_NAME = 'mongo'
+
     def setUp(self):
         server = "mongodb://localhost:%s/test" % PORT1
         cli = pymongo.mongo_client.MongoClient(
@@ -314,3 +317,27 @@ class TestMongo(unittest.TestCase):
             metric_name = m[0]
             if metric_name in metric_val_checks:
                 self.assertTrue(metric_val_checks[metric_name](m[2]))
+
+    def testMongoFsyncLock(self):
+        server = "mongodb://localhost:%s/test" % PORT1
+        cli = pymongo.mongo_client.MongoClient(
+            server,
+            socketTimeoutMS=30000,
+            read_preference=pymongo.ReadPreference.PRIMARY_PREFERRED,)
+
+        try:
+            cli.fsync(lock=True)
+
+            # Run the check
+            config = {
+                'instances': [
+                    {'server': server}
+                ]
+            }
+            self.run_check(config)
+
+            # Assert
+            self.assertMetric("mongodb.fsynclocked", 1, count=1)
+
+        finally:
+            cli.unlock()
