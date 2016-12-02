@@ -69,7 +69,7 @@ def load_class(check_name, class_name):
 
 def load_check(name, config, agentConfig):
     if not _is_sdk():
-        checksd_path = get_checksd_path(get_os())
+        checksd_path = agentConfig.get('additional_checksd', get_checksd_path(get_os()))
 
         # find (in checksd_path) and load the check module
         fd, filename, desc = imp.find_module(name, [checksd_path])
