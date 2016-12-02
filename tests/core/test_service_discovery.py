@@ -7,7 +7,7 @@ import unittest
 from nose.plugins.attrib import attr
 
 # project
-from config import generate_jmx_configs  # noqa
+from config import generate_jmx_configs
 from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.consul_config_store import ConsulStore
 from utils.service_discovery.etcd_config_store import EtcdStore
