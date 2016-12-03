@@ -291,13 +291,15 @@ class Agent(Daemon):
         self.restart_interval = int(self._agentConfig.get('restart_interval', RESTART_INTERVAL))
         self.agent_start = time.time()
 
+        self.allow_profiling = self._agentConfig.get('allow_profiling', True)
+
         profiled = False
         collector_profiled_runs = 0
 
         # Run the main loop.
         while self.run_forever:
             # Setup profiling if necessary
-            if self.in_developer_mode and not profiled:
+            if self.allow_profiling and self.in_developer_mode and not profiled:
                 try:
                     profiler = AgentProfiler()
                     profiler.enable_profiling()
