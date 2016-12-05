@@ -14,8 +14,8 @@ init_config:
 instances:
   - appname: chris
     host: myhost.stooges.com
-    port: 8080
-    stats_url: /private/metrics
+    port: 8081
+    stats_url: /metrics
 
     instance_tags: appgrp:mady
 

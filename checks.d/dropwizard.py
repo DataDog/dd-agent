@@ -17,7 +17,7 @@ DropwizardCheck
 DropwizardCheck is a DataDog Check for Java Dropwizard metrics (a.k.a CodaHale metrics, after it's originator).
 (For further details, see http://metrics.dropwizard.io/3.1.0/)
 
-DropwizardCheck calls the standard Dropwizard stats URL: http://localhost:8080/metrics
+DropwizardCheck calls the standard Dropwizard stats URL: http://localhost:8081/metrics
 (Of course, all those fields are configurable per instance (host, port, stats_url))
 The Dropwizard URL yields up a JSON response consisting of the all metrics in it's MetricRegistry at that time.
 DropwizardCheck reads this response, parses it, and creates the corresponding DataDog metrics.
@@ -179,10 +179,10 @@ class DropwizardCheck(AgentCheck):
     # All metrics will be prefixed with this field. Unless an "appname" is found in the instance config
     DEFAULT_METRIC_PREFIX = 'dropwizard'
 
-    # Defaults to "http://localhost:8080/metrics"
+    # Defaults to "http://localhost:8081/metrics"
     #  May be overriden in the instance config
     DEFAULT_HOST = 'localhost'
-    DEFAULT_PORT = 8080
+    DEFAULT_PORT = 8081
     DEFAULT_STATS_URL = "/metrics"
 
     # Metrics with these suffixes will be ignored

@@ -26,9 +26,9 @@ init_config:
   #leave_package_names: False
 
 instances:
-  # Overrides for the default Dropwizard stats URL; http://localhost:8080/metrics
+  # Overrides for the default Dropwizard stats URL; http://localhost:8081/metrics
   - host: localhost
-    port: 8080
+    port: 8081
     stats_url: /metrics
 
     # The name of this Dropwizard application
