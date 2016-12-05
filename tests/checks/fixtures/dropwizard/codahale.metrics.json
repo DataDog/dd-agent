@@ -1,0 +1,859 @@
+{
+  "version": "3.0.0",
+  "gauges": {
+    "io.dropwizard.jetty.MutableServletContextHandler.percent-4xx-15m": {
+      "value": 3.732483458517298e-9
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.percent-4xx-1m": {
+      "value": 8.343207915504691e-83
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.percent-4xx-5m": {
+      "value": 1.9291113730213532e-19
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.percent-5xx-15m": {
+      "value": 0.012878268909549634
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.percent-5xx-1m": {
+      "value": 0.00447829280250964
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.percent-5xx-5m": {
+      "value": 0.01104170625619058
+    },
+    "jvm.attribute.name": {
+      "value": "6@ip-172-25-15-87"
+    },
+    "jvm.attribute.uptime": {
+      "value": 491557806
+    },
+    "jvm.attribute.vendor": {
+      "value": "Oracle Corporation Java HotSpot(TM) 64-Bit Server VM 25.72-b15 (1.8)"
+    },
+    "jvm.buffers.direct.capacity": {
+      "value": 1660550
+    },
+    "jvm.buffers.direct.count": {
+      "value": 49
+    },
+    "jvm.buffers.direct.used": {
+      "value": 1660550
+    },
+    "jvm.buffers.mapped.capacity": {
+      "value": 0
+    },
+    "jvm.buffers.mapped.count": {
+      "value": 0
+    },
+    "jvm.buffers.mapped.used": {
+      "value": 0
+    },
+    "jvm.classloader.loaded": {
+      "value": 5547
+    },
+    "jvm.classloader.unloaded": {
+      "value": 114
+    },
+    "jvm.filedescriptor": {
+      "value": 0.00008678436279296875
+    },
+    "jvm.gc.PS-MarkSweep.count": {
+      "value": 417
+    },
+    "jvm.gc.PS-MarkSweep.time": {
+      "value": 38327
+    },
+    "jvm.gc.PS-Scavenge.count": {
+      "value": 167169
+    },
+    "jvm.gc.PS-Scavenge.time": {
+      "value": 454354
+    },
+    "jvm.memory.heap.committed": {
+      "value": 37224448
+    },
+    "jvm.memory.heap.init": {
+      "value": 132120576
+    },
+    "jvm.memory.heap.max": {
+      "value": 954728448
+    },
+    "jvm.memory.heap.usage": {
+      "value": 0.03381732268231312
+    },
+    "jvm.memory.heap.used": {
+      "value": 32286360
+    },
+    "jvm.memory.non-heap.committed": {
+      "value": 60620800
+    },
+    "jvm.memory.non-heap.init": {
+      "value": 2555904
+    },
+    "jvm.memory.non-heap.max": {
+      "value": -1
+    },
+    "jvm.memory.non-heap.usage": {
+      "value": -58931096
+    },
+    "jvm.memory.non-heap.used": {
+      "value": 58931096
+    },
+    "jvm.memory.pools.Code-Cache.committed": {
+      "value": 22872064
+    },
+    "jvm.memory.pools.Code-Cache.init": {
+      "value": 2555904
+    },
+    "jvm.memory.pools.Code-Cache.max": {
+      "value": 251658240
+    },
+    "jvm.memory.pools.Code-Cache.usage": {
+      "value": 0.08939030965169271
+    },
+    "jvm.memory.pools.Code-Cache.used": {
+      "value": 22495808
+    },
+    "jvm.memory.pools.Compressed-Class-Space.committed": {
+      "value": 4063232
+    },
+    "jvm.memory.pools.Compressed-Class-Space.init": {
+      "value": 0
+    },
+    "jvm.memory.pools.Compressed-Class-Space.max": {
+      "value": 1073741824
+    },
+    "jvm.memory.pools.Compressed-Class-Space.usage": {
+      "value": 0.0035058781504631042
+    },
+    "jvm.memory.pools.Compressed-Class-Space.used": {
+      "value": 3764408
+    },
+    "jvm.memory.pools.Metaspace.committed": {
+      "value": 33685504
+    },
+    "jvm.memory.pools.Metaspace.init": {
+      "value": 0
+    },
+    "jvm.memory.pools.Metaspace.max": {
+      "value": -1
+    },
+    "jvm.memory.pools.Metaspace.usage": {
+      "value": 0.9698795066269456
+    },
+    "jvm.memory.pools.Metaspace.used": {
+      "value": 32670880
+    },
+    "jvm.memory.pools.PS-Eden-Space.committed": {
+      "value": 6291456
+    },
+    "jvm.memory.pools.PS-Eden-Space.init": {
+      "value": 33554432
+    },
+    "jvm.memory.pools.PS-Eden-Space.max": {
+      "value": 356515840
+    },
+    "jvm.memory.pools.PS-Eden-Space.usage": {
+      "value": 0.006606270285213695
+    },
+    "jvm.memory.pools.PS-Eden-Space.used": {
+      "value": 2357320
+    },
+    "jvm.memory.pools.PS-Old-Gen.committed": {
+      "value": 30408704
+    },
+    "jvm.memory.pools.PS-Old-Gen.init": {
+      "value": 88080384
+    },
+    "jvm.memory.pools.PS-Old-Gen.max": {
+      "value": 716177408
+    },
+    "jvm.memory.pools.PS-Old-Gen.usage": {
+      "value": 0.04129851580015213
+    },
+    "jvm.memory.pools.PS-Old-Gen.used": {
+      "value": 29577064
+    },
+    "jvm.memory.pools.PS-Survivor-Space.committed": {
+      "value": 524288
+    },
+    "jvm.memory.pools.PS-Survivor-Space.init": {
+      "value": 5242880
+    },
+    "jvm.memory.pools.PS-Survivor-Space.max": {
+      "value": 524288
+    },
+    "jvm.memory.pools.PS-Survivor-Space.usage": {
+      "value": 0.687530517578125
+    },
+    "jvm.memory.pools.PS-Survivor-Space.used": {
+      "value": 360464
+    },
+    "jvm.memory.total.committed": {
+      "value": 97845248
+    },
+    "jvm.memory.total.init": {
+      "value": 134676480
+    },
+    "jvm.memory.total.max": {
+      "value": 954728447
+    },
+    "jvm.memory.total.used": {
+      "value": 91230208
+    },
+    "jvm.threads.blocked.count": {
+      "value": 0
+    },
+    "jvm.threads.count": {
+      "value": 134
+    },
+    "jvm.threads.daemon.count": {
+      "value": 11
+    },
+    "jvm.threads.deadlock.count": {
+      "value": 0
+    },
+    "jvm.threads.deadlocks": {
+      "value": []
+    },
+    "jvm.threads.new.count": {
+      "value": 0
+    },
+    "jvm.threads.runnable.count": {
+      "value": 10
+    },
+    "jvm.threads.terminated.count": {
+      "value": 0
+    },
+    "jvm.threads.timed_waiting.count": {
+      "value": 117
+    },
+    "jvm.threads.waiting.count": {
+      "value": 7
+    },
+    "org.eclipse.jetty.util.thread.QueuedThreadPool.dw.jobs": {
+      "value": 0
+    },
+    "org.eclipse.jetty.util.thread.QueuedThreadPool.dw.size": {
+      "value": 8
+    },
+    "org.eclipse.jetty.util.thread.QueuedThreadPool.dw.utilization": {
+      "value": 0.375
+    },
+    "org.eclipse.jetty.util.thread.QueuedThreadPool.dw.utilization-max": {
+      "value": 0.0029296875
+    }
+  },
+  "counters": {
+    "io.dropwizard.jetty.MutableServletContextHandler.active-dispatches": {
+      "count": 0
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.active-requests": {
+      "count": 0
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.active-suspended": {
+      "count": 0
+    }
+  },
+  "histograms": {},
+  "meters": {
+    "ch.qos.logback.core.Appender.all": {
+      "count": 14006,
+      "m15_rate": 0.02198605754737047,
+      "m1_rate": 0.007563441089672757,
+      "m5_rate": 0.018703742857508542,
+      "mean_rate": 0.02849319914419003,
+      "units": "events/second"
+    },
+    "ch.qos.logback.core.Appender.debug": {
+      "count": 0,
+      "m15_rate": 0,
+      "m1_rate": 0,
+      "m5_rate": 0,
+      "mean_rate": 0,
+      "units": "events/second"
+    },
+    "ch.qos.logback.core.Appender.error": {
+      "count": 3,
+      "m15_rate": 7.616299186408016e-25,
+      "m1_rate": 2.964393875e-314,
+      "m5_rate": 1.19288644239618e-67,
+      "mean_rate": 0.000006103069937131077,
+      "units": "events/second"
+    },
+    "ch.qos.logback.core.Appender.info": {
+      "count": 648,
+      "m15_rate": 1.5275193477728016e-9,
+      "m1_rate": 2.4708785988079914e-108,
+      "m5_rate": 2.3991756937509575e-23,
+      "mean_rate": 0.0013182631058792104,
+      "units": "events/second"
+    },
+    "ch.qos.logback.core.Appender.trace": {
+      "count": 0,
+      "m15_rate": 0,
+      "m1_rate": 0,
+      "m5_rate": 0,
+      "mean_rate": 0,
+      "units": "events/second"
+    },
+    "ch.qos.logback.core.Appender.warn": {
+      "count": 13355,
+      "m15_rate": 0.021986056019851114,
+      "m1_rate": 0.007563441089672757,
+      "m5_rate": 0.018703742857508542,
+      "mean_rate": 0.02716883299603446,
+      "units": "events/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.1xx-responses": {
+      "count": 0,
+      "m15_rate": 0,
+      "m1_rate": 0,
+      "m5_rate": 0,
+      "mean_rate": 0,
+      "units": "events/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.2xx-responses": {
+      "count": 709604,
+      "m15_rate": 1.6097636989711934,
+      "m1_rate": 1.642932883191428,
+      "m5_rate": 1.6221675783011074,
+      "mean_rate": 1.4435888878932235,
+      "units": "events/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.3xx-responses": {
+      "count": 27717,
+      "m15_rate": 0.057392293544678084,
+      "m1_rate": 0.03833532101498379,
+      "m5_rate": 0.05180634511145261,
+      "mean_rate": 0.05638631294555375,
+      "units": "events/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.4xx-responses": {
+      "count": 39,
+      "m15_rate": 6.3038727517848735e-9,
+      "m1_rate": 1.4090594129652655e-82,
+      "m5_rate": 3.265406394587177e-19,
+      "mean_rate": 0.00007933997928668814,
+      "units": "events/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.5xx-responses": {
+      "count": 12518,
+      "m15_rate": 0.021750389351040175,
+      "m1_rate": 0.007563254675296074,
+      "m5_rate": 0.018690293738535157,
+      "mean_rate": 0.02546609899723427,
+      "units": "events/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.async-dispatches": {
+      "count": 0,
+      "m15_rate": 0,
+      "m1_rate": 0,
+      "m5_rate": 0,
+      "mean_rate": 0,
+      "units": "events/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.async-timeouts": {
+      "count": 0,
+      "m15_rate": 0,
+      "m1_rate": 0,
+      "m5_rate": 0,
+      "mean_rate": 0,
+      "units": "events/second"
+    }
+  },
+  "timers": {
+    "routeTo.(svc=someapp,svcenv=production,svcver=0.56,svciid=1cbc0ad7)": {
+      "count": 17774,
+      "max": 0.010358384,
+      "mean": 0.0014999181153016765,
+      "min": 0.0007182940000000001,
+      "p50": 0.001365829,
+      "p75": 0.0016777580000000001,
+      "p95": 0.002016796,
+      "p98": 0.0021518080000000003,
+      "p99": 0.0024935260000000002,
+      "p999": 0.009554748,
+      "stddev": 0.0006783301080701184,
+      "m15_rate": 0.39754241459823986,
+      "m1_rate": 0.3999923123511042,
+      "m5_rate": 0.39859467746027977,
+      "mean_rate": 0.39733212869896933,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "routeTo.(svc=someapp,svcenv=production,svcver=0.56,svciid=7820d473)": {
+      "count": 17774,
+      "max": 0.007585057,
+      "mean": 0.0019655542147909736,
+      "min": 0.001101144,
+      "p50": 0.0020630930000000002,
+      "p75": 0.002261055,
+      "p95": 0.002407443,
+      "p98": 0.002503182,
+      "p99": 0.002503182,
+      "p999": 0.0032180280000000004,
+      "stddev": 0.0003596886041711067,
+      "m15_rate": 0.3975429537661493,
+      "m1_rate": 0.3999923123511042,
+      "m5_rate": 0.3985946906582311,
+      "mean_rate": 0.3973321331429019,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "routeTo.(svc=someapp,svcenv=production,svcver=0.56,svciid=7dc9f55b)": {
+      "count": 17774,
+      "max": 0.9730245810000001,
+      "mean": 0.0020665120467721052,
+      "min": 0.0009195140000000001,
+      "p50": 0.001666469,
+      "p75": 0.00212612,
+      "p95": 0.0036801530000000002,
+      "p98": 0.00953211,
+      "p99": 0.00953211,
+      "p999": 0.009747873,
+      "stddev": 0.0013386668067995324,
+      "m15_rate": 0.39754444973599523,
+      "m1_rate": 0.3999923123551018,
+      "m5_rate": 0.3985957772522905,
+      "mean_rate": 0.39733212385129496,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "routeTo.(svc=someapp2,svcenv=production,svcver=0.1.34,svciid=0549fe47)": {
+      "count": 41213,
+      "max": 0.195998094,
+      "mean": 0.016340854524834837,
+      "min": 0.0010212860000000002,
+      "p50": 0.016947323,
+      "p75": 0.020185942000000002,
+      "p95": 0.05616977,
+      "p98": 0.09580753700000001,
+      "p99": 0.11884096000000001,
+      "p999": 0.15903119400000001,
+      "stddev": 0.02083465843340231,
+      "m15_rate": 0.9637929871975118,
+      "m1_rate": 1.0234866680233812,
+      "m5_rate": 0.991541920079955,
+      "mean_rate": 0.9212810229484966,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "routeTo.(svc=someapp2,svcenv=production,svcver=0.1.34,svciid=95b63290)": {
+      "count": 40892,
+      "max": 0.146281406,
+      "mean": 0.012334533711879413,
+      "min": 0.000425595,
+      "p50": 0.015424253,
+      "p75": 0.018303075000000002,
+      "p95": 0.025545095,
+      "p98": 0.028027993,
+      "p99": 0.088344536,
+      "p999": 0.127972527,
+      "stddev": 0.014667142058123682,
+      "m15_rate": 0.9558502483299042,
+      "m1_rate": 0.9512289995471678,
+      "m5_rate": 0.9610828705252846,
+      "mean_rate": 0.9141276113910587,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "routeTo.(svc=someapp2,svcenv=production,svcver=0.1.34,svciid=f30a742f)": {
+      "count": 41050,
+      "max": 0.212499715,
+      "mean": 0.016764559568186628,
+      "min": 0.0008459860000000001,
+      "p50": 0.015546941000000002,
+      "p75": 0.019718835,
+      "p95": 0.08823157000000001,
+      "p98": 0.12304039300000001,
+      "p99": 0.12304039300000001,
+      "p999": 0.14006447400000002,
+      "stddev": 0.0258317566089193,
+      "m15_rate": 0.9358344289019194,
+      "m1_rate": 0.8534297184110874,
+      "m5_rate": 0.9037698579605359,
+      "mean_rate": 0.9176061634297451,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "routeTo.(svc=someapp3,svcenv=production,svcver=0.0.33-snapshot,svciid=73797771)": {
+      "count": 32934,
+      "max": 0.8517567800000001,
+      "mean": 0.0018924995818171075,
+      "min": 0.000446545,
+      "p50": 0.0015101140000000001,
+      "p75": 0.002117865,
+      "p95": 0.00486402,
+      "p98": 0.008498083,
+      "p99": 0.008498083,
+      "p999": 0.008498083,
+      "stddev": 0.001610634502385742,
+      "m15_rate": 0.39702623025588574,
+      "m1_rate": 0.39983216932646093,
+      "m5_rate": 0.3973903113072123,
+      "mean_rate": 0.397526709070122,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "routeTo.(svc=someapp3,svcenv=production,svcver=0.0.33-snapshot,svciid=c352ae63)": {
+      "count": 32932,
+      "max": 0.343752579,
+      "mean": 0.002474404036701262,
+      "min": 0.000611048,
+      "p50": 0.0019273180000000001,
+      "p75": 0.002665616,
+      "p95": 0.0059699570000000006,
+      "p98": 0.017372523,
+      "p99": 0.017372523,
+      "p999": 0.017372523,
+      "stddev": 0.002731620702901135,
+      "m15_rate": 0.39613640844204606,
+      "m1_rate": 0.38549650589768575,
+      "m5_rate": 0.39375885992534826,
+      "mean_rate": 0.397557154973202,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "com.stooges.app.Router.route": {
+      "count": 749874,
+      "max": 0.213093304,
+      "mean": 0.025375680943448595,
+      "min": 0.000205416,
+      "p50": 0.019197093000000002,
+      "p75": 0.021828421,
+      "p95": 0.08775313400000001,
+      "p98": 0.12260894600000001,
+      "p99": 0.123315162,
+      "p999": 0.159399686,
+      "stddev": 0.022366590184054062,
+      "m15_rate": 1.6889731498373752,
+      "m1_rate": 1.6898528904132906,
+      "m5_rate": 1.6928663157161468,
+      "mean_rate": 1.5255123806031103,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "com.stooges.app.pckg.CloudNodeProducer.produce": {
+      "count": 749874,
+      "max": 0.0007733070000000001,
+      "mean": 0.000007532638590098486,
+      "min": 0.000001223,
+      "p50": 0.00000748,
+      "p75": 0.000008173000000000001,
+      "p95": 0.0000104,
+      "p98": 0.000010458,
+      "p99": 0.00001081,
+      "p999": 0.000034156,
+      "stddev": 0.000009245296351794245,
+      "m15_rate": 1.6882224983665046,
+      "m1_rate": 1.6788136049857902,
+      "m5_rate": 1.690610394104613,
+      "mean_rate": 1.5255099182607572,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "com.stooges.app.pckg.CloudNodeProducer.update": {
+      "count": 100,
+      "max": 10.6233533,
+      "mean": 0.00883356872103367,
+      "min": 0.002951098,
+      "p50": 0.013226164,
+      "p75": 0.013226164,
+      "p95": 0.013226164,
+      "p98": 0.013226164,
+      "p99": 0.013226164,
+      "p999": 0.013226164,
+      "stddev": 0.004458980855248051,
+      "m15_rate": 1.1308448658424797e-16,
+      "m1_rate": 1.2341251172015067e-201,
+      "m5_rate": 8.661333697062853e-43,
+      "mean_rate": 0.00020343549963539964,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "com.stooges.app.pckg.ImmutableTopologyManager.events": {
+      "count": 0,
+      "max": 0,
+      "mean": 0,
+      "min": 0,
+      "p50": 0,
+      "p75": 0,
+      "p95": 0,
+      "p98": 0,
+      "p99": 0,
+      "p999": 0,
+      "stddev": 0,
+      "m15_rate": 0,
+      "m1_rate": 0,
+      "m5_rate": 0,
+      "mean_rate": 0,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.connect-requests": {
+      "count": 0,
+      "max": 0,
+      "mean": 0,
+      "min": 0,
+      "p50": 0,
+      "p75": 0,
+      "p95": 0,
+      "p98": 0,
+      "p99": 0,
+      "p999": 0,
+      "stddev": 0,
+      "m15_rate": 0,
+      "m1_rate": 0,
+      "m5_rate": 0,
+      "mean_rate": 0,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.delete-requests": {
+      "count": 0,
+      "max": 0,
+      "mean": 0,
+      "min": 0,
+      "p50": 0,
+      "p75": 0,
+      "p95": 0,
+      "p98": 0,
+      "p99": 0,
+      "p999": 0,
+      "stddev": 0,
+      "m15_rate": 0,
+      "m1_rate": 0,
+      "m5_rate": 0,
+      "mean_rate": 0,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.dispatches": {
+      "count": 749878,
+      "max": 0.21400000000000002,
+      "mean": 0.02733858136294065,
+      "min": 0.001,
+      "p50": 0.021,
+      "p75": 0.025,
+      "p95": 0.08900000000000001,
+      "p98": 0.12400000000000001,
+      "p99": 0.125,
+      "p999": 0.161,
+      "stddev": 0.022370516849662295,
+      "m15_rate": 1.6889129760310153,
+      "m1_rate": 1.688870068625824,
+      "m5_rate": 1.6926916473085334,
+      "mean_rate": 1.525520621865629,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.get-requests": {
+      "count": 91623,
+      "max": 0.399,
+      "mean": 0.05646780177282181,
+      "min": 0.001,
+      "p50": 0.038,
+      "p75": 0.08900000000000001,
+      "p95": 0.126,
+      "p98": 0.132,
+      "p99": 0.136,
+      "p999": 0.161,
+      "stddev": 0.03815282549915831,
+      "m15_rate": 0.31516999450212385,
+      "m1_rate": 0.31465599529133453,
+      "m5_rate": 0.31552507138327657,
+      "mean_rate": 0.18639402203678587,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.head-requests": {
+      "count": 658209,
+      "max": 0.202,
+      "mean": 0.020738012137019212,
+      "min": 0.003,
+      "p50": 0.02,
+      "p75": 0.022000000000000002,
+      "p95": 0.026000000000000002,
+      "p98": 0.032,
+      "p99": 0.032,
+      "p999": 0.11800000000000001,
+      "stddev": 0.0068366503040795685,
+      "m15_rate": 1.3737363791565589,
+      "m1_rate": 1.3741754635903736,
+      "m5_rate": 1.3771391457677793,
+      "mean_rate": 1.3390330249503684,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.move-requests": {
+      "count": 0,
+      "max": 0,
+      "mean": 0,
+      "min": 0,
+      "p50": 0,
+      "p75": 0,
+      "p95": 0,
+      "p98": 0,
+      "p99": 0,
+      "p999": 0,
+      "stddev": 0,
+      "m15_rate": 0,
+      "m1_rate": 0,
+      "m5_rate": 0,
+      "mean_rate": 0,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.options-requests": {
+      "count": 34,
+      "max": 0.076,
+      "mean": 0.053999999841703984,
+      "min": 0.006,
+      "p50": 0.054000000000000006,
+      "p75": 0.054000000000000006,
+      "p95": 0.054000000000000006,
+      "p98": 0.054000000000000006,
+      "p99": 0.054000000000000006,
+      "p999": 0.054000000000000006,
+      "stddev": 0.000002756484915217949,
+      "m15_rate": 6.3038727517848735e-9,
+      "m1_rate": 1.4090594129652655e-82,
+      "m5_rate": 3.265406394587177e-19,
+      "mean_rate": 0.0000691681865082632,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.other-requests": {
+      "count": 4,
+      "max": 0,
+      "mean": 0,
+      "min": 0,
+      "p50": 0,
+      "p75": 0,
+      "p95": 0,
+      "p98": 0,
+      "p99": 0,
+      "p999": 0,
+      "stddev": 0,
+      "m15_rate": 1.063268615790778e-168,
+      "m1_rate": 2.964393875e-314,
+      "m5_rate": 1.4821969375e-313,
+      "mean_rate": 0.000008137433714429134,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.post-requests": {
+      "count": 8,
+      "max": 0.18300000000000002,
+      "mean": 0.001,
+      "min": 0.001,
+      "p50": 0.001,
+      "p75": 0.001,
+      "p95": 0.001,
+      "p98": 0.001,
+      "p99": 0.001,
+      "p999": 0.001,
+      "stddev": 7.937084216445845e-25,
+      "m15_rate": 3.893832147639638e-24,
+      "m1_rate": 2.37043309627359e-309,
+      "m5_rate": 1.4238176183232405e-64,
+      "mean_rate": 0.000016274867399648097,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.put-requests": {
+      "count": 0,
+      "max": 0,
+      "mean": 0,
+      "min": 0,
+      "p50": 0,
+      "p75": 0,
+      "p95": 0,
+      "p98": 0,
+      "p99": 0,
+      "p999": 0,
+      "stddev": 0,
+      "m15_rate": 0,
+      "m1_rate": 0,
+      "m5_rate": 0,
+      "mean_rate": 0,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.requests": {
+      "count": 749878,
+      "max": 0.21400000000000002,
+      "mean": 0.027353818494922025,
+      "min": 0.001,
+      "p50": 0.021,
+      "p75": 0.025,
+      "p95": 0.08900000000000001,
+      "p98": 0.12400000000000001,
+      "p99": 0.125,
+      "p999": 0.161,
+      "stddev": 0.022365515323481442,
+      "m15_rate": 1.6889218189031283,
+      "m1_rate": 1.6888700692053047,
+      "m5_rate": 1.692699778900237,
+      "mean_rate": 1.5255205916541583,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "io.dropwizard.jetty.MutableServletContextHandler.trace-requests": {
+      "count": 0,
+      "max": 0,
+      "mean": 0,
+      "min": 0,
+      "p50": 0,
+      "p75": 0,
+      "p95": 0,
+      "p98": 0,
+      "p99": 0,
+      "p999": 0,
+      "stddev": 0,
+      "m15_rate": 0,
+      "m1_rate": 0,
+      "m5_rate": 0,
+      "mean_rate": 0,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "org.eclipse.jetty.server.HttpConnectionFactory.8080.connections": {
+      "count": 510242,
+      "max": 962.9591915780001,
+      "mean": 31.112789725282916,
+      "min": 29.999893682000003,
+      "p50": 30.000924268000002,
+      "p75": 30.001045362000003,
+      "p95": 41.604980975000004,
+      "p98": 46.881016846,
+      "p99": 47.224152058,
+      "p999": 58.662197746000004,
+      "stddev": 7.439157130916863,
+      "m15_rate": 1.0461139524734688,
+      "m1_rate": 1.0659605346879562,
+      "m5_rate": 1.0472300023395853,
+      "mean_rate": 1.0380147587647137,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    },
+    "org.eclipse.jetty.server.HttpConnectionFactory.8081.connections": {
+      "count": 64825,
+      "max": 1349.999414742,
+      "mean": 5.659154262031276,
+      "min": 0.000455459,
+      "p50": 0.0008983550000000001,
+      "p75": 0.013538859,
+      "p95": 0.084557965,
+      "p98": 59.999403336,
+      "p99": 359.99936780400003,
+      "p999": 599.9999192930001,
+      "stddev": 47.21529571913196,
+      "m15_rate": 0.133673802428621,
+      "m1_rate": 0.1386223769828673,
+      "m5_rate": 0.13684616991997442,
+      "mean_rate": 0.13187724565138048,
+      "duration_units": "seconds",
+      "rate_units": "calls/second"
+    }
+  }
+}
