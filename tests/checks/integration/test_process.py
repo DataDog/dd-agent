@@ -325,7 +325,8 @@ class ProcessCheckTest(AgentCheckTest):
                     tags=self.generate_expected_tags(stub['config']))
 
             # Assert service checks
-            expected_tags = ['process:{0}'.format(stub['config']['name'])]
+            expected_tags = self.generate_expected_tags(stub['config']) \
+                + ['process:{0}'.format(stub['config']['name'])]
             critical = stub['config'].get('thresholds', {}).get('critical')
             warning = stub['config'].get('thresholds', {}).get('warning')
             procs = len(stub['mocked_processes'])
@@ -376,7 +377,7 @@ class ProcessCheckTest(AgentCheckTest):
                 continue
             self.assertMetric(mname, at_least=1, tags=expected_tags)
 
-        self.assertServiceCheckOK('process.up', count=1, tags=['process:py'])
+        self.assertServiceCheckOK('process.up', count=1, tags=expected_tags + ['process:py'])
 
         self.coverage_report()
 
@@ -466,7 +467,7 @@ class ProcessCheckTest(AgentCheckTest):
                 psutil.PROCFS_PATH = '/proc'
 
         expected_tags = self.generate_expected_tags(config['instances'][0])
-        self.assertServiceCheckOK('process.up', count=1, tags=['process:moved_procfs'])
+        self.assertServiceCheckOK('process.up', count=1, tags=expected_tags + ['process:moved_procfs'])
 
         self.assertMetric('system.processes.number', at_least=1, tags=expected_tags)
         self.assertMetric('system.processes.threads', at_least=1, tags=expected_tags)
