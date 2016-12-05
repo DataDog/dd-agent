@@ -84,7 +84,7 @@ class Flare(object):
             'api_key'
         ),
         CredentialPattern(
-            re.compile('^(proxy_user|proxy_password): *.+'),
+            re.compile('^\s*(proxy_user|proxy_password): *.+'),
             r'\1: ********',
             'proxy credentials'
         ),
