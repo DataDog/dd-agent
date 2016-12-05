@@ -263,7 +263,6 @@ class FlareTest(unittest.TestCase):
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
-
     def test_proxy_user_pass_regex(self, mock_config, mock_tempdir, mock_strftime, mock_os_remove):
         f = Flare()
         file_path, _ = f._strip_credentials(
@@ -283,7 +282,6 @@ class FlareTest(unittest.TestCase):
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
-
     def test_whitespace_proxy_user_pass_regex(self, mock_config, mock_tempdir, mock_strftime, mock_os_remove):
         f = Flare()
         file_path, _ = f._strip_credentials(
@@ -303,7 +301,6 @@ class FlareTest(unittest.TestCase):
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
-
     def test_uri_password_regex(self, mock_config, mock_tempdir, mock_strftime, mock_os_remove):
         f = Flare()
         password_uri_pattern = filter(
