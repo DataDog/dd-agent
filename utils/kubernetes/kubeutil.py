@@ -57,14 +57,15 @@ class KubeUtil:
 
         self.method = instance.get('method', KubeUtil.DEFAULT_METHOD)
         self.host = instance.get("host") or self.docker_util.get_hostname()
+        self.kubelet_host = os.environ.get('KUBERNETES_KUBELET_HOST') or self.host
         self._node_ip = self._node_name = None  # lazy evaluation
         self.host_name = os.environ.get('HOSTNAME')
 
         self.cadvisor_port = instance.get('port', KubeUtil.DEFAULT_CADVISOR_PORT)
         self.kubelet_port = instance.get('kubelet_port', KubeUtil.DEFAULT_KUBELET_PORT)
 
-        self.kubelet_api_url = '%s://%s:%d' % (self.method, self.host, self.kubelet_port)
-        self.cadvisor_url = '%s://%s:%d' % (self.method, self.host, self.cadvisor_port)
+        self.kubelet_api_url = '%s://%s:%d' % (self.method, self.kubelet_host, self.kubelet_port)
+        self.cadvisor_url = '%s://%s:%d' % (self.method, self.kubelet_host, self.cadvisor_port)
         self.kubernetes_api_url = 'https://%s/api/v1' % (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME)
 
         self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
