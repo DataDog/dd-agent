@@ -95,6 +95,8 @@ Zero means that metric has never occurred during the run, and there is little se
 that didn't happen, over and over. Not to mention, we pay for every custom metric in DataDog,
 regardless if they are always zero.
 
+NOTE: it is possible to override this behavior with the "leave_zero_metrics" switch
+
 About DropWizard Counts
 ----------------------------
 The default form of Counters from DropWizard are monotonically increasing numbers.
@@ -209,6 +211,8 @@ class DropwizardCheck(AgentCheck):
 
         # Specify, if you do not want package names removed
         self.leave_package_names = _is_affirmative(init_config.get('leave_package_names', False))
+        # If you do not want zero metrics removed
+        self.leave_zero_metrics = _is_affirmative(init_config.get('leave_zero_metrics', False))
 
         self.http_timeout = self.init_config.get('http_timeout', self.DEFAULT_TIMEOUT)
 
@@ -293,8 +297,12 @@ class DropwizardCheck(AgentCheck):
                 self.log.debug("SKIPPING STRING METRIC: %s" % base_metric_name)
                 continue
 
-            if value in [-1, 0]:
-                self.log.debug("SKIPPING 0 or -1 METRIC: %s" % base_metric_name)
+            if value is -1:
+                self.log.debug("SKIPPING -1 METRIC: %s" % base_metric_name)
+                continue
+
+            if (not self.leave_zero_metrics) and (value is 0):
+                self.log.debug("SKIPPING 0 METRIC: %s" % base_metric_name)
                 continue
 
             metric = base_metric_name
@@ -308,7 +316,7 @@ class DropwizardCheck(AgentCheck):
         }
         '''
         # Note -- are there any no 'units' in histogram JSON
-        self._process_reservoir_metric(section_data, tags, 'HISTOGRAMS', [], appname)
+        self._process_reservoir_metric(section_data, tags, 'HISTOGRAMS', ['values'], appname)
 
     def process_meters(self, section_data, tags, appname):
         ''' Format:
@@ -324,7 +332,7 @@ class DropwizardCheck(AgentCheck):
           },
         }
         '''
-        self._process_reservoir_metric(section_data, tags, 'METERS', ['units'], appname)
+        self._process_reservoir_metric(section_data, tags, 'METERS', ['units', 'values'], appname)
 
     def process_timers(self, section_data, tags, appname):
         '''  Format:
@@ -349,7 +357,7 @@ class DropwizardCheck(AgentCheck):
               "rate_units": "calls/second"
             }
         '''
-        self._process_reservoir_metric(section_data, tags, 'TIMERS', ['duration_units', 'rate_units'], appname)
+        self._process_reservoir_metric(section_data, tags, 'TIMERS', ['duration_units', 'rate_units', 'values'], appname)
 
     def _process_reservoir_metric(self, section_data, tags, section_name, types_to_skip, appname):
         '''
@@ -383,13 +391,14 @@ class DropwizardCheck(AgentCheck):
          A timer that receives a single event takes 15 minutes for the "one minute rate" to drop < 1e-7.  When
          more than one event is received it'll take a little longer than 15 minutes, but not too much longer.
         '''
-        if metric_data['count'] is 0:
+        count = metric_data.get('count', None)
+        if (not self.leave_zero_metrics) and (count is not None) and (count is 0):
             self.log.debug("SKIPPING 0 METRIC: %s" % base_metric_name)
             return True
-        m1rate = metric_data.get('m1_rate', None)
 
+        m1rate = metric_data.get('m1_rate', None)
         self.trace("###### m1rate %s", m1rate)
-        if (m1rate is not None) and (m1rate < 1.0e-7):
+        if (not self.leave_zero_metrics) and (m1rate is not None) and (m1rate < 1.0e-7):
             self.log.debug("SKIPPING (m1rate < 1e-7) METRIC: %s %s" % (base_metric_name, m1rate))
             return True
         return False

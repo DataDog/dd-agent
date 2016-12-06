@@ -25,6 +25,10 @@ init_config:
   # Default behavior is to remove Java package names from the front of the metric
   #leave_package_names: False
 
+  # Default behavior is to remove zero metrics.
+  # Be forewarned, leaving zero metrics will cause confusion in DataDog
+  #leave_zero_metrics: False
+
 instances:
   # Overrides for the default Dropwizard stats URL; http://localhost:8081/metrics
   - host: localhost

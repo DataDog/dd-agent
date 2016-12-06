@@ -17,9 +17,9 @@ MOCK_CONFIG = {
         'leave_package_names': False
     },
     'instances': [{'host': 'stooges.com',
-                'appname': 'my-app',
-                'port': 8181,
-                'instance_tags' : 'appgrp:mady, aa:bb'
+                   'appname': 'my-app',
+                   'port': 8181,
+                   'instance_tags': 'appgrp:mady, aa:bb'
                    }]
 }
 
@@ -107,14 +107,18 @@ class TestCheckDropwizard(AgentCheckTest):
         self.assertMetric('my-app.MutableServletContextHandler.3xx-responses.m1_rate', value=0.03833532101498379, tags=tags)
         self.assertMetric('my-app.MutableServletContextHandler.head-requests.max', value=0.202, tags=tags)
 
-        # assert that 0 metrics are missing
+        # No CamelCase
+        self.assertMetric('my-app.com.stooges.app.pckg.feeditem.add.mean_rate', value=0.39733212869896933, tags=tags)
+        assertNoMetric(self, 'my-app.com.stooges.app.pckg.feeditem.add.values')
+
+        # assert that -1, 0 metrics are missing
         assertNoMetric(self, 'my-app.Appender.debug.count')
         assertNoMetric(self, 'my-app.Jvm.memory.pools.Metaspace.max')
         assertNoMetric(self, 'my-app.Jvm.memory.pools.Metaspace.init')
         assertNoMetric(self, 'my-app.ImmutableTopologyManager.events.max')
         assertNoMetric(self, 'my-app.MutableServletContextHandler.move-requests.max')
 
-        # assert that m1_rate < 1e-9 are missing
+        # assert that m1_rate < 1e-7 are missing
         assertNoMetric(self, 'my-app.MutableServletContextHandler.4xx-responses.m1_rate')
         assertNoMetric(self, 'my-app.CloudNodeProducer.update.count')
         assertNoMetric(self, 'my-app.MutableServletContextHandler.options-requests.max')
@@ -162,6 +166,25 @@ class TestCheckDropwizard(AgentCheckTest):
         self.assertMetric('my-app.io.dropwizard.jetty.MutableServletContextHandler.3xx-responses.m1_rate', value=0.03833532101498379, tags=tags)
         self.assertMetric('my-app.io.dropwizard.jetty.MutableServletContextHandler.head-requests.max', value=0.202, tags=tags)
 
+    def test_leave_zero_metrics(self):
+        self.data_type = 1
+        my_config = copy.deepcopy(MOCK_CONFIG)
+        my_config['init_config']['leave_zero_metrics'] = True
+
+        self.run_check(my_config, agent_config=self.agentConfig, mocks=self._get_mocks(), force_reload=True)
+        #self.print_current_state()
+
+        tags = ['appgrp:mady', 'aa:bb', 'grp:celia', 'xx:yy', 'foo:bar']
+
+        # assert that 0 metrics are present
+        self.assertMetric('my-app.Appender.debug.count', value=0, tags=tags)
+        self.assertMetric('my-app.Jvm.threads.blocked.count', value=0, tags=tags)
+        self.assertMetric('my-app.MutableServletContextHandler.async-timeouts.mean_rate', value=0, tags=tags)
+
+        # assert that m1_rate < 1e-7 are present
+        self.assertMetric('my-app.CloudNodeProducer.update.count', value=100, tags=tags)
+        self.assertMetric('my-app.MutableServletContextHandler.options-requests.max', value=0.076, tags=tags)
+
     def test_encodedtags_basics(self):
         self.load_check(MOCK_CONFIG, self.agentConfig)
         ff = self.check.get_encoded_tags_processor()
@@ -173,7 +196,6 @@ class TestCheckDropwizard(AgentCheckTest):
         assertTag('myapp_svcenv:production', tags)
         assertTag('myapp_svcver:0.1.32', tags)
         assertTag('myapp_svciid:0f60fee0', tags)
-
 
     def test_encodedtags_no_tag_prefix(self):
         self.load_check(MOCK_CONFIG, self.agentConfig)

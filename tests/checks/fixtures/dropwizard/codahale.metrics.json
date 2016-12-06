@@ -380,6 +380,34 @@
       "duration_units": "seconds",
       "rate_units": "calls/second"
     },
+    "com.stooges.app.pckg.feeditem.add": {
+      "count": 7,
+      "max": 539.843628,
+      "mean": 497.2943332787729,
+      "min": 454.400686,
+      "p50": 497.294333,
+      "p75": 497.294333,
+      "p95": 497.294333,
+      "p98": 497.294333,
+      "p99": 497.294333,
+      "p999": 497.294333,
+      "values": [
+        454.400686,
+        497.294333,
+        498.25892799999997,
+        503.44122699999997,
+        515.369783,
+        517.882508,
+        539.843628
+      ],
+      "stddev": 0.0022467132506182896,
+      "m15_rate": 0.39754241459823986,
+      "m1_rate": 0.3999923123511042,
+      "m5_rate": 0.39859467746027977,
+      "mean_rate": 0.39733212869896933,
+      "duration_units": "milliseconds",
+      "rate_units": "calls/millisecond"
+    },
     "routeTo.(svc=someapp,svcenv=production,svcver=0.56,svciid=7820d473)": {
       "count": 17774,
       "max": 0.007585057,
