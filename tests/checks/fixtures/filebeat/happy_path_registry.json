@@ -1,0 +1,18 @@
+{
+    "/test_dd_agent/var/log/nginx/access.log": {
+        "source": "/test_dd_agent/var/log/nginx/access.log",
+        "offset": 391747,
+        "FileStateOS": {
+            "inode": 277025,
+            "device": 51713
+        }
+    },
+    "/test_dd_agent/var/log/syslog": {
+        "source": "/test_dd_agent/var/log/syslog",
+        "offset": 1024917,
+        "FileStateOS": {
+            "inode": 152172,
+            "device": 51713
+        }
+    }
+}

@@ -1,0 +1,10 @@
+{
+    "/test_dd_agent/var/log/syslog": {
+        "source": "/test_dd_agent/var/log/syslog",
+        "offset": 1024917,
+        "FileStateOS": {
+            "inode": 152172,
+            "device": 51713
+        }
+    }
+}
