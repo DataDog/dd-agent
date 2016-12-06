@@ -53,7 +53,14 @@ class YARNCheck(AgentCheckTest):
 
     YARN_CONFIG = {
         'resourcemanager_uri': 'http://localhost:8088',
-        'cluster_name': CLUSTER_NAME
+        'cluster_name': CLUSTER_NAME,
+        'tags': [
+            'opt_key:opt_value'
+        ],
+        'application_tags': [
+            'id:app_id',
+            'name:app_name'
+        ]
     }
 
     YARN_CLUSTER_METRICS_VALUES = {
@@ -82,7 +89,10 @@ class YARNCheck(AgentCheckTest):
         'yarn.metrics.rebooted_nodes': 0,
     }
 
-    YARN_CLUSTER_METRICS_TAGS = ['cluster_name:%s' % CLUSTER_NAME]
+    YARN_CLUSTER_METRICS_TAGS = [
+        'cluster_name:%s' % CLUSTER_NAME,
+        'opt_key:opt_value'
+    ]
 
     YARN_APP_METRICS_VALUES = {
         'yarn.apps.progress': 100,
@@ -98,7 +108,9 @@ class YARNCheck(AgentCheckTest):
 
     YARN_APP_METRICS_TAGS = [
         'cluster_name:%s' % CLUSTER_NAME,
-        'app_name:word count'
+        'app_name:word count',
+        'app_id:application_1326815542473_0001',
+        'opt_key:opt_value'
     ]
 
     YARN_NODE_METRICS_VALUES = {
@@ -112,7 +124,8 @@ class YARNCheck(AgentCheckTest):
 
     YARN_NODE_METRICS_TAGS = [
         'cluster_name:%s' % CLUSTER_NAME,
-        'node_id:h2:1235'
+        'node_id:h2:1235',
+        'opt_key:opt_value'
     ]
 
     @mock.patch('requests.get', side_effect=requests_get_mock)

@@ -148,6 +148,7 @@ class YarnCheck(AgentCheck):
 
         # Get properties from conf file
         rm_address = instance.get('resourcemanager_uri', DEFAULT_RM_URI)
+        app_tags = instance.get('application_tags', [])
 
         # Get additional tags from the conf file
         tags = instance.get('tags', [])
@@ -166,7 +167,7 @@ class YarnCheck(AgentCheck):
 
         # Get metrics from the Resource Manager
         self._yarn_cluster_metrics(rm_address, tags)
-        self._yarn_app_metrics(rm_address, tags)
+        self._yarn_app_metrics(rm_address, app_tags, tags)
         self._yarn_node_metrics(rm_address, tags)
 
     def _yarn_cluster_metrics(self, rm_address, addl_tags):
@@ -182,7 +183,7 @@ class YarnCheck(AgentCheck):
             if yarn_metrics is not None:
                 self._set_yarn_metrics_from_json(addl_tags, yarn_metrics, YARN_CLUSTER_METRICS)
 
-    def _yarn_app_metrics(self, rm_address, addl_tags):
+    def _yarn_app_metrics(self, rm_address, app_tags, addl_tags):
         '''
         Get metrics for running applications
         '''
@@ -196,9 +197,19 @@ class YarnCheck(AgentCheck):
 
                     for app_json in metrics_json['apps']['app']:
 
-                        app_name = app_json['name']
+                        tags = []
 
-                        tags = ['app_name:%s' % str(app_name)]
+                        for tag in app_tags:
+                            try:
+                                key, value = tag.split(':')
+                                tags.append("{tag}:{value}".format(
+                                    tag=value, value=str(app_json[key])
+                                ))
+                            except ValueError:
+                                self.log.error("Invalid value {0} for application_tag").format(tag)
+                            except KeyError:
+                                self.log.warning("Application tag {0} not found, so it will be ignored".format(key))
+
                         tags.extend(addl_tags)
 
                         self._set_yarn_metrics_from_json(tags, app_json, YARN_APP_METRICS)
