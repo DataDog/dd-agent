@@ -55,6 +55,8 @@ class Disk(AgentCheck):
     def _load_conf(self, instance):
         self._excluded_filesystems = instance.get('excluded_filesystems', [])
         self._excluded_disks = instance.get('excluded_disks', [])
+        self._excluded_disk_re = re.compile(
+            instance.get('excluded_disk_re', '^$'))
         self._excluded_mountpoint_re = re.compile(
             instance.get('excluded_mountpoint_re', '^$'))
         self._tag_by_filesystem = _is_affirmative(
