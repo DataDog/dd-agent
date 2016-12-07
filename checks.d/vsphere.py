@@ -572,17 +572,21 @@ class VSphereCheck(AgentCheck):
         def _get_parent_tags(mor):
             tags = []
             if mor.parent:
+                tag = []
                 if isinstance(mor.parent, vim.HostSystem):
-                    tag = 'vsphere_host:{}'.format(mor.parent.name)
+                    tag.append(u'vsphere_host:{}'.format(mor.parent.name))
                 elif isinstance(mor.parent, vim.Folder):
-                    tag = 'vsphere_folder:{}'.format(mor.parent.name)
+                    tag.append(u'vsphere_folder:{}'.format(mor.parent.name))
                 elif isinstance(mor.parent, vim.ComputeResource):
-                    tag = 'vsphere_compute:{}'.format(mor.parent.name)
+                    if isinstance(mor.parent, vim.ClusterComputeResource):
+                        tag.append(u'vsphere_cluster:{}'.format(mor.parent.name))
+                    tag.append(u'vsphere_compute:{}'.format(mor.parent.name))
                 elif isinstance(mor.parent, vim.Datacenter):
-                    tag = 'vsphere_datacenter:{}'.format(mor.parent.name)
+                    tag.append(u'vsphere_datacenter:{}'.format(mor.parent.name))
 
                 tags = _get_parent_tags(mor.parent)
-                tags.append(tag)
+                if tag:
+                    tags.extend(tag)
 
             return tags
 
@@ -604,34 +608,36 @@ class VSphereCheck(AgentCheck):
                     if c.parent:
                         instance_tags += _get_parent_tags(c)
 
+                    vsphere_type = None
                     if isinstance(c, vim.VirtualMachine):
-                        vsphere_type = 'vsphere_type:vm'
+                        vsphere_type = u'vsphere_type:vm'
                         if c.runtime.powerState == vim.VirtualMachinePowerState.poweredOff:
                             continue
                         host = c.runtime.host.name
-                        instance_tags.append('vsphere_host:{}'.format(host))
+                        instance_tags.append(u'vsphere_host:{}'.format(host))
                     elif isinstance(c, vim.HostSystem):
-                        vsphere_type = 'vsphere_type:host'
+                        vsphere_type = u'vsphere_type:host'
                     elif isinstance(c, vim.Datastore):
-                        vsphere_type = 'vsphere_type:datastore'
+                        vsphere_type = u'vsphere_type:datastore'
                         hostname = None
                     elif isinstance(c, vim.Datacenter):
-                        vsphere_type = 'vsphere_type:datacenter'
+                        vsphere_type = u'vsphere_type:datacenter'
                         hostname = None
 
-                    instance_tags.append(vsphere_type)
+                    if vsphere_type:
+                        instance_tags.append(vsphere_type)
                     obj_list.append(dict(mor_type=vimtype, mor=c, hostname=hostname, tags=tags+instance_tags))
 
             return obj_list
 
-        @atomic_method
+        # @atomic_method
         def build_resource_registry(instance, tags, regexes=None, include_only_marked=False):
             i_key = self._instance_key(instance)
             server_instance = self._get_server_instance(instance)
             if i_key not in self.morlist_raw:
                 self.morlist_raw[i_key] = {}
 
-            for resource in RESOURCE_TYPE_MAP:
+            for resource in sorted(RESOURCE_TYPE_MAP):
                 self.morlist_raw[i_key][resource] = _get_all_objs(
                     server_instance.RetrieveContent(),
                     resource,
