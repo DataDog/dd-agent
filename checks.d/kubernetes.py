@@ -251,6 +251,16 @@ class Kubernetes(AgentCheck):
         if container_image:
             tags.append('container_image:%s' % container_image)
 
+            split = container_image.split(":")
+            if len(split) > 2:
+                # if the repo is in the image name and has the form 'docker.clearbit:5000'
+                # the split will be like [repo_url, repo_port/image_name, image_tag]. Let's avoid that
+                split = [':'.join(split[:-1]), split[-1]]
+
+            tags.append('image_name:%s' % split[0])
+            if len(split) == 2:
+                tags.append('image_tag:%s' % split[1])
+
         try:
             cont_labels = subcontainer['spec']['labels']
         except KeyError:
