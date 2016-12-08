@@ -152,29 +152,31 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
             "api_key": "pdns_api_key"
         },{
             "host": "127.0.0.1",
-            "port": "8082",
+            "port": "8083",
             "api_key": "pdns_api_key",
             "version": 4
         }]}
 
     # Really a basic check to see if all metrics are there
     def test_check(self):
-        self.run_check_twice(self.config)
+        config = self.config.copy()
 
-        # Assert metrics v3
-        for metric in self.GAUGE_METRICS_V3:
-            self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
+        for instance in config['instances']:
+            self.run_check_twice(instance)
+            if instance.get('version') == 4:
+                # Assert metrics v4
+                for metric in self.GAUGE_METRICS_V4:
+                    self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
 
-        for metric in self.RATE_METRICS_V3:
-            self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
+                for metric in self.RATE_METRICS_V4:
+                    self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
+            else:
+                # Assert metrics v3
+                for metric in self.GAUGE_METRICS_V3:
+                    self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
 
-        # Assert metrics v4
-        for metric in self.GAUGE_METRICS_V4:
-            self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
-
-        for metric in self.RATE_METRICS_V4:
-            self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
-
+                for metric in self.RATE_METRICS_V3:
+                    self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
 
         service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8082']
         self.assertServiceCheckOK('powerdns.recursor.can_connect', tags=service_check_tags)
@@ -194,12 +196,6 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
         for metric in self.RATE_METRICS_V3:
             self.assertMetric(self.METRIC_FORMAT.format(metric), tags=tags)
 
-        # Assert metrics v4
-        for metric in self.GAUGE_METRICS_V4:
-            self.assertMetric(self.METRIC_FORMAT.format(metric), tags=tags)
-
-        for metric in self.RATE_METRICS_V4:
-            self.assertMetric(self.METRIC_FORMAT.format(metric), tags=tags)
 
         service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8082']
         self.assertServiceCheckOK('powerdns.recursor.can_connect', tags=service_check_tags)
