@@ -41,46 +41,30 @@ class MockedContainer(Mock):
         self.topology = kwargs.get('topology')
         self.view_idx = 0
 
-    def container_view(self, topology_root, vimtype):
+    def container_view(self, topology_node, vimtype):
         view = []
-        if isinstance(topology_root, vimtype):
-            view = [topology_root]
 
-        if hasattr(topology_root, 'childEntity'):
+        def get_child_topology(attribute):
+            entity = getattr(topology_node, attribute)
             try:
-                for child in topology_root.childEntity:
+                for child in entity:
                     child_topology = self.container_view(child, vimtype)
                     view.extend(child_topology)
             except TypeError:
-                child_topology = self.container_view(topology_root.childEntity, vimtype)
+                child_topology = self.container_view(entity, vimtype)
                 view.extend(child_topology)
 
-        elif hasattr(topology_root, 'hostFolder'):
-            try:
-                for child in topology_root.hostFolder:
-                    child_topology = self.container_view(child, vimtype)
-                    view.extend(child_topology)
-            except TypeError:
-                child_topology = self.container_view(topology_root.hostFolder, vimtype)
-                view.extend(child_topology)
+        if isinstance(topology_node, vimtype):
+            view = [topology_node]
 
-        elif hasattr(topology_root, 'host'):
-            try:
-                for child in topology_root.host:
-                    child_topology = self.container_view(child, vimtype)
-                    view.extend(child_topology)
-            except TypeError:
-                child_topology = self.container_view(topology_root.host, vimtype)
-                view.extend(child_topology)
-
-        elif hasattr(topology_root, 'vm'):
-            try:
-                for child in topology_root.vm:
-                    child_topology = self.container_view(child, vimtype)
-                    view.extend(child_topology)
-            except TypeError:
-                child_topology = self.container_view(topology_root.vm, vimtype)
-                view.extend(child_topology)
+        if hasattr(topology_node, 'childEntity'):
+            get_child_topology('childEntity')
+        elif hasattr(topology_node, 'hostFolder'):
+            get_child_topology('hostFolder')
+        elif hasattr(topology_node, 'host'):
+            get_child_topology('host')
+        elif hasattr(topology_node, 'vm'):
+            get_child_topology('vm')
 
         return view
 
