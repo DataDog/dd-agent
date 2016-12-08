@@ -194,7 +194,7 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
 
 
     def test_tags(self):
-        config = self.config.copy()
+        config = self.config_v3.copy()
         tags = ['foo:bar']
         config['instances'][0]['tags'] = ['foo:bar']
         self.run_check_twice(config)
@@ -213,7 +213,7 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
         self.coverage_report()
 
     def test_bad_config(self):
-        config = self.config.copy()
+        config = self.config_v3.copy()
         config['instances'][0]['port'] = 1111
         service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:1111']
         self.assertRaises(
@@ -224,7 +224,7 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
         self.coverage_report()
 
     def test_bad_api_key(self):
-        config = self.config.copy()
+        config = self.config_v3.copy()
         config['instances'][0]['api_key'] = 'nope'
         service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8082']
         self.assertRaises(
