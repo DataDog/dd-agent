@@ -187,7 +187,7 @@ class Memory(Check):
             pct_usable = float(usable) / total
             self.save_sample('system.mem.pct_usable', pct_usable)
 
-        page = psutil.virtual_memory()
+        page = psutil.swap_memory()
         if page.total is not None:
             self.save_sample('system.mem.page_total', page.total / B2MB)
             self.save_sample('system.mem.page_used', page.used / B2MB)
