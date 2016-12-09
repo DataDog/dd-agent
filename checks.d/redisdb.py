@@ -275,7 +275,7 @@ class Redis(AgentCheck):
                 down_seconds = 0
             else:
                 status = AgentCheck.CRITICAL
-                down_seconds = info[LINK_DOWN_KEY]
+                down_seconds = time.time() - info[LINK_DOWN_KEY]
 
             self.service_check('redis.replication.master_link_status', status, tags=tags)
             self.gauge('redis.replication.master_link_down_since_seconds', down_seconds, tags=tags)
