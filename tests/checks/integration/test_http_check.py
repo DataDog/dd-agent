@@ -54,7 +54,32 @@ CONFIG = {
         'url': 'https://ja.wikipedia.org/',
         'timeout': 1,
         'check_certificate_expiration': False,
+<<<<<<< f314eb08b7257cf696f8f1bb4d76234f98f6340c
         'content_match': u'メインページ'
+=======
+        'content_match': 'メインページ'
+    }, {
+        'name': 'cnt_mismatch_reverse',
+        'url': 'https://github.com',
+        'timeout': 1,
+        'reverse_content_match': True,
+        'check_certificate_expiration': False,
+        'content_match': 'thereisnosuchword'
+    }, {
+        'name': 'cnt_match_reverse',
+        'url': 'https://github.com',
+        'timeout': 1,
+        'reverse_content_match': True,
+        'check_certificate_expiration': False,
+        'content_match': '(thereisnosuchword|github)'
+    }, {
+        'name': 'cnt_match_unicode_reverse',
+        'url': 'https://ja.wikipedia.org/',
+        'timeout': 1,
+        'reverse_content_match': True,
+        'check_certificate_expiration': False,
+        'content_match': 'メインページ'
+>>>>>>> [HTTP CHECK] Add an Option to mark check as DOWN if a content is found
     }
     ]
 }

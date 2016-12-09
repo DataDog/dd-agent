@@ -29,6 +29,11 @@ instances:
     # content_match: 'In Stock'
     # content_match: '^(Bread|Apples|Very small rocks|Cider|Gravy|Cherries|Mud|Churches|Lead) float(s)? in water'
 
+    # The (optional) reverse_content_match parameter will allow the content_match
+    # to work the other way around. That means that the check will report
+    # as DOWN if the string is DOWN
+    # reverse_content_match: false
+
     # If your service uses basic authentication, you can optionally
     # specify a username and password that will be used in the check.
     #

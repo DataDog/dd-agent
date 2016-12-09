@@ -173,6 +173,7 @@ class HTTPCheck(NetworkCheck):
         headers.update(config_headers)
         url = instance.get('url')
         content_match = instance.get('content_match')
+        reverse_content_match = _is_affirmative(instance.get('reverse_content_match', False))
         response_time = _is_affirmative(instance.get('collect_response_time', True))
         if not url:
             raise Exception("Bad configuration. You must specify a url")
@@ -186,14 +187,31 @@ class HTTPCheck(NetworkCheck):
         allow_redirects = _is_affirmative(instance.get('allow_redirects', True))
 
         return url, username, password, method, data, http_response_status_code, timeout, include_content,\
-            headers, response_time, content_match, tags, ssl, ssl_expire, instance_ca_certs,\
+            headers, response_time, content_match, reverse_content_match, tags, ssl, ssl_expire, instance_ca_certs,\
             weakcipher, ignore_ssl_warning, skip_proxy, allow_redirects
 
     def _check(self, instance):
         addr, username, password, method, data, http_response_status_code, timeout, include_content, headers,\
-            response_time, content_match, tags, disable_ssl_validation,\
+            response_time, content_match, reverse_content_match, tags, disable_ssl_validation,\
             ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning, skip_proxy, allow_redirects = self._load_conf(instance)
         start = time.time()
+
+        def sendStatusUp(logMsg):
+            self.log.debug(logMsg)
+            service_checks.append((
+                self.SC_STATUS, Status.UP, "UP"
+            ))
+
+        def sendStatusDown(loginfo, message):
+            self.log.info(loginfo)
+            self.log.debug("Content returned:\n%s" % content)
+            if include_content:
+                message += '\nContent: {}'.format(content[:CONTENT_LENGTH])
+            service_checks.append((
+                self.SC_STATUS,
+                Status.DOWN,
+                message
+            ))
 
         service_checks = []
         try:
@@ -295,27 +313,21 @@ class HTTPCheck(NetworkCheck):
             if content_match:
                 # r.text is the response content decoded by `requests`, of type `unicode`
                 content = r.text if type(content_match) is unicode else r.content
-                if re.search(content_match, content, re.UNICODE):
-                    self.log.debug("%s is found in return content" % content_match)
-                    service_checks.append((
-                        self.SC_STATUS, Status.UP, "UP"
-                    ))
+                if not reverse_content_match and re.search(content_match, content, re.UNICODE):
+                    sendStatusUp("%s is found in return content" % content_match)
+
+                elif reverse_content_match and not re.search(content_match, content, re.UNICODE):
+                    sendStatusUp("%s is not found in return content with the reverse_content_match option" % content_match)
+
+                elif reverse_content_match:
+                    sendStatusDown("%s is found in return content with the reverse_content_match option" % content_match,
+                        'Content "%s" found in response with the reverse_content_match' % content_match)
                 else:
-                    self.log.info("%s not found in content" % content_match)
-                    self.log.debug("Content returned:\n%s" % content)
-                    message = 'Content "%s" not found in response.' % content_match
-                    if include_content:
-                        message += '\nContent: {}'.format(content[:CONTENT_LENGTH])
-                    service_checks.append((
-                        self.SC_STATUS,
-                        Status.DOWN,
-                        message
-                    ))
+                    sendStatusDown("%s is not found in return content" % content_match,
+                        'Content "%s" not found in response.' % content_match)
+
             else:
-                self.log.debug("%s is UP" % addr)
-                service_checks.append((
-                    self.SC_STATUS, Status.UP, "UP"
-                ))
+                sendStatusUp("%s is UP" % addr)
 
         if ssl_expire and parsed_uri.scheme == "https":
             status, msg = self.check_cert_expiration(instance, timeout, instance_ca_certs)
