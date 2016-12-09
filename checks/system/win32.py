@@ -193,7 +193,7 @@ class Memory(Check):
         if page.total is not None:
             self.save_sample('system.mem.pagefile_total', page.total / B2MB)
             self.save_sample('system.mem.pagefile_used', page.used / B2MB)
-            self.save_sample('system.mem.pagefile_free', page.available / B2MB)
+            self.save_sample('system.mem.pagefile_free', page.free / B2MB)
             self.save_sample('system.mem.pagefile_pct_free', (100 - page.percent) / 100)
 
         return self.get_metrics()
