@@ -192,7 +192,7 @@ class Memory(Check):
             self.save_sample('system.mem.page_total', page.total / B2MB)
             self.save_sample('system.mem.page_used', page.used / B2MB)
             self.save_sample('system.mem.page_free', page.free / B2MB)
-            self.save_sample('system.mem.page_pct_free', (100 - page.percent))
+            self.save_sample('system.mem.page_pct_free', 100 - page.percent)
 
         return self.get_metrics()
 
