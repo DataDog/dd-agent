@@ -22,6 +22,7 @@ instances:
   #   # java_options: "-Xmx200m -Xms50m" # Optional, Java JVM options
   #   # trust_store_path: /path/to/trustStore.jks # Optional, should be set if ssl is enabled
   #   # trust_store_password: password
+  #   # refresh_beans: 600 # Optional (in seconds), default is 600 seconds. Sets refresh period for refreshing matching MBeans list.  Decre  #   # asing this value may result in increased CPU usage.  
   #   tags:
   #     env: stage
   #     newTag: test
