@@ -83,6 +83,8 @@ class PHPFPMCheck(AgentCheck):
 
         pool_name = data.get('pool', 'default')
         metric_tags = tags + ["pool:{0}".format(pool_name)]
+        if http_host is not None:
+            metric_tags += ["http_host:{0}".format(http_host)]
 
         for key, mname in self.GAUGES.iteritems():
             if key not in data:
