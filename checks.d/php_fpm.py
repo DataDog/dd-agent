@@ -104,6 +104,8 @@ class PHPFPMCheck(AgentCheck):
             ping_reply = 'pong'
 
         sc_tags = ["ping_url:{0}".format(ping_url)]
+        if http_host is not None:
+            sc_tags += ["http_host:{0}".format(http_host)]
 
         try:
             # TODO: adding the 'full' parameter gets you per-process detailed
