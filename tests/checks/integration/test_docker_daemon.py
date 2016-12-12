@@ -291,7 +291,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
-        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+        DockerUtil._drop()
+        DockerUtil(init_config=config['init_config'], instance=config['instances'][0])
 
         self.run_check_twice(config, force_reload=True)
 
@@ -346,7 +347,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
-        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+        DockerUtil._drop()
+        DockerUtil(init_config=config['init_config'], instance=config['instances'][0])
 
         self.run_check_twice(config, force_reload=True)
 
@@ -408,7 +410,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
-        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+        DockerUtil._drop()
+        DockerUtil(init_config=config['init_config'], instance=config['instances'][0])
 
         self.run_check_twice(config, force_reload=True)
         for mname, tags in expected_metrics:
@@ -473,7 +476,9 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
-        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+        DockerUtil._drop()
+        DockerUtil(init_config=config['init_config'], instance=config['instances'][0])
+
         self.run_check(config, force_reload=True)
         for mname, tags in expected_metrics:
             self.assertMetric(mname, tags=tags, count=1, at_least=1)
@@ -514,7 +519,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
-        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+        DockerUtil._drop()
+        DockerUtil(init_config=config['init_config'], instance=config['instances'][0])
 
         self.run_check(config, force_reload=True)
         for mname, tags in expected_metrics:
@@ -563,7 +569,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ],
         }
 
-        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+        DockerUtil._drop()
+        DockerUtil(init_config=config['init_config'], instance=config['instances'][0])
 
         self.run_check(config, force_reload=True)
         self.assertServiceCheck('docker.container_health', count=0)

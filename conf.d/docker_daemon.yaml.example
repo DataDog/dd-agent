@@ -43,7 +43,7 @@ instances:
     # ensure that `docker ps -a -q` run fast before enabling it.
     # Defaults to false.
     #
-    # collect_container_size: false
+    # collect_container_size: true
 
     # Do you use custom cgroups for this particular instance?
     # Note: enabling this option modifies the way in which we inspect the containers and causes
@@ -63,43 +63,28 @@ instances:
     #
     # health_service_check_whitelist: []
 
-    # Collect the total container count with the docker.containers.count metric.
+    # Collect the container count tagged by state (running, paused, exited, dead)
     # Defaults to false.
     #
-    # collect_container_count: false
+    # collect_container_count: true
 
-    # Collect the count of all containers in Dead state with the docker.container.state_dead.count metric.
+    # Collect the volume count for attached and dangling volumes.
     # Defaults to false.
     #
-    # collect_dead_container_count: false
-
-    # Collect the count of all containers in Exited state with the docker.container.state_exited.count metric.
-    # Defaults to false.
-    #
-    # collect_exited_container_count: false
-
-    # Collect the total volume count with the docker.volumes.count metric.
-    # Defaults to false.
-    #
-    # collect_volume_count: false
-
-    # Collect the count of all dangling volumes with the docker.volumes.dangling.count metric.
-    # Defaults to false.
-    #
-    # collect_dangling_volume_count: false
+    # collect_volume_count: true
 
     # Collect images stats
     # Number of available active images and intermediate images as gauges.
     # Defaults to false.
     #
-    # collect_images_stats: false
+    # collect_images_stats: true
 
     # Collect disk usage per image with docker.image.size and docker.image.virtual_size metrics.
     # The check gets this size with the `docker images` command.
     # Requires collect_images_stats to be enabled.
     # Defaults to false.
     #
-    # collect_image_size: false
+    # collect_image_size: true
 
     # Collect disk metrics (total, used, free) through the docker info command for data and metadata.
     # This is useful when these values can't be obtained by the disk check.
