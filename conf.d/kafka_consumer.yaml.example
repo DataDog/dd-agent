@@ -1,8 +1,15 @@
 init_config:
-#  Customize the ZooKeeper connection timeout here
-#  zk_timeout: 5
-#  Customize the Kafka connection timeout here
-#  kafka_timeout: 5
+  # Customize the number of seconds that must elapse between running this check.
+  # When checking Kafka offsets stored in Zookeeper, a single run of this check
+  # must stat zookeeper more than the number of consumers * topic_partitions
+  # that you're monitoring. If that number is greater than 100, it's recommended
+  # to increase this value to avoid hitting zookeeper too hard.
+  # https://help.datadoghq.com/hc/en-us/articles/203557899-How-do-I-change-the-frequency-of-an-agent-check-
+  # min_collection_interval: 600
+  # Customize the ZooKeeper connection timeout here
+  # zk_timeout: 5
+  # Customize the Kafka connection timeout here
+  # kafka_timeout: 5
 
 instances:
   # - kafka_connect_str: localhost:9092
@@ -11,7 +18,7 @@ instances:
   #   consumer_groups:
   #     my_consumer:
   #       my_topic: [0, 1, 4, 12]
-  
+
   # Production example with redundant hosts:
   # In a production environment, it's often useful to specify multiple
   # Kafka / Zookeper nodes for a single check instance. This way you
@@ -19,7 +26,7 @@ instances:
   # KafkaClient / KazooClient will try contacting the next host.
   # Details: https://github.com/DataDog/dd-agent/issues/2943
   #
-  # - kafka_connect_str: 
+  # - kafka_connect_str:
   #   - <kafka_host1:port>
   #   - <kafka_host2:port>
   #   zk_connect_str: <zk_host1:port>,<zk_host2:port>
