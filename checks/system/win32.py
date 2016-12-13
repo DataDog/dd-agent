@@ -114,10 +114,10 @@ class Memory(Check):
         self.gauge('system.mem.usable')
         self.gauge('system.mem.pct_usable')
         #  details about the usage of the pagefile.
-        self.gauge('system.mem.pagefile_total')
-        self.gauge('system.mem.pagefile_used')
-        self.gauge('system.mem.pagefile_free')
-        self.gauge('system.mem.pagefile_pct_free')
+        self.gauge('system.mem.pagefile.total')
+        self.gauge('system.mem.pagefile.used')
+        self.gauge('system.mem.pagefile.free')
+        self.gauge('system.mem.pagefile.pct_free')
 
     def check(self, agentConfig):
         try:
@@ -191,10 +191,10 @@ class Memory(Check):
         # rather than from the whole virtual memory data.
         page = psutil.swap_memory()
         if page.total is not None:
-            self.save_sample('system.mem.pagefile_total', page.total / B2MB)
-            self.save_sample('system.mem.pagefile_used', page.used / B2MB)
-            self.save_sample('system.mem.pagefile_free', page.free / B2MB)
-            self.save_sample('system.mem.pagefile_pct_free', (100 - page.percent) / 100)
+            self.save_sample('system.mem.pagefile.total', page.total / B2MB)
+            self.save_sample('system.mem.pagefile.used', page.used / B2MB)
+            self.save_sample('system.mem.pagefile.free', page.free / B2MB)
+            self.save_sample('system.mem.pagefile.pct_free', (100 - page.percent) / 100)
 
         return self.get_metrics()
 
