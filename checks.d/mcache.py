@@ -79,7 +79,8 @@ class Memcache(AgentCheck):
         "curr_connections",
         "connection_structures",
         "threads",
-        "pointer_size"
+        "pointer_size",
+        "listen_disabled_num"
     ]
 
     RATES = [
