@@ -737,18 +737,12 @@ class VSphereCheck(AgentCheck):
             " for MOR {0} (type={1})".format(mor['mor'], mor['mor_type'])
         )
 
-        if mor['mor_type'] in REALTIME_RESOURCES:
-            interval = REAL_TIME_INTERVAL
-        else:
-            interval = None
+        mor['interval'] = REAL_TIME_INTERVAL if mor['mor_type'] in REALTIME_RESOURCES else None
 
         available_metrics = perfManager.QueryAvailablePerfMetric(
-            mor['mor'], intervalId=interval)
+            mor['mor'], intervalId=mor['interval'])
 
-        if available_metrics:
-            mor['metrics'] = self._compute_needed_metrics(instance, available_metrics)
-        else:
-            mor['metrics'] = None
+        mor['metrics'] = self._compute_needed_metrics(instance, available_metrics)
 
         mor_name = str(mor['mor'])
         if mor_name in self.morlist[i_key]:
@@ -774,14 +768,22 @@ class VSphereCheck(AgentCheck):
 
         batch_size = self.init_config.get('batch_morlist_size', BATCH_MORLIST_SIZE)
 
+        processed = 0
         for resource_type in RESOURCE_TYPE_MAP:
             for i in xrange(batch_size):
                 try:
                     mor = self.morlist_raw[i_key][resource_type].pop()
                     self.pool.apply_async(self._cache_morlist_process_atomic, args=(instance, mor))
+
+                    processed += 1
+                    if processed == batch_size:
+                        break
                 except (IndexError, KeyError):
                     self.log.debug("No more work to process in morlist_raw")
                     break
+
+            if processed == batch_size:
+                break
         return
 
     def _vacuum_morlist(self, instance):
@@ -852,15 +854,10 @@ class VSphereCheck(AgentCheck):
         server_instance = self._get_server_instance(instance)
         perfManager = server_instance.content.perfManager
 
-        if mor['mor_type'] in REALTIME_RESOURCES:
-            interval = REAL_TIME_INTERVAL
-        else:
-            interval = None
-
         query = vim.PerformanceManager.QuerySpec(maxSample=1,
                                                  entity=mor['mor'],
                                                  metricId=mor['metrics'],
-                                                 intervalId=interval,
+                                                 intervalId=mor['interval'],
                                                  format='normal')
         results = perfManager.QueryPerf(querySpec=[query])
         if results:
@@ -884,7 +881,7 @@ class VSphereCheck(AgentCheck):
                     "vsphere.%s" % metric_name,
                     value,
                     hostname=mor['hostname'],
-                    tags=['instance:%s' % instance_name] + mor['tags']
+                    tags=['instance:%s' % instance_name]
                 )
 
         ### <TEST-INSTRUMENTATION>
@@ -908,7 +905,7 @@ class VSphereCheck(AgentCheck):
         for mor_name, mor in mors:
             if mor['mor_type'] == 'vm':
                 vm_count += 1
-            if 'metrics' not in mor or mor['metrics'] is None:
+            if 'metrics' not in mor or not mor['metrics']:
                 # self.log.debug("Skipping entity %s collection because we didn't cache its metrics yet" % mor['hostname'])
                 continue
 
