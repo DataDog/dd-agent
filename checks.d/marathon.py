@@ -18,6 +18,7 @@ class Marathon(AgentCheck):
 
     DEFAULT_TIMEOUT = 5
     SERVICE_CHECK_NAME = 'marathon.can_connect'
+    ACS_TOKEN = None
 
     APP_METRICS = [
         'backoffFactor',
@@ -66,6 +67,23 @@ class Marathon(AgentCheck):
         if response is not None:
             self.gauge('marathon.deployments', len(response), tags=instance_tags)
 
+    def refresh_acs_token(self, auth, acs_url):
+        try:
+            auth_body = {
+                'uid': auth[0],
+                'password': auth[1]
+            }
+            r = requests.post(urljoin(acs_url, "acs/api/v1/auth/login"), json=auth_body, verify=False)
+            r.raise_for_status()
+            token = r.json()['token']
+            self.ACS_TOKEN = token
+            return token
+        except requests.exceptions.HTTPError:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                               message='acs auth url %s returned a status of %s' % (acs_url, r.status_code),
+                               tags = ["url:{0}".format(acs_url)])
+            raise Exception("Got %s when hitting %s" % (r.status_code, acs_url))
+
     def get_json(self, url, timeout, auth, acs_url):
         params = {
             'timeout': timeout,
@@ -73,24 +91,18 @@ class Marathon(AgentCheck):
             'auth': auth
         }
         if acs_url:
-            try:
-                auth_body = {
-                    'uid': auth[0],
-                    'password': auth[1]
-                }
-                r = requests.post(urljoin(acs_url, "acs/api/v1/auth/login"), json=auth_body, verify=False)
-                r.raise_for_status()
-                token = r.json()['token']
-                params['headers']['authorization'] = 'token=%s' % token
-                del params['auth']
-            except requests.exceptions.HTTPError:
-                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                                   message='%s returned a status of %s' % (acs_url, r.status_code),
-                                   tags = ["url:{0}".format(acs_url)])
-                raise Exception("Got %s when hitting %s" % (r.status_code, acs_url))
-        try:
+            # If the ACS token has not been set, go get it
+            if not self.ACS_TOKEN:
+                self.refresh_acs_token(auth, acs_url)
+            params['headers']['authorization'] = 'token=%s' % self.ACS_TOKEN
+            del params['auth']
 
+        try:
             r = requests.get(url, **params)
+            # If got unauthorized and using acs auth, refresh the token and try again
+            if r.status_code == 401 and acs_url:
+                self.refresh_acs_token(auth, acs_url)
+                r = requests.get(url, **params)
             r.raise_for_status()
         except requests.exceptions.Timeout:
             # If there's a timeout
@@ -107,7 +119,6 @@ class Marathon(AgentCheck):
 
         else:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
-                               tags = ["url:{0}".format(url)]
-                               )
+                               tags = ["url:{0}".format(url)])
 
         return r.json()
