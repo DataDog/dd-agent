@@ -1,11 +1,14 @@
 init_config:
 # time to wait on a Marathon API request
-  # default_timeout: 5
+# - default_timeout: 5
 
 instances:
 # url: the API endpoint of your Marathon master
-  # - url: "https://server:port"
-  #
-  #   if marathon is protected by basic auth
-  #   user: "username"
-  #   password: "password"
+# - url: https://server:port
+# user: the user for marathon API or ACS token authentication
+# - user: username
+# password: the password for marathon API or ACS token authentication
+# - password: password
+# acs_url: the base ACS endpoint url if an ACS token is required to access the marathon API
+# NOTE: The user and password will be used to auth with the acs server if acs_url is provided
+# - acs_url: https://server:port
