@@ -46,17 +46,8 @@ class TestFunctions(TestCase):
 
 
 class TestServer(TestCase):
-<<<<<<< c3930455f2f60891eca676945db124f4cbee1ce0
     def test_init(self):
         s = Server(None, 'localhost', '1234')
-=======
-    @mock.patch('dogstatsd.get_socket_address')
-    def test_init(self, nh):
-        nh.return_value = 'foo'
-
-        s = Server(None, 'localhost', '1234')
-        nh.assertCalledOnceWith('localhost', 1234)
->>>>>>> fix tests
 
         self.assertIsNone(s.sockaddr)
         self.assertIsNone(s.socket)
