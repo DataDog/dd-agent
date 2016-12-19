@@ -735,7 +735,7 @@ class Collector(object):
         """
         metadata = EC2.get_metadata(self.agentConfig)
         if metadata.get('hostname'):
-            metadata['ec2-hostname'] = metadata.get('hostname')
+            metadata['ec2-hostname'] = metadata.get('hostname').split()[0]
             del metadata['hostname']
 
         if self.agentConfig.get('hostname'):
