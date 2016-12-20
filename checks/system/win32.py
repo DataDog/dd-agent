@@ -12,10 +12,17 @@ try:
 except ImportError:
     psutil = None
 
+try:
+    from checks.libs.wmi.sampler import WMISampler
+except Exception:
+    def WMISampler(*args, **kwargs):
+        """
+        Fallback with a 'None' callable object.
+        """
+        return
 
 # datadog
 from utils.timeout import TimeoutException
-from checks.libs.win.winpdh import WinPDHCounter
 
 
 # Device WMI drive types
@@ -34,16 +41,34 @@ class Processes(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
 
-       
+        # Sampler(s)
+        self.wmi_sampler = WMISampler(
+            logger,
+            "Win32_PerfRawData_PerfOS_System",
+            ["ProcessorQueueLength", "Processes"]
+        )
+
         self.gauge('system.proc.queue_length')
         self.gauge('system.proc.count')
 
     def check(self, agentConfig):
-        numprocs = WinPDHCounter('System', 'Processes')
-        pql = WinPDHCounter('System', 'Processor Queue Length')
-        
-        processor_queue_length = pql.get_single_value()
-        processes = numprocs.get_single_value()
+        try:
+            self.wmi_sampler.sample()
+        except TimeoutException:
+            self.logger.warning(
+                u"Timeout while querying Win32_PerfRawData_PerfOS_System WMI class."
+                u" Processes metrics will be returned at next iteration."
+            )
+            return []
+
+        if not (len(self.wmi_sampler)):
+            self.logger.warning('Missing Win32_PerfRawData_PerfOS_System WMI class.'
+                             ' No process metrics will be returned.')
+            return []
+
+        os = self.wmi_sampler[0]
+        processor_queue_length = os.get('ProcessorQueueLength')
+        processes = os.get('Processes')
 
         if processor_queue_length is not None:
             self.save_sample('system.proc.queue_length', processor_queue_length)
@@ -56,6 +81,17 @@ class Processes(Check):
 class Memory(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
+
+        # Sampler(s)
+        self.os_wmi_sampler = WMISampler(
+            logger,
+            "Win32_OperatingSystem",
+            ["TotalVisibleMemorySize", "FreePhysicalMemory"]
+        )
+        self.mem_wmi_sampler = WMISampler(
+            logger,
+            "Win32_PerfRawData_PerfOS_Memory",
+            ["CacheBytes", "CommittedBytes", "PoolPagedBytes", "PoolNonpagedBytes"])
 
         self.gauge('system.mem.free')
         self.gauge('system.mem.used')
@@ -84,13 +120,28 @@ class Memory(Check):
         self.gauge('system.mem.page_pct_free')
 
     def check(self, agentConfig):
-        
+        try:
+            self.os_wmi_sampler.sample()
+        except TimeoutException:
+            self.logger.warning(
+                u"Timeout while querying Win32_OperatingSystem WMI class."
+                u" Memory metrics will be returned at next iteration."
+            )
+            return []
+
+        if not (len(self.os_wmi_sampler)):
+            self.logger.warning('Missing Win32_OperatingSystem WMI class.'
+                             ' No memory metrics will be returned.')
+            return []
+
+        os = self.os_wmi_sampler[0]
+
         total = 0
         free = 0
         cached = 0
-        mem = psutil.virtual_memory()
-        total_visible_memory_size = mem.total / B2KB
-        free_physical_memory = mem.available / B2KB
+
+        total_visible_memory_size = os.get('TotalVisibleMemorySize')
+        free_physical_memory = os.get('FreePhysicalMemory')
 
         if total_visible_memory_size is not None and free_physical_memory is not None:
             total = int(total_visible_memory_size) / KB2MB
@@ -99,10 +150,26 @@ class Memory(Check):
             self.save_sample('system.mem.free', free)
             self.save_sample('system.mem.used', total - free)
 
-        cache_bytes = WinPDHCounter('Memory', 'Cache Bytes').get_single_value()
-        committed_bytes = WinPDHCounter('Memory', 'Committed Bytes').get_single_value()
-        pool_paged_bytes = WinPDHCounter('Memory', 'Pool Paged Bytes').get_single_value()
-        pool_non_paged_bytes = WinPDHCounter('Memory', 'Pool Nonpaged Bytes').get_single_value()
+        try:
+            self.mem_wmi_sampler.sample()
+        except TimeoutException:
+            self.logger.warning(
+                u"Timeout while querying Win32_PerfRawData_PerfOS_Memory WMI class."
+                u" Memory metrics will be returned at next iteration."
+            )
+            return []
+
+        if not (len(self.mem_wmi_sampler)):
+            self.logger.info('Missing Win32_PerfRawData_PerfOS_Memory WMI class.'
+                             ' No memory metrics will be returned.')
+            return self.get_metrics()
+
+        mem = self.mem_wmi_sampler[0]
+
+        cache_bytes = mem.get('CacheBytes')
+        committed_bytes = mem.get('CommittedBytes')
+        pool_paged_bytes = mem.get('PoolPagedBytes')
+        pool_non_paged_bytes = mem.get('PoolNonpagedBytes')
 
         if cache_bytes is not None:
             cached = int(cache_bytes) / B2MB
@@ -154,27 +221,57 @@ class Network(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
 
+        # Sampler(s)
+        self.wmi_sampler = WMISampler(
+            logger,
+            "Win32_PerfRawData_Tcpip_NetworkInterface",
+            ["Name", "BytesReceivedPerSec", "BytesSentPerSec"]
+        )
+
         self.gauge('system.net.bytes_rcvd')
         self.gauge('system.net.bytes_sent')
 
     def check(self, agentConfig):
-        rcvd = WinPDHCounter('Network Interface', 'Bytes Received/sec').get_all_values()
-        sent = WinPDHCounter('Network Interface', 'Bytes Sent/sec').get_all_values()
+        try:
+            self.wmi_sampler.sample()
+        except TimeoutException:
+            self.logger.warning(
+                u"Timeout while querying Win32_PerfRawData_Tcpip_NetworkInterface WMI class."
+                u" Network metrics will be returned at next iteration."
+            )
+            return []
 
-        for devname, rate in rcvd.iteritems():
-            name = self.normalize_device_name(devname)
-            self.save_sample('system.net.bytes_rcvd', rate, device_name = name)
+        if not (len(self.wmi_sampler)):
+            self.logger.warning('Missing Win32_PerfRawData_Tcpip_NetworkInterface WMI class.'
+                             ' No network metrics will be returned')
+            return []
 
-        for devname, rate in sent.iteritems():
-            name = self.normalize_device_name(devname)
-            self.save_sample('system.net.bytes_sent', rate, device_name = name)
+        for iface in self.wmi_sampler:
+            name = iface.get('Name')
+            bytes_received_per_sec = iface.get('BytesReceivedPerSec')
+            bytes_sent_per_sec = iface.get('BytesSentPerSec')
 
+            name = self.normalize_device_name(name)
+            if bytes_received_per_sec is not None:
+                self.save_sample('system.net.bytes_rcvd', bytes_received_per_sec,
+                                 device_name=name)
+            if bytes_sent_per_sec is not None:
+                self.save_sample('system.net.bytes_sent', bytes_sent_per_sec,
+                                 device_name=name)
         return self.get_metrics()
 
 
 class IO(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
+
+        #  Sampler(s)
+        self.wmi_sampler = WMISampler(
+            logger,
+            "Win32_PerfRawData_PerfDisk_LogicalDisk",
+            ["Name", "DiskWriteBytesPerSec", "DiskWritesPerSec", "DiskReadBytesPerSec",
+             "DiskReadsPerSec", "CurrentDiskQueueLength"]
+        )
 
         self.gauge('system.io.wkb_s')
         self.gauge('system.io.w_s')
@@ -183,26 +280,32 @@ class IO(Check):
         self.gauge('system.io.avg_q_sz')
 
     def check(self, agentConfig):
-        dwbps = WinPDHCounter('LogicalDisk', 'Disk Write Bytes/sec').get_all_values()
-        dwps = WinPDHCounter('LogicalDisk', 'Disk Writes/sec').get_all_values()
-        drbps = WinPDHCounter('LogicalDisk', 'Disk Read Bytes/sec').get_all_values()
-        drps = WinPDHCounter('LogicalDisk', 'Disk Reads/sec').get_all_values()
-        qsz = WinPDHCounter('LogicalDisk', 'Current Disk Queue Length').get_all_values()
+        try:
+            self.wmi_sampler.sample()
+        except TimeoutException:
+            self.logger.warning(
+                u"Timeout while querying Win32_PerfRawData_PerfDisk_LogicalDiskUnable WMI class."
+                u" I/O metrics will be returned at next iteration."
+            )
+            return []
 
-        # all of the maps should have the same keys (since there's only one
-        # set of disks
+        if not (len(self.wmi_sampler)):
+            self.logger.warning('Missing Win32_PerfRawData_PerfDisk_LogicalDiskUnable WMI class.'
+                             ' No I/O metrics will be returned.')
+            return []
+
         blacklist_re = agentConfig.get('device_blacklist_re', None)
-        for device in dwbps:
-            name = self.normalize_device_name(device)
+        for device in self.wmi_sampler:
+            name = device.get('Name')
+            disk_write_bytes_per_sec = device.get('DiskWriteBytesPerSec')
+            disk_writes_per_sec = device.get('DiskWritesPerSec')
+            disk_read_bytes_per_sec = device.get('DiskReadBytesPerSec')
+            disk_reads_per_sec = device.get('DiskReadsPerSec')
+            current_disk_queue_length = device.get('CurrentDiskQueueLength')
+
+            name = self.normalize_device_name(name)
             if should_ignore_disk(name, blacklist_re):
                 continue
-
-            disk_write_bytes_per_sec = dwbps[device]
-            disk_writes_per_sec = dwps[device]
-            disk_read_bytes_per_sec = drbps[device]
-            disk_reads_per_sec = drps[device]
-            current_disk_queue_length = qsz[device]
-
             if disk_write_bytes_per_sec is not None:
                 self.save_sample('system.io.wkb_s', int(disk_write_bytes_per_sec) / B2KB,
                                  device_name=name)

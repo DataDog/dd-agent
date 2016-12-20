@@ -33,6 +33,7 @@ from checks.ganglia import Ganglia
 from config import get_system_stats, get_version
 import checks.system.unix as u
 import checks.system.win32 as w32
+import checks.system.win32new as w32new
 import modules
 from util import (
     get_uuid,
@@ -216,7 +217,14 @@ class Collector(object):
             'memory': w32.Memory(log),
             'network': w32.Network(log),
             'cpu': w32.Cpu(log),
-            'system': w32.System(log)
+            'system': w32.System(log),
+            'ionew': w32new.IONew(log),
+            'procnew': w32new.ProcessesNew(log),
+            'memorynew': w32new.MemoryNew(log),
+            'networknew': w32new.NetworkNew(log),
+            'cpunew': w32new.CpuNew(log),
+            'systemnew': w32new.SystemNew(log)
+
         }
 
         # Old-style metric checks
@@ -294,7 +302,8 @@ class Collector(object):
         # Run the system checks. Checks will depend on the OS
         if Platform.is_windows():
             # Win32 system checks
-            for check_name in ['memory', 'cpu', 'network', 'io', 'proc', 'system']:
+            for check_name in ['memory', 'cpu', 'network', 'io', 'proc', 'system',
+                            'memorynew', 'cpunew', 'networknew', 'ionew', 'procnew', 'systemnew']:
                 try:
                     metrics.extend(self._win32_system_checks[check_name].check(self.agentConfig))
                 except Exception:
