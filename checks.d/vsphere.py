@@ -538,7 +538,8 @@ class VSphereCheck(AgentCheck):
                 continue
 
             for mor in mor_by_mor_name.itervalues():
-                external_host_tags.append((mor['hostname'], {SOURCE_TYPE: mor['tags']}))
+                if mor['hostname']: # some mor's have a None hostname
+                    external_host_tags.append((mor['hostname'], {SOURCE_TYPE: mor['tags']}))
 
         return external_host_tags
 
@@ -619,6 +620,7 @@ class VSphereCheck(AgentCheck):
                         vsphere_type = u'vsphere_type:host'
                     elif isinstance(c, vim.Datastore):
                         vsphere_type = u'vsphere_type:datastore'
+                        instance_tags.append(u'vsphere_datastore:{}'.format(c.name))
                         hostname = None
                     elif isinstance(c, vim.Datacenter):
                         vsphere_type = u'vsphere_type:datacenter'
@@ -874,6 +876,10 @@ class VSphereCheck(AgentCheck):
                 if metric_name not in ALL_METRICS:
                     self.log.debug(u"Skipping unknown `%s` metric.", metric_name)
                     continue
+
+                tags = ['instance:%s' % instance_name]
+                if not mor['hostname']: # no host tags available
+                    tags.extend(mor['tags'])
 
                 # vsphere "rates" should be submitted as gauges (rate is
                 # precomputed).
