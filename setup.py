@@ -56,7 +56,7 @@ if sys.platform == 'win32':
             self.__dict__.update(kw)
             self.version = get_version()
             self.company_name = 'Datadog, Inc.'
-            self.copyright = 'Copyright 2015 Datadog, Inc.'
+            self.copyright = 'Copyright {} Datadog, Inc.'.format(date.today().year)
             self.cmdline_style = 'pywin32'
 
     agent_svc = Target(name='Datadog Agent', modules='win32.service', dest_base='ddagent')

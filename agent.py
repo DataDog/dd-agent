@@ -43,7 +43,6 @@ from config import (
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from utils.platform import Platform
 
 # utils
 from utils.cloud_metadata import EC2

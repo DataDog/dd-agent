@@ -153,18 +153,10 @@ def _windows_commondata_path():
     return path_buf.value
 
 
-def _windows_config_path():
-    common_data = _windows_commondata_path()
-    return _config_path(os.path.join(common_data, 'Datadog'))
-
-
-def _windows_confd_path():
-    common_data = _windows_commondata_path()
-    return _confd_path(os.path.join(common_data, 'Datadog'))
-
 def _windows_extra_checksd_path():
     common_data = _windows_commondata_path()
-    return _checksd_path(os.path.join(common_data, 'Datadog'))
+    return os.path.join(common_data, 'Datadog', 'checks.d')
+
 
 def _windows_checksd_path():
     if hasattr(sys, 'frozen'):
@@ -174,33 +166,6 @@ def _windows_checksd_path():
     else:
         cur_path = os.path.dirname(__file__)
         return _checksd_path(cur_path)
-
-
-def _mac_config_path():
-    return _config_path(MAC_CONFIG_PATH)
-
-
-def _mac_confd_path():
-    return _confd_path(MAC_CONFIG_PATH)
-
-
-def _mac_checksd_path():
-    return _unix_checksd_path()
-
-
-def _unix_config_path():
-    return _config_path(UNIX_CONFIG_PATH)
-
-
-def _unix_confd_path():
-    return _confd_path(UNIX_CONFIG_PATH)
-
-
-def _unix_checksd_path():
-    # Unix only will look up based on the current directory
-    # because checks.d will hang with the other python modules
-    cur_path = os.path.dirname(os.path.realpath(__file__))
-    return _checksd_path(cur_path)
 
 
 def _config_path(directory):
@@ -247,18 +212,16 @@ def get_config_path(cfg_path=None, os_name=None):
     except PathNotFound as e:
         pass
 
-    if os_name is None:
-        os_name = get_os()
-
     # Check for an OS-specific path, continue on not-found exceptions
     bad_path = ''
     try:
-        if os_name == 'windows':
-            return _windows_config_path()
-        elif os_name == 'mac':
-            return _mac_config_path()
+        if Platform.is_windows():
+            common_data = _windows_commondata_path()
+            return _config_path(os.path.join(common_data, 'Datadog'))
+        elif Platform.is_mac():
+            return _config_path(MAC_CONFIG_PATH)
         else:
-            return _unix_config_path()
+            return _config_path(UNIX_CONFIG_PATH)
     except PathNotFound as e:
         if len(e.args) > 0:
             bad_path = e.args[0]
@@ -763,16 +726,15 @@ def get_confd_path(osname=None):
     except PathNotFound as e:
         pass
 
-    if not osname:
-        osname = get_os()
     bad_path = ''
     try:
-        if osname == 'windows':
-            return _windows_confd_path()
-        elif osname == 'mac':
-            return _mac_confd_path()
+        if Platform.is_windows():
+            common_data = _windows_commondata_path()
+            return _confd_path(os.path.join(common_data, 'Datadog'))
+        elif Platform.is_mac():
+            return _confd_path(MAC_CONFIG_PATH)
         else:
-            return _unix_confd_path()
+            return _confd_path(UNIX_CONFIG_PATH)
     except PathNotFound as e:
         if len(e.args) > 0:
             bad_path = e.args[0]
@@ -781,14 +743,14 @@ def get_confd_path(osname=None):
 
 
 def get_checksd_path(osname=None):
-    if not osname:
-        osname = get_os()
-    if osname == 'windows':
+    if Platform.is_windows():
         return _windows_checksd_path()
-    elif osname == 'mac':
-        return _mac_checksd_path()
+    # Mac & Linux
     else:
-        return _unix_checksd_path()
+        # Unix only will look up based on the current directory
+        # because checks.d will hang with the other python modules
+        cur_path = os.path.dirname(os.path.realpath(__file__))
+        return _checksd_path(cur_path)
 
 
 def get_sdk_integrations_path(osname=None):
