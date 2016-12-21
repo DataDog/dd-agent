@@ -15,7 +15,7 @@ except ImportError:
 
 # datadog
 from utils.timeout import TimeoutException
-from checks.libs.win.winpdh import WinPDHCounter
+from checks.libs.win.winpdh import WinPDHSingleCounter, WinPDHMultiCounter
 
 
 # Device WMI drive types
@@ -37,13 +37,12 @@ class ProcessesNew(Check):
        
         self.gauge('system.new.proc.queue_length')
         self.gauge('system.new.proc.count')
+        self.numprocs = WinPDHSingleCounter('System', 'Processes')
+        self.pql = WinPDHSingleCounter('System', 'Processor Queue Length')
 
     def check(self, agentConfig):
-        numprocs = WinPDHCounter('System', 'Processes')
-        pql = WinPDHCounter('System', 'Processor Queue Length')
-        
-        processor_queue_length = pql.get_single_value()
-        processes = numprocs.get_single_value()
+        processor_queue_length = self.pql.get_single_value()
+        processes = self.numprocs.get_single_value()
 
         if processor_queue_length is not None:
             self.save_sample('system.new.proc.queue_length', processor_queue_length)
@@ -83,6 +82,11 @@ class MemoryNew(Check):
         self.gauge('system.new.mem.page_free')
         self.gauge('system.new.mem.page_pct_free')
 
+        self.cache_bytes_counter = WinPDHSingleCounter('Memory', 'Cache Bytes')
+        self.committed_bytes_counter = WinPDHSingleCounter('Memory', 'Committed Bytes')
+        self.pool_paged_bytes_counter = WinPDHSingleCounter('Memory', 'Pool Paged Bytes')
+        self.pool_non_paged_bytes_counter = WinPDHSingleCounter('Memory', 'Pool Nonpaged Bytes')
+
     def check(self, agentConfig):
         
         total = 0
@@ -99,10 +103,10 @@ class MemoryNew(Check):
             self.save_sample('system.new.mem.free', free)
             self.save_sample('system.new.mem.used', total - free)
 
-        cache_bytes = WinPDHCounter('Memory', 'Cache Bytes').get_single_value()
-        committed_bytes = WinPDHCounter('Memory', 'Committed Bytes').get_single_value()
-        pool_paged_bytes = WinPDHCounter('Memory', 'Pool Paged Bytes').get_single_value()
-        pool_non_paged_bytes = WinPDHCounter('Memory', 'Pool Nonpaged Bytes').get_single_value()
+        cache_bytes = self.cache_bytes_counter.get_single_value()
+        committed_bytes = self.committed_bytes_counter.get_single_value()
+        pool_paged_bytes = self.pool_paged_bytes_counter.get_single_value()
+        pool_non_paged_bytes = self.pool_non_paged_bytes_counter.get_single_value()
 
         if cache_bytes is not None:
             cached = int(cache_bytes) / B2MB
@@ -156,10 +160,12 @@ class NetworkNew(Check):
 
         self.gauge('system.new.net.bytes_rcvd')
         self.gauge('system.new.net.bytes_sent')
+        self.rcounter = WinPDHMultiCounter('Network Interface', 'Bytes Received/sec')
+        self.scounter = WinPDHMultiCounter('Network Interface', 'Bytes Sent/sec')
 
     def check(self, agentConfig):
-        rcvd = WinPDHCounter('Network Interface', 'Bytes Received/sec').get_all_values()
-        sent = WinPDHCounter('Network Interface', 'Bytes Sent/sec').get_all_values()
+        rcvd = self.rcounter.get_all_values()
+        sent = self.scounter.get_all_values()
 
         for devname, rate in rcvd.iteritems():
             name = self.normalize_device_name(devname)
@@ -182,12 +188,18 @@ class IONew(Check):
         self.gauge('system.new.io.r_s')
         self.gauge('system.new.io.avg_q_sz')
 
+        self.dwbpscounter = WinPDHMultiCounter('LogicalDisk', 'Disk Write Bytes/sec')
+        self.dwpscounter = WinPDHMultiCounter('LogicalDisk', 'Disk Writes/sec')
+        self.drbpscounter = WinPDHMultiCounter('LogicalDisk', 'Disk Read Bytes/sec')
+        self.drpscounter = WinPDHMultiCounter('LogicalDisk', 'Disk Reads/sec')
+        self.qszcounter = WinPDHMultiCounter('LogicalDisk', 'Current Disk Queue Length')
+
     def check(self, agentConfig):
-        dwbps = WinPDHCounter('LogicalDisk', 'Disk Write Bytes/sec').get_all_values()
-        dwps = WinPDHCounter('LogicalDisk', 'Disk Writes/sec').get_all_values()
-        drbps = WinPDHCounter('LogicalDisk', 'Disk Read Bytes/sec').get_all_values()
-        drps = WinPDHCounter('LogicalDisk', 'Disk Reads/sec').get_all_values()
-        qsz = WinPDHCounter('LogicalDisk', 'Current Disk Queue Length').get_all_values()
+        dwbps = self.dwbpscounter.get_all_values()
+        dwps = self.dwpscounter.get_all_values()
+        drbps = self.drbpscounter.get_all_values()
+        drps = self.drpscounter.get_all_values()
+        qsz = self.qszcounter.get_all_values()
 
         # all of the maps should have the same keys (since there's only one
         # set of disks
