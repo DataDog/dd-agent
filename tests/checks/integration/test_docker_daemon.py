@@ -529,10 +529,28 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
+
         DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
 
         self.run_check(config, force_reload=True)
         self.assertEqual(len(self.events), 2)
+
+    def test_healthcheck(self):
+        config = {
+            "init_config": {},
+            "instances": [{
+                "url": "unix://var/run/docker.sock",
+                "collect_images_stats": True,
+                "health_service_checks": True,
+            },
+            ],
+        }
+
+        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+
+        self.run_check(config, force_reload=True)
+        self.assertServiceCheck('docker.container_health', at_least=2)
+
 
     def test_container_size(self):
         expected_metrics = [

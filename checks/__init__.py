@@ -324,8 +324,11 @@ class AgentCheck(object):
         self.name = name
         self.init_config = init_config or {}
         self.agentConfig = agentConfig
+
         self.in_developer_mode = agentConfig.get('developer_mode') and psutil
         self._internal_profiling_stats = None
+        self.allow_profiling = self.agentConfig.get('allow_profiling', True)
+
         self.default_integration_http_timeout = float(agentConfig.get('default_integration_http_timeout', 9))
 
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
@@ -728,13 +731,16 @@ class AgentCheck(object):
         return stats
 
     def _set_internal_profiling_stats(self, before, after):
-        self._internal_profiling_stats = {'before': before, 'after': after}
+        if self.allow_profiling:
+            self._internal_profiling_stats = {'before': before, 'after': after}
 
     def _get_internal_profiling_stats(self):
         """
         If in developer mode, return a dictionary of statistics about the check run
         """
-        stats = self._internal_profiling_stats
+        stats = None
+        if self.allow_profiling:
+            stats = self._internal_profiling_stats
         self._internal_profiling_stats = None
         return stats
 
@@ -794,8 +800,9 @@ class AgentCheck(object):
         if self.in_developer_mode and self.name != AGENT_METRICS_CHECK_NAME:
             try:
                 after = AgentCheck._collect_internal_stats()
-                self._set_internal_profiling_stats(before, after)
-                log.info("\n \t %s %s" % (self.name, pretty_statistics(self._internal_profiling_stats)))
+                if self.allow_profiling:
+                    self._set_internal_profiling_stats(before, after)
+                    log.info("\n \t %s %s" % (self.name, pretty_statistics(self._internal_profiling_stats)))
             except Exception:  # It's fine if we can't collect stats for the run, just log and proceed
                 self.log.debug("Failed to collect Agent Stats after check {0}".format(self.name))
 

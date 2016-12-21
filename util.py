@@ -120,6 +120,24 @@ def check_yaml(conf_path):
         else:
             return check_config
 
+def config_to_yaml(config):
+    '''
+    Convert a config dict to YAML
+    '''
+    assert 'init_config' in config, "No 'init_config' section found"
+    assert 'instances' in config, "No 'instances' section found"
+
+    valid_instances = True
+    if config['instances'] is None or not isinstance(config['instances'], list):
+        valid_instances = False
+    else:
+        yaml_output = yaml.safe_dump(config, default_flow_style=False)
+
+    if not valid_instances:
+        raise Exception('You need to have at least one instance defined in your config.')
+
+    return yaml_output
+
 
 class Timer(object):
     """ Helper class """

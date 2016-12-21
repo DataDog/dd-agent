@@ -148,15 +148,17 @@ class MesosSlave(AgentCheck):
             state_metrics = self._get_state(url, timeout, verify)
             if state_metrics is not None:
                 self.version = map(int, state_metrics['version'].split('.'))
-                master_state = self._get_state(
-                    '{0}://{1}:{2}'.format(parsed_url.scheme,
-                                           state_metrics['master_hostname'],
-                                           master_port),
-                    timeout,
-                    verify
-                )
-                if master_state is not None:
-                    self.cluster_name = master_state.get('cluster')
+
+                if 'master_hostname' in state_metrics:
+                    master_state = self._get_state(
+                        '{0}://{1}:{2}'.format(parsed_url.scheme,
+                                               state_metrics['master_hostname'],
+                                               master_port),
+                        timeout,
+                        verify
+                    )
+                    if master_state is not None:
+                        self.cluster_name = master_state.get('cluster')
 
         return state_metrics
 
@@ -186,7 +188,6 @@ class MesosSlave(AgentCheck):
                 tags.append('mesos_cluster:{0}'.format(self.cluster_name))
 
             tags += instance_tags
-
             for task in tasks:
                 for framework in state_metrics['frameworks']:
                     for executor in framework['executors']:

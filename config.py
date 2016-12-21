@@ -23,7 +23,7 @@ import traceback
 from urlparse import urlparse
 
 # project
-from util import check_yaml
+from util import check_yaml, config_to_yaml
 from utils.platform import Platform, get_os
 from utils.proxy import get_proxy
 from utils.service_discovery.config import extract_agent_config
@@ -42,6 +42,9 @@ MAC_CONFIG_PATH = '/opt/datadog-agent/etc'
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 10 * 1024 * 1024
 SDK_INTEGRATIONS_DIR = 'integrations'
+SD_PIPE_NAME = "dd-service_discovery"
+SD_PIPE_UNIX_PATH = '/opt/datadog-agent/run'
+SD_PIPE_WIN_PATH = "\\\\.\\pipe\\{pipename}"
 
 log = logging.getLogger(__name__)
 
@@ -71,6 +74,8 @@ LEGACY_DATADOG_URLS = [
     "app.datadoghq.com",
     "app.datad0g.com",
 ]
+
+JMX_SD_CONF_TEMPLATE = '.jmx.{}.yaml'
 
 
 class PathNotFound(Exception):
@@ -220,6 +225,8 @@ def _checksd_path(directory):
 
 
 def _is_affirmative(s):
+    if s is None:
+        return False
     # int or real bool
     if isinstance(s, int):
         return bool(s)
@@ -381,7 +388,6 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_write_conf=Fals
         if options is not None and options.profile:
             agentConfig['developer_mode'] = True
 
-        #
         # Core config
         #ap
         if not config.has_option('Main', 'api_key'):
@@ -797,6 +803,16 @@ def get_sdk_integrations_path(osname=None):
         return path
     raise PathNotFound(path)
 
+def get_jmx_pipe_path():
+    if Platform.is_windows():
+        pipe_path = SD_PIPE_WIN_PATH
+    else:
+        pipe_path = SD_PIPE_UNIX_PATH
+        if not os.path.isdir(pipe_path):
+            pipe_path = '/tmp'
+
+    return pipe_path
+
 
 def get_auto_confd_path(osname=None):
     """Used for service discovery which only works for Unix"""
@@ -927,6 +943,7 @@ def _service_disco_configs(agentConfig):
             service_disco_configs = sd_backend.get_configs()
         except Exception:
             log.exception("Loading service discovery configurations failed.")
+            return {}
     else:
         service_disco_configs = {}
 
@@ -1051,6 +1068,7 @@ def load_check_directory(agentConfig, hostname):
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
     from checks import AGENT_METRICS_CHECK_NAME
+    from jmxfetch import JMX_CHECKS
 
     initialized_checks = {}
     init_failed_checks = {}
@@ -1089,19 +1107,16 @@ def load_check_directory(agentConfig, hostname):
 
     for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
         # ignore this config from service disco if the check has been loaded through a file config
-        if check_name in initialized_checks or check_name in init_failed_checks:
+        if check_name in initialized_checks or \
+                check_name in init_failed_checks or \
+                check_name in JMX_CHECKS:
             continue
 
-        # if TRACE_CONFIG is set, service_disco_check_config looks like:
-        # (config_src, (sd_init_config, sd_instances)) instead of
-        # (sd_init_config, sd_instances)
+        sd_init_config, sd_instances = service_disco_check_config[1]
         if agentConfig.get(TRACE_CONFIG):
-            sd_init_config, sd_instances = service_disco_check_config[1]
             configs_and_sources[check_name] = (
                 service_disco_check_config[0],
                 {'init_config': sd_init_config, 'instances': sd_instances})
-        else:
-            sd_init_config, sd_instances = service_disco_check_config
 
         check_config = {'init_config': sd_init_config, 'instances': sd_instances}
 
@@ -1119,18 +1134,19 @@ def load_check_directory(agentConfig, hostname):
         return configs_and_sources
 
     return {'initialized_checks': initialized_checks.values(),
-            'init_failed_checks': init_failed_checks,
-            }
+            'init_failed_checks': init_failed_checks}
 
 
 def load_check(agentConfig, hostname, checkname):
     """Same logic as load_check_directory except it loads one specific check"""
+    from jmxfetch import JMX_CHECKS
+
     agentConfig['checksd_hostname'] = hostname
     osname = get_os()
     checks_places = get_checks_places(osname, agentConfig)
     for config_path in _file_configs_paths(osname, agentConfig):
         check_name = _conf_path_to_check_name(config_path)
-        if check_name == checkname:
+        if check_name == checkname and check_name not in JMX_CHECKS:
             conf_is_valid, check_config, invalid_check = _load_file_config(config_path, check_name, agentConfig)
 
             if invalid_check and not conf_is_valid:
@@ -1143,7 +1159,7 @@ def load_check(agentConfig, hostname, checkname):
     # the check was not found, try with service discovery
     for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
         if check_name == checkname:
-            sd_init_config, sd_instances = service_disco_check_config
+            sd_init_config, sd_instances = service_disco_check_config[1]
             check_config = {'init_config': sd_init_config, 'instances': sd_instances}
 
             # try to load the check and return the result
@@ -1151,6 +1167,35 @@ def load_check(agentConfig, hostname, checkname):
             return load_success.values()[0] or load_failure
 
     return None
+
+def generate_jmx_configs(agentConfig, hostname, checknames=None):
+    """Similar logic to load_check_directory for JMX checks"""
+    from jmxfetch import JMX_CHECKS
+
+    if not checknames:
+        checknames = JMX_CHECKS
+    agentConfig['checksd_hostname'] = hostname
+
+    # the check was not found, try with service discovery
+    generated = {}
+    for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
+        if check_name in checknames and check_name in JMX_CHECKS:
+            log.debug('Generating JMX config for: %s' % check_name)
+
+            sd_init_config, sd_instances = service_disco_check_config
+
+            check_config = {'init_config': sd_init_config,
+                            'instances': sd_instances}
+
+            try:
+                yaml = config_to_yaml(check_config)
+                # generated["{}_{}".format(check_name, idx)] = yaml
+                generated["{}_{}".format(check_name, 0)] = yaml
+                log.debug("YAML generated: %s", yaml)
+            except Exception:
+                log.exception("Unable to generate YAML config for %s", check_name)
+
+    return generated
 
 #
 # logging

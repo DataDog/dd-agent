@@ -343,7 +343,7 @@ class ESCheck(AgentCheck):
     def get_instance_config(self, instance):
         url = instance.get('url')
         if url is None:
-            raise Exception("An url must be specified in the instance")
+            raise Exception("A URL must be specified in the instance")
 
         pshard_stats = _is_affirmative(instance.get('pshard_stats', False))
 

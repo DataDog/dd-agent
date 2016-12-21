@@ -492,13 +492,14 @@ class Aggregator(object):
                     # Parse the sample rate
                     if m[0] == '@':
                         sample_rate = float(m[1:])
-                        assert 0 <= sample_rate <= 1
+                        # in case it's in a bad state
+                        sample_rate = 1 if sample_rate < 0 or sample_rate > 1 else sample_rate
                     elif m[0] == '#':
                         tags = tuple(sorted(m[1:].split(',')))
-            except (IndexError, AssertionError):
+            except IndexError:
                 log.warning(u'Incorrect metric metadata: metric_name:%s, metadata:%s',
                             name, u' '.join(value_and_metadata[2:]))
-                sample_rate = 1  # In case it's in a bad state
+
             parsed_packets.append((name, value, metric_type, tags, sample_rate))
 
         return parsed_packets

@@ -73,10 +73,12 @@ class IIS(WinWMICheck):
         filters = map(lambda x: {"Name": tuple(('=', x))}, sites)
 
         metrics_by_property, properties = self._get_wmi_properties(instance_key, self.METRICS, [])
+
         if is_2008:
             for idx, prop in enumerate(properties):
-                if prop == "TotalBytesTransferred".lower():
+                if prop == "TotalBytesTransferred":
                     properties[idx] = "TotalBytesTransfered"
+                    break
 
         wmi_sampler = self._get_wmi_sampler(
             instance_key,

@@ -52,6 +52,8 @@ api_key:
 # developer_mode: no
 # In developer mode, the number of runs to be included in a single collector profile
 # collector_profile_interval: 20
+# In developer mode, disable profiling altogether, but still collect fine-grained agent metrics
+# allow_profiling: False
 
 # use unique hostname for GCE hosts, see http://dtdg.co/1eAynZk
 # when not specified, default: no
@@ -122,6 +124,9 @@ gce_updated_hostname: yes
 # `/datadog/check_configs` key in the back-end. If you wish otherwise, uncomment this option
 # and modify its value.
 # sd_template_dir: /datadog/check_configs
+#
+# Enable JMX checks for service disocvery
+# sd_jmx_enable: no
 #
 # ========================================================================== #
 # Other                                                                      #
