@@ -40,8 +40,9 @@ class WinPDHMultiCounter(WinPDHCounter):
         # self will retrieve the list of all object names in the class (i.e. all the network interface
         # names in the class "network interface"
         counters, instances = win32pdh.EnumObjectItems(None, None, self._class_name, win32pdh.PERF_DETAIL_WIZARD)
+        win32pdh.CollectQueryData(self.hq)
         for inst, counter_handle in self.counterdict.iteritems():
-            win32pdh.CollectQueryData(self.hq)
+            
             try:
                 t, val = win32pdh.GetFormattedCounterValue(counter_handle, win32pdh.PDH_FMT_LONG)
                 ret[inst] = val
