@@ -55,6 +55,12 @@ else
     no_start=false
 fi
 
+if [ -n "$DD_VERSION" ]; then
+    dd_version=$DD_VERSION
+else
+    dd_version=
+fi
+
 if [ ! $apikey ]; then
     printf "\033[31mAPI key not available in DD_API_KEY environment variable.\033[0m\n"
     exit 1;
@@ -133,7 +139,12 @@ if [ $OS = "RedHat" ]; then
             $sudo_cmd yum -y remove datadog-agent-base
         fi
     fi
-    $sudo_cmd yum -y --disablerepo='*' --enablerepo='datadog' install datadog-agent || $sudo_cmd yum -y install datadog-agent
+    if [ -n "$dd_version" ]; then
+        dd_agent=datadog-agent-$dd_version
+    else
+        dd_agent=datadog-agent
+    fi
+    $sudo_cmd yum -y --disablerepo='*' --enablerepo='datadog' install $dd_agent || $sudo_cmd yum -y install $dd_agent
 elif [ $OS = "Debian" ]; then
     printf "\033[34m\n* Installing apt-transport-https\n\033[0m\n"
     $sudo_cmd apt-get update || printf "\033[31m'apt-get update' failed, the script will not install the latest version of apt-transport-https.\033[0m\n"
@@ -159,7 +170,12 @@ determine the cause.
 If the cause is unclear, please contact Datadog support.
 *****
 "
-    $sudo_cmd apt-get install -y --force-yes datadog-agent
+    if [ -n "$dd_version" ]; then
+        dd_agent=datadog-agent=$dd_version
+    else
+        dd_agent=datadog-agent
+    fi
+    $sudo_cmd apt-get install -y --force-yes $dd_agent
     ERROR_MESSAGE=""
 elif [ $OS = "SUSE" ]; then
   UNAME_M=$(uname -m)
@@ -174,8 +190,13 @@ elif [ $OS = "SUSE" ]; then
   echo -e "\033[34m\n* Refreshing repositories\n\033[0m"
   $sudo_cmd zypper --non-interactive refresh
 
+    if [ -n "$dd_version" ]; then
+        dd_agent=datadog-agent-$dd_version
+    else
+        dd_agent=datadog-agent
+    fi
   echo -e "\033[34m\n* Installing Datadog Agent\n\033[0m"
-  $sudo_cmd zypper --non-interactive install datadog-agent
+  $sudo_cmd zypper --non-interactive install $dd_agent
 
 else
     printf "\033[31mYour OS or distribution are not supported by this install script.
