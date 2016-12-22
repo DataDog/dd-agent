@@ -216,51 +216,6 @@ class Cpu(Check):
 
         return self.get_metrics()
 
-
-class Network(Check):
-    def __init__(self, logger):
-        Check.__init__(self, logger)
-
-        # Sampler(s)
-        self.wmi_sampler = WMISampler(
-            logger,
-            "Win32_PerfRawData_Tcpip_NetworkInterface",
-            ["Name", "BytesReceivedPerSec", "BytesSentPerSec"]
-        )
-
-        self.gauge('system.net.bytes_rcvd')
-        self.gauge('system.net.bytes_sent')
-
-    def check(self, agentConfig):
-        try:
-            self.wmi_sampler.sample()
-        except TimeoutException:
-            self.logger.warning(
-                u"Timeout while querying Win32_PerfRawData_Tcpip_NetworkInterface WMI class."
-                u" Network metrics will be returned at next iteration."
-            )
-            return []
-
-        if not (len(self.wmi_sampler)):
-            self.logger.warning('Missing Win32_PerfRawData_Tcpip_NetworkInterface WMI class.'
-                             ' No network metrics will be returned')
-            return []
-
-        for iface in self.wmi_sampler:
-            name = iface.get('Name')
-            bytes_received_per_sec = iface.get('BytesReceivedPerSec')
-            bytes_sent_per_sec = iface.get('BytesSentPerSec')
-
-            name = self.normalize_device_name(name)
-            if bytes_received_per_sec is not None:
-                self.save_sample('system.net.bytes_rcvd', bytes_received_per_sec,
-                                 device_name=name)
-            if bytes_sent_per_sec is not None:
-                self.save_sample('system.net.bytes_sent', bytes_sent_per_sec,
-                                 device_name=name)
-        return self.get_metrics()
-
-
 class IO(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
