@@ -18,7 +18,7 @@ import json
 
 # project
 from checks import AgentCheck
-from config import get_checksd_path
+from config import get_checksd_path, get_sdk_integrations_path
 
 from utils.debug import get_check  # noqa -  FIXME 5.5.0 AgentCheck tests should not use this
 from utils.hostname import get_hostname
@@ -30,12 +30,30 @@ log = logging.getLogger('tests')
 def _is_sdk():
     return "SDK_TESTING" in os.environ
 
-def get_check_class(name):
-    checksd_path = get_checksd_path(get_os())
-    if checksd_path not in sys.path:
-        sys.path.append(checksd_path)
+def _load_sdk_module(name):
+    sdk_path = get_sdk_integrations_path(get_os())
+    if sdk_path not in sys.path:
+        sys.path.append(sdk_path)
 
-    check_module = __import__(name)
+    fd, filename, desc = imp.find_module(name, [sdk_path])
+    module = imp.load_module("_{}".format(name), fd, filename, desc)
+    if fd:
+        fd.close()
+    # module = __import__(module_name, fromlist=['check'])
+
+    return module
+
+def get_check_class(name):
+    if not _is_sdk():
+        checksd_path = get_checksd_path(get_os())
+        if checksd_path not in sys.path:
+            sys.path.append(checksd_path)
+
+        check_module = __import__(name)
+    else:
+        check_module = _load_sdk_module(name)
+        check_module = __import__("_{}.check".format(name))
+
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
     for _, clsmember in classes:
@@ -50,15 +68,20 @@ def get_check_class(name):
 
     return check_class
 
-
 def load_class(check_name, class_name):
     """
     Retrieve a class with the given name within the given check module.
     """
-    checksd_path = get_checksd_path(get_os())
-    if checksd_path not in sys.path:
-        sys.path.append(checksd_path)
-    check_module = __import__(check_name)
+    check_module_name = check_name
+    if not _is_sdk():
+        checksd_path = get_checksd_path(get_os())
+        if checksd_path not in sys.path:
+            sys.path.append(checksd_path)
+        check_module = __import__(check_module_name)
+    else:
+        check_module = _load_sdk_module(check_name)
+        check_module = __import__("_{}.check".format(check_name))
+
     classes = inspect.getmembers(check_module, inspect.isclass)
     for name, clsmember in classes:
         if name == class_name:
@@ -75,7 +98,8 @@ def load_check(name, config, agentConfig):
         fd, filename, desc = imp.find_module(name, [checksd_path])
         check_module = imp.load_module(name, fd, filename, desc)
     else:
-        check_module = __import__("check")
+        check_module = _load_sdk_module(name) # parent module
+        check_module = __import__("_{}.check".format(name))
 
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
