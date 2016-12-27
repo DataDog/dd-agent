@@ -33,6 +33,10 @@ def _is_sdk():
 def _load_sdk_module(name):
     sdk_path = get_sdk_integrations_path(get_os())
     module_path = os.path.join(sdk_path, name)
+    sdk_module_name = "_{}".format(name)
+    if sdk_module_name in sys.modules:
+        return sys.modules[sdk_module_name]
+
     if sdk_path not in sys.path:
         sys.path.append(sdk_path)
     if module_path not in sys.path:
