@@ -32,10 +32,13 @@ def _is_sdk():
 
 def _load_sdk_module(name):
     sdk_path = get_sdk_integrations_path(get_os())
+    module_path = os.path.join(sdk_path, name)
     if sdk_path not in sys.path:
         sys.path.append(sdk_path)
+    if module_path not in sys.path:
+        sys.path.append(module_path)
 
-    fd, filename, desc = imp.find_module(name, [sdk_path])
+    fd, filename, desc = imp.find_module('check', [module_path])
     module = imp.load_module("_{}".format(name), fd, filename, desc)
     if fd:
         fd.close()
@@ -52,7 +55,6 @@ def get_check_class(name):
         check_module = __import__(name)
     else:
         check_module = _load_sdk_module(name)
-        check_module = __import__("_{}.check".format(name))
 
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
@@ -80,7 +82,6 @@ def load_class(check_name, class_name):
         check_module = __import__(check_module_name)
     else:
         check_module = _load_sdk_module(check_name)
-        check_module = __import__("_{}.check".format(check_name))
 
     classes = inspect.getmembers(check_module, inspect.isclass)
     for name, clsmember in classes:
@@ -99,7 +100,6 @@ def load_check(name, config, agentConfig):
         check_module = imp.load_module(name, fd, filename, desc)
     else:
         check_module = _load_sdk_module(name) # parent module
-        check_module = __import__("_{}.check".format(name))
 
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
