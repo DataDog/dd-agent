@@ -24,6 +24,9 @@ instances:
     # you will have to escape the following "special" characters with
     # a backslash (\) if you're trying to match them in your content:
     #  . ^ $ * + ? { } [ ] \ | ( )
+
+    # If your content_match includes some unicode characters, make sure to leave the encoding to the
+    # default 'utf-8' format
     #
     # Examples:
     # content_match: 'In Stock'

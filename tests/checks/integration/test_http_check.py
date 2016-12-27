@@ -55,6 +55,12 @@ CONFIG = {
         'timeout': 1,
         'check_certificate_expiration': False,
         'content_match': 'メインページ'
+    }, {
+        'name': 'cnt_mismatch_unicode',
+        'url': 'https://ja.wikipedia.org/',
+        'timeout': 1,
+        'check_certificate_expiration': False,
+        'content_match': 'メインペーで'
     }
     ]
 }
@@ -227,6 +233,8 @@ class HTTPCheckTest(AgentCheckTest):
         self.assertServiceCheckOK("http.can_connect", tags=tags)
         tags = ['url:https://ja.wikipedia.org/', 'instance:cnt_match_unicode']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
+        tags = ['url:https://ja.wikipedia.org/', 'instance:cnt_mismatch_unicode']
+        self.assertServiceCheckCritical("http.can_connect", tags=tags)
 
         self.coverage_report()
 

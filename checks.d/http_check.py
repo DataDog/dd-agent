@@ -302,9 +302,9 @@ class HTTPCheck(NetworkCheck):
                 else:
                     self.log.info("%s not found in content" % content_match)
                     self.log.debug("Content returned:\n%s" % content)
-                    message = 'Content "%s" not found in response.' % content_match
+                    message = u'Content "%s" not found in response.' % content_match.decode('utf-8', errors='ignore')
                     if include_content:
-                        message += '\nContent: {}'.format(content[:CONTENT_LENGTH])
+                        message += u'\nContent: {}'.format(content[:CONTENT_LENGTH])
                     service_checks.append((
                         self.SC_STATUS,
                         Status.DOWN,
