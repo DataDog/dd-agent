@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?include Common.wxi ?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+	<Bundle Name="DDUpgradeBootstrapper" 
+            Version="1.0.0.0" 
+            Manufacturer=Datadog Inc." 
+            UpgradeCode="E6179AB5-A20F-47E0-8BA2-3AA5F0F9B014" >
+		
+        <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.RtfLicense" />
+
+		<Chain>
+      <ExePackage
+        SourceFile="$(var.WixRoot)\msdel.exe"
+        PerMachine="yes"
+        Permanent="yes"
+        LogPathVariable="UninstallRelatedProductsLogPath"
+        InstallCommand="--uninstall"
+        >
+      </ExePackage>
+      <MsiPackage SourceFile="$(var.DDMSI)"/>
+		</Chain>
+	</Bundle>
+</Wix>
