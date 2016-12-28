@@ -54,7 +54,7 @@ CONFIG = {
         'url': 'https://ja.wikipedia.org/',
         'timeout': 1,
         'check_certificate_expiration': False,
-        'content_match': 'メインページ'
+        'content_match': u'メインページ'
     }
     ]
 }
