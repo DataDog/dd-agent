@@ -57,7 +57,7 @@ api_key:
 
 # use unique hostname for GCE hosts, see http://dtdg.co/1eAynZk
 # when not specified, default: no
-gce_updated_hostname: yes
+# gce_updated_hostname: no
 
 # Set the threshold for accepting points to allow anything
 # within recent_point_threshold seconds (default: 30)
