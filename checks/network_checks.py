@@ -124,7 +124,7 @@ class NetworkCheck(AgentCheck):
     def check(self, instance):
         if not self.pool_started:
             self.start_pool()
-        if threading.activeCount() > 5 * _global_current_pool_size + 1: 
+        if threading.activeCount() > 5 * NetworkCheck._global_current_pool_size + 1: 
             raise Exception("Thread number (%s) is exploding. Skipping this check" % threading.activeCount())
         self._process_results()
         self._clean()
