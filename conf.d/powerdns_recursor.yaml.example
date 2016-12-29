@@ -23,8 +23,8 @@ instances:
     port: 8082
   # Recursor web server api key.
     api_key: pdns_api_key
-  # Version 3 or 4
-    version: 4
+  # Version 3 or 4 absence of this field will default to version 3.
+    version: 3
 
   # Optional tags to be applied to every emitted metric.
     # tags:

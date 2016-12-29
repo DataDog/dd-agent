@@ -9,115 +9,40 @@ from tests.checks.common import AgentCheckTest
 class TestPowerDNSRecursorCheck(AgentCheckTest):
     CHECK_NAME = 'powerdns_recursor'
 
-    GAUGE_METRICS_V3 = [
-        'cache-entries',
-        'concurrent-queries',
-        'negcache-entries',
-        'packetcache-entries',
-    ]
-    RATE_METRICS_V3 = [
-        'all-outqueries',
-        'answers-slow',
-        'answers0-1',
-        'answers1-10',
-        'answers10-100',
-        'answers100-1000',
-        'cache-hits',
-        'cache-misses',
-        'dont-outqueries',
-        'ipv6-outqueries',
-        'ipv6-questions',
-        'noerror-answers',
-        'nxdomain-answers',
-        'outgoing-timeouts',
-        'over-capacity-drops',
-        'packetcache-hits',
-        'packetcache-misses',
-        'questions',
-        'servfail-answers',
-        'tcp-client-overflow',
-        'tcp-clients',
-        'tcp-outqueries',
-        'tcp-questions',
-        'throttle-entries',
-        'throttled-out',
-        'throttled-outqueries',
-        'unauthorized-tcp',
-        'unauthorized-udp',
-        'unexpected-packets',
-    ]
-    GAUGE_METRICS_V4 = [
+    GAUGE_METRICS = [
         'cache-entries',
         'concurrent-queries',
         'failed-host-entries',
         'negcache-entries',
         'packetcache-entries',
         'throttle-entries',
-        'fd-usage',
     ]
-    RATE_METRICS_V4 = [
+    RATE_METRICS = [
         'all-outqueries',
         'answers-slow',
         'answers0-1',
         'answers1-10',
         'answers10-100',
         'answers100-1000',
-        'auth4-answers-slow',
-        'auth4-answers0-1',
-        'auth4-answers1-10',
-        'auth4-answers10-100',
-        'auth4-answers100-1000',
-        'auth6-answers-slow',
-        'auth6-answers0-1',
-        'auth6-answers1-10',
-        'auth6-answers10-100',
-        'auth6-answers100-1000',
         'cache-hits',
         'cache-misses',
-        'case-mismatches',
         'chain-resends',
+        'case-mismatches',
         'client-parse-errors',
-        'dlg-only-drops',
-        'dnssec-queries',
-        'dnssec-result-bogus',
-        'dnssec-result-indeterminate',
-        'dnssec-result-insecure',
-        'dnssec-result-nta',
-        'dnssec-result-secure',
-        'dnssec-validations',
         'dont-outqueries',
-        'edns-ping-matches',
-        'edns-ping-mismatches',
-        'ignored-packets',
         'ipv6-outqueries',
         'ipv6-questions',
         'malloc-bytes',
-        'max-mthread-stack',
-        'no-packet-error',
-        'noedns-outqueries',
         'noerror-answers',
-        'noping-outqueries',
-        'nsset-invalidations',
-        'nsspeeds-entries',
         'nxdomain-answers',
+        'max-mthread-stack',
         'outgoing-timeouts',
-        'outgoing4-timeouts',
-        'outgoing6-timeouts',
         'over-capacity-drops',
         'packetcache-hits',
         'packetcache-misses',
         'policy-drops',
-        'policy-result-custom',
-        'policy-result-drop',
-        'policy-result-noaction',
-        'policy-result-nodata',
-        'policy-result-nxdomain',
-        'policy-result-truncate',
         'qa-latency',
         'questions',
-        'real-memory-usage',
-        'resource-limits',
-        'security-status',
         'server-parse-errors',
         'servfail-answers',
         'spoof-prevents',
@@ -128,19 +53,59 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
         'tcp-questions',
         'throttled-out',
         'throttled-outqueries',
+        'unauthorized-tcp',
+        'unauthorized-udp',
+        'unexpected-packets',
+        'unreachables',
+    ]
+    GAUGE_METRICS_V4 = [
+        'fd-usage',
+    ]
+    RATE_METRICS_V4 = [
+        'auth4-answers-slow',
+        'auth4-answers0-1',
+        'auth4-answers1-10',
+        'auth4-answers10-100',
+        'auth4-answers100-1000',
+        'auth6-answers-slow',
+        'auth6-answers0-1',
+        'auth6-answers1-10',
+        'auth6-answers10-100',
+        'auth6-answers100-1000',
+        'dlg-only-drops',
+        'dnssec-queries',
+        'dnssec-result-bogus',
+        'dnssec-result-indeterminate',
+        'dnssec-result-insecure',
+        'dnssec-result-nta',
+        'dnssec-result-secure',
+        'dnssec-validations',
+        'edns-ping-matches',
+        'edns-ping-mismatches',
+        'ignored-packets',
+        'no-packet-error',
+        'noedns-outqueries',
+        'noping-outqueries',
+        'nsset-invalidations',
+        'nsspeeds-entries',
+        'outgoing4-timeouts',
+        'outgoing6-timeouts',
+        'policy-result-custom',
+        'policy-result-drop',
+        'policy-result-noaction',
+        'policy-result-nodata',
+        'policy-result-nxdomain',
+        'policy-result-truncate',
+        'real-memory-usage',
+        'resource-limits',
         'too-old-drops',
         'udp-in-errors',
         'udp-noport-errors',
         'udp-recvbuf-errors',
         'udp-sndbuf-errors',
-        'unauthorized-tcp',
-        'unauthorized-udp',
-        'unexpected-packets',
-        'unreachables',
         'uptime',
         'user-msec',
     ]
-
 
     METRIC_FORMAT = 'powerdns.recursor.{}'
 
@@ -164,10 +129,10 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
         self.run_check_twice(self.config_v3)
 
         # Assert metrics
-        for metric in self.GAUGE_METRICS_V3:
+        for metric in self.GAUGE_METRICS:
             self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
 
-        for metric in self.RATE_METRICS_V3:
+        for metric in self.RATE_METRICS:
             self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
 
         service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8082']
@@ -176,15 +141,16 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
         self.coverage_report()
 
 
+    # The version 4 check extends the base-line v3 metrics with the v4.
     def test_check_v4(self):
         # Run Version 4
         self.run_check_twice(self.config_v4)
 
         # Assert metrics
-        for metric in self.GAUGE_METRICS_V4:
+        for metric in self.GAUGE_METRICS + self.GAUGE_METRICS_V4:
             self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
 
-        for metric in self.RATE_METRICS_V4:
+        for metric in self.RATE_METRICS + self.RATE_METRICS_V4:
             self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
 
         service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8083']
@@ -200,10 +166,10 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
         self.run_check_twice(config)
 
         # Assert metrics v3
-        for metric in self.GAUGE_METRICS_V3:
+        for metric in self.GAUGE_METRICS:
             self.assertMetric(self.METRIC_FORMAT.format(metric), tags=tags)
 
-        for metric in self.RATE_METRICS_V3:
+        for metric in self.RATE_METRICS:
             self.assertMetric(self.METRIC_FORMAT.format(metric), tags=tags)
 
 
