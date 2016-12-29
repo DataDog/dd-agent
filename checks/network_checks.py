@@ -18,9 +18,6 @@ DEFAULT_SIZE_POOL = 6
 MAX_LOOP_ITERATIONS = 1000
 FAILURE = "FAILURE"
 
-_global_current_pool_size = 0
-
-
 class Status:
     DOWN = "DOWN"
     WARNING = "WARNING"
@@ -36,6 +33,7 @@ class EventType:
 class NetworkCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'servicecheck'
     SERVICE_CHECK_PREFIX = 'network_check'
+    _global_current_pool_size = 0
 
     STATUS_TO_SERVICE_CHECK = {
         Status.UP : AgentCheck.OK,
@@ -98,8 +96,7 @@ class NetworkCheck(AgentCheck):
         self.pool_size = int(self.init_config.get('threads_count', default_size))
 
         # To keep track on the total number of threads we should have running
-        global _global_current_pool_size
-        _global_current_pool_size += self.pool_size
+        NetworkCheck._global_current_pool_size += self.pool_size
 
         self.pool = Pool(self.pool_size)
 
@@ -112,8 +109,7 @@ class NetworkCheck(AgentCheck):
         self.log.info("Stopping Thread Pool")
 
         # To keep track on the total number of threads we should have running
-        global _global_current_pool_size
-        _global_current_pool_size -= self.pool_size
+        NetworkCheck._global_current_pool_size -= self.pool_size
 
         if self.pool_started:
             self.pool.terminate()
