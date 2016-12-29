@@ -529,7 +529,12 @@ class MySql(AgentCheck):
         if _is_affirmative(options.get('replication', False)):
             # Get replica stats
             results.update(self._get_replica_stats(db))
-            results.update(self._get_slave_status(db))
+            performance_schema_enabled = self._get_variable_enabled(results, 'performance_schema')
+            if _is_affirmative(options.get('extra_performance_metrics', False)) and \
+                self._version_compatible(db, host, "5.6.0") and \
+                performance_schema_enabled:
+                results.update(self._get_slave_status(db))
+
             metrics.update(REPLICA_VARS)
 
             # get slave running form global status page
