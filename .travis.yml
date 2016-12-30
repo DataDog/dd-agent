@@ -104,6 +104,8 @@ script:
   - ls -al $INTEGRATIONS_DIR
   - 'rake ci:run'
   - ls -al $INTEGRATIONS_DIR
+  - rm -rf /home/travis/virtualenv/python2.7.9/lib/python2.7/site-packages/pip-6.0.7.dist-info
+  - rm -rf /home/travis/virtualenv/python2.7.9/lib/python2.7/site-packages/setuptools-12.0.5.dist-info
 
 
 after_failure:
