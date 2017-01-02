@@ -54,10 +54,7 @@ CONFIG = {
         'url': 'https://ja.wikipedia.org/',
         'timeout': 1,
         'check_certificate_expiration': False,
-<<<<<<< f314eb08b7257cf696f8f1bb4d76234f98f6340c
         'content_match': u'メインページ'
-=======
-        'content_match': 'メインページ'
     }, {
         'name': 'cnt_mismatch_reverse',
         'url': 'https://github.com',
@@ -78,8 +75,7 @@ CONFIG = {
         'timeout': 1,
         'reverse_content_match': True,
         'check_certificate_expiration': False,
-        'content_match': 'メインページ'
->>>>>>> [HTTP CHECK] Add an Option to mark check as DOWN if a content is found
+        'content_match': u'メインページ'
     }
     ]
 }
@@ -252,6 +248,11 @@ class HTTPCheckTest(AgentCheckTest):
         self.assertServiceCheckOK("http.can_connect", tags=tags)
         tags = ['url:https://ja.wikipedia.org/', 'instance:cnt_match_unicode']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
+        tags = ['url:https://github.com', 'instance:cnt_mismatch_reverse']
+        self.assertServiceCheckOK("http.can_connect", tags=tags)
+        self.assertServiceCheckCritical("http.can_connect", tags=tags, count=0)
+        tags = ['url:https://github.com', 'instance:cnt_match_reverse']
+        self.assertServiceCheckCritical("http.can_connect", tags=tags)
 
         self.coverage_report()
 
