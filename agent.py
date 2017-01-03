@@ -14,17 +14,23 @@ from config import get_version, initialize_logging  # noqa
 initialize_logging('collector')
 
 # stdlib
+from copy import copy
 import logging
 import os
 import signal
 import sys
 import time
-import supervisor.xmlrpc
 import xmlrpclib
-from copy import copy
 
 # For pickle & PID files, see issue 293
 os.umask(022)
+
+# 3p
+try:
+    import supervisor.xmlrpc
+except ImportError:
+    # Not used/shipped on Windows
+    pass
 
 # project
 from checks.check_status import CollectorStatus
