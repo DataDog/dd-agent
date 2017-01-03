@@ -60,6 +60,12 @@ class TestKubernetesState(AgentCheckTest):
 
         self.assertServiceCheck(NAMESPACE + '.node.ready', self.check.OK)
         self.assertServiceCheck(NAMESPACE + '.node.out_of_disk', self.check.OK)
+        self.assertServiceCheck(NAMESPACE + '.pod.phase.running', self.check.OK)
+        # TODO: uncomment when any of these are in the test protobuf.bin
+        # self.assertServiceCheck(NAMESPACE + '.pod.phase.pending', self.check.WARNING)
+        # self.assertServiceCheck(NAMESPACE + '.pod.phase.succeeded', self.check.OK)
+        # self.assertServiceCheck(NAMESPACE + '.pod.phase.failed', self.check.CRITICAL)
+        # self.assertServiceCheck(NAMESPACE + '.pod.phase.unknown', self.check.UNKNOWN)
 
         self.assertMetric(NAMESPACE + '.node.cpu_capacity')
         self.assertMetric(NAMESPACE + '.node.memory_capacity')
@@ -68,6 +74,12 @@ class TestKubernetesState(AgentCheckTest):
         self.assertMetric(NAMESPACE + '.node.memory_allocatable')
         self.assertMetric(NAMESPACE + '.node.pods_allocatable')
         self.assertMetric(NAMESPACE + '.node.status')
+        self.assertMetric(NAMESPACE + '.container.cpu_requested')
+        self.assertMetric(NAMESPACE + '.container.memory_requested')
+        # TODO: uncomment when kube-state-metrics 0.4 is released
+        # self.assertMetric(NAMESPACE + '.container.cpu_limit')
+        # self.assertMetric(NAMESPACE + '.container.memory_limit')
+        self.assertMetric(NAMESPACE + '.container.restarts')
         self.assertMetric(NAMESPACE + '.deployment.replicas_available')
         self.assertMetric(NAMESPACE + '.deployment.replicas_unavailable')
         self.assertMetric(NAMESPACE + '.deployment.replicas_desired')
