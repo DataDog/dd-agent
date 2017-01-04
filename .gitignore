@@ -39,3 +39,4 @@ tests/core/fixtures/flare/dd*
 .ropeproject
 .bundle
 tags
+.idea/
