@@ -19,7 +19,7 @@ class GCE(object):
     TIMEOUT = 0.3 # second
     SOURCE_TYPE_NAME = 'google cloud platform'
     metadata = None
-    EXCLUDED_ATTRIBUTES = ["kube-env", "startup-script", "shutdown-script", "sshKeys", "user-data",
+    EXCLUDED_ATTRIBUTES = ["kube-env", "startup-script", "shutdown-script", "configure-sh", "sshKeys", "user-data",
     "cli-cert", "ipsec-cert", "ssl-cert", "google-container-manifest"]
 
 
