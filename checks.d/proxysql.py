@@ -90,12 +90,12 @@ class ProxySQL(AgentCheck):
         with self._connect(host, port, socket, user, password, connect_timeout) as conn:
             try:
                 # Metric Collection
-                self._collect_metrics(host, conn, tags, options)
+                self._collect_metrics(conn, tags)
             except Exception as e:
                 self.log.exception("error!")
                 raise e
 
-    def _collect_metrics(self, host, conn, tags, options):
+    def _collect_metrics(self, conn, tags):
         """Collects all the different types of ProxySQL metrics and submits them to Datadog"""
         global_stats = self._get_global_stats(conn)
         for metric_name, metric_type in PROXYSQL_MYSQL_STATS_GLOBAL.iteritems():
@@ -111,10 +111,10 @@ class ProxySQL(AgentCheck):
         for metric_name, metric_type in PROXYSQL_CONNECTION_POOL_STATS.iteritems():
             for metric in conn_pool_stats.get(metric_name):
                 metric_tags = list(tags)
-                for tag, value in metric.iteritems():
-                    if tag:
-                        metric_tags.append(tag)
-                    self._submit_metric(metric_name, metric_type, value, metric_tags)
+                tag, value = metric
+                if tag:
+                    metric_tags.append(tag)
+                self._submit_metric(metric_name, metric_type, value, metric_tags)
 
     def _get_global_stats(self, conn):
         """Fetch the global ProxySQL stats."""
@@ -175,14 +175,14 @@ class ProxySQL(AgentCheck):
 
                 stats = defaultdict(list)
                 for row in cursor.fetchall():
-                    stats['Connections_used'].append({'proxysql_db_node:%s' % row['Host']: row['Connections_used']})
-                    stats['Connections_free'].append({'proxysql_db_node:%s' % row['Host']: row['Connections_free']})
-                    stats['Connections_ok'].append({'proxysql_db_node:%s' % row['Host']: row['Connections_ok']})
-                    stats['Connections_error'].append({'proxysql_db_node:%s' % row['Host']: row['Connections_error']})
-                    stats['Queries'].append({'proxysql_db_node:%s' % row['Host']: row['Queries']})
-                    stats['Bytes_data_sent'].append({'proxysql_db_node:%s' % row['Host']: row['Bytes_data_sent']})
-                    stats['Bytes_data_recv'].append({'proxysql_db_node:%s' % row['Host']: row['Bytes_data_recv']})
-                    stats['Latency_ms'].append({'proxysql_db_node:%s' % row['Host']: row['Latency_ms']})
+                    stats['Connections_used'].append(('proxysql_db_node:%s' % row['Host'], row['Connections_used']))
+                    stats['Connections_free'].append(('proxysql_db_node:%s' % row['Host'], row['Connections_free']))
+                    stats['Connections_ok'].append(('proxysql_db_node:%s' % row['Host'], row['Connections_ok']))
+                    stats['Connections_error'].append(('proxysql_db_node:%s' % row['Host'], row['Connections_error']))
+                    stats['Queries'].append(('proxysql_db_node:%s' % row['Host'], row['Queries']))
+                    stats['Bytes_data_sent'].append(('proxysql_db_node:%s' % row['Host'], row['Bytes_data_sent']))
+                    stats['Bytes_data_recv'].append(('proxysql_db_node:%s' % row['Host'], row['Bytes_data_recv']))
+                    stats['Latency_ms'].append(('proxysql_db_node:%s' % row['Host'], row['Latency_ms']))
 
                 return stats
         except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
