@@ -9,11 +9,6 @@ from collections import defaultdict
 # 3p
 import pymysql
 import pymysql.cursors
-try:
-    import psutil
-    PSUTIL_AVAILABLE = True
-except ImportError:
-    PSUTIL_AVAILABLE = False
 
 # project
 from checks import AgentCheck
@@ -90,31 +85,35 @@ class ProxySQL(AgentCheck):
         with self._connect(host, port, socket, user, password, connect_timeout) as conn:
             try:
                 # Metric Collection
-                self._collect_metrics(conn, tags)
+                self._collect_metrics(conn, tags, options)
             except Exception as e:
                 self.log.exception("error!")
                 raise e
 
-    def _collect_metrics(self, conn, tags):
+    def _collect_metrics(self, conn, tags, options):
         """Collects all the different types of ProxySQL metrics and submits them to Datadog"""
         global_stats = self._get_global_stats(conn)
         for metric_name, metric_type in PROXYSQL_MYSQL_STATS_GLOBAL.iteritems():
             metric_tags = list(tags)
             self._submit_metric(metric_name, metric_type, int(global_stats.get(metric_name)), metric_tags)
 
-        command_counters = self._get_command_counters(conn)
-        for metric_name, metric_type in PROXYSQL_MYSQL_STATS_COMMAND_COUNTERS.iteritems():
-            metric_tags = list(tags)
-            self._submit_metric(metric_name, metric_type, int(command_counters.get(metric_name)), metric_tags)
-
-        conn_pool_stats = self._get_connection_pool_stats(conn)
-        for metric_name, metric_type in PROXYSQL_CONNECTION_POOL_STATS.iteritems():
-            for metric in conn_pool_stats.get(metric_name):
+        report_command_counters = options.get('extra_command_counter_metrics', True)
+        if report_command_counters:
+            command_counters = self._get_command_counters(conn)
+            for metric_name, metric_type in PROXYSQL_MYSQL_STATS_COMMAND_COUNTERS.iteritems():
                 metric_tags = list(tags)
-                tag, value = metric
-                if tag:
-                    metric_tags.append(tag)
-                self._submit_metric(metric_name, metric_type, value, metric_tags)
+                self._submit_metric(metric_name, metric_type, int(command_counters.get(metric_name)), metric_tags)
+
+        report_conn_pool_stats = options.get('extra_connection_pool_metrics', True)
+        if report_conn_pool_stats:
+            conn_pool_stats = self._get_connection_pool_stats(conn)
+            for metric_name, metric_type in PROXYSQL_CONNECTION_POOL_STATS.iteritems():
+                for metric in conn_pool_stats.get(metric_name):
+                    metric_tags = list(tags)
+                    tag, value = metric
+                    if tag:
+                        metric_tags.append(tag)
+                    self._submit_metric(metric_name, metric_type, value, metric_tags)
 
     def _get_global_stats(self, conn):
         """Fetch the global ProxySQL stats."""
