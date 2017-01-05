@@ -4,8 +4,8 @@ instances:
   - server: localhost
     # user: my_username
     # pass: my_password
-    # port: 6032             # Optional
-    # sock: /path/to/sock    # Connect via Unix Socket
+    # port: 6032
+    # sock: /path/to/sock    # Option connect via Unix Socket
     # connect_timeout: None  # Optional integer seconds
     # tags:                  # Optional
     #   - optional_tag1

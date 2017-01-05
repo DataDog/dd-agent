@@ -69,15 +69,11 @@ class ProxySQL(AgentCheck):
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
-        self.host = None
-        self.port = None
-        self.socket = None
-
     def get_library_versions(self):
         return {"pymysql": pymysql.__version__}
 
     def check(self, instance):
-        host, port, socket, user, password, tags, options, connect_timeout = self._get_config(instance)
+        host, port, user, password, socket, tags, options, connect_timeout = self._get_config(instance)
 
         if not host or not port or not user or not password:
             raise Exception("ProxySQL host, port, user and password are needed")
@@ -188,10 +184,11 @@ class ProxySQL(AgentCheck):
             self.warning("ProxySQL commands_counters stats unavailable at this time: %s" % str(e))
             return None
 
-    def _get_config(self, instance):
-        self.host = instance.get('server', '')
-        self.port = int(instance.get('port', 0))
-        self.socket = instance.get('sock', '')
+    @staticmethod
+    def _get_config(instance):
+        host = instance.get('server', '')
+        port = int(instance.get('port', 0))
+        socket = instance.get('sock', '')
 
         user = instance.get('user', '')
         password = str(instance.get('pass', ''))
@@ -199,7 +196,7 @@ class ProxySQL(AgentCheck):
         options = instance.get('options', {})
         connect_timeout = instance.get('connect_timeout', None)
 
-        return self.host, self.port, user, password, self.socket, tags, options, connect_timeout
+        return host, port, user, password, socket, tags, options, connect_timeout
 
     @contextmanager
     def _connect(self, host, port, socket, user, password, connect_timeout):
