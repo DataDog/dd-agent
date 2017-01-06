@@ -103,7 +103,7 @@ class PHPFPMCheck(AgentCheck):
         if ping_reply is None:
             ping_reply = 'pong'
 
-        sc_tags = ["ping_url:{0}".format(ping_url)]
+        sc_tags = ["ping_url:{0}".format(ping_url)] + tags
 
         try:
             # TODO: adding the 'full' parameter gets you per-process detailed
