@@ -882,6 +882,7 @@ def _file_configs_paths(osname, agentConfig):
 def _service_disco_configs(agentConfig):
     """ Retrieve all the service disco configs and return their conf dicts
     """
+    service_disco_configs = {}
     if agentConfig.get('service_discovery') and agentConfig.get('service_discovery_backend') in SD_BACKENDS:
         try:
             log.info("Fetching service discovery check configurations.")
@@ -890,8 +891,6 @@ def _service_disco_configs(agentConfig):
         except Exception:
             log.exception("Loading service discovery configurations failed.")
             return {}
-    else:
-        service_disco_configs = {}
 
     return service_disco_configs
 
