@@ -20,46 +20,51 @@ MONOTONIC = "monotonic_count"
 
 # ProxySQL Metrics
 PROXYSQL_MYSQL_STATS_GLOBAL = {
-    'Active_Transactions': GAUGE,
-    'Backend_query_time_nsec': RATE,
-    'Client_Connections_aborted': RATE,
-    'Client_Connections_connected': GAUGE,
-    'Client_Connections_created': RATE,
-    'Client_Connections_non_idle': GAUGE,
-    'ConnPool_get_conn_failure': RATE,
-    'ConnPool_get_conn_immediate': RATE,
-    'ConnPool_get_conn_success': RATE,
-    'ConnPool_memory_bytes': GAUGE,
-    'mysql_backend_buffers_bytes': GAUGE,
-    'mysql_frontend_buffers_bytes': GAUGE,
-    'mysql_session_internal_bytes': GAUGE,
-    'Queries_backends_bytes_recv': RATE,
-    'Queries_backends_bytes_sent': RATE,
-    'Query_Processor_time_nsec': RATE,
-    'Questions': RATE,
-    'Server_Connections_aborted': RATE,
-    'Server_Connections_connected': GAUGE,
-    'Server_Connections_created': RATE,
-    'Slow_queries': RATE,
-    'SQLite3_memory_bytes': GAUGE,
+    'Active_Transactions': ('proxysql.active_transactions', GAUGE),
+    'Query_Processor_time_nsec': ('proxysql.query_processor_time_nsec', RATE),
+    'Questions': ('proxysql.questions', RATE),
+    'Slow_queries': ('proxysql.slow_queries', RATE),
+    'SQLite3_memory_bytes': ('proxysql.sqlite3_memory_bytes', RATE),
+
+    'Client_Connections_aborted': ('proxysql.client.connections_aborted', RATE),
+    'Client_Connections_connected': ('proxysql.client.connections_connected', GAUGE),
+    'Client_Connections_created': ('proxysql.client.connections_created', RATE),
+    'Client_Connections_non_idle': ('proxysql.client.connections_non_idle', GAUGE),
+
+    'ConnPool_get_conn_failure': ('proxysql.pool.conn_failure', RATE),
+    'ConnPool_get_conn_immediate': ('proxysql.pool.conn_immediate', RATE),
+    'ConnPool_get_conn_success': ('proxysql.pool.conn_success', RATE),
+    'ConnPool_memory_bytes': ('proxysql.pool.memory_bytes', GAUGE),
+
+    'mysql_backend_buffers_bytes': ('proxysql.mysql.backend_buffers_bytes', GAUGE),
+    'mysql_frontend_buffers_bytes': ('proxysql.mysql.frontend_buffers_bytes', GAUGE),
+    'mysql_session_internal_bytes': ('proxysql.mysql.session_internal_bytes', GAUGE),
+
+    'Backend_query_time_nsec': ('proxysql.backend.query_time_nsec', RATE),
+    'Queries_backends_bytes_recv': ('proxysql.backend.queries_bytes_recv', RATE),
+    'Queries_backends_bytes_sent': ('proxysql.backend.queries_bytes_sent', RATE),
+
+    'Server_Connections_aborted': ('proxysql.server.connections_aborted', RATE),
+    'Server_Connections_connected': ('proxysql.server.connections_connected', GAUGE),
+    'Server_Connections_created': ('proxysql.server.connections_created', RATE),
 }
 
 # ProxySQL metrics that we fetch by querying stats_mysql_commands_counters
 PROXYSQL_MYSQL_STATS_COMMAND_COUNTERS = {
-    'Query_sum_time': RATE,
-    'Query_count': RATE,
+    'Query_sum_time': ('proxysql.performance.query_sum_time', RATE),
+    'Query_count': ('proxysql.performance.query_count', RATE),
 }
 
 # ProxySQL metrics that we fetch by querying stats_mysql_connection_pool
 PROXYSQL_CONNECTION_POOL_STATS = {
-    'Connections_used': GAUGE,
-    'Connections_free': GAUGE,
-    'Connections_ok': RATE,
-    'Connections_error': RATE,
-    'Queries': RATE,
-    'Bytes_data_sent': RATE,
-    'Bytes_data_recv': RATE,
-    'Latency_ms': GAUGE
+    'Connections_used': ('proxysql.pool.connections_used', GAUGE),
+    'Connections_free': ('proxysql.pool.connections_free', GAUGE),
+    'Connections_ok': ('proxysql.pool.connections_ok', RATE),
+    'Connections_error': ('proxysql.pool.connections_error', RATE),
+    'Queries': ('proxysql.pool.queries', RATE),
+    'Bytes_data_sent': ('proxysql.pool.bytes_data_sent', RATE),
+    'Bytes_data_recv': ('proxysql.pool.bytes_data_recv', RATE),
+    'Latency_ms': ('proxysql.pool.latency_ms', GAUGE),
 }
 
 
@@ -89,27 +94,32 @@ class ProxySQL(AgentCheck):
     def _collect_metrics(self, conn, tags, options):
         """Collects all the different types of ProxySQL metrics and submits them to Datadog"""
         global_stats = self._get_global_stats(conn)
-        for metric_name, metric_type in PROXYSQL_MYSQL_STATS_GLOBAL.iteritems():
+        for proxysql_metric_name, metric_details in PROXYSQL_MYSQL_STATS_GLOBAL.iteritems():
+            metric_name, metric_type = metric_details
             metric_tags = list(tags)
-            self._submit_metric(metric_name, metric_type, int(global_stats.get(metric_name)), metric_tags)
+            self._submit_metric(metric_name, metric_type, int(global_stats.get(proxysql_metric_name)), metric_tags)
 
         report_command_counters = options.get('extra_command_counter_metrics', True)
         if report_command_counters:
             command_counters = self._get_command_counters(conn)
-            for metric_name, metric_type in PROXYSQL_MYSQL_STATS_COMMAND_COUNTERS.iteritems():
+            for proxysql_metric_name, metric_details in PROXYSQL_MYSQL_STATS_COMMAND_COUNTERS.iteritems():
+                metric_name, metric_type = metric_details
                 metric_tags = list(tags)
-                self._submit_metric(metric_name, metric_type, int(command_counters.get(metric_name)), metric_tags)
+                self._submit_metric(metric_name, metric_type,
+                                    int(command_counters.get(proxysql_metric_name)), metric_tags)
 
         report_conn_pool_stats = options.get('extra_connection_pool_metrics', True)
         if report_conn_pool_stats:
             conn_pool_stats = self._get_connection_pool_stats(conn)
-            for metric_name, metric_type in PROXYSQL_CONNECTION_POOL_STATS.iteritems():
-                for metric in conn_pool_stats.get(metric_name):
+            for proxysql_metric_name, metric_details in PROXYSQL_CONNECTION_POOL_STATS.iteritems():
+                metric_name, metric_type = metric_details
+
+                for metric in conn_pool_stats.get(proxysql_metric_name):
                     metric_tags = list(tags)
                     tag, value = metric
                     if tag:
                         metric_tags.append(tag)
-                    self._submit_metric(metric_name, metric_type, value, metric_tags)
+                    self._submit_metric(metric_name, metric_type, int(value), metric_tags)
 
     def _get_global_stats(self, conn):
         """Fetch the global ProxySQL stats."""
