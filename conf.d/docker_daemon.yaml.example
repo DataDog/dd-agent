@@ -88,7 +88,11 @@ instances:
 
 
     # Exclude containers based on their tags
-    # An excluded container will be completely ignored. The rule is a regex on the tags.
+    # An excluded container will not get any individual container metric reported for it.
+    # However it will still appear in the container count since ignoring it here would give
+    # a wrong impression about the docker daemon load.
+    #
+    # The rule is a regex on the tags.
     #
     # How it works: exclude first.
     # If a tag matches an exclude rule, it won't be included unless it also matches an include rule.
@@ -101,8 +105,9 @@ instances:
     # exclude: ["docker_image:ubuntu", "container_image:gcr.io/google_containers/pause.*"]
     # include: []
     #
-    # Default: include all containers except for pause containers if running in Kubernetes.
-    # To customize this behavior, override exclude.
+    # Default: include all containers except for Kubernetes pause containers.
+    # Warning: pause containers exclusion works only if you deploy the agent the recommended way (in a pod).
+    # To customize this default behavior, override exclude.
 
 
 
