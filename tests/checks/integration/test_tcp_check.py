@@ -20,12 +20,14 @@ CONFIG = {
         'host': '126.0.0.1',
         'port': 65530,
         'timeout': 1,
-        'name': 'DownService2'
+        'name': 'DownService2',
+        'tags': ['test1']
     }, {
         'host': 'datadoghq.com',
         'port': 80,
         'timeout': 1,
-        'name': 'UpService'
+        'name': 'UpService',
+        'tags': ['test2']
     }]
 }
 
@@ -55,9 +57,6 @@ class TCPCheckTest(AgentCheckTest):
                                 getattr(self.check, attribute)))
 
     def test_event_deprecation(self):
-        """
-        Deprecate events usage for service checks.
-        """
         # Run the check
         self.run_check(CONFIG)
 
@@ -73,9 +72,6 @@ class TCPCheckTest(AgentCheckTest):
         )
 
     def test_check(self):
-        """
-        Check coverage.
-        """
         # Run the check
         self.run_check(CONFIG)
 
@@ -85,10 +81,10 @@ class TCPCheckTest(AgentCheckTest):
         expected_tags = ["instance:DownService", "target_host:127.0.0.1", "port:65530"]
         self.assertServiceCheckCritical("tcp.can_connect", tags=expected_tags)
 
-        expected_tags = ["instance:DownService2", "target_host:126.0.0.1", "port:65530"]
+        expected_tags = ["instance:DownService2", "target_host:126.0.0.1", "port:65530", "test1"]
         self.assertServiceCheckCritical("tcp.can_connect", tags=expected_tags)
 
-        expected_tags = ["instance:UpService", "target_host:datadoghq.com", "port:80"]
+        expected_tags = ["instance:UpService", "target_host:datadoghq.com", "port:80", "test2"]
         self.assertServiceCheckOK("tcp.can_connect", tags=expected_tags)
 
         self.coverage_report()

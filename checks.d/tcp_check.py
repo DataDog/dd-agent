@@ -25,6 +25,7 @@ class TCPCheck(NetworkCheck):
         port = instance.get('port', None)
         timeout = float(instance.get('timeout', 10))
         response_time = instance.get('collect_response_time', False)
+        custom_tags = instance.get('tags', [])
         socket_type = None
         try:
             port = int(port)
@@ -54,10 +55,10 @@ class TCPCheck(NetworkCheck):
             except Exception:
                 raise BadConfException("URL: %s is not a correct IPv4, IPv6 or hostname" % addr)
 
-        return addr, port, socket_type, timeout, response_time
+        return addr, port, custom_tags, socket_type, timeout, response_time
 
     def _check(self, instance):
-        addr, port, socket_type, timeout, response_time = self._load_conf(instance)
+        addr, port, custom_tags, socket_type, timeout, response_time = self._load_conf(instance)
         start = time.time()
         try:
             self.log.debug("Connecting to %s %s" % (addr, port))
@@ -94,7 +95,7 @@ class TCPCheck(NetworkCheck):
             return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
 
         if response_time:
-            self.gauge('network.tcp.response_time', time.time() - start, tags=['url:%s:%s' % (instance.get('host', None), port)])
+            self.gauge('network.tcp.response_time', time.time() - start, tags=['url:%s:%s' % (instance.get('host', None), port)] + custom_tags)
 
         self.log.debug("%s:%s is UP" % (addr, port))
         return Status.UP, "UP"
