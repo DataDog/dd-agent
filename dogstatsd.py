@@ -46,7 +46,7 @@ from utils.hostname import get_hostname
 from utils.net import inet_pton
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
 from utils.pidfile import PidFile
-from utils.watchdog import new_watchdog
+from utils.watchdog import Watchdog
 
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")
@@ -201,7 +201,7 @@ class Reporter(threading.Thread):
 
         self.watchdog = None
         if use_watchdog:
-            self.watchdog = new_watchdog(WATCHDOG_TIMEOUT)
+            self.watchdog = Watchdog.create(WATCHDOG_TIMEOUT)
 
         self.api_key = api_key
         self.api_host = api_host

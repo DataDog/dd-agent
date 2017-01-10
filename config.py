@@ -33,6 +33,8 @@ from utils.subprocess_output import (
     get_subprocess_output,
     SubprocessOutputEmptyError,
 )
+from utils.windows_configuration import get_registry_conf, update_conf_file
+
 
 # CONSTANTS
 AGENT_VERSION = "5.11.0"
@@ -535,12 +537,6 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_write_conf=Fals
             for key, value in config.items('WMI'):
                 agentConfig['WMI'][key] = value
 
-        if (config.has_option("Main", "limit_memory_consumption") and
-                config.get("Main", "limit_memory_consumption") is not None):
-            agentConfig["limit_memory_consumption"] = int(config.get("Main", "limit_memory_consumption"))
-        else:
-            agentConfig["limit_memory_consumption"] = None
-
         if config.has_option("Main", "skip_ssl_validation"):
             agentConfig["skip_ssl_validation"] = _is_affirmative(config.get("Main", "skip_ssl_validation"))
 
@@ -592,50 +588,6 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_write_conf=Fals
             update_conf_file(registry_conf, config_path)
 
     return agentConfig
-
-
-def get_registry_conf(agentConfig):
-    registry_conf = {}
-    try:
-        import _winreg
-        with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
-                             "SOFTWARE\\Datadog\\Datadog Agent") as reg_key:
-            for attribute in ['api_key', 'tags', 'hostname']:
-                option = _winreg.QueryValueEx(reg_key, attribute)[0]
-                if option != '':
-                    registry_conf[attribute] = option
-    except (ImportError, WindowsError) as e:
-        log.error('Unable to get config keys from Registry: %s', e)
-
-    return registry_conf
-
-
-def update_conf_file(registry_conf, config_path):
-    buffer = ''
-    try:
-        with open(config_path, 'r') as config_file:
-            for line in config_file:
-                matched = False
-                for attribute in registry_conf:
-                    # Is it the line configuring the attribute ?
-                    if conf_match(line, attribute):
-                        buffer += '{}: {}\n'.format(attribute, registry_conf[attribute])
-                        matched = True
-                if not matched:
-                    buffer += line
-    except Exception as e:
-        log.error('An exception happened while updating the conf file. No change has been done.'
-                  ' Error: %s', e)
-    else:
-        with open(config_path, 'w') as config_file:
-            config_file.write(buffer)
-
-
-def conf_match(line, attribute):
-    attribute += ':'
-    return (line.startswith(attribute) or
-            line.startswith('#' + attribute) or
-            line.startswith('# ' + attribute))
 
 
 def get_system_stats(proc_path=None):

@@ -61,7 +61,7 @@ from utils.platform import Platform
 from utils.profile import AgentProfiler
 from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.sd_backend import get_sd_backend
-from utils.watchdog import new_watchdog
+from utils.watchdog import Watchdog
 
 # Constants
 from jmxfetch import JMX_CHECKS
@@ -102,7 +102,6 @@ class Agent(Daemon):
         self.sd_backend = None
         self.supervisor_proxy = None
         self.sd_pipe = None
-
 
     def _handle_sigterm(self, signum, frame):
         """Handles SIGTERM and SIGINT, which gracefully stops the agent."""
@@ -385,8 +384,7 @@ class Agent(Daemon):
     def _get_watchdog(self, check_freq):
         watchdog = None
         if self._agentConfig.get("watchdog", True):
-            watchdog = new_watchdog(check_freq * WATCHDOG_MULTIPLIER,
-                                    max_mem_mb=self._agentConfig.get('limit_memory_consumption', None))
+            watchdog = Watchdog.create(check_freq * WATCHDOG_MULTIPLIER)
             watchdog.reset()
         return watchdog
 

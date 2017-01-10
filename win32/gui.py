@@ -115,7 +115,7 @@ if Platform.is_windows():
     }
 
 
-log = logging.getLogger('gui')
+log = logging.getLogger(__name__)
 
 EXCLUDED_WINDOWS_CHECKS = [
     'btrfs',

@@ -32,6 +32,12 @@ class Watchdog(object):
     def watch(self):
         raise NotImplementedError('Subclasses must override')
 
+    @classmethod
+    def create(cls, duration, max_resets=None):
+        if Platform.is_windows():
+            return WatchdogWindows(duration)
+        return WatchdogPosix(duration, max_resets=max_resets)
+
 
 class WatchdogWindows(Watchdog, threading.Thread):
     """ Simple watchdog for Windows (relies on psutil) """
@@ -70,7 +76,6 @@ class WatchdogPosix(object):
     """
     Simple signal-based watchdog. Restarts the process when:
     * no reset was made for more than a specified duration
-    * (optional) a specified memory threshold is exceeded
     * (optional) a suspicious high activity is detected, i.e. too many resets for a given timeframe.
 
     **Warning**: Not thread-safe.
@@ -80,19 +85,10 @@ class WatchdogPosix(object):
     # Activity history timeframe
     _RESTART_TIMEFRAME = 60
 
-    def __init__(self, duration, max_mem_mb=None, max_resets=None):
+    def __init__(self, duration, max_resets=None):
         # Set the duration
         self._duration = int(duration)
         signal.signal(signal.SIGALRM, WatchdogPosix.self_destruct)
-
-        # Set memory usage threshold
-        if max_mem_mb is not None:
-            self._max_mem_kb = 1024 * max_mem_mb
-            max_mem_bytes = 1024 * self._max_mem_kb
-            resource.setrlimit(resource.RLIMIT_AS, (max_mem_bytes, max_mem_bytes))
-            self.memory_limit_enabled = True
-        else:
-            self.memory_limit_enabled = False
 
         # Set high activity monitoring
         self._restarts = deque([])
@@ -128,15 +124,8 @@ class WatchdogPosix(object):
         """
         Reset the watchdog state, i.e.
         * re-arm alarm signal
-        * (optional) check memory consumption
         * (optional) save reset history, flush old entries and check frequency
         """
-        # Check memory consumption: restart if too high as tornado will swallow MemoryErrors
-        if self.memory_limit_enabled:
-            mem_usage_kb = int(os.popen('ps -p %d -o %s | tail -1' % (os.getpid(), 'rss')).read())
-            if mem_usage_kb > (0.95 * self._max_mem_kb):
-                self.destruct()
-
         # Check activity
         if self._max_resets:
             self._restarts.append(time.time())
@@ -146,10 +135,3 @@ class WatchdogPosix(object):
         # Re arm alarm signal
         log.debug("Resetting watchdog for %d" % self._duration)
         signal.alarm(self._duration)
-
-
-def new_watchdog(duration, max_mem_mb=None, max_resets=None):
-    if Platform.is_windows():
-        return WatchdogWindows(duration)
-    else:
-        return WatchdogPosix(duration, max_mem_mb=max_mem_mb, max_resets=max_resets)
