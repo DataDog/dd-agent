@@ -295,7 +295,8 @@ class Network(AgentCheck):
                 'InErrors': 'system.net.udp.in_errors',
                 'OutDatagrams': 'system.net.udp.out_datagrams',
                 'RcvbufErrors': 'system.net.udp.rcv_buf_errors',
-                'SndbufErrors': 'system.net.udp.snd_buf_errors'
+                'SndbufErrors': 'system.net.udp.snd_buf_errors',
+                'InCsumErrors': 'system.net.udp.in_csum_errors'
             }
             for key, metric in udp_metrics_name.iteritems():
                 if key in udp_metrics:
