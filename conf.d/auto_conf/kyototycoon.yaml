@@ -1,7 +1,0 @@
-docker_images:
-  - kyototycoon
-
-init_config:
-
-instances:
-  - report_url: http://%%host%%:%%port%%/rpc/report

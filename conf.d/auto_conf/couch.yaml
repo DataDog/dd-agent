@@ -1,7 +1,0 @@
-docker_images:
-  - couchdb
-
-init_config:
-
-instances:
-  - server: http://%%host%%:%%port%%
