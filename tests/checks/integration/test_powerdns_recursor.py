@@ -4,6 +4,7 @@ from nose.plugins.attrib import attr
 # project
 from tests.checks.common import AgentCheckTest
 
+import os
 
 @attr(requires='powerdns_recursor')
 class TestPowerDNSRecursorCheck(AgentCheckTest):
@@ -126,37 +127,53 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
     # Really a basic check to see if all metrics are there
     def test_check(self):
         # Run Version 3
-        self.run_check_twice(self.config_v3)
+        flavor = os.environ.get("FLAVOR_VERSION")
+        if flavor == "3.7.3":
+            self.run_check_twice(self.config_v3)
 
-        # Assert metrics
-        for metric in self.GAUGE_METRICS:
-            self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
+            # Assert metrics
+            for metric in self.GAUGE_METRICS:
+                self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
 
-        for metric in self.RATE_METRICS:
-            self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
+            for metric in self.RATE_METRICS:
+                self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
 
-        service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8082']
-        self.assertServiceCheckOK('powerdns.recursor.can_connect', tags=service_check_tags)
-
-        self.coverage_report()
+            service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8082']
+            self.assertServiceCheckOK('powerdns.recursor.can_connect', tags=service_check_tags)
+            self.coverage_report()
+        elif flavor is None:
+            self.assertServiceCheckCritical('powerdns.recursor.can_connect', tags=service_check_tags)
+        else:
+            service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8082']
+            self.assertServiceCheckOK('powerdns.recursor.can_connect', tags=service_check_tags)
+            self.coverage_report()
 
 
     # The version 4 check extends the base-line v3 metrics with the v4.
     def test_check_v4(self):
         # Run Version 4
-        self.run_check_twice(self.config_v4)
+        flavor = os.environ.get("FLAVOR_VERSION")
+        if flavor == "4.0.3":
+            self.run_check_twice(self.config_v4)
 
-        # Assert metrics
-        for metric in self.GAUGE_METRICS + self.GAUGE_METRICS_V4:
-            self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
+            # Assert metrics
+            for metric in self.GAUGE_METRICS + self.GAUGE_METRICS_V4:
+                self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
 
-        for metric in self.RATE_METRICS + self.RATE_METRICS_V4:
-            self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
+            for metric in self.RATE_METRICS + self.RATE_METRICS_V4:
+                self.assertMetric(self.METRIC_FORMAT.format(metric), tags=[])
 
-        service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8083']
-        self.assertServiceCheckOK('powerdns.recursor.can_connect', tags=service_check_tags)
+            service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8083']
+            self.assertServiceCheckOK('powerdns.recursor.can_connect', tags=service_check_tags)
 
-        self.coverage_report()
+            self.coverage_report()
+        elif flavor is None:
+            self.assertServiceCheckCritical('powerdns.recursor.can_connect', tags=service_check_tags)
+        else:
+            service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8083']
+            self.assertServiceCheckOK('powerdns.recursor.can_connect', tags=service_check_tags)
+
+            self.coverage_report()
 
 
     def test_tags(self):
