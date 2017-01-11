@@ -44,7 +44,7 @@ namespace :ci do
 
     task before_script: ['ci:common:before_script'] do
       sh %(#{powerdns_recursor_rootdir}/pdns_recursor\
-           --config-dir=tests/checks/fixtures/powerdns-recursor/{powerdns_recursor_version}/\
+           --config-dir=tests/checks/fixtures/powerdns-recursor/#{powerdns_recursor_version}/\
            --socket-dir=#{powerdns_recursor_rootdir})
       Wait.for 5353, 5
     end
