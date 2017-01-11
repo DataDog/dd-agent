@@ -71,7 +71,8 @@ env:
     - TRAVIS_FLAVOR=postgres FLAVOR_VERSION=9.2.10
     - TRAVIS_FLAVOR=postgres FLAVOR_VERSION=9.3.6
     - TRAVIS_FLAVOR=postgres FLAVOR_VERSION=9.4.1
-    - TRAVIS_FLAVOR=powerdns_recursor
+    - TRAVIS_FLAVOR=powerdns_recursor FLAVOR_VERSION=3.7.3
+    - TRAVIS_FLAVOR=powerdns_recursor FLAVOR_VERSION=4.0.3
     - TRAVIS_FLAVOR=rabbitmq
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.4.18
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.6.17
