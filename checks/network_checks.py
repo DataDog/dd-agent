@@ -68,6 +68,7 @@ class NetworkCheck(AgentCheck):
         self.statuses = {}
         self.notified = {}
         self.nb_failures = 0
+        self.pool_size = 0
         self.pool_started = False
 
         # Make sure every instance has a name that we use as a unique key
