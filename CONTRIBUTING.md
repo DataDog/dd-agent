@@ -28,6 +28,9 @@ Your Pull Request **must** always pass the Travis/Appveyor tests before being me
 
 _If you are adding a dependency (python module, library, ...), please check the [corresponding section](#add-dependencies)._
 
+## [Integrations](https://github.com/DataDog/integrations-core)
+
+All integrations, except for the kubernates and docker ones, have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to contribute to them.
 
 ## Commits
 

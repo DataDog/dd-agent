@@ -27,6 +27,10 @@ If you do **not** agree with the licensing terms and wish to contribute code non
 please email us at <info@datadoghq.com> before submitting your
 pull request.
 
+# [Integration SDK](https://github.com/DataDog/integrations-core)
+
+All integrations, except for the kubernates and docker ones, have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to see and contribute to any Integrations.
+
 ## Setup your environment
 
 Required:
