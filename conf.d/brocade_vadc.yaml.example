@@ -1,0 +1,20 @@
+init_config:
+
+instances:
+  # Brocade Virtual Application Delivery Controller
+  # statistics gathering. Supporting v11.0 and above..
+  #
+
+  # Host running the recursor.
+  - host: 127.0.0.1
+  # REST API Service port.
+    port: 9070
+  # REST API Authentication Details.
+    username: admin
+    password:
+    verify_ssl: False
+
+  # Optional tags to be applied to every emitted metric.
+    # tags:
+    #   - key:value
+    #   - instance:production
