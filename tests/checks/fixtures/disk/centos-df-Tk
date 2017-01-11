@@ -1,6 +1,0 @@
-Filesystem Type   1K-blocks   Used      Available  Use%  Mounted on
-/dev/sda3  ext4   93421512    70963180  17706052   81%   /
-tmpfs      tmpfs  32969616    0         32969616   0%    /dev/shm
-/dev/sda1  ext4   512752      90460     395412     19%   /boot
-10.1.5.223:/vil/cor
-           nfs     1020054752 56080768  963973984  6%    /cor
