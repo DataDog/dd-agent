@@ -6,6 +6,7 @@ from tests.checks.common import AgentCheckTest
 
 import os
 
+
 @attr(requires='powerdns_recursor')
 class TestPowerDNSRecursorCheck(AgentCheckTest):
     CHECK_NAME = 'powerdns_recursor'
@@ -148,7 +149,6 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
             self.assertServiceCheckOK('powerdns.recursor.can_connect', tags=service_check_tags)
             self.coverage_report()
 
-
     # The version 4 check extends the base-line v3 metrics with the v4.
     def test_check_v4(self):
         # Run Version 4
@@ -175,7 +175,6 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
 
             self.coverage_report()
 
-
     def test_tags(self):
         config = self.config_v3.copy()
         tags = ['foo:bar']
@@ -188,7 +187,6 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
 
         for metric in self.RATE_METRICS:
             self.assertMetric(self.METRIC_FORMAT.format(metric), tags=tags)
-
 
         service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8082']
         self.assertServiceCheckOK('powerdns.recursor.can_connect', tags=service_check_tags)
