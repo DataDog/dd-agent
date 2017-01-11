@@ -14,11 +14,9 @@ from checks import (
     UnknownValue,
 )
 from checks.collector import Collector
-from tests.checks.common import load_check
+from tests.checks.common import load_check, copy_checks, remove_checks
 from utils.hostname import get_hostname
 from utils.proxy import get_proxy
-
-from shutil import copyfile
 
 logger = logging.getLogger()
 
@@ -213,18 +211,11 @@ class TestCore(unittest.TestCase):
 
 
 class TestCollectionInterval(unittest.TestCase):
-    FIXTURE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'fixtures', 'checks')
-    CHECKSD_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'checks.d')
-
-
     def setUp(self):
-        copyfile(os.path.join(self.FIXTURE_PATH, 'disk.py'), os.path.join(self.CHECKSD_PATH, 'disk.py'))
-        copyfile(os.path.join(self.FIXTURE_PATH, 'redisdb.py'), os.path.join(self.CHECKSD_PATH, 'redisdb.py'))
+        copy_checks()
 
     def tearDown(self):
-        os.remove(os.path.join(self.CHECKSD_PATH, 'disk.py'))
-        os.remove(os.path.join(self.CHECKSD_PATH, 'redisdb.py'))
-
+        remove_checks()
 
     def test_min_collection_interval(self):
         config = {'instances': [{}], 'init_config': {}}

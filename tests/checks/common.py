@@ -9,6 +9,7 @@ from itertools import product
 import imp
 import logging
 import os
+from shutil import copyfile
 from pprint import pformat
 import sys
 import time
@@ -26,6 +27,16 @@ from utils.platform import get_os
 
 log = logging.getLogger('tests')
 
+FIXTURE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'fixtures', 'checks')
+CHECKSD_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'checks.d')
+
+def copy_checks():
+    copyfile(os.path.join(FIXTURE_PATH, 'disk.py'), os.path.join(CHECKSD_PATH, 'disk.py'))
+    copyfile(os.path.join(FIXTURE_PATH, 'redisdb.py'), os.path.join(CHECKSD_PATH, 'redisdb.py'))
+
+def remove_checks():
+    os.remove(os.path.join(CHECKSD_PATH, 'disk.py'))
+    os.remove(os.path.join(CHECKSD_PATH, 'redisdb.py'))
 
 def _is_sdk():
     return "SDK_TESTING" in os.environ
