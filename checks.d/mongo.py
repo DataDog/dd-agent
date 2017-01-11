@@ -50,6 +50,7 @@ class MongoDb(AgentCheck):
 
     # Service check
     SERVICE_CHECK_NAME = 'mongodb.can_connect'
+    SERVICE_RS_STATUS_CHECK_NAME = 'mongodb.rs_status'
 
     # Metrics
     """
@@ -388,18 +389,19 @@ class MongoDb(AgentCheck):
     MongoDB replica set states, as documented at
     https://docs.mongodb.org/manual/reference/replica-states/
     """
+    # the third value is weight of emergency when rs has node with this status
     REPLSET_MEMBER_STATES = {
-        0: ('STARTUP', 'Starting Up'),
-        1: ('PRIMARY', 'Primary'),
-        2: ('SECONDARY', 'Secondary'),
-        3: ('RECOVERING', 'Recovering'),
-        4: ('Fatal', 'Fatal'),   # MongoDB docs don't list this state
-        5: ('STARTUP2', 'Starting up (forking threads)'),
-        6: ('UNKNOWN', 'Unknown to this replset member'),
-        7: ('ARBITER', 'Arbiter'),
-        8: ('DOWN', 'Down'),
-        9: ('ROLLBACK', 'Rollback'),
-        10: ('REMOVED', 'Removed'),
+        0: ('STARTUP', 'Starting Up', AgentCheck.WARNING),
+        1: ('PRIMARY', 'Primary', AgentCheck.OK),
+        2: ('SECONDARY', 'Secondary', AgentCheck.OK),
+        3: ('RECOVERING', 'Recovering', AgentCheck.WARNING),
+        4: ('Fatal', 'Fatal', AgentCheck.CRITICAL),   # MongoDB docs don't list this state
+        5: ('STARTUP2', 'Starting up (forking threads)', AgentCheck.WARNING),
+        6: ('UNKNOWN', 'Unknown to this replset member', AgentCheck.CRITICAL),
+        7: ('ARBITER', 'Arbiter', AgentCheck.OK),
+        8: ('DOWN', 'Down', AgentCheck.CRITICAL),
+        9: ('ROLLBACK', 'Rollback', AgentCheck.CRITICAL),
+        10: ('REMOVED', 'Removed', AgentCheck.CRITICAL),
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
@@ -778,12 +780,32 @@ class MongoDb(AgentCheck):
                     u"replset_state:{0}".format(replset_state),
                 ])
 
+                rs_status = AgentCheck.OK
+                rs_status_details = []
+
                 # Find nodes: master and current node (ourself)
                 for member in replSet.get('members'):
+
+                    member_state = int(member.get('state'))
+                    member_state_info = self.REPLSET_MEMBER_STATES[member_state]
+
+                    # checking all replset members
+                    if member_state_info[2] > AgentCheck.OK:
+                        rs_status_details.append("%s has state \"%s\"" % (member.get('name'),
+                                member_state_info[1]))
+                        if rs_status < member_state_info[2]:
+                            rs_status = member_state_info[2]
+
                     if member.get('self'):
                         current = member
-                    if int(member.get('state')) == 1:
+                    if member_state == 1:
                         primary = member
+
+                self.service_check(
+                    self.SERVICE_RS_STATUS_CHECK_NAME,
+                    rs_status,
+                    tags=service_check_tags,
+                    message='\n'.join(rs_status_details))
 
                 # Compute a lag time
                 if current is not None and primary is not None:
