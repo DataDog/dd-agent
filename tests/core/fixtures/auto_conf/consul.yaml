@@ -1,0 +1,10 @@
+docker_images:
+  - consul
+
+init_config:
+
+instances:
+  - url: "http://%%host%%:%%port%%"
+    catalog_checks: yes
+    new_leader_checks: yes
+    # service_whitelist:

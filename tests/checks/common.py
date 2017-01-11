@@ -32,10 +32,12 @@ CHECKSD_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '
 
 def copy_checks():
     copyfile(os.path.join(FIXTURE_PATH, 'disk.py'), os.path.join(CHECKSD_PATH, 'disk.py'))
+    copyfile(os.path.join(FIXTURE_PATH, 'disk.py'), os.path.join(CHECKSD_PATH, 'consul.py'))
     copyfile(os.path.join(FIXTURE_PATH, 'redisdb.py'), os.path.join(CHECKSD_PATH, 'redisdb.py'))
 
 def remove_checks():
     os.remove(os.path.join(CHECKSD_PATH, 'disk.py'))
+    os.remove(os.path.join(CHECKSD_PATH, 'consul.py'))
     os.remove(os.path.join(CHECKSD_PATH, 'redisdb.py'))
 
 def _is_sdk():

@@ -1,0 +1,8 @@
+docker_images:
+  - redis
+
+init_config:
+
+instances:
+  - host: "%%host%%"
+    port: "%%port%%"
