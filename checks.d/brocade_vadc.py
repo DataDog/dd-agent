@@ -10,7 +10,7 @@ import requests
 
 class BrocadeVadcCheck(AgentCheck):
     # See https://www.brocade.com/content/dam/common/documents/content-types/user-guide/brocade-vtm-11.0-restapi.pdf
-    STATS_API = 'api/tm/3.10/status/local_tm/statistics'
+    STATS_API = 'api/tm/3.8/status/local_tm/statistics'
 
     # this is a list of endpoints to recursively query for values
     METRICS_ENDPOINTS = [
