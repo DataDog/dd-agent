@@ -159,17 +159,30 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
             self.assertServiceCheckCritical('powerdns.recursor.can_connect', tags=service_check_tags)
 
     def test_tags(self):
+        version = self._get_pdns_version()
         config = self.config.copy()
         tags = ['foo:bar']
         config['instances'][0]['tags'] = ['foo:bar']
-        self.run_check_twice(config)
+        if version == 3:
+            self.run_check_twice(config)
 
-        # Assert metrics v3
-        for metric in self.GAUGE_METRICS:
-            self.assertMetric(self.METRIC_FORMAT.format(metric), tags=tags)
+            # Assert metrics v3
+            for metric in self.GAUGE_METRICS:
+                self.assertMetric(self.METRIC_FORMAT.format(metric), tags=tags)
 
-        for metric in self.RATE_METRICS:
-            self.assertMetric(self.METRIC_FORMAT.format(metric), tags=tags)
+            for metric in self.RATE_METRICS:
+                self.assertMetric(self.METRIC_FORMAT.format(metric), tags=tags)
+
+        elif version == 4:
+            config['instances'][0]['version'] = 4
+            self.run_check_twice(config)
+
+            # Assert metrics v3
+            for metric in self.GAUGE_METRICS + self.GAUGE_METRICS_V4:
+                self.assertMetric(self.METRIC_FORMAT.format(metric), tags=tags)
+
+            for metric in self.RATE_METRICS + self.RATE_METRICS_V4:
+                self.assertMetric(self.METRIC_FORMAT.format(metric), tags=tags)
 
         service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8082']
         self.assertServiceCheckOK('powerdns.recursor.can_connect', tags=service_check_tags)
