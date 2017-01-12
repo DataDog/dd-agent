@@ -124,7 +124,7 @@ class TestPowerDNSRecursorCheck(AgentCheckTest):
         service_check_tags = ['recursor_host:127.0.0.1', 'recursor_port:8082']
 
         # get version and test v3 first.
-        version = self._get_pdns_version(self)
+        version = self._get_pdns_version()
         if version == 3:
             self.run_check_twice(self.config)
 
