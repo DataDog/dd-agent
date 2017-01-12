@@ -56,6 +56,12 @@ CONFIG = {
         'check_certificate_expiration': False,
         'content_match': u'メインページ'
     }, {
+        'name': 'cnt_mismatch_unicode',
+        'url': 'https://ja.wikipedia.org/',
+        'timeout': 1,
+        'check_certificate_expiration': False,
+        'content_match': u'メインペーー'
+    }, {
         'name': 'cnt_mismatch_reverse',
         'url': 'https://github.com',
         'timeout': 1,
@@ -69,6 +75,13 @@ CONFIG = {
         'reverse_content_match': True,
         'check_certificate_expiration': False,
         'content_match': '(thereisnosuchword|github)'
+    }, {
+        'name': 'cnt_mismatch_unicode_reverse',
+        'url': 'https://ja.wikipedia.org/',
+        'timeout': 1,
+        'reverse_content_match': True,
+        'check_certificate_expiration': False,
+        'content_match': u'メインペーー'
     }, {
         'name': 'cnt_match_unicode_reverse',
         'url': 'https://ja.wikipedia.org/',
@@ -248,11 +261,19 @@ class HTTPCheckTest(AgentCheckTest):
         self.assertServiceCheckOK("http.can_connect", tags=tags)
         tags = ['url:https://ja.wikipedia.org/', 'instance:cnt_match_unicode']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
+        tags = ['url:https://ja.wikipedia.org/', 'instance:cnt_mismatch_unicode']
+        self.assertServiceCheckCritical("http.can_connect", tags=tags)
+        self.assertServiceCheckOK("http.can_connect", tags=tags, count=0)
         tags = ['url:https://github.com', 'instance:cnt_mismatch_reverse']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
         self.assertServiceCheckCritical("http.can_connect", tags=tags, count=0)
         tags = ['url:https://github.com', 'instance:cnt_match_reverse']
         self.assertServiceCheckCritical("http.can_connect", tags=tags)
+        tags = ['url:https://ja.wikipedia.org/', 'instance:cnt_mismatch_unicode_reverse']
+        self.assertServiceCheckOK("http.can_connect", tags=tags)
+        tags = ['url:https://ja.wikipedia.org/', 'instance:cnt_match_unicode_reverse']
+        self.assertServiceCheckCritical("http.can_connect", tags=tags)
+        self.assertServiceCheckOK("http.can_connect", tags=tags, count=0)
 
         self.coverage_report()
 
