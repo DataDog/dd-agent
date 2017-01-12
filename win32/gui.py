@@ -94,15 +94,11 @@ AGENT_UNKNOWN = 4
 # Windows management
 # Import Windows stuff only on Windows
 if Platform.is_windows():
-    import win32api
-    import win32con
-    import win32process
     import win32serviceutil
     import win32service
 
     # project
     from utils.pidfile import PidFile
-    from utils.process import pid_exists
 
     WIN_STATUS_TO_AGENT = {
         win32service.SERVICE_RUNNING: AGENT_RUNNING,
