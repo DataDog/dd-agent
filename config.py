@@ -740,14 +740,14 @@ def get_checksd_path(osname=None):
 def get_sdk_integrations_path(osname=None):
     if not osname:
         osname = get_os()
-    if osname in ['windows']:
-        raise PathNotFound()
 
     if os.environ.get('INTEGRATIONS_DIR'):
         if os.environ.get('TRAVIS'):
             path = os.environ['TRAVIS_BUILD_DIR']
         elif os.environ.get('CIRCLECI'):
             path = os.environ['CIRCLE_PROJECT_REPONAME']
+        elif os.environ.get('APPVEYOR'):
+            path = os.environ['APPVEYOR_BUILD_FOLDER']
         else:
             cur_path = os.environ['INTEGRATIONS_DIR']
             path = os.path.join(cur_path, '..') # might need tweaking in the future.
