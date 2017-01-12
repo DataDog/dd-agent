@@ -223,7 +223,7 @@ class HTTPCheck(NetworkCheck):
 
             instance_proxy = self.proxies.copy()
 
-            disable proxy if necessary
+            # disable proxy if necessary
             if skip_proxy:
                 instance_proxy.pop('http')
                 instance_proxy.pop('https')
