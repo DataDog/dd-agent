@@ -455,8 +455,6 @@ class MainWindow(QSplitter):
 
         if Platform.is_windows():
             self.settings.extend([
-                ("Supervisor Logs", lambda: [self.properties.set_log_file(self.supervisor_log_file),
-                    self.show_html(self.properties.group_code, self.properties.html_window, False)]),
                 ("Service Logs", lambda: [self.properties.set_log_file(self.service_log_file),
                     self.show_html(self.properties.group_code, self.properties.html_window, False)]),
             ])
@@ -561,10 +559,6 @@ class MainWindow(QSplitter):
             "JMX log file"
         )
         if Platform.is_windows():
-            self.supervisor_log_file = EditorFile(
-                config.get('supervisor_log_file'),
-                "Supervisor log file"
-            )
             self.service_log_file = EditorFile(
                 config.get('service_log_file'),
                 "Service log file"
