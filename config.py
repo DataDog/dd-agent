@@ -745,7 +745,10 @@ def get_sdk_integrations_path(osname=None):
         if os.environ.get('TRAVIS'):
             path = os.environ['TRAVIS_BUILD_DIR']
         elif os.environ.get('CIRCLECI'):
-            path = os.environ['CIRCLE_PROJECT_REPONAME']
+            path = os.path.join(
+                os.environ['HOME'],
+                os.environ['CIRCLE_PROJECT_REPONAME']
+            )
         elif os.environ.get('APPVEYOR'):
             path = os.environ['APPVEYOR_BUILD_FOLDER']
         else:
