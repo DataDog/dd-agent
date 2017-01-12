@@ -73,7 +73,7 @@ Please use the 1-step script available at https://app.datadoghq.com/account/sett
 
 elif [ -f /etc/debian_version -o "$DISTRIBUTION" == "Debian" -o "$DISTRIBUTION" == "Ubuntu" ]; then
     OS="Debian"
-elif [ -f /etc/redhat-release -o "$DISTRIBUTION" == "RedHat" -o "$DISTRIBUTION" == "CentOS" -o "$DISTRIBUTION" == "openSUSE" -o "$DISTRIBUTION" == "Amazon" ]; then
+elif [ -f /etc/redhat-release -o "$DISTRIBUTION" == "RedHat" -o "$DISTRIBUTION" == "CentOS" -o "$DISTRIBUTION" == "Amazon" ]; then
     OS="RedHat"
 # Some newer distros like Amazon may not have a redhat-release file
 elif [ -f /etc/system-release -o "$DISTRIBUTION" == "Amazon" ]; then
