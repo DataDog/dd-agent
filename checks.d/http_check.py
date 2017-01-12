@@ -223,15 +223,15 @@ class HTTPCheck(NetworkCheck):
 
             instance_proxy = self.proxies.copy()
 
-            # disable proxy if necessary
-            # if skip_proxy:
-            #     instance_proxy.pop('http')
-            #     instance_proxy.pop('https')
-            # else:
-            #     for url in self.proxies['no'].replace(';', ',').split(","):
-            #         if url in parsed_uri.netloc:
-            #             instance_proxy.pop('http')
-            #             instance_proxy.pop('https')
+            disable proxy if necessary
+            if skip_proxy:
+                instance_proxy.pop('http')
+                instance_proxy.pop('https')
+            else:
+                for url in self.proxies['no'].replace(';', ',').split(","):
+                    if url in parsed_uri.netloc:
+                        instance_proxy.pop('http')
+                        instance_proxy.pop('https')
 
             self.log.debug("Proxies used for %s - %s", addr, instance_proxy)
 
