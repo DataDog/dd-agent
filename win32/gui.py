@@ -801,9 +801,9 @@ def info_popup(message, parent=None):
 
 
 def kill_old_process():
-    """ Kills or brings to the foreground (if possible) any other instance of this program. It
-    avoids multiple icons in the Tray on Windows. On OSX, we don't have to do anything: icons
-    don't get duplicated. """
+    """ Kills any other instance of this program. It avoids multiple icons in the Tray on Windows.
+    On OSX, we don't have to do anything: icons don't get duplicated.
+    TODO: If possible, we should bring the running instance in the foreground instead of killing it"""
     # Is there another Agent Manager process running ?
     pidfile = PidFile('agent-manager-gui').get_path()
 
