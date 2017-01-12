@@ -196,13 +196,13 @@ class HTTPCheck(NetworkCheck):
             ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning, skip_proxy, allow_redirects = self._load_conf(instance)
         start = time.time()
 
-        def sendStatusUp(logMsg):
+        def send_status_up(logMsg):
             self.log.debug(logMsg)
             service_checks.append((
                 self.SC_STATUS, Status.UP, "UP"
             ))
 
-        def sendStatusDown(loginfo, message):
+        def send_status_down(loginfo, message):
             self.log.info(loginfo)
             self.log.debug("Content returned:\n%s" % content)
             if include_content:
@@ -314,20 +314,20 @@ class HTTPCheck(NetworkCheck):
                 # r.text is the response content decoded by `requests`, of type `unicode`
                 content = r.text if type(content_match) is unicode else r.content
                 if not reverse_content_match and re.search(content_match, content, re.UNICODE):
-                    sendStatusUp("%s is found in return content" % content_match)
+                    send_status_up("%s is found in return content" % content_match)
 
                 elif reverse_content_match and not re.search(content_match, content, re.UNICODE):
-                    sendStatusUp("%s is not found in return content with the reverse_content_match option" % content_match)
+                    send_status_up("%s is not found in return content with the reverse_content_match option" % content_match)
 
                 elif reverse_content_match:
-                    sendStatusDown("%s is found in return content with the reverse_content_match option" % content_match,
+                    send_status_down("%s is found in return content with the reverse_content_match option" % content_match,
                         'Content "%s" found in response with the reverse_content_match' % content_match)
                 else:
-                    sendStatusDown("%s is not found in return content" % content_match,
+                    send_status_down("%s is not found in return content" % content_match,
                         'Content "%s" not found in response.' % content_match)
 
             else:
-                sendStatusUp("%s is UP" % addr)
+                send_status_up("%s is UP" % addr)
 
         if ssl_expire and parsed_uri.scheme == "https":
             status, msg = self.check_cert_expiration(instance, timeout, instance_ca_certs)
