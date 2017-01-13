@@ -28,7 +28,9 @@ SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
 COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
 SYSTEM_PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH
-DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro"
+
+# Captures processes in the supervisord group that are 'optional' i.e. not essential for the agent to run
+DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro|trace-agent"
 
 if [ ! -x $AGENTPATH ]; then
     echo "$AGENTPATH not found. Exiting."
@@ -57,23 +59,23 @@ check_status() {
 
         supervisor_processes=$($SUPERVISORCTL_PATH -c $SUPERVISOR_FILE status)
 
-        # Number of RUNNING supervisord programs (ignoring dogstatsd, jmxfetch and go-metro)
+        # Number of RUNNING supervisord programs (ignoring optional procs captured by $DD_OPT_PROC_REGEX)
         datadog_supervisor_processes=$(echo "$supervisor_processes" |
                                        grep -Ev $DD_OPT_PROC_REGEX |
                                        grep $NAME |
                                        grep -c RUNNING)
 
-        # Number of non-failed OPTIONAL supervisord programs (dogstatsd, jmxfetch and go-metro)
+        # Number of non-failed OPTIONAL supervisord programs
         datadog_supervisor_opt_processes=$(echo "$supervisor_processes" |
                                        grep -E $DD_OPT_PROC_REGEX |
                                        grep $NAME |
                                        grep -cv FATAL)
 
-        # Number of expected running supervisord programs (ignoring dogstatsd, jmxfetch and go-metro)
+        # Number of expected running supervisord programs (ignoring optional procs)
         supervisor_config_programs=$(grep -Ev $DD_OPT_PROC_REGEX $SUPERVISOR_FILE |
                                      grep -c '\[program:')
 
-        # Number of expected optional supervisord programs (dogstatsd, jmxfetch and go-metro)
+        # Number of expected optional supervisord programs
         supervisor_config_opt_programs=$(grep -E $DD_OPT_PROC_REGEX $SUPERVISOR_FILE |
                                      grep -c '\[program:')
 

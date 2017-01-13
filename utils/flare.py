@@ -249,6 +249,7 @@ class Flare(object):
         self._dogstatsd_log = config.get('dogstatsd_log_file')
         self._jmxfetch_log = config.get('jmxfetch_log_file')
         self._gometro_log = config.get('go-metro_log_file')
+        self._trace_agent_log = config.get('trace-agent_log_file')
 
     # Add logs to the tarfile
     def _add_logs_tar(self):
@@ -257,14 +258,12 @@ class Flare(object):
         self._add_log_file_tar(self._dogstatsd_log)
         self._add_log_file_tar(self._jmxfetch_log)
         self._add_log_file_tar(self._gometro_log)
+        self._add_log_file_tar(self._trace_agent_log)
         if not Platform.is_windows():
             self._add_log_file_tar(
                 "{0}/*supervisord.log".format(os.path.dirname(self._collector_log))
             )
         else:
-            self._add_log_file_tar(
-                "{0}/supervisor.log".format(os.path.dirname(self._collector_log))
-            )
             self._add_log_file_tar(
                 "{0}/service.log".format(os.path.dirname(self._collector_log))
             )
