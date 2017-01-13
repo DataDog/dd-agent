@@ -28,7 +28,8 @@ import servicemanager
 import win32service
 
 # project
-from config import get_config
+from config import get_config, get_confd_path
+from jmxfetch import JMXFetch
 from utils.jmx import JMXFiles
 
 
@@ -86,7 +87,8 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                 "jmxfetch",
                 [embedded_python, "jmxfetch.py"],
                 agent_env,
-                max_restarts=self._MAX_JMXFETCH_RESTARTS
+                max_restarts=self._MAX_JMXFETCH_RESTARTS,
+                enabled=self._is_jmxfetch_enabled(config)
             ),
         }
 
@@ -117,6 +119,12 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         log.debug('env: %s', env)
 
         return env
+
+    def _is_jmxfetch_enabled(self, config):
+        confd_path = get_confd_path()
+        jmxfetch = JMXFetch(confd_path, config)
+        jmxfetch.configure()
+        self._enabled = jmxfetch.should_run()
 
     def SvcStop(self):
         # Stop all services.
