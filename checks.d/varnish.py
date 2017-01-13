@@ -92,7 +92,7 @@ class Varnish(AgentCheck):
         else:
             tags += [u'varnish_name:default']
 
-        output, _, _ = get_subprocess_output(cmd, self.log)
+        output, _, _ = get_subprocess_output(cmd, self.log, raise_on_empty_output=False)
 
         self._parse_varnishstat(output, use_xml, tags)
 
@@ -101,7 +101,7 @@ class Varnish(AgentCheck):
         if varnishadm_path:
             secretfile_path = instance.get('secretfile', '/etc/varnish/secret')
             cmd = ['sudo', varnishadm_path, '-S', secretfile_path, 'debug.health']
-            output, _, _ = get_subprocess_output(cmd, self.log)
+            output, _, _ = get_subprocess_output(cmd, self.log, raise_on_empty_output=False)
             if output:
                 self._parse_varnishadm(output)
 
