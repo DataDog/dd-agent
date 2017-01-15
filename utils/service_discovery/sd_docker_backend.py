@@ -92,9 +92,13 @@ class SDDockerBackend(AbstractSDBackend):
         AbstractSDBackend.__init__(self, agentConfig)
 
     def _make_fetch_state(self):
-        return _SDDockerBackendConfigFetchState(
-            self.docker_client.inspect_container,
-            self.kubeutil.retrieve_pods_list().get('items', []) if Platform.is_k8s() else None)
+        pod_list = []
+        if Platform.is_k8s():
+            try:
+                pod_list = self.kubeutil.retrieve_pods_list().get('items', [])
+            except Exception as ex:
+                log.warning("Failed to retrieve pod list: %s" % str(ex))
+        return _SDDockerBackendConfigFetchState(self.docker_client.inspect_container, pod_list)
 
     def update_checks(self, changed_containers):
         state = self._make_fetch_state()
