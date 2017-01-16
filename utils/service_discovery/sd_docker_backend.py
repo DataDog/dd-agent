@@ -242,18 +242,37 @@ class SDDockerBackend(AbstractSDBackend):
                 log.warning("Failed to fetch pod metadata for container %s."
                             " Kubernetes tags may be missing." % c_id[:12])
                 return []
-            # get labels
+
+            # get pod labels
             kube_labels = pod_metadata.get('labels', {})
             for label, value in kube_labels.iteritems():
                 tags.append('%s:%s' % (label, value))
 
-            # get replication controller
-            created_by = json.loads(pod_metadata.get('annotations', {}).get('kubernetes.io/created-by', '{}'))
-            if created_by.get('reference', {}).get('kind') == 'ReplicationController':
-                tags.append('kube_replication_controller:%s' % created_by.get('reference', {}).get('name'))
-
             # get kubernetes namespace
-            tags.append('kube_namespace:%s' % pod_metadata.get('namespace'))
+            namespace = pod_metadata.get('namespace')
+            tags.append('kube_namespace:%s' % namespace)
+
+            # get created-by
+            created_by = json.loads(pod_metadata.get('annotations', {}).get('kubernetes.io/created-by', '{}'))
+            creator_kind = created_by.get('reference', {}).get('kind')
+            creator_name = created_by.get('reference', {}).get('name')
+
+            # add creator tags
+            if creator_name:
+                if creator_kind == 'ReplicationController':
+                    tags.append('kube_replication_controller:%s' % creator_name)
+                elif creator_kind == 'DaemonSet':
+                    tags.append('kube_daemon_set:%s' % creator_name)
+                elif creator_kind == 'ReplicaSet':
+                    tags.append('kube_replica_set:%s' % creator_name)
+            else:
+                log.debug('creator-name for pod %s is empty, this should not happen' % pod_metadata.get('name'))
+
+            # FIXME haissam: for service and deployment we need to store a list of these guys
+            # that we query from the apiserver and to compare their selectors with the pod labels.
+            # For service it's straight forward.
+            # For deployment we only need to do it if the pod creator is a ReplicaSet.
+            # Details: https://kubernetes.io/docs/user-guide/deployments/#selector
 
         return tags
 
