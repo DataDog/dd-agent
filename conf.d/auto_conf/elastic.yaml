@@ -4,4 +4,4 @@ docker_images:
 init_config:
 
 instances:
-  - url: "http://%%host%%:%%port%%"
+  - url: "http://%%host%%:%%port_0%%"
