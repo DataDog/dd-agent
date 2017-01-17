@@ -332,7 +332,9 @@ class Collector(object):
                         'memShared': memory.get('physShared'),
                         'memSlab': memory.get('physSlab'),
                         'memPageTables': memory.get('physPageTables'),
-                        'memSwapCached': memory.get('swapCached')
+                        'memSwapCached': memory.get('swapCached'),
+                        'memCommitLimit': memory.get('physCommitLimit'),
+                        'memCommittedAs': memory.get('physCommittedAs')
                     }
                     payload.update(memstats)
 
