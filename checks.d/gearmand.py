@@ -11,6 +11,7 @@ from checks import AgentCheck
 
 
 MAX_NUM_TASKS = 200
+MAX_NUM_WORKERS = 500
 
 class Gearman(AgentCheck):
     SERVICE_CHECK_NAME = 'gearman.can_connect'
@@ -40,8 +41,8 @@ class Gearman(AgentCheck):
         self.gauge("gearman.queued", queued, tags=tags)
         self.gauge("gearman.workers", workers, tags=tags)
 
-        self.log.debug("running %d, queued %d, unique tasks %d, workers: %d"
-        % (running, queued, unique_tasks, workers))
+        self.log.debug("running %d, queued %d, unique tasks %d, workers: %d",
+                       running, queued, unique_tasks, workers)
 
     def _get_per_task_metrics(self, tasks, task_filter, tags):
         if len(task_filter) > MAX_NUM_TASKS:
@@ -54,7 +55,10 @@ class Gearman(AgentCheck):
         if len(tasks) > MAX_NUM_TASKS:
             # Display a warning in the info page
             self.warning(
-                "Too many tasks to fetch. You must choose the tasks you are interested in by editing the gearmand.yaml configuration file or get in touch with Datadog Support")
+                "Too many tasks to fetch. You must choose the tasks "
+                "you are interested in by editing the gearmand.yaml configuration "
+                "file or get in touch with Datadog Support"
+            )
 
         for stat in tasks[:MAX_NUM_TASKS]:
             running = stat['running']
@@ -66,6 +70,21 @@ class Gearman(AgentCheck):
             self.gauge("gearman.running_by_task", running, tags=task_tags)
             self.gauge("gearman.queued_by_task", queued, tags=task_tags)
             self.gauge("gearman.workers_by_task", workers, tags=task_tags)
+
+    def _get_per_server_metrics(self, workers, tags):
+        if len(workers) > MAX_NUM_WORKERS:
+            # Display a warning in the info page
+            self.warning("Too many workers to fetch. Please get in touch with Datadog Support")
+
+        for worker in workers[:MAX_NUM_WORKERS]:
+            # skip unassigned workers
+            if not worker['tasks']:
+                continue
+            task_tags = map(lambda task: 'task:%s' % task, worker['tasks'])
+            server_tags = tags[:]
+            server_tags.extend(task_tags)
+            server_tags.append('gearman_ip:%s' % worker['ip'])
+            self.count('gearman.workers_by_server', 1, tags=server_tags)
 
     def _get_conf(self, instance):
         host = instance.get('server', None)
@@ -100,6 +119,8 @@ class Gearman(AgentCheck):
             tasks = client.get_status()
             self._get_aggregate_metrics(tasks, tags)
             self._get_per_task_metrics(tasks, task_filter, tags)
+            workers = client.get_workers()
+            self._get_per_server_metrics(workers, tags)
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                 message="Connection to %s:%s succeeded." % (host, port),
                 tags=service_check_tags)
