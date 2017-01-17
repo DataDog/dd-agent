@@ -525,6 +525,7 @@ SELECT s.schemaname,
                     continue
 
                 if not results:
+                    self.log.info("No results returned for query %s", query)
                     continue
 
                 if scope in custom_metrics and len(results) > MAX_CUSTOM_RESULTS:
@@ -576,12 +577,14 @@ SELECT s.schemaname,
                     # metric-map is: (dd_name, "rate"|"gauge")
                     # shift the results since the first columns will be the "descriptors"
                     values = zip([scope['metrics'][c] for c in cols], row[len(desc):])
+                    self.log.debug("Submitting %d metrics for query %s", len(values), query)
 
                     # To submit simply call the function for each value v
                     # v[0] == (metric_name, submit_function)
                     # v[1] == the actual value
                     # tags are
                     for v in values:
+                        self.log.debug("Submitting %s with raw value %s", v[0][0], v[1])
                         v[0][1](self, v[0][0], v[1], tags=tags)
 
             cursor.close()
