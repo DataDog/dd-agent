@@ -1129,16 +1129,22 @@ def load_check(agentConfig, hostname, checkname):
 
 def generate_jmx_configs(agentConfig, hostname, checknames=None):
     """Similar logic to load_check_directory for JMX checks"""
-    from jmxfetch import JMX_CHECKS
+    from jmxfetch import JMX_CHECKS, get_jmx_checks
+
+    jmx_checks = JMX_CHECKS
+    auto_conf_jmx_checks = get_jmx_checks()
+    for check in auto_conf_jmx_checks:
+        if check not in JMX_CHECKS:
+            jmx_checks.append(check)
 
     if not checknames:
-        checknames = JMX_CHECKS
+        checknames = jmx_checks
     agentConfig['checksd_hostname'] = hostname
 
     # the check was not found, try with service discovery
     generated = {}
     for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
-        if check_name in checknames and check_name in JMX_CHECKS:
+        if check_name in checknames and check_name in jmx_checks:
             log.debug('Generating JMX config for: %s' % check_name)
 
             _, (sd_init_config, sd_instances) = service_disco_check_config
@@ -1148,7 +1154,6 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
 
             try:
                 yaml = config_to_yaml(check_config)
-                # generated["{}_{}".format(check_name, idx)] = yaml
                 generated["{}_{}".format(check_name, 0)] = yaml
                 log.debug("YAML generated: %s", yaml)
             except Exception:
@@ -1156,9 +1161,7 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
 
     return generated
 
-#
 # logging
-
 
 def get_log_date_format():
     return "%Y-%m-%d %H:%M:%S %Z"

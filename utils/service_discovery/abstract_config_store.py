@@ -16,6 +16,7 @@ from requests.packages.urllib3.exceptions import TimeoutError
 from utils.checkfiles import get_check_class, get_auto_conf, get_auto_conf_images
 from utils.singleton import Singleton
 
+
 log = logging.getLogger(__name__)
 
 CONFIG_FROM_AUTOCONF = 'auto-configuration'
@@ -223,7 +224,12 @@ class AbstractConfigStore(object):
             return None
 
     def _get_auto_config(self, image_name):
-        from jmxfetch import JMX_CHECKS
+        from jmxfetch import JMX_CHECKS, get_jmx_checks
+
+        jmx_checknames = JMX_CHECKS
+        auto_conf_jmx_checks = get_jmx_checks()
+        if auto_conf_jmx_checks:
+            jmx_checknames += auto_conf_jmx_checks
 
         ident = self._get_image_ident(image_name)
         templates = []
@@ -232,11 +238,10 @@ class AbstractConfigStore(object):
 
             for check_name in check_names:
                 # get the check class to verify it matches
-                check = get_check_class(self.agentConfig, check_name) if check_name not in JMX_CHECKS else True
+                check = get_check_class(self.agentConfig, check_name) if check_name not in jmx_checknames else True
                 if check is None:
                     log.info("Failed auto configuring check %s for %s." % (check_name, image_name))
                     continue
-
                 auto_conf = get_auto_conf(check_name)
                 init_config, instances = auto_conf.get('init_config', {}), auto_conf.get('instances', [])
                 templates.append((check_name, init_config, instances[0] or {}))
