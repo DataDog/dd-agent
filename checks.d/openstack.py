@@ -303,7 +303,7 @@ class KeystoneCatalog(object):
         nova_version = nova_api_version or DEFAULT_NOVA_API_VERSION
         catalog = json_resp.get('token', {}).get('catalog', [])
 
-        nova_match = 'novav21' if nova_version == V21_NOVA_API_VERSION else 'nova'
+        nova_match = 'nova'
 
         for entry in catalog:
             if entry['name'] == nova_match or 'Compute' in entry['name']:
