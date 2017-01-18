@@ -2,15 +2,11 @@
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
-# stdlib
-import urlparse
-
 # 3rd party
 import requests
 
 # project
 from checks import AgentCheck
-from config import _is_affirmative
 
 
 class Burrow(AgentCheck):
@@ -44,12 +40,14 @@ class Burrow(AgentCheck):
 
         optional_tags = instance.get('tags', [])
 
-        r = requests.get(url=url+Burrow.LIST_CLUSTERS)
+        r = requests.get(url=url+Burrow.LIST_CLUSTERS,
+                         timeout=(connect_timeout, receive_timeout))
         res = Burrow._check_for_error(r)
         clusters = res['clusters']
 
         for cluster in clusters:
-            r = requests.get(url+Burrow.LIST_CONSUMERS.format(cluster=cluster))
+            r = requests.get(url+Burrow.LIST_CONSUMERS.format(cluster=cluster),
+                            timeout=(connect_timeout, receive_timeout))
             res = Burrow._check_for_error(r)
             consumers = res['consumers']
 
@@ -57,7 +55,7 @@ class Burrow(AgentCheck):
                 r = requests.get(url+Burrow.CONSUMER_LAG.format(
                     cluster=cluster,
                     consumer=consumer
-                ))
+                ), timeout=(connect_timeout, receive_timeout))
                 res = Burrow._check_for_error(r)
                 status = res['status']
 
