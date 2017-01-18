@@ -28,9 +28,10 @@ import servicemanager
 import win32service
 
 # project
-from config import get_config, get_confd_path
+from config import get_config, get_config_path, get_confd_path
 from jmxfetch import JMXFetch
 from utils.jmx import JMXFiles
+from utils.windows_configuration import get_registry_conf, update_conf_file
 
 
 log = logging.getLogger('service')
@@ -52,6 +53,8 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         AgentSvc.devnull = open(os.devnull, 'w')
 
         config = get_config(parse_args=False)
+        if config['api_key'] == 'APIKEYHERE':
+            self._update_config_file(config)
 
         # Let's have an uptime counter
         self.start_ts = None
@@ -124,7 +127,15 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         confd_path = get_confd_path()
         jmxfetch = JMXFetch(confd_path, config)
         jmxfetch.configure()
-        self._enabled = jmxfetch.should_run()
+        return jmxfetch.should_run()
+
+    def _update_config_file(self, config):
+        log.debug('Querying registry to get missing config options')
+        registry_conf = get_registry_conf(config)
+        config.update(registry_conf)
+        if registry_conf:
+            log.info('Updating conf file options: %s', registry_conf.keys())
+            update_conf_file(registry_conf, get_config_path())
 
     def SvcStop(self):
         # Stop all services.

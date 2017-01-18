@@ -33,7 +33,6 @@ from utils.subprocess_output import (
     get_subprocess_output,
     SubprocessOutputEmptyError,
 )
-from utils.windows_configuration import get_registry_conf, update_conf_file
 
 
 # CONSTANTS
@@ -304,7 +303,7 @@ def remove_empty(string_array):
     return filter(lambda x: x, string_array)
 
 
-def get_config(parse_args=True, cfg_path=None, options=None, can_write_conf=False):
+def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
         options, _ = get_parsed_args()
 
@@ -577,15 +576,6 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_write_conf=Fals
         agentConfig['ssl_certificate'] = get_ssl_certificate(get_os(), 'datadog-cert.pem')
     else:
         agentConfig['ssl_certificate'] = agentConfig['ca_certs']
-
-    if agentConfig['api_key'] == 'APIKEYHERE' and Platform.is_windows():
-        log.debug('Querying registry to get missing config options')
-        registry_conf = get_registry_conf(agentConfig)
-        agentConfig.update(registry_conf)
-        # If it's the collector, conf is updated
-        if can_write_conf and registry_conf:
-            log.debug('Updating conf file options: %s', registry_conf.keys())
-            update_conf_file(registry_conf, config_path)
 
     return agentConfig
 
