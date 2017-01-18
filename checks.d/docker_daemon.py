@@ -24,7 +24,6 @@ EVENT_TYPE = 'docker'
 SERVICE_CHECK_NAME = 'docker.service_up'
 HEALTHCHECK_SERVICE_CHECK_NAME = 'docker.container_health'
 SIZE_REFRESH_RATE = 5  # Collect container sizes every 5 iterations of the check
-MAX_CGROUP_LISTING_RETRIES = 3
 CONTAINER_ID_RE = re.compile('[0-9a-f]{64}')
 
 GAUGE = AgentCheck.gauge
@@ -182,7 +181,6 @@ class DockerDaemon(AgentCheck):
             # We configure the check with the right cgroup settings for this host
             # Just needs to be done once
             self._mountpoints = self.docker_util.get_mountpoints(CGROUP_METRICS)
-            self.cgroup_listing_retries = 0
             self._latest_size_query = 0
             self._filtered_containers = set()
             self._disable_net_metrics = False
@@ -576,9 +574,17 @@ class DockerDaemon(AgentCheck):
                 self.log.debug(message)
 
     def _report_cgroup_metrics(self, container, tags):
-        try:
-            for cgroup in CGROUP_METRICS:
+        cgroup_stat_file_failures = 0
+        for cgroup in CGROUP_METRICS:
+            try:
                 stat_file = self._get_cgroup_from_proc(cgroup["cgroup"], container['_pid'], cgroup['file'])
+            except MountException as e:
+                # We can't find a stat file
+                self.warning(str(e))
+                cgroup_stat_file_failures += 1
+                if cgroup_stat_file_failures >= len(CGROUP_METRICS):
+                    self.warning("Couldn't find the cgroup files. Skipping the CGROUP_METRICS for now.")
+            else:
                 stats = self._parse_cgroup_file(stat_file)
                 if stats:
                     for key, (dd_key, metric_func) in cgroup['metrics'].iteritems():
@@ -596,16 +602,6 @@ class DockerDaemon(AgentCheck):
                         metric_func = FUNC_MAP[metric_func][self.use_histogram]
                         if value is not None:
                             metric_func(self, mname, value, tags=tags)
-
-        except MountException as ex:
-            if self.cgroup_listing_retries > MAX_CGROUP_LISTING_RETRIES:
-                raise ex
-            else:
-                self.warning("Couldn't find the cgroup files. Skipping the CGROUP_METRICS for now."
-                             "Will retry {0} times before failing.".format(MAX_CGROUP_LISTING_RETRIES - self.cgroup_listing_retries))
-                self.cgroup_listing_retries += 1
-        else:
-            self.cgroup_listing_retries = 0
 
     def _report_net_metrics(self, container, tags):
         """Find container network metrics by looking at /proc/$PID/net/dev of the container process."""

@@ -343,7 +343,7 @@ class DockerUtil:
                     if os.path.exists(stat_file_path):
                         return os.path.join(stat_file_path, '%(file)s')
 
-        raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
+        raise MountException("Cannot find Docker '%s' cgroup directory. Be sure your system is supported." % subsys)
 
     @classmethod
     def find_cgroup_filename_pattern(cls, mountpoints, container_id):
