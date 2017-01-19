@@ -165,8 +165,8 @@ class Fixtures(object):
             return contents.decode("utf-8")
 
     @staticmethod
-    def read_json_file(file_name, string_escape=True):
-        return json.loads(Fixtures.read_file(file_name, string_escape=string_escape))
+    def read_json_file(file_name, string_escape=True, sdk_dir=None):
+        return json.loads(Fixtures.read_file(file_name, string_escape=string_escape, sdk_dir=sdk_dir))
 
 class AgentCheckTest(unittest.TestCase):
     DEFAULT_AGENT_CONFIG = {
