@@ -42,6 +42,7 @@ def update_conf_file(registry_conf, config_path):
     except OSError as e:
         log.debug('Unable to back up datadog.conf: %s', e)
     temp_config, temp_config_path = tempfile.mkstemp(prefix='config-', text=True)
+    temp_config = os.fdopen(temp_config, 'w')
     log.debug('Temporary conf path: %s', temp_config_path)
     with open(config_path, 'r') as f:
         for line in f:
