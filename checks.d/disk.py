@@ -112,7 +112,7 @@ class Disk(AgentCheck):
             self._valid_disks[part.device] = (part.fstype, part.mountpoint)
             self.log.debug('Passed: {0}'.format(part.device))
 
-            tags = [part.fstype] if self._tag_by_filesystem else []
+            tags = ['fstype:' + part.fstype] if self._tag_by_filesystem else []
             device_name = part.mountpoint if self._use_mount else part.device
 
             # legacy check names c: vs psutil name C:\\
