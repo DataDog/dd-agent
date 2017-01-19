@@ -41,7 +41,8 @@ def update_conf_file(registry_conf, config_path):
         shutil.copy(config_path, config_bkp)
     except OSError as e:
         log.debug('Unable to back up datadog.conf: %s', e)
-    temp_config, temp_config_path = tempfile.mkstemp(prefix='config-')
+    temp_config, temp_config_path = tempfile.mkstemp(prefix='config-', text=True)
+    log.debug('Temporary conf path: %s', temp_config_path)
     with open(config_path, 'r') as f:
         for line in f:
             for k, v in registry_conf.iteritems():
@@ -55,9 +56,5 @@ def update_conf_file(registry_conf, config_path):
     except OSError as e:
         log.exception('Unable to save new datadog.conf')
 
+    log.debug('Sucessfully saved the new datadog.cong')
 
-def conf_match(line, attribute):
-    attribute += ':'
-    return (line.startswith(attribute) or
-            line.startswith('#' + attribute) or
-            line.startswith('# ' + attribute))
