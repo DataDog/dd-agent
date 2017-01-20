@@ -1141,7 +1141,7 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
         if check_name in checknames and check_name in JMX_CHECKS:
             log.debug('Generating JMX config for: %s' % check_name)
 
-            sd_init_config, sd_instances = service_disco_check_config
+            _, (sd_init_config, sd_instances) = service_disco_check_config
 
             check_config = {'init_config': sd_init_config,
                             'instances': sd_instances}
