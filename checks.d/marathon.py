@@ -12,6 +12,7 @@ import requests
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 
 
 class Marathon(AgentCheck):
@@ -43,13 +44,19 @@ class Marathon(AgentCheck):
             auth = (user,password)
         else:
             auth = None
+        ssl_verify = not _is_affirmative(instance.get('disable_ssl_validation', False))
+        group = instance.get('group', None)
 
         instance_tags = instance.get('tags', [])
         default_timeout = self.init_config.get('default_timeout', self.DEFAULT_TIMEOUT)
         timeout = float(instance.get('timeout', default_timeout))
 
         # Marathon apps
-        response = self.get_json(urljoin(url, "v2/apps"), timeout, auth)
+        if group is None:
+          marathon_path = urljoin(url, "v2/apps")
+        else:
+          marathon_path = urljoin(url, "v2/groups/{}".format(group))
+        response = self.get_json(marathon_path, timeout, auth, ssl_verify)
         if response is not None:
             self.gauge('marathon.apps', len(response['apps']), tags=instance_tags)
             for app in response['apps']:
@@ -59,13 +66,13 @@ class Marathon(AgentCheck):
                         self.gauge('marathon.' + attr, app[attr], tags=tags)
 
         # Number of running/pending deployments
-        response = self.get_json(urljoin(url, "v2/deployments"), timeout, auth)
+        response = self.get_json(urljoin(url, "v2/deployments"), timeout, auth, ssl_verify)
         if response is not None:
             self.gauge('marathon.deployments', len(response), tags=instance_tags)
 
-    def get_json(self, url, timeout, auth):
+    def get_json(self, url, timeout, auth, verify):
         try:
-            r = requests.get(url, timeout=timeout, auth=auth)
+            r = requests.get(url, timeout=timeout, auth=auth, verify=verify)
             r.raise_for_status()
         except requests.exceptions.Timeout:
             # If there's a timeout
