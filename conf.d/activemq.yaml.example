@@ -1,3 +1,6 @@
+# This file used to be activemq_58.yaml.example.
+# We have deprecated the old default and promoted this one
+
 instances:
   - host: localhost
     port: 1099
