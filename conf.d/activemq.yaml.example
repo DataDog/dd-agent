@@ -20,7 +20,7 @@ instances:
 init_config:
   conf:
     - include:
-        Type: Queue
+        destinationType: Queue
         attribute:
           AverageEnqueueTime:
             alias: activemq.queue.avg_enqueue_time
@@ -60,7 +60,7 @@ init_config:
             metric_type: counter
 
     - include:
-        Type: Broker
+        type: Broker
         attribute:
           StorePercentUsage:
             alias: activemq.broker.store_pct
