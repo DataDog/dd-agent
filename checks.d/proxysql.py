@@ -164,11 +164,7 @@ class ProxySQL(AgentCheck):
 
     def _get_connection_pool_stats(self, conn):
         """Fetch ProxySQL connection pool stats"""
-        sql = ('SELECT srv_host as Host, ConnUsed as Connections_used, '
-               'ConnFree as Connections_free, ConnOK as Connections_ok, '
-               'ConnERR as Connections_error, Queries, Bytes_data_sent, '
-               'Bytes_data_recv, Latency_ms '
-               'FROM stats_mysql_connection_pool')
+        sql = 'SELECT * FROM stats_mysql_connection_pool'
 
         try:
             with closing(conn.cursor()) as cursor:
@@ -180,14 +176,20 @@ class ProxySQL(AgentCheck):
 
                 stats = defaultdict(list)
                 for row in cursor.fetchall():
-                    stats['Connections_used'].append(('proxysql_db_node:%s' % row['Host'], row['Connections_used']))
-                    stats['Connections_free'].append(('proxysql_db_node:%s' % row['Host'], row['Connections_free']))
-                    stats['Connections_ok'].append(('proxysql_db_node:%s' % row['Host'], row['Connections_ok']))
-                    stats['Connections_error'].append(('proxysql_db_node:%s' % row['Host'], row['Connections_error']))
-                    stats['Queries'].append(('proxysql_db_node:%s' % row['Host'], row['Queries']))
-                    stats['Bytes_data_sent'].append(('proxysql_db_node:%s' % row['Host'], row['Bytes_data_sent']))
-                    stats['Bytes_data_recv'].append(('proxysql_db_node:%s' % row['Host'], row['Bytes_data_recv']))
-                    stats['Latency_ms'].append(('proxysql_db_node:%s' % row['Host'], row['Latency_ms']))
+                    stats['Connections_used'].append(('proxysql_db_node:%s' % row['srv_host'], row['ConnUsed']))
+                    stats['Connections_free'].append(('proxysql_db_node:%s' % row['srv_host'], row['ConnFree']))
+                    stats['Connections_ok'].append(('proxysql_db_node:%s' % row['srv_host'], row['ConnOK']))
+                    stats['Connections_error'].append(('proxysql_db_node:%s' % row['srv_host'], row['ConnERR']))
+                    stats['Queries'].append(('proxysql_db_node:%s' % row['srv_host'], row['Queries']))
+                    stats['Bytes_data_sent'].append(('proxysql_db_node:%s' % row['srv_host'], row['Bytes_data_sent']))
+                    stats['Bytes_data_recv'].append(('proxysql_db_node:%s' % row['srv_host'], row['Bytes_data_recv']))
+
+                    # https://github.com/sysown/proxysql/issues/882
+                    # Latency_ms was actually returning values in microseconds
+                    # ProxySQL v1.3.3 returns it with the correct key 'Latency_us'
+                    latency_key = 'Latency_ms' if row.get('Latency_ms') else 'Latency_us'
+                    stats['Latency_ms'].append(('proxysql_db_node:%s' % row['srv_host'],
+                                                str(int(row[latency_key]) / 1000)))
 
                 return stats
         except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
