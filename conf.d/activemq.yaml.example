@@ -1,5 +1,9 @@
-# This file used to be activemq_58.yaml.example.
-# We have deprecated the old default and promoted this one
+##########
+# WARNING
+##########
+# This sample works only for ActiveMQ >= 5.8.0
+# If you are running a version older than that, you can refer to agent 5.10.x released
+# sample files, https://raw.githubusercontent.com/DataDog/dd-agent/5.10.1/conf.d/activemq.yaml.example
 
 instances:
   - host: localhost
