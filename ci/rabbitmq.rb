@@ -37,7 +37,7 @@ namespace :ci do
       sh %(#{rabbitmq_rootdir}/sbin/rabbitmq-plugins enable rabbitmq_management)
       %w(test1 test5 tralala).each do |q|
         sh %(python `find #{rabbitmq_rootdir} -name rabbitmqadmin` declare queue name=#{q})
-        sh %(python `find #{rabbitmq_rootdir} -name rabbitmqadmin` declare exchange name=#{q} type=direct)
+        sh %(python `find #{rabbitmq_rootdir} -name rabbitmqadmin` declare exchange name=#{q} type=topic)
         sh %(python `find #{rabbitmq_rootdir} -name rabbitmqadmin` declare binding source=#{q} destination_type=queue \
             destination=#{q} routing_key=#{q})
         sh %(python `find #{rabbitmq_rootdir} -name rabbitmqadmin` publish exchange=#{q} routing_key=#{q} \
