@@ -44,8 +44,13 @@ namespace :ci do
 
     task before_script: ['ci:common:before_script'] do
       %w(haproxy haproxy-open).each do |name|
+        # Older haproxy doesn't support ENV interpolation
+        config = File.read("#{ENV['TRAVIS_BUILD_DIR']}/ci/resources/haproxy/#{name}.cfg")
+        config.gsub!('$VOLATILE_DIR', ENV['VOLATILE_DIR'])
+        File.write("#{ENV['VOLATILE_DIR']}/#{name}.cfg", config)
+
         pid = spawn("#{haproxy_rootdir}/haproxy", '-d', '-f',
-                    "#{ENV['TRAVIS_BUILD_DIR']}/ci/resources/haproxy/#{name}.cfg",
+                    "#{ENV['VOLATILE_DIR']}/#{name}.cfg",
                     out: '/dev/null')
         Process.detach(pid)
         sh %(echo #{pid} > $VOLATILE_DIR/#{name}.pid)

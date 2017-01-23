@@ -64,3 +64,7 @@ instances:
 #    suggested value is False.
 #    collect_count_metrics: False
 #
+
+#    Collect database size metrics. Default value is True but they might be slow with large databases
+#    collect_database_size_metrics: False
+#

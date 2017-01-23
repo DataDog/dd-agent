@@ -33,6 +33,7 @@ DEFAULT_ENABLED_RATES = [
     'network.??_bytes',
     'cpu.*.total']
 DEFAULT_COLLECT_EVENTS = False
+DEFAULT_NAMESPACES = ['default']
 
 NET_ERRORS = ['rx_errors', 'tx_errors', 'rx_dropped', 'tx_dropped']
 
@@ -89,6 +90,15 @@ class Kubernetes(AgentCheck):
         self.kubeutil = KubeUtil(instance=inst)
         if not self.kubeutil.host:
             raise Exception('Unable to retrieve Docker hostname and host parameter is not set')
+
+        self.k8s_namespace_regexp = None
+        if inst:
+            regexp = inst.get('namespace_name_regexp', None)
+            if regexp:
+                try:
+                    self.k8s_namespace_regexp = re.compile(regexp)
+                except re.error as e:
+                    self.log.warning('Invalid regexp for "namespace_name_regexp" in configuration (ignoring regexp): %s' % str(e))
 
     def _perform_kubelet_checks(self, url):
         service_check_base = NAMESPACE + '.kubelet.check'
@@ -240,6 +250,16 @@ class Kubernetes(AgentCheck):
         container_image = subcontainer['spec'].get('image')
         if container_image:
             tags.append('container_image:%s' % container_image)
+
+            split = container_image.split(":")
+            if len(split) > 2:
+                # if the repo is in the image name and has the form 'docker.clearbit:5000'
+                # the split will be like [repo_url, repo_port/image_name, image_tag]. Let's avoid that
+                split = [':'.join(split[:-1]), split[-1]]
+
+            tags.append('image_name:%s' % split[0])
+            if len(split) == 2:
+                tags.append('image_tag:%s' % split[1])
 
         try:
             cont_labels = subcontainer['spec']['labels']
@@ -423,16 +443,38 @@ class Kubernetes(AgentCheck):
         node_ip, node_name = self.kubeutil.get_node_info()
         self.log.debug('Processing events on {} [{}]'.format(node_name, node_ip))
 
-        k8s_namespace = instance.get('namespace', 'default')
-        events_endpoint = '{}/namespaces/{}/events'.format(self.kubeutil.kubernetes_api_url, k8s_namespace)
+        k8s_namespaces = instance.get('namespaces', DEFAULT_NAMESPACES)
+        if not isinstance(k8s_namespaces, list):
+            self.log.warning('Configuration key "namespaces" is not a list: fallback to the default value')
+            k8s_namespaces = DEFAULT_NAMESPACES
+
+        # handle old config value
+        if 'namespace' in instance and instance.get('namespace') not in (None, 'default'):
+            self.log.warning('''The 'namespace' parameter is deprecated and will stop being supported starting '''
+                             '''from 5.12. Please use 'namespaces' and/or 'namespace_name_regexp' instead.''')
+            k8s_namespaces.append(instance.get('namespace'))
+
+        if self.k8s_namespace_regexp:
+            namespaces_endpoint = '{}/namespaces'.format(self.kubeutil.kubernetes_api_url)
+            self.log.debug('Kubernetes API endpoint to query namespaces: %s' % namespaces_endpoint)
+
+            namespaces = self.kubeutil.retrieve_json_auth(namespaces_endpoint, self.kubeutil.get_auth_token())
+            for namespace in namespaces.get('items', []):
+                name = namespace.get('metadata', {}).get('name', None)
+                if name and self.k8s_namespace_regexp.match(name):
+                    k8s_namespaces.append(name)
+
+        k8s_namespaces = set(k8s_namespaces)
+
+        events_endpoint = '{}/events'.format(self.kubeutil.kubernetes_api_url)
         self.log.debug('Kubernetes API endpoint to query events: %s' % events_endpoint)
 
         events = self.kubeutil.retrieve_json_auth(events_endpoint, self.kubeutil.get_auth_token())
         event_items = events.get('items') or []
-        last_read = self.kubeutil.last_event_collection_ts[k8s_namespace]
+        last_read = self.kubeutil.last_event_collection_ts
         most_recent_read = 0
 
-        self.log.debug('Found {} events, filtering out using timestamp: {}'.format(len(event_items), last_read))
+        self.log.debug('Found {} events, filtering out using timestamp: {} and namespaces: {}'.format(len(event_items), last_read, k8s_namespaces))
 
         for event in event_items:
             # skip if the event is too old
@@ -441,6 +483,10 @@ class Kubernetes(AgentCheck):
                 continue
 
             involved_obj = event.get('involvedObject', {})
+
+            # filter events by white listed namespaces (empty namespace belong to the 'default' one)
+            if involved_obj.get('namespace', 'default') not in k8s_namespaces:
+                continue
 
             tags = self.kubeutil.extract_event_tags(event)
 
@@ -467,5 +513,5 @@ class Kubernetes(AgentCheck):
             self.event(dd_event)
 
         if most_recent_read > 0:
-            self.kubeutil.last_event_collection_ts[k8s_namespace] = most_recent_read
-            self.log.debug('_last_event_collection_ts is now {}'.format(most_recent_read))
+            self.kubeutil.last_event_collection_ts = most_recent_read
+            self.log.debug('last_event_collection_ts is now {}'.format(most_recent_read))

@@ -329,7 +329,6 @@ class SQLServer(AgentCheck):
         except Exception as e:
             cx = "%s - %s" % (host, database)
             message = "Unable to connect to SQL Server for instance %s." % cx
-            self.log.warning("%s Exception: %s", message, e)
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                                tags=service_check_tags, message=message)
 
