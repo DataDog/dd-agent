@@ -53,9 +53,9 @@ class Marathon(AgentCheck):
 
         # Marathon apps
         if group is None:
-          marathon_path = urljoin(url, "v2/apps")
+            marathon_path = urljoin(url, "v2/apps")
         else:
-          marathon_path = urljoin(url, "v2/groups/{}".format(group))
+            marathon_path = urljoin(url, "v2/groups/{}".format(group))
         response = self.get_json(marathon_path, timeout, auth, ssl_verify)
         if response is not None:
             self.gauge('marathon.apps', len(response['apps']), tags=instance_tags)
