@@ -150,11 +150,11 @@ class TestServiceDiscovery(unittest.TestCase):
     }
 
     jmx_sd_configs = {
-        'tomcat': ({}, [{"host": "localhost", "port": "9012"}]),
-        'solr': ({}, [
+        'tomcat': ('auto-configuration', ({}, [{"host": "localhost", "port": "9012"}])),
+        'solr': ('auto-configuration', ({}, [
             {"host": "localhost", "port": "9999", "username": "foo", "password": "bar"},
             {"host": "remotehost", "port": "5555", "username": "haz", "password": "bar"},
-        ]),
+        ])),
     }
 
     def setUp(self):
