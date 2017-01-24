@@ -81,9 +81,7 @@ elif [ -f /etc/system-release -o "$DISTRIBUTION" == "Amazon" ]; then
 # Arista is based off of Fedora14/18 but do not have /etc/redhat-release
 elif [ -f /etc/Eos-release -o "$DISTRIBUTION" == "Arista" ]; then
     OS="RedHat"
-# openSUSE and SUSE use /etc/SuSE-release (legacy), in the future it will be /etc/os-release
-elif [ -f /etc/os-release -o "$DISTRIBUTION" == "SUSE" -o "$DISTRIBUTION" == "openSUSE" ]; then
-    OS="SUSE"
+# openSUSE and SUSE use /etc/SuSE-release
 elif [ -f /etc/SuSE-release -o "$DISTRIBUTION" == "SUSE" -o "$DISTRIBUTION" == "openSUSE" ]; then
     OS="SUSE"
 fi
