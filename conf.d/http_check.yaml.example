@@ -31,7 +31,7 @@ instances:
 
     # The (optional) reverse_content_match parameter will allow the content_match
     # to work the other way around. That means that the check will report
-    # as DOWN if the string is DOWN
+    # as DOWN if the string is found.
     # reverse_content_match: false
 
     # If your service uses basic authentication, you can optionally

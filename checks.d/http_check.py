@@ -313,18 +313,19 @@ class HTTPCheck(NetworkCheck):
             if content_match:
                 # r.text is the response content decoded by `requests`, of type `unicode`
                 content = r.text if type(content_match) is unicode else r.content
-                if not reverse_content_match and re.search(content_match, content, re.UNICODE):
-                    send_status_up("%s is found in return content" % content_match)
+                if re.search(content_match, content, re.UNICODE):
+                    if reverse_content_match:
+                        send_status_down("%s is found in return content with the reverse_content_match option" % content_match,
+                            'Content "%s" found in response with the reverse_content_match' % content_match)
+                    else:
+                        send_status_up("%s is found in return content" % content_match)
 
-                elif reverse_content_match and not re.search(content_match, content, re.UNICODE):
-                    send_status_up("%s is not found in return content with the reverse_content_match option" % content_match)
-
-                elif reverse_content_match:
-                    send_status_down("%s is found in return content with the reverse_content_match option" % content_match,
-                        'Content "%s" found in response with the reverse_content_match' % content_match)
                 else:
-                    send_status_down("%s is not found in return content" % content_match,
-                        'Content "%s" not found in response.' % content_match)
+                    if reverse_content_match:
+                        send_status_up("%s is not found in return content with the reverse_content_match option" % content_match)
+                    else:
+                        send_status_down("%s is not found in return content" % content_match,
+                            'Content "%s" not found in response.' % content_match)
 
             else:
                 send_status_up("%s is UP" % addr)
