@@ -13,6 +13,14 @@ instances:
   # method: http
  - port: 4194
 
+  # Authentication against the apiserver
+  # By default the agent authenticates against the apiserver with its service account bearer token.
+  # X509 certificate authentication can also be enabled by providing here the paths to
+  # a client cert/key pair.
+  # The recommended way to expose these files to the agent is by using Kubernetes Secrets.
+  # apiserver_client_crt: /path/to/client.crt
+  # apiserver_client_key: /path/to/client.key
+  #
   # collect_events controls whether the agent should fetch events from the kubernetes API and
   # ingest them in Datadog. To avoid duplicates, only one agent at a time across the entire
   # cluster should have this feature enabled. To enable the feature, set the parameter to `true`.
