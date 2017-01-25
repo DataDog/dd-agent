@@ -58,7 +58,7 @@ class WatchdogWindows(Watchdog, threading.Thread):
             psutil.Process().kill()
 
     def reset(self):
-        log.debug("Resetting watchdog for %d" % self._duration)
+        log.debug("Resetting watchdog for %d", self._duration)
         with self.tlock:
             self.expire_at = time.time() + self._duration
 
@@ -133,5 +133,5 @@ class WatchdogPosix(object):
                 self.destruct()
 
         # Re arm alarm signal
-        log.debug("Resetting watchdog for %d" % self._duration)
+        log.debug("Resetting watchdog for %d", self._duration)
         signal.alarm(self._duration)

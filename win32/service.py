@@ -6,7 +6,6 @@
     Cloud-Scale Monitoring. Monitoring that tracks your dynamic infrastructure.
 
     Licensed under Simplified BSD License (see LICENSE)
-    (C) Boxed Ice 2010 all rights reserved
     (C) Datadog, Inc. 2010-2016 all rights reserved
 """
 
@@ -86,7 +85,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                 agent_env,
                 enabled=config.get("use_dogstatsd", True)
             ),
-            'jmxfetch': DDProcess(
+            'jmxfetch': JMXFetchProcess(
                 "jmxfetch",
                 [embedded_python, "jmxfetch.py"],
                 agent_env,
@@ -152,7 +151,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             secs = int(time.time()-self.start_ts)
             mins = int(secs/60)
             hours = int(secs/3600)
-            log.info("Uptime: {0} hours {1} minutes {2} seconds".format(hours, mins % 60, secs % 60))
+            log.info("Uptime: %d hours %d minutes %d seconds", hours, mins % 60, secs % 60)
 
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
 
@@ -176,7 +175,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             # Restart any processes that might have died.
             for name, proc in self.procs.iteritems():
                 if not proc.is_alive() and proc.is_enabled():
-                    log.warning("%s has died. Restarting..." % name)
+                    log.warning("%s has died. Restarting...", name)
                     proc.restart()
 
             time.sleep(SERVICE_SLEEP_INTERVAL)
@@ -231,7 +230,7 @@ class DDProcess(object):
 
             log.info("%s is stopped.", self._name)
         else:
-            log.info('%s was not running.', self._name)
+            log.debug('%s was not running.', self._name)
 
     def terminate(self):
         self.stop()
@@ -252,10 +251,10 @@ class DDProcess(object):
     def restart(self):
         if not self._can_restart():
             log.error(
-                "{0} reached the limit of restarts ({1} tries during the last {2}s"
-                " (max authorized: {3})). Not restarting."
-                .format(self._name, len(self._restarts),
-                        self._RESTART_TIMEFRAME, self._max_restarts)
+                "%s reached the limit of restarts (%d tries during the last %ds"
+                " (max authorized: %d)). Not restarting.",
+                self._name, len(self._restarts),
+                self._RESTART_TIMEFRAME, self._max_restarts
             )
             self._enabled = False
             return

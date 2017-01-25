@@ -57,5 +57,4 @@ def update_conf_file(registry_conf, config_path):
     except OSError as e:
         log.exception('Unable to save new datadog.conf')
 
-    log.debug('Sucessfully saved the new datadog.cong')
-
+    log.debug('Successfully saved the new datadog.conf')
