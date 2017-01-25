@@ -540,8 +540,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             "init_config": {},
             "instances": [{
                 "url": "unix://var/run/docker.sock",
-                "collect_images_stats": True,
-                "health_service_checks": True,
+                "health_service_check_whitelist": ["docker_image:nginx", "docker_image:redis"],
             },
             ],
         }
@@ -549,7 +548,21 @@ class TestCheckDockerDaemon(AgentCheckTest):
         DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
 
         self.run_check(config, force_reload=True)
-        self.assertServiceCheck('docker.container_health', at_least=2)
+        self.assertServiceCheck('docker.container_health', count=2)
+
+        config = {
+            "init_config": {},
+            "instances": [{
+                "url": "unix://var/run/docker.sock",
+                "health_service_check_whitelist": [],
+            },
+            ],
+        }
+
+        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+
+        self.run_check(config, force_reload=True)
+        self.assertServiceCheck('docker.container_health', count=0)
 
 
     def test_container_size(self):
