@@ -56,5 +56,5 @@ def update_conf_file(registry_conf, config_path):
         os.rename(temp_config_path, config_path)
     except OSError as e:
         log.exception('Unable to save new datadog.conf')
-
-    log.debug('Successfully saved the new datadog.conf')
+    else:
+        log.debug('Successfully saved the new datadog.conf')

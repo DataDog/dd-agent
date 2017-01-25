@@ -51,7 +51,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
 
         AgentSvc.devnull = open(os.devnull, 'w')
 
-        config = get_config(parse_args=False)
+        config = get_config(parse_args=False, can_query_registry=False)
         if config['api_key'] == 'APIKEYHERE':
             self._update_config_file(config)
 

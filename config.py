@@ -33,6 +33,7 @@ from utils.subprocess_output import (
     get_subprocess_output,
     SubprocessOutputEmptyError,
 )
+from utils.windows_configuration import get_registry_conf
 
 
 # CONSTANTS
@@ -303,7 +304,7 @@ def remove_empty(string_array):
     return filter(lambda x: x, string_array)
 
 
-def get_config(parse_args=True, cfg_path=None, options=None):
+def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=True):
     if parse_args:
         options, _ = get_parsed_args()
 
@@ -576,6 +577,12 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         agentConfig['ssl_certificate'] = get_ssl_certificate(get_os(), 'datadog-cert.pem')
     else:
         agentConfig['ssl_certificate'] = agentConfig['ca_certs']
+
+    # On Windows, check for api key in registry if default api key
+    # this code should never be used and is only a failsafe
+    if Platform.is_windows() and agentConfig['api_key'] == 'APIKEYHERE' and can_query_registry:
+        registry_conf = get_registry_conf(config)
+        agentConfig.update(registry_conf)
 
     return agentConfig
 
