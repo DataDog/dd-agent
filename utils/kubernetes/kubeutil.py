@@ -188,7 +188,7 @@ class KubeUtil:
         log.debug('ssl validation: {}'.format(verify))
 
         cert = self.tls_settings.get('apiserver_client_cert')
-        bearer_token = self.tls_settings.get('bearer_token')
+        bearer_token = self.tls_settings.get('bearer_token') if not cert else None
         headers = {'Authorization': 'Bearer {}'.format(bearer_token)} if bearer_token else None
 
         r = requests.get(url, timeout=timeout, headers=headers, verify=verify, cert=cert)

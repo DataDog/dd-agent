@@ -486,7 +486,7 @@ class TestKubeutil(unittest.TestCase):
             ({'bearer_token': 'foo_tok'}, {'verify': False, 'timeout': 10, 'headers': {'Authorization': 'Bearer foo_tok'}, 'cert': None}),
             (
                 {'bearer_token': 'foo_tok', 'apiserver_client_cert': ('foo.crt', 'foo.key')},
-                {'verify': False, 'timeout': 10, 'headers': {'Authorization': 'Bearer foo_tok'}, 'cert': ('foo.crt', 'foo.key')}
+                {'verify': False, 'timeout': 10, 'headers': None, 'cert': ('foo.crt', 'foo.key')}
             ),
         ]
 
