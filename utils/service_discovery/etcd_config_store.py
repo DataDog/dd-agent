@@ -48,9 +48,6 @@ class EtcdStore(AbstractConfigStore):
             if kwargs.get('watch', False):
                 modified_indices = (res.modifiedIndex, ) + tuple(leaf.modifiedIndex for leaf in res.leaves)
                 return max(modified_indices)
-            elif kwargs.get('all', False):
-                # we use it in _populate_identifier_to_checks
-                return [(child.key, child.value) for child in res.children]
             else:
                 return res.value
         except EtcdKeyNotFound:

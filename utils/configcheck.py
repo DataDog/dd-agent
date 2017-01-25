@@ -94,10 +94,10 @@ def print_templates(agentConfig):
         except Exception as ex:
             print("Failed to extract configuration templates from the backend:\n%s" % str(ex))
 
-        for img, tpl in templates.iteritems():
+        for ident, tpl in templates.iteritems():
             print(
-                "- Image %s:\n\tcheck names: %s\n\tinit_configs: %s\n\tinstances: %s" % (
-                    img,
+                "- Identifier %s:\n\tcheck names: %s\n\tinit_configs: %s\n\tinstances: %s" % (
+                    ident,
                     tpl.get('check_names'),
                     tpl.get('init_configs'),
                     tpl.get('instances'),
