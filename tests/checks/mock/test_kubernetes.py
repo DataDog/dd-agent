@@ -48,6 +48,13 @@ METRICS = [
 ]
 
 
+def KubeUtil_fake_retrieve_json_auth(url, timeout=10):
+    if url.endswith("/namespaces"):
+        return json.loads(Fixtures.read_file("namespaces.json", string_escape=False))
+    if url.endswith("/events"):
+        return json.loads(Fixtures.read_file("events.json", string_escape=False))
+    return {}
+
 class TestKubernetes(AgentCheckTest):
 
     CHECK_NAME = 'kubernetes'
@@ -218,14 +225,15 @@ class TestKubernetes(AgentCheckTest):
         expected_tags = [
             (['container_name:/kubelet', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
             (['container_name:k8s_POD.35220667_dd-agent-1rxlh_default_12c7be82-33ca-11e6-ac8f-42010af00003_f5cf585f',
-              'container_image:gcr.io/google_containers/pause:2.0', 'pod_name:default/dd-agent-1rxlh',
-              'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar','kube_bar:baz',
-              'kube_replication_controller:dd-agent'],
+              'container_image:gcr.io/google_containers/pause:2.0', 'image_name:gcr.io/google_containers/pause',
+              'image_tag:2.0', 'pod_name:default/dd-agent-1rxlh', 'kube_namespace:default', 'kube_app:dd-agent',
+              'kube_foo:bar','kube_bar:baz', 'kube_replication_controller:dd-agent'],
             [MEM, CPU, FS, NET, NET_ERRORS]),
             (['container_name:/', 'pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
             (['container_name:/system', 'pod_name:no_pod'], [MEM, CPU, NET, DISK]),
             (['container_name:k8s_dd-agent.7b520f3f_dd-agent-1rxlh_default_12c7be82-33ca-11e6-ac8f-42010af00003_321fecb4',
-              'container_image:datadog/docker-dd-agent:massi_ingest_k8s_events', 'pod_name:default/dd-agent-1rxlh',
+              'container_image:datadog/docker-dd-agent:massi_ingest_k8s_events', 'image_name:datadog/docker-dd-agent',
+              'image_tag:massi_ingest_k8s_events','pod_name:default/dd-agent-1rxlh',
               'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar',
               'kube_bar:baz', 'kube_replication_controller:dd-agent'], [LIM, REQ, MEM, CPU, NET, DISK, DISK_USAGE]),
             (['kube_replication_controller:dd-agent', 'kube_namespace:default'], [PODS]),
@@ -271,10 +279,12 @@ class TestKubernetes(AgentCheckTest):
         metric_suffix = ["count", "avg", "median", "max", "95percentile"]
 
         expected_tags = [
-            (['container_image:datadog/docker-dd-agent:massi_ingest_k8s_events', 'pod_name:default/dd-agent-1rxlh',
+            (['container_image:datadog/docker-dd-agent:massi_ingest_k8s_events', 'image_name:datadog/docker-dd-agent',
+              'image_tag:massi_ingest_k8s_events', 'pod_name:default/dd-agent-1rxlh',
               'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar','kube_bar:baz',
               'kube_replication_controller:dd-agent'], [MEM, CPU, NET, DISK, DISK_USAGE, LIM, REQ]),
-            (['container_image:gcr.io/google_containers/pause:2.0', 'pod_name:default/dd-agent-1rxlh',
+            (['container_image:gcr.io/google_containers/pause:2.0', 'image_name:gcr.io/google_containers/pause',
+              'image_tag:2.0', 'pod_name:default/dd-agent-1rxlh',
               'kube_namespace:default', 'kube_app:dd-agent', 'kube_foo:bar','kube_bar:baz',
               'kube_replication_controller:dd-agent'], [MEM, CPU, NET, NET_ERRORS, DISK_USAGE]),
             (['pod_name:no_pod'], [MEM, CPU, FS, NET, NET_ERRORS, DISK]),
@@ -295,7 +305,7 @@ class TestKubernetes(AgentCheckTest):
     @mock.patch('utils.kubernetes.KubeUtil.filter_pods_list',
                 side_effect=lambda x, y: x)
     @mock.patch('utils.kubernetes.KubeUtil.retrieve_json_auth',
-                side_effect=lambda x,y: json.loads(Fixtures.read_file("events.json", string_escape=False)))
+            side_effect=KubeUtil_fake_retrieve_json_auth)
     @mock.patch('utils.kubernetes.KubeUtil.retrieve_machine_info')
     @mock.patch('utils.kubernetes.KubeUtil.retrieve_metrics')
     @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list',
@@ -311,10 +321,58 @@ class TestKubernetes(AgentCheckTest):
         self.run_check(config, force_reload=True)
         self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=1, exact_match=False)
 
+        # with no namespaces, only catch event from 'default'
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=0, exact_match=False)
+
         # again, now the timestamp is set and the event is discarded b/c too old
         self.run_check(config)
         self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)
 
+    @mock.patch('utils.kubernetes.KubeUtil.get_node_info',
+                side_effect=lambda: ('Foo', 'Bar'))
+    @mock.patch('utils.kubernetes.KubeUtil.filter_pods_list')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_json_auth',
+            side_effect=KubeUtil_fake_retrieve_json_auth)
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_machine_info')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_metrics')
+    @mock.patch('utils.kubernetes.KubeUtil.retrieve_pods_list')
+    def test_namespaced_events(self, *args):
+        # reset last event pulling time
+        KubeUtil().last_event_collection_ts = 0
+
+        # Verify that we are retro compatible with the old 'namespace' configuration key
+        config = {'instances': [{'host': 'bar', 'collect_events': True, 'namespace': 'test-namespace-1'}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=1, exact_match=False)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=1, exact_match=False)
+
+        # reset last event pulling time
+        KubeUtil().last_event_collection_ts = 0
+
+        # Using 'namespaces' list
+        config = {'instances': [{'host': 'bar', 'collect_events': True, 'namespaces': ['test-namespace-1', 'test-namespace-2']}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=1, exact_match=False)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)
+
+        # reset last event pulling time
+        KubeUtil().last_event_collection_ts = 0
+
+        # Using 'namespace_name_regexp' (since 'namespaces' is not set it should
+        # fallback to ['default'] and add any namespaces that matched with the regexp
+        config = {'instances': [{'host': 'bar', 'collect_events': True, 'namespace_name_regexp': 'test-namespace.*'}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=1, exact_match=False)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=1, exact_match=False)
+
+        # reset last event pulling time
+        KubeUtil().last_event_collection_ts = 0
+
+        # muting the 'default' namespace
+        config = {'instances': [{'host': 'bar', 'collect_events': True, 'namespaces': [], 'namespace_name_regexp': 'test-namespace.*'}]}
+        self.run_check(config, force_reload=True)
+        self.assertEvent('dd-agent-a769 SuccessfulDelete on Bar', count=1, exact_match=False)
+        self.assertEvent('hello-node-47289321-91tfd Scheduled on Bar', count=0, exact_match=False)
 
 class TestKubeutil(unittest.TestCase):
     def setUp(self):
@@ -326,6 +384,19 @@ class TestKubeutil(unittest.TestCase):
         self.kubeutil.get_kube_labels(excluded_keys='bar')
         retrieve_pods_list.assert_called_once()
         extract_kube_labels.assert_called_once_with('foo', excluded_keys='bar')
+
+    @mock.patch('utils.kubernetes.kubeutil.KubeUtil.get_auth_token', return_value=None)
+    def test_init_tls_settings(self, get_tkn):
+        self.assertEqual(self.kubeutil._init_tls_settings({}), {})
+        self.assertEqual(self.kubeutil._init_tls_settings({'apiserver_client_crt': 'foo.crt'}), {})
+
+        instance = {'apiserver_client_crt': 'foo.crt', 'apiserver_client_key': 'foo.key'}
+        with mock.patch('utils.kubernetes.kubeutil.os.path.exists', return_value=True):
+            expected_res = {'apiserver_client_cert': ('foo.crt', 'foo.key')}
+            self.assertEqual(self.kubeutil._init_tls_settings(instance), expected_res)
+
+        with mock.patch('utils.kubernetes.kubeutil.os.path.exists', return_value=False):
+            self.assertEqual(self.kubeutil._init_tls_settings(instance), {})
 
     def test_extract_kube_labels(self):
         """
@@ -409,12 +480,27 @@ class TestKubeutil(unittest.TestCase):
 
     @mock.patch('utils.kubernetes.kubeutil.requests')
     def test_retrieve_json_auth(self, r):
-        self.kubeutil.retrieve_json_auth('url', 'foo_tok')
-        r.get.assert_called_once_with('url', verify=False, timeout=10, headers={'Authorization': 'Bearer foo_tok'})
+        instances = [
+            # tls_settings, expected_params
+            ({}, {'verify': False, 'timeout': 10, 'headers': None, 'cert': None}),
+            ({'bearer_token': 'foo_tok'}, {'verify': False, 'timeout': 10, 'headers': {'Authorization': 'Bearer foo_tok'}, 'cert': None}),
+            (
+                {'bearer_token': 'foo_tok', 'apiserver_client_cert': ('foo.crt', 'foo.key')},
+                {'verify': False, 'timeout': 10, 'headers': None, 'cert': ('foo.crt', 'foo.key')}
+            ),
+        ]
 
+        for tls_settings, expected_params in instances:
+            r.get.reset_mock()
+            self.kubeutil.tls_settings = tls_settings
+            self.kubeutil.retrieve_json_auth('url')
+            r.get.assert_called_once_with('url', **expected_params)
+
+        r.get.reset_mock()
+        self.kubeutil.tls_settings = {'bearer_token': 'foo_tok'}
         self.kubeutil.CA_CRT_PATH = __file__
-        self.kubeutil.retrieve_json_auth('url', 'foo_tok')
-        r.get.assert_called_with('url', verify=__file__, timeout=10, headers={'Authorization': 'Bearer foo_tok'})
+        self.kubeutil.retrieve_json_auth('url')
+        r.get.assert_called_with('url', verify=__file__, timeout=10, headers={'Authorization': 'Bearer foo_tok'}, cert=None)
 
     def test_get_node_info(self):
         with mock.patch('utils.kubernetes.KubeUtil._fetch_host_data') as f:

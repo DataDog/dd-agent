@@ -245,6 +245,58 @@ class FlareTest(unittest.TestCase):
             "api_key: **************************aaaaa\n"
         )
 
+        f = Flare()
+        file_path, _ = f._strip_credentials(
+            os.path.join(get_mocked_temp(), 'whitespace_apikeys.conf'),
+            f.MAIN_CREDENTIALS
+        )
+        with open(file_path) as f:
+            contents = f.read()
+
+        self.assertEqual(
+            contents,
+            "api_key: **************************aaaaa, **************************bbbbb,"
+            " **************************ccccc, **************************ddddd\n"
+        )
+
+    @mock.patch('os.remove', side_effect=mocked_os_remove)
+    @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
+    @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
+    @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
+    def test_proxy_user_pass_regex(self, mock_config, mock_tempdir, mock_strftime, mock_os_remove):
+        f = Flare()
+        file_path, _ = f._strip_credentials(
+            os.path.join(get_mocked_temp(), 'proxy.conf'),
+            f.MAIN_CREDENTIALS
+        )
+        with open(file_path) as f:
+            contents = f.read()
+
+        self.assertEqual(
+            contents,
+            "proxy_user: ********\n"
+            "proxy_password: ********\n"
+        )
+
+    @mock.patch('os.remove', side_effect=mocked_os_remove)
+    @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
+    @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
+    @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
+    def test_whitespace_proxy_user_pass_regex(self, mock_config, mock_tempdir, mock_strftime, mock_os_remove):
+        f = Flare()
+        file_path, _ = f._strip_credentials(
+            os.path.join(get_mocked_temp(), 'whitespace_proxy.conf'),
+            f.MAIN_CREDENTIALS
+        )
+        with open(file_path) as f:
+            contents = f.read()
+
+        self.assertEqual(
+            contents,
+            "proxy_user: ********\n"
+            "proxy_password: ********\n"
+        )
+
     @mock.patch('os.remove', side_effect=mocked_os_remove)
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)

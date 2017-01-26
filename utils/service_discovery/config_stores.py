@@ -8,9 +8,9 @@ from utils.service_discovery.abstract_config_store import CONFIG_FROM_AUTOCONF, 
 
 from utils.service_discovery.etcd_config_store import EtcdStore
 from utils.service_discovery.consul_config_store import ConsulStore
+from utils.service_discovery.zookeeper_config_store import ZookeeperStore
 
-
-SD_CONFIG_BACKENDS = ['etcd', 'consul']  # noqa: used somewhere else
+SD_CONFIG_BACKENDS = ['etcd', 'consul', 'zk']  # noqa: used somewhere else
 SD_TEMPLATE_DIR = '/datadog/check_configs'
 
 
@@ -19,6 +19,8 @@ def get_config_store(agentConfig):
         return EtcdStore(agentConfig)
     elif agentConfig.get('sd_config_backend') == 'consul':
         return ConsulStore(agentConfig)
+    elif agentConfig.get('sd_config_backend') == 'zk':
+        return ZookeeperStore(agentConfig)
     else:
         return StubStore(agentConfig)
 
@@ -41,6 +43,9 @@ def extract_sd_config(config):
     if config.has_option('Main', 'sd_backend_port'):
         sd_config['sd_backend_port'] = config.get(
             'Main', 'sd_backend_port')
+    if config.has_option('Main', 'sd_jmx_enable'):
+        sd_config['sd_jmx_enable'] = config.get(
+            'Main', 'sd_jmx_enable')
     return sd_config
 
 

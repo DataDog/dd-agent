@@ -1,0 +1,87 @@
+{
+  "kind": "NamespaceList",
+  "apiVersion": "v1",
+  "metadata": {
+    "selfLink": "/api/v1/namespaces",
+    "resourceVersion": "2841873"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "default",
+        "selfLink": "/api/v1/namespaces/default",
+        "uid": "7f1a0d0c-65f3-11e6-b5c9-42010a840043",
+        "resourceVersion": "6",
+        "creationTimestamp": "2016-08-19T09:58:36Z"
+      },
+      "spec": {
+        "finalizers": [
+          "kubernetes"
+        ]
+      },
+      "status": {
+        "phase": "Active"
+      }
+    },
+    {
+      "metadata": {
+        "name": "kube-system",
+        "selfLink": "/api/v1/namespaces/kube-system",
+        "uid": "7f239026-65f3-11e6-b5c9-42010a840043",
+        "resourceVersion": "46",
+        "creationTimestamp": "2016-08-19T09:58:36Z",
+        "annotations": {
+          "kubectl.kubernetes.io/last-applied-configuration": "{\"kind\":\"Namespace\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"kube-system\",\"creationTimestamp\":null},\"spec\":{},\"status\":{}}"
+        }
+      },
+      "spec": {
+        "finalizers": [
+          "kubernetes"
+        ]
+      },
+      "status": {
+        "phase": "Active"
+      }
+    },
+    {
+      "metadata": {
+        "name": "test-namespace-1",
+        "selfLink": "/api/v1/namespaces/test-namespace-1",
+        "uid": "473b5f59-a769-11e6-b048-42010a84006e",
+        "resourceVersion": "2152956",
+        "creationTimestamp": "2016-11-10T17:15:28Z",
+        "labels": {
+          "name": "test-namespace-1"
+        }
+      },
+      "spec": {
+        "finalizers": [
+          "kubernetes"
+        ]
+      },
+      "status": {
+        "phase": "Active"
+      }
+    },
+    {
+      "metadata": {
+        "name": "test-namespace-2",
+        "selfLink": "/api/v1/namespaces/test-namespace-2",
+        "uid": "d4973ec1-a769-11e6-b048-42010a84006e",
+        "resourceVersion": "2153046",
+        "creationTimestamp": "2016-11-10T17:19:26Z",
+        "labels": {
+          "name": "test-namespace-2"
+        }
+      },
+      "spec": {
+        "finalizers": [
+          "kubernetes"
+        ]
+      },
+      "status": {
+        "phase": "Active"
+      }
+    }
+  ]
+}

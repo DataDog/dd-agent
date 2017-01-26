@@ -16,5 +16,10 @@ instances:
   #
   # - nginx_status_url: http://example2.com:1234/nginx_status/
   #   ssl_validation: False
+  
+  #   If the status page is behind basic auth. 
+  #   user: USER
+  #   password: PASSWORD
+  
   #   tags:
   #     - instance:bar

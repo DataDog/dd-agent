@@ -37,7 +37,9 @@ SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"
 SUPERVISOR_SOCK="/opt/datadog-agent/run/datadog-supervisor.sock"
 SUPERVISOR_PIDFILE="/opt/datadog-agent/run/datadog-supervisord.pid"
 COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
-DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro"
+
+# Captures processes in the supervisord group that are 'optional' i.e. not essential for the agent to run
+DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro|trace-agent"
 
 # Source function library.
 . /etc/rc.d/init.d/functions
@@ -61,16 +63,16 @@ check_status() {
 
         s=`$SUPERVISORCTL_PATH -c $SUPERVISOR_CONF status`
 
-        # number of RUNNING supervisord programs (ignoring dogstatsd, jmxfetch and go-metro)
+        # Number of RUNNING supervisord programs (ignoring optional procs captured by $DD_OPT_PROC_REGEX)
         p=`echo "$s" | grep -Ev $DD_OPT_PROC_REGEX | grep -c RUNNING`
 
-        # Number of non-failed OPTIONAL supervisord programs (dogstatsd, jmxfetch and go-metro)
+        # Number of non-failed OPTIONAL supervisord programs
         p_o=`echo "$s" | grep -E $DD_OPT_PROC_REGEX | grep -cv FATAL`
 :
-        # number of expected running supervisord programs (ignoring dogstatsd and jmxfetch)
+        # Number of expected running supervisord programs (ignoring optional procs)
         c=`grep -Ev $DD_OPT_PROC_REGEX $SUPERVISOR_CONF | grep -c '\[program:'`
 
-        # Number of expected optional supervisord programs (dogstatsd, jmxfetch and go-metro)
+        # Number of expected optional supervisord programs
         c_o=`grep -E $DD_OPT_PROC_REGEX $SUPERVISOR_CONF | grep -c '\[program:'`
 
         if [ "$p" -ne "$c" ]; then

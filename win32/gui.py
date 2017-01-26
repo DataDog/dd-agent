@@ -62,6 +62,7 @@ spyderlib.baseconfig.IMG_PATH = [""]
 from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 
 # 3rd Party others
+import psutil  # psutil is always present on both windows and OS X installs
 import tornado.template as template
 import yaml
 
@@ -93,15 +94,11 @@ AGENT_UNKNOWN = 4
 # Windows management
 # Import Windows stuff only on Windows
 if Platform.is_windows():
-    import win32api
-    import win32con
-    import win32process
     import win32serviceutil
     import win32service
 
     # project
     from utils.pidfile import PidFile
-    from utils.process import pid_exists
 
     WIN_STATUS_TO_AGENT = {
         win32service.SERVICE_RUNNING: AGENT_RUNNING,
@@ -804,9 +801,9 @@ def info_popup(message, parent=None):
 
 
 def kill_old_process():
-    """ Kills or brings to the foreground (if possible) any other instance of this program. It
-    avoids multiple icons in the Tray on Windows. On OSX, we don't have to do anything: icons
-    don't get duplicated. """
+    """ Kills any other instance of this program. It avoids multiple icons in the Tray on Windows.
+    On OSX, we don't have to do anything: icons don't get duplicated.
+    TODO: If possible, we should bring the running instance in the foreground instead of killing it"""
     # Is there another Agent Manager process running ?
     pidfile = PidFile('agent-manager-gui').get_path()
 
@@ -818,15 +815,15 @@ def kill_old_process():
     except (IOError, ValueError):
         pass
 
-    if old_pid is not None and pid_exists(old_pid):
-        handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, False, old_pid)
-        exe_path = win32process.GetModuleFileNameEx(handle, 0)
-
-        # If (and only if) this process is indeed an instance of the GUI, let's kill it
-        if 'agent-manager.exe' in exe_path:
-            win32api.TerminateProcess(handle, -1)
-
-        win32api.CloseHandle(handle)
+    if old_pid is not None:
+        try:
+            p = psutil.Process(old_pid)
+            if 'agent-manager.exe' in p.name():
+                p.terminate()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            # Either the process doesn't exist anymore or we don't have access to it (so it's probably not an agent-manager process)
+            # In both cases we can consider that the old process isn't running anymore
+            pass
 
     # If we reached that point it means the current process should be the only running
     # agent-manager.exe, let's save its pid

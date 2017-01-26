@@ -293,7 +293,8 @@ class HTTPCheck(NetworkCheck):
             # Host is UP
             # Check content matching is set
             if content_match:
-                content = r.content
+                # r.text is the response content decoded by `requests`, of type `unicode`
+                content = r.text if type(content_match) is unicode else r.content
                 if re.search(content_match, content, re.UNICODE):
                     self.log.debug("%s is found in return content" % content_match)
                     service_checks.append((

@@ -6,7 +6,9 @@
 from collections import defaultdict
 import copy
 import re
+import socket
 import time
+import urlparse
 
 # 3rd party
 import requests
@@ -18,6 +20,7 @@ from util import headers
 
 STATS_URL = "/;csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
+BUFSIZE = 8192
 
 
 class Services(object):
@@ -97,8 +100,20 @@ class HAProxy(AgentCheck):
 
     def check(self, instance):
         url = instance.get('url')
-        username = instance.get('username')
-        password = instance.get('password')
+        self.log.debug('Processing HAProxy data for %s' % url)
+
+        parsed_url = urlparse.urlparse(url)
+
+        if parsed_url.scheme == 'unix':
+            data = self._fetch_socket_data(parsed_url.path)
+
+        else:
+            username = instance.get('username')
+            password = instance.get('password')
+            verify = not _is_affirmative(instance.get('disable_ssl_validation', False))
+
+            data = self._fetch_url_data(url, username, password, verify)
+
         collect_aggregates_only = _is_affirmative(
             instance.get('collect_aggregates_only', True)
         )
@@ -127,12 +142,6 @@ class HAProxy(AgentCheck):
 
         custom_tags = instance.get('tags', [])
 
-        verify = not _is_affirmative(instance.get('disable_ssl_validation', False))
-
-        self.log.debug('Processing HAProxy data for %s' % url)
-
-        data = self._fetch_data(url, username, password, verify)
-
         process_events = instance.get('status_check', self.init_config.get('status_check', False))
 
         self._process_data(
@@ -147,19 +156,38 @@ class HAProxy(AgentCheck):
             custom_tags=custom_tags,
         )
 
-    def _fetch_data(self, url, username, password, verify):
-        ''' Hit a given URL and return the parsed json '''
+    def _fetch_url_data(self, url, username, password, verify):
+        ''' Hit a given http url and return the stats lines '''
         # Try to fetch data from the stats URL
 
         auth = (username, password)
         url = "%s%s" % (url, STATS_URL)
 
-        self.log.debug("HAProxy Fetching haproxy search data from: %s" % url)
+        self.log.debug("Fetching haproxy stats from url: %s" % url)
 
-        r = requests.get(url, auth=auth, headers=headers(self.agentConfig), verify=verify, timeout=self.default_integration_http_timeout)
-        r.raise_for_status()
+        response = requests.get(url, auth=auth, headers=headers(self.agentConfig), verify=verify, timeout=self.default_integration_http_timeout)
+        response.raise_for_status()
 
-        return r.content.splitlines()
+        return response.content.splitlines()
+
+    def _fetch_socket_data(self, socket_path):
+        ''' Hit a given stats socket and return the stats lines '''
+
+        self.log.debug("Fetching haproxy stats from socket: %s" % socket_path)
+
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.connect(socket_path)
+        sock.send("show stat\r\n")
+
+        response = ""
+        output = sock.recv(BUFSIZE)
+        while output:
+            response += output.decode("ASCII")
+            output = sock.recv(BUFSIZE)
+
+        sock.close()
+
+        return response.splitlines()
 
     def _process_data(self, data, collect_aggregates_only, process_events, url=None,
                       collect_status_metrics=False, collect_status_metrics_by_host=False,
@@ -428,8 +456,11 @@ class HAProxy(AgentCheck):
         hostname = data['svname']
         service_name = data['pxname']
         back_or_front = data['back_or_front']
-        tags = ["type:%s" % back_or_front, "instance_url:%s" % url]
-        tags.append("service:%s" % service_name)
+        tags = [
+            "type:%s" % back_or_front,
+            "instance_url:%s" % url,
+            "service:%s" % service_name,
+        ]
         tags.extend(custom_tags)
 
         if self._is_service_excl_filtered(service_name, services_incl_filter,

@@ -69,7 +69,7 @@ def load_class(check_name, class_name):
 
 def load_check(name, config, agentConfig):
     if not _is_sdk():
-        checksd_path = get_checksd_path(get_os())
+        checksd_path = agentConfig.get('additional_checksd', get_checksd_path(get_os()))
 
         # find (in checksd_path) and load the check module
         fd, filename, desc = imp.find_module(name, [checksd_path])
@@ -117,17 +117,20 @@ class Fixtures(object):
         raise Exception('No integration test file in stack')
 
     @staticmethod
-    def directory():
+    def directory(sdk_dir=None):
+        if sdk_dir:
+            return os.path.join(sdk_dir, 'fixtures')
+
         return os.path.join(os.path.dirname(__file__), 'fixtures',
                             Fixtures.integration_name())
 
     @staticmethod
-    def file(file_name):
-        return os.path.join(Fixtures.directory(), file_name)
+    def file(file_name, sdk_dir=None):
+        return os.path.join(Fixtures.directory(sdk_dir), file_name)
 
     @staticmethod
-    def read_file(file_name, string_escape=True):
-        with open(Fixtures.file(file_name)) as f:
+    def read_file(file_name, string_escape=True, sdk_dir=None):
+        with open(Fixtures.file(file_name, sdk_dir)) as f:
             contents = f.read()
             if string_escape:
                 contents = contents.decode('string-escape')
