@@ -180,9 +180,12 @@ class KubeUtil:
     def retrieve_json_auth(self, url, timeout=10):
         """
         Kubernetes API requires authentication using a token available in
-        every pod.
+        every pod, or with a client X509 cert/key pair.
+        We authenticate using the service account token by default
+        and replace this behavior with cert authentication if the user provided
+        a cert/key pair in the instance.
 
-        We try to verify ssl certificate if available.
+        We try to verify the server TLS cert if the public cert is available.
         """
         verify = self.CA_CRT_PATH if os.path.exists(self.CA_CRT_PATH) else False
         log.debug('ssl validation: {}'.format(verify))

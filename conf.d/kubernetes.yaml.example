@@ -15,7 +15,8 @@ instances:
 
   # Authentication against the apiserver
   # By default the agent authenticates against the apiserver with its service account bearer token.
-  # X509 certificate authentication can also be enabled by providing here the paths to
+  # X509 certificate authentication is also supported.
+  # To enable cert auth in place of bearer token auth, provide here the paths to
   # a client cert/key pair.
   # The recommended way to expose these files to the agent is by using Kubernetes Secrets.
   # apiserver_client_crt: /path/to/client.crt
