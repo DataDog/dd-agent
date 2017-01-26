@@ -67,6 +67,7 @@ class KubeUtil:
         self.kubelet_api_url = '%s://%s:%d' % (self.method, self.kubelet_host, self.kubelet_port)
         self.cadvisor_url = '%s://%s:%d' % (self.method, self.kubelet_host, self.cadvisor_port)
         self.kubernetes_api_url = 'https://%s/api/v1' % (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME)
+        self.tls_settings = self._init_tls_settings(instance)
 
         self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
         self.machine_info_url = urljoin(self.cadvisor_url, KubeUtil.MACHINE_INFO_PATH)
@@ -76,6 +77,23 @@ class KubeUtil:
         # keep track of the latest k8s event we collected and posted
         # default value is 0 but TTL for k8s events is one hour anyways
         self.last_event_collection_ts = 0
+
+    def _init_tls_settings(self, instance):
+        """
+        Initialize TLS settings for connection to apiserver and kubelet.
+        """
+        tls_settings = {}
+
+        client_crt = instance.get('apiserver_client_crt')
+        client_key = instance.get('apiserver_client_key')
+        if client_crt and client_key and os.path.exists(client_crt) and os.path.exists(client_key):
+            tls_settings['apiserver_client_cert'] = (client_crt, client_key)
+
+        token = self.get_auth_token()
+        if token:
+            tls_settings['bearer_token']
+
+        return tls_settings
 
     def get_kube_labels(self, excluded_keys=None):
         pods = self.retrieve_pods_list()
@@ -159,17 +177,24 @@ class KubeUtil:
         pods_list['items'] = filtered_pods
         return pods_list
 
-    def retrieve_json_auth(self, url, auth_token, timeout=10):
+    def retrieve_json_auth(self, url, timeout=10):
         """
         Kubernetes API requires authentication using a token available in
-        every pod.
+        every pod, or with a client X509 cert/key pair.
+        We authenticate using the service account token by default
+        and replace this behavior with cert authentication if the user provided
+        a cert/key pair in the instance.
 
-        We try to verify ssl certificate if available.
+        We try to verify the server TLS cert if the public cert is available.
         """
         verify = self.CA_CRT_PATH if os.path.exists(self.CA_CRT_PATH) else False
         log.debug('ssl validation: {}'.format(verify))
-        headers = {'Authorization': 'Bearer {}'.format(auth_token)}
-        r = requests.get(url, timeout=timeout, headers=headers, verify=verify)
+
+        cert = self.tls_settings.get('apiserver_client_cert')
+        bearer_token = self.tls_settings.get('bearer_token') if not cert else None
+        headers = {'Authorization': 'Bearer {}'.format(bearer_token)} if bearer_token else None
+
+        r = requests.get(url, timeout=timeout, headers=headers, verify=verify, cert=cert)
         r.raise_for_status()
         return r.json()
 
