@@ -169,6 +169,9 @@ class HTTPCheck(NetworkCheck):
         http_response_status_code = str(instance.get('http_response_status_code', DEFAULT_EXPECTED_CODE))
         timeout = int(instance.get('timeout', 10))
         config_headers = instance.get('headers', {})
+        client_key_file = instance.get('client_key_file', '')
+        client_cert_file = instance.get('client_cert_file', '')
+        client_files = (client_cert_file, client_key_file)
         headers = agent_headers(self.agentConfig)
         headers.update(config_headers)
         url = instance.get('url')
@@ -188,12 +191,12 @@ class HTTPCheck(NetworkCheck):
 
         return url, username, password, method, data, http_response_status_code, timeout, include_content,\
             headers, response_time, content_match, reverse_content_match, tags, ssl, ssl_expire, instance_ca_certs,\
-            weakcipher, ignore_ssl_warning, skip_proxy, allow_redirects
+            weakcipher, ignore_ssl_warning, skip_proxy, allow_redirects, client_files
 
     def _check(self, instance):
         addr, username, password, method, data, http_response_status_code, timeout, include_content, headers,\
             response_time, content_match, reverse_content_match, tags, disable_ssl_validation,\
-            ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning, skip_proxy, allow_redirects = self._load_conf(instance)
+            ssl_expire, instance_ca_certs, weakcipher, ignore_ssl_warning, skip_proxy, allow_redirects, client_files = self._load_conf(instance)
         start = time.time()
 
         def send_status_up(logMsg):
@@ -247,10 +250,17 @@ class HTTPCheck(NetworkCheck):
                 self.log.debug("Weak Ciphers will be used for {0}. Suppoted Cipherlist: {1}".format(
                     base_addr, WeakCiphersHTTPSConnection.SUPPORTED_CIPHERS))
 
-            r = sess.request(method.upper(), addr, auth=auth, timeout=timeout, headers=headers,
+            if client_files:
+                r = sess.request(method.upper(), addr, auth=auth, timeout=timeout, headers=headers,
+                             proxies = instance_proxy, allow_redirects=allow_redirects,
+                             cert=client_files, verify=instance_ca_certs,
+                             json = data if method == 'post' else None)
+            else:
+                r = sess.request(method.upper(), addr, auth=auth, timeout=timeout, headers=headers,
                              proxies = instance_proxy, allow_redirects=allow_redirects,
                              verify=False if disable_ssl_validation else instance_ca_certs,
                              json = data if method == 'post' else None)
+
 
         except (socket.timeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             length = int((time.time() - start) * 1000)
