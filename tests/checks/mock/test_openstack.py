@@ -4,6 +4,8 @@ from checks import AgentCheck
 from tests.checks.common import AgentCheckTest, load_check, load_class
 from mock import patch
 
+import copy
+
 
 OS_CHECK_NAME = 'openstack'
 
@@ -12,6 +14,7 @@ KeystoneCatalog = load_class(OS_CHECK_NAME, "KeystoneCatalog")
 IncompleteConfig = load_class(OS_CHECK_NAME, "IncompleteConfig")
 IncompleteAuthScope = load_class(OS_CHECK_NAME, "IncompleteAuthScope")
 IncompleteIdentity = load_class(OS_CHECK_NAME, "IncompleteIdentity")
+MissingNovaEndpoint = load_class(OS_CHECK_NAME, "MissingNovaEndpoint")
 
 
 class MockHTTPResponse(object):
@@ -152,6 +155,19 @@ EXAMPLE_AUTH_RESPONSE = {
 }
 MOCK_HTTP_RESPONSE = MockHTTPResponse(response_dict=EXAMPLE_AUTH_RESPONSE, headers={"X-Subject-Token": "fake_token"})
 
+EXAMPLE_NOVAV2_AUTH_RESPONSE = copy.deepcopy(EXAMPLE_AUTH_RESPONSE)
+for endpoint in EXAMPLE_NOVAV2_AUTH_RESPONSE['token']['catalog']:
+    if endpoint['name'] == 'novav21':
+        endpoint['name'] = 'nova'
+MOCK_FALLBACK_HTTP_RESPONSE = MockHTTPResponse(response_dict=EXAMPLE_NOVAV2_AUTH_RESPONSE, headers={"X-Subject-Token": "fake_token"})
+
+EXAMPLE_BAD_AUTH_RESPONSE = copy.deepcopy(EXAMPLE_AUTH_RESPONSE)
+for endpoint in EXAMPLE_BAD_AUTH_RESPONSE['token']['catalog']:
+    if 'nova' in endpoint['name']:
+        endpoint['name'] = 'notlegitnova'
+MOCK_BADNOVA_HTTP_RESPONSE = MockHTTPResponse(response_dict=EXAMPLE_BAD_AUTH_RESPONSE, headers={"X-Subject-Token": "fake_token"})
+
+
 class OSProjectScopeTest(TestCase):
     BAD_AUTH_SCOPES = [
         {"auth_scope": {}},
@@ -224,6 +240,24 @@ class OSProjectScopeTest(TestCase):
             # Test that append flag worked
             self.assertEqual(scope.service_catalog.nova_endpoint, "http://10.0.2.15:8773/test_project_id")
 
+    def test_nova_from_config(self):
+        init_config = {"keystone_server_url": "http://10.0.2.15:5000", "nova_api_version": "v2.1"} # should fallback
+        instance_config = {"user": self.GOOD_USERS[0]["user"], "auth_scope": self.GOOD_AUTH_SCOPES[0]["auth_scope"]}
+
+        with patch("openstack.OpenStackProjectScope.request_auth_token", return_value=MOCK_FALLBACK_HTTP_RESPONSE):
+            scope = OpenStackProjectScope.from_config(init_config, instance_config)
+
+            self.assertTrue(isinstance(scope, OpenStackProjectScope))
+            self.assertEqual(scope.auth_token, "fake_token")
+
+    def test_badnova_from_config(self):
+        init_config = {"keystone_server_url": "http://10.0.2.15:5000", "nova_api_version": "v2.1"} # should fallback
+        instance_config = {"user": self.GOOD_USERS[0]["user"], "auth_scope": self.GOOD_AUTH_SCOPES[0]["auth_scope"]}
+
+        with patch("openstack.OpenStackProjectScope.request_auth_token", return_value=MOCK_BADNOVA_HTTP_RESPONSE):
+            self.assertRaises(MissingNovaEndpoint, OpenStackProjectScope.from_config, init_config, instance_config)
+
+
 
 class KeyStoneCatalogTest(TestCase):
 
@@ -239,6 +273,7 @@ class KeyStoneCatalogTest(TestCase):
         self.assertTrue(isinstance(catalog, KeystoneCatalog))
         self.assertEqual(catalog.neutron_endpoint, u"http://10.0.2.15:9292")
         self.assertEqual(catalog.nova_endpoint, u"http://10.0.2.15:8774/v2.1/0850707581fe4d738221a72db0182876")
+
 
 class TestCheckOpenStack(AgentCheckTest):
     CHECK_NAME = OS_CHECK_NAME

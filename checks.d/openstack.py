@@ -19,6 +19,7 @@ V21_NOVA_API_VERSION = 'v2.1'
 
 DEFAULT_KEYSTONE_API_VERSION = 'v3'
 DEFAULT_NOVA_API_VERSION = V21_NOVA_API_VERSION
+FALLBACK_NOVA_API_VERSION = 'v2'
 DEFAULT_NEUTRON_API_VERSION = 'v2.0'
 
 DEFAULT_API_REQUEST_TIMEOUT = 5 # seconds
@@ -167,9 +168,14 @@ class OpenStackProjectScope(object):
 
         auth_token = auth_resp.headers.get('X-Subject-Token')
 
-        service_catalog = KeystoneCatalog.from_auth_response(
-            auth_resp.json(), nova_api_version
-        )
+        try:
+            service_catalog = KeystoneCatalog.from_auth_response(
+                auth_resp.json(), nova_api_version
+            )
+        except MissingNovaEndpoint:
+            service_catalog = KeystoneCatalog.from_auth_response(
+                auth_resp.json(), FALLBACK_NOVA_API_VERSION
+            )
 
         # (NOTE): aaditya
         # In some cases, the nova url is returned without the tenant id suffixed
