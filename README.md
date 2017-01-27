@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/DataDog/dd-agent.svg?branch=master)](https://travis-ci.org/DataDog/dd-agent)
 
-# All Agent Checks are now frozen.
+# All Agent Checks are now frozen in preparation for the release of the [Integration SDK](http://docs.datadoghq.com/guides/integration_sdk/).
 ## We will review and merge a few more PRs, but no new PRs will be accepted.
 ## All changes to checks from here on out should go to the [integrations-core repo](https://github.com/datadog/integrations-core) and all new checks should go to the [integrations-extras repo](https://github.com/datadog/integrations-extras).
 
