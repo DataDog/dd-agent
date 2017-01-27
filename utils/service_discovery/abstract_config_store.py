@@ -224,12 +224,9 @@ class AbstractConfigStore(object):
             return None
 
     def _get_auto_config(self, image_name):
-        from jmxfetch import JMX_CHECKS, get_jmx_checks
+        from jmxfetch import get_jmx_checks
 
-        jmx_checknames = JMX_CHECKS
-        auto_conf_jmx_checks = get_jmx_checks()
-        if auto_conf_jmx_checks:
-            jmx_checknames += auto_conf_jmx_checks
+        jmx_checknames = get_jmx_checks(auto_conf=True)
 
         ident = self._get_image_ident(image_name)
         templates = []

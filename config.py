@@ -1129,13 +1129,9 @@ def load_check(agentConfig, hostname, checkname):
 
 def generate_jmx_configs(agentConfig, hostname, checknames=None):
     """Similar logic to load_check_directory for JMX checks"""
-    from jmxfetch import JMX_CHECKS, get_jmx_checks
+    from jmxfetch import get_jmx_checks
 
-    jmx_checks = JMX_CHECKS
-    auto_conf_jmx_checks = get_jmx_checks()
-    for check in auto_conf_jmx_checks:
-        if check not in JMX_CHECKS:
-            jmx_checks.append(check)
+    jmx_checks = get_jmx_checks(auto_conf=True)
 
     if not checknames:
         checknames = jmx_checks

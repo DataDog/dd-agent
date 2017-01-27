@@ -59,7 +59,6 @@ from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.sd_backend import get_sd_backend
 
 # Constants
-from jmxfetch import JMX_CHECKS
 PID_NAME = "dd-agent"
 PID_DIR = None
 WATCHDOG_MULTIPLIER = 10
@@ -137,8 +136,7 @@ class Agent(Daemon):
                 jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
         else:
             new_checksd = copy(self._checksd)
-            auto_conf_is_jmx_checks = get_jmx_checks()
-            all_jmx_checks = JMX_CHECKS + auto_conf_is_jmx_checks
+            all_jmx_checks = get_jmx_checks(auto_conf=True)
             jmx_checks = [check for check in checks_to_reload if check in all_jmx_checks]
             py_checks = set(checks_to_reload) - set(jmx_checks)
             self.refresh_specific_checks(hostname, new_checksd, py_checks)

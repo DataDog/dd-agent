@@ -197,9 +197,9 @@ class JMXFetch(object):
         tools_jar_path = None
         custom_jar_paths = []
         invalid_checks = {}
-        auto_conf = False
 
-        jmx_confd_checks = get_jmx_checks(auto_conf, confd_path)
+        jmx_confd_checks = get_jmx_checks(confd_path, auto_conf=False)
+
         for check in jmx_confd_checks:
             check_config = check['check_config']
             check_name = check['check_name']
@@ -451,8 +451,9 @@ class JMXFetch(object):
         return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "..",
                                 "jmxfetch", JMX_FETCH_JAR_NAME))
 
-def get_jmx_checks(auto_conf=True, confd_path=None):
+def get_jmx_checks(confd_path=None, auto_conf=False):
     jmx_checks = []
+
     if not confd_path:
         confd_path = get_confd_path()
 
@@ -465,15 +466,13 @@ def get_jmx_checks(auto_conf=True, confd_path=None):
         filename = os.path.basename(conf)
         check_name = filename.split('.')[0]
         if os.path.exists(conf):
-            f = open(conf)
-            try:
-                check_config = yaml.load(f.read(), Loader=yLoader)
-                assert check_config is not None
-                f.close()
-            except Exception:
-                f.close()
-                log.error("Unable to parse yaml config in %s" % conf)
-                continue
+            with open(conf, 'r') as f:
+                try:
+                    check_config = yaml.load(f.read(), Loader=yLoader)
+                    assert check_config is not None
+                except Exception:
+                    log.error("Unable to parse yaml config in %s" % conf)
+                    continue
 
         init_config = check_config.get('init_config', {}) or {}
 
@@ -483,6 +482,12 @@ def get_jmx_checks(auto_conf=True, confd_path=None):
                 jmx_checks.append(check_name)
             else:
                 jmx_checks.append({'check_config': check_config, 'check_name': check_name, 'filename': filename})
+
+    if auto_conf:
+        # Calls from SD expect all JMX checks, let's add check names in JMX_CHECKS
+        for check in JMX_CHECKS:
+            if check not in jmx_checks:
+                jmx_checks.append(check)
 
     return jmx_checks
 
