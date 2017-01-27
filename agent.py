@@ -39,11 +39,12 @@ from config import (
     generate_jmx_configs,
     _is_affirmative,
     SD_PIPE_NAME
-
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
 from utils.platform import Platform
+from jmxfetch import get_jmx_checks
+
 
 # utils
 from util import Watchdog
@@ -58,7 +59,6 @@ from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.sd_backend import get_sd_backend
 
 # Constants
-from jmxfetch import JMX_CHECKS
 PID_NAME = "dd-agent"
 PID_DIR = None
 WATCHDOG_MULTIPLIER = 10
@@ -136,8 +136,8 @@ class Agent(Daemon):
                 jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
         else:
             new_checksd = copy(self._checksd)
-
-            jmx_checks = [check for check in checks_to_reload if check in JMX_CHECKS]
+            all_jmx_checks = get_jmx_checks(auto_conf=True)
+            jmx_checks = [check for check in checks_to_reload if check in all_jmx_checks]
             py_checks = set(checks_to_reload) - set(jmx_checks)
             self.refresh_specific_checks(hostname, new_checksd, py_checks)
             if self._jmx_service_discovery_enabled:
