@@ -127,15 +127,14 @@ class TestCheckDockerDaemon(AgentCheckTest):
 
     @mock.patch('docker.Client.info')
     def test_devicemapper_invalid_values(self, mock_info):
-        """Invalid values are detected in _calc_percent_disk_stats, so percent should be missing"""
+        """Invalid values are detected in _calc_percent_disk_stats and 'percent' use 'free'+'used' instead of 'total' """
         mock_info.return_value = self.mock_get_info_invalid_values()
 
         self.run_check(MOCK_CONFIG, force_reload=True)
-        metric_names = [metric[0] for metric in self.metrics]
         self.assertMetric('docker.metadata.free', value=9e6)
         self.assertMetric('docker.metadata.used', value=11e6)
         self.assertMetric('docker.metadata.total', value=10e6)
-        self.assertNotIn('docker.metadata.percent', metric_names)
+        self.assertMetric('docker.metadata.percent', value=55)
 
     @mock.patch('docker.Client.info')
     def test_devicemapper_all_zeros(self, mock_info):
@@ -540,8 +539,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             "init_config": {},
             "instances": [{
                 "url": "unix://var/run/docker.sock",
-                "collect_images_stats": True,
-                "health_service_checks": True,
+                "health_service_check_whitelist": ["docker_image:nginx", "docker_image:redis"],
             },
             ],
         }
@@ -549,7 +547,21 @@ class TestCheckDockerDaemon(AgentCheckTest):
         DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
 
         self.run_check(config, force_reload=True)
-        self.assertServiceCheck('docker.container_health', at_least=2)
+        self.assertServiceCheck('docker.container_health', count=2)
+
+        config = {
+            "init_config": {},
+            "instances": [{
+                "url": "unix://var/run/docker.sock",
+                "health_service_check_whitelist": [],
+            },
+            ],
+        }
+
+        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+
+        self.run_check(config, force_reload=True)
+        self.assertServiceCheck('docker.container_health', count=0)
 
 
     def test_container_size(self):
