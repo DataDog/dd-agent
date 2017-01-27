@@ -91,7 +91,7 @@ class KubeUtil:
 
         token = self.get_auth_token()
         if token:
-            tls_settings['bearer_token']
+            tls_settings['bearer_token'] = token
 
         return tls_settings
 
