@@ -1,7 +1,8 @@
 [![Build Status](https://travis-ci.org/DataDog/dd-agent.svg?branch=master)](https://travis-ci.org/DataDog/dd-agent)
 
-# All Agent Checks are now frozen. We will review and merge a few more PRs, but no new PRs will be accepted.
-All changes to checks from here on out should go to the [integrations-core repo](https://github.com/datadog/integrations-core) and all new checks should go to the [integrations-extras repo](https://github.com/datadog/integrations-extras).
+# All Agent Checks are now frozen.
+## We will review and merge a few more PRs, but no new PRs will be accepted.
+## All changes to checks from here on out should go to the [integrations-core repo](https://github.com/datadog/integrations-core) and all new checks should go to the [integrations-extras repo](https://github.com/datadog/integrations-extras).
 
 The Datadog Agent faithfully collects events and metrics and brings
 them to [Datadog](https://app.datadoghq.com) on your behalf so that
