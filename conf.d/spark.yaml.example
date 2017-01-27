@@ -28,6 +28,10 @@ instances:
     # spark_cluster_mode: spark_standalone_mode
     # spark_cluster_mode: spark_mesos_mode
 
+    # To use an older (versions prior to 2.0) Standalone Spark cluster, 
+    # the 'spark_pre_20_mode' must be set
+    # spark_pre_20_mode: true
+    
     # A Required friendly name for the cluster.
     # cluster_name: MySparkCluster
 
