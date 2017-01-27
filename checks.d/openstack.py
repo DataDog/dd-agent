@@ -3,6 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 # stdlib
+import os
 from datetime import datetime, timedelta
 from urlparse import urljoin
 
@@ -166,7 +167,6 @@ class OpenStackProjectScope(object):
                 raise KeystoneUnreachable(exception_msg)
 
         auth_token = auth_resp.headers.get('X-Subject-Token')
-
         service_catalog = KeystoneCatalog.from_auth_response(
             auth_resp.json(), nova_api_version
         )
@@ -183,7 +183,12 @@ class OpenStackProjectScope(object):
                 """Incorrect use of append_tenant_id, please inspect the service catalog response of your Identity server.
                    You may need to disable this flag if your Nova service url contains the tenant_id already"""
 
-            service_catalog.nova_endpoint = urljoin(service_catalog.nova_endpoint, t_id)
+            # If service_catalog.nova_endpoint does not have a trailing slash, add one
+            service_catalog.nova_endpoint = urljoin(
+                os.path.join(service_catalog.nova_endpoint, ''),
+                t_id
+            )
+
 
         return cls(auth_token, auth_scope, service_catalog)
 
