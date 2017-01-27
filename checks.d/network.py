@@ -38,29 +38,29 @@ class Network(AgentCheck):
 
     TCP_STATES = {
         "ss": {
-            "ESTAB": "established",
-            "SYN-SENT": "opening",
-            "SYN-RECV": "opening",
-            "FIN-WAIT-1": "closing",
-            "FIN-WAIT-2": "closing",
+            "ESTAB": "estab",
+            "SYN-SENT": "syn_sent",
+            "SYN-RECV": "syn_recv",
+            "FIN-WAIT-1": "fin_wait_1",
+            "FIN-WAIT-2": "fin_wait_2",
             "TIME-WAIT": "time_wait",
-            "UNCONN": "closing",
-            "CLOSE-WAIT": "closing",
-            "LAST-ACK": "closing",
-            "LISTEN": "listening",
+            "UNCONN": "unconn",
+            "CLOSE-WAIT": "close_wait",
+            "LAST-ACK": "last_ack",
+            "LISTEN": "listen",
             "CLOSING": "closing",
         },
         "netstat": {
-            "ESTABLISHED": "established",
-            "SYN_SENT": "opening",
-            "SYN_RECV": "opening",
-            "FIN_WAIT1": "closing",
-            "FIN_WAIT2": "closing",
+            "ESTABLISHED": "estab",
+            "SYN_SENT": "syn_sent",
+            "SYN_RECV": "syn_recv",
+            "FIN_WAIT1": "fin_wait_1",
+            "FIN_WAIT2": "fin_wait_2",
             "TIME_WAIT": "time_wait",
-            "CLOSE": "closing",
-            "CLOSE_WAIT": "closing",
-            "LAST_ACK": "closing",
-            "LISTEN": "listening",
+            "CLOSE": "close",
+            "CLOSE_WAIT": "close_wait",
+            "LAST_ACK": "last_ack",
+            "LISTEN": "listen",
             "CLOSING": "closing",
         },
         "psutil": {
@@ -90,18 +90,34 @@ class Network(AgentCheck):
     }
 
     CX_STATE_GAUGE = {
-        ('udp4', 'connections'): 'system.net.udp4.connections',
-        ('udp6', 'connections'): 'system.net.udp6.connections',
-        ('tcp4', 'established'): 'system.net.tcp4.established',
-        ('tcp4', 'opening'): 'system.net.tcp4.opening',
-        ('tcp4', 'closing'): 'system.net.tcp4.closing',
-        ('tcp4', 'listening'): 'system.net.tcp4.listening',
-        ('tcp4', 'time_wait'): 'system.net.tcp4.time_wait',
-        ('tcp6', 'established'): 'system.net.tcp6.established',
-        ('tcp6', 'opening'): 'system.net.tcp6.opening',
-        ('tcp6', 'closing'): 'system.net.tcp6.closing',
-        ('tcp6', 'listening'): 'system.net.tcp6.listening',
-        ('tcp6', 'time_wait'): 'system.net.tcp6.time_wait',
+        ('udp4', 'connections') : 'system.net.udp4.connections',
+        ('udp6', 'connections') : 'system.net.udp6.connections',
+
+        ('tcp4', 'estab') : 'system.net.tcp4.estab',
+        ('tcp4', 'syn_sent') : 'system.net.tcp4.syn_sent',
+        ('tcp4', 'syn_recv') : 'system.net.tcp4.syn_recv',
+        ('tcp4', 'fin_wait_1') : 'system.net.tcp4.fin_wait_1',
+        ('tcp4', 'fin_wait_2') : 'system.net.tcp4.fin_wait_2',
+        ('tcp4', 'time_wait') : 'system.net.tcp4.time_wait',
+        ('tcp4', 'unconn') : 'system.net.tcp4.unconn',
+        ('tcp4', 'close') : 'system.net.tcp4.close',
+        ('tcp4', 'close_wait') : 'system.net.tcp4.close_wait',
+        ('tcp4', 'closing') : 'system.net.tcp4.closing',
+        ('tcp4', 'listen') : 'system.net.tcp4.listen',
+        ('tcp4', 'last_ack') : 'system.net.tcp4.time_wait',
+
+        ('tcp6', 'estab') : 'system.net.tcp4.estab',
+        ('tcp6', 'syn_sent') : 'system.net.tcp4.syn_sent',
+        ('tcp6', 'syn_recv') : 'system.net.tcp4.syn_recv',
+        ('tcp6', 'fin_wait_1') : 'system.net.tcp4.fin_wait_1',
+        ('tcp6', 'fin_wait_2') : 'system.net.tcp4.fin_wait_2',
+        ('tcp6', 'time_wait') : 'system.net.tcp4.time_wait',
+        ('tcp6', 'unconn') : 'system.net.tcp4.unconn',
+        ('tcp6', 'close') : 'system.net.tcp4.close',
+        ('tcp6', 'close_wait') : 'system.net.tcp4.close_wait',
+        ('tcp6', 'closing') : 'system.net.tcp4.closing',
+        ('tcp6', 'listen') : 'system.net.tcp4.listen',
+        ('tcp6', 'last_ack') : 'system.net.tcp4.time_wait',
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
@@ -266,6 +282,9 @@ class Network(AgentCheck):
 
             tcp_lines = [line for line in lines if line.startswith('Tcp:')]
             udp_lines = [line for line in lines if line.startswith('Udp:')]
+            ip_lines = [line for line in lines if line.startswith('Ip:')]
+            icmp_lines = [line for line in lines if line.startswith('Icmp:')]
+            icmp_msg_lines = [line for line in lines if line.startswith('IcmpMsg:')]
 
             tcp_column_names = tcp_lines[0].strip().split()
             tcp_values = tcp_lines[1].strip().split()
@@ -275,35 +294,295 @@ class Network(AgentCheck):
             udp_values = udp_lines[1].strip().split()
             udp_metrics = dict(zip(udp_column_names, udp_values))
 
+            ip_column_names = ip_lines[0].strip().split()
+            ip_values = ip_lines[1].strip().split()
+            ip_metrics = dict(zip(ip_column_names, ip_values))
+
+            icmp_column_names = icmp_lines[0].strip().split()
+            icmp_values = icmp_lines[1].strip().split()
+            icmp_metrics = dict(zip(icmp_column_names, icmp_values))
+
+            icmp_msg_column_names = icmp_msg_lines[0].strip().split()
+            icmp_msg_values = icmp_msg_lines[1].strip().split()
+            icmp_msg_metrics = dict(zip(icmp_msg_column_names, icmp_msg_values))
+
             # line start indicating what kind of metrics we're looking at
             assert(tcp_metrics['Tcp:'] == 'Tcp:')
 
             tcp_metrics_name = {
-                'RetransSegs': 'system.net.tcp.retrans_segs',
-                'InSegs'     : 'system.net.tcp.in_segs',
-                'OutSegs'    : 'system.net.tcp.out_segs'
+                'RtoAlgorithm'	: 'system.net.tcp.rto_algorithm',
+                'RtoMin'	    : 'system.net.tcp.rto_min',
+                'RtoMax'	    : 'system.net.tcp.rto_max',
+                'MaxConn'	    : 'system.net.tcp.max_conn',
+                'ActiveOpens'	: 'system.net.tcp.active_opens',
+                'PassiveOpens'	: 'system.net.tcp.passive_opens',
+                'AttemptFails'	: 'system.net.tcp.attempt_fails',
+                'EstabResets'	: 'system.net.tcp.estab_resets',
+                'CurrEstab'	    : 'system.net.tcp.curr_estab',
+                'InSegs'	    : 'system.net.tcp.in_segs',
+                'OutSegs'	    : 'system.net.tcp.out_segs',
+                'RetransSegs'	: 'system.net.tcp.retrans_segs',
+                'InErrs'	    : 'system.net.tcp.in_errs',
+                'OutRsts'	    : 'system.net.tcp.out_rsts',
+                'InCsumErrors'	: 'system.net.tcp.in_csum_errors'
             }
 
             for key, metric in tcp_metrics_name.iteritems():
-                self.rate(metric, self._parse_value(tcp_metrics[key]))
+                if key in tcp_metrics:
+                    self.rate(metric, self._parse_value(tcp_metrics[key]))
 
             assert(udp_metrics['Udp:'] == 'Udp:')
 
             udp_metrics_name = {
-                'InDatagrams': 'system.net.udp.in_datagrams',
-                'NoPorts': 'system.net.udp.no_ports',
-                'InErrors': 'system.net.udp.in_errors',
-                'OutDatagrams': 'system.net.udp.out_datagrams',
-                'RcvbufErrors': 'system.net.udp.rcv_buf_errors',
-                'SndbufErrors': 'system.net.udp.snd_buf_errors'
+                'InDatagrams'   : 'system.net.udp.in_datagrams',
+                'NoPorts'       : 'system.net.udp.no_ports',
+                'InErrors'      : 'system.net.udp.in_errors',
+                'OutDatagrams'  : 'system.net.udp.out_datagrams',
+                'RcvbufErrors'  : 'system.net.udp.rcv_buf_errors',
+                'SndbufErrors'  : 'system.net.udp.snd_buf_errors',
+                'InCsumErrors'	: 'system.net.udp.in_csum_errors'
             }
             for key, metric in udp_metrics_name.iteritems():
                 if key in udp_metrics:
                     self.rate(metric, self._parse_value(udp_metrics[key]))
 
+            assert(ip_metrics['Ip:'] == 'Ip:')
+
+            ip_metrics_name = {
+                'Forwarding'	   : 'system.net.ip.forwarding',
+                'DefaultTTL'	   : 'system.net.ip.default_ttl',
+                'InReceives'	   : 'system.net.ip.in_receives',
+                'InHdrErrors'	   : 'system.net.ip.in_hdr_errors',
+                'InAddrErrors'	   : 'system.net.ip.in_addr_errors',
+                'ForwDatagrams'	   : 'system.net.ip.forw_datagrams',
+                'InUnknownProtos'  : 'system.net.ip.in_unknown_protos',
+                'InDiscards'	   : 'system.net.ip.in_discards',
+                'InDelivers'	   : 'system.net.ip.in_delivers',
+                'OutRequests'	   : 'system.net.ip.out_requests',
+                'OutDiscards'	   : 'system.net.ip.out_discards',
+                'OutNoRoutes'	   : 'system.net.ip.out_no_routes',
+                'ReasmTimeout'	   : 'system.net.ip.reasm_timeout',
+                'ReasmReqds'	   : 'system.net.ip.reasm_reqds',
+                'ReasmOKs'	       : 'system.net.ip.reasm_oks',
+                'ReasmFails'	   : 'system.net.ip.reasm_fails',
+                'FragOKs'	       : 'system.net.ip.frag_oks',
+                'FragFails'	       : 'system.net.ip.frag_fails',
+                'FragCreates'	   : 'system.net.ip.frag_creates'
+            }
+            for key, metric in ip_metrics_name.iteritems():
+                if key in ip_metrics:
+                    self.rate(metric, self._parse_value(ip_metrics[key]))
+
+            assert(icmp_metrics['Icmp:'] == 'Icmp:')
+
+            icmp_metrics_name = {
+                'InMsgs'	        : 'system.net.icmp.in_msgs',
+                'InErrors'	        : 'system.net.icmp.in_errors',
+                'InCsumErrors'	    : 'system.net.icmp.in_csum_errors',
+                'InDestUnreachs'    : 'system.net.icmp.in_dest_unreachs',
+                'InTimeExcds'	    : 'system.net.icmp.in_time_excds',
+                'InParmProbs'	    : 'system.net.icmp.in_param_probs',
+                'InSrcQuenchs'	    : 'system.net.icmp.in_src_quenchs',
+                'InRedirects'	    : 'system.net.icmp.in_redirects',
+                'InEchos'	        : 'system.net.icmp.in_echos',
+                'InEchoReps'	    : 'system.net.icmp.in_echos_reps',
+                'InTimestamps'	    : 'system.net.icmp.in_timestamps',
+                'InTimestampReps'   : 'system.net.icmp.in_timestams_reps',
+                'InAddrMasks'	    : 'system.net.icmp.in_addr_masks',
+                'InAddrMaskReps'    : 'system.net.icmp.in_addr_mask_reps',
+                'OutMsgs'	        : 'system.net.icmp.out_msgs',
+                'OutErrors'	        : 'system.net.icmp.out_errors',
+                'OutDestUnreachs'   : 'system.net.icmp.out_dest_unreachs',
+                'OutTimeExcds'	    : 'system.net.icmp.out_time_excds',
+                'OutParmProbs'	    : 'system.net.icmp.out_parm_probs',
+                'OutSrcQuenchs'	    : 'system.net.icmp.out_src_quenchs',
+                'OutRedirects'	    : 'system.net.icmp.out_redirects',
+                'OutEchos'	        : 'system.net.icmp.out_echos',
+                'OutEchoReps'	    : 'system.net.icmp.out_echo_reps',
+                'OutTimestamps'	    : 'system.net.icmp.out_timestamps',
+                'OutTimestampReps'  : 'system.net.icmp.out_timestamp_reps',
+                'OutAddrMasks'	    : 'system.net.icmp.out_addr_masks',
+                'OutAddrMaskReps'	: 'system.net.icmp.out_addr_mask_reps'
+            }
+            for key, metric in icmp_metrics_name.iteritems():
+                if key in icmp_metrics:
+                    self.rate(metric, self._parse_value(icmp_metrics[key]))
+
+            assert(icmp_msg_metrics['IcmpMsg:'] == 'IcmpMsg:')
+
+            icmp_msg_metrics_name = {
+                'InType3'	: 'system.net.icmp_msg.in_type_3',
+                'InType8'	: 'system.net.icmp_msg.in_type_8',
+                'OutType0'	: 'system.net.icmp_msg.out_type_0',
+                'OutType3'	: 'system.net.icmp_msg.out_type_3',
+                'OutType11'	: 'system.net.icmp_msg.out_type_11',
+            }
+            for key, metric in icmp_msg_metrics_name.iteritems():
+                if key in icmp_msg_metrics:
+                    self.rate(metric, self._parse_value(icmp_msg_metrics[key]))
+
         except IOError:
             # On Openshift, /proc/net/snmp is only readable by root
             self.log.debug("Unable to read %s.", proc_snmp_path)
+
+        try:
+            proc_netstat_path = "{}/net/netstat".format(proc_location)
+            proc = open(proc_netstat_path, 'r')
+
+            # TcpExt: SyncookiesSent SyncookiesRecv SyncookiesFailed  ...
+            # TcpExt: 141632012 134142477 442066090 14721903          ...
+            # IpExt: InNoRoutes InTruncatedPkts InMcastPkts           ...
+            # IpExt: 0 0 0 0                                          ...
+
+            try:
+                lines = proc.readlines()
+            finally:
+                proc.close()
+
+            tcpext_lines = [line for line in lines if line.startswith('TcpExt:')]
+            ipext_lines = [line for line in lines if line.startswith('IpExt:')]
+
+            tcpext_column_names = tcpext_lines[0].strip().split()
+            tcpext_values = tcpext_lines[1].strip().split()
+            tcpext_metrics = dict(zip(tcpext_column_names, tcpext_values))
+
+            ipext_column_names = ipext_lines[0].strip().split()
+            ipext_values = ipext_lines[1].strip().split()
+            ipext_metrics = dict(zip(ipext_column_names, ipext_values))
+
+            # line start indicating what kind of metrics we're looking at
+            assert(tcp_metrics['TcpExt:'] == 'TcpExt:')
+
+            tcpext_metrics_name = {
+                'SyncookiesSent'	        : 'system.net.tcpext.syncookies_sent',
+                'SyncookiesRecv'	        : 'system.net.tcpext.syncookies_recv',
+                'SyncookiesFailed'	        : 'system.net.tcpext.syncookies_failed',
+                'EmbryonicRsts'	            : 'system.net.tcpext.embryonic_rsts',
+                'PruneCalled'	            : 'system.net.tcpext.prune_called',
+                'RcvPruned'	                : 'system.net.tcpext.rcv_pruned',
+                'OfoPruned'	                : 'system.net.tcpext.ofo_pruned',
+                'OutOfWindowIcmps'	        : 'system.net.tcpext.out_of_window_icmps',
+                'LockDroppedIcmps'	        : 'system.net.tcpext.locl_dropped_icmps',
+                'ArpFilter'	                : 'system.net.tcpext.arp_filter',
+                'TW'	                    : 'system.net.tcpext.tw',
+                'TWRecycled'	            : 'system.net.tcpext.tw_recycled',
+                'TWKilled'	                : 'system.net.tcpext.tw_killed',
+                'PAWSPassive'	            : 'system.net.tcpext.paws_passive',
+                'PAWSActive'	            : 'system.net.tcpext.paws_active',
+                'PAWSEstab'	                : 'system.net.tcpext.paws_estab',
+                'DelayedACKs'	            : 'system.net.tcpext.delayed_acks',
+                'DelayedACKLocked'	        : 'system.net.tcpext.delayed_ack_locked',
+                'DelayedACKLost'	        : 'system.net.tcpext.delayed_ack_lost',
+                'ListenOverflows'	        : 'system.net.tcpext.listen_overflows',
+                'ListenDrops'	            : 'system.net.tcpext.listen_drops',
+                'TCPPrequeued'	            : 'system.net.tcpext.prequeued',
+                'TCPDirectCopyFromBacklog'	: 'system.net.tcpext.direct_copy_from_backlog',
+                'TCPDirectCopyFromPrequeue'	: 'system.net.tcpext.direct_copy_from_prequeue',
+                'TCPPrequeueDropped'	    : 'system.net.tcpext.prequeued_dropped',
+                'TCPHPHits'	                : 'system.net.tcpext.hp_hits',
+                'TCPHPHitsToUser'	        : 'system.net.tcpext.hp_hits_to_user',
+                'TCPPureAcks'	            : 'system.net.tcpext.pure_acks',
+                'TCPHPAcks'	                : 'system.net.tcpext.hp_acks',
+                'TCPRenoRecovery'	        : 'system.net.tcpext.reno_recovery',
+                'TCPSackRecovery'	        : 'system.net.tcpext.sack_recovery',
+                'TCPSACKReneging'	        : 'system.net.tcpext.sack_reneging',
+                'TCPFACKReorder'	        : 'system.net.tcpext.fack_reorder',
+                'TCPSACKReorder'	        : 'system.net.tcpext.sack_reorder',
+                'TCPRenoReorder'	        : 'system.net.tcpext.reno_reorder',
+                'TCPTSReorder'	            : 'system.net.tcpext.ts_reorder',
+                'TCPFullUndo'	            : 'system.net.tcpext.full_undo',
+                'TCPPartialUndo'	        : 'system.net.tcpext.partial_undo',
+                'TCPDSACKUndo'	            : 'system.net.tcpext.dsack_undo',
+                'TCPLossUndo'	            : 'system.net.tcpext.loss_undo',
+                'TCPLostRetransmit'	        : 'system.net.tcpext.lost_retransmit',
+                'TCPRenoFailures'	        : 'system.net.tcpext.reno_failures',
+                'TCPSackFailures'	        : 'system.net.tcpext.sack_failures',
+                'TCPLossFailures'	        : 'system.net.tcpext.loss_failures',
+                'TCPFastRetrans'	        : 'system.net.tcpext.fast_retrans',
+                'TCPForwardRetrans'	        : 'system.net.tcpext.forward_retrans',
+                'TCPSlowStartRetrans'	    : 'system.net.tcpext.slow_start_retrans',
+                'TCPTimeouts'	            : 'system.net.tcpext.timeouts',
+                'TCPLossProbes'	            : 'system.net.tcpext.loss_probes',
+                'TCPLossProbeRecovery'	    : 'system.net.tcpext.loss_probe_recovery',
+                'TCPRenoRecoveryFail'	    : 'system.net.tcpext.reno_recovery_fail',
+                'TCPSackRecoveryFail'	    : 'system.net.tcpext.sack_recovery_fail',
+                'TCPSchedulerFailed'	    : 'system.net.tcpext.scheduler_failed',
+                'TCPRcvCollapsed'	        : 'system.net.tcpext.rcv_collapsed',
+                'TCPDSACKOldSent'	        : 'system.net.tcpext.sack_old_sent',
+                'TCPDSACKOfoSent'	        : 'system.net.tcpext.sack_ofo_sent',
+                'TCPDSACKRecv'	            : 'system.net.tcpext.dsack_recv',
+                'TCPDSACKOfoRecv'	        : 'system.net.tcpext.sack_ofo_recv',
+                'TCPAbortOnData'	        : 'system.net.tcpext.abort_on_data',
+                'TCPAbortOnClose'	        : 'system.net.tcpext.abort_on_close',
+                'TCPAbortOnMemory'	        : 'system.net.tcpext.abort_on_memory',
+                'TCPAbortOnTimeout'	        : 'system.net.tcpext.abort_on_timeout',
+                'TCPAbortOnLinger'	        : 'system.net.tcpext.abort_on_linger',
+                'TCPAbortFailed'	        : 'system.net.tcpext.abort_failed',
+                'TCPMemoryPressures'	    : 'system.net.tcpext.memory_pressures',
+                'TCPSACKDiscard'	        : 'system.net.tcpext.sack_discard',
+                'TCPDSACKIgnoredOld'	    : 'system.net.tcpext.dsack_ignore_old',
+                'TCPDSACKIgnoredNoUndo'	    : 'system.net.tcpext.dsack_ignore_no_undo',
+                'TCPSpuriousRTOs'	        : 'system.net.tcpext.spurious_rtos',
+                'TCPMD5NotFound'	        : 'system.net.tcpext.md5_not_found',
+                'TCPMD5Unexpected'	        : 'system.net.tcpext.md5_unexpected',
+                'TCPSackShifted'	        : 'system.net.tcpext.sack_shifted',
+                'TCPSackMerged'	            : 'system.net.tcpext.sack_merged',
+                'TCPSackShiftFallback'	    : 'system.net.tcpext.sack_shift_fallback',
+                'TCPBacklogDrop'	        : 'system.net.tcpext.backlog_drop',
+                'TCPMinTTLDrop'	            : 'system.net.tcpext.min_ttl_drop',
+                'TCPDeferAcceptDrop'	    : 'system.net.tcpext.defer_accept_drop',
+                'IPReversePathFilter'	    : 'system.net.tcpext.reverse_path_filter',
+                'TCPTimeWaitOverflow'	    : 'system.net.tcpext.time_wait_overflow',
+                'TCPReqQFullDoCookies'	    : 'system.net.tcpext.req_q_full_do_cookies',
+                'TCPReqQFullDrop'	        : 'system.net.tcpext.req_q_full_drop',
+                'TCPRetransFail'	        : 'system.net.tcpext.retrans_fail',
+                'TCPRcvCoalesce'	        : 'system.net.tcpext.rcv_coalesce',
+                'TCPOFOQueue'	            : 'system.net.tcpext.ofo_queue',
+                'TCPOFODrop'	            : 'system.net.tcpext.ofo_drop',
+                'TCPOFOMerge'	            : 'system.net.tcpext.ofo_merge',
+                'TCPChallengeACK'	        : 'system.net.tcpext.challenge_ack',
+                'TCPSYNChallenge'	        : 'system.net.tcpext.syn_challenge',
+                'TCPFastOpenActive'	        : 'system.net.tcpext.fast_open_active',
+                'TCPFastOpenPassive'	    : 'system.net.tcpext.fast_open_passive',
+                'TCPFastOpenPassiveFail'	: 'system.net.tcpext.fast_open_passive_fail',
+                'TCPFastOpenListenOverflow'	: 'system.net.tcpext.fast_open_listen_overflow',
+                'TCPFastOpenCookieReqd'	    : 'system.net.tcpext.fast_open_cookie_reqd',
+                'TCPSpuriousRtxHostQueues'	: 'system.net.tcpext.spurious_rtx_host_queues',
+                'BusyPollRxPackets'	        : 'system.net.tcpext.busy_poll_rx_packets'
+            }
+
+            for key, metric in tcpext_metrics_name.iteritems():
+                if key in tcpext_metrics:
+                    self.rate(metric, self._parse_value(tcpext_metrics[key]))
+
+            assert(udp_metrics['IpExt:'] == 'IpExt:')
+
+            ipext_metrics_name = {
+                'InNoRoutes'	    : 'system.net.ipext.in_no_routes',
+                'InTruncatedPkts'	: 'system.net.ipext.in_truncated_pkts',
+                'InMcastPkts'	    : 'system.net.ipext.in_mcast_pkts',
+                'OutMcastPkts'	    : 'system.net.ipext.out_mcast_pkts',
+                'InBcastPkts'	    : 'system.net.ipext.in_bcast_pkts',
+                'OutBcastPkts'	    : 'system.net.ipext.out_bcast_pkts',
+                'InOctets'	        : 'system.net.ipext.in_octets',
+                'OutOctets'	        : 'system.net.ipext.out_octets',
+                'InMcastOctets'	    : 'system.net.ipext.in_mcast_octets',
+                'OutMcastOctets'	: 'system.net.ipext.out_mcast_octets',
+                'InBcastOctets'	    : 'system.net.ipext.in_bcast_octets',
+                'OutBcastOctets'	: 'system.net.ipext.out_bast_octets',
+                'InCsumErrors'	    : 'system.net.ipext.in_csum_errors',
+                'InNoECTPkts'	    : 'system.net.ipext.in_no_ect_pkts',
+                'InECT1Pkts'	    : 'system.net.ipext.in_ect_1_pkts',
+                'InECT0Pkts'	    : 'system.net.ipext.in_ect0_pkts',
+                'InCEPkts'	        : 'system.net.ipext.in_ce_pkts'
+            }
+            for key, metric in ipext_metrics_name.iteritems():
+                if key in ipext_metrics:
+                    self.rate(metric, self._parse_value(ipext_metrics[key]))
+
+        except IOError:
+            # On Openshift, /proc/net/netstat is only readable by root
+            self.log.debug("Unable to read %s.", proc_netstat_path)
 
     # Parse the output of the command that retrieves the connection state (either `ss` or `netstat`)
     # Returns a dict metric_name -> value
