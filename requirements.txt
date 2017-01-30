@@ -60,7 +60,7 @@ gearman==2.0.2
 python-memcached==1.53
 
 # checks.d/redis.py
-redis==2.10.3
+redis==2.10.5
 
 # checks.d/vsphere.py
 pyvmomi==6.0.0
