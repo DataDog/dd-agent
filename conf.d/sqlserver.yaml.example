@@ -33,6 +33,24 @@ init_config:
     #   instance_name: ALL
     #   tag_by: db
 
+  # As well as capturing from the DMV you can also capture from a custom proc
+  # The proc should return this table
+  # CREATE TABLE #Datadog
+  # (
+  # 	[metric] varchar(255) not null,
+  # 	[type] varchar(50) not null,
+  # 	[value] float not null,
+  # 	[tags] varchar(255)
+  # )
+  # 
+  # You can also specify:
+  # ignore_missing_database : if DB doesn't exist then don't do the check
+  # proc_only_if : run this SQL before each call to stored_procedure. If it returns 1 then call the proc
+  # proc_only_if_database : the database to run the proc_only_if SQL in. Optional. 
+  #                         Defaults to database attribute
+  #
+  # The only_if guard condition is useful for HA scenarios where a database can move between servers.
+  
 instances:
     # All '%' characters must be escaped as '%%'.
 
@@ -44,3 +62,10 @@ instances:
     # database: my_database # Optional, defaults to "master"
     tags:
       - optional_tag
+
+  - host: HOST,PORT
+    database: MyDB
+    stored_procedure: GetDatadogMetrics
+    proc_only_if: SELECT CASE CONVERT(sysname,DatabasePropertyEx('MyDB','Updateability')) WHEN 'READ_WRITE' THEN 1 ELSE 0 END
+    proc_only_if_database: master
+    ignore_missing_database: True 
