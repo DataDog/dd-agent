@@ -13,3 +13,6 @@ instances:
     # Optionally completely ignore any network interface
     # matching the given regex:
     # excluded_interface_re: my-network-interface.*
+
+    # Do not combine connection states
+    # combine_connection_states: yes
