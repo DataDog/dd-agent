@@ -129,7 +129,7 @@ class ZookeeperCheck(AgentCheck):
         expected_mode = (instance.get('expected_mode') or '').strip()
         tags = instance.get('tags', [])
         cx_args = (host, port, timeout)
-        sc_tags = ["host:{0}".format(host), "port:{0}".format(port)]
+        sc_tags = ["host:{0}".format(host), "port:{0}".format(port)] + list(set(tags))
         hostname = self.hostname
         report_instance_mode = instance.get("report_instance_mode", True)
 
