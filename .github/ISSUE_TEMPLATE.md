@@ -1,5 +1,7 @@
 <!--
 
+A note: All Agent Checks are now frozen in preparation for the release of the [Integration SDK](https://github.com/DataDog/dd-agent/wiki/Integration-SDK). All issues related to checks from here on out should go to the [integrations-core repo](https://github.com/datadog/integrations-core).
+
 This issue queue is primarily intended for tracking features, bugs and work items associated with
 the dd-agent open-source project.
 
@@ -13,8 +15,6 @@ If you are reporting a new issue, make sure that we do not have any duplicates
 already open. You can ensure this by searching the issue list for this
 repository. If there is a duplicate, please close your issue and add a comment
 to the existing issue instead.
-
-A note: All Agent Checks are now frozen in preparation for the release of the [Integration SDK](https://github.com/DataDog/dd-agent/wiki/Integration-SDK). All issues related to checks from here on out should go to the [integrations-core repo](https://github.com/datadog/integrations-core).
 
 If you suspect your issue is a bug, please edit your issue description to
 include the BUG REPORT INFORMATION shown below.
