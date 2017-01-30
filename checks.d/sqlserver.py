@@ -10,6 +10,7 @@ for information on how to report the metrics available in the sys.dm_os_performa
 '''
 # stdlib
 import traceback
+from contextlib import contextmanager
 
 # 3rd party
 import adodbapi
@@ -85,12 +86,11 @@ class SQLServer(AgentCheck):
         self.instances_metrics = {}
 
         # Pre-process the list of metrics to collect
-        custom_metrics = init_config.get('custom_metrics', [])
+        self.custom_metrics = init_config.get('custom_metrics', [])
         for instance in instances:
             try:
-                self.open_db_connections(instance)
-                self._make_metric_list_to_collect(instance, custom_metrics)
-                self.close_db_connections(instance)
+                with self.open_managed_db_connections(instance):
+                    self._make_metric_list_to_collect(instance, self.custom_metrics)
             except SQLConnectionError:
                 self.log.exception("Skipping SQL Server instance")
                 continue
@@ -200,6 +200,13 @@ class SQLServer(AgentCheck):
             conn_str += 'Integrated Security=SSPI;'
         return conn_str
 
+    @contextmanager
+    def get_managed_cursor(self, instance):
+        cursor = self.get_cursor(instance)
+        yield cursor
+
+        self.close_cursor(cursor)
+
     def get_cursor(self, instance):
         '''
         Return a cursor to execute query against the db
@@ -218,30 +225,28 @@ class SQLServer(AgentCheck):
         If the sql_type is one that needs a base (PERF_RAW_LARGE_FRACTION and
         PERF_AVERAGE_BULK), the name of the base counter will also be returned
         '''
-        cursor = self.get_cursor(instance)
-        cursor.execute(COUNTER_TYPE_QUERY, (counter_name,))
-        (sql_type,) = cursor.fetchone()
-        if sql_type == PERF_LARGE_RAW_BASE:
-            self.log.warning("Metric %s is of type Base and shouldn't be reported this way",
-                             counter_name)
-        base_name = None
-        if sql_type in [PERF_AVERAGE_BULK, PERF_RAW_LARGE_FRACTION]:
-            # This is an ugly hack. For certains type of metric (PERF_RAW_LARGE_FRACTION
-            # and PERF_AVERAGE_BULK), we need two metrics: the metrics specified and
-            # a base metrics to get the ratio. There is no unique schema so we generate
-            # the possible candidates and we look at which ones exist in the db.
-            candidates = (counter_name + " base",
-                          counter_name.replace("(ms)", "base"),
-                          counter_name.replace("Avg ", "") + " base"
-                          )
-            try:
-                cursor.execute(BASE_NAME_QUERY, candidates)
-                base_name = cursor.fetchone().counter_name.strip()
-                self.log.debug("Got base metric: %s for metric: %s", base_name, counter_name)
-            except Exception as e:
-                self.log.warning("Could not get counter_name of base for metric: %s", e)
-
-        self.close_cursor(cursor)
+        with self.get_managed_cursor(instance) as cursor:
+            cursor.execute(COUNTER_TYPE_QUERY, (counter_name,))
+            (sql_type,) = cursor.fetchone()
+            if sql_type == PERF_LARGE_RAW_BASE:
+                self.log.warning("Metric %s is of type Base and shouldn't be reported this way",
+                                counter_name)
+            base_name = None
+            if sql_type in [PERF_AVERAGE_BULK, PERF_RAW_LARGE_FRACTION]:
+                # This is an ugly hack. For certains type of metric (PERF_RAW_LARGE_FRACTION
+                # and PERF_AVERAGE_BULK), we need two metrics: the metrics specified and
+                # a base metrics to get the ratio. There is no unique schema so we generate
+                # the possible candidates and we look at which ones exist in the db.
+                candidates = (counter_name + " base",
+                              counter_name.replace("(ms)", "base"),
+                              counter_name.replace("Avg ", "") + " base"
+                              )
+                try:
+                    cursor.execute(BASE_NAME_QUERY, candidates)
+                    base_name = cursor.fetchone().counter_name.strip()
+                    self.log.debug("Got base metric: %s for metric: %s", base_name, counter_name)
+                except Exception as e:
+                    self.log.warning("Could not get counter_name of base for metric: %s", e)
 
         return sql_type, base_name
 
@@ -249,21 +254,21 @@ class SQLServer(AgentCheck):
         """
         Fetch the metrics from the sys.dm_os_performance_counters table
         """
-        self.open_db_connections(instance)
-        cursor = self.get_cursor(instance)
-
         custom_tags = instance.get('tags', [])
         instance_key = self._conn_key(instance)
-        metrics_to_collect = self.instances_metrics[instance_key]
 
-        for metric in metrics_to_collect:
-            try:
-                metric.fetch_metric(cursor, custom_tags)
-            except Exception as e:
-                self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
+        with self.open_managed_db_connections(instance):
+            # if the server was down at check __init__ key could be missing.
+            if instance_key not in self.instances_metrics:
+                self._make_metric_list_to_collect(instance, self.custom_metrics)
+            metrics_to_collect = self.instances_metrics[instance_key]
 
-        self.close_cursor(cursor)
-        self.close_db_connections(instance)
+            with self.get_managed_cursor(instance) as cursor:
+                for metric in metrics_to_collect:
+                    try:
+                        metric.fetch_metric(cursor, custom_tags)
+                    except Exception as e:
+                        self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
     def close_cursor(self, cursor):
         """
@@ -291,6 +296,13 @@ class SQLServer(AgentCheck):
             del self.connections[conn_key]
         except Exception as e:
             self.log.warning("Could not close adodbapi db connection\n{0}".format(e))
+
+    @contextmanager
+    def open_managed_db_connections(self, instance):
+        self.open_db_connections(instance)
+        yield
+
+        self.close_db_connections(instance)
 
     def open_db_connections(self, instance):
         """
