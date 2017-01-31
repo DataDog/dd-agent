@@ -86,12 +86,17 @@ class KubeUtil:
 
         client_crt = instance.get('apiserver_client_crt')
         client_key = instance.get('apiserver_client_key')
+        apiserver_cacert = instance.get('apiserver_ca_cert')
+
         if client_crt and client_key and os.path.exists(client_crt) and os.path.exists(client_key):
             tls_settings['apiserver_client_cert'] = (client_crt, client_key)
 
+        if apiserver_cacert and os.path.exists(apiserver_cacert):
+            tls_settings['apiserver_cacert'] = apiserver_cacert
+
         token = self.get_auth_token()
         if token:
-            tls_settings['bearer_token']
+            tls_settings['bearer_token'] = token
 
         return tls_settings
 
@@ -187,7 +192,9 @@ class KubeUtil:
 
         We try to verify the server TLS cert if the public cert is available.
         """
-        verify = self.CA_CRT_PATH if os.path.exists(self.CA_CRT_PATH) else False
+        verify = self.tls_settings.get('apiserver_cacert')
+        if not verify:
+            verify = self.CA_CRT_PATH if os.path.exists(self.CA_CRT_PATH) else False
         log.debug('ssl validation: {}'.format(verify))
 
         cert = self.tls_settings.get('apiserver_client_cert')

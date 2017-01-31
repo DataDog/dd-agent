@@ -158,7 +158,10 @@ class Kubernetes(AgentCheck):
 
         # kubelet events
         if _is_affirmative(instance.get('collect_events', DEFAULT_COLLECT_EVENTS)):
-            self._process_events(instance, pods_list)
+            try:
+                self._process_events(instance, pods_list)
+            except Exception as ex:
+                self.log.error("Event collection failed: %s" % str(ex))
 
     def _publish_raw_metrics(self, metric, dat, tags, depth=0):
         if depth >= self.max_depth:
