@@ -390,9 +390,9 @@ class TestKubeutil(unittest.TestCase):
         self.assertEqual(self.kubeutil._init_tls_settings({}), {})
         self.assertEqual(self.kubeutil._init_tls_settings({'apiserver_client_crt': 'foo.crt'}), {})
 
-        instance = {'apiserver_client_crt': 'foo.crt', 'apiserver_client_key': 'foo.key'}
+        instance = {'apiserver_client_crt': 'foo.crt', 'apiserver_client_key': 'foo.key', 'apiserver_ca_cert': 'ca.crt'}
         with mock.patch('utils.kubernetes.kubeutil.os.path.exists', return_value=True):
-            expected_res = {'apiserver_client_cert': ('foo.crt', 'foo.key')}
+            expected_res = {'apiserver_client_cert': ('foo.crt', 'foo.key'), 'apiserver_cacert': 'ca.crt'}
             self.assertEqual(self.kubeutil._init_tls_settings(instance), expected_res)
 
         with mock.patch('utils.kubernetes.kubeutil.os.path.exists', return_value=False):
