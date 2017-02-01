@@ -27,7 +27,7 @@ namespace :ci do
         # http://downloads.sourceforge.net/project/boost/boost/1.55.0/boost_1_55_0.tar.bz2
         sh %(curl -s -L\
              -o $VOLATILE_DIR/powerdns_recursor-#{powerdns_recursor_version}.tar.bz2\
-              https://s3.amazonaws.com/dd-agent-tarball-mirror/pdns-recursor-#{powerdns_recursor_version}.tar.bz2)
+              https://downloads.powerdns.com/releases/pdns-recursor-#{powerdns_recursor_version}.tar.bz2)
         sh %(mkdir -p #{powerdns_recursor_rootdir})
         sh %(tar xf $VOLATILE_DIR/powerdns_recursor-#{powerdns_recursor_version}.tar.bz2\
              -C #{powerdns_recursor_rootdir} --strip-components=1)
@@ -43,8 +43,8 @@ namespace :ci do
     end
 
     task before_script: ['ci:common:before_script'] do
-      sh %(#{powerdns_recursor_rootdir}/pdns_recursor\
-           --config-dir=tests/checks/fixtures/powerdns-recursor/\
+      sh %(#{powerdns_recursor_rootdir}/pdns_recursor \
+           --config-dir=tests/checks/fixtures/powerdns-recursor/#{powerdns_recursor_version}/\
            --socket-dir=#{powerdns_recursor_rootdir})
       Wait.for 5353, 5
     end
