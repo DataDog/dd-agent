@@ -121,10 +121,6 @@ case $action in
         RETURN_VALUE=$(($RETURN_VALUE || $?))
         python agent/ddagent.py info
         RETURN_VALUE=$(($RETURN_VALUE || $?))
-        if [ -x ./bin/trace-agent ]; then
-            ./bin/trace-agent -info
-            RETURN_VALUE=$(($RETURN_VALUE || $?))
-        fi
         exit $RETURN_VALUE
         ;;
 

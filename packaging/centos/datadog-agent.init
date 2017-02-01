@@ -31,6 +31,7 @@ PIDPATH="/var/run/dd-agent/"
 PROG="datadog-agent"
 LOCKFILE=/var/lock/subsys/$PROG
 FORWARDERPATH="/opt/datadog-agent/agent/ddagent.py"
+TRACEAGENTPATH="/opt/datadog-agent/bin/trace-agent"
 SUPERVISORD_PATH="PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH /opt/datadog-agent/bin/supervisord"
 SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"
@@ -186,7 +187,12 @@ info() {
     DOGSTATSD_RETURN=$?
     su $AGENTUSER -c "$FORWARDERPATH info"
     FORWARDER_RETURN=$?
-    exit $(($FORWARDER_RETURN+$COLLECTOR_RETURN+DOGSTATSD_RETURN))
+    TRACEAGENT_RETURN=0
+    if [ -x $TRACEAGENTPATH ];
+       su $AGENTUSER -c "$TRACEAGENTPATH -info"
+       TRACEAGENT_RETURN=$? # not used for now, Trace/APM not a core feature yet
+    fi
+    exit $(($FORWARDER_RETURN+$COLLECTOR_RETURN+$DOGSTATSD_RETURN))
 }
 
 reload() {

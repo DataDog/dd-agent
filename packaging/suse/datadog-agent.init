@@ -421,9 +421,9 @@ case "$1" in
         TRACEAGENT_RETURN=0
         if [ -x $TRACEAGENTPATH ];
            su $AGENTUSER -c "$TRACEAGENTPATH -info"
-           TRACEAGENT_RETURN=$?
+           TRACEAGENT_RETURN=$? # not used for now, Trace/APM not a core feature yet
         fi
-        exit $(($COLLECTOR_RETURN+$DOGSTATSD_RETURN+$FORWARDER_RETURN+$TRACEAGENT_RETURN))
+        exit $(($COLLECTOR_RETURN+$DOGSTATSD_RETURN+$FORWARDER_RETURN))
         ;;
 
     status)
