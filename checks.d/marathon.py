@@ -87,6 +87,12 @@ class Marathon(AgentCheck):
                 tags = ["url:{0}".format(url)])
             raise Exception("Got %s when hitting %s" % (r.status_code, url))
 
+        except requests.exceptions.ConnectionError:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                message='%s Connection Refused.' % (url),
+                tags = ["url:{0}".format(url)])
+            raise Exception("Connection refused when hitting %s" % url)
+
         else:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                 tags = ["url:{0}".format(url)]
