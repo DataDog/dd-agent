@@ -25,9 +25,14 @@ namespace :ci do
         # Downloads
         # https://downloads.powerdns.com/releases/pdns-recursor-{powerdns_recursor_version}.tar.bz2
         # http://downloads.sourceforge.net/project/boost/boost/1.55.0/boost_1_55_0.tar.bz2
+        url = if powerdns_recursor_version == '3.7.3'
+                'https://s3.amazonaws.com/dd-agent-tarball-mirror'
+              else
+                'https://downloads.powerdns.com/releases'
+              end
         sh %(curl -s -L\
              -o $VOLATILE_DIR/powerdns_recursor-#{powerdns_recursor_version}.tar.bz2\
-              https://downloads.powerdns.com/releases/pdns-recursor-#{powerdns_recursor_version}.tar.bz2)
+              #{url}/pdns-recursor-#{powerdns_recursor_version}.tar.bz2)
         sh %(mkdir -p #{powerdns_recursor_rootdir})
         sh %(tar xf $VOLATILE_DIR/powerdns_recursor-#{powerdns_recursor_version}.tar.bz2\
              -C #{powerdns_recursor_rootdir} --strip-components=1)
@@ -43,8 +48,14 @@ namespace :ci do
     end
 
     task before_script: ['ci:common:before_script'] do
-      sh %(#{powerdns_recursor_rootdir}/pdns_recursor \
-           --config-dir=tests/checks/fixtures/powerdns-recursor/#{powerdns_recursor_version}/\
+      option = if powerdns_recursor_version == '3.7.3'
+                 ''
+               else
+                 '--config-name=V4 --daemon=on --write-pid=yes'
+               end
+
+      sh %(#{powerdns_recursor_rootdir}/pdns_recursor\
+           --config-dir=tests/checks/fixtures/powerdns-recursor/ #{option}\
            --socket-dir=#{powerdns_recursor_rootdir})
       Wait.for 5353, 5
     end
@@ -57,7 +68,12 @@ namespace :ci do
     end
 
     task cleanup: ['ci:common:cleanup'] do
-      sh %(kill `cat #{powerdns_recursor_rootdir}/pdns_recursor.pid` || echo 'Already dead')
+      pid = if powerdns_recursor_version == '3.7.3'
+              'pdns_recursor.pid'
+            else
+              'pdns_recursor-V4.pid'
+            end
+      sh %(kill `cat #{powerdns_recursor_rootdir}/#{pid}` || echo 'Already dead')
     end
 
     task before_cache: ['ci:common:before_cache']
