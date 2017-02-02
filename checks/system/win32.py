@@ -191,9 +191,9 @@ class Memory(Check):
         # rather than from the whole virtual memory data.
         page = psutil.swap_memory()
         if page.total is not None:
-            self.save_sample('system.mem.pagefile.total', page.total / B2MB)
-            self.save_sample('system.mem.pagefile.used', page.used / B2MB)
-            self.save_sample('system.mem.pagefile.free', page.free / B2MB)
+            self.save_sample('system.mem.pagefile.total', page.total)
+            self.save_sample('system.mem.pagefile.used', page.used)
+            self.save_sample('system.mem.pagefile.free', page.free)
             self.save_sample('system.mem.pagefile.pct_free', (100 - page.percent) / 100)
 
         return self.get_metrics()
