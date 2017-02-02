@@ -389,6 +389,26 @@ tar -xz -C "$DD_HOME/agent" --strip-components 1 -f "$DD_HOME/agent.tar.gz"
 rm -f "$DD_HOME/agent.tar.gz"
 print_done
 
+print_console "* Downloading integrations from GitHub"
+mkdir -p "$DD_HOME/integrations"
+$DOWNLOADER "$DD_HOME/integrations.tar.gz" "https://api.github.com/repos/DataDog/integrations-core/tarball"
+print_done
+
+print_console "* Uncompressing tarball"
+tar -xz -C "$DD_HOME/integrations" --strip-components 1 -f "$DD_HOME/integrations.tar.gz"
+rm -f "$DD_HOME/integrations.tar.gz"
+print_done
+
+print_console "* Trying to install integration requirements"
+for INT_DIR in "$DD_HOME/integrations/*"; do
+  if [ -d $INT_DIR ]; then
+    if [-f "$INT_DIR/requirements.txt" ]; then
+      "$DD_HOME/agent/utils/pip-allow-failures.sh" "$INT_DIR/requirements.txt"
+    fi
+  fi
+done
+print_done
+
 print_console "* Trying to install optional requirements"
 $DOWNLOADER "$DD_HOME/requirements-opt.txt" "$BASE_GITHUB_URL/requirements-opt.txt"
 "$DD_HOME/agent/utils/pip-allow-failures.sh" "$DD_HOME/requirements-opt.txt"
