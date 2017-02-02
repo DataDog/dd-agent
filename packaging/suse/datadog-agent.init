@@ -19,6 +19,7 @@ DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
 KILL_PATH="/opt/datadog-agent/embedded/bin/kill"
 AGENTUSER="dd-agent"
 FORWARDERPATH="/opt/datadog-agent/agent/ddagent.py"
+TRACEAGENTPATH="/opt/datadog-agent/bin/trace-agent"
 NAME="datadog-agent"
 DESC="Datadog Agent"
 SUPERVISOR_PIDFILE="/opt/datadog-agent/run/datadog-supervisord.pid"
@@ -417,6 +418,8 @@ case "$1" in
         DOGSTATSD_RETURN=$?
         su $AGENTUSER -c "$FORWARDERPATH info"
         FORWARDER_RETURN=$?
+        su $AGENTUSER -c "$TRACEAGENTPATH -info"
+        TRACEAGENT_RETURN=$? # not used for now, Trace/APM not a core feature yet
         exit $(($COLLECTOR_RETURN+$DOGSTATSD_RETURN+$FORWARDER_RETURN))
         ;;
 
