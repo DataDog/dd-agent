@@ -58,6 +58,26 @@ class Network(AgentCheck):
         self._excluded_ifaces = instance.get('excluded_interfaces', [])
         self._collect_cx_state = instance.get('collect_connection_state', False)
 
+        # This decides whether we should split or combine connection states, along with a few other things
+        self._setup_metrics(instance)
+
+        self._exclude_iface_re = None
+        exclude_re = instance.get('excluded_interface_re', None)
+        if exclude_re:
+            self.log.debug("Excluding network devices matching: %s" % exclude_re)
+            self._exclude_iface_re = re.compile(exclude_re)
+
+        if Platform.is_linux():
+            self._check_linux(instance)
+        elif Platform.is_bsd():
+            self._check_bsd(instance)
+        elif Platform.is_solaris():
+            self._check_solaris(instance)
+        elif Platform.is_windows():
+            self._check_psutil()
+
+
+    def _setup_metrics(self, instance):
         self._combine_connection_states = instance.get('combine_connection_states', True)
 
         if self._combine_connection_states:
@@ -192,21 +212,6 @@ class Network(AgentCheck):
                     psutil.CONN_NONE: "connections",  # CONN_NONE is always returned for udp connections
                 }
             }
-
-        self._exclude_iface_re = None
-        exclude_re = instance.get('excluded_interface_re', None)
-        if exclude_re:
-            self.log.debug("Excluding network devices matching: %s" % exclude_re)
-            self._exclude_iface_re = re.compile(exclude_re)
-
-        if Platform.is_linux():
-            self._check_linux(instance)
-        elif Platform.is_bsd():
-            self._check_bsd(instance)
-        elif Platform.is_solaris():
-            self._check_solaris(instance)
-        elif Platform.is_windows():
-            self._check_psutil()
 
     def _submit_devicemetrics(self, iface, vals_by_metric):
         if iface in self._excluded_ifaces or (self._exclude_iface_re and self._exclude_iface_re.match(iface)):
