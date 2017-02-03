@@ -271,7 +271,8 @@ class JMXFetchProcess(DDProcess):
     def start(self):
         if self.is_enabled():
             JMXFiles.clean_exit_file()
-            super(JMXFetchProcess, self).start()
+
+        super(JMXFetchProcess, self).start()
 
     def stop(self):
         """
@@ -279,7 +280,8 @@ class JMXFetchProcess(DDProcess):
         """
         if self._proc is not None and self._proc.is_running():
             JMXFiles.write_exit_file()
-            super(JMXFetchProcess, self).stop()
+
+        super(JMXFetchProcess, self).stop()
 
 
 if __name__ == '__main__':
