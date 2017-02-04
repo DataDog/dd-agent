@@ -4,7 +4,7 @@
 
 This document aims to provide some basic guidelines to contribute to this repository, but keep in mind that these are just guidelines, not rules; use your best judgment and feel free to propose changes to this document in a pull request.
 
-Want help with your PRs on this project? We offer twice a month [office hours](https://github.com/DataDog/dd-agent/wiki/Community-Office-Hours) via Slack and Google Hangouts.
+Want help with your PRs on this project? We offer [office hours](https://github.com/DataDog/dd-agent/wiki/Community-Office-Hours) twice a month via Slack and Google Hangouts.
 
 ## Submitting issues
 
