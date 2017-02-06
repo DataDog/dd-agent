@@ -3,6 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 # stdlib
+from contextlib import nested
 from functools import wraps
 import logging
 import subprocess
@@ -10,20 +11,21 @@ import tempfile
 
 log = logging.getLogger(__name__)
 
-
 class SubprocessOutputEmptyError(Exception):
     pass
 
-
+# FIXME: python 2.7 has a far better way to do this
 def get_subprocess_output(command, log, raise_on_empty_output=True):
     """
-    Run the given subprocess command and return its output. Raise an Exception
+    Run the given subprocess command and return it's output. Raise an Exception
     if an error occurs.
     """
 
-    max_size = 1024 * 1024  # 1 MB
+    # Use tempfile, allowing a larger amount of memory. The subprocess.Popen
+    # docs warn that the data read is buffered in memory. They suggest not to
+    # use subprocess.PIPE if the data size is large or unlimited.
+    with nested(tempfile.TemporaryFile(), tempfile.TemporaryFile()) as (stdout_f, stderr_f):
 
-    with tempfile.SpooledTemporaryFile(max_size=max_size) as stdout_f, tempfile.SpooledTemporaryFile(max_size=max_size) as stderr_f:
         proc = subprocess.Popen(command, stdout=stdout_f, stderr=stderr_f)
         proc.wait()
         stderr_f.seek(0)
