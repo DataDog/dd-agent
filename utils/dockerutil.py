@@ -382,7 +382,7 @@ class DockerUtil:
                 # the split will be like [repo_url, repo_port/image_name, image_tag]. Let's avoid that
                 split = [':'.join(split[:-1]), split[-1]]
             return [split[key]]
-        if "RepoTags" in entity:
+        if entity.get('RepoTags'):
             splits = [el.split(":") for el in entity["RepoTags"]]
             tags = set()
             for split in splits:
@@ -392,6 +392,14 @@ class DockerUtil:
                     tags.add(split[key])
             if len(tags) > 0:
                 return list(tags)
+        elif entity.get('RepoDigests'):
+            # the human-readable tag is not mentioned in RepoDigests, only the image name
+            if key != 0:
+                return None
+            split = entity['RepoDigests'][0].split('@')
+            if len(split) > 1:
+                return [split[key]]
+
         return None
 
     @classmethod
