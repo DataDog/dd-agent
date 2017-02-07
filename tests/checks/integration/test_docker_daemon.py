@@ -614,10 +614,16 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ({'RepoTags': ['localhost/redis:latest']}, [['localhost/redis'], ['latest']]),
             ({'RepoTags': ['localhost:5000/redis:latest']}, [['localhost:5000/redis'], ['latest']]),
             ({'RepoTags': ['localhost:5000/redis:latest', 'localhost:5000/redis:v1.1']}, [['localhost:5000/redis'], ['latest', 'v1.1']]),
+            ({'RepoTags': [], 'RepoDigests': [u'datadog/docker-dd-agent@sha256:47a59c2ea4f6d9555884aacc608b303f18bde113b1a3a6743844bfc364d73b44']},
+                [['datadog/docker-dd-agent'], None]),
         ]
         for entity in entities:
             self.assertEqual(sorted(DockerUtil.image_tag_extractor(entity[0], 0)), sorted(entity[1][0]))
-            self.assertEqual(sorted(DockerUtil.image_tag_extractor(entity[0], 1)), sorted(entity[1][1]))
+            tags = DockerUtil.image_tag_extractor(entity[0], 1)
+            if isinstance(entity[1][1], list):
+                self.assertEqual(sorted(tags), sorted(entity[1][1]))
+            else:
+                self.assertEqual(tags, entity[1][1])
 
     def test_container_name_extraction(self):
         containers = [
