@@ -34,6 +34,7 @@ class TestCheckNetwork(AgentCheckTest):
             ]
         }
         self.load_check(self.config)
+        self.check._setup_metrics(self.config["instances"][0])
 
     CX_STATE_GAUGES_VALUES = {
         'system.net.udp4.connections': 2,

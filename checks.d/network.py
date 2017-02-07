@@ -36,49 +36,6 @@ class Network(AgentCheck):
 
     SOURCE_TYPE_NAME = 'system'
 
-    TCP_STATES = {
-        "ss": {
-            "ESTAB": "established",
-            "SYN-SENT": "opening",
-            "SYN-RECV": "opening",
-            "FIN-WAIT-1": "closing",
-            "FIN-WAIT-2": "closing",
-            "TIME-WAIT": "time_wait",
-            "UNCONN": "closing",
-            "CLOSE-WAIT": "closing",
-            "LAST-ACK": "closing",
-            "LISTEN": "listening",
-            "CLOSING": "closing",
-        },
-        "netstat": {
-            "ESTABLISHED": "established",
-            "SYN_SENT": "opening",
-            "SYN_RECV": "opening",
-            "FIN_WAIT1": "closing",
-            "FIN_WAIT2": "closing",
-            "TIME_WAIT": "time_wait",
-            "CLOSE": "closing",
-            "CLOSE_WAIT": "closing",
-            "LAST_ACK": "closing",
-            "LISTEN": "listening",
-            "CLOSING": "closing",
-        },
-        "psutil": {
-            psutil.CONN_ESTABLISHED: "established",
-            psutil.CONN_SYN_SENT: "opening",
-            psutil.CONN_SYN_RECV: "opening",
-            psutil.CONN_FIN_WAIT1: "closing",
-            psutil.CONN_FIN_WAIT2: "closing",
-            psutil.CONN_TIME_WAIT: "time_wait",
-            psutil.CONN_CLOSE: "closing",
-            psutil.CONN_CLOSE_WAIT: "closing",
-            psutil.CONN_LAST_ACK: "closing",
-            psutil.CONN_LISTEN: "listening",
-            psutil.CONN_CLOSING: "closing",
-            psutil.CONN_NONE: "connections",  # CONN_NONE is always returned for udp connections
-        }
-    }
-
     PSUTIL_TYPE_MAPPING = {
         socket.SOCK_STREAM: 'tcp',
         socket.SOCK_DGRAM: 'udp',
@@ -87,21 +44,6 @@ class Network(AgentCheck):
     PSUTIL_FAMILY_MAPPING = {
         socket.AF_INET: '4',
         socket.AF_INET6: '6',
-    }
-
-    CX_STATE_GAUGE = {
-        ('udp4', 'connections'): 'system.net.udp4.connections',
-        ('udp6', 'connections'): 'system.net.udp6.connections',
-        ('tcp4', 'established'): 'system.net.tcp4.established',
-        ('tcp4', 'opening'): 'system.net.tcp4.opening',
-        ('tcp4', 'closing'): 'system.net.tcp4.closing',
-        ('tcp4', 'listening'): 'system.net.tcp4.listening',
-        ('tcp4', 'time_wait'): 'system.net.tcp4.time_wait',
-        ('tcp6', 'established'): 'system.net.tcp6.established',
-        ('tcp6', 'opening'): 'system.net.tcp6.opening',
-        ('tcp6', 'closing'): 'system.net.tcp6.closing',
-        ('tcp6', 'listening'): 'system.net.tcp6.listening',
-        ('tcp6', 'time_wait'): 'system.net.tcp6.time_wait',
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
@@ -115,6 +57,9 @@ class Network(AgentCheck):
 
         self._excluded_ifaces = instance.get('excluded_interfaces', [])
         self._collect_cx_state = instance.get('collect_connection_state', False)
+
+        # This decides whether we should split or combine connection states, along with a few other things
+        self._setup_metrics(instance)
 
         self._exclude_iface_re = None
         exclude_re = instance.get('excluded_interface_re', None)
@@ -130,6 +75,143 @@ class Network(AgentCheck):
             self._check_solaris(instance)
         elif Platform.is_windows():
             self._check_psutil()
+
+
+    def _setup_metrics(self, instance):
+        self._combine_connection_states = instance.get('combine_connection_states', True)
+
+        if self._combine_connection_states:
+            self.cx_state_gauge = {
+                ('udp4', 'connections'): 'system.net.udp4.connections',
+                ('udp6', 'connections'): 'system.net.udp6.connections',
+                ('tcp4', 'established'): 'system.net.tcp4.established',
+                ('tcp4', 'opening'): 'system.net.tcp4.opening',
+                ('tcp4', 'closing'): 'system.net.tcp4.closing',
+                ('tcp4', 'listening'): 'system.net.tcp4.listening',
+                ('tcp4', 'time_wait'): 'system.net.tcp4.time_wait',
+                ('tcp6', 'established'): 'system.net.tcp6.established',
+                ('tcp6', 'opening'): 'system.net.tcp6.opening',
+                ('tcp6', 'closing'): 'system.net.tcp6.closing',
+                ('tcp6', 'listening'): 'system.net.tcp6.listening',
+                ('tcp6', 'time_wait'): 'system.net.tcp6.time_wait',
+            }
+
+            self.tcp_states = {
+                "ss": {
+                    "ESTAB": "established",
+                    "SYN-SENT": "opening",
+                    "SYN-RECV": "opening",
+                    "FIN-WAIT-1": "closing",
+                    "FIN-WAIT-2": "closing",
+                    "TIME-WAIT": "time_wait",
+                    "UNCONN": "closing",
+                    "CLOSE-WAIT": "closing",
+                    "LAST-ACK": "closing",
+                    "LISTEN": "listening",
+                    "CLOSING": "closing",
+                },
+                "netstat": {
+                    "ESTABLISHED": "established",
+                    "SYN_SENT": "opening",
+                    "SYN_RECV": "opening",
+                    "FIN_WAIT1": "closing",
+                    "FIN_WAIT2": "closing",
+                    "TIME_WAIT": "time_wait",
+                    "CLOSE": "closing",
+                    "CLOSE_WAIT": "closing",
+                    "LAST_ACK": "closing",
+                    "LISTEN": "listening",
+                    "CLOSING": "closing",
+                },
+                "psutil": {
+                    psutil.CONN_ESTABLISHED: "established",
+                    psutil.CONN_SYN_SENT: "opening",
+                    psutil.CONN_SYN_RECV: "opening",
+                    psutil.CONN_FIN_WAIT1: "closing",
+                    psutil.CONN_FIN_WAIT2: "closing",
+                    psutil.CONN_TIME_WAIT: "time_wait",
+                    psutil.CONN_CLOSE: "closing",
+                    psutil.CONN_CLOSE_WAIT: "closing",
+                    psutil.CONN_LAST_ACK: "closing",
+                    psutil.CONN_LISTEN: "listening",
+                    psutil.CONN_CLOSING: "closing",
+                    psutil.CONN_NONE: "connections",  # CONN_NONE is always returned for udp connections
+                }
+            }
+        else:
+            self.cx_state_gauge = {
+                ('udp4', 'connections') : 'system.net.udp4.connections',
+                ('udp6', 'connections') : 'system.net.udp6.connections',
+
+                ('tcp4', 'estab') : 'system.net.tcp4.estab',
+                ('tcp4', 'syn_sent') : 'system.net.tcp4.syn_sent',
+                ('tcp4', 'syn_recv') : 'system.net.tcp4.syn_recv',
+                ('tcp4', 'fin_wait_1') : 'system.net.tcp4.fin_wait_1',
+                ('tcp4', 'fin_wait_2') : 'system.net.tcp4.fin_wait_2',
+                ('tcp4', 'time_wait') : 'system.net.tcp4.time_wait',
+                ('tcp4', 'unconn') : 'system.net.tcp4.unconn',
+                ('tcp4', 'close') : 'system.net.tcp4.close',
+                ('tcp4', 'close_wait') : 'system.net.tcp4.close_wait',
+                ('tcp4', 'closing') : 'system.net.tcp4.closing',
+                ('tcp4', 'listen') : 'system.net.tcp4.listen',
+                ('tcp4', 'last_ack') : 'system.net.tcp4.time_wait',
+
+                ('tcp6', 'estab') : 'system.net.tcp4.estab',
+                ('tcp6', 'syn_sent') : 'system.net.tcp4.syn_sent',
+                ('tcp6', 'syn_recv') : 'system.net.tcp4.syn_recv',
+                ('tcp6', 'fin_wait_1') : 'system.net.tcp4.fin_wait_1',
+                ('tcp6', 'fin_wait_2') : 'system.net.tcp4.fin_wait_2',
+                ('tcp6', 'time_wait') : 'system.net.tcp4.time_wait',
+                ('tcp6', 'unconn') : 'system.net.tcp4.unconn',
+                ('tcp6', 'close') : 'system.net.tcp4.close',
+                ('tcp6', 'close_wait') : 'system.net.tcp4.close_wait',
+                ('tcp6', 'closing') : 'system.net.tcp4.closing',
+                ('tcp6', 'listen') : 'system.net.tcp4.listen',
+                ('tcp6', 'last_ack') : 'system.net.tcp4.time_wait',
+            }
+
+            self.tcp_states = {
+                "ss": {
+                    "ESTAB": "estab",
+                    "SYN-SENT": "syn_sent",
+                    "SYN-RECV": "syn_recv",
+                    "FIN-WAIT-1": "fin_wait_1",
+                    "FIN-WAIT-2": "fin_wait_2",
+                    "TIME-WAIT": "time_wait",
+                    "UNCONN": "unconn",
+                    "CLOSE-WAIT": "close_wait",
+                    "LAST-ACK": "last_ack",
+                    "LISTEN": "listen",
+                    "CLOSING": "closing",
+                },
+                "netstat": {
+                    "ESTABLISHED": "estab",
+                    "SYN_SENT": "syn_sent",
+                    "SYN_RECV": "syn_recv",
+                    "FIN_WAIT1": "fin_wait_1",
+                    "FIN_WAIT2": "fin_wait_2",
+                    "TIME_WAIT": "time_wait",
+                    "CLOSE": "close",
+                    "CLOSE_WAIT": "close_wait",
+                    "LAST_ACK": "last_ack",
+                    "LISTEN": "listen",
+                    "CLOSING": "closing",
+                },
+                "psutil": {
+                    psutil.CONN_ESTABLISHED: "estab",
+                    psutil.CONN_SYN_SENT: "syn_sent",
+                    psutil.CONN_SYN_RECV: "syn_recv",
+                    psutil.CONN_FIN_WAIT1: "fin_wait_1",
+                    psutil.CONN_FIN_WAIT2: "fin_wait_2",
+                    psutil.CONN_TIME_WAIT: "time_wait",
+                    psutil.CONN_CLOSE: "close",
+                    psutil.CONN_CLOSE_WAIT: "close_wait",
+                    psutil.CONN_LAST_ACK: "last_ack",
+                    psutil.CONN_LISTEN: "listen",
+                    psutil.CONN_CLOSING: "closing",
+                    psutil.CONN_NONE: "connections",  # CONN_NONE is always returned for udp connections
+                }
+            }
 
     def _submit_devicemetrics(self, iface, vals_by_metric):
         if iface in self._excluded_ifaces or (self._exclude_iface_re and self._exclude_iface_re.match(iface)):
@@ -190,9 +272,9 @@ class Network(AgentCheck):
                     # tcp    LISTEN     0      0       ::ffff:127.0.0.1:33217  ::ffff:127.0.0.1:7199
                     # tcp    ESTAB      0      0       ::ffff:127.0.0.1:58975  ::ffff:127.0.0.1:2181
 
-                    metrics = self._parse_linux_cx_state(lines[1:], self.TCP_STATES['ss'], 1, ip_version=ip_version)
+                    metrics = self._parse_linux_cx_state(lines[1:], self.tcp_states['ss'], 1, ip_version=ip_version)
                     # Only send the metrics which match the loop iteration's ip version
-                    for stat, metric in self.CX_STATE_GAUGE.iteritems():
+                    for stat, metric in self.cx_state_gauge.iteritems():
                         if stat[0].endswith(ip_version):
                             self.gauge(metric, metrics.get(metric))
 
@@ -210,7 +292,7 @@ class Network(AgentCheck):
                 # udp        0      0 0.0.0.0:123             0.0.0.0:*
                 # udp6       0      0 :::41458                :::*
 
-                metrics = self._parse_linux_cx_state(lines[2:], self.TCP_STATES['netstat'], 5)
+                metrics = self._parse_linux_cx_state(lines[2:], self.tcp_states['netstat'], 5)
                 for metric, value in metrics.iteritems():
                     self.gauge(metric, value)
             except SubprocessOutputEmptyError:
@@ -309,17 +391,17 @@ class Network(AgentCheck):
     # Parse the output of the command that retrieves the connection state (either `ss` or `netstat`)
     # Returns a dict metric_name -> value
     def _parse_linux_cx_state(self, lines, tcp_states, state_col, ip_version=None):
-        metrics = dict.fromkeys(self.CX_STATE_GAUGE.values(), 0)
+        metrics = dict.fromkeys(self.cx_state_gauge.values(), 0)
         for l in lines:
             cols = l.split()
             if cols[0].startswith('tcp'):
                 protocol = "tcp{0}".format(ip_version) if ip_version else ("tcp4", "tcp6")[cols[0] == "tcp6"]
                 if cols[state_col] in tcp_states:
-                    metric = self.CX_STATE_GAUGE[protocol, tcp_states[cols[state_col]]]
+                    metric = self.cx_state_gauge[protocol, tcp_states[cols[state_col]]]
                     metrics[metric] += 1
             elif cols[0].startswith('udp'):
                 protocol = "udp{0}".format(ip_version) if ip_version else ("udp4", "udp6")[cols[0] == "udp6"]
-                metric = self.CX_STATE_GAUGE[protocol, 'connections']
+                metric = self.cx_state_gauge[protocol, 'connections']
                 metrics[metric] += 1
 
         return metrics
@@ -563,8 +645,8 @@ class Network(AgentCheck):
         metrics = defaultdict(int)
         for conn in psutil.net_connections():
             protocol = self._parse_protocol_psutil(conn)
-            status = self.TCP_STATES['psutil'].get(conn.status)
-            metric = self.CX_STATE_GAUGE.get((protocol, status))
+            status = self.tcp_states['psutil'].get(conn.status)
+            metric = self.cx_state_gauge.get((protocol, status))
             if metric is None:
                 self.log.warning('Metric not found for: %s,%s', protocol, status)
             else:
@@ -591,7 +673,7 @@ class Network(AgentCheck):
     def _parse_protocol_psutil(self, conn):
         """
         Returns a string describing the protocol for the given connection
-        in the form `tcp4`, 'udp4` as in `self.CX_STATE_GAUGE`
+        in the form `tcp4`, 'udp4` as in `self.cx_state_gauge`
         """
         protocol = self.PSUTIL_TYPE_MAPPING.get(conn.type, '')
         family = self.PSUTIL_FAMILY_MAPPING.get(conn.family, '')
