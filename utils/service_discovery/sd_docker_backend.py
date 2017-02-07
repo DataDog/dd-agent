@@ -102,7 +102,8 @@ class SDDockerBackend(AbstractSDBackend):
         conf_reload_set = set()
         for c_id in changed_containers:
             checks = self._get_checks_to_refresh(state, c_id)
-            conf_reload_set.update(set(checks))
+            if checks:
+                conf_reload_set.update(set(checks))
 
         if conf_reload_set:
             self.reload_check_configs = conf_reload_set
@@ -112,9 +113,13 @@ class SDDockerBackend(AbstractSDBackend):
         Use the DATADOG_ID label or the image."""
         inspect = state.inspect_container(c_id)
 
-        # if the container was removed we can't tell which check is concerned
-        # so we have to reload everything
-        if not inspect:
+        # If the container was removed we can't tell which check is concerned
+        # so we have to reload everything.
+        # Same thing if it's stopped and we're on Kubernetes in auto_conf mode
+        # because the pod was deleted and its template could have been in the annotations.
+        if not inspect or \
+                (not inspect.get('State', {}).get('Running')
+                    and Platform.is_k8s() and not self.agentConfig.get('sd_config_backend')):
             self.reload_check_configs = True
             return
 
@@ -172,7 +177,7 @@ class SDDockerBackend(AbstractSDBackend):
 
         # no specifier
         if len(tpl_parts) < 2:
-            log.warning("No key was passed for template variable %s." % tpl_var)
+            log.debug("No key was passed for template variable %s." % tpl_var)
             return self._get_fallback_ip(ip_dict)
         else:
             res = ip_dict.get(tpl_parts[-1])
@@ -185,11 +190,11 @@ class SDDockerBackend(AbstractSDBackend):
     def _get_fallback_ip(self, ip_dict):
         """try to pick the bridge key, falls back to the value of the last key"""
         if 'bridge' in ip_dict:
-            log.warning("Using the bridge network.")
+            log.debug("Using the bridge network.")
             return ip_dict['bridge']
         else:
             last_key = sorted(ip_dict.iterkeys())[-1]
-            log.warning("Trying with the last (sorted) network: '%s'." % last_key)
+            log.debug("Trying with the last (sorted) network: '%s'." % last_key)
             return ip_dict[last_key]
 
     def _get_port(self, state, c_id, tpl_var):
@@ -316,8 +321,6 @@ class SDDockerBackend(AbstractSDBackend):
             }
         config_templates = self._get_config_templates(identifier, **platform_kwargs)
         if not config_templates:
-            log.debug('No config template for container %s with identifier %s. '
-                      'It will be left unconfigured.' % (c_id[:12], identifier))
             return None
 
         check_configs = []
@@ -342,7 +345,6 @@ class SDDockerBackend(AbstractSDBackend):
         templates = []
         if config_backend is None:
             auto_conf = True
-            log.warning('No supported configuration backend was provided, using auto-config only.')
         else:
             auto_conf = False
 

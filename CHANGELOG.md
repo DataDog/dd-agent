@@ -1,6 +1,13 @@
 Changes
 =======
 
+# 5.11.0 / Unreleased
+**Linux only**
+
+This release will just ship on single change:
+It will include the [Datadog Trace Agent](https://github.com/DataDog/datadog-trace-agent) as part of the standard Datadog Agent installation.
+
+
 # 5.10.1 / 11-21-2016
 **Linux, Windows, Docker and Source Install**
 

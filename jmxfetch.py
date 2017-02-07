@@ -198,39 +198,30 @@ class JMXFetch(object):
         custom_jar_paths = []
         invalid_checks = {}
 
-        for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
-            filename = os.path.basename(conf)
-            check_name = filename.split('.')[0]
+        jmx_confd_checks = get_jmx_checks(confd_path, auto_conf=False)
 
-            if os.path.exists(conf):
-                f = open(conf)
-                try:
-                    check_config = yaml.load(f.read(), Loader=yLoader)
-                    assert check_config is not None
-                    f.close()
-                except Exception:
-                    f.close()
-                    log.error("Unable to parse yaml config in %s" % conf)
-                    continue
-
-                try:
-                    is_jmx, check_java_bin_path, check_java_options, check_tools_jar_path, check_custom_jar_paths = \
-                        cls._is_jmx_check(check_config, check_name, checks_list)
-                    if is_jmx:
-                        jmx_checks.append(filename)
-                        if java_bin_path is None and check_java_bin_path is not None:
-                            java_bin_path = check_java_bin_path
-                        if java_options is None and check_java_options is not None:
-                            java_options = check_java_options
-                        if tools_jar_path is None and check_tools_jar_path is not None:
-                            tools_jar_path = check_tools_jar_path
-                        if check_custom_jar_paths:
-                            custom_jar_paths.extend(check_custom_jar_paths)
-                except InvalidJMXConfiguration as e:
-                    log.error("%s check does not have a valid JMX configuration: %s" % (check_name, e))
-                    # Make sure check_name is a string - Fix issues with Windows
-                    check_name = check_name.encode('ascii', 'ignore')
-                    invalid_checks[check_name] = str(e)
+        for check in jmx_confd_checks:
+            check_config = check['check_config']
+            check_name = check['check_name']
+            filename = check['filename']
+            try:
+                is_jmx, check_java_bin_path, check_java_options, check_tools_jar_path, check_custom_jar_paths = \
+                    cls._is_jmx_check(check_config, check_name, checks_list)
+                if is_jmx:
+                    jmx_checks.append(filename)
+                    if java_bin_path is None and check_java_bin_path is not None:
+                        java_bin_path = check_java_bin_path
+                    if java_options is None and check_java_options is not None:
+                        java_options = check_java_options
+                    if tools_jar_path is None and check_tools_jar_path is not None:
+                        tools_jar_path = check_tools_jar_path
+                    if check_custom_jar_paths:
+                        custom_jar_paths.extend(check_custom_jar_paths)
+            except InvalidJMXConfiguration as e:
+                log.error("%s check does not have a valid JMX configuration: %s" % (check_name, e))
+                # Make sure check_name is a string - Fix issues with Windows
+                check_name = check_name.encode('ascii', 'ignore')
+                invalid_checks[check_name] = str(e)
 
         return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path, custom_jar_paths)
 
@@ -458,6 +449,45 @@ class JMXFetch(object):
             "libs", JMX_FETCH_JAR_NAME))
 
 
+def get_jmx_checks(confd_path=None, auto_conf=False):
+    jmx_checks = []
+
+    if not confd_path:
+        confd_path = get_confd_path()
+
+    if auto_conf:
+        path = confd_path + '/auto_conf'
+    else:
+        path = confd_path
+
+    for conf in glob.glob(os.path.join(path, '*.yaml')):
+        filename = os.path.basename(conf)
+        check_name = filename.split('.')[0]
+        if os.path.exists(conf):
+            with open(conf, 'r') as f:
+                try:
+                    check_config = yaml.load(f.read(), Loader=yLoader)
+                    assert check_config is not None
+                except Exception:
+                    log.error("Unable to parse yaml config in %s" % conf)
+                    continue
+
+        init_config = check_config.get('init_config', {}) or {}
+
+        if init_config.get('is_jmx') or check_name in JMX_CHECKS:
+            # If called by `get_configuration()` we should return the check_config and check_name
+            if auto_conf:
+                jmx_checks.append(check_name)
+            else:
+                jmx_checks.append({'check_config': check_config, 'check_name': check_name, 'filename': filename})
+
+    if auto_conf:
+        # Calls from SD expect all JMX checks, let's add check names in JMX_CHECKS
+        for check in JMX_CHECKS:
+            if check not in jmx_checks:
+                jmx_checks.append(check)
+
+    return jmx_checks
 
 def init(config_path=None):
     agentConfig = get_config(parse_args=False, cfg_path=config_path)

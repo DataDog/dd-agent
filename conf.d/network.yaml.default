@@ -13,3 +13,10 @@ instances:
     # Optionally completely ignore any network interface
     # matching the given regex:
     # excluded_interface_re: my-network-interface.*
+
+    # Do not combine connection states
+    # By default we combine states like fin_wait_1 and fin_wait_2
+    # together into one state: 'closing'
+    # For some people, this is fine, but others need more granular data
+    # enable this option to get more granular data
+    # combine_connection_states: no

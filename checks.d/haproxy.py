@@ -94,6 +94,7 @@ class HAProxy(AgentCheck):
         "ctime": ("gauge", "connect.time"),  # HA Proxy 1.5 and higher
         "rtime": ("gauge", "response.time"),  # HA Proxy 1.5 and higher
         "ttime": ("gauge", "session.time"),  # HA Proxy 1.5 and higher
+        "lastchg": ("gauge", "uptime")
     }
 
     SERVICE_CHECK_NAME = 'haproxy.backend_up'

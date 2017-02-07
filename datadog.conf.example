@@ -103,7 +103,7 @@ gce_updated_hostname: yes
 
 # ========================================================================== #
 # Service Discovery                                                          #
-# See https://github.com/DataDog/dd-agent/wiki/Service-Discovery for details #
+# See http://docs.datadoghq.com/guides/servicediscovery/ for details #
 # ========================================================================== #
 #
 # Service discovery allows the agent to look for running services
@@ -125,7 +125,7 @@ gce_updated_hostname: yes
 # and modify its value.
 # sd_template_dir: /datadog/check_configs
 #
-# Enable JMX checks for service disocvery
+# Enable JMX checks for service discovery
 # sd_jmx_enable: no
 #
 # ========================================================================== #

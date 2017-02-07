@@ -45,10 +45,10 @@ from config import (
     generate_jmx_configs,
     _is_affirmative,
     SD_PIPE_NAME
-
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
+from jmxfetch import get_jmx_checks
 
 # utils
 from utils.cloud_metadata import EC2
@@ -64,7 +64,6 @@ from utils.service_discovery.sd_backend import get_sd_backend
 from utils.watchdog import Watchdog
 
 # Constants
-from jmxfetch import JMX_CHECKS
 PID_NAME = "dd-agent"
 PID_DIR = None
 WATCHDOG_MULTIPLIER = 10
@@ -97,7 +96,7 @@ class Agent(Daemon):
         self._checksd = []
         self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
         self.check_frequency = None
-        # this flag can be set to True, False, or a list of checks (for partial reload)
+        # this flag can be set to True, False, or a set of checks (for partial reload)
         self.reload_configs_flag = False
         self.sd_backend = None
         self.supervisor_proxy = None
@@ -141,8 +140,8 @@ class Agent(Daemon):
                 jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
         else:
             new_checksd = copy(self._checksd)
-
-            jmx_checks = [check for check in checks_to_reload if check in JMX_CHECKS]
+            all_jmx_checks = get_jmx_checks(auto_conf=True)
+            jmx_checks = [check for check in checks_to_reload if check in all_jmx_checks]
             py_checks = set(checks_to_reload) - set(jmx_checks)
             self.refresh_specific_checks(hostname, new_checksd, py_checks)
             if self._jmx_service_discovery_enabled:
@@ -166,7 +165,7 @@ class Agent(Daemon):
             log.info("No checksd configs found")
 
     def refresh_specific_checks(self, hostname, checksd, checks):
-        """take a list of checks and for each of them:
+        """take a set of checks and for each of them:
             - remove it from the init_failed_checks if it was there
             - load a fresh config for it
             - replace its old config with the new one in initialized_checks if there was one
@@ -251,7 +250,7 @@ class Agent(Daemon):
         if self._agentConfig.get('service_discovery'):
             self.sd_backend = get_sd_backend(self._agentConfig)
 
-        if _is_affirmative(self._agentConfig.get('sd_jmx_enable')):
+        if _is_affirmative(self._agentConfig.get('sd_jmx_enable', False)):
             pipe_path = get_jmx_pipe_path()
             if Platform.is_windows():
                 pipe_name = pipe_path.format(pipename=SD_PIPE_NAME)

@@ -73,7 +73,7 @@ Please use the 1-step script available at https://app.datadoghq.com/account/sett
 
 elif [ -f /etc/debian_version -o "$DISTRIBUTION" == "Debian" -o "$DISTRIBUTION" == "Ubuntu" ]; then
     OS="Debian"
-elif [ -f /etc/redhat-release -o "$DISTRIBUTION" == "RedHat" -o "$DISTRIBUTION" == "CentOS" -o "$DISTRIBUTION" == "openSUSE" -o "$DISTRIBUTION" == "Amazon" ]; then
+elif [ -f /etc/redhat-release -o "$DISTRIBUTION" == "RedHat" -o "$DISTRIBUTION" == "CentOS" -o "$DISTRIBUTION" == "Amazon" ]; then
     OS="RedHat"
 # Some newer distros like Amazon may not have a redhat-release file
 elif [ -f /etc/system-release -o "$DISTRIBUTION" == "Amazon" ]; then
@@ -81,7 +81,8 @@ elif [ -f /etc/system-release -o "$DISTRIBUTION" == "Amazon" ]; then
 # Arista is based off of Fedora14/18 but do not have /etc/redhat-release
 elif [ -f /etc/Eos-release -o "$DISTRIBUTION" == "Arista" ]; then
     OS="RedHat"
-elif [ "$DISTRIBUTION" == "SUSE" ]; then
+# openSUSE and SUSE use /etc/SuSE-release
+elif [ -f /etc/SuSE-release -o "$DISTRIBUTION" == "SUSE" -o "$DISTRIBUTION" == "openSUSE" ]; then
     OS="SUSE"
 fi
 

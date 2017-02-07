@@ -35,6 +35,9 @@ env:
     - TRAVIS_FLAVOR=cassandra FLAVOR_VERSION=2.0.13
     - TRAVIS_FLAVOR=cassandra FLAVOR_VERSION=2.1.3
     - TRAVIS_FLAVOR=couchdb
+    # FIXME: cannot enable docker on Travis
+    # because it needs docker and we run tests in a container
+    # - TRAVIS_FLAVOR=docker_daemon
     - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=0.90.13
     - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.0.3
     - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.1.2
@@ -71,7 +74,9 @@ env:
     - TRAVIS_FLAVOR=postgres FLAVOR_VERSION=9.2.10
     - TRAVIS_FLAVOR=postgres FLAVOR_VERSION=9.3.6
     - TRAVIS_FLAVOR=postgres FLAVOR_VERSION=9.4.1
-    - TRAVIS_FLAVOR=powerdns_recursor
+    - TRAVIS_FLAVOR=powerdns_recursor FLAVOR_VERSION=3.7.3
+# Disabling as it requires a newer toolchain than Travis' - passes locally.
+#   - TRAVIS_FLAVOR=powerdns_recursor FLAVOR_VERSION=4.0.3
     - TRAVIS_FLAVOR=rabbitmq
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.4.18
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.6.17

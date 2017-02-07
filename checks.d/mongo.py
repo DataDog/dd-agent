@@ -829,6 +829,8 @@ class MongoDb(AgentCheck):
             pass
 
         dbnames = cli.database_names()
+        self.gauge('mongodb.dbs', len(dbnames), tags=tags)
+
         for db_n in dbnames:
             db_aux = cli[db_n]
             dbstats[db_n] = {'stats': db_aux.command('dbstats')}

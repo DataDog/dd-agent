@@ -705,11 +705,24 @@ def get_checksd_path(osname=None):
 def get_sdk_integrations_path(osname=None):
     if not osname:
         osname = get_os()
-    if osname in ['windows', 'mac']:
-        raise PathNotFound()
 
-    cur_path = os.path.dirname(os.path.realpath(__file__))
-    path = os.path.join(cur_path, '..', SDK_INTEGRATIONS_DIR)
+    if os.environ.get('INTEGRATIONS_DIR'):
+        if os.environ.get('TRAVIS'):
+            path = os.environ['TRAVIS_BUILD_DIR']
+        elif os.environ.get('CIRCLECI'):
+            path = os.path.join(
+                os.environ['HOME'],
+                os.environ['CIRCLE_PROJECT_REPONAME']
+            )
+        elif os.environ.get('APPVEYOR'):
+            path = os.environ['APPVEYOR_BUILD_FOLDER']
+        else:
+            cur_path = os.environ['INTEGRATIONS_DIR']
+            path = os.path.join(cur_path, '..') # might need tweaking in the future.
+    else:
+        cur_path = os.path.dirname(os.path.realpath(__file__))
+        path = os.path.join(cur_path, '..', SDK_INTEGRATIONS_DIR)
+
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
@@ -1075,32 +1088,33 @@ def load_check(agentConfig, hostname, checkname):
 
             # try to load the check and return the result
             load_success, load_failure = load_check_from_places(check_config, check_name, checks_places, agentConfig)
-            return load_success.values()[0] or load_failure
+            return load_success.values()[0] if load_success else load_failure
 
     return None
 
 def generate_jmx_configs(agentConfig, hostname, checknames=None):
     """Similar logic to load_check_directory for JMX checks"""
-    from jmxfetch import JMX_CHECKS
+    from jmxfetch import get_jmx_checks
+
+    jmx_checks = get_jmx_checks(auto_conf=True)
 
     if not checknames:
-        checknames = JMX_CHECKS
+        checknames = jmx_checks
     agentConfig['checksd_hostname'] = hostname
 
     # the check was not found, try with service discovery
     generated = {}
     for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
-        if check_name in checknames and check_name in JMX_CHECKS:
+        if check_name in checknames and check_name in jmx_checks:
             log.debug('Generating JMX config for: %s' % check_name)
 
-            sd_init_config, sd_instances = service_disco_check_config
+            _, (sd_init_config, sd_instances) = service_disco_check_config
 
             check_config = {'init_config': sd_init_config,
                             'instances': sd_instances}
 
             try:
                 yaml = config_to_yaml(check_config)
-                # generated["{}_{}".format(check_name, idx)] = yaml
                 generated["{}_{}".format(check_name, 0)] = yaml
                 log.debug("YAML generated: %s", yaml)
             except Exception:
@@ -1108,9 +1122,7 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
 
     return generated
 
-#
 # logging
-
 
 def get_log_date_format():
     return "%Y-%m-%d %H:%M:%S %Z"

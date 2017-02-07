@@ -1,8 +1,5 @@
-# stdlib
-from collections import defaultdict
-
 # 3p
-from mock import Mock
+from mock import Mock, MagicMock
 from pyVmomi import vim  # pylint: disable=E0611
 import simplejson as json
 
@@ -27,10 +24,56 @@ class MockedMOR(Mock):
         is_labeled = kwargs.get('label', False)
 
         self.name = name
+        self.parent = None
         self.customValue = []
 
         if is_labeled:
             self.customValue.append(Mock(value="DatadogMonitored"))
+
+
+class MockedContainer(Mock):
+    TYPES = [vim.Datacenter, vim.Datastore, vim.HostSystem, vim.VirtualMachine]
+
+    def __init__(self, **kwargs):
+        # Mocking
+        super(MockedContainer, self).__init__(**kwargs)
+
+        self.topology = kwargs.get('topology')
+        self.view_idx = 0
+
+    def container_view(self, topology_node, vimtype):
+        view = []
+
+        def get_child_topology(attribute):
+            entity = getattr(topology_node, attribute)
+            try:
+                for child in entity:
+                    child_topology = self.container_view(child, vimtype)
+                    view.extend(child_topology)
+            except TypeError:
+                child_topology = self.container_view(entity, vimtype)
+                view.extend(child_topology)
+
+        if isinstance(topology_node, vimtype):
+            view = [topology_node]
+
+        if hasattr(topology_node, 'childEntity'):
+            get_child_topology('childEntity')
+        elif hasattr(topology_node, 'hostFolder'):
+            get_child_topology('hostFolder')
+        elif hasattr(topology_node, 'host'):
+            get_child_topology('host')
+        elif hasattr(topology_node, 'vm'):
+            get_child_topology('vm')
+
+        return view
+
+    @property
+    def view(self):
+        view = self.container_view(self.topology, self.TYPES[self.view_idx])
+        self.view_idx += 1
+        self.view_idx = self.view_idx % len(self.TYPES)
+        return view
 
 
 def create_topology(topology_json):
@@ -83,9 +126,21 @@ def create_topology(topology_json):
                 parsed_value = value
             parsed_topology[field] = parsed_value
 
-        return MockedMOR(**parsed_topology)
+        mor = MockedMOR(**parsed_topology)
+
+        # set parent
+        for field, value in topology_desc.iteritems():
+            if isinstance(parsed_topology[field], list):
+                for m in parsed_topology[field]:
+                    if isinstance(m, MockedMOR):
+                        m.parent = mor
+            elif isinstance(parsed_topology[field], MockedMOR):
+                parsed_topology[field].parent = mor
+
+        return mor
 
     return rec_build(json.loads(Fixtures.read_file(topology_json)))
+
 
 
 class TestvSphereUnit(AgentCheckTest):
@@ -94,21 +149,31 @@ class TestvSphereUnit(AgentCheckTest):
     """
     CHECK_NAME = "vsphere"
 
-    def assertMOR(self, name=None, spec=None, tags=None, count=None):
+    def assertMOR(self, instance, name=None, spec=None, tags=None, count=None, subset=False):
         """
         Helper, assertion on vCenter Manage Object References.
         """
+        instance_name = instance['name']
         candidates = []
 
-        for mor in self._mor_list:
+        if spec:
+            mor_list = self.check.morlist_raw[instance_name][spec]
+        else:
+            mor_list = [mor for _, mors in self.check.morlist_raw[instance_name].iteritems() for mor in mors]
+
+        for mor in mor_list:
             if name is not None and name != mor['hostname']:
                 continue
 
             if spec is not None and spec != mor['mor_type']:
                 continue
 
-            if tags is not None and set(tags) != set(mor['tags']):
-                continue
+            if tags is not None:
+                if subset:
+                    if not set(tags).issubset(set(mor['tags'])):
+                        continue
+                elif set(tags) != set(mor['tags']):
+                    continue
 
             candidates.append(mor)
 
@@ -132,8 +197,8 @@ class TestvSphereUnit(AgentCheckTest):
         self.check.pool = Mock(apply_async=lambda func, args: func(*args))
 
         # Create a container for MORs
-        self._mor_list = []
-        self.check.morlist_raw = defaultdict(lambda: self._mor_list)
+        self.check.morlist_raw = {}
+
 
     def test_exclude_host(self):
         """
@@ -206,6 +271,7 @@ class TestvSphereUnit(AgentCheckTest):
         discover_mor = self.check._discover_mor
 
         # Samples
+        instance = {'name': 'vsphere_mock'}
         vcenter_topology = create_topology('vsphere_topology.json')
         tags = [u"toto"]
         include_regexes = {
@@ -214,35 +280,50 @@ class TestvSphereUnit(AgentCheckTest):
         }
         include_only_marked = True
 
-        # Discover hosts and virtual machines
-        discover_mor(123, vcenter_topology, tags, include_regexes, include_only_marked)
+        # mock pyvmomi stuff
+        view_mock = MockedContainer(topology=vcenter_topology)
+        viewmanager_mock = MagicMock(**{'CreateContainerView.return_value': view_mock})
+        content_mock = MagicMock(viewManager=viewmanager_mock)
+        server_mock = MagicMock()
+        server_mock.configure_mock(**{'RetrieveContent.return_value': content_mock})
+        self.check._get_server_instance = MagicMock(return_value=server_mock)
 
-        # Assertions
-        self.assertMOR(count=3)
+
+        # Discover hosts and virtual machines
+        discover_mor(instance, tags, include_regexes, include_only_marked)
+
+        # Assertions: 1 labaled+monitored VM + 2 hosts + 2 datacenters.
+        self.assertMOR(instance, count=5)
 
         # ... on hosts
-        self.assertMOR(spec="host", count=2)
+        self.assertMOR(instance, spec="host", count=2)
         self.assertMOR(
+            instance,
             name="host2", spec="host",
             tags=[
-                u"toto", u"vsphere_datacenter:datacenter1",
-                u"vsphere_cluster:compute_resource1", u"vsphere_type:host"
+                u"toto", u"vsphere_folder:rootFolder", u"vsphere_datacenter:datacenter1",
+                u"vsphere_compute:compute_resource1", u"vsphere_cluster:compute_resource1",
+                u"vsphere_type:host"
             ]
         )
         self.assertMOR(
+            instance,
             name="host3", spec="host",
             tags=[
-                u"toto", u"folder1", u"vsphere_datacenter:datacenter2",
+                u"toto", u"vsphere_folder:rootFolder", u"vsphere_folder:folder1",
+                u"vsphere_datacenter:datacenter2", u"vsphere_compute:compute_resource2",
                 u"vsphere_cluster:compute_resource2", u"vsphere_type:host"
             ]
         )
 
         # ...on VMs
-        self.assertMOR(spec="vm", count=1)
+        self.assertMOR(instance, spec="vm", count=1)
         self.assertMOR(
-            name="vm4", spec="vm",
+            instance,
+            name="vm4", spec="vm", subset=True,
             tags=[
-                u"toto", u"folder1", u"vsphere_datacenter:datacenter2",
-                u"vsphere_cluster:compute_resource2", u"vsphere_host:host3", u"vsphere_type:vm"
+                u"toto", u"vsphere_folder:folder1", u"vsphere_datacenter:datacenter2",
+                u"vsphere_compute:compute_resource2",u"vsphere_cluster:compute_resource2",
+                u"vsphere_host:host3", u"vsphere_type:vm"
             ]
         )

@@ -172,7 +172,12 @@ class Couchbase(AgentCheck):
         url = '%s%s' % (server, COUCHBASE_STATS_PATH)
 
         # Fetch initial stats and capture a service check based on response.
-        service_check_tags = ['instance:%s' % server]
+        service_check_tags = instance.get('tags', [])
+        if service_check_tags is None:
+            service_check_tags = []
+        else:
+            service_check_tags = list(set(service_check_tags))
+        service_check_tags.append('instance:%s' % server)
         try:
             overall_stats = self._get_stats(url, instance)
             # No overall stats? bail out now

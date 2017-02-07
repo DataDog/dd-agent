@@ -9,3 +9,9 @@ instances:
   #   if marathon is protected by basic auth
   #   user: "username"
   #   password: "password"
+  #
+  #   to disable ssl validation
+  #   disable_ssl_validation: true
+  #
+  #   to get metrics from just one application group:
+  #   group: product

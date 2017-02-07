@@ -158,7 +158,10 @@ class Kubernetes(AgentCheck):
 
         # kubelet events
         if _is_affirmative(instance.get('collect_events', DEFAULT_COLLECT_EVENTS)):
-            self._process_events(instance, pods_list)
+            try:
+                self._process_events(instance, pods_list)
+            except Exception as ex:
+                self.log.error("Event collection failed: %s" % str(ex))
 
     def _publish_raw_metrics(self, metric, dat, tags, depth=0):
         if depth >= self.max_depth:
@@ -458,7 +461,7 @@ class Kubernetes(AgentCheck):
             namespaces_endpoint = '{}/namespaces'.format(self.kubeutil.kubernetes_api_url)
             self.log.debug('Kubernetes API endpoint to query namespaces: %s' % namespaces_endpoint)
 
-            namespaces = self.kubeutil.retrieve_json_auth(namespaces_endpoint, self.kubeutil.get_auth_token())
+            namespaces = self.kubeutil.retrieve_json_auth(namespaces_endpoint)
             for namespace in namespaces.get('items', []):
                 name = namespace.get('metadata', {}).get('name', None)
                 if name and self.k8s_namespace_regexp.match(name):
@@ -469,7 +472,7 @@ class Kubernetes(AgentCheck):
         events_endpoint = '{}/events'.format(self.kubeutil.kubernetes_api_url)
         self.log.debug('Kubernetes API endpoint to query events: %s' % events_endpoint)
 
-        events = self.kubeutil.retrieve_json_auth(events_endpoint, self.kubeutil.get_auth_token())
+        events = self.kubeutil.retrieve_json_auth(events_endpoint)
         event_items = events.get('items') or []
         last_read = self.kubeutil.last_event_collection_ts
         most_recent_read = 0

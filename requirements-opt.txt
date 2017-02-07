@@ -42,7 +42,7 @@ paramiko==1.15.2
 
 # checks.d/pgbouncer.py
 # Require libpq
-psycopg2==2.6
+psycopg2==2.6.2
 
 # checks.d/win32_event_log.py
 # checks.d/wmi.py

@@ -24,7 +24,6 @@ EVENT_TYPE = 'docker'
 SERVICE_CHECK_NAME = 'docker.service_up'
 HEALTHCHECK_SERVICE_CHECK_NAME = 'docker.container_health'
 SIZE_REFRESH_RATE = 5  # Collect container sizes every 5 iterations of the check
-MAX_CGROUP_LISTING_RETRIES = 3
 CONTAINER_ID_RE = re.compile('[0-9a-f]{64}')
 
 GAUGE = AgentCheck.gauge
@@ -134,24 +133,6 @@ def compile_filter_rules(rules):
 
     return patterns, tag_names
 
-def get_filters(include, exclude):
-    # The reasoning is to check exclude first, so we can skip if there is no exclude
-    if not exclude:
-        return
-
-    filtered_tag_names = []
-    exclude_patterns = []
-    include_patterns = []
-
-    # Compile regex
-    exclude_patterns, tag_names = compile_filter_rules(exclude)
-    filtered_tag_names.extend(tag_names)
-
-    include_patterns, tag_names = compile_filter_rules(include)
-    filtered_tag_names.extend(tag_names)
-
-    return set(exclude_patterns), set(include_patterns), set(filtered_tag_names)
-
 
 class DockerDaemon(AgentCheck):
     """Collect metrics and events from Docker API and cgroups."""
@@ -182,7 +163,6 @@ class DockerDaemon(AgentCheck):
             # We configure the check with the right cgroup settings for this host
             # Just needs to be done once
             self._mountpoints = self.docker_util.get_mountpoints(CGROUP_METRICS)
-            self.cgroup_listing_retries = 0
             self._latest_size_query = 0
             self._filtered_containers = set()
             self._disable_net_metrics = False
@@ -218,6 +198,8 @@ class DockerDaemon(AgentCheck):
             # Other options
             self.collect_image_stats = _is_affirmative(instance.get('collect_images_stats', False))
             self.collect_container_size = _is_affirmative(instance.get('collect_container_size', False))
+            self.collect_container_count = _is_affirmative(instance.get('collect_container_count', False))
+            self.collect_volume_count = _is_affirmative(instance.get('collect_volume_count', False))
             self.collect_events = _is_affirmative(instance.get('collect_events', True))
             self.collect_image_size = _is_affirmative(instance.get('collect_image_size', False))
             self.collect_disk_stats = _is_affirmative(instance.get('collect_disk_stats', False))
@@ -272,6 +254,12 @@ class DockerDaemon(AgentCheck):
 
         if self.collect_container_size:
             self._report_container_size(containers_by_id)
+
+        if self.collect_container_count:
+            self._report_container_count(containers_by_id)
+
+        if self.collect_volume_count:
+            self._report_volume_count()
 
         # Collect disk stats from Docker info command
         if self.collect_disk_stats:
@@ -349,7 +337,7 @@ class DockerDaemon(AgentCheck):
                 except Exception as e:
                     self.log.debug("Unable to inspect Docker container: %s", e)
 
-
+        # TODO: deprecate these 2, they should be replaced by _report_container_count
         for tags, count in running_containers_count.iteritems():
             self.gauge("docker.containers.running", count, tags=list(tags))
 
@@ -505,7 +493,6 @@ class DockerDaemon(AgentCheck):
             tags = self._get_tags(container, PERFORMANCE)
             m_func = FUNC_MAP[GAUGE][self.use_histogram]
             if "SizeRw" in container:
-
                 m_func(self, 'docker.container.size_rw', container['SizeRw'],
                        tags=tags)
             if "SizeRootFs" in container:
@@ -542,6 +529,33 @@ class DockerDaemon(AgentCheck):
         tags = self._get_tags(container, CONTAINER)
         self.service_check(HEALTHCHECK_SERVICE_CHECK_NAME, status, tags=tags)
 
+    def _report_container_count(self, containers_by_id):
+        """Report container count per state"""
+        m_func = FUNC_MAP[GAUGE][self.use_histogram]
+
+        per_state_count = defaultdict(int)
+
+        filterlambda = lambda ctr: not self._is_container_excluded(ctr)
+        containers = list(filter(filterlambda, containers_by_id.values()))
+
+        for ctr in containers:
+            per_state_count[ctr.get('State', '')] += 1
+
+        for state in per_state_count:
+            if state:
+                m_func(self, 'docker.container.count', per_state_count[state], tags=['container_state:%s' % state.lower()])
+
+    def _report_volume_count(self):
+        """Report volume count per state (dangling or not)"""
+        m_func = FUNC_MAP[GAUGE][self.use_histogram]
+
+        attached_volumes = self.docker_client.volumes(filters={'dangling': False})
+        dangling_volumes = self.docker_client.volumes(filters={'dangling': True})
+        attached_count = len(attached_volumes['Volumes'])
+        dangling_count = len(dangling_volumes['Volumes'])
+        m_func(self, 'docker.volume.count', attached_count, tags=['volume_state:attached'])
+        m_func(self, 'docker.volume.count', dangling_count, tags=['volume_state:dangling'])
+
     def _report_image_size(self, images):
         for image in images:
             tags = self._get_tags(image, IMAGE)
@@ -560,6 +574,7 @@ class DockerDaemon(AgentCheck):
                 continue
 
             tags = self._get_tags(container, PERFORMANCE)
+
             self._report_cgroup_metrics(container, tags)
             if "_proc_root" not in container:
                 containers_without_proc_root.append(DockerUtil.container_name_extractor(container)[0])
@@ -576,9 +591,17 @@ class DockerDaemon(AgentCheck):
                 self.log.debug(message)
 
     def _report_cgroup_metrics(self, container, tags):
-        try:
-            for cgroup in CGROUP_METRICS:
+        cgroup_stat_file_failures = 0
+        for cgroup in CGROUP_METRICS:
+            try:
                 stat_file = self._get_cgroup_from_proc(cgroup["cgroup"], container['_pid'], cgroup['file'])
+            except MountException as e:
+                # We can't find a stat file
+                self.warning(str(e))
+                cgroup_stat_file_failures += 1
+                if cgroup_stat_file_failures >= len(CGROUP_METRICS):
+                    self.warning("Couldn't find the cgroup files. Skipping the CGROUP_METRICS for now.")
+            else:
                 stats = self._parse_cgroup_file(stat_file)
                 if stats:
                     for key, (dd_key, metric_func) in cgroup['metrics'].iteritems():
@@ -596,16 +619,6 @@ class DockerDaemon(AgentCheck):
                         metric_func = FUNC_MAP[metric_func][self.use_histogram]
                         if value is not None:
                             metric_func(self, mname, value, tags=tags)
-
-        except MountException as ex:
-            if self.cgroup_listing_retries > MAX_CGROUP_LISTING_RETRIES:
-                raise ex
-            else:
-                self.warning("Couldn't find the cgroup files. Skipping the CGROUP_METRICS for now."
-                             "Will retry {0} times before failing.".format(MAX_CGROUP_LISTING_RETRIES - self.cgroup_listing_retries))
-                self.cgroup_listing_retries += 1
-        else:
-            self.cgroup_listing_retries = 0
 
     def _report_net_metrics(self, container, tags):
         """Find container network metrics by looking at /proc/$PID/net/dev of the container process."""
@@ -855,7 +868,7 @@ class DockerDaemon(AgentCheck):
         except IOError:
             # It is possible that the container got stopped between the API call and now.
             # Some files can also be missing (like cpu.stat) and that's fine.
-            self.log.info("Can't open %s. Some metrics for this container may be missing." % stat_file)
+            self.log.debug("Can't open %s. Its metrics will be missing." % stat_file)
 
     def _parse_blkio_metrics(self, stats):
         """Parse the blkio metrics."""

@@ -127,15 +127,14 @@ class TestCheckDockerDaemon(AgentCheckTest):
 
     @mock.patch('docker.Client.info')
     def test_devicemapper_invalid_values(self, mock_info):
-        """Invalid values are detected in _calc_percent_disk_stats, so percent should be missing"""
+        """Invalid values are detected in _calc_percent_disk_stats and 'percent' use 'free'+'used' instead of 'total' """
         mock_info.return_value = self.mock_get_info_invalid_values()
 
         self.run_check(MOCK_CONFIG, force_reload=True)
-        metric_names = [metric[0] for metric in self.metrics]
         self.assertMetric('docker.metadata.free', value=9e6)
         self.assertMetric('docker.metadata.used', value=11e6)
         self.assertMetric('docker.metadata.total', value=10e6)
-        self.assertNotIn('docker.metadata.percent', metric_names)
+        self.assertMetric('docker.metadata.percent', value=55)
 
     @mock.patch('docker.Client.info')
     def test_devicemapper_all_zeros(self, mock_info):
@@ -292,7 +291,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
-        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+        DockerUtil._drop()
+        DockerUtil(init_config=config['init_config'], instance=config['instances'][0])
 
         self.run_check_twice(config, force_reload=True)
 
@@ -347,7 +347,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
-        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+        DockerUtil._drop()
+        DockerUtil(init_config=config['init_config'], instance=config['instances'][0])
 
         self.run_check_twice(config, force_reload=True)
 
@@ -409,7 +410,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
-        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+        DockerUtil._drop()
+        DockerUtil(init_config=config['init_config'], instance=config['instances'][0])
 
         self.run_check_twice(config, force_reload=True)
         for mname, tags in expected_metrics:
@@ -466,10 +468,17 @@ class TestCheckDockerDaemon(AgentCheckTest):
                 "collect_labels_as_tags": ["label1"],
                 "collect_image_size": True,
                 "collect_images_stats": True,
+                "collect_container_count": True,
+                "collect_dead_container_count": True,
+                "collect_exited_container_count": True,
+                "collect_volume_count": True,
+                "collect_dangling_volume_count": True,
             },
             ],
         }
-        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+        DockerUtil._drop()
+        DockerUtil(init_config=config['init_config'], instance=config['instances'][0])
+
         self.run_check(config, force_reload=True)
         for mname, tags in expected_metrics:
             self.assertMetric(mname, tags=tags, count=1, at_least=1)
@@ -510,7 +519,8 @@ class TestCheckDockerDaemon(AgentCheckTest):
             },
             ],
         }
-        DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
+        DockerUtil._drop()
+        DockerUtil(init_config=config['init_config'], instance=config['instances'][0])
 
         self.run_check(config, force_reload=True)
         for mname, tags in expected_metrics:
@@ -540,8 +550,7 @@ class TestCheckDockerDaemon(AgentCheckTest):
             "init_config": {},
             "instances": [{
                 "url": "unix://var/run/docker.sock",
-                "collect_images_stats": True,
-                "health_service_checks": True,
+                "health_service_check_whitelist": ["docker_image:nginx", "docker_image:redis"],
             },
             ],
         }
@@ -549,7 +558,22 @@ class TestCheckDockerDaemon(AgentCheckTest):
         DockerUtil().set_docker_settings(config['init_config'], config['instances'][0])
 
         self.run_check(config, force_reload=True)
-        self.assertServiceCheck('docker.container_health', at_least=2)
+        self.assertServiceCheck('docker.container_health', count=2)
+
+        config = {
+            "init_config": {},
+            "instances": [{
+                "url": "unix://var/run/docker.sock",
+                "health_service_check_whitelist": [],
+            },
+            ],
+        }
+
+        DockerUtil._drop()
+        DockerUtil(init_config=config['init_config'], instance=config['instances'][0])
+
+        self.run_check(config, force_reload=True)
+        self.assertServiceCheck('docker.container_health', count=0)
 
 
     def test_container_size(self):
@@ -602,10 +626,16 @@ class TestCheckDockerDaemon(AgentCheckTest):
             ({'RepoTags': ['localhost/redis:latest']}, [['localhost/redis'], ['latest']]),
             ({'RepoTags': ['localhost:5000/redis:latest']}, [['localhost:5000/redis'], ['latest']]),
             ({'RepoTags': ['localhost:5000/redis:latest', 'localhost:5000/redis:v1.1']}, [['localhost:5000/redis'], ['latest', 'v1.1']]),
+            ({'RepoTags': [], 'RepoDigests': [u'datadog/docker-dd-agent@sha256:47a59c2ea4f6d9555884aacc608b303f18bde113b1a3a6743844bfc364d73b44']},
+                [['datadog/docker-dd-agent'], None]),
         ]
         for entity in entities:
             self.assertEqual(sorted(DockerUtil.image_tag_extractor(entity[0], 0)), sorted(entity[1][0]))
-            self.assertEqual(sorted(DockerUtil.image_tag_extractor(entity[0], 1)), sorted(entity[1][1]))
+            tags = DockerUtil.image_tag_extractor(entity[0], 1)
+            if isinstance(entity[1][1], list):
+                self.assertEqual(sorted(tags), sorted(entity[1][1]))
+            else:
+                self.assertEqual(tags, entity[1][1])
 
     def test_container_name_extraction(self):
         containers = [

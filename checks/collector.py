@@ -783,7 +783,7 @@ class Collector(object):
         try:
             output, err, _ = get_subprocess_output(["gohai"] + options, log)
             if err:
-                log.warning("GOHAI LOG | {0}".format(err))
+                log.debug("GOHAI LOG | %s", err)
         except OSError as e:
             if e.errno == 2:  # file not found, expected when install from source
                 log.info("gohai file not found")

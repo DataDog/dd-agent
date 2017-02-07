@@ -82,11 +82,15 @@ class Riak(AgentCheck):
         url = instance['url']
         default_timeout = self.init_config.get('default_timeout', 5)
         timeout = float(instance.get('timeout', default_timeout))
+        cacert = instance.get('cacert', None)
+        disable_cert_verify = instance.get('disable_cert_verify', False)
         tags = instance.get('tags', [])
         service_check_tags = tags + ['url:%s' % url]
 
         try:
-            h = Http(timeout=timeout)
+            h = Http(timeout=timeout,
+                     ca_certs=cacert,
+                     disable_ssl_certificate_validation=disable_cert_verify)
             resp, content = h.request(url, "GET")
         except (socket.timeout, socket.error, HttpLib2Error) as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,

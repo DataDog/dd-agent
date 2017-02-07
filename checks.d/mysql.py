@@ -1001,9 +1001,13 @@ class MySql(AgentCheck):
                 results['Innodb_os_file_fsyncs'] = long(row[8])
             elif line.find('Pending normal aio reads:') == 0:
                 # Pending normal aio reads: 0, aio writes: 0,
+                # or Pending normal aio reads: 0 [0, 0] , aio writes: 0 [0, 0] ,
                 # or Pending normal aio reads: [0, 0, 0, 0] , aio writes: [0, 0, 0, 0] ,
                 # or Pending normal aio reads: 0 [0, 0, 0, 0] , aio writes: 0 [0, 0, 0, 0] ,
-                if len(row) == 16:
+                if len(row) == 14:
+                    results['Innodb_pending_normal_aio_reads'] = long(row[4])
+                    results['Innodb_pending_normal_aio_writes'] = long(row[10])
+                elif len(row) == 16:
                     results['Innodb_pending_normal_aio_reads'] = (long(row[4]) + long(row[5]) +
                                                                   long(row[6]) + long(row[7]))
                     results['Innodb_pending_normal_aio_writes'] = (long(row[11]) + long(row[12]) +

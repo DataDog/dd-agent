@@ -4,6 +4,8 @@
 
 This document aims to provide some basic guidelines to contribute to this repository, but keep in mind that these are just guidelines, not rules; use your best judgment and feel free to propose changes to this document in a pull request.
 
+Want help with your PRs on this project? We offer [office hours](https://github.com/DataDog/dd-agent/wiki/Community-Office-Hours) twice a month via Slack and Google Hangouts.
+
 ## Submitting issues
 
 - You can first take a look at the [Troubleshooting](https://datadog.zendesk.com/hc/en-us/sections/200766955-Troubleshooting) section of our [Knowledge base](https://datadog.zendesk.com/hc/en-us).
