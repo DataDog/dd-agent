@@ -36,19 +36,15 @@ if sys.platform == 'win32':
 
     # Modules to force-include in the exe
     include_modules = [
-        # stdlib
-        'os',
-        'time',
-
         # 3p
-        'wmi',
         'psutil',
-        'win32api',
+        'servicemanager',
         'subprocess',
+        'win32api',
+        'win32event',
         'win32service',
         'win32serviceutil',
-        'win32event',
-        'servicemanager',
+        'wmi',
     ]
 
     class Target(object):
@@ -70,7 +66,7 @@ if sys.platform == 'win32':
                 'compressed': True,
                 'bundle_files': 3,
                 'excludes': ['numpy'],
-                'dll_excludes': ["IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll", "WTSAPI32.dll"],
+                'dll_excludes': ["IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll", "crypt32.dll"],
                 'ascii': False,
             },
         },

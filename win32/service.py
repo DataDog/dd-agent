@@ -58,7 +58,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         # Let's have an uptime counter
         self.start_ts = None
 
-        # find the main agent dir, for instance C:\Program Files\Datadog\Datadog Agent\agent
+        # find the main agent dir, for instance C:\Program Files\Datadog\Datadog Agent
         dd_dir = self._find_dd_dir()
         # clean the env vars
         agent_env = self._prepare_agent_env(dd_dir)
