@@ -4,6 +4,7 @@
 
 # stdlib
 import logging
+import os.path
 import re
 import socket
 
@@ -44,6 +45,14 @@ def _get_hostname_unix():
             return out.strip()
     except Exception:
         return None
+
+def _allow_ec2_instance_id_win32(config):
+    """
+    Allow EC2 instance IDs as hostname on Windows only if:
+    - the relevant config parameter is set to True (it defaults to False to avoid backwards-compat issues)
+    - the EC2-specific path exists
+    """
+    return config.get('windows_use_ec2_instance_id') and os.path.exists('C:\Program Files\Amazon\Ec2ConfigService')
 
 def get_hostname(config=None):
     """
@@ -94,8 +103,12 @@ def get_hostname(config=None):
             if unix_hostname and is_valid_hostname(unix_hostname):
                 hostname = unix_hostname
 
-    # if we have an ec2 default hostname, see if there's an instance-id available
-    if (Platform.is_ecs_instance()) or (hostname is not None and EC2.is_default(hostname)):
+    # if the host is an ECS worker, or has a default EC2 hostname,
+    # or is a windows machine that's allowed to use an EC2 instance ID:
+    # try and find an EC2 instance ID
+    if (Platform.is_ecs_instance()) or \
+       (hostname is not None and EC2.is_default(hostname)) or \
+       (hostname is None and Platform.is_windows() and _allow_ec2_instance_id_win32(config)):
         instanceid = EC2.get_instance_id(config)
         if instanceid:
             hostname = instanceid

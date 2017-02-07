@@ -343,6 +343,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'listen_port': None,
         'tags': None,
         'use_ec2_instance_id': False,  # DEPRECATED
+        'windows_use_ec2_instance_id': False,  # disabled by default to avoid backwards-compat issues
         'version': get_version(),
         'watchdog': True,
         'additional_checksd': '/etc/dd-agent/checks.d/',
@@ -470,6 +471,9 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             use_ec2_instance_id = config.get('Main', 'use_ec2_instance_id')
             # translate yes into True, the rest into False
             agentConfig['use_ec2_instance_id'] = (use_ec2_instance_id.lower() == 'yes')
+
+        agentConfig['windows_use_ec2_instance_id'] = config.has_option('Main', 'windows_use_ec2_instance_id') and \
+            _is_affirmative(config.get('Main', 'windows_use_ec2_instance_id'))
 
         if config.has_option('Main', 'check_freq'):
             try:
