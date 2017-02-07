@@ -195,6 +195,7 @@ class DDProcess(object):
     """
     DEFAULT_MAX_RESTARTS = 5
     _RESTART_TIMEFRAME = 3600
+    _STOP_TIMEOUT = 3
 
     def __init__(self, name, command, env, enabled=True, max_restarts=None):
         self._name = name
@@ -220,13 +221,20 @@ class DDProcess(object):
     def stop(self):
         if self._proc is not None and self._proc.is_running():
             log.info("Stopping %s...", self._name)
+            children_proc = self._proc.children()
+
             self._proc.terminate()
 
-            psutil.wait_procs([self._proc], timeout=3)
-
+            # Should never have to wait, terminate is equivalent to kill on Windows
+            self._proc.wait(timeout=self._STOP_TIMEOUT)
             if self._proc.is_running():
                 log.debug("%s didn't exit. Killing it.", self._name)
                 self._proc.kill()
+
+            # Mostly for JMXFetch, if it didn't exit yet, kill it
+            for child_proc in children_proc:
+                if child_proc.is_running():
+                    child_proc.kill()
 
             log.info("%s is stopped.", self._name)
         else:
@@ -268,6 +276,10 @@ class DDProcess(object):
 
 
 class JMXFetchProcess(DDProcess):
+    # It's an entire JMXFetch run, because JMXFetch only checks that the exit
+    # file exists at the beginning of each run
+    _JMX_STOP_TIMEOUT = 20
+
     def start(self):
         if self.is_enabled():
             JMXFiles.clean_exit_file()
@@ -280,6 +292,10 @@ class JMXFetchProcess(DDProcess):
         """
         if self._proc is not None and self._proc.is_running():
             JMXFiles.write_exit_file()
+            try:
+                self._proc.wait(timeout=self._JMX_STOP_TIMEOUT)
+            except psutil.TimeoutExpired:
+                log.debug("JMXFetch process didn't stop after %ss, killing it", self._JMX_STOP_TIMEOUT)
 
         super(JMXFetchProcess, self).stop()
 
