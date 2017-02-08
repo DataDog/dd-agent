@@ -18,8 +18,6 @@ https://github.com/DataDog/datadog-trace-agent/releases/tag/5.11.0
 [IMPROVEMENT] Supervisor: Add trace-agent as an optional process managed by supervisor
 [IMPROVEMENT] Flare: Add trace-agent log file to flare output
 [IMPROVEMENT] Core: append the output of trace-agent -info to service datadog-agent info command
-This release will just ship on single change:
-It will include the [Datadog Trace Agent](https://github.com/DataDog/datadog-trace-agent) as part of the standard Datadog Agent installation.
 
 
 # 5.10.1 / 11-21-2016
