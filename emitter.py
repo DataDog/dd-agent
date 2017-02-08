@@ -72,13 +72,12 @@ def sanitize_payload(item, log, sanitize_func):
 
     return item
 
-def http_emitter(message, log, agentConfig, endpoint):
-    "Send payload"
-    url = agentConfig['dd_url']
+def post_json(url, message, agentConfig, log):
+
+    # Post back the data
 
     log.debug('http_emitter: attempting postback to ' + url)
 
-    # Post back the data
     try:
         try:
             payload = json.dumps(message)
@@ -107,12 +106,6 @@ def http_emitter(message, log, agentConfig, endpoint):
     log.debug("payload_size=%d, compressed_size=%d, compression_ratio=%.3f"
               % (len(payload), len(zipped), float(len(payload))/float(len(zipped))))
 
-    apiKey = message.get('apiKey', None)
-    if not apiKey:
-        raise Exception("The http emitter requires an api key")
-
-    url = "{0}/intake/{1}?api_key={2}".format(url, endpoint, apiKey)
-
     try:
         headers = post_headers(agentConfig, zipped)
         r = requests.post(url, data=zipped, timeout=5, headers=headers)
@@ -128,6 +121,36 @@ def http_emitter(message, log, agentConfig, endpoint):
             log.error("Received status code: {0}".format(r.status_code))
         except Exception:
             pass
+
+
+
+def http_emitter(message, log, agentConfig, endpoint):
+    "Send payload"
+    apiKey = message.get('apiKey', None)
+    if not apiKey:
+        raise Exception("The http emitter requires an api key")
+    legacy_url = "{0}/intake/{1}?api_key={2}".format(agentConfig['dd_url'], endpoint, apiKey)
+    metrics_endpoint = "{0}/api/v1/series?api_key={1}".format(agentConfig['dd_url'], apiKey)
+
+    metrics = list(message.get('metrics'))
+    del message['metrics']
+
+    metrics_payload = {"series": []}
+
+    for ts in metrics:
+        metrics_payload["series"].append(
+            {
+                "metric": ts[0],
+                "points": [[ts[1], ts[2]]],
+                "type": ts[3].get('type'),
+                "host": ts[3].get('hostname'),
+                "tags": ts[3].get('tags'),
+            }
+
+        )
+
+    post_json(legacy_url, message, agentConfig, log)
+    post_json(metrics_endpoint, metrics_payload, agentConfig, log)
 
 
 def post_headers(agentConfig, payload):
