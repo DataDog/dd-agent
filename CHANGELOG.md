@@ -9,15 +9,15 @@ Changes
 This release bundles the datadog-trace-agent as part of Linux and Docker installs. The dd-agent codebase contains a minimal set of changes to ensure the new trace-agent process will plug neatly into existing agent installs. Beta customers of Datadog's tracing tool will have received an email detailing the steps to transition to dd-agent 5.11.0 from the deprecated dd-trace-agent package.
 
 For more information:
-https://github.com/DataDog/datadog-trace-agent
-https://github.com/DataDog/datadog-trace-agent/releases/tag/5.11.0
-5.10.1...5.11.0
+- https://github.com/DataDog/dd-agent/compare/5.10.1...5.11.0
+- https://github.com/DataDog/datadog-trace-agent
+- https://github.com/DataDog/datadog-trace-agent/releases/tag/5.11.0
 
 ### Changes
 
-[IMPROVEMENT] Supervisor: Add trace-agent as an optional process managed by supervisor
-[IMPROVEMENT] Flare: Add trace-agent log file to flare output
-[IMPROVEMENT] Core: append the output of trace-agent -info to service datadog-agent info command
+* [IMPROVEMENT] Supervisor: Add trace-agent as an optional process managed by supervisor
+* [IMPROVEMENT] Flare: Add trace-agent log file to flare output
+* [IMPROVEMENT] Core: append the output of trace-agent -info to service datadog-agent info command
 
 
 # 5.10.1 / 11-21-2016
