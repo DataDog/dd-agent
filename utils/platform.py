@@ -94,3 +94,8 @@ class Platform(object):
     @staticmethod
     def is_k8s():
         return 'KUBERNETES_PORT' in os.environ
+
+    @staticmethod
+    def is_swarm():
+        from utils.dockerutil import DockerUtil
+        return DockerUtil().is_swarm()
