@@ -94,8 +94,9 @@ def get_hostname(config=None):
             if unix_hostname and is_valid_hostname(unix_hostname):
                 hostname = unix_hostname
 
-    # if we have an ec2 default hostname, see if there's an instance-id available
-    if (Platform.is_ecs_instance()) or (hostname is not None and EC2.is_default(hostname)):
+    # if we don't have a hostname, or we have an ec2 default hostname,
+    # see if there's an instance-id available
+    if not Platform.is_windows() and (hostname is None or Platform.is_ecs_instance() or EC2.is_default(hostname)):
         instanceid = EC2.get_instance_id(config)
         if instanceid:
             hostname = instanceid
