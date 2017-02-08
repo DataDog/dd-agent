@@ -16,7 +16,7 @@
 # fails, so they shouldn't have too many deps
 ###########################################################
 
-boto==2.39.0
+boto==2.45.0
 ntplib==0.3.3
 # the libyaml bindings are optional
 pyyaml==3.11
