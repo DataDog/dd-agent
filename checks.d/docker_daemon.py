@@ -134,6 +134,10 @@ def compile_filter_rules(rules):
     return patterns, tag_names
 
 
+class BogusPIDException(Exception):
+    pass
+
+
 class DockerDaemon(AgentCheck):
     """Collect metrics and events from Docker API and cgroups."""
 
@@ -575,11 +579,14 @@ class DockerDaemon(AgentCheck):
 
             tags = self._get_tags(container, PERFORMANCE)
 
-            self._report_cgroup_metrics(container, tags)
-            if "_proc_root" not in container:
-                containers_without_proc_root.append(DockerUtil.container_name_extractor(container)[0])
-                continue
-            self._report_net_metrics(container, tags)
+            try:
+                self._report_cgroup_metrics(container, tags)
+                if "_proc_root" not in container:
+                    containers_without_proc_root.append(DockerUtil.container_name_extractor(container)[0])
+                    continue
+                self._report_net_metrics(container, tags)
+            except BogusPIDException:
+                self.log.exception('Unable to report cgroup metrics.')
 
         if containers_without_proc_root:
             message = "Couldn't find pid directory for containers: {0}. They'll be missing network metrics".format(
@@ -592,6 +599,9 @@ class DockerDaemon(AgentCheck):
 
     def _report_cgroup_metrics(self, container, tags):
         cgroup_stat_file_failures = 0
+        if not container.get('_pid'):
+            raise BogusPIDException('Cannot report on bogus pid(0)')
+
         for cgroup in CGROUP_METRICS:
             try:
                 stat_file = self._get_cgroup_from_proc(cgroup["cgroup"], container['_pid'], cgroup['file'])
