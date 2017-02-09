@@ -27,6 +27,7 @@ protobuf==3.1.0
 # checks.d/snmp.py
 # Require a compiler because pycrypto is a dep
 pysnmp-mibs==0.1.4
+pyasn1==0.1.9
 pysnmp==4.2.5
 
 # checks.d/mongo.py
