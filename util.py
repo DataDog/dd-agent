@@ -4,6 +4,7 @@
 
 # stdlib
 from collections import deque
+import locale
 import logging
 import os
 import platform
@@ -267,3 +268,16 @@ def chunks(iterable, chunk_size):
             if count:
                 yield chunk[:count]
             break
+
+def decode_tzname(tzname):
+    """ On Windows, decodes the timezone from the system-preferred encoding
+    """
+    if Platform.is_windows():
+        try:
+            decoded_tzname = map(lambda tz: tz.decode(locale.getpreferredencoding()), tzname)
+        except Exception:
+            log.exception("Failed decoding timezone with encoding %s", locale.getpreferredencoding())
+            return ('', '')
+        return tuple(decoded_tzname)
+
+    return tzname

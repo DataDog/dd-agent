@@ -4,7 +4,6 @@
 
 # stdlib
 import collections
-import locale
 import logging
 import pprint
 import socket
@@ -37,8 +36,10 @@ import modules
 from util import (
     get_uuid,
     Timer,
+    decode_tzname,
 )
 from utils.cloud_metadata import GCE, EC2
+from utils.gohai import run_gohai_metadata, run_gohai_processes
 from utils.logger import log_exceptions
 from utils.jmx import JMXFiles
 from utils.platform import Platform, get_os
@@ -368,7 +369,7 @@ class Collector(object):
 
         # process collector of gohai (compliant with payload of legacy "resources checks")
         if not Platform.is_windows() and self._should_send_additional_data('processes'):
-            gohai_processes = self._run_gohai_processes()
+            gohai_processes = run_gohai_processes()
             if gohai_processes:
                 try:
                     gohai_processes_json = json.loads(gohai_processes)
@@ -581,23 +582,6 @@ class Collector(object):
 
         return check_status
 
-    def _emit(self, payload):
-        """ Send the payload via the emitters. """
-        statuses = []
-        for emitter in self.emitters:
-            # Don't try to send to an emitter if we're stopping/
-            if not self.continue_running:
-                return statuses
-            name = emitter.__name__
-            emitter_status = EmitterStatus(name)
-            try:
-                emitter(payload, log, self.agentConfig)
-            except Exception as e:
-                log.exception("Error running emitter: %s" % emitter.__name__)
-                emitter_status = EmitterStatus(name, e)
-            statuses.append(emitter_status)
-        return statuses
-
     def _is_first_run(self):
         return self.run_count <= 1
 
@@ -642,7 +626,7 @@ class Collector(object):
         # Periodically send the host metadata.
         if self._should_send_additional_data('host_metadata'):
             # gather metadata with gohai
-            gohai_metadata = self._run_gohai_metadata()
+            gohai_metadata = run_gohai_metadata()
             if gohai_metadata:
                 payload['gohai'] = gohai_metadata
 
@@ -751,7 +735,7 @@ class Collector(object):
             pass
 
         metadata["hostname"] = self.hostname
-        metadata["timezones"] = self._decode_tzname(time.tzname)
+        metadata["timezones"] = decode_tzname(time.tzname)
 
         # Add cloud provider aliases
         host_aliases = GCE.get_host_aliases(self.agentConfig)
@@ -772,42 +756,4 @@ class Collector(object):
 
         return False
 
-    def _run_gohai_metadata(self):
-        return self._run_gohai(['--exclude', 'processes'])
 
-    def _run_gohai_processes(self):
-        return self._run_gohai(['--only', 'processes'])
-
-    def _run_gohai(self, options):
-        output = None
-        try:
-            if not Platform.is_windows():
-                command = "gohai"
-            else:
-                command = "gohai\gohai.exe"
-            output, err, _ = get_subprocess_output([command] + options, log)
-            if err:
-                log.debug("GOHAI LOG | %s", err)
-        except OSError as e:
-            if e.errno == 2:  # file not found, expected when install from source
-                log.info("gohai file not found")
-            else:
-                log.warning("Unexpected OSError when running gohai %s", e)
-        except Exception as e:
-            log.warning("gohai command failed with error %s", e)
-
-        return output
-
-    @staticmethod
-    def _decode_tzname(tzname):
-        """ On Windows, decodes the timezone from the system-preferred encoding
-        """
-        if Platform.is_windows():
-            try:
-                decoded_tzname = map(lambda tz: tz.decode(locale.getpreferredencoding()), tzname)
-            except Exception:
-                log.exception("Failed decoding timezone with encoding %s", locale.getpreferredencoding())
-                return ('', '')
-            return tuple(decoded_tzname)
-
-        return tzname

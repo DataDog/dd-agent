@@ -24,53 +24,9 @@ requests_log = logging.getLogger("requests.packages.urllib3")
 requests_log.setLevel(logging.WARN)
 requests_log.propagate = True
 
-# From http://stackoverflow.com/questions/92438/stripping-non-printable-characters-from-a-string-in-python
-control_chars = ''.join(map(unichr, range(0, 32) + range(127, 160)))
-control_char_re = re.compile('[%s]' % re.escape(control_chars))
 
 
-def remove_control_chars(s, log):
-    if isinstance(s, str):
-        sanitized = control_char_re.sub('', s)
-    elif isinstance(s, unicode):
-        sanitized = ''.join(['' if unicodedata.category(c) in ['Cc','Cf'] else c
-                            for c in u'{}'.format(s)])
-    if sanitized != s:
-        log.warning('Removed control chars from string: ' + s)
-    return sanitized
 
-def remove_undecodable_chars(s, log):
-    sanitized = s
-    if isinstance(s, str):
-        try:
-            s.decode('utf8')
-        except UnicodeDecodeError:
-            sanitized = s.decode('utf8', errors='ignore')
-            log.warning(u'Removed undecodable chars from string: ' + s.decode('utf8', errors='replace'))
-    return sanitized
-
-def sanitize_payload(item, log, sanitize_func):
-    if isinstance(item, dict):
-        newdict = {}
-        for k, v in item.iteritems():
-            newval = sanitize_payload(v, log, sanitize_func)
-            newkey = sanitize_func(k, log)
-            newdict[newkey] = newval
-        return newdict
-    if isinstance(item, list):
-        newlist = []
-        for listitem in item:
-            newlist.append(sanitize_payload(listitem, log, sanitize_func))
-        return newlist
-    if isinstance(item, tuple):
-        newlist = []
-        for listitem in item:
-            newlist.append(sanitize_payload(listitem, log, sanitize_func))
-        return tuple(newlist)
-    if isinstance(item, basestring):
-        return sanitize_func(item, log)
-
-    return item
 
 def post_json(url, message, agentConfig, log):
 
