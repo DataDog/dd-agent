@@ -14,7 +14,7 @@ from math import ceil
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-from utils.dockerutil import DockerUtil, MountException
+from utils.dockerutil import DockerUtil, MountException, BogusPIDException
 from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.sd_backend import get_sd_backend
@@ -132,10 +132,6 @@ def compile_filter_rules(rules):
         tag_names.append(rule.split(':')[0])
 
     return patterns, tag_names
-
-
-class BogusPIDException(Exception):
-    pass
 
 
 class DockerDaemon(AgentCheck):

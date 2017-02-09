@@ -23,6 +23,9 @@ DATADOG_ID = 'com.datadoghq.sd.check.id'
 class MountException(Exception):
     pass
 
+class BogusPIDException(Exception):
+    pass
+
 class CGroupException(Exception):
     pass
 
