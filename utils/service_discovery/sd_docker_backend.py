@@ -17,6 +17,7 @@ from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
+
 log = logging.getLogger(__name__)
 
 
@@ -259,6 +260,13 @@ class SDDockerBackend(AbstractSDBackend):
 
             # get kubernetes namespace
             tags.append('kube_namespace:%s' % pod_metadata.get('namespace'))
+
+        elif Platform.is_swarm():
+            c_labels = state.inspect_container(c_id).get('Labels', {})
+            swarm_svc = c_labels.get(DockerUtil.SWARM_SVC_LABEL)
+            if swarm_svc:
+                tags.append('swarm_service:%s' % c_labels)
+
 
         return tags
 

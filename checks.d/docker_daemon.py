@@ -103,6 +103,10 @@ DEFAULT_IMAGE_TAGS = [
     'image_tag'
 ]
 
+DEFAULT_LABELS_AS_TAGS = [
+    DockerUtil.SWARM_SVC_LABEL
+]
+
 
 TAG_EXTRACTORS = {
     "docker_image": lambda c: [c["Image"]],
@@ -169,7 +173,7 @@ class DockerDaemon(AgentCheck):
 
             # Set tagging options
             self.custom_tags = instance.get("tags", [])
-            self.collect_labels_as_tags = instance.get("collect_labels_as_tags", [])
+            self.collect_labels_as_tags = instance.get("collect_labels_as_tags", DEFAULT_LABELS_AS_TAGS)
             self.kube_labels = {}
 
             self.use_histogram = _is_affirmative(instance.get('use_histogram', False))
@@ -388,6 +392,10 @@ class DockerDaemon(AgentCheck):
                                 tags.append("kube_namespace:%s" % namespace)
                                 tags.append("kube_replication_controller:%s" % replication_controller)
                                 tags.append("pod_name:%s" % pod_name)
+
+                        elif k == DockerUtil.SWARM_SVC_LABEL and Platform.is_swarm():
+                            if v:
+                                tags.append("swarm_service:%s" % v)
 
                         elif not v:
                             tags.append(k)

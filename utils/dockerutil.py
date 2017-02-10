@@ -17,6 +17,7 @@ from docker import Client, tls
 from utils.platform import Platform
 from utils.singleton import Singleton
 
+SWARM_SVC_LABEL = 'com.docker.swarm.service.name'
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 
 
@@ -59,6 +60,9 @@ class DockerUtil:
 
         # At first run we'll just collect the events from the latest 60 secs
         self._latest_event_collection_ts = int(time.time()) - 60
+
+        # Try to detect if we are on Swarm
+        self.fetch_swarm_state()
 
         # Try to detect if we are on ECS
         self._is_ecs = False
@@ -119,6 +123,22 @@ class DockerUtil:
 
     def is_ecs(self):
         return self._is_ecs
+
+    def is_swarm(self):
+        if self.swarm_node_state == 'pending':
+            self.fetch_swarm_state()
+        if self.swarm_node_state == 'active':
+            return True
+        else:
+            return False
+
+    def fetch_swarm_state(self):
+        self.swarm_node_state = None
+        try:
+            info = DockerUtil().client.info()
+            self.swarm_node_state = info.get('Swarm', {}).get('LocalNodeState')
+        except Exception:
+            pass
 
     def get_events(self):
         self.events = []
