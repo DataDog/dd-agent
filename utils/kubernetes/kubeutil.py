@@ -213,6 +213,13 @@ class KubeUtil:
             self._fetch_host_data()
         return self._node_ip, self._node_name
 
+    def get_hostname(self):
+        """
+        Return the hostname, based on get_node_info
+        """
+        _, hostname = self.get_node_info()
+        return hostname
+
     def _fetch_host_data(self):
         """
         Retrieve host name and IP address from the payload returned by the listing

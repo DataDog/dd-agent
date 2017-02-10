@@ -19,7 +19,11 @@ MAX_HOSTNAME_LEN = 255
 
 log = logging.getLogger(__name__)
 
+
 def is_valid_hostname(hostname):
+    # None or empty
+    if not hostname:
+        return False
     if hostname.lower() in set([
         'localhost',
         'localhost.localdomain',
@@ -36,6 +40,7 @@ def is_valid_hostname(hostname):
         return False
     return True
 
+
 def _get_hostname_unix():
     try:
         # try fqdn
@@ -44,6 +49,14 @@ def _get_hostname_unix():
             return out.strip()
     except Exception:
         return None
+
+
+def get_config_hostname(config):
+    if config is None:
+        from config import get_config
+        config = get_config(parse_args=True)
+    return config.get('hostname')
+
 
 def get_hostname(config=None):
     """
@@ -59,43 +72,38 @@ def get_hostname(config=None):
     hostname = None
 
     # first, try the config
-    if config is None:
-        from config import get_config
-        config = get_config(parse_args=True)
-    config_hostname = config.get('hostname')
-    if config_hostname and is_valid_hostname(config_hostname):
+    config_hostname = get_config_hostname(config)
+    if is_valid_hostname(config_hostname):
         return config_hostname
 
     # Try to get GCE instance name
     gce_hostname = GCE.get_hostname(config)
-    if gce_hostname is not None:
-        if is_valid_hostname(gce_hostname):
-            return gce_hostname
+    if is_valid_hostname(gce_hostname):
+        return gce_hostname
 
     # Try to get the docker hostname
     if Platform.is_containerized():
-
         # First we try from the Docker API
         docker_util = DockerUtil()
         docker_hostname = docker_util.get_hostname(use_default_gw=False)
-        if docker_hostname is not None and is_valid_hostname(docker_hostname):
+        if is_valid_hostname(docker_hostname):
             hostname = docker_hostname
 
-        elif Platform.is_k8s(): # Let's try from the kubelet
+        elif Platform.is_k8s():  # Let's try from the kubelet
             kube_util = KubeUtil()
-            _, kube_hostname = kube_util.get_node_info()
-            if kube_hostname is not None and is_valid_hostname(kube_hostname):
+            kube_hostname = kube_util.get_hostname()
+            if is_valid_hostname(kube_hostname):
                 hostname = kube_hostname
 
     # then move on to os-specific detection
     if hostname is None:
         if Platform.is_unix() or Platform.is_solaris():
             unix_hostname = _get_hostname_unix()
-            if unix_hostname and is_valid_hostname(unix_hostname):
+            if is_valid_hostname(unix_hostname):
                 hostname = unix_hostname
 
     # if we have an ec2 default hostname, see if there's an instance-id available
-    if (Platform.is_ecs_instance()) or (hostname is not None and EC2.is_default(hostname)):
+    if Platform.is_ecs() or (hostname is not None and EC2.is_default(hostname)):
         instanceid = EC2.get_instance_id(config)
         if instanceid:
             hostname = instanceid
@@ -106,7 +114,7 @@ def get_hostname(config=None):
             socket_hostname = socket.gethostname()
         except socket.error:
             socket_hostname = None
-        if socket_hostname and is_valid_hostname(socket_hostname):
+        if is_valid_hostname(socket_hostname):
             hostname = socket_hostname
 
     if hostname is None:

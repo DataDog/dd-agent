@@ -83,7 +83,7 @@ class Platform(object):
             return "32bit"
 
     @staticmethod
-    def is_ecs_instance():
+    def is_ecs():
         from utils.dockerutil import DockerUtil
         return DockerUtil().is_ecs()
 
