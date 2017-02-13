@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 5.11.1 / Unreleased
+# 5.11.1 / 02-13-2017
 **Linux and Docker only**
 
 ### Details
@@ -10,7 +10,7 @@ Their was a regression in 5.11.0 due to an inadverted subdependency upgrade, bre
 
 ### Changes
 
-* [REGRESSION] pinning of `pyasn1` to version 0.1.9. See [#3183][] and [omnibus-software-111](https://github.com/DataDog/omnibus-software/pull/111).
+* [REGRESSION] pinning of `pyasn1` to version 0.1.9. See [#3183][], [omnibus-software-111](https://github.com/DataDog/omnibus-software/pull/111), [omnibus-software-114](https://github.com/DataDog/omnibus-software/pull/114), [omnibus-software-115](https://github.com/DataDog/omnibus-software/pull/115).
 
 
 # 5.11.0 / 02-08-2017
