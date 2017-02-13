@@ -14,17 +14,23 @@ from config import get_version, initialize_logging  # noqa
 initialize_logging('collector')
 
 # stdlib
+from copy import copy
 import logging
 import os
 import signal
 import sys
 import time
-import supervisor.xmlrpc
 import xmlrpclib
-from copy import copy
 
 # For pickle & PID files, see issue 293
 os.umask(022)
+
+# 3p
+try:
+    import supervisor.xmlrpc
+except ImportError:
+    # Not used/shipped on Windows
+    pass
 
 # project
 from checks.check_status import CollectorStatus
@@ -42,21 +48,20 @@ from config import (
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from utils.platform import Platform
 from jmxfetch import get_jmx_checks
 
-
 # utils
-from util import Watchdog
 from utils.cloud_metadata import EC2
 from utils.configcheck import configcheck, sd_configcheck
 from utils.flare import Flare
 from utils.hostname import get_hostname
 from utils.jmx import jmx_command
 from utils.pidfile import PidFile
+from utils.platform import Platform
 from utils.profile import AgentProfiler
 from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.sd_backend import get_sd_backend
+from utils.watchdog import Watchdog
 
 # Constants
 PID_NAME = "dd-agent"
@@ -96,7 +101,6 @@ class Agent(Daemon):
         self.sd_backend = None
         self.supervisor_proxy = None
         self.sd_pipe = None
-
 
     def _handle_sigterm(self, signum, frame):
         """Handles SIGTERM and SIGINT, which gracefully stops the agent."""
@@ -218,14 +222,15 @@ class Agent(Daemon):
         # Gracefully exit on sigterm.
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
-        # A SIGUSR1 signals an exit with an autorestart
-        signal.signal(signal.SIGUSR1, self._handle_sigusr1)
+        if not Platform.is_windows():
+            # A SIGUSR1 signals an exit with an autorestart
+            signal.signal(signal.SIGUSR1, self._handle_sigusr1)
 
-        # Handle Keyboard Interrupt
-        signal.signal(signal.SIGINT, self._handle_sigterm)
+            # Handle Keyboard Interrupt
+            signal.signal(signal.SIGINT, self._handle_sigterm)
 
-        # A SIGHUP signals a configuration reload
-        signal.signal(signal.SIGHUP, self._handle_sighup)
+            # A SIGHUP signals a configuration reload
+            signal.signal(signal.SIGHUP, self._handle_sighup)
 
         # Save the agent start-up stats.
         CollectorStatus().persist()
@@ -378,8 +383,7 @@ class Agent(Daemon):
     def _get_watchdog(self, check_freq):
         watchdog = None
         if self._agentConfig.get("watchdog", True):
-            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER,
-                                max_mem_mb=self._agentConfig.get('limit_memory_consumption', None))
+            watchdog = Watchdog.create(check_freq * WATCHDOG_MULTIPLIER)
             watchdog.reset()
         return watchdog
 
