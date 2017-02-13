@@ -1,6 +1,18 @@
 Changes
 =======
 
+# 5.11.2 / Unreleased
+**Linux and Docker only**
+
+### Details
+
+There was an issue releasing 5.11.1 by which the package shipped still contained the bugs reported in 5.11.0 plaguing the SNMP check. Only affected debian package and the docker release.
+
+### Changes
+
+* [RELEASE] Releasing actual bugfix expected with 5.11.1, with version bump to 5.11.2.
+
+
 # 5.11.1 / 02-13-2017
 **Linux and Docker only**
 
