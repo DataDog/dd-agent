@@ -7,7 +7,6 @@
 """
 A Python Statsd implementation with some datadog special sauce.
 """
-
 # set up logging before importing any other components
 from config import initialize_logging  # noqa
 initialize_logging('dogstatsd')
@@ -17,9 +16,9 @@ from utils.proxy import set_no_proxy_settings  # noqa
 set_no_proxy_settings()
 
 # stdlib
+import os
 import logging
 import optparse
-import os
 import select
 import signal
 import socket
@@ -44,9 +43,10 @@ from config import get_config, get_version
 from daemon import AgentSupervisor, Daemon
 from util import chunks, get_uuid, plural
 from utils.hostname import get_hostname
-from utils.pidfile import PidFile
 from utils.net import inet_pton
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
+from utils.pidfile import PidFile
+from utils.watchdog import Watchdog
 
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")
@@ -201,8 +201,7 @@ class Reporter(threading.Thread):
 
         self.watchdog = None
         if use_watchdog:
-            from util import Watchdog
-            self.watchdog = Watchdog(WATCHDOG_TIMEOUT)
+            self.watchdog = Watchdog.create(WATCHDOG_TIMEOUT)
 
         self.api_key = api_key
         self.api_host = api_host

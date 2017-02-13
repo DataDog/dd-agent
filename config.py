@@ -33,6 +33,8 @@ from utils.subprocess_output import (
     get_subprocess_output,
     SubprocessOutputEmptyError,
 )
+from utils.windows_configuration import get_registry_conf
+
 
 # CONSTANTS
 AGENT_VERSION = "5.12.0"
@@ -153,51 +155,19 @@ def _windows_commondata_path():
     return path_buf.value
 
 
-def _windows_config_path():
+def _windows_extra_checksd_path():
     common_data = _windows_commondata_path()
-    return _config_path(os.path.join(common_data, 'Datadog'))
-
-
-def _windows_confd_path():
-    common_data = _windows_commondata_path()
-    return _confd_path(os.path.join(common_data, 'Datadog'))
+    return os.path.join(common_data, 'Datadog', 'checks.d')
 
 
 def _windows_checksd_path():
     if hasattr(sys, 'frozen'):
         # we're frozen - from py2exe
         prog_path = os.path.dirname(sys.executable)
-        return _checksd_path(os.path.join(prog_path, '..'))
+        return _checksd_path(os.path.normpath(os.path.join(prog_path, '..', 'agent')))
     else:
         cur_path = os.path.dirname(__file__)
         return _checksd_path(cur_path)
-
-
-def _mac_config_path():
-    return _config_path(MAC_CONFIG_PATH)
-
-
-def _mac_confd_path():
-    return _confd_path(MAC_CONFIG_PATH)
-
-
-def _mac_checksd_path():
-    return _unix_checksd_path()
-
-
-def _unix_config_path():
-    return _config_path(UNIX_CONFIG_PATH)
-
-
-def _unix_confd_path():
-    return _confd_path(UNIX_CONFIG_PATH)
-
-
-def _unix_checksd_path():
-    # Unix only will look up based on the current directory
-    # because checks.d will hang with the other python modules
-    cur_path = os.path.dirname(os.path.realpath(__file__))
-    return _checksd_path(cur_path)
 
 
 def _config_path(directory):
@@ -244,18 +214,16 @@ def get_config_path(cfg_path=None, os_name=None):
     except PathNotFound as e:
         pass
 
-    if os_name is None:
-        os_name = get_os()
-
     # Check for an OS-specific path, continue on not-found exceptions
     bad_path = ''
     try:
-        if os_name == 'windows':
-            return _windows_config_path()
-        elif os_name == 'mac':
-            return _mac_config_path()
+        if Platform.is_windows():
+            common_data = _windows_commondata_path()
+            return _config_path(os.path.join(common_data, 'Datadog'))
+        elif Platform.is_mac():
+            return _config_path(MAC_CONFIG_PATH)
         else:
-            return _unix_config_path()
+            return _config_path(UNIX_CONFIG_PATH)
     except PathNotFound as e:
         if len(e.args) > 0:
             bad_path = e.args[0]
@@ -336,7 +304,7 @@ def remove_empty(string_array):
     return filter(lambda x: x, string_array)
 
 
-def get_config(parse_args=True, cfg_path=None, options=None):
+def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=True):
     if parse_args:
         options, _ = get_parsed_args()
 
@@ -360,6 +328,8 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
     if Platform.is_mac():
         agentConfig['additional_checksd'] = '/opt/datadog-agent/etc/checks.d'
+    elif Platform.is_windows():
+        agentConfig['additional_checksd'] = _windows_extra_checksd_path()
 
     # Config handling
     try:
@@ -441,10 +411,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         # the linux directory is set by default
         if config.has_option('Main', 'additional_checksd'):
             agentConfig['additional_checksd'] = config.get('Main', 'additional_checksd')
-        elif get_os() == 'windows':
-            # default windows location
-            common_path = _windows_commondata_path()
-            agentConfig['additional_checksd'] = os.path.join(common_path, 'Datadog', 'checks.d')
 
         if config.has_option('Main', 'use_dogstatsd'):
             agentConfig['use_dogstatsd'] = config.get('Main', 'use_dogstatsd').lower() in ("yes", "true")
@@ -571,12 +537,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             for key, value in config.items('WMI'):
                 agentConfig['WMI'][key] = value
 
-        if (config.has_option("Main", "limit_memory_consumption") and
-                config.get("Main", "limit_memory_consumption") is not None):
-            agentConfig["limit_memory_consumption"] = int(config.get("Main", "limit_memory_consumption"))
-        else:
-            agentConfig["limit_memory_consumption"] = None
-
         if config.has_option("Main", "skip_ssl_validation"):
             agentConfig["skip_ssl_validation"] = _is_affirmative(config.get("Main", "skip_ssl_validation"))
 
@@ -617,6 +577,12 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         agentConfig['ssl_certificate'] = get_ssl_certificate(get_os(), 'datadog-cert.pem')
     else:
         agentConfig['ssl_certificate'] = agentConfig['ca_certs']
+
+    # On Windows, check for api key in registry if default api key
+    # this code should never be used and is only a failsafe
+    if Platform.is_windows() and agentConfig['api_key'] == 'APIKEYHERE' and can_query_registry:
+        registry_conf = get_registry_conf(config)
+        agentConfig.update(registry_conf)
 
     return agentConfig
 
@@ -709,16 +675,15 @@ def get_confd_path(osname=None):
     except PathNotFound as e:
         pass
 
-    if not osname:
-        osname = get_os()
     bad_path = ''
     try:
-        if osname == 'windows':
-            return _windows_confd_path()
-        elif osname == 'mac':
-            return _mac_confd_path()
+        if Platform.is_windows():
+            common_data = _windows_commondata_path()
+            return _confd_path(os.path.join(common_data, 'Datadog'))
+        elif Platform.is_mac():
+            return _confd_path(MAC_CONFIG_PATH)
         else:
-            return _unix_confd_path()
+            return _confd_path(UNIX_CONFIG_PATH)
     except PathNotFound as e:
         if len(e.args) > 0:
             bad_path = e.args[0]
@@ -727,14 +692,14 @@ def get_confd_path(osname=None):
 
 
 def get_checksd_path(osname=None):
-    if not osname:
-        osname = get_os()
-    if osname == 'windows':
+    if Platform.is_windows():
         return _windows_checksd_path()
-    elif osname == 'mac':
-        return _mac_checksd_path()
+    # Mac & Linux
     else:
-        return _unix_checksd_path()
+        # Unix only will look up based on the current directory
+        # because checks.d will hang with the other python modules
+        cur_path = os.path.dirname(os.path.realpath(__file__))
+        return _checksd_path(cur_path)
 
 
 def get_sdk_integrations_path(osname=None):
@@ -1183,10 +1148,12 @@ def get_logging_config(cfg_path=None):
         'syslog_port': None,
     }
     if system_os == 'windows':
-        logging_config['windows_collector_log_file'] = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'collector.log')
-        logging_config['windows_forwarder_log_file'] = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'forwarder.log')
-        logging_config['windows_dogstatsd_log_file'] = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'dogstatsd.log')
+        logging_config['collector_log_file'] = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'collector.log')
+        logging_config['forwarder_log_file'] = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'forwarder.log')
+        logging_config['dogstatsd_log_file'] = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'dogstatsd.log')
         logging_config['jmxfetch_log_file'] = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'jmxfetch.log')
+        logging_config['service_log_file'] = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'service.log')
+        logging_config['log_to_syslog'] = False
     else:
         logging_config['collector_log_file'] = '/var/log/datadog/collector.log'
         logging_config['forwarder_log_file'] = '/var/log/datadog/forwarder.log'
