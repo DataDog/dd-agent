@@ -12,6 +12,7 @@ import bson
 from pymongo import (
     MongoClient,
     ReadPreference,
+    errors,
     uri_parser,
     version as py_version,
 )
@@ -424,7 +425,11 @@ class TokuMX(AgentCheck):
                 db_tags = list(tags)
                 db_tags.append('db:%s' % dbname)
                 db = conn[dbname]
-                stats = db.command('dbstats')
+                try:
+                    stats = db.command('dbstats')
+                except errors.OperationFailure:
+                    self.log.warning("Cannot access dbstats on database %s" % dbname)
+                    continue
                 for m, v in stats.items():
                     if m in ['db', 'ok']:
                         continue
