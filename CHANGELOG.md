@@ -6,7 +6,7 @@ Changes
 
 ### Details
 
-Their was a regression in 5.11.0 due to an inadverted subdependency upgrade, breaking the SNMP check.
+There was a regression in 5.11.0 due to an inadverted subdependency upgrade, breaking the SNMP check.
 
 ### Changes
 
