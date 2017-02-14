@@ -124,7 +124,7 @@ ERROR_STATUS = 'FAILED'
 SUCCESS_STATUS = ['SUCCEEDED', 'COMPLETE']
 
 # Event source type
-SOURCE_TYPE_NAME = 'spark.application.server'
+SOURCE_TYPE_NAME = 'spark'
 
 # Metric types
 INCREMENT = 'increment'
