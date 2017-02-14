@@ -12,6 +12,7 @@ CONFIG = {
             'rabbitmq_user': 'guest',
             'rabbitmq_pass': 'guest',
             'queues': ['test1'],
+            'exchanges': ['test1'],
         }
     ]
 }
@@ -24,6 +25,7 @@ CONFIG_REGEX = {
             'rabbitmq_user': 'guest',
             'rabbitmq_pass': 'guest',
             'queues_regexes': ['test\d+'],
+            'exchanges_regexes': ['test\d+'],
         }
     ]
 }
@@ -37,6 +39,7 @@ CONFIG_WITH_FAMILY = {
             'rabbitmq_pass': 'guest',
             'tag_families': True,
             'queues_regexes': ['(test)\d+'],
+            'exchanges_regexes': ['(test)\d+'],
         }
     ]
 }
@@ -47,6 +50,23 @@ COMMON_METRICS = [
     'rabbitmq.node.run_queue',
     'rabbitmq.node.sockets_used',
     'rabbitmq.node.partitions'
+]
+
+E_METRICS = [
+    'messages.ack.count',
+    'messages.ack.rate',
+    'messages.deliver_get.count',
+    'messages.deliver_get.rate',
+    'messages.redeliver.count',
+    'messages.redeliver.rate',
+    'messages.return_unroutable.count',
+    'messages.return_unroutable.rate',
+    'messages.publish.count',
+    'messages.publish.rate',
+    'messages.publish_in.count',
+    'messages.publish_in.rate',
+    'messages.publish_out.count',
+    'messages.publish_out.rate',
 ]
 
 Q_METRICS = [
@@ -76,12 +96,37 @@ class RabbitMQCheckTest(AgentCheckTest):
 
         self.assertMetric('rabbitmq.node.partitions', value=0, count=1)
 
+        # Exchange attributes, should be only one exchange fetched
+        for mname in E_METRICS:
+            self.assertMetricTag('rabbitmq.exchange.%s' %
+                                 mname, 'rabbitmq_exchange:test1', count=1)
+
         # Queue attributes, should be only one queue fetched
         # TODO: create a 'fake consumer' and get missing metrics
         # active_consumers, acks, delivers, redelivers
         for mname in Q_METRICS:
             self.assertMetricTag('rabbitmq.queue.%s' %
                                  mname, 'rabbitmq_queue:test1', count=1)
+
+        self.assertServiceCheckOK('rabbitmq.aliveness', tags=['vhost:/'])
+        self.assertServiceCheckOK('rabbitmq.status')
+
+        self.coverage_report()
+
+    def test_exchange_regex(self):
+        self.run_check(CONFIG_REGEX)
+
+        # Node attributes
+        for mname in COMMON_METRICS:
+            self.assertMetricTagPrefix(mname, 'rabbitmq_node', count=1)
+
+        for mname in E_METRICS:
+            self.assertMetricTag('rabbitmq.exchange.%s' %
+                                 mname, 'rabbitmq_exchange:test1', count=1)
+            self.assertMetricTag('rabbitmq.exchange.%s' %
+                                 mname, 'rabbitmq_exchange:test5', count=1)
+            self.assertMetricTag('rabbitmq.exchange.%s' %
+                                 mname, 'rabbitmq_exchange:tralala', count=0)
 
         self.assertServiceCheckOK('rabbitmq.aliveness', tags=['vhost:/'])
         self.assertServiceCheckOK('rabbitmq.status')
@@ -113,7 +158,12 @@ class RabbitMQCheckTest(AgentCheckTest):
 
         # Node attributes
         for mname in COMMON_METRICS:
-            self.assertMetricTagPrefix(mname, 'rabbitmq_node', count=1)
+            self.assertMetricTagPrefix(mname,
+                                       'rabbitmq_node', count=1)
+
+        for mname in E_METRICS:
+            self.assertMetricTag('rabbitmq.exchange.%s' %
+                                 mname, 'rabbitmq_exchange_family:test', count=2)
 
         for mname in Q_METRICS:
             self.assertMetricTag('rabbitmq.queue.%s' %
