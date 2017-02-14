@@ -19,6 +19,7 @@ class Marathon(AgentCheck):
 
     DEFAULT_TIMEOUT = 5
     SERVICE_CHECK_NAME = 'marathon.can_connect'
+    ACS_TOKEN = None
 
     APP_METRICS = [
         'backoffFactor',
@@ -29,7 +30,9 @@ class Marathon(AgentCheck):
         'mem',
         'taskRateLimit',
         'tasksRunning',
-        'tasksStaged'
+        'tasksStaged',
+        'tasksHealthy',
+        'tasksUnhealthy'
     ]
 
     def check(self, instance):
@@ -40,6 +43,7 @@ class Marathon(AgentCheck):
         url = instance['url']
         user = instance.get('user')
         password = instance.get('password')
+        acs_url = instance.get('acs_url')
         if user is not None and password is not None:
             auth = (user,password)
         else:
@@ -56,7 +60,7 @@ class Marathon(AgentCheck):
             marathon_path = urljoin(url, "v2/apps")
         else:
             marathon_path = urljoin(url, "v2/groups/{}".format(group))
-        response = self.get_json(marathon_path, timeout, auth, ssl_verify)
+        response = self.get_json(marathon_path, timeout, auth, acs_url, ssl_verify)
         if response is not None:
             self.gauge('marathon.apps', len(response['apps']), tags=instance_tags)
             for app in response['apps']:
@@ -66,25 +70,59 @@ class Marathon(AgentCheck):
                         self.gauge('marathon.' + attr, app[attr], tags=tags)
 
         # Number of running/pending deployments
-        response = self.get_json(urljoin(url, "v2/deployments"), timeout, auth, ssl_verify)
+        response = self.get_json(urljoin(url, "v2/deployments"), timeout, auth, acs_url, ssl_verify)
         if response is not None:
             self.gauge('marathon.deployments', len(response), tags=instance_tags)
 
-    def get_json(self, url, timeout, auth, verify):
+    def refresh_acs_token(self, auth, acs_url):
         try:
-            r = requests.get(url, timeout=timeout, auth=auth, verify=verify)
+            auth_body = {
+                'uid': auth[0],
+                'password': auth[1]
+            }
+            r = requests.post(urljoin(acs_url, "acs/api/v1/auth/login"), json=auth_body, verify=False)
+            r.raise_for_status()
+            token = r.json()['token']
+            self.ACS_TOKEN = token
+            return token
+        except requests.exceptions.HTTPError:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                               message='acs auth url %s returned a status of %s' % (acs_url, r.status_code),
+                               tags = ["url:{0}".format(acs_url)])
+            raise Exception("Got %s when hitting %s" % (r.status_code, acs_url))
+
+    def get_json(self, url, timeout, auth, acs_url, verify):
+        params = {
+            'timeout': timeout,
+            'headers': {},
+            'auth': auth,
+            'verify': verify
+        }
+        if acs_url:
+            # If the ACS token has not been set, go get it
+            if not self.ACS_TOKEN:
+                self.refresh_acs_token(auth, acs_url)
+            params['headers']['authorization'] = 'token=%s' % self.ACS_TOKEN
+            del params['auth']
+
+        try:
+            r = requests.get(url, **params)
+            # If got unauthorized and using acs auth, refresh the token and try again
+            if r.status_code == 401 and acs_url:
+                self.refresh_acs_token(auth, acs_url)
+                r = requests.get(url, **params)
             r.raise_for_status()
         except requests.exceptions.Timeout:
             # If there's a timeout
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                message='%s timed out after %s seconds.' % (url, timeout),
-                tags = ["url:{0}".format(url)])
+                               message='%s timed out after %s seconds.' % (url, timeout),
+                               tags = ["url:{0}".format(url)])
             raise Exception("Timeout when hitting %s" % url)
 
         except requests.exceptions.HTTPError:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                message='%s returned a status of %s' % (url, r.status_code),
-                tags = ["url:{0}".format(url)])
+                               message='%s returned a status of %s' % (url, r.status_code),
+                               tags = ["url:{0}".format(url)])
             raise Exception("Got %s when hitting %s" % (r.status_code, url))
 
         except requests.exceptions.ConnectionError:
@@ -95,7 +133,6 @@ class Marathon(AgentCheck):
 
         else:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
-                tags = ["url:{0}".format(url)]
-            )
+                               tags = ["url:{0}".format(url)])
 
         return r.json()
