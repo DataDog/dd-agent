@@ -22,6 +22,7 @@ from Queue import Full, Queue
 from socket import error as socket_error, gaierror
 import sys
 import threading
+from urlparse import urlparse
 import zlib
 
 # For pickle & PID files, see issue 293
@@ -440,8 +441,10 @@ class Application(tornado.web.Application):
             log.debug('Caching disabled, not resolving.')
             return url
 
-        resolve = self._dns_cache.resolve(url)
-        return resolve
+        location = urlparse(url)
+        resolve = self._dns_cache.resolve(location.netloc)
+        return "{scheme}://{ip}".format(scheme=location.scheme,
+                                        ip=resolve)
 
 
     def log_request(self, handler):
