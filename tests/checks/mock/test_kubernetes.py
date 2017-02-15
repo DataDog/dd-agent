@@ -504,6 +504,8 @@ class TestKubeutil(unittest.TestCase):
 
     def test_get_node_info(self):
         with mock.patch('utils.kubernetes.KubeUtil._fetch_host_data') as f:
+            self.kubeutil._node_ip = None
+            self.kubeutil._node_name = None
             self.kubeutil.get_node_info()
             f.assert_called_once()
 
