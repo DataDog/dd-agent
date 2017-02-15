@@ -1,6 +1,6 @@
 # stdlib
 from unittest import TestCase
-from unittest.mock import MagicMock, patch
+from mock import MagicMock, patch
 import socket
 from time import sleep
 

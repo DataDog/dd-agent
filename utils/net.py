@@ -53,8 +53,8 @@ class DNSCache(object):
             now = int(time.time())
             if not ts or ts < now:
                 _, _, entry = socket.gethostbyaddr(url)
-                ttl = now + self.agent_dns_ttl
-                self._dns_cache[url] = ttl, entry
+                ttl = now + self._ttl
+                self._cache[url] = ttl, entry
 
             resolve = entry[random.randint(0, len(entry)-1)]
         except Exception:
