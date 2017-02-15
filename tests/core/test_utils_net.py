@@ -2,6 +2,7 @@
 from unittest import TestCase
 from mock import MagicMock, patch
 import socket
+from urlparse import urlparse
 from time import sleep
 
 # 3p
@@ -11,7 +12,9 @@ from nose.plugins.skip import SkipTest
 from utils.net import inet_pton, _inet_pton_win
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
 from utils.net import DNSCache
+from config import get_url_endpoint
 
+DEFAULT_ENDPOINT = "https://app.datadoghq.com"
 
 class TestUtilsNet(TestCase):
     def test__inet_pton_win(self):
@@ -44,3 +47,9 @@ class TestUtilsNet(TestCase):
             sleep(3)
             ip = cache.resolve('foo')
             self.assertTrue(ip in side_effects[1][2])
+
+        # resolve intake
+        endpoint = get_url_endpoint(DEFAULT_ENDPOINT)
+        location = urlparse(endpoint)
+        ip = cache.resolve(location.netloc)
+        self.assertNotEqual(ip, location.netloc)
