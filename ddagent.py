@@ -52,6 +52,8 @@ from config import (
 import modules
 from transaction import Transaction, TransactionManager
 from util import get_uuid
+from utils.net import DEFAULT_DNS_TTL, DNSCache
+
 
 
 from utils.hostname import get_hostname
@@ -209,6 +211,8 @@ class AgentTransaction(Transaction):
 
     def get_url(self, endpoint, api_key):
         endpoint_base_url = get_url_endpoint(endpoint)
+        if self._application.agent_dns_caching:
+            endpoint_base_url = self._application.get_from_dns_cache(endpoint_base_url)
         return "{0}/intake/{1}?api_key={2}".format(endpoint_base_url, self._msg_type, api_key)
 
     def flush(self):
@@ -397,6 +401,7 @@ class Application(tornado.web.Application):
         self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
+        self._dns_cache = None
         AgentTransaction.set_application(self)
         AgentTransaction.set_endpoints(agentConfig['endpoints'])
         if agentConfig['endpoints'] == {}:
@@ -415,6 +420,10 @@ class Application(tornado.web.Application):
 
         self._watchdog = None
         self.skip_ssl_validation = skip_ssl_validation or agentConfig.get('skip_ssl_validation', False)
+        self.agent_dns_caching = agentConfig.get('dns_caching', False)
+        self.agent_dns_ttl = agentConfig.get('dns_caching', DEFAULT_DNS_TTL)
+        if self.agent_dns_caching:
+            self._dns_cache = DNSCache(ttl=self.agent_dns_ttl)
         self.use_simple_http_client = use_simple_http_client
         if self.skip_ssl_validation:
             log.info("Skipping SSL hostname validation, useful when using a transparent proxy")
@@ -424,6 +433,16 @@ class Application(tornado.web.Application):
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER / 1000
             self._watchdog = Watchdog.create(watchdog_timeout,
                                              max_resets=WATCHDOG_HIGH_ACTIVITY_THRESHOLD)
+
+
+    def get_from_dns_cache(self, url):
+        if not self.agent_dns_caching:
+            log.debug('Caching disabled, not resolving.')
+            return url
+
+        resolve = self._dns_cache.resolve(url)
+        return resolve
+
 
     def log_request(self, handler):
         """ Override the tornado logging method.
