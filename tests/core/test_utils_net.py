@@ -1,6 +1,8 @@
 # stdlib
 from unittest import TestCase
+from unittest.mock import MagicMock, patch
 import socket
+from time import sleep
 
 # 3p
 from nose.plugins.skip import SkipTest
@@ -8,6 +10,7 @@ from nose.plugins.skip import SkipTest
 # project
 from utils.net import inet_pton, _inet_pton_win
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
+from utils.net import DNSCache
 
 
 class TestUtilsNet(TestCase):
@@ -29,3 +32,15 @@ class TestUtilsNet(TestCase):
 
         if not hasattr(socket, 'IPV6_V6ONLY'):
             self.assertEqual(IPV6_V6ONLY, 27)
+
+    def test_dns_cache(self):
+        side_effects = [(None, None, ['1.1.1.1', '2.2.2.2']),
+                        (None, None, ['3.3.3.3'])]
+        mock_resolve = MagicMock(side_effect=side_effects)
+        cache = DNSCache(3)
+        with patch('socket.gethostbyaddr', mock_resolve):
+            ip = cache.resolve('foo')
+            self.assertTrue(ip in side_effects[0][2])
+            sleep(3)
+            ip = cache.resolve('foo')
+            self.assertTrue(ip in side_effects[1][2])
