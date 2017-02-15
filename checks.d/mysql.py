@@ -513,8 +513,8 @@ class MySql(AgentCheck):
             metrics.update(GALERA_VARS)
 
         performance_schema_enabled = self._get_variable_enabled(results, 'performance_schema')
-        if _is_affirmative(options.get('extra_performance_metrics', False)) and \
-                self._version_compatible(db, host, "5.6.0") and \
+        above_560 = self._version_compatible(db, host, "5.6.0")
+        if _is_affirmative(options.get('extra_performance_metrics', False)) and above_560 and \
                 performance_schema_enabled:
             # report avg query response time per schema to Datadog
             results['perf_digest_95th_percentile_avg_us'] = self._get_query_exec_time_95th_us(db)
@@ -529,7 +529,7 @@ class MySql(AgentCheck):
         if _is_affirmative(options.get('replication', False)):
             # Get replica stats
             results.update(self._get_replica_stats(db))
-            results.update(self._get_slave_status(db))
+            results.update(self._get_slave_status(db, above_560))
             metrics.update(REPLICA_VARS)
 
             # get slave running form global status page
@@ -863,12 +863,17 @@ class MySql(AgentCheck):
             self.warning("Privileges error getting replication status (must grant REPLICATION CLIENT): %s" % str(e))
             return {}
 
-    def _get_slave_status(self, db, nonblocking=True):
+    def _get_slave_status(self, db, above_560):
+        """
+        Retrieve the slaves' statuses using:
+        1. The `performance_schema.threads` table. Non-blocking, requires version > 5.6.0
+        2. The `information_schema.processlist` table. Blocking
+        """
         try:
             with closing(db.cursor()) as cursor:
-                # querying threads instead of PROCESSLIST to avoid mutex impact on
-                # performance.
-                if nonblocking:
+                if above_560:
+                    # Query `performance_schema.threads` instead of `
+                    # information_schema.processlist` to avoid mutex impact on performance.
                     cursor.execute("SELECT THREAD_ID, NAME FROM performance_schema.threads WHERE NAME LIKE '%worker'")
                 else:
                     cursor.execute("SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND LIKE '%Binlog dump%'")
