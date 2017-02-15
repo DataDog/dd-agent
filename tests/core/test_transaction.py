@@ -149,6 +149,7 @@ class TestTransaction(unittest.TestCase):
 
         app = Application()
         app.skip_ssl_validation = False
+        app.agent_dns_caching = False
         app._agentConfig = config
         app.use_simple_http_client = True
 
@@ -183,6 +184,7 @@ class TestTransaction(unittest.TestCase):
 
         app = Application()
         app.skip_ssl_validation = False
+        app.agent_dns_caching = False
         app._agentConfig = config
         app.use_simple_http_client = True
 

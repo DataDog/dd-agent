@@ -17,6 +17,8 @@ from config import get_url_endpoint
 DEFAULT_ENDPOINT = "https://app.datadoghq.com"
 
 class TestUtilsNet(TestCase):
+    DNS_TTL = 3
+
     def test__inet_pton_win(self):
 
         if _inet_pton_win != inet_pton:
@@ -40,11 +42,11 @@ class TestUtilsNet(TestCase):
         side_effects = [(None, None, ['1.1.1.1', '2.2.2.2']),
                         (None, None, ['3.3.3.3'])]
         mock_resolve = MagicMock(side_effect=side_effects)
-        cache = DNSCache(3)
+        cache = DNSCache(self.DNS_TTL)
         with patch('socket.gethostbyaddr', mock_resolve):
             ip = cache.resolve('foo')
             self.assertTrue(ip in side_effects[0][2])
-            sleep(3)
+            sleep(self.DNS_TTL + 1)
             ip = cache.resolve('foo')
             self.assertTrue(ip in side_effects[1][2])
 
