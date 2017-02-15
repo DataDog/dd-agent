@@ -22,6 +22,9 @@ import sys
 import traceback
 from urlparse import urlparse
 
+# 3p
+import simplejson as json
+
 # project
 from util import check_yaml, config_to_yaml
 from utils.platform import Platform, get_os
@@ -78,6 +81,13 @@ LEGACY_DATADOG_URLS = [
 ]
 
 JMX_SD_CONF_TEMPLATE = '.jmx.{}.yaml'
+
+# These are unlikely to change, but manifests are versioned,
+# so keeping these as a list just in case we change add stuff.
+MANIFEST_VALIDATION = {
+    'max': ['max_agent_version'],
+    'min': ['min_agent_version']
+}
 
 
 class PathNotFound(Exception):
@@ -890,18 +900,19 @@ def get_checks_places(osname, agentConfig):
         log.error(e.args[0])
         sys.exit(3)
 
-    places = [lambda name: os.path.join(agentConfig['additional_checksd'], '%s.py' % name)]
+    places = [lambda name: (os.path.join(agentConfig['additional_checksd'], '%s.py' % name), None)]
 
     try:
         if Platform.is_windows():
             places.append(get_windows_sdk_check)
         else:
             sdk_integrations = get_sdk_integrations_path(osname)
-            places.append(lambda name: os.path.join(sdk_integrations, name, 'check.py'))
+            places.append(lambda name: (os.path.join(sdk_integrations, name, 'check.py'),
+                                        os.path.join(sdk_integrations, name, 'manifest.json')))
     except PathNotFound:
         log.debug('No sdk integrations path found')
 
-    places.append(lambda name: os.path.join(checksd_path, '%s.py' % name))
+    places.append(lambda name: (os.path.join(checksd_path, '%s.py' % name), None))
     return places
 
 
@@ -965,12 +976,39 @@ def _update_python_path(check_config):
         sys.path.extend(pythonpath)
 
 
+def validate_sdk_check(manifest_path):
+    max_validated = min_validated = False
+    try:
+        with open(manifest_path, 'r') as fp:
+            manifest = json.load(fp)
+            for maxfield in MANIFEST_VALIDATION['max']:
+                max_version = manifest.get(maxfield)
+                if not max_version:
+                    continue
+
+                max_validated = False if max_version < get_version() else True
+                break
+
+            for minfield in MANIFEST_VALIDATION['min']:
+                min_version = manifest.get(minfield)
+                if not min_version:
+                    continue
+
+                min_validated = False if min_version > get_version() else True
+                break
+    except IOError:
+        log.warn("Manifest file (%s) not present " % manifest_path)
+        pass
+
+    return (min_validated and max_validated)
+
+
 def load_check_from_places(check_config, check_name, checks_places, agentConfig):
     '''Find a check named check_name in the given checks_places and try to initialize it with the given check_config.
     A failure (`load_failure`) can happen when the check class can't be validated or when the check can't be initialized. '''
     load_success, load_failure = {}, {}
     for check_path_builder in checks_places:
-        check_path = check_path_builder(check_name)
+        check_path, manifest_path = check_path_builder(check_name)
         # The windows SDK function will return None,
         # so the loop should also continue if there is no path.
         if not (check_path and os.path.exists(check_path)):
@@ -979,6 +1017,12 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
         check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path)
         if not check_is_valid:
             continue
+
+        if manifest_path:
+            validated = validate_sdk_check(manifest_path)
+            if not validated:
+                log.warn("The SDK check (%s) was designed for a different agent core "
+                         "or couldnt be validated - behavior is undefined" % check_name)
 
         load_success, load_failure = _initialize_check(
             check_config, check_name, check_class, agentConfig
