@@ -223,7 +223,7 @@ SELECT schemaname, count(*) FROM
     }
 
     REPLICATION_METRICS_9_2 = {
-        'abs(pg_xlog_location_diff(pg_last_xlog_receive_location(), pg_last_xlog_replay_location())) AS replication_delay_bytes': ('postgres.replication_delay_bytes', GAUGE)
+        'abs(pg_xlog_location_diff(pg_last_xlog_receive_location(), pg_last_xlog_replay_location())) AS replication_delay_bytes': ('postgresql.replication_delay_bytes', GAUGE)
     }
 
     REPLICATION_METRICS = {
