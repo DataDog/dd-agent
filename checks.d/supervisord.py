@@ -51,14 +51,15 @@ class SupervisordCheck(AgentCheck):
 
     def check(self, instance):
         server_name = instance.get('name')
+        custom_tags = instance.get('tags', [])
 
         if not server_name or not server_name.strip():
             raise Exception("Supervisor server name not specified in yaml configuration.")
 
-        server_service_check_tags = ['%s:%s' % (SERVER_TAG, server_name)]
+        server_service_check_tags = ['%s:%s' % (SERVER_TAG, server_name)] + custom_tags
         supe = self._connect(instance)
         count_by_status = defaultdict(int)
-
+        
         # Gather all process information
         try:
             processes = supe.getAllProcessInfo()
@@ -130,7 +131,7 @@ class SupervisordCheck(AgentCheck):
         for proc in monitored_processes:
             proc_name = proc['name']
             tags = ['%s:%s' % (SERVER_TAG, server_name),
-                    '%s:%s' % (PROCESS_TAG, proc_name)]
+                    '%s:%s' % (PROCESS_TAG, proc_name)] + custom_tags
 
             # Report Service Check
             status = DD_STATUS[proc['statename']]

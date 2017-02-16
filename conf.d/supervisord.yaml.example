@@ -42,6 +42,8 @@ instances:
 #      - apache2       #           If not specified, the check will monitor all processes.
 #      - webapp
 #      - java
+#     tags:
+#      - processgroup:groupname
 #   - name: server1
 #     host: localhost
 #     port: 9002
