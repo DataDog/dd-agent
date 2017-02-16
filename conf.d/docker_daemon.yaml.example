@@ -118,6 +118,7 @@ instances:
     # Default: include all containers except for Kubernetes pause containers.
     # Warning: pause containers exclusion works only if you deploy the agent the recommended way (in a pod).
     # To customize this default behavior, override exclude.
+    # If you do so, default exclusion patterns won't apply anymore and will need to be added explicitly.
 
 
 
