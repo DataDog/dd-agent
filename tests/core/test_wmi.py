@@ -9,7 +9,9 @@ import unittest
 from mock import Mock, patch
 
 # project
+from checks.libs.wmi.exceptions import WMIInvalidClass
 from tests.checks.common import Fixtures
+from tests.core.test_wmi_exceptions import MockedWMICOMError
 from utils.timeout import TimeoutException
 
 
@@ -352,7 +354,34 @@ class TestCommonWMI(unittest.TestCase):
 
         Note: needs to be defined for Python 2.6
         """
-        self.assertTrue(any(key for key in second if key.startswith(first)), "{0} not in {1}".format(first, second))
+        self.assertTrue(
+            any(key for key in second if key.startswith(first)),
+            "{0} not in {1}".format(first, second)
+        )
+
+    def _assertLogger(self, logger, message, level):
+        """
+        Assert that the logger was called with the given level and submessage.
+        """
+        logger_method = getattr(logger, level)
+
+        # Logger was called with the given level
+        self.assertTrue(logger_method.called)
+
+        # Submessage was logged
+        self.assertTrue([s for s in logger_method.call_args[0] if message in s])
+
+    def assertWarning(self, *args):
+        """
+        Assert logging with the WARNING level.
+        """
+        self._assertLogger(*args, level="warning")
+
+    def assertException(self, *args):
+        """
+        Assert logging with the EXCEPTION level.
+        """
+        self._assertLogger(*args, level="exception")
 
     def getProp(self, dict, prefix):
         """
@@ -790,6 +819,54 @@ class TestUnitWMISampler(TestCommonWMI):
         wmi_raw_sampler.sample()
 
         self.assertWMISampler(wmi_raw_sampler, ["MissingProperty"], count=1)
+
+    def test_warnings_on_com_errors(self):
+        """
+        Log a warning on WMI `com_errors`.
+        """
+        # Mute to WMI Sampler
+        from checks.libs.wmi.sampler import WMISampler
+        logger = Mock()
+        wmi_sampler = WMISampler(logger, "WMI_Class", ["Property"], mute=True)
+
+        # Samples
+        invalid_class_com_error = MockedWMICOMError(-2147217392)
+        unknown_com_error = MockedWMICOMError(123456)
+
+        # Method to test
+        log_on_com_errors = partial(wmi_sampler._handle_com_error, wql="")
+
+        # Log WARNING an intelligible when possible
+        log_on_com_errors(invalid_class_com_error)
+        self.assertWarning(logger, "class is invalid")
+
+        # Or log ERROR the exception trace
+        log_on_com_errors(unknown_com_error)
+        self.assertException(logger, "Failed to execute WMI query")
+
+    def test_raise_on_com_errors(self):
+        """
+        Log a warning on WMI `com_errors`.
+        """
+        # Do not mute to WMI Sampler
+        from checks.libs.wmi.sampler import WMISampler
+        logger = Mock()
+        wmi_sampler = WMISampler(logger, "WMI_Class", ["Property"], mute=False)
+
+        # Samples
+        invalid_class_com_error = MockedWMICOMError(-2147217392)
+        unknown_com_error = MockedWMICOMError(123456)
+
+        # Method to test
+        raise_on_com_errors = partial(wmi_sampler._handle_com_error, wql="")
+
+        # Raise known exceptions
+        with self.assertRaises(WMIInvalidClass):
+            raise_on_com_errors(invalid_class_com_error)
+
+        # Log exceptions the others
+        raise_on_com_errors(unknown_com_error)
+        self.assertException(logger, "Failed to execute WMI query")
 
 
 class TestIntegrationWMI(unittest.TestCase):

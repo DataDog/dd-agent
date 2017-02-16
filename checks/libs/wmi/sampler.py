@@ -30,6 +30,7 @@ from win32com.client import Dispatch
 
 # project
 from checks.libs.wmi.counter_type import get_calculator, get_raw, UndefinedCalculator
+from checks.libs.wmi.exceptions import raise_on_com_error, WMIException
 from utils.timeout import timeout, TimeoutException
 
 
@@ -91,8 +92,10 @@ class WMISampler(object):
 
     def __init__(self, logger, class_name, property_names, filters="", host="localhost",
                  namespace="root\\cimv2", provider=None,
-                 username="", password="", and_props=[], timeout_duration=10):
+                 username="", password="", and_props=[],
+                 mute=True, timeout_duration=10):
         self.logger = logger
+        self.mute = mute
 
         # Connection information
         self.host = host
@@ -429,13 +432,12 @@ class WMISampler(object):
                 more=build_where_clause(fltr)
             )
 
-
         if not filters:
             return ""
 
         return " WHERE {clause}".format(clause=build_where_clause(filters))
 
-    def _query(self): # pylint: disable=E0202
+    def _query(self):  # pylint: disable=E0202
         """
         Query WMI using WMI Query Language (WQL) & parse the results.
 
@@ -449,30 +451,48 @@ class WMISampler(object):
         )
         self.logger.debug(u"Querying WMI: {0}".format(wql))
 
+        # From: https://msdn.microsoft.com/en-us/library/aa393866(v=vs.85).aspx
+        flag_return_immediately = 0x10  # Default flag.
+        flag_forward_only = 0x20
+        flag_use_amended_qualifiers = 0x20000
+
+        query_flags = flag_return_immediately | flag_forward_only
+
+        # For the first query, cache the qualifiers to determine each
+        # propertie's "CounterType"
+        includes_qualifiers = self.is_raw_perf_class and self._property_counter_types is None
+        if includes_qualifiers:
+            self._property_counter_types = CaseInsensitiveDict()
+            query_flags |= flag_use_amended_qualifiers
+
         try:
-            # From: https://msdn.microsoft.com/en-us/library/aa393866(v=vs.85).aspx
-            flag_return_immediately = 0x10  # Default flag.
-            flag_forward_only = 0x20
-            flag_use_amended_qualifiers = 0x20000
-
-            query_flags = flag_return_immediately | flag_forward_only
-
-            # For the first query, cache the qualifiers to determine each
-            # propertie's "CounterType"
-            includes_qualifiers = self.is_raw_perf_class and self._property_counter_types is None
-            if includes_qualifiers:
-                self._property_counter_types = CaseInsensitiveDict()
-                query_flags |= flag_use_amended_qualifiers
-
             raw_results = self.get_connection().ExecQuery(wql, "WQL", query_flags)
-
             results = self._parse_results(raw_results, includes_qualifiers=includes_qualifiers)
-
-        except pywintypes.com_error:
-            self.logger.warning(u"Failed to execute WMI query (%s)", wql, exc_info=True)
+        except pywintypes.com_error as e:
+            self._handle_com_error(e, wql)
             results = []
 
         return results
+
+    def _handle_com_error(self, error, wql):
+        """
+        Attempt to translate the WMI `com_error` to something intelligible.
+        Raise when needed or log a warning.
+        """
+        warning_template = u"Failed to execute WMI query ({}).".format(wql)
+
+        try:
+            raise_on_com_error(error)
+
+        # Translate to user exceptions
+        except WMIException as e:
+            if not self.mute:
+                raise
+            self.logger.warning(u"%s Reason:%s", warning_template, e.message)
+
+        # Unknown exceptions
+        except Exception:
+            self.logger.exception(warning_template)
 
     def _parse_results(self, raw_results, includes_qualifiers):
         """

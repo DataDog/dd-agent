@@ -85,7 +85,7 @@ class IIS(WinWMICheck):
             self.CLASS, properties,
             filters=filters,
             host=host, namespace=self.NAMESPACE, provider=provider,
-            username=user, password=password
+            username=user, password=password, mute=False
         )
 
         # Sample, extract & submit metrics

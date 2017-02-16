@@ -50,7 +50,7 @@ class WMICheck(WinWMICheck):
             wmi_class, properties,
             tag_by=tag_by, filters=filters,
             host=host, namespace=namespace, provider=provider,
-            username=username, password=password,
+            username=username, password=password, mute=False
         )
 
         # Sample, extract & submit metrics
