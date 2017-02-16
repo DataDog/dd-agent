@@ -5,6 +5,7 @@
 # stdlib
 from datetime import datetime, timedelta
 from urlparse import urljoin
+import re
 
 # project
 from checks import AgentCheck
@@ -433,7 +434,7 @@ class OpenStackCheck(AgentCheck):
 
         return self.get_scope_for_instance(instance).auth_token
 
-    ### Network
+    # Network
     def get_neutron_endpoint(self, instance=None):
         if not instance:
             # Assume instance scope is populated on self
@@ -445,10 +446,18 @@ class OpenStackCheck(AgentCheck):
         """
         Collect stats for all reachable networks
         """
-
         # FIXME: (aaditya) Check all networks defaults to true until we can reliably assign agents to networks to monitor
         if self.init_config.get('check_all_networks', True):
-            network_ids = list(set(self.get_all_network_ids()) - set(self.init_config.get('exclude_network_ids', [])))
+            all_network_ids = set(self.get_all_network_ids())
+            exclude_network_ids = set(
+                [re.compile(ex) for ex in self.init_config.get('exclude_network_ids', [])]
+            )
+
+            # Filter out excluded networks
+            network_ids = [
+                network_id for network_id in all_network_ids
+                if not any([re.match(exclude_id, network_id) for exclude_id in exclude_network_ids])
+            ]
         else:
             network_ids = self.init_config.get('network_ids', [])
 
