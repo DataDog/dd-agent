@@ -135,7 +135,7 @@ class DockerUtil:
     def fetch_swarm_state(self):
         self.swarm_node_state = None
         try:
-            info = DockerUtil().client.info()
+            info = self.client.info()
             self.swarm_node_state = info.get('Swarm', {}).get('LocalNodeState')
         except Exception:
             pass
