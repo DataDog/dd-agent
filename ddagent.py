@@ -427,7 +427,7 @@ class Application(tornado.web.Application):
         self._watchdog = None
         self.skip_ssl_validation = skip_ssl_validation or _is_affirmative(agentConfig.get('skip_ssl_validation'))
         self.agent_dns_caching = _is_affirmative(agentConfig.get('dns_caching'))
-        self.agent_dns_ttl = agentConfig.get('dns_ttl', DEFAULT_DNS_TTL)
+        self.agent_dns_ttl = int(agentConfig.get('dns_ttl', DEFAULT_DNS_TTL))
         if self.agent_dns_caching:
             self._dns_cache = DNSCache(ttl=self.agent_dns_ttl)
         self.use_simple_http_client = use_simple_http_client
