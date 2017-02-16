@@ -297,6 +297,8 @@ class APIMetricTransaction(MetricTransaction):
 
     def get_url(self, endpoint, api_key):
         endpoint_base_url = get_url_endpoint(endpoint)
+        if self._application.agent_dns_caching:
+            endpoint_base_url = self._application.get_from_dns_cache(endpoint_base_url)
         return "{0}/api/v1/series/?api_key={1}".format(endpoint_base_url, api_key)
 
     def get_data(self):
@@ -308,6 +310,8 @@ class APIServiceCheckTransaction(AgentTransaction):
 
     def get_url(self, endpoint, api_key):
         endpoint_base_url = get_url_endpoint(endpoint)
+        if self._application.agent_dns_caching:
+            endpoint_base_url = self._application.get_from_dns_cache(endpoint_base_url)
         return "{0}/api/v1/check_run/?api_key={1}".format(endpoint_base_url, api_key)
 
 
