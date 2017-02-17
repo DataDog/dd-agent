@@ -169,7 +169,12 @@ class HTTPCheck(NetworkCheck):
         http_response_status_code = str(instance.get('http_response_status_code', DEFAULT_EXPECTED_CODE))
         timeout = int(instance.get('timeout', 10))
         config_headers = instance.get('headers', {})
-        headers = agent_headers(self.agentConfig)
+        default_headers=instance.get("include_default_headers", True)
+        if default_headers:
+            headers = agent_headers(self.agentConfig)
+        else:
+            headers={}
+
         headers.update(config_headers)
         url = instance.get('url')
         content_match = instance.get('content_match')
