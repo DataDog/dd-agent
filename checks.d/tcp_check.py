@@ -95,7 +95,7 @@ class TCPCheck(NetworkCheck):
             return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
 
         if response_time:
-            self.gauge('network.tcp.response_time', time.time() - start, tags=['url:%s:%s' % (instance.get('host', None), port)] + custom_tags)
+            self.gauge('network.tcp.response_time', time.time() - start, tags=['url:%s:%s' % (instance.get('host', None), port), 'instance: %s' % instance.get('name')] + custom_tags)
 
         self.log.debug("%s:%s is UP" % (addr, port))
         return Status.UP, "UP"
