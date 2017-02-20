@@ -263,6 +263,10 @@ SCHEMA_VARS = {
     'information_schema_size': ('mysql.info.schema.size', GAUGE),
 }
 
+TABLE_VARS = {
+    'information_table_size': ('mysql.info.table.size', GAUGE),
+}
+
 REPLICA_VARS = {
     'Seconds_Behind_Master': ('mysql.replication.seconds_behind_master', GAUGE),
     'Slaves_connected': ('mysql.replication.slaves_connected', COUNT),
@@ -520,6 +524,15 @@ class MySql(AgentCheck):
             results['perf_digest_95th_percentile_avg_us'] = self._get_query_exec_time_95th_us(db)
             results['query_run_time_avg'] = self._query_exec_time_per_schema(db)
             metrics.update(PERFORMANCE_VARS)
+
+        if _is_affirmative(options.get('table_size_metrics', False)):
+            # report table size to Datadog
+            for schema_name, tables_size in self._query_size_per_table(db).iteritems():
+                for table_name, table_size in tables_size.iteritems():
+                    table_size = {'information_table_size' : table_size}
+                    tags_extra = set(["schema:{0}".format(schema_name), "table:{0}".format(table_name)])
+                    self.log.debug("table_size_metrics tags: %s %s" % (str(tags),str(tags_extra)))
+                    self._submit_metrics(TABLE_VARS,table_size, set(tags) | tags_extra)
 
         if _is_affirmative(options.get('schema_size_metrics', False)):
             # report avg query response time per schema to Datadog
@@ -1282,6 +1295,43 @@ class MySql(AgentCheck):
             self.warning("Avg exec time performance metrics unavailable at this time: %s" % str(e))
 
         return {}
+
+    def _query_size_per_table(self,db):
+
+        sql_query_schema_table_size = """
+        SELECT   table_schema,table_name,
+                 SUM(data_length+index_length)/1024/1024 AS total_mb
+                 FROM     information_schema.tables
+                 WHERE data_length IS NOT NULL OR index_length IS NOT NULL
+                 GROUP BY table_schema, table_name;
+        """
+
+        try:
+            with closing(db.cursor()) as cursor:
+                cursor.execute(sql_query_schema_table_size)
+
+                if cursor.rowcount < 1:
+                    self.warning("Failed to fetch records from the information schema 'tables' table.")
+                    return None
+
+                schema_table_size = {}
+                for row in cursor.fetchall():
+                    schema_name = str(row[0])
+                    table_name = str(row[1])
+                    size = long(row[2])
+
+                    # set the tag as the dictionary key
+                    if "{0}".format(schema_name) not in schema_table_size:
+                        schema_table_size["{0}".format(schema_name)] = {}
+
+                    schema_table_size["{0}".format(schema_name)]["{0}".format(table_name)] = long(size)
+
+                return schema_table_size
+        except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
+            self.warning("Avg exec time performance metrics unavailable at this time: %s" % str(e))
+
+        return {}
+
 
     def _compute_synthetic_results(self, results):
         if ('Qcache_hits' in results) and ('Qcache_inserts' in results) and ('Qcache_not_cached' in results):

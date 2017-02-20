@@ -18,6 +18,7 @@ instances:
     #   extra_innodb_metrics: true
     #   extra_performance_metrics: true
     #   schema_size_metrics: false
+    #   table_size_metrics: false
     #   disable_innodb_metrics: false
     #
     #     NOTE: disable_innodb_metrics should only be used by users with older (unsupported) versions of
@@ -27,7 +28,7 @@ instances:
     #     NOTE: extra_performance_metrics will only be reported if `performance_schema` is enabled
     #           in the MySQL instance and if the version for that instance is >= 5.6.0
     #
-    #           extra_performance_metrics and schema_size_metrics will run two heavier queries
+    #           extra_performance_metrics and schema/table_size_metrics will run two heavier queries
     #           against your DB to compute the relevant metrics for all your existing schemas.
     #           Due to the nature of these calls, if you have a high number of tables and/or schemas,
     #           you may be subject to some negative impact in the performance of your DB.
