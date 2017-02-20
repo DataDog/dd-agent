@@ -187,6 +187,9 @@ class Docker(AgentCheck):
         for container in all_containers:
             container_tags = list(tags)
             for key in DOCKER_TAGS:
+                if key == 'Image' and ':' in container[key]:
+                    tag = self._make_tag('image_repository', container[key].split(':')[0], instance)
+                    container_tags.append(tag)
                 tag = self._make_tag(key, container[key], instance)
                 if tag:
                     container_tags.append(tag)
