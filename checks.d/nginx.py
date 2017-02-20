@@ -46,7 +46,8 @@ class Nginx(AgentCheck):
 
         funcs = {
             'gauge': self.gauge,
-            'rate': self.rate
+            'rate': self.rate,
+            'count': self.count
         }
         for row in metrics:
             try:
@@ -177,6 +178,9 @@ class Nginx(AgentCheck):
             output.append((metric_base, val, tags, 'gauge'))
 
         elif isinstance(val, (int, float)):
-            output.append((metric_base, val, tags, 'gauge'))
+            if metric_base.startswith('nginx.server_zone.responses.'):
+                output.append((metric_base, val, tags, 'count'))
+            else:
+                output.append((metric_base, val, tags, 'gauge'))
 
         return output
