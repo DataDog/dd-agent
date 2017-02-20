@@ -239,6 +239,10 @@ class HTTPCheck(NetworkCheck):
             if username is not None and password is not None:
                 auth = (username, password)
 
+            if disable_ssl_validation:
+                from requests.packages.urllib3.exceptions import InsecureRequestWarning
+                requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
             sess = requests.Session()
             sess.trust_env = False
             if weakcipher:

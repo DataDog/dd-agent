@@ -280,7 +280,8 @@ class HTTPCheckTest(AgentCheckTest):
     def test_check_ssl(self):
         self.run_check(CONFIG_SSL_ONLY)
         # Overrides self.service_checks attribute when values are available
-        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 6)
+        self.service_checks = self.wait_for_async('get_service_checks', 'service_checks', 8)
+
         tags = ['url:https://github.com:443', 'instance:good_cert']
         self.assertServiceCheckOK("http.can_connect", tags=tags)
         self.assertServiceCheckOK("http.ssl_cert", tags=tags)
