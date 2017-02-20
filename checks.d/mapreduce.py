@@ -273,11 +273,44 @@ class MapReduceCheck(AgentCheck):
         '''
         Return a dictionary of {app_id: (app_name, tracking_url)} for the running MapReduce applications
         '''
-        metrics_json = self._rest_request_to_json(rm_address,
-            YARN_APPS_PATH,
-            YARN_SERVICE_CHECK,
-            states=YARN_APPLICATION_STATES,
-            applicationTypes=YARN_APPLICATION_TYPES)
+        metrics_json = None
+
+        try:
+            metrics_json = self._rest_request_to_json(rm_address,
+                YARN_APPS_PATH,
+                YARN_SERVICE_CHECK,
+                states=YARN_APPLICATION_STATES,
+                applicationTypes=YARN_APPLICATION_TYPES)
+
+        except Timeout as e:
+            self.service_check(service_name,
+                AgentCheck.CRITICAL,
+                tags=service_check_tags,
+                message="Request timeout: {0}, {1}".format(url, e))
+            raise
+
+        except (HTTPError,
+                InvalidURL,
+                ConnectionError) as e:
+            self.service_check(service_name,
+                AgentCheck.CRITICAL,
+                tags=service_check_tags,
+                message="Request failed: {0}, {1}".format(url, e))
+            raise
+
+        except JSONDecodeError as e:
+            self.service_check(service_name,
+                AgentCheck.CRITICAL,
+                tags=service_check_tags,
+                message='JSON Parse failed: {0}, {1}'.format(url, e))
+            raise
+
+        except ValueError as e:
+            self.service_check(service_name,
+                AgentCheck.CRITICAL,
+                tags=service_check_tags,
+                message=str(e))
+            raise
 
         running_apps = {}
 
@@ -309,35 +342,36 @@ class MapReduceCheck(AgentCheck):
         running_jobs = {}
 
         for app_id, (app_name, tracking_url) in running_apps.iteritems():
+            try:
+                metrics_json = self._rest_request_to_json(tracking_url,
+                    MAPREDUCE_JOBS_PATH,
+                    MAPREDUCE_SERVICE_CHECK)
 
-            metrics_json = self._rest_request_to_json(tracking_url,
-                MAPREDUCE_JOBS_PATH,
-                MAPREDUCE_SERVICE_CHECK)
+                if metrics_json.get('jobs'):
+                    if metrics_json['jobs'].get('job'):
 
-            if metrics_json.get('jobs'):
-                if metrics_json['jobs'].get('job'):
+                        for job_json in metrics_json['jobs']['job']:
+                            job_id = job_json.get('id')
+                            job_name = job_json.get('name')
+                            user_name = job_json.get('user')
 
-                    for job_json in metrics_json['jobs']['job']:
-                        job_id = job_json.get('id')
-                        job_name = job_json.get('name')
-                        user_name = job_json.get('user')
+                            if job_id and job_name and user_name:
 
-                        if job_id and job_name and user_name:
+                                # Build the structure to hold the information for each job ID
+                                running_jobs[str(job_id)] = {'job_name': str(job_name),
+                                                        'app_name': str(app_name),
+                                                        'user_name': str(user_name),
+                                                        'tracking_url': self._join_url_dir(tracking_url, MAPREDUCE_JOBS_PATH, job_id)}
 
-                            # Build the structure to hold the information for each job ID
-                            running_jobs[str(job_id)] = {'job_name': str(job_name),
-                                                    'app_name': str(app_name),
-                                                    'user_name': str(user_name),
-                                                    'tracking_url': self._join_url_dir(tracking_url, MAPREDUCE_JOBS_PATH, job_id)}
+                                tags = ['app_name:' + str(app_name),
+                                        'user_name:' + str(user_name),
+                                        'job_name:' + str(job_name)]
 
-                            tags = ['app_name:' + str(app_name),
-                                    'user_name:' + str(user_name),
-                                    'job_name:' + str(job_name)]
+                                tags.extend(addl_tags)
 
-                            tags.extend(addl_tags)
-
-                            self._set_metrics_from_json(tags, job_json, MAPREDUCE_JOB_METRICS)
-
+                                self._set_metrics_from_json(tags, job_json, MAPREDUCE_JOB_METRICS)
+            except Exception:
+                pass
         return running_jobs
 
     def _mapreduce_job_counters_metrics(self, running_jobs, addl_tags):
@@ -346,51 +380,53 @@ class MapReduceCheck(AgentCheck):
         '''
         for job_id, job_metrics in running_jobs.iteritems():
             job_name = job_metrics['job_name']
+            try:
+                # Check if the job_name exist in the custom metrics
+                if self.general_counters or (job_name in self.job_specific_counters):
+                    job_specific_metrics = self.job_specific_counters.get(job_name)
 
-            # Check if the job_name exist in the custom metrics
-            if self.general_counters or (job_name in self.job_specific_counters):
-                job_specific_metrics = self.job_specific_counters.get(job_name)
+                    metrics_json = self._rest_request_to_json(job_metrics['tracking_url'],
+                        'counters',
+                        MAPREDUCE_SERVICE_CHECK)
 
-                metrics_json = self._rest_request_to_json(job_metrics['tracking_url'],
-                    'counters',
-                    MAPREDUCE_SERVICE_CHECK)
+                    if metrics_json.get('jobCounters'):
+                        if metrics_json['jobCounters'].get('counterGroup'):
 
-                if metrics_json.get('jobCounters'):
-                    if metrics_json['jobCounters'].get('counterGroup'):
+                            # Cycle through all the counter groups for this job
+                            for counter_group in metrics_json['jobCounters']['counterGroup']:
+                                group_name = counter_group.get('counterGroupName')
 
-                        # Cycle through all the counter groups for this job
-                        for counter_group in metrics_json['jobCounters']['counterGroup']:
-                            group_name = counter_group.get('counterGroupName')
+                                if group_name:
+                                    counter_metrics = set([])
 
-                            if group_name:
-                                counter_metrics = set([])
+                                    # Add any counters in the job specific metrics
+                                    if job_specific_metrics and group_name in job_specific_metrics:
+                                        counter_metrics = counter_metrics.union(job_specific_metrics[group_name])
 
-                                # Add any counters in the job specific metrics
-                                if job_specific_metrics and group_name in job_specific_metrics:
-                                    counter_metrics = counter_metrics.union(job_specific_metrics[group_name])
+                                    # Add any counters in the general metrics
+                                    if group_name in self.general_counters:
+                                        counter_metrics = counter_metrics.union(self.general_counters[group_name])
 
-                                # Add any counters in the general metrics
-                                if group_name in self.general_counters:
-                                    counter_metrics = counter_metrics.union(self.general_counters[group_name])
+                                    if counter_metrics:
+                                        # Cycle through all the counters in this counter group
+                                        if counter_group.get('counter'):
+                                            for counter in counter_group['counter']:
+                                                counter_name = counter.get('name')
 
-                                if counter_metrics:
-                                    # Cycle through all the counters in this counter group
-                                    if counter_group.get('counter'):
-                                        for counter in counter_group['counter']:
-                                            counter_name = counter.get('name')
+                                                # Check if the counter name is in the custom metrics for this group name
+                                                if counter_name and counter_name in counter_metrics:
+                                                    tags = ['app_name:' + job_metrics.get('app_name'),
+                                                            'user_name:' + job_metrics.get('user_name'),
+                                                            'job_name:' + job_name,
+                                                            'counter_name:' + str(counter_name).lower()]
 
-                                            # Check if the counter name is in the custom metrics for this group name
-                                            if counter_name and counter_name in counter_metrics:
-                                                tags = ['app_name:' + job_metrics.get('app_name'),
-                                                        'user_name:' + job_metrics.get('user_name'),
-                                                        'job_name:' + job_name,
-                                                        'counter_name:' + str(counter_name).lower()]
+                                                    tags.extend(addl_tags)
 
-                                                tags.extend(addl_tags)
-
-                                                self._set_metrics_from_json(tags,
-                                                    counter,
-                                                    MAPREDUCE_JOB_COUNTER_METRICS)
+                                                    self._set_metrics_from_json(tags,
+                                                        counter,
+                                                        MAPREDUCE_JOB_COUNTER_METRICS)
+            except Exception:
+                pass
 
     def _mapreduce_task_metrics(self, running_jobs, addl_tags):
         '''
@@ -398,30 +434,32 @@ class MapReduceCheck(AgentCheck):
         Return a dictionary of {task_id: 'tracking_url'} for each MapReduce task
         '''
         for job_id, job_stats in running_jobs.iteritems():
+            try:
+                metrics_json = self._rest_request_to_json(job_stats['tracking_url'],
+                        'tasks',
+                        MAPREDUCE_SERVICE_CHECK)
 
-            metrics_json = self._rest_request_to_json(job_stats['tracking_url'],
-                    'tasks',
-                    MAPREDUCE_SERVICE_CHECK)
+                if metrics_json.get('tasks'):
+                    if metrics_json['tasks'].get('task'):
 
-            if metrics_json.get('tasks'):
-                if metrics_json['tasks'].get('task'):
+                        for task in metrics_json['tasks']['task']:
+                            task_type = task.get('type')
 
-                    for task in metrics_json['tasks']['task']:
-                        task_type = task.get('type')
+                            if task_type:
+                                tags = ['app_name:' + job_stats['app_name'],
+                                        'user_name:' + job_stats['user_name'],
+                                        'job_name:' + job_stats['job_name'],
+                                        'task_type:' + str(task_type).lower()]
 
-                        if task_type:
-                            tags = ['app_name:' + job_stats['app_name'],
-                                    'user_name:' + job_stats['user_name'],
-                                    'job_name:' + job_stats['job_name'],
-                                    'task_type:' + str(task_type).lower()]
+                                tags.extend(addl_tags)
 
-                            tags.extend(addl_tags)
+                                if task_type == 'MAP':
+                                    self._set_metrics_from_json(tags, task, MAPREDUCE_MAP_TASK_METRICS)
 
-                            if task_type == 'MAP':
-                                self._set_metrics_from_json(tags, task, MAPREDUCE_MAP_TASK_METRICS)
-
-                            elif task_type == 'REDUCE':
-                                self._set_metrics_from_json(tags, task, MAPREDUCE_REDUCE_TASK_METRICS)
+                                elif task_type == 'REDUCE':
+                                    self._set_metrics_from_json(tags, task, MAPREDUCE_REDUCE_TASK_METRICS)
+            except Exception:
+                pass
 
     def _set_metrics_from_json(self, tags, metrics_json, metrics):
         '''
@@ -472,40 +510,9 @@ class MapReduceCheck(AgentCheck):
             query = '&'.join(['{0}={1}'.format(key, value) for key, value in kwargs.iteritems()])
             url = urljoin(url, '?' + query)
 
-        try:
-            response = requests.get(url, timeout=self.default_integration_http_timeout)
-            response.raise_for_status()
-            response_json = response.json()
-
-        except Timeout as e:
-            self.service_check(service_name,
-                AgentCheck.CRITICAL,
-                tags=service_check_tags,
-                message="Request timeout: {0}, {1}".format(url, e))
-            raise
-
-        except (HTTPError,
-                InvalidURL,
-                ConnectionError) as e:
-            self.service_check(service_name,
-                AgentCheck.CRITICAL,
-                tags=service_check_tags,
-                message="Request failed: {0}, {1}".format(url, e))
-            raise
-
-        except JSONDecodeError as e:
-            self.service_check(service_name,
-                AgentCheck.CRITICAL,
-                tags=service_check_tags,
-                message='JSON Parse failed: {0}, {1}'.format(url, e))
-            raise
-
-        except ValueError as e:
-            self.service_check(service_name,
-                AgentCheck.CRITICAL,
-                tags=service_check_tags,
-                message=str(e))
-            raise
+        response = requests.get(url)
+        response.raise_for_status()
+        response_json = response.json()
 
         return response_json
 
