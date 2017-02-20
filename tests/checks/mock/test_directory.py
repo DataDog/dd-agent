@@ -61,6 +61,12 @@ class DirectoryTestCase(AgentCheckTest):
                 'dirtagname': "pattern_check",
                 'pattern': "*.log",
                 'filegauges': filegauges
+            }, {
+                'directory': dir_name,
+                'dirtagname': "recursive_subdir_check",
+                'recursive': True,
+                'filegauges': filegauges,
+                'tagsubdirs': True,
             }
         ]
 
@@ -107,6 +113,7 @@ class DirectoryTestCase(AgentCheckTest):
 
         for config in config_stubs:
             dirtagname = config.get('dirtagname', "name")
+            subdirtagname = config.get('subdirtagname', "subdir")
             name = config.get('name', self.temp_dir)
             dir_tags = [dirtagname + ":%s" % name]
 
@@ -118,6 +125,10 @@ class DirectoryTestCase(AgentCheckTest):
             if config.get('pattern'):
                 # 2 '*.log' files in 'temp_dir'
                 self.assertMetric("system.disk.directory.files", tags=dir_tags, count=1, value=2)
+            elif config.get('recursive') and config.get('tagsubdirs'):
+                sub_dir_tags = [subdirtagname + ":%s/%s" % (name, "subfolder")] + dir_tags
+                for mname in (self.DIRECTORY_METRICS):
+                    self.assertMetric(mname, tags=sub_dir_tags, count=1)
             elif config.get('recursive'):
                 # 12 files in 'temp_dir' + 5 files in 'tempdir/subfolder'
                 self.assertMetric("system.disk.directory.files", tags=dir_tags, count=1, value=17)
@@ -142,6 +153,7 @@ class DirectoryTestCase(AgentCheckTest):
 
         for config in config_stubs:
             dirtagname = config.get('dirtagname', "name")
+            subdirtagname = config.get('subdirtagname', "subdir")
             name = config.get('name', self.temp_dir)
             filetagname = config.get('filetagname', "filename")
             dir_tags = [dirtagname + ":%s" % name]
@@ -159,8 +171,15 @@ class DirectoryTestCase(AgentCheckTest):
                         file_tag = [filetagname + ":%s" % self.temp_dir + "/file_" + str(i)]
                         self.assertMetric(mname, tags=dir_tags + file_tag, count=1)
 
+                    # Files in 'temp_dir/subfolder' with tagged subdirs!
+                    if config.get('recursive') and config.get('tagsubdirs'):
+                        sub_dir_tags = [subdirtagname + ":%s/%s" % (name, "subfolder")] + dir_tags
+                        for i in xrange(0, 5):
+                            file_tag = [filetagname + ":%s" % self.temp_dir + "/subfolder" + "/file_" + str(i)]
+                            self.assertMetric(mname, tags=sub_dir_tags + file_tag, count=1)
+
                     # Files in 'temp_dir/subfolder'
-                    if config.get('recursive'):
+                    elif config.get('recursive'):
                         for i in xrange(0, 5):
                             file_tag = [filetagname + ":%s" % self.temp_dir + "/subfolder" + "/file_" + str(i)]
                             self.assertMetric(mname, tags=dir_tags + file_tag, count=1)
