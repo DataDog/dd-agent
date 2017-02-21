@@ -1,0 +1,15 @@
+init_config:
+
+instances:
+  - server: localhost
+    # user: my_username
+    # pass: my_password
+    # port: 6032
+    # sock: /path/to/sock    # Option connect via Unix Socket
+    # connect_timeout: None  # Optional integer seconds
+    # tags:                  # Optional
+    #   - optional_tag1
+    #   - optional_tag2
+    # options:               # Optional
+    #   extra_command_counter_metrics: true
+    #   extra_connection_pool_metrics: true

@@ -68,6 +68,10 @@ that you can use as a template.
 Writing your own checks is easy using our checks.d interface. Read more about
 how to use it on our [Guide to Agent Checks](http://docs.datadoghq.com/guides/agent_checks/).
 
+# Packaging
+
+Packaging is handled via the [dd-agent-packaging](https://github.com/twindb/dd-agent-packaging) repository
+
 # Contributors
 
 ```bash
