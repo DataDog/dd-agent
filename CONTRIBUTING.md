@@ -32,6 +32,8 @@ _If you are adding a dependency (python module, library, ...), please check the 
 
 All integrations, except for the kubernetes and docker ones, have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to contribute to them.
 
+For new integrations, please open a pull request in the [integrations extras repo](https://github.com/DataDog/integrations-extras)
+
 ## Commits
 
 ### Keep it small, focused
