@@ -30,7 +30,7 @@ _If you are adding a dependency (python module, library, ...), please check the 
 
 ## [Integrations](https://github.com/DataDog/integrations-core)
 
-All integrations, except for the kubernetes and docker ones, have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to contribute to them.
+All integrations, except for kubernetes, docker and agent_metrics (along with the deprecated hdfs, jenkins and mesos checks), have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to submit related issues, PRs, or review the latest changes.
 
 For new integrations, please open a pull request in the [integrations extras repo](https://github.com/DataDog/integrations-extras)
 
