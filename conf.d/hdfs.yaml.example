@@ -1,0 +1,24 @@
+# DEPRECATED:
+# This check is deprecated and will be removed in a future version of the agent
+# Please use the `hdfs_namenode` and `hdfs_datanode` checks instead
+
+init_config:
+# HDFS check does not require any init_config
+
+instances:
+# Each instance requires a namenode.
+# Port defaults to 8020.
+# When using HDFS in High Availabality mode
+# You can specify multiple urls and ports
+# WARNING: HA Mode is only available with Snakebite > 2.2.0
+# You have to manually install it with the following command:
+# sudo /opt/datadog-agent/embedded/bin/pip install --upgrade snakebite
+#
+  - namenodes:
+    - url: localhost
+      port: 8020
+#     - url: namenode2.example.com # Optional, to be set when using HA Mode
+#       port: 8020 # Optional, to be set when using HA Mode
+#
+#     tags:
+#       - optional_tag
