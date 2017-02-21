@@ -177,6 +177,12 @@ restart() {
     start
 }
 
+condrestart() {
+    if [ -f "$LOCKFILE" ]; then
+        restart
+    fi
+}
+
 info() {
     shift # Shift 'info' out of the args so we can pass any
           # additional options to the real command
@@ -214,6 +220,10 @@ case "$1" in
 
     restart)
         restart
+        ;;
+
+    condrestart|try-reload)
+        condrestart
         ;;
 
     status)
