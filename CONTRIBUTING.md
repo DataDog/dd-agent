@@ -30,7 +30,7 @@ _If you are adding a dependency (python module, library, ...), please check the 
 
 ## [Integrations](https://github.com/DataDog/integrations-core)
 
-All integrations, except for the kubernates and docker ones, have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to contribute to them.
+All integrations, except for the kubernetes and docker ones, have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to contribute to them.
 
 ## Commits
 

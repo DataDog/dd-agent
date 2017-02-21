@@ -29,7 +29,7 @@ pull request.
 
 # [Integration SDK](https://github.com/DataDog/integrations-core)
 
-All integrations, except for the kubernates and docker ones, have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to see and contribute to any Integrations.
+All integrations, except for the kubernetes and docker ones, have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to see and contribute to any Integrations.
 
 ## Setup your environment
 
