@@ -815,12 +815,21 @@ class VSphereCheck(AgentCheck):
 
         new_metadata = {}
         for counter in perfManager.perfCounter:
-            d = dict(
-                name = "%s.%s" % (counter.groupInfo.key, counter.nameInfo.key),
-                unit = counter.unitInfo.key,
-                instance_tag = 'instance'  # FIXME: replace by what we want to tag!
+            # Compatibility with vCenter 5.5.0+.
+            # Force network metrics to use the `network` namespace.
+            metric_namespace = counter.groupInfo.key
+            if metric_namespace == "net":
+                metric_namespace = "network"
+
+            metric_name = u"{namespace}.{field}".format(
+                namespace=metric_namespace, field=counter.nameInfo.key,
             )
-            new_metadata[counter.key] = d
+            new_metadata[counter.key] = {
+                'name': metric_name,
+                'unit': counter.unitInfo.key,
+                'instance_tag': 'instance',
+            }
+
         self.cache_times[i_key][METRICS_METADATA][LAST] = time.time()
 
         self.log.info("Finished metadata collection for instance {0}".format(i_key))
