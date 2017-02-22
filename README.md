@@ -25,7 +25,7 @@ pull request.
 
 # [Integration SDK](https://github.com/DataDog/integrations-core)
 
-All integrations, except for kubernetes, docker and agent_metrics (along with the deprecated hdfs, jenkins and mesos checks), have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to submit related issues, PRs, or review the latest changes.
+All checks, except for agent_metrics, docker_daemon, kubernetes and kubernetes_state (along with the deprecated docker, hdfs, jenkins and mesos checks), have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to submit related issues, PRs, or review the latest changes.
 
 ## Setup your environment
 
