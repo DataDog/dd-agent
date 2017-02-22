@@ -33,8 +33,8 @@ class KubeUtil:
     DEFAULT_KUBELET_PORT = 10255
     DEFAULT_MASTER_PORT = 8080
     DEFAULT_MASTER_NAME = 'kubernetes'  # DNS name to reach the master from a pod.
-    CA_CRT_PATH = '/run/secrets/kubernetes.io/serviceaccount/ca.crt'
-    AUTH_TOKEN_PATH = '/run/secrets/kubernetes.io/serviceaccount/token'
+    CA_CRT_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+    AUTH_TOKEN_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/token'
 
     POD_NAME_LABEL = "io.kubernetes.pod.name"
     NAMESPACE_LABEL = "io.kubernetes.pod.namespace"
