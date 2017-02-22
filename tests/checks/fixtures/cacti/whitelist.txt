@@ -1,2 +1,0 @@
-localhost*load*rrd
-localhost*hdd*free*

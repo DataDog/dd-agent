@@ -55,48 +55,7 @@ rake ci:run[core_integration]
 
 # Integration tests
 
-They ensure that the agent is correctly talking to third party software which is necessary for most checks.
-
-They are great because they mimic a real setup where someone would enable a check on a machine with this service running. Using mocks or pre-saved responses often hides corner-cases and are the source of lots of issues.
-
-We run these tests by creating a build machine "flavor" (see Travis/Appveyor section), basically each flavor is defined by the third party software we install on this machine.
-
-Most of the times `flavor == check_name`.
-
-Each flavor is defined in `ci/flavor.rb`, and we set different steps for running the flavor build :
-
-* **before_install** needs to be run before installation
-* **install** installs the 3p software
-* **before_script** generally setups the software and launch it in background
-* **script** runs nosetests with a filter (see how to write tests)
-* **cleanup** stops the software and remove unnecessary data (not running on Travis/Appveyor, because the buildboxes are disposable)
-* **before_cache** is run on Travis _(not run on Appveyor)_ to delete logs files, configuration files, ... before caching
-* **cache** tars and uploads the cache to S3 _(not run on Appveyor)_
-
-Your test cases must be written in `tests/test_flavor.py` and they must use the nose `attr` decorator to be filtered by the flavors.
-
-```
-from nose.plugins.attrib import attr
-
-@attr(requires='bone')
-class TestCheckBone(unittest.TestCase):
-    def test_fetch(self):
-```
-
-To run the tests locally:
-```
-rake ci:run[bone]
-```
-
-To create rake tasks for a new flavor you can use this [skeleton file](../ci/skeleton.rb).
-
-# Coverage
-
-We like to see that the metrics being generated are actually covered by tests. For the integration tests you can call the method self.coverage_report() in your test to see how many of the metrics you're actually looking at.
-
-Note, however, that Travis and Appveyor enforce coverage. It will fail the test if you don't have 100% coverage.
-
-But, since the we also know that the coverage report is very verbose, and that it can be annoying to fail a test for this, we don't enforce it being called where it doesn't make sense. And we also allow you to turn off the failure locally by setting the environment variable: `NO_COVERAGE=true`.
+All integrations, except for the kubernates and docker ones, have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to see the Integrations Tests.
 
 
 # Travis
@@ -105,11 +64,7 @@ Its configuration is stored in [.travis.yml](../.travis.yml).
 
 It's running the exact same command described above (`rake ci:run[flavor]`), with the restriction of one flavor + version per build. (we use the [build matrix](http://docs.travis-ci.com/user/customizing-the-build/#Build-Matrix) to split flavors)
 
-Travis is configured to cache python libs and ruby gems between runs. We use a custom cache for third party software dependencies (PostgreSQL, Apache, ...), which are built from source.
-
 We use the newly released [docker-based infrastructure](http://blog.travis-ci.com/2014-12-17-faster-builds-with-container-based-infrastructure/).
-
-To add a new flavour, append your `TRAVIS_FLAVOR` to [.travis.yml](../.travis.yml).
 
 
 # Appveyor
@@ -121,20 +76,3 @@ It's using the same command as Travis, `rake ci:run[flavor]`, but runs only test
 Third parties softwares are not build from source, instead it uses [pre-installed programs](http://www.appveyor.com/docs/installed-software#services-and-databases).
 
 Appveyor is caching gems & pywin32 exe (needed for WMI), there is no custom caching.
-
-To add a new flavour, append the flavor to the comma-separated list of `FLAVORS` to [appveyor.yml](../appveyor.yml).
-
-
-# Add an integration test
-
-Please read first the [integration test description](#integration-tests).
-
-It's really straightforward if the integration you want to add can be easily installed from source. Otherwise, it might be more complicated.
-
-Copy `ci/skeleton.rb` in `ci/flavor.rb` (`flavor` being the name of your check). Then you can follow the example of `ci/lighttpd.rb` to see how to install your `flavor` and configure it.
-
-All configuration files needed for the ci to run should be in `ci/resources/flavor/`, and then before the test run copied to the right directory (generally `$INTEGRATIONS_DIR/flavor_version`). `$VOLATILE_DIR` should receive all temporary files (such as pid file, data files, ...), and `$INTEGRATIONS_DIR/flavor_version` should contain the program once compiled, ready to be cached and speed up the build on Travis.
-
-Then add your `flavor` in [Rakefile](../Rakefile) (`require ./ci/flavor`).
-
-You can test it by runnnig `rake ci:run[flavor]`.

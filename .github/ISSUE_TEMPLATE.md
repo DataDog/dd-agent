@@ -10,6 +10,7 @@ Prior to submitting an issue please review the following:
 - [ ] [Troubleshooting](https://datadog.zendesk.com/hc/en-us/sections/200766955-Troubleshooting) section of our [Knowledge base](https://datadog.zendesk.com/hc/en-us).
 - [ ] Contact our [support](http://docs.datadoghq.com/help/) and [send them your logs](https://github.com/DataDog/dd-agent/wiki/Send-logs-to-support).
 - [ ] Finally, you can open a Github issue respecting this [title convention](https://github.com/DataDog/dd-agent/blob/master/CONTRIBUTING.md#commits-titles) (it helps us triage).
+- [ ] All checks, except for agent_metrics, docker_daemon, kubernetes and kubernetes_state (along with the deprecated docker, hdfs, jenkins and mesos checks) have been moved out of the repo. If it's an issue with a check other than those, please open the issue in the [integrations-core repo](https://github.com/datadog/integrations-core) or the [integrations-extras repo](https://github.com/datadog/integrations-extras).
 
 If you are reporting a new issue, make sure that we do not have any duplicates
 already open. You can ensure this by searching the issue list for this

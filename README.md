@@ -1,9 +1,5 @@
 [![Build Status](https://travis-ci.org/DataDog/dd-agent.svg?branch=master)](https://travis-ci.org/DataDog/dd-agent)
 
-# All Agent Checks are now frozen in preparation for the release of the [Integration SDK](https://github.com/DataDog/dd-agent/wiki/Integration-SDK).
-## We will review and merge a few more PRs, but no new PRs will be accepted.
-## All changes to checks from here on out should go to the [integrations-core repo](https://github.com/datadog/integrations-core) and all new checks should go to the [integrations-extras repo](https://github.com/datadog/integrations-extras). To learn more about how to contribute to them, please check out our [documentation](http://docs.datadoghq.com/guides/integration_sdk/).
-
 The Datadog Agent faithfully collects events and metrics and brings
 them to [Datadog](https://app.datadoghq.com) on your behalf so that
 you can do something useful with your monitoring and performance data.
@@ -26,6 +22,10 @@ Exceptions are marked with LICENSE-xxx where xxx is the component name.
 If you do **not** agree with the licensing terms and wish to contribute code nonetheless,
 please email us at <info@datadoghq.com> before submitting your
 pull request.
+
+# [Integration SDK](https://github.com/DataDog/integrations-core)
+
+All checks, except for agent_metrics, docker_daemon, kubernetes and kubernetes_state (along with the deprecated docker, hdfs, jenkins and mesos checks), have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to submit related issues, PRs, or review the latest changes.
 
 ## Setup your environment
 

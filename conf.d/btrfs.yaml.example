@@ -1,5 +1,0 @@
-init_config:
-# Not required for this check
-
-instances:
-  - excluded_devices: [] # List of devices to exclude

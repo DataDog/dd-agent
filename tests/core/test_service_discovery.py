@@ -16,6 +16,7 @@ from utils.service_discovery.abstract_config_store import AbstractConfigStore, \
     _TemplateCache, CONFIG_FROM_KUBE, CONFIG_FROM_TEMPLATE, CONFIG_FROM_AUTOCONF
 from utils.service_discovery.sd_backend import get_sd_backend
 from utils.service_discovery.sd_docker_backend import SDDockerBackend, _SDDockerBackendConfigFetchState
+from tests.checks.common import copy_checks, remove_checks
 
 
 def clear_singletons(agentConfig):
@@ -183,6 +184,10 @@ class TestServiceDiscovery(unittest.TestCase):
             'additional_checksd': '/etc/dd-agent/checks.d/',
         }
         self.agentConfigs = [self.etcd_agentConfig, self.consul_agentConfig, self.auto_conf_agentConfig]
+        copy_checks()
+
+    def tearDown(self):
+        remove_checks()
 
     # sd_backend tests
 
