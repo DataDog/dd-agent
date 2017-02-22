@@ -466,7 +466,20 @@ class ESCheck(AgentCheck):
 
         pshard_stats_url = "/_stats"
 
-        if version >= [0, 90, 10]:
+        if version >= [5, 0, 0]:
+            # ES versions 5.0.0 and above
+            health_url = "/_cluster/health?pretty=true"
+            nodes_url = "/_nodes"
+            pending_tasks_url = "/_cluster/pending_tasks?pretty=true"
+
+            # For "external" clusters, we want to collect from all nodes.
+            if cluster_stats:
+                stats_url = "/_nodes/stats"
+            else:
+                stats_url = "/_nodes/_local/stats"
+
+            additional_metrics = self.JVM_METRICS_POST_0_90_10
+        elif version >= [0, 90, 10]:
             # ES versions 0.90.10 and above
             health_url = "/_cluster/health?pretty=true"
             pending_tasks_url = "/_cluster/pending_tasks?pretty=true"
