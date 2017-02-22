@@ -50,6 +50,34 @@ yarn.node.usedVirtualCores       The total number of vCores currently used on th
 yarn.node.availableVirtualCores  The total number of vCores available on the node
 yarn.node.numContainers          The total number of containers currently running on the node
 
+YARN Capacity Scheduler Metrics
+-----------------
+yarn.queue.root.maxCapacity             The configured maximum queue capacity in percentage for root queue
+yarn.queue.root.usedCapacity            The used queue capacity in percentage for root queue
+yarn.queue.root.capacity                The configured queue capacity in percentage for root queue
+yarn.queue.numPendingApplications       The number of pending applications in this queue
+yarn.queue.userAMResourceLimit.memory   The maximum memory resources a user can use for Application Masters (in MB)
+yarn.queue.userAMResourceLimit.vCores   The maximum vCpus a user can use for Application Masters
+yarn.queue.absoluteCapacity             The absolute capacity percentage this queue can use of entire cluster
+yarn.queue.userLimitFactor              The minimum user limit percent set in the configuration
+yarn.queue.userLimit                    The user limit factor set in the configuration
+yarn.queue.numApplications              The number of applications currently in the queue
+yarn.queue.usedAMResource.memory        The memory resources used for Application Masters (in MB)
+yarn.queue.usedAMResource.vCores        The vCpus used for Application Masters
+yarn.queue.absoluteUsedCapacity         The absolute used capacity percentage this queue is using of the entire cluster
+yarn.queue.resourcesUsed.memory         The total memory resources this queue is using (in MB)
+yarn.queue.resourcesUsed.vCores         The total vCpus this queue is using
+yarn.queue.AMResourceLimit.vCores       The maximum vCpus this queue can use for Application Masters
+yarn.queue.AMResourceLimit.memory       The maximum memory resources this queue can use for Application Masters (in MB)
+yarn.queue.capacity                     The configured queue capacity in percentage relative to its parent queue
+yarn.queue.numActiveApplications        The number of active applications in this queue
+yarn.queue.absoluteMaxCapacity          The absolute maximum capacity percentage this queue can use of the entire cluster
+yarn.queue.usedCapacity                 The used queue capacity in percentage
+yarn.queue.numContainers                The number of containers being used
+yarn.queue.maxCapacity                  The configured maximum queue capacity in percentage relative to its parent queue
+yarn.queue.maxApplications              The maximum number of applications this queue can have
+yarn.queue.maxApplicationsPerUser       The maximum number of active applications per user this queue can have
+
 '''
 # stdlib
 from urlparse import urljoin, urlsplit, urlunsplit
@@ -74,6 +102,9 @@ YARN_APPS_PATH = '/ws/v1/cluster/apps'
 
 # Path to retrieve node statistics
 YARN_NODES_PATH = '/ws/v1/cluster/nodes'
+
+# Path to retrieve queue statistics
+YARN_SCHEDULER_PATH = '/ws/v1/cluster/scheduler'
 
 # Metric types
 GAUGE = 'gauge'
@@ -138,6 +169,39 @@ YARN_NODE_METRICS = {
     'numContainers': ('yarn.node.num_containers', GAUGE),
 }
 
+# Root queue metrics for YARN
+YARN_ROOT_QUEUE_METRICS = {
+    'maxCapacity': ('yarn.queue.root.max_capacity', GAUGE),
+    'usedCapacity': ('yarn.queue.root.used_capacity', GAUGE),
+    'capacity': ('yarn.queue.root.capacity', GAUGE)
+}
+
+# Queue metrics for YARN
+YARN_QUEUE_METRICS = {
+    'numPendingApplications': ('yarn.queue.num_pending_applications', GAUGE),
+    'userAMResourceLimit.memory': ('yarn.queue.user_am_resource_limit.memory', GAUGE),
+    'userAMResourceLimit.vCores': ('yarn.queue.user_am_resource_limit.vcores', GAUGE),
+    'absoluteCapacity': ('yarn.queue.absolute_capacity', GAUGE),
+    'userLimitFactor': ('yarn.queue.user_limit_factor', GAUGE),
+    'userLimit': ('yarn.queue.user_limit', GAUGE),
+    'numApplications': ('yarn.queue.num_applications', GAUGE),
+    'usedAMResource.memory': ('yarn.queue.used_am_resource.memory', GAUGE),
+    'usedAMResource.vCores': ('yarn.queue.used_am_resource.vcores', GAUGE),
+    'absoluteUsedCapacity': ('yarn.queue.absolute_used_capacity', GAUGE),
+    'resourcesUsed.memory': ('yarn.queue.resources_used.memory', GAUGE),
+    'resourcesUsed.vCores': ('yarn.queue.resources_used.vcores', GAUGE),
+    'AMResourceLimit.vCores': ('yarn.queue.am_resource_limit.vcores', GAUGE),
+    'AMResourceLimit.memory': ('yarn.queue.am_resource_limit.memory', GAUGE),
+    'capacity': ('yarn.queue.capacity', GAUGE),
+    'numActiveApplications': ('yarn.queue.num_active_applications', GAUGE),
+    'absoluteMaxCapacity': ('yarn.queue.absolute_max_capacity', GAUGE),
+    'usedCapacity' : ('yarn.queue.used_capacity', GAUGE),
+    'numContainers': ('yarn.queue.num_containers', GAUGE),
+    'maxCapacity': ('yarn.queue.max_capacity', GAUGE),
+    'maxApplications': ('yarn.queue.max_applications', GAUGE),
+    'maxApplicationsPerUser': ('yarn.queue.max_applications_per_user', GAUGE)
+}
+
 
 class YarnCheck(AgentCheck):
     '''
@@ -190,6 +254,7 @@ class YarnCheck(AgentCheck):
         self._yarn_cluster_metrics(rm_address, tags)
         self._yarn_app_metrics(rm_address, app_tags, tags)
         self._yarn_node_metrics(rm_address, tags)
+        self._yarn_scheduler_metrics(rm_address, tags)
 
     def _yarn_cluster_metrics(self, rm_address, addl_tags):
         '''
@@ -249,18 +314,65 @@ class YarnCheck(AgentCheck):
 
                 self._set_yarn_metrics_from_json(tags, node_json, YARN_NODE_METRICS)
 
+    def _yarn_scheduler_metrics(self, rm_address, addl_tags):
+        '''
+        Get metrics from YARN scheduler
+        '''
+        metrics_json = self._rest_request_to_json(rm_address, YARN_SCHEDULER_PATH)
+
+        try:
+            metrics_json = metrics_json['scheduler']['schedulerInfo']
+
+            if (metrics_json['type'] == 'capacityScheduler'):
+                self._yarn_capacity_scheduler_metrics(metrics_json, addl_tags)
+
+        except KeyError:
+            pass
+
+    def _yarn_capacity_scheduler_metrics(self, metrics_json, addl_tags):
+        '''
+        Get metrics from YARN scheduler if it's type is capacityScheduler
+        '''
+        tags = ['queue_name:%s' % metrics_json['queueName']]
+        tags.extend(addl_tags)
+
+        self._set_yarn_metrics_from_json(tags, metrics_json, YARN_ROOT_QUEUE_METRICS)
+
+        if (metrics_json['queues'] is not None and metrics_json['queues']['queue'] is not None):
+
+            for queue_json in metrics_json['queues']['queue']:
+                queue_name = queue_json['queueName']
+
+                tags = ['queue_name:%s' % str(queue_name)]
+                tags.extend(addl_tags)
+
+                self._set_yarn_metrics_from_json(tags, queue_json, YARN_QUEUE_METRICS)
+
     def _set_yarn_metrics_from_json(self, tags, metrics_json, yarn_metrics):
         '''
         Parse the JSON response and set the metrics
         '''
-        for status, metric in yarn_metrics.iteritems():
+        for dict_path, metric in yarn_metrics.iteritems():
             metric_name, metric_type = metric
 
-            if metrics_json.get(status) is not None:
+            metric_value = self._get_value_from_json(dict_path, metrics_json)
+
+            if metric_value is not None:
                 self._set_metric(metric_name,
                     metric_type,
-                    metrics_json[status],
+                    metric_value,
                     tags)
+
+    def _get_value_from_json(self, dict_path, metrics_json):
+        '''
+        Get a value from a dictionary under N keys, represented as str("key1.key2...key{n}")
+        '''
+        for key in dict_path.split('.'):
+            if key in metrics_json:
+                metrics_json = metrics_json.get(key)
+            else:
+                return None
+        return metrics_json
 
     def _set_metric(self, metric_name, metric_type, value, tags=None, device_name=None):
         '''

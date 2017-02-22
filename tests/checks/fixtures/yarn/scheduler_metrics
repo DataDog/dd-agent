@@ -1,0 +1,76 @@
+{
+   "scheduler" : {
+      "schedulerInfo" : {
+         "type" : "capacityScheduler",
+         "maxCapacity" : 100,
+         "usedCapacity" : 35.012,
+         "capacity" : 100,
+         "queueName" : "root",
+         "queues" : {
+            "queue" : [
+               {
+                  "numPendingApplications" : 0,
+                  "userAMResourceLimit" : {
+                     "memory" : 2587968,
+                     "vCores" : 688
+                  },
+                  "type" : "capacitySchedulerLeafQueueInfo",
+                  "absoluteCapacity" : 52.12,
+                  "userLimitFactor" : 1,
+                  "userLimit" : 100,
+                  "numApplications" : 3,
+                  "users" : {
+                     "user" : [
+                        {
+                           "numPendingApplications" : 0,
+                           "AMResourceUsed" : {
+                              "memory" : 2688,
+                              "vCores" : 3
+                           },
+                           "numActiveApplications" : 3,
+                           "userResourceLimit" : {
+                              "memory" : 5175936,
+                              "vCores" : 1376
+                           },
+                           "username" : "root",
+                           "resourcesUsed" : {
+                              "memory" : 3164800,
+                              "vCores" : 579
+                           }
+                        }
+                     ]
+                  },
+                  "nodeLabels" : [
+                     "*"
+                  ],
+                  "usedAMResource" : {
+                     "memory" : 2688,
+                     "vCores" : 3
+                  },
+                  "hideReservationQueues" : false,
+                  "queueName" : "clientqueue",
+                  "absoluteUsedCapacity" : 31.868685,
+                  "resourcesUsed" : {
+                     "memory" : 3164800,
+                     "vCores" : 579
+                  },
+                  "AMResourceLimit" : {
+                     "vCores" : 688,
+                     "memory" : 2587968
+                  },
+                  "capacity" : 52.12,
+                  "state" : "RUNNING",
+                  "numActiveApplications" : 3,
+                  "preemptionDisabled" : false,
+                  "absoluteMaxCapacity" : 52.12,
+                  "usedCapacity" : 61.14484,
+                  "numContainers" : 75,
+                  "maxCapacity" : 52.12,
+                  "maxApplications" : 5212,
+                  "maxApplicationsPerUser" : 5212
+               }
+            ]
+         }
+      }
+   }
+}
