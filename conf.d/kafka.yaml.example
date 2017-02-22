@@ -310,14 +310,14 @@ init_config:
             alias: kafka.request.handler.avg.idle.pct.rate
     - include:
         domain: 'kafka.server'
-        bean: 'kafka.server:type=ProducerRequestPurgatory,name=PurgatorySize'
+        bean: 'kafka.server:delayedOperation=Produce,name=PurgatorySize,type=DelayedOperationPurgatory'
         attribute:
           Value:
             metric_type: gauge
             alias: kafka.request.producer_request_purgatory.size
     - include:
         domain: 'kafka.server'
-        bean: 'kafka.server:type=FetchRequestPurgatory,name=PurgatorySize'
+        bean: 'kafka.server:delayedOperation=Fetch,name=PurgatorySize,type=DelayedOperationPurgatory'
         attribute:
           Value:
             metric_type: gauge
@@ -349,14 +349,14 @@ init_config:
             alias: kafka.replication.isr_expands.rate
     - include:
         domain: 'kafka.controller'
-        bean: 'kafka.controller:type=ControllerStats,name=LeaderElectionRateAndTimeMs'
+        bean: 'kafka.controller:name=LeaderElectionRateAndTimeMs,type=ControllerStats'
         attribute:
           Count:
             metric_type: rate
             alias: kafka.replication.leader_elections.rate
     - include:
         domain: 'kafka.controller'
-        bean: 'kafka.controller:type=ControllerStats,name=UncleanLeaderElectionsPerSec'
+        bean: 'kafka.controller:name=UncleanLeaderElectionsPerSec,type=ControllerStats'
         attribute:
           Count:
             metric_type: rate
