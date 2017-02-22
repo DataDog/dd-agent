@@ -211,7 +211,6 @@ class OSProjectScopeTest(TestCase):
     def _test_bad_user(self, user):
         self.assertRaises(IncompleteIdentity, OpenStackProjectScope.get_user_identity, user)
 
-
     def test_get_user_identity(self):
         for user in self.BAD_USERS:
             self._test_bad_user(user)
@@ -258,7 +257,6 @@ class OSProjectScopeTest(TestCase):
             self.assertRaises(MissingNovaEndpoint, OpenStackProjectScope.from_config, init_config, instance_config)
 
 
-
 class KeyStoneCatalogTest(TestCase):
 
     def test_get_nova_endpoint(self):
@@ -278,15 +276,23 @@ class KeyStoneCatalogTest(TestCase):
 class TestCheckOpenStack(AgentCheckTest):
     CHECK_NAME = OS_CHECK_NAME
 
+    # Samples
+    # .. network
+    ALL_NETWORK_IDS = ["server-1", "server-2", "other-1", "other-2"]
+    EXCLUDED_NETWORK_IDS = ["server-1", "other-.*"]
+    FILTERED_NETWORK_ID = "server-2"
+
+    # .. config
     MOCK_CONFIG = {
         "init_config": {
             "keystone_server_url": "http://10.0.2.15:5000",
             "ssl_verify": False,
+            "exclude_network_ids": EXCLUDED_NETWORK_IDS,
         },
         "instances": [
             {
-                "name" : "test_name", "user": {"name": "test_name", "password": "test_pass", "domain": {"id": "test_id"}},
-                "auth_scope": {"project": {"id": "test_project_id"}}
+                "name": "test_name", "user": {"name": "test_name", "password": "test_pass", "domain": {"id": "test_id"}},
+                "auth_scope": {"project": {"id": "test_project_id"}},
             }
         ]
     }
@@ -331,3 +337,21 @@ class TestCheckOpenStack(AgentCheckTest):
             self.assertEqual(self.check._get_and_set_aggregate_list(), expected_aggregates)
             sleep(1.5)
             self.assertTrue(self.check._is_expired("aggregates"))
+
+    @patch("openstack.OpenStackCheck.get_all_network_ids", return_value=ALL_NETWORK_IDS)
+    def test_network_exclusion(self, *args):
+        """
+        Exclude networks using regular expressions.
+        """
+        with patch("openstack.OpenStackCheck.get_stats_for_single_network") \
+                as mock_get_stats_single_network:
+
+            # Retrieve network stats
+            self.check.get_network_stats()
+
+            # Assert
+            # .. 1 out of 4 network filtered in
+            self.assertEqual(mock_get_stats_single_network.call_count, 1)
+            self.assertEqual(
+                mock_get_stats_single_network.call_args[0][0], self.FILTERED_NETWORK_ID
+            )

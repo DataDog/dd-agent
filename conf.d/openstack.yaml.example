@@ -63,7 +63,7 @@ instances:
       # Setting append_tenant_id to true manually adds this suffix for downstream requests
       # append_tenant_id: false
 
-      # IDs of servers to exclude from monitoring (by default the agent will collect metrics from all guest servers for this project that are running on the host
+      # Regular expressions of servers to exclude from monitoring (by default the agent will collect metrics from all guest servers for this project that are running on the host
       # exclude_server_ids:
       #    - server_1
-      #    - server_2
+      #    - other_.*
