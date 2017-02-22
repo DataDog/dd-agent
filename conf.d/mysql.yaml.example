@@ -19,6 +19,8 @@ instances:
     #   extra_performance_metrics: true
     #   schema_size_metrics: false
     #   disable_innodb_metrics: false
+    #   pt_heartbeat: false
+    #   pt_heartbeat_table: percona.heartbeat # Optional, in case you don't use pt-heartbeat's default
     #
     #     NOTE: disable_innodb_metrics should only be used by users with older (unsupported) versions of
     #           MySQL who do not run/have innodb engine support and may experiment issue otherwise.

@@ -268,6 +268,10 @@ REPLICA_VARS = {
     'Slaves_connected': ('mysql.replication.slaves_connected', COUNT),
 }
 
+PT_HEARTBEAT_VARS = {
+    'Pt_Heatbeat_Seconds_Behind_Master': ('mysql.replication.pthb_seconds_behind_master', GAUGE),
+}
+
 SYNTHETIC_VARS = {
     'Qcache_utilization': ('mysql.performance.qcache.utilization', GAUGE),
     'Qcache_instant_utilization': ('mysql.performance.qcache.utilization.instant', GAUGE),
@@ -574,6 +578,32 @@ class MySql(AgentCheck):
             # deprecated in favor of service_check("mysql.replication.slave_running")
             self.gauge(self.SLAVE_SERVICE_CHECK_NAME, (1 if slave_running_status == AgentCheck.OK else 0), tags=tags)
             self.service_check(self.SLAVE_SERVICE_CHECK_NAME, slave_running_status, tags=self.service_check_tags)
+
+        if _is_affirmative(options.get('pt_heartbeat', False)):
+            try:
+                with closing(db.cursor(pymysql.cursors.DictCursor)) as cursor:
+                    pthb_schema, pthb_table = options.get('pt_heartbeat_table', 'percona.heartbeat').split('.')
+
+                    sql_pthb_seconds_behind = """SELECT
+                        ROUND(UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(ts))
+                        AS Pt_Heatbeat_Seconds_Behind_Master
+                        FROM `%s`.`%s` WHERE server_id != @@server_id;""" % (pthb_schema, pthb_table)
+
+                    cursor.execute(sql_pthb_seconds_behind)
+                    ptheartbeat_results = cursor.fetchone()
+                    if ptheartbeat_results is not None:
+                        self.log.debug("pt-heartbeat table available: %s" % str(ptheartbeat_results))
+                        results.update(ptheartbeat_results)
+                        metrics.update(PT_HEARTBEAT_VARS)
+
+            except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
+                self.warning("Couldn't read from pt-heartbeat table (must grant SELECT ON percona.heartbeat: %s" % str(e))
+
+            except (pymysql.err.ProgrammingError) as e:
+                self.warning("Cannot find pt-heartbeat table : %s" % str(e))
+
+            except (ValueError) as e:
+                self.warning("Config pt_heartbeat_table must be 'database.table', e.g: 'percona.heartbeat' : %s" % str(e))
 
         # "synthetic" metrics
         metrics.update(SYNTHETIC_VARS)
