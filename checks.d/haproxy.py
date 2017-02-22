@@ -464,6 +464,9 @@ class HAProxy(AgentCheck):
         ]
         tags.extend(custom_tags)
 
+        if 'act' in data:
+            tags.append("active:%s" % ('true' if data['act'] else 'false'))
+
         if self._is_service_excl_filtered(service_name, services_incl_filter,
                                           services_excl_filter):
             return

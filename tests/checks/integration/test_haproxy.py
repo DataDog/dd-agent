@@ -122,7 +122,7 @@ class HaproxyTest(AgentCheckTest):
                 self.assertMetric(rate, tags=frontend_tags, count=1)
 
     def _test_backend_metrics(self, shared_tag, services=None):
-        backend_tags = shared_tag + ['type:BACKEND']
+        backend_tags = shared_tag + ['type:BACKEND', 'active:true']
         if not services:
             services = self.BACKEND_SERVICES
         for service in services:
@@ -194,7 +194,6 @@ class HaproxyTest(AgentCheckTest):
     def test_wrong_config(self):
         config = self.config
         config['instances'][0]['username'] = 'fake_username'
-
         self.assertRaises(Exception, lambda: self.run_check(config))
 
         # Test that nothing has been emitted
