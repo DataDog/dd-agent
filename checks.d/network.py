@@ -326,8 +326,22 @@ class Network(AgentCheck):
                 self._submit_devicemetrics(iface, metrics)
 
         try:
-            proc_snmp_path = "{}/net/snmp".format(proc_location)
-            proc = open(proc_snmp_path, 'r')
+            def parse_netstats(proc_file, prefix, metrics_name):
+                proc = open(proc_file, 'r')
+                try:
+                    lines = proc.readlines()
+                finally:
+                    proc.close()
+
+                proto_lines = [line for line in lines if line.startswith(prefix)]
+                column_names = proto_lines[0].strip().split()
+                values = proto_lines[1].strip().split()
+                metrics = dict(zip(column_names, values))
+
+                assert(metrics[prefix] == prefix)
+
+                for key, metric in metrics_name.iteritems():
+                    self.rate(metric, self._parse_value(metrics[key]))
 
             # IP:      Forwarding   DefaultTTL InReceives     InHdrErrors  ...
             # IP:      2            64         377145470      0            ...
@@ -341,24 +355,6 @@ class Network(AgentCheck):
             # Udp:     24249494     1643257    0              25892947     ...
             # UdpLite: InDatagrams  Noports    InErrors       OutDatagrams ...
             # UdpLite: 0            0          0              0            ...
-            try:
-                lines = proc.readlines()
-            finally:
-                proc.close()
-
-            tcp_lines = [line for line in lines if line.startswith('Tcp:')]
-            udp_lines = [line for line in lines if line.startswith('Udp:')]
-
-            tcp_column_names = tcp_lines[0].strip().split()
-            tcp_values = tcp_lines[1].strip().split()
-            tcp_metrics = dict(zip(tcp_column_names, tcp_values))
-
-            udp_column_names = udp_lines[0].strip().split()
-            udp_values = udp_lines[1].strip().split()
-            udp_metrics = dict(zip(udp_column_names, udp_values))
-
-            # line start indicating what kind of metrics we're looking at
-            assert(tcp_metrics['Tcp:'] == 'Tcp:')
 
             tcp_metrics_name = {
                 'RetransSegs': 'system.net.tcp.retrans_segs',
@@ -366,10 +362,7 @@ class Network(AgentCheck):
                 'OutSegs'    : 'system.net.tcp.out_segs'
             }
 
-            for key, metric in tcp_metrics_name.iteritems():
-                self.rate(metric, self._parse_value(tcp_metrics[key]))
-
-            assert(udp_metrics['Udp:'] == 'Udp:')
+            parse_netstats("{}/net/snmp".format(proc_location), 'Tcp:', tcp_metrics_name)
 
             udp_metrics_name = {
                 'InDatagrams': 'system.net.udp.in_datagrams',
@@ -380,13 +373,49 @@ class Network(AgentCheck):
                 'SndbufErrors': 'system.net.udp.snd_buf_errors',
                 'InCsumErrors': 'system.net.udp.in_csum_errors'
             }
-            for key, metric in udp_metrics_name.iteritems():
-                if key in udp_metrics:
-                    self.rate(metric, self._parse_value(udp_metrics[key]))
 
-        except IOError:
+            parse_netstats("{}/net/snmp".format(proc_location), 'Udp:', udp_metrics_name)
+
+            netstat_metrics_name = {
+                'SyncookiesSent': 'system.net.tcp_ext.syncookies_sent',
+                'SyncookiesRecv': 'system.net.tcp_ext.syncookies_recv',
+                'SyncookiesFailed': 'system.net.tcp_ext.syncookies_failed',
+                'OfoPruned': 'system.net.tcp_ext.ofo_queue_dropped',
+                'RcvPruned': 'system.net.tcp_ext.recv_dropped',
+                'DelayedACKs': 'system.net.tcp_ext.delayed_ack',
+                'DelayedACKLocked': 'system.net.tcp_ext.delayed_ack_locked',
+                'ListenOverflows': 'system.net.tcp_ext.listen_overflows',
+                'ListenDrops': 'system.net.tcp_ext.listen_drops',
+                'TCPForwardRetrans': 'system.net.tcp_ext.forward_retrans',
+                'TCPFastRetrans': 'system.net.tcp_ext.fast_retrans',
+                'TCPSlowStartRetrans': 'system.net.tcp_ext.slowstart_retrans',
+                'TCPRenoRecovery': 'system.net.tcp_ext.reno_recovery',
+                'TCPFACKReorder': 'system.net.tcp_ext.fack_reorder',
+                'TCPSACKReorder': 'system.net.tcp_ext.sack_reorder',
+                'TCPRenoReorder': 'system.net.tcp_ext.reno_reorder',
+                'TCPTSReorder': 'system.net.tcp_ext.timestamp_reorder',
+                'TCPFullUndo': 'system.net.tcp_ext.retrans_full_undo',
+                'TCPPartialUndo': 'system.net.tcp_ext.retrans_part_undo',
+                'TCPDSACKUndo': 'system.net.tcp_ext.retrans_sack_undo',
+                'TCPLossUndo': 'system.net.tcp_ext.retrans_ack_undo',
+                'TCPAbortOnData': 'system.net.tcp_ext.abort_fin_wait1', # RST sent
+                'TCPAbortOnClose': 'system.net.tcp_ext.abort_close', # RST sent
+                'TCPAbortOnMemory': 'system.net.tcp_ext.abort_no_memory',
+                'TCPAbortOnTimeout': 'system.net.tcp_ext.abort_timeout',
+                'TCPAbortOnLinger': 'system.net.tcp_ext.abort_linger',
+                'TCPAbortFailed': 'system.net.tcp_ext.abort_failed',
+                'TCPMemoryPressures': 'system.net.tcp_ext.memory_pressure',
+                'TCPSACKDiscard': 'system.net.tcp_ext.sack_invalid',
+                'TCPDSACKIgnoredOld': 'system.net.tcp_ext.sack_dup',
+                'TCPDSACKIgnoredNoUndo': 'system.net.tcp_ext.sack_olddup',
+                'TCPBacklogDrop': 'system.net.tcp_ext.recv_queue_drop',
+            }
+
+            parse_netstats("{}/net/netstat".format(proc_location), 'TcpExt:', netstat_metrics_name)
+
+        except IOError as e:
             # On Openshift, /proc/net/snmp is only readable by root
-            self.log.debug("Unable to read %s.", proc_snmp_path)
+            self.log.debug("Unable to read %s.", e.filename)
 
     # Parse the output of the command that retrieves the connection state (either `ss` or `netstat`)
     # Returns a dict metric_name -> value
