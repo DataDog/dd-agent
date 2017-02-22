@@ -40,6 +40,10 @@ class Etcd(AgentCheck):
         'watchers': 'etcd.store.watchers'
     }
 
+    SELF_HEALTH = {
+        'health': 'etcd.self.health'
+    }
+
     SELF_GAUGES = {
         'sendPkgRate': 'etcd.self.send.pkgrate',
         'sendBandwidthRate': 'etcd.self.send.bandwidthrate',
@@ -91,6 +95,16 @@ class Etcd(AgentCheck):
         instance_tags.append("url:{0}".format(url))
         timeout = float(instance.get('timeout', self.DEFAULT_TIMEOUT))
         is_leader = False
+
+        # Gather self health status
+        self_response = self._get_self_health(url, ssl_params, timeout)
+        if self_response is not None:
+            for key in self.SELF_HEALTH:
+                if key in self_response:
+                    val = 1 if self_response[key] == 'true' else 0
+                    self.gauge(self.SELF_HEALTH[key], val, tags=instance_tags)
+                else:
+                    self.log.warn("Missing key {0} in stats.".format(key))
 
         # Gather self metrics
         self_response = self._get_self_metrics(url, ssl_params, timeout)
@@ -150,6 +164,9 @@ class Etcd(AgentCheck):
         if self_response is not None and store_response is not None:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                                tags=["url:{0}".format(url)])
+
+    def _get_self_health(self, url, ssl_params, timeout):
+        return self._get_json(url + "/health",  ssl_params, timeout)
 
     def _get_self_metrics(self, url, ssl_params, timeout):
         return self._get_json(url + "/v2/stats/self",  ssl_params, timeout)
