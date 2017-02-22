@@ -966,3 +966,4 @@ class DockerDaemon(AgentCheck):
                 self.warning("Cannot parse %s content: %s" % (path, str(e)))
                 continue
         return container_dict
+

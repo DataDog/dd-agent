@@ -20,6 +20,37 @@ DATADOG_ID = 'com.datadoghq.sd.check.id'
 
 log = logging.getLogger(__name__)
 
+DEFAULT_CONTAINER_TAGS = [
+    "docker_image",
+    "image_name",
+    "image_tag",
+]
+
+DEFAULT_PERFORMANCE_TAGS = [
+    "container_name",
+    "docker_image",
+    "image_name",
+    "image_tag",
+]
+
+DEFAULT_IMAGE_TAGS = [
+    'image_name',
+    'image_tag'
+]
+
+
+TAG_EXTRACTORS = {
+    "docker_image": lambda c: [c["Image"]],
+    "image_name": lambda c: DockerUtil.image_tag_extractor(c, 0),
+    "image_tag": lambda c: DockerUtil.image_tag_extractor(c, 1),
+    "container_command": lambda c: [c["Command"]],
+    "container_name": DockerUtil.container_name_extractor,
+    "container_id": lambda c: [c["Id"]],
+}
+
+CONTAINER = "container"
+PERFORMANCE = "performance"
+IMAGE = "image"
 
 class _SDDockerBackendConfigFetchState(object):
     def __init__(self, inspect_fn, kube_pods=None):
@@ -88,6 +119,12 @@ class SDDockerBackend(AbstractSDBackend):
             'host': self._get_host_address,
             'port': self._get_port,
             'tags': self._get_additional_tags,
+        }
+
+        self.tag_names = {
+            CONTAINER: DEFAULT_CONTAINER_TAGS,
+            PERFORMANCE: DEFAULT_PERFORMANCE_TAGS,
+            IMAGE: DEFAULT_IMAGE_TAGS
         }
 
         AbstractSDBackend.__init__(self, agentConfig)
@@ -240,7 +277,17 @@ class SDDockerBackend(AbstractSDBackend):
 
     def get_tags(self, state, c_id):
         """Extract useful tags from docker or platform APIs. These are collected by default."""
+        c_id = c_inspect.get('Id', '')
+        entity = self.docker_client.containers(filters={'id': c_id})[0]
         tags = []
+        for tag_type in self.tag_names:
+            tag_names = self.tag_names[tag_type]
+            for tag_name in tag_names:
+                tag_value = self._extract_tag_value(entity, tag_name)
+                if tag_value is not None:
+                    for t in tag_value:
+                        tags.append('%s:%s' % (tag_name, str(t).strip()))
+
         if Platform.is_k8s():
             pod_metadata = state.get_kube_config(c_id, 'metadata')
 
@@ -269,6 +316,23 @@ class SDDockerBackend(AbstractSDBackend):
 
 
         return tags
+
+    def _extract_tag_value(self, entity, tag_name):
+        """Extra tag information from the API result (containers or images).
+        Cache extracted tags inside the entity object.
+        """
+        if tag_name not in TAG_EXTRACTORS:
+            self.warning("{0} isn't a supported tag".format(tag_name))
+            return
+
+        # Check for already extracted tags
+        if "_tag_values" not in entity:
+            entity["_tag_values"] = {}
+
+        if tag_name not in entity["_tag_values"]:
+            entity["_tag_values"][tag_name] = TAG_EXTRACTORS[tag_name](entity)
+
+        return entity["_tag_values"][tag_name]
 
     def _get_additional_tags(self, state, c_id, *args):
         tags = []
