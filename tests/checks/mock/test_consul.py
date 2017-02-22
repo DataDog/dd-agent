@@ -433,30 +433,58 @@ class TestCheckConsul(AgentCheckTest):
         # Pad num_services to kick in truncation logic
         num_services = self.check.MAX_SERVICES + 20
 
+        # Max services parameter (from consul.yaml) set to be bigger than MAX_SERVICES and smaller than the total of services
+        max_services = num_services - 10
+
         # Big whitelist
         services = self.mock_get_n_services_in_cluster(num_services)
         whitelist = ['service_{0}'.format(k) for k in range(num_services)]
         self.assertEqual(len(self.check._cull_services_list(services, whitelist)), self.check.MAX_SERVICES)
+
+        # Big whitelist with max_services
+        services = self.mock_get_n_services_in_cluster(num_services)
+        whitelist = ['service_{0}'.format(k) for k in range(num_services)]
+        self.assertEqual(len(self.check._cull_services_list(services, whitelist, max_services)), max_services)
 
         # Whitelist < MAX_SERVICES should spit out the whitelist
         services = self.mock_get_n_services_in_cluster(num_services)
         whitelist = ['service_{0}'.format(k) for k in range(self.check.MAX_SERVICES-1)]
         self.assertEqual(set(self.check._cull_services_list(services, whitelist)), set(whitelist))
 
+        # Whitelist < max_services param should spit out the whitelist
+        services = self.mock_get_n_services_in_cluster(num_services)
+        whitelist = ['service_{0}'.format(k) for k in range(max_services-1)]
+        self.assertEqual(set(self.check._cull_services_list(services, whitelist, max_services)), set(whitelist))
+
         # No whitelist, still triggers truncation
         whitelist = []
         self.assertEqual(len(self.check._cull_services_list(services, whitelist)), self.check.MAX_SERVICES)
+
+        # No whitelist with max_services set, also triggers truncation
+        whitelist = []
+        self.assertEqual(len(self.check._cull_services_list(services, whitelist, max_services)), max_services)
 
         # Num. services < MAX_SERVICES should be no-op in absence of whitelist
         num_services = self.check.MAX_SERVICES - 1
         services = self.mock_get_n_services_in_cluster(num_services)
         self.assertEqual(len(self.check._cull_services_list(services, whitelist)), num_services)
 
+        # Num. services < max_services (from consul.yaml) should be no-op in absence of whitelist
+        num_services = max_services - 1
+        services = self.mock_get_n_services_in_cluster(num_services)
+        self.assertEqual(len(self.check._cull_services_list(services, whitelist, max_services)), num_services)
+
         # Num. services < MAX_SERVICES should spit out only the whitelist when one is defined
         num_services = self.check.MAX_SERVICES - 1
         whitelist = ['service_1', 'service_2', 'service_3']
         services = self.mock_get_n_services_in_cluster(num_services)
         self.assertEqual(set(self.check._cull_services_list(services, whitelist)), set(whitelist))
+
+        # Num. services < max_services should spit out only the whitelist when one is defined
+        num_services = max_services - 1
+        whitelist = ['service_1', 'service_2', 'service_3']
+        services = self.mock_get_n_services_in_cluster(num_services)
+        self.assertEqual(set(self.check._cull_services_list(services, whitelist, max_services)), set(whitelist))
 
     def test_new_leader_event(self):
         self.check = load_check(self.CHECK_NAME, MOCK_CONFIG_LEADER_CHECK, self.DEFAULT_AGENT_CONFIG)
