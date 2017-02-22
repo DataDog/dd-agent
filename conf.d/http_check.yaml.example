@@ -124,6 +124,13 @@ instances:
     #
     # allow_redirects: true
 
+    # The (optional) include_default_header parameter can include the default headers.
+    # Default headers can be found at https://github.com/DataDog/dd-agent/blob/master/util.py#L54-L63
+    #
+    # Defaults to True.
+    #
+    #include_default_headers: false
+
     # tags:
     #   - url:http://alternative.host.example.com
     #   - env:production
