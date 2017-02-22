@@ -63,6 +63,7 @@ class ConsulCheck(AgentCheck):
         'passing': AgentCheck.OK,
         'warning': AgentCheck.WARNING,
         'critical': AgentCheck.CRITICAL,
+		'maintenance': "maintenance"
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
@@ -292,6 +293,7 @@ class ConsulCheck(AgentCheck):
 
                 # {'up': 0, 'passing': 0, 'warning': 0, 'critical': 0}
                 node_status = defaultdict(int)
+                node_status['maintenance'] = 0
 
                 for node in nodes_with_service:
                     # The node_id is n['Node']['Node']
@@ -308,6 +310,8 @@ class ConsulCheck(AgentCheck):
                         found_critical = False
                         found_warning = False
                         found_serf_health = False
+                        found_Maint = False
+                        found_maint_critical = False
 
                         for check in node['Checks']:
                             if check['CheckID'] == 'serfHealth':
@@ -328,10 +332,25 @@ class ConsulCheck(AgentCheck):
                             elif check['Status'] == 'warning':
                                 found_warning = True
                                 # Keep looping in case there is a critical status
+								
+                        if check['CheckID'] == '_node_maintenance':
+                            found_Maint = True
+
+                            # For backwards compatibility, the "up" node_status is computed
+                            # based on the total # of nodes 'running' as part of the service.
+
+                                # If the serfHealth is `critical` it means the Consul agent isn't even responding,
+                                # and we don't register the node as `up`
+                                
+                            if check['Status'] == 'critical':
+                                found_maint_critical = True
 
                         # Increment the counters based on what was found in Checks
                         # `critical` checks override `warning`s, and if neither are found, register the node as `passing`
-                        if found_critical:
+						if found_maint_critical: 
+							node_status['maintenance'] += 1
+							nodes_to_service_status[node_id]["maintenance"] += 1
+                        elif found_critical:
                             node_status['critical'] += 1
                             nodes_to_service_status[node_id]["critical"] += 1
                         elif found_warning:
