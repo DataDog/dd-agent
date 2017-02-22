@@ -251,7 +251,9 @@ class Network(AgentCheck):
             for regex, metric in regex_list:
                 value = re.match(regex, line)
                 if value:
-                    self.rate(metric, self._parse_value(value.group(1)))
+                    parsed_value =  self._parse_value(value.group(1))
+                    self.rate(metric, parsed_value)
+                    self.monotonic_count('{}_count'.format(metric), parsed_value)
 
     def _check_linux(self, instance):
         proc_location = self.agentConfig.get('procfs_path', '/proc').rstrip('/')
@@ -367,7 +369,9 @@ class Network(AgentCheck):
             }
 
             for key, metric in tcp_metrics_name.iteritems():
-                self.rate(metric, self._parse_value(tcp_metrics[key]))
+                value = self._parse_value(tcp_metrics[key])
+                self.rate(metric, value)
+                self.monotonic_count('{}_count'.format(metric), value)
 
             assert(udp_metrics['Udp:'] == 'Udp:')
 
@@ -382,7 +386,9 @@ class Network(AgentCheck):
             }
             for key, metric in udp_metrics_name.iteritems():
                 if key in udp_metrics:
-                    self.rate(metric, self._parse_value(udp_metrics[key]))
+                    value = self._parse_value(udp_metrics[key])
+                    self.rate(metric, value)
+                    self.monotonic_count('{}_count'.format(metric), value)
 
         except IOError:
             # On Openshift, /proc/net/snmp is only readable by root
