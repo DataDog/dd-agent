@@ -218,9 +218,13 @@ class TestTransaction(unittest.TestCase):
         self.assertEqual(endpoints, expected, (endpoints, expected))
 
         for url in endpoints:
-            r = requests.post(url, data=json.dumps({"foo": "bar"}),
-                              headers={'Content-Type': "application/json"})
-            r.raise_for_status()
+            try:
+                r = requests.post(url, data=json.dumps({"foo": "bar"}),
+                                headers={'Content-Type': "application/json"})
+                r.raise_for_status()
+            except requests.HTTPError:
+                if r.status_code != 400 or 'No series present in the payload' not in r.content:
+                    raise
 
         # API Service Check Transaction
         APIServiceCheckTransaction._trManager = trManager
