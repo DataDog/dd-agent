@@ -57,7 +57,7 @@ pymysql==0.6.6
 gearman==2.0.2
 
 # checks.d/mcache.py
-python-memcached==1.53
+python-binary-memcached==0.24.6
 
 # checks.d/redis.py
 redis==2.10.5

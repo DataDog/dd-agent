@@ -4,7 +4,7 @@ from subprocess import PIPE, Popen
 import time
 
 # 3p
-import memcache
+import bmemcached
 from nose.plugins.attrib import attr
 
 # project
@@ -107,7 +107,7 @@ class TestMemCache(AgentCheckTest):
     CHECK_NAME = "mcache"
 
     def setUp(self):
-        c = memcache.Client(["localhost:{0}".format(PORT)])
+        c = bmemcached.Client(("localhost:{0}".format(PORT),))
         c.set("foo", "bar")
         c.get("foo")
 

@@ -1,5 +1,6 @@
 # 3rd party
-import memcache
+import bmemcached
+import pkg_resources
 
 # project
 from checks import AgentCheck
@@ -162,18 +163,18 @@ class Memcache(AgentCheck):
     SERVICE_CHECK = 'memcache.can_connect'
 
     def get_library_versions(self):
-        return {"memcache": memcache.__version__}
+        return {
+            "memcache": pkg_resources.get_distribution("python-binary-memcached").version
+        }
 
     def _get_metrics(self, client, tags, service_check_tags=None):
         try:
-            raw_stats = client.get_stats()
+            stats_by_host = client.stats()
+            assert len(stats_by_host) == 1, "Malformed response: %s" % stats_by_host
 
-            assert len(raw_stats) == 1 and len(raw_stats[0]) == 2,\
-                "Malformed response: %s" % raw_stats
+            stats = stats_by_host.values()[0]
+            assert len(stats) > 0, "Malformed response: %s" % stats
 
-
-            # Access the dict
-            stats = raw_stats[0][1]
             for metric in stats:
                 # Check if metric is a gauge or rate
                 if metric in self.GAUGES:
@@ -234,13 +235,13 @@ class Memcache(AgentCheck):
                     optional_gauges = metrics_args[1]
                     optional_fn = metrics_args[2]
 
-                    raw_stats = client.get_stats(arg)
+                    stats_by_host = client.stats(arg)
+                    assert len(stats_by_host) == 1, "Malformed response: %s" % stats_by_host
 
-                    assert len(raw_stats) == 1 and len(raw_stats[0]) == 2,\
-                        "Malformed response: %s" % raw_stats
+                    stats = stats_by_host.values()[0]
+                    assert len(stats) > 0, "Malformed response: %s" % stats
 
                     # Access the dict
-                    stats = raw_stats[0][1]
                     prefix = "memcache.{}".format(arg)
                     for metric, val in stats.iteritems():
                         # Check if metric is a gauge or rate
@@ -309,6 +310,8 @@ class Memcache(AgentCheck):
         socket = instance.get('socket')
         server = instance.get('url')
         options = instance.get('options', {})
+        username = instance.get('username')
+        password = instance.get('username')
 
         if not server and not socket:
             raise Exception('Either "url" or "socket" must be configured')
@@ -326,7 +329,8 @@ class Memcache(AgentCheck):
 
         try:
             self.log.debug("Connecting to %s:%s tags:%s", server, port, tags)
-            mc = memcache.Client(["%s:%s" % (server, port)])
+
+            mc = bmemcached.Client(("%s:%s" % (server, port),), username=username, password=password)
 
             self._get_metrics(mc, tags, service_check_tags)
             if options:
@@ -334,14 +338,14 @@ class Memcache(AgentCheck):
                 self.OPTIONAL_STATS["items"][2] = Memcache.get_items_stats
                 self.OPTIONAL_STATS["slabs"][2] = Memcache.get_slabs_stats
                 self._get_optional_metrics(mc, tags, options)
-        except AssertionError:
+        except AssertionError as e:
             self.service_check(
                 self.SERVICE_CHECK, AgentCheck.CRITICAL,
                 tags=service_check_tags,
                 message="Unable to fetch stats from server")
             raise Exception(
-                "Unable to retrieve stats from memcache instance: {0}:{1}."
-                "Please check your configuration".format(server, port))
+                "Unable to retrieve stats from memcache instance: {0}:{1}. "
+                "Please check your configuration. ({})".format(server, port, e))
 
         if mc is not None:
             mc.disconnect_all()
