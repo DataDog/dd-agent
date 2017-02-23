@@ -176,7 +176,7 @@ elif [ $OS = "SUSE" ]; then
   $sudo_cmd zypper --non-interactive refresh
 
   echo -e "\033[34m\n* Installing Datadog Agent\n\033[0m"
-  $sudo_cmd zypper --non-interactive install datadog-agent
+  $sudo_cmd zypper --non-interactive --no-gpg-check install datadog-agent
 
 else
     printf "\033[31mYour OS or distribution are not supported by this install script.
