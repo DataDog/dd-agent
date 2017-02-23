@@ -35,6 +35,8 @@ class Mesos(AgentCheck):
         default_timeout = self.init_config.get('default_timeout', 5)
         timeout = float(instance.get('timeout', default_timeout))
 
+        self.version = self.get_version(url, timeout)
+
         response = self.get_master_roles(url, timeout)
         if response is not None:
             for role in response['roles']:
@@ -55,8 +57,9 @@ class Mesos(AgentCheck):
         response = self.get_master_state(url, timeout)
         if response is not None:
             tags = instance_tags
-            for attr in ['deactivated_slaves','failed_tasks','finished_tasks','killed_tasks','lost_tasks','staged_tasks','started_tasks']:
-                self.gauge('mesos.state.' + attr, response[attr], tags=tags)
+            if self.version <= [0, 22, 0]:
+                for attr in ['deactivated_slaves','failed_tasks','finished_tasks','killed_tasks','lost_tasks','staged_tasks','started_tasks']:
+                    self.gauge('mesos.state.' + attr, response[attr], tags=tags)
 
             for framework in response['frameworks']:
                 tags = ['framework:' + framework['id']] + instance_tags
@@ -76,10 +79,19 @@ class Mesos(AgentCheck):
         return self.get_json(url + "/master/roles.json", timeout)
 
     def get_master_stats(self, url, timeout):
-        return self.get_json(url + "/master/stats.json", timeout)
+        if self.version >= [0, 23, 0]:
+            endpoint = '/metrics/snapshot'
+        else:
+            endpoint = '/stats.json'
+        return self.get_json(url + endpoint, timeout)
 
     def get_master_state(self, url, timeout):
         return self.get_json(url + "/master/state.json", timeout)
+
+    def get_version(self, url, timeout):
+        data = self.get_json(url + "/master/state.json", timeout)
+        version = map(int, data['version'].split('.'))
+        return version
 
     def get_json(self, url, timeout):
         # Use a hash of the URL as an aggregation key
