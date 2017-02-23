@@ -318,16 +318,16 @@ class DockerDaemon(AgentCheck):
         for container in containers:
             container_name = DockerUtil.container_name_extractor(container)[0]
 
+            # Check if the container is included/excluded via its tags
+            if self._is_container_excluded(container):
+                self.log.debug("Container {0} is excluded".format(container_name))
+                continue
+
             container_status_tags = self._get_tags(container, CONTAINER)
 
             all_containers_count[tuple(sorted(container_status_tags))] += 1
             if self._is_container_running(container):
                 running_containers_count[tuple(sorted(container_status_tags))] += 1
-
-            # Check if the container is included/excluded via its tags
-            if self._is_container_excluded(container):
-                self.log.debug("Container {0} is excluded".format(container_name))
-                continue
 
             containers_by_id[container['Id']] = container
 
