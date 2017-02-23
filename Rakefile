@@ -1,6 +1,8 @@
 #!/usr/bin/env rake
 # encoding: utf-8
 # 3p
+require 'json'
+require 'net/http'
 require 'rake/clean'
 require 'rubocop/rake_task'
 
@@ -86,6 +88,33 @@ namespace :ci do
     flavor = args[:flavor] || ENV['TRAVIS_FLAVOR'] || 'default'
     flavors = flavor.split(',')
     flavors.each { |f| Rake::Task["ci:#{f}:execute"].invoke }
+  end
+
+  desc 'Trigger remote CI'
+  task :trigger, :repo do |_, args|
+    abort 'Task only applies to travis builds.' if !ENV['TRAVIS'] || !ENV['TRAVIS_API_TOKEN']
+    repo = "DataDog%2F#{args[:repo]}"
+    url = "https://api.travis-ci.org/repo/#{repo}/requests"
+    body = { 'request' => { 'branch' => 'master' } }.to_json
+
+    uri = URI(url)
+    res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) do |http|
+      req = Net::HTTP::Post.new(uri.path)
+      req['Content-Type'] = 'application/json'
+      req['Accept'] = 'application/json'
+      req['Travis-API-Version'] = '3'
+      req['Authorization'] = "token #{ENV['TRAVIS_API_TOKEN']}"
+      # The body needs to be a JSON string, use whatever you know to parse Hash to JSON
+      req.body = body
+      http.request(req)
+    end
+
+    case res
+    when Net::HTTPSuccess then
+      puts "Build Triggered remotely for: #{url}"
+    else
+      puts "Error triggering build (error #{res.code}): #{url}"
+    end
   end
 end
 

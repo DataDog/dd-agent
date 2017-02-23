@@ -15,9 +15,6 @@ cache:
     - vendor/cache
     - $HOME/embedded
 
-matrix:
-  fast_finish: true
-
 env:
   global:
     - CONCURRENCY=2
@@ -26,11 +23,8 @@ env:
     - PIP_CACHE=$HOME/.cache/pip
     - VOLATILE_DIR=/tmp
     - DD_CASHER_DIR=/tmp/casher
+    - secure: cljGaYMtRkLuW1xjGyF8W0ACrkBwHQTGJUaEoqxtIEJaVjLwcuznny9qzuQvF8YJhjs7g9eRAsZqWGpgRw765rzUB5C4Cp5GpUdTHS/fPINj3AXRzGztL2m6DHBidjEyYaX8dryO4xR0uCULwp4bSI0Rht71VqE90/6z1ehIzBs=
   matrix:
-    - TRAVIS_FLAVOR=default
-    - TRAVIS_FLAVOR=core_integration
-    - TRAVIS_FLAVOR=checks_mock
-    - TRAVIS_FLAVOR=system
 
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"
@@ -43,9 +37,15 @@ script:
   # Needed if no cache exists
   - mkdir -p $INTEGRATIONS_DIR
   - ls -al $INTEGRATIONS_DIR
-  - 'rake ci:run'
+  - 'rake ci:run[default]'
+  - 'rake ci:run[core_integration]'
+  - 'rake ci:run[checks_mock]'
+  - 'rake ci:run[system]'
   - ls -al $INTEGRATIONS_DIR
 
+after_success:
+  - 'rake ci:trigger[integrations-core]'
+  - 'rake ci:trigger[integrations-extras]'
 
 after_failure:
   - echo "Logs from installation process come here / DEBUG LOGS"
