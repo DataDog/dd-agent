@@ -172,6 +172,7 @@ class DockerDaemon(AgentCheck):
             self._disable_net_metrics = False
 
             # Set tagging options
+            self.include_app_id = instance.get("include_marathon_app_id", False)
             self.custom_tags = instance.get("tags", [])
             self.collect_labels_as_tags = instance.get("collect_labels_as_tags", DEFAULT_LABELS_AS_TAGS)
             self.kube_labels = {}
@@ -370,6 +371,19 @@ class DockerDaemon(AgentCheck):
 
         if entity is not None:
             pod_name = None
+
+            if self.include_app_id and (tag_type is CONTAINER or tag_type is PERFORMANCE):
+                self.log.debug("We need to capture Marathon Id")
+                cont_id = entity.get("Id")
+                if cont_id is not None:
+                    cont_inspected = self.docker_client.inspect_container(cont_id)
+                    for env_var in cont_inspected['Config']['Env']:
+                        self.log.debug("We have env_var : %s" % env_var)
+                        if 'MARATHON_APP_ID=' in env_var:
+                            app_id = env_var.replace('MARATHON_APP_ID=','')
+                            self.log.debug("We have found the id as %s" % app_id)
+                            tags.append("app_id:%s" % app_id)
+
 
             # Get labels as tags
             labels = entity.get("Labels")
