@@ -93,6 +93,7 @@ namespace :ci do
   desc 'Trigger remote CI'
   task :trigger, :repo do |_, args|
     abort 'Task only applies to travis builds.' if !ENV['TRAVIS'] || !ENV['TRAVIS_API_TOKEN']
+    abort 'Task skipped for Pull Requests.' if !ENV['TRAVIS_PULL_REQUEST'].nil? && ENV['TRAVIS_PULL_REQUEST'].casecmp('false')
     repo = "DataDog%2F#{args[:repo]}"
     url = "https://api.travis-ci.org/repo/#{repo}/requests"
     body = { 'request' => { 'branch' => 'master' } }.to_json
