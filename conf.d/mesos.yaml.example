@@ -1,7 +1,0 @@
-init_config:
-# time to wait on a Mesos API request
-  # default_timeout: 5
-
-instances:
-# url: the API endpoint of your Mesos master
-  # - url: "https://server:port"
