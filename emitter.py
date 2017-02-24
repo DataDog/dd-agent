@@ -74,8 +74,6 @@ def sanitize_payload(item, log, sanitize_func):
 
 def post_json(url, message, agentConfig, log):
 
-    # Post back the data
-
     log.debug('http_emitter: attempting postback to ' + url)
 
     try:
@@ -107,7 +105,7 @@ def post_json(url, message, agentConfig, log):
               % (len(payload), len(zipped), float(len(payload))/float(len(zipped))))
 
     try:
-        headers = post_headers(agentConfig, zipped)
+        headers = get_post_headers(agentConfig, zipped)
         r = requests.post(url, data=zipped, timeout=5, headers=headers)
 
         r.raise_for_status()
@@ -117,43 +115,59 @@ def post_json(url, message, agentConfig, log):
 
     except Exception:
         log.exception("Unable to post payload.")
-        try:
-            log.error("Received status code: {0}".format(r.status_code))
-        except Exception:
-            pass
 
 
+def split_payload(legacy_payload):
 
-def http_emitter(message, log, agentConfig, endpoint):
-    "Send payload"
-    apiKey = message.get('apiKey', None)
-    if not apiKey:
-        raise Exception("The http emitter requires an api key")
-    legacy_url = "{0}/intake/{1}?api_key={2}".format(agentConfig['dd_url'], endpoint, apiKey)
-    metrics_endpoint = "{0}/api/v1/series?api_key={1}".format(agentConfig['dd_url'], apiKey)
-
-    metrics = list(message.get('metrics'))
-    del message['metrics']
+    metrics = list(legacy_payload['metrics'])
+    del legacy_payload['metrics']
 
     metrics_payload = {"series": []}
 
+    # See https://github.com/DataDog/dd-agent/blob/5.11.1/checks/__init__.py#L905-L926 for format
     for ts in metrics:
-        metrics_payload["series"].append(
-            {
-                "metric": ts[0],
-                "points": [[ts[1], ts[2]]],
-                "type": ts[3].get('type'),
-                "host": ts[3].get('hostname'),
-                "tags": ts[3].get('tags'),
-            }
+        sample = {
+            "metric": ts[0],
+            "points": [[ts[1], ts[2]]]
+        }
 
-        )
+        if len(ts) >= 4:
+            if ts[3].get('type'):
+                sample['type'] = ts[3]['type']
+            if ts[3].get('hostname'):
+                sample['host'] = ts[3]['hostname']
+            if ts[3].get('tags'):
+                sample['tags'] = ts[3]['tags']
+            if ts[3].get('device_name'):
+                sample['device'] = ts[3]['device_name']
 
-    post_json(legacy_url, message, agentConfig, log)
+        metrics_payload["series"].append(sample)
+
+    return legacy_payload, metrics_payload
+
+def http_emitter(message, log, agentConfig, endpoint):
+    
+    apiKey = message.get('apiKey')
+
+    if not apiKey:
+        raise Exception("The http emitter requires an api key")
+    
+    # For perf reason. We now want to send the metrics to the api endpoint. So we are extracting them
+    # from the payload here, transform them into the expected format and send them (via the forwarder)
+
+    legacy_url = "{0}/intake/{1}?api_key={2}".format(agentConfig['dd_url'], endpoint, apiKey)
+    metrics_endpoint = "{0}/api/v1/series?api_key={1}".format(agentConfig['dd_url'], apiKey)
+
+    legacy_payload, metrics_payload = split_payload(message)
+
+    # Post legacy payload
+    post_json(legacy_url, legacy_payload, agentConfig, log)
+
+    # Post metrics payload
     post_json(metrics_endpoint, metrics_payload, agentConfig, log)
 
 
-def post_headers(agentConfig, payload):
+def get_post_headers(agentConfig, payload):
     return {
         'User-Agent': 'Datadog Agent/%s' % agentConfig['version'],
         'Content-Type': 'application/json',
