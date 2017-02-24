@@ -145,7 +145,6 @@ def split_payload(legacy_payload):
     return legacy_payload, metrics_payload
 
 def http_emitter(message, log, agentConfig, endpoint):
-    
     apiKey = message.get('apiKey')
 
     if not apiKey:
