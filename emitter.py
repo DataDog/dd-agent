@@ -149,7 +149,7 @@ def http_emitter(message, log, agentConfig, endpoint):
 
     if not apiKey:
         raise Exception("The http emitter requires an api key")
-    
+
     # For perf reason. We now want to send the metrics to the api endpoint. So we are extracting them
     # from the payload here, transform them into the expected format and send them (via the forwarder)
 
