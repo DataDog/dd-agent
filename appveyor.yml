@@ -3,6 +3,7 @@ shallow_clone: true
 environment:
   TRAVIS_BUILD_DIR: c:\projects\dd-agent
   INTEGRATIONS_DIR: c:\projects\dd-agent\embedded
+  CHECKSD_OVERRIDE: c:\projects\dd-agent\tests\checks\fixtures\checks
   PIP_CACHE: c:\projects\dd-agent\.cache\pip
   VOLATILE_DIR: c:\projects
   NOSE_FILTER: not unix and not fixme

@@ -23,6 +23,7 @@ env:
     - CONCURRENCY=2
     - NOSE_FILTER="not windows"
     - INTEGRATIONS_DIR=$HOME/embedded
+    - CHECKSD_OVERRIDE=$TRAVIS_BUILD_DIR/tests/checks/fixtures/checks
     - PIP_CACHE=$HOME/.cache/pip
     - VOLATILE_DIR=/tmp
     - DD_CASHER_DIR=/tmp/casher

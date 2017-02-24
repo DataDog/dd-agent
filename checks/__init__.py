@@ -10,6 +10,7 @@ The Check class is being deprecated so don't write new checks with it.
 # stdlib
 from collections import defaultdict
 import copy
+import inspect
 import logging
 import numbers
 import os
@@ -29,11 +30,13 @@ import yaml
 
 # project
 from checks import check_status
+from config import AGENT_VERSION
 from util import get_next_id, yLoader
 from utils.hostname import get_hostname
 from utils.proxy import get_proxy
 from utils.platform import Platform
 from utils.profile import pretty_statistics
+from utils.sdk import load_manifest
 if Platform.is_windows():
     from utils.debug import run_check  # noqa - windows debug purpose
 
@@ -43,6 +46,9 @@ log = logging.getLogger(__name__)
 DEFAULT_PSUTIL_METHODS = ['memory_info', 'io_counters']
 
 AGENT_METRICS_CHECK_NAME = 'agent_metrics'
+
+AGENT_CHECK_FRAME = 2
+NETWORK_CHECK_FRAME = 3
 
 
 # Konstants
@@ -350,11 +356,14 @@ class AgentCheck(object):
         self.service_checks = []
         self.instances = instances or []
         self.warnings = []
+        self.check_version = None
         self.library_versions = None
         self.last_collection_time = defaultdict(int)
         self._instance_metadata = []
         self.svc_metadata = []
         self.historate_dict = {}
+
+        self.set_check_version(manifest=self._get_check_manifest())
 
         # Set proxy settings
         self.proxy_settings = get_proxy(self.agentConfig)
@@ -374,6 +383,36 @@ class AgentCheck(object):
                     uri=uri)
             self.proxies['http'] = "http://{uri}".format(uri=uri)
             self.proxies['https'] = "https://{uri}".format(uri=uri)
+
+    def _get_check_manifest(self, manifest_path=None):
+        """
+        Attempts to collect the manifest for SDK checks.
+
+        Do not use outside of the constructor if called without args, it assumes the following call chain:
+            CheckClass.__init__() -> AgentCheck.__init__() -> AgentCheck._get_check_manifest()
+        """
+        from checks.network_checks import NetworkCheck
+        if not manifest_path:
+            frames = inspect.stack()
+            frame_idx = NETWORK_CHECK_FRAME if isinstance(self, NetworkCheck) else AGENT_CHECK_FRAME
+            caller_frame = frames[frame_idx]  # frame_idx _should_ be the check __init__ frame
+            module_path = os.path.dirname(caller_frame[1])  # idx 1 contains the filename.
+            manifest_path = os.path.join(module_path, 'manifest.json')
+
+        return load_manifest(manifest_path)
+
+    def set_check_version(self, manifest=None):
+        version = AGENT_VERSION
+
+        if manifest:
+            try:
+                version = "{core}:{sdk}".format(core=AGENT_VERSION,
+                                            sdk=manifest['version'])
+            except Exception:
+                self.log.info('Invalid manifest - unable to extract check version.')
+                version = 'Unknown'
+
+        self.check_version = version
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """

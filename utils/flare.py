@@ -31,6 +31,7 @@ import traceback
 
 # 3p
 import requests
+import simplejson as json
 
 # DD imports
 from checks.check_status import CollectorStatus, DogstatsdStatus, ForwarderStatus
@@ -46,6 +47,7 @@ from jmxfetch import JMXFetch
 from utils.hostname import get_hostname
 from utils.jmx import jmx_command, JMXFiles
 from utils.platform import Platform
+from utils.sdk import load_manifest
 from utils.configcheck import configcheck, sd_configcheck
 # Globals
 log = logging.getLogger(__name__)
@@ -147,6 +149,8 @@ class Flare(object):
         log.info("  * datadog-agent info output")
         self._add_command_output_tar('info.log', self._info_all)
         self._add_jmxinfo_tar()
+        log.info("  * sdk check output (if any)")
+        self._add_sdk_info_tar()
         log.info("  * pip freeze")
         self._add_command_output_tar('freeze.log', self._pip_freeze,
                                      command_desc="pip freeze --no-cache-dir")
@@ -306,6 +310,20 @@ class Flare(object):
                     self.CHECK_CREDENTIALS
                 )
 
+    # Collect SDK-package related information
+    def _add_sdk_info_tar(self):
+        sdk_manifest = {}
+        for file_path in glob.glob(os.path.join(self._get_sdk_integrations_path(), '**' ,'manifest.json')):
+            if self._can_read(file_path, output=False):
+                manifest = load_manifest(file_path)
+                if manifest:
+                    sdk_manifest[manifest['name']] = manifest
+
+        if sdk_manifest:
+            target_full_path = os.path.join(self._prefix, 'sdk_manifests.json')
+            self._add_object_tar(target_full_path,
+                                 json.dumps(sdk_manifest, sort_keys=True, indent=4 * ' '))
+
     # Collect JMXFetch-specific info and save to jmxinfo directory if jmx config
     # files are present and valid
     def _add_jmxinfo_tar(self):
@@ -361,6 +379,14 @@ class Flare(object):
             self._permissions_file.write(self._permissions_file_format.format(stat_file_path, mode, uname, gname))
 
         self._tar.add(file_path, target_full_path)
+
+    # Add in-memory object to tarfile
+    def _add_object_tar(self, file_path, contents):
+        iobuff = StringIO.StringIO(contents)
+
+        obj = tarfile.TarInfo(name=file_path)
+        obj.size = len(iobuff.buf)
+        self._tar.addfile(obj, fileobj=iobuff)
 
     # Returns whether JMXFetch should run or not
     def _should_run_jmx(self):
@@ -498,6 +524,15 @@ class Flare(object):
                 '../../bin/agent'
             )
         return agent_exec
+
+    # Find SDK integrations path
+    def _get_sdk_integrations_path(self):
+        sdk_path = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            '../../integrations/'
+        )
+
+        return sdk_path
 
     # Find the supervisor exec (package or source)
     def _get_path_supervisor_exec(self):

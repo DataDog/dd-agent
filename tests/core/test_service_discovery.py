@@ -1,6 +1,7 @@
 # stdlib
 import copy
 import mock
+import os
 import unittest
 from collections import defaultdict
 
@@ -16,7 +17,6 @@ from utils.service_discovery.abstract_config_store import AbstractConfigStore, \
     _TemplateCache, CONFIG_FROM_KUBE, CONFIG_FROM_TEMPLATE, CONFIG_FROM_AUTOCONF
 from utils.service_discovery.sd_backend import get_sd_backend
 from utils.service_discovery.sd_docker_backend import SDDockerBackend, _SDDockerBackendConfigFetchState
-from tests.checks.common import copy_checks, remove_checks
 
 
 def clear_singletons(agentConfig):
@@ -184,10 +184,7 @@ class TestServiceDiscovery(unittest.TestCase):
             'additional_checksd': '/etc/dd-agent/checks.d/',
         }
         self.agentConfigs = [self.etcd_agentConfig, self.consul_agentConfig, self.auto_conf_agentConfig]
-        copy_checks()
 
-    def tearDown(self):
-        remove_checks()
 
     # sd_backend tests
 
@@ -257,8 +254,10 @@ class TestServiceDiscovery(unittest.TestCase):
             self.assertEquals(sd_backend._get_host_address(state, 'container id', tpl_var), expected_ip)
             clear_singletons(self.auto_conf_agentConfig)
 
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
-    def test_get_port(self, _):
+    def test_get_port(self, *args):
         for c_ins, _, var_tpl, expected_ports, _ in self.container_inspects:
             state = _SDDockerBackendConfigFetchState(lambda _: c_ins)
             sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
@@ -268,6 +267,8 @@ class TestServiceDiscovery(unittest.TestCase):
                 self.assertRaises(expected_ports, sd_backend._get_port, state, 'c_id', var_tpl)
             clear_singletons(self.auto_conf_agentConfig)
 
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
     @mock.patch.object(SDDockerBackend, '_get_host_address', return_value='127.0.0.1')
     @mock.patch.object(SDDockerBackend, '_get_port', return_value='1337')
@@ -283,6 +284,8 @@ class TestServiceDiscovery(unittest.TestCase):
                 self.mock_templates[image][1])
             clear_singletons(self.auto_conf_agentConfig)
 
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
     @mock.patch.object(ConsulStore, 'get_client', return_value=None)
     @mock.patch.object(EtcdStore, 'get_client', return_value=None)
@@ -301,7 +304,9 @@ class TestServiceDiscovery(unittest.TestCase):
                 self.assertEquals(sd_backend._get_config_templates(image), None)
             clear_singletons(agentConfig)
 
-    def test_render_template(self):
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
+    def test_render_template(self, mock_get_auto_confd_path):
         """Test _render_template"""
         valid_configs = [
             (({}, {'host': '%%host%%'}, {'host': 'foo'}),
@@ -334,6 +339,8 @@ class TestServiceDiscovery(unittest.TestCase):
                             self.assertEquals(config, None)
                             clear_singletons(agentConfig)
 
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
     @mock.patch.object(EtcdStore, 'get_client', return_value=None)
     @mock.patch.object(ConsulStore, 'get_client', return_value=None)
@@ -513,7 +520,9 @@ class TestServiceDiscovery(unittest.TestCase):
 
     # config_stores tests
 
-    def test_get_auto_config(self):
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
+    def test_get_auto_config(self, mock_get_auto_confd_path):
         """Test _get_auto_config"""
         expected_tpl = {
             'redis': [('redisdb', None, {"host": "%%host%%", "port": "%%port%%"})],
@@ -523,14 +532,15 @@ class TestServiceDiscovery(unittest.TestCase):
             'redis:v1': [('redisdb', None, {"host": "%%host%%", "port": "%%port%%"})],
             'foobar': []
         }
-
         config_store = get_config_store(self.auto_conf_agentConfig)
         for image in expected_tpl.keys():
             config = config_store._get_auto_config(image)
             self.assertEquals(config, expected_tpl.get(image))
 
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch.object(AbstractConfigStore, 'client_read', side_effect=client_read)
-    def test_get_check_tpls(self, mock_client_read):
+    def test_get_check_tpls(self, *args):
         """Test get_check_tpls"""
         valid_config = ['image_0', 'image_1', 'image_2']
         invalid_config = ['bad_image_0', 'bad_image_1']
@@ -542,8 +552,10 @@ class TestServiceDiscovery(unittest.TestCase):
             tpl = self.mock_raw_templates.get(image)[1]
             self.assertEquals(tpl, config_store.get_check_tpls(image))
 
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch.object(AbstractConfigStore, 'client_read', side_effect=client_read)
-    def test_get_check_tpls_kube(self, mock_client_read):
+    def test_get_check_tpls_kube(self, *args):
         """Test get_check_tpls for kubernetes annotations"""
         valid_config = ['image_0', 'image_1', 'image_2']
         invalid_config = ['bad_image_0']
@@ -567,7 +579,9 @@ class TestServiceDiscovery(unittest.TestCase):
                          'service-discovery.datadoghq.com/foo.instances'],
                         self.mock_raw_templates[image][0]))))
 
-    def test_get_config_id(self):
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
+    def test_get_config_id(self, mock_get_auto_confd_path):
         """Test get_config_id"""
         with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
             for c_ins, _, _, _, expected_ident in self.container_inspects:
@@ -577,8 +591,10 @@ class TestServiceDiscovery(unittest.TestCase):
                     expected_ident)
                 clear_singletons(self.auto_conf_agentConfig)
 
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch.object(_TemplateCache, '_issue_read', side_effect=issue_read)
-    def test_read_config_from_store(self, args):
+    def test_read_config_from_store(self, *args):
         """Test read_config_from_store"""
         valid_idents = [('nginx', 'nginx'), ('nginx:latest', 'nginx:latest'),
                         ('custom-nginx', 'custom-nginx'), ('custom-nginx:latest', 'custom-nginx'),
@@ -599,6 +615,8 @@ class TestServiceDiscovery(unittest.TestCase):
         for ident in invalid_idents:
             self.assertEquals(config_store.read_config_from_store(ident), [])
 
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
     @mock.patch.object(SDDockerBackend, 'get_configs', return_value=jmx_sd_configs)
     def test_read_jmx_config_from_store(self, *args):
@@ -631,8 +649,10 @@ class TestServiceDiscovery(unittest.TestCase):
         self.assertEquals(cache.auto_conf_templates['bar'],
             [['check2', 'check3'], [{}, {}], [{}, {'foo': 'bar'}]])
 
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch.object(_TemplateCache, '_issue_read', return_value=None)
-    def test_get_templates(self, args):
+    def test_get_templates(self, *args):
         """test get_templates"""
         kv_tpls = {
             'foo': [['check0', 'check1'], [{}, {}], [{}, {}]],
@@ -664,7 +684,9 @@ class TestServiceDiscovery(unittest.TestCase):
 
         self.assertEquals(cache.get_templates('baz'), None)
 
-    def test_get_check_names(self):
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
+    def test_get_check_names(self, mock_get_auto_confd_path):
         """Test get_check_names"""
         kv_tpls = {
             'foo': [['check0', 'check1'], [{}, {}], [{}, {}]],

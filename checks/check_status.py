@@ -24,7 +24,10 @@ import yaml
 
 # project
 import config
-from config import _is_affirmative, _windows_commondata_path, get_config
+from config import (_is_affirmative,
+                    _windows_commondata_path,
+                    get_config,
+                    AGENT_VERSION)
 from util import plural
 from utils.jmx import JMXFiles
 from utils.ntp import NTPUtil
@@ -324,7 +327,7 @@ class CheckStatus(object):
                  event_count=None, service_check_count=None, service_metadata=[],
                  init_failed_error=None, init_failed_traceback=None,
                  library_versions=None, source_type_name=None,
-                 check_stats=None):
+                 check_stats=None, check_version=AGENT_VERSION):
         self.name = check_name
         self.source_type_name = source_type_name
         self.instance_statuses = instance_statuses
@@ -336,6 +339,7 @@ class CheckStatus(object):
         self.library_versions = library_versions
         self.check_stats = check_stats
         self.service_metadata = service_metadata
+        self.check_version = check_version
 
     @property
     def status(self):
@@ -392,8 +396,8 @@ class CollectorStatus(AgentStatus):
     @staticmethod
     def check_status_lines(cs):
         check_lines = [
-            '  ' + cs.name,
-            '  ' + '-' * len(cs.name)
+            '  ' + cs.name + ' ({})'.format(cs.check_version),
+            '  ' + '-' * (len(cs.name) + 3 + len(cs.check_version))
         ]
         if cs.init_failed_error:
             check_lines.append("    - initialize check class [%s]: %s" %
@@ -537,8 +541,8 @@ class CollectorStatus(AgentStatus):
         else:
             for cs in check_statuses:
                 check_lines = [
-                    '  ' + cs.name,
-                    '  ' + '-' * len(cs.name)
+                    '  ' + cs.name + ' ({})'.format(cs.check_version),
+                    '  ' + '-' * (len(cs.name) + 3 + len(cs.check_version))
                 ]
                 if cs.init_failed_error:
                     check_lines.append("    - initialize check class [%s]: %s" %
