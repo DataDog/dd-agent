@@ -24,9 +24,7 @@ class TestEmitter(unittest.TestCase):
             legacy_payload = json.load(f)
 
         legacy_payload_split, metrics_payload = split_payload(legacy_payload)
-
         series = metrics_payload['series']
-
         legacy_payload_split['metrics'] = []
 
         for s in series:
@@ -45,7 +43,6 @@ class TestEmitter(unittest.TestCase):
             legacy_payload_split['metrics'].append(formatted_sample)
 
         self.assertEqual(legacy_payload, legacy_payload_split)
-
 
     def test_remove_control_chars(self):
         messages = [

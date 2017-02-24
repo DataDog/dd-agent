@@ -118,7 +118,6 @@ def post_json(url, message, agentConfig, log):
 
 
 def split_payload(legacy_payload):
-
     metrics = list(legacy_payload['metrics'])
     del legacy_payload['metrics']
 
