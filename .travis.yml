@@ -30,7 +30,6 @@ env:
     - TRAVIS_FLAVOR=default
     - TRAVIS_FLAVOR=core_integration
     - TRAVIS_FLAVOR=checks_mock
-    - TRAVIS_FLAVOR=system
 
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"

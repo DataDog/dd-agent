@@ -33,6 +33,10 @@ CHECKSD_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '
 AUTO_CONFD_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'conf.d', 'auto_conf')
 
 def copy_checks():
+    if not os.path.exists(CHECKSD_PATH):
+        os.mkdir(CHECKSD_PATH)
+    if not os.path.exists(AUTO_CONFD_PATH):
+        os.mkdir(AUTO_CONFD_PATH)
     copyfile(os.path.join(CHECKS_FIXTURE_PATH, 'disk.py'), os.path.join(CHECKSD_PATH, 'disk.py'))
     copyfile(os.path.join(CHECKS_FIXTURE_PATH, 'consul.py'), os.path.join(CHECKSD_PATH, 'consul.py'))
     copyfile(os.path.join(CHECKS_FIXTURE_PATH, 'redisdb.py'), os.path.join(CHECKSD_PATH, 'redisdb.py'))
