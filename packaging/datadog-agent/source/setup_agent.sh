@@ -74,6 +74,8 @@ set -u
 #######################################################################
 # CONSTANTS
 #######################################################################
+SDK_RELEASE="5.12.0"
+JMXFETCH_URL="https://yumtesting.datad0g.com/jmxfetch"
 REPORT_FAILURE_URL="https://app.datadoghq.com/agent_stats/report_failure"
 REPORT_FAILURE_EMAIL="support@datadoghq.com"
 
@@ -212,6 +214,16 @@ and we'll do our very best to help you solve your problem."
     else
         report_using_mail
     fi
+}
+
+# Allows us to compare versions
+# Returns 0 if the second arg version is > than the first.
+check_version()
+{
+    local version=$1 check=$2
+    local winner=$(echo -e "$version\n$check" | sort -t '.' -k1,1 -k2,2 -k3,3 | head -n 1)
+    [[ "$winner" = "$version" ]] && return 0
+    return 1
 }
 
 # Will be called if an unknown error appears and that the Agent is not running
@@ -435,6 +447,15 @@ print_console "* Trying to install optional requirements"
 $DOWNLOADER "$DD_HOME/requirements-opt.txt" "$BASE_GITHUB_URL/requirements-opt.txt"
 "$DD_HOME/agent/utils/pip-allow-failures.sh" "$DD_HOME/requirements-opt.txt"
 print_done
+
+if check_version $SDK_RELEASE $AGENT_VERSION;
+then
+    print_console "* Trying to install JMXFetch jarfile from $JMXFETCH_URL"
+    mkdir -p "$DD_HOME/libs"
+    JMX_VERSION=${JMX_VERSION:-$(cat $DD_HOME/config.py | grep JMX_VERSION | cut -f2 -d'=')}
+    $DOWNLOADER "$DD_HOME/libs/" "$JMXFETCH_URL/jmxfetch-$(JMX_VERSION)-jar-with-dependencies.jar"
+    print_done
+fi
 
 print_console "* Setting up a datadog.conf generic configuration file"
 if [ -z "$SED_CMD" ]; then
