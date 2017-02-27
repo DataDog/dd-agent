@@ -145,16 +145,16 @@ def split_payload(legacy_payload):
     return legacy_payload, metrics_payload
 
 def http_emitter(message, log, agentConfig, endpoint):
-    apiKey = message.get('apiKey')
+    api_key = message.get('apiKey')
 
-    if not apiKey:
+    if not api_key:
         raise Exception("The http emitter requires an api key")
 
     # For perf reason. We now want to send the metrics to the api endpoint. So we are extracting them
     # from the payload here, transform them into the expected format and send them (via the forwarder)
 
-    legacy_url = "{0}/intake/{1}?api_key={2}".format(agentConfig['dd_url'], endpoint, apiKey)
-    metrics_endpoint = "{0}/api/v1/series?api_key={1}".format(agentConfig['dd_url'], apiKey)
+    legacy_url = "{0}/intake/{1}?api_key={2}".format(agentConfig['dd_url'], endpoint, api_key)
+    metrics_endpoint = "{0}/api/v1/series?api_key={1}".format(agentConfig['dd_url'], api_key)
 
     legacy_payload, metrics_payload = split_payload(message)
 
