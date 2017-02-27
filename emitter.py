@@ -72,7 +72,7 @@ def sanitize_payload(item, log, sanitize_func):
 
     return item
 
-def post_json(url, message, agentConfig, log):
+def post_payload(url, message, agentConfig, log):
 
     log.debug('http_emitter: attempting postback to ' + url)
 
@@ -159,10 +159,10 @@ def http_emitter(message, log, agentConfig, endpoint):
     legacy_payload, metrics_payload = split_payload(message)
 
     # Post legacy payload
-    post_json(legacy_url, legacy_payload, agentConfig, log)
+    post_payload(legacy_url, legacy_payload, agentConfig, log)
 
     # Post metrics payload
-    post_json(metrics_endpoint, metrics_payload, agentConfig, log)
+    post_payload(metrics_endpoint, metrics_payload, agentConfig, log)
 
 
 def get_post_headers(agentConfig, payload):
