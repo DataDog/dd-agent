@@ -23,7 +23,7 @@ class TestEmitter(unittest.TestCase):
         with open(FIXTURE_PATH + '/legacy_payload.json') as f:
             legacy_payload = json.load(f)
 
-        legacy_payload_split, metrics_payload = split_payload(legacy_payload)
+        legacy_payload_split, metrics_payload = split_payload(dict(legacy_payload))
         series = metrics_payload['series']
         legacy_payload_split['metrics'] = []
 
