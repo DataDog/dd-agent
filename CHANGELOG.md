@@ -1,6 +1,18 @@
 Changes
 =======
 
+# 5.11.3 / 02-27-2017
+**Mac OS only**
+
+### Details
+
+There was an issue with Gohai on Mac OS >= 10.11 leading to high CPU utilization. As a short term solution, Gohai has been disabled on Mac OS.
+
+### Changes
+
+* [OTHER] Do not run Gohai on Mac OS. See [#3224][].
+
+
 # 5.11.2 / 02-13-2017
 **Linux and Docker only**
 
@@ -3727,6 +3739,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3023]: https://github.com/DataDog/dd-agent/issues/3023
 [#3024]: https://github.com/DataDog/dd-agent/issues/3024
 [#3183]: https://github.com/DataDog/dd-agent/issues/3183
+[#3224]: https://github.com/DataDog/dd-agent/issues/3224
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
