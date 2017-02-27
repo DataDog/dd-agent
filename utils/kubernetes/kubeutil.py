@@ -94,9 +94,10 @@ class KubeUtil:
         if apiserver_cacert and os.path.exists(apiserver_cacert):
             tls_settings['apiserver_cacert'] = apiserver_cacert
 
-        token = self.get_auth_token()
-        if token:
-            tls_settings['bearer_token'] = token
+        if 'apiserver_client_cert' not in tls_settings and 'apiserver_cacert' not in tls_settings:
+            token = self.get_auth_token()
+            if token:
+                tls_settings['bearer_token'] = token
 
         return tls_settings
 
