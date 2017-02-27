@@ -779,6 +779,9 @@ class Collector(object):
         return self._run_gohai(['--only', 'processes'])
 
     def _run_gohai(self, options):
+        # gohai is currently unavailable on Mac
+        if Platform.is_mac():
+            return None
         output = None
         try:
             if not Platform.is_windows():
