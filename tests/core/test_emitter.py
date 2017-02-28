@@ -2,16 +2,47 @@
 # 3p
 from mock import Mock
 import unittest
+import simplejson as json
 
 # project
 from emitter import (
     remove_control_chars,
     remove_undecodable_chars,
     sanitize_payload,
+    split_payload
 )
 
+import os
+
+FIXTURE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'fixtures', 'payloads')
 
 class TestEmitter(unittest.TestCase):
+
+
+    def test_payload_splitter(self):
+        with open(FIXTURE_PATH + '/legacy_payload.json') as f:
+            legacy_payload = json.load(f)
+
+        legacy_payload_split, metrics_payload = split_payload(dict(legacy_payload))
+        series = metrics_payload['series']
+        legacy_payload_split['metrics'] = []
+
+        for s in series:
+            attributes = {}
+
+            if s.get('type'):
+                attributes['type'] = s['type']
+            if s.get('host'):
+                attributes['hostname'] = s['host']
+            if s.get('tags'):
+                attributes['tags'] = s['tags']
+            if s.get('device'):
+                attributes['device_name'] = s['device']
+
+            formatted_sample = [s['metric'], s['points'][0][0], s['points'][0][1], attributes]
+            legacy_payload_split['metrics'].append(formatted_sample)
+
+        self.assertEqual(legacy_payload, legacy_payload_split)
 
     def test_remove_control_chars(self):
         messages = [
