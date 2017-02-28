@@ -70,6 +70,7 @@ if sys.platform == 'win32':
         'pg8000',
         'redis',
         'requests',
+        'pyodbc',
         'pysnmp',
         'pysnmp.smi.mibs.*',
         'pysnmp.smi.mibs.instances.*',

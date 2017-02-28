@@ -40,6 +40,9 @@ uptime==3.0.1
 adodbapi==2.6.0.7
 pyro4==4.35 # required by adodbapi
 
+#checks.d/odbc.py
+pyodbc==4.0.13
+
 # checks.d/riak.py
 httplib2==0.9
 
