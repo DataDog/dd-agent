@@ -7,6 +7,7 @@ from collections import defaultdict
 import logging
 import os
 from urlparse import urljoin
+from urllib import urlencode
 
 # project
 from util import check_yaml
@@ -21,16 +22,20 @@ log = logging.getLogger('collector')
 
 KUBERNETES_CHECK_NAME = 'kubernetes'
 
+DEFAULT_TLS_VERIFY = True
+
 
 class KubeUtil:
     __metaclass__ = Singleton
 
     DEFAULT_METHOD = 'http'
+    KUBELET_HEALTH_PATH = '/healthz'
     MACHINE_INFO_PATH = '/api/v1.3/machine/'
     METRICS_PATH = '/api/v1.3/subcontainers/'
     PODS_LIST_PATH = '/pods/'
     DEFAULT_CADVISOR_PORT = 4194
-    DEFAULT_KUBELET_PORT = 10255
+    DEFAULT_HTTP_KUBELET_PORT = 10255
+    DEFAULT_HTTPS_KUBELET_PORT = 10250
     DEFAULT_MASTER_PORT = 8080
     DEFAULT_MASTER_NAME = 'kubernetes'  # DNS name to reach the master from a pod.
     CA_CRT_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
@@ -56,23 +61,31 @@ class KubeUtil:
                 instance = {}
 
         self.method = instance.get('method', KubeUtil.DEFAULT_METHOD)
-        self.host = instance.get("host") or self.docker_util.get_hostname()
-        self.kubelet_host = os.environ.get('KUBERNETES_KUBELET_HOST') or self.host
         self._node_ip = self._node_name = None  # lazy evaluation
         self.host_name = os.environ.get('HOSTNAME')
-
-        self.cadvisor_port = instance.get('port', KubeUtil.DEFAULT_CADVISOR_PORT)
-        self.kubelet_port = instance.get('kubelet_port', KubeUtil.DEFAULT_KUBELET_PORT)
-
-        self.kubelet_api_url = '%s://%s:%d' % (self.method, self.kubelet_host, self.kubelet_port)
-        self.cadvisor_url = '%s://%s:%d' % (self.method, self.kubelet_host, self.cadvisor_port)
-        self.kubernetes_api_url = 'https://%s/api/v1' % (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME)
         self.tls_settings = self._init_tls_settings(instance)
 
+        # apiserver
+        self.kubernetes_api_url = 'https://%s/api/v1' % (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME)
+
+        # kubelet
+        try:
+            self.kubelet_api_url = self._locate_kubelet(instance)
+            if not self.kubelet_api_url:
+                raise Exception("Couldn't find a method to connect to kubelet.")
+        except Exception as ex:
+            log.error("Kubernetes check exiting, cannot run without access to kubelet.")
+            raise ex
+
+        self.kubelet_host = self.kubelet_api_url.split(':')[1].lstrip('/')
+        self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
+        self.kube_health_url = urljoin(self.kubelet_api_url, KubeUtil.KUBELET_HEALTH_PATH)
+
+        # cadvisor
+        self.cadvisor_port = instance.get('port', KubeUtil.DEFAULT_CADVISOR_PORT)
+        self.cadvisor_url = '%s://%s:%d' % (self.method, self.kubelet_host, self.cadvisor_port)
         self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
         self.machine_info_url = urljoin(self.cadvisor_url, KubeUtil.MACHINE_INFO_PATH)
-        self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
-        self.kube_health_url = urljoin(self.kubelet_api_url, 'healthz')
 
         # keep track of the latest k8s event we collected and posted
         # default value is 0 but TTL for k8s events is one hour anyways
@@ -84,6 +97,7 @@ class KubeUtil:
         """
         tls_settings = {}
 
+        # apiserver
         client_crt = instance.get('apiserver_client_crt')
         client_key = instance.get('apiserver_client_key')
         apiserver_cacert = instance.get('apiserver_ca_cert')
@@ -98,7 +112,75 @@ class KubeUtil:
         if token:
             tls_settings['bearer_token'] = token
 
+        # kubelet
+        kubelet_client_crt = instance.get('kubelet_client_crt')
+        kubelet_client_key = instance.get('kubelet_client_key')
+        if kubelet_client_crt and kubelet_client_key and os.path.exists(kubelet_client_crt) and os.path.exists(kubelet_client_key):
+            tls_settings['kubelet_client_cert'] = (kubelet_client_crt, kubelet_client_key)
+
+        cert = instance.get('kubelet_cert')
+        if cert:
+            tls_settings['kubelet_verify'] = cert
+        else:
+            tls_settings['kubelet_verify'] = instance.get('kubelet_tls_verify', DEFAULT_TLS_VERIFY)
+
         return tls_settings
+
+    def _locate_kubelet(self, instance):
+        """
+        Kubelet may or may not accept un-authenticated http requests.
+        If it doesn't we need to use its HTTPS API that may or may not
+        require auth.
+        """
+        host = os.environ.get('KUBERNETES_KUBELET_HOST') or instance.get("host")
+        if not host:
+            # if no hostname was provided, use the docker hostname if cert
+            # validation is not required, the kubernetes hostname otherwise.
+            docker_hostname = self.docker_util.get_hostname()
+            if self.tls_settings.get('kubelet_verify'):
+                try:
+                    k8s_hostname = self.get_node_hostname(docker_hostname)
+                    host = k8s_hostname or docker_hostname
+                except Exception as ex:
+                    log.error(str(ex))
+                    host = docker_hostname
+            else:
+                host = docker_hostname
+        try:
+            # check if the no-auth endpoint is enabled
+            port = instance.get('kubelet_port', KubeUtil.DEFAULT_HTTP_KUBELET_PORT)
+            no_auth_url = 'http://%s:%s' % (host, port)
+            test_url = urljoin(no_auth_url, KubeUtil.KUBELET_HEALTH_PATH)
+            self.perform_kubelet_query(test_url)
+            return no_auth_url
+        except Exception:
+            log.debug("Couldn't query kubelet over HTTP, assuming it's not in no_auth mode.")
+
+        port = instance.get('kubelet_port', KubeUtil.DEFAULT_HTTPS_KUBELET_PORT)
+
+        https_url = 'https://%s:%s' % (host, port)
+        test_url = urljoin(https_url, KubeUtil.KUBELET_HEALTH_PATH)
+        self.perform_kubelet_query(test_url)
+
+        return https_url
+
+    def get_node_hostname(self, host):
+        """
+        Query the API server for the kubernetes hostname of the node
+        using the docker hostname as a filter.
+        """
+        node_filter = {'labelSelector': 'kubernetes.io/hostname=%s' % host}
+        node = self.retrieve_json_auth(
+            self.kubernetes_api_url + '/nodes?%s' % urlencode(node_filter)
+        )
+        if len(node['items']) != 1:
+            log.error('Error while getting node hostname: expected 1 node, got %s.' % len(node['items']))
+        else:
+            addresses = (node or {}).get('items', [{}])[0].get('status', {}).get('addresses', [])
+            for address in addresses:
+                if address.get('type') == 'Hostname':
+                    return address['address']
+        return None
 
     def get_kube_labels(self, excluded_keys=None):
         pods = self.retrieve_pods_list()
@@ -128,28 +210,13 @@ class KubeUtil:
 
         return kube_labels
 
-    def extract_meta(self, pods_list, field_name):
-        """
-        Exctract fields like `uid` or `name` from the `metadata` section of a
-        list of pods coming from the kubelet API.
-
-        TODO: currently not in use, was added to support events filtering, consider to remove it.
-        """
-        uids = []
-        pods = pods_list.get("items") or []
-        for p in pods:
-            value = p.get('metadata', {}).get(field_name)
-            if value is not None:
-                uids.append(value)
-        return uids
-
     def retrieve_pods_list(self):
         """
         Retrieve the list of pods for this cluster querying the kubelet API.
 
         TODO: the list of pods could be cached with some policy to be decided.
         """
-        return retrieve_json(self.pods_list_url)
+        return self.perform_kubelet_query(self.pods_list_url).json()
 
     def retrieve_machine_info(self):
         """
@@ -163,26 +230,24 @@ class KubeUtil:
         """
         return retrieve_json(self.metrics_url)
 
-    def filter_pods_list(self, pods_list, host_ip):
+    def perform_kubelet_query(self, url, verbose=True, timeout=10):
         """
-        Filter out (in place) pods that are not running on the given host.
-
-        TODO: currently not in use, was added to support events filtering, consider to remove it.
+        Perform and return a GET request against kubelet. Support auth and TLS validation.
         """
-        pod_items = pods_list.get('items') or []
-        log.debug('Found {} pods to filter'.format(len(pod_items)))
+        tls_context = self.tls_settings
 
-        filtered_pods = []
-        for pod in pod_items:
-            status = pod.get('status', {})
-            if status.get('hostIP') == host_ip:
-                filtered_pods.append(pod)
-        log.debug('Pods after filtering: {}'.format(len(filtered_pods)))
+        headers = None
+        cert = tls_context.get('kubelet_client_cert')
+        verify = tls_context.get('kubelet_verify', DEFAULT_TLS_VERIFY)
 
-        pods_list['items'] = filtered_pods
-        return pods_list
+        # if cert-based auth is enabled, don't use the token.
+        if not cert and url.lower().startswith('https'):
+            headers = {'Authorization': 'Bearer {}'.format(self.get_auth_token())}
 
-    def retrieve_json_auth(self, url, timeout=10):
+        return requests.get(url, timeout=timeout, verify=verify,
+            cert=cert, headers=headers, params={'verbose': verbose})
+
+    def retrieve_json_auth(self, url, timeout=10, verify=None):
         """
         Kubernetes API requires authentication using a token available in
         every pod, or with a client X509 cert/key pair.
@@ -195,7 +260,7 @@ class KubeUtil:
         verify = self.tls_settings.get('apiserver_cacert')
         if not verify:
             verify = self.CA_CRT_PATH if os.path.exists(self.CA_CRT_PATH) else False
-        log.debug('ssl validation: {}'.format(verify))
+        log.debug('tls validation: {}'.format(verify))
 
         cert = self.tls_settings.get('apiserver_client_cert')
         bearer_token = self.tls_settings.get('bearer_token') if not cert else None
@@ -216,7 +281,7 @@ class KubeUtil:
     def _fetch_host_data(self):
         """
         Retrieve host name and IP address from the payload returned by the listing
-        pods endpoints from kubelet or kubernetes API.
+        pods endpoints from kubelet.
 
         The host IP address is different from the default router for the pod.
         """
