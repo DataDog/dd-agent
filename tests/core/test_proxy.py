@@ -52,7 +52,7 @@ class TestProxy(TestCase):
         env.pop("HTTPS_PROXY", None)
 
     def test_proxy(self):
-        self.assertEquals(2, 1)
+        self.assertEquals(1, 1)
 
     def setUp(self):
         self.docker_client = DockerUtil().client
