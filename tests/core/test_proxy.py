@@ -67,4 +67,4 @@ class TestProxy(TestCase):
 
     def tearDown(self):
         log.info("Stopping container: {0}".format(CONTAINER_TO_RUN))
-        self.docker_client.remove_container('CONTAINER_NAME', force=True)
+        self.docker_client.remove_container(CONTAINER_NAME, force=True)
