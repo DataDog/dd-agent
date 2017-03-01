@@ -4,6 +4,7 @@ branches:
   only:
     - master
     - /^\d+\.\d+\.x$/ # release forked patches branch
+    - hippolyte.henry/proxy_test
 
 language: python
 python:
