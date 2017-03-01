@@ -177,25 +177,29 @@ class DockerUtil:
 
         return None
 
-    def get_hostname(self, use_default_gw=True):
+    def get_hostname(self, use_default_gw=True, should_resolve=False):
         '''
         Return the `Name` param from `docker info` to use as the hostname
         Falls back to the default route.
         '''
+        # return or raise
+        is_resolvable = lambda host: socket.gethostbyname(host)
 
         if self.hostname is not None:
             # Use cache
-            return self.hostname
+            try:
+                if not should_resolve or is_resolvable(self.hostname):
+                    return self.hostname
+            except Exception:
+                log.debug("Couldn't resolve cached hostname %s, triggering new hostname detection." % self.hostname)
 
         if self._default_gateway is not None and use_default_gw:
             return self._default_gateway
 
         try:
-            docker_host_name = self.client.info().get("Name")
-            socket.gethostbyname(docker_host_name) # make sure we can resolve it
-            self.hostname = docker_host_name
-            return docker_host_name
-
+            self.hostname = self.client.info().get("Name")
+            if not should_resolve or is_resolvable(self.hostname):
+                return self.hostname
         except Exception as e:
             log.debug("Unable to retrieve hostname using docker API, %s", str(e))
             if not use_default_gw:

@@ -136,7 +136,7 @@ class KubeUtil:
         if not host:
             # if no hostname was provided, use the docker hostname if cert
             # validation is not required, the kubernetes hostname otherwise.
-            docker_hostname = self.docker_util.get_hostname()
+            docker_hostname = self.docker_util.get_hostname(should_resolve=True)
             if self.tls_settings.get('kubelet_verify'):
                 try:
                     k8s_hostname = self.get_node_hostname(docker_hostname)
