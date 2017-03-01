@@ -31,6 +31,14 @@ def get_registry_conf(agentConfig):
 
     return registry_conf
 
+def get_windows_sdk_check(name):
+    sdk_reg_path = WINDOWS_REG_PATH + "\\Integrations\\" + name
+    try:
+        with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,sdk_reg_path) as reg_key:
+            return _winreg.QueryValueEx(reg_key, "InstallDir")
+    except WindowsError:
+        pass
+    return None
 
 def update_conf_file(registry_conf, config_path):
     config_dir = os.path.dirname(config_path)
