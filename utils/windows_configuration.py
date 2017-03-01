@@ -32,12 +32,12 @@ def get_registry_conf(agentConfig):
     return registry_conf
 
 def get_windows_sdk_check(name):
-    sdk_reg_path = WINDOWS_REG_PATH + "\\Integrations\\" + name
+    sdk_reg_path = "SOFTWARE\\Datadog\\Datadog Agent\\Integrations\\{}".format(name)
     try:
         with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,sdk_reg_path) as reg_key:
-            directory = _winreg.QueryValueEx(reg_key, "InstallDir")
-            return os.path.join(directory, 'check.py')
-    except WindowsError:
+            directory = _winreg.QueryValueEx(reg_key, "InstallPath")[0]
+            return os.path.join(directory, 'Integrations', name, 'check.py')
+    except WindowsError as e:
         pass
     return None
 
