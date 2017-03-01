@@ -7,7 +7,7 @@
 set -e
 logfile=ddagent-install.log
 dmg_file=/tmp/datadog-agent.dmg
-dmg_url="https://storage.googleapis.com/datadog-agent/datadogagent.dmg"
+dmg_url="https://s3.amazonaws.com/dd-agent/datadogagent.dmg"
 
 # Root user detection
 if [ $(echo "$UID") = "0" ]; then
