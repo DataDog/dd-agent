@@ -49,6 +49,7 @@ from utils.jmx import jmx_command, JMXFiles
 from utils.platform import Platform
 from utils.sdk import load_manifest
 from utils.configcheck import configcheck, sd_configcheck
+from utils.windows_configuration import get_sdk_integration_paths
 # Globals
 log = logging.getLogger(__name__)
 
@@ -313,11 +314,21 @@ class Flare(object):
     # Collect SDK-package related information
     def _add_sdk_info_tar(self):
         sdk_manifest = {}
-        for file_path in glob.glob(os.path.join(self._get_sdk_integrations_path(), '**' ,'manifest.json')):
-            if self._can_read(file_path, output=False):
-                manifest = load_manifest(file_path)
-                if manifest:
-                    sdk_manifest[manifest['name']] = manifest
+
+        if Platform.is_windows():
+            integrations = get_sdk_integration_paths()
+            for integration, path in integrations.iteritems():
+                manifest_path = os.path.join(path, 'manifest.json')
+                if self.can_read(manifest_path):
+                    manifest = load_manifest(manifest_path)
+                    if manifest:
+                        sdk_manifest[integration] = manifest
+        else:
+            for file_path in glob.glob(os.path.join(self._get_sdk_integrations_path(), '**' ,'manifest.json')):
+                if self._can_read(file_path, output=False):
+                    manifest = load_manifest(file_path)
+                    if manifest:
+                        sdk_manifest[manifest['name']] = manifest
 
         if sdk_manifest:
             target_full_path = os.path.join(self._prefix, 'sdk_manifests.json')
