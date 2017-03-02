@@ -4,11 +4,11 @@ import logging
 
 # 3p
 from requests.utils import get_environ_proxies
-from nose.plugins.attrib import attr
+# from nose.plugins.attrib import attr
 
 # project
 from utils.proxy import set_no_proxy_settings
-from utils.dockerutil import DockerUtil
+# from utils.dockerutil import DockerUtil
 
 log = logging.getLogger('tests')
 
