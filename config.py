@@ -33,7 +33,7 @@ from utils.subprocess_output import (
     get_subprocess_output,
     SubprocessOutputEmptyError,
 )
-from utils.windows_configuration import get_registry_conf
+from utils.windows_configuration import get_registry_conf, get_windows_sdk_check
 
 
 # CONSTANTS
@@ -893,8 +893,11 @@ def get_checks_places(osname, agentConfig):
     places = [lambda name: os.path.join(agentConfig['additional_checksd'], '%s.py' % name)]
 
     try:
-        sdk_integrations = get_sdk_integrations_path(osname)
-        places.append(lambda name: os.path.join(sdk_integrations, name, 'check.py'))
+        if Platform.is_windows():
+            places.append(get_windows_sdk_check)
+        else:
+            sdk_integrations = get_sdk_integrations_path(osname)
+            places.append(lambda name: os.path.join(sdk_integrations, name, 'check.py'))
     except PathNotFound:
         log.debug('No sdk integrations path found')
 
@@ -968,7 +971,9 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
     load_success, load_failure = {}, {}
     for check_path_builder in checks_places:
         check_path = check_path_builder(check_name)
-        if not os.path.exists(check_path):
+        # The windows SDK function will return None,
+        # so the loop should also continue if there is no path.
+        if not (check_path and os.path.exists(check_path)):
             continue
 
         check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path)

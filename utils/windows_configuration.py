@@ -12,6 +12,7 @@ except ImportError:
 
 
 WINDOWS_REG_PATH = 'SOFTWARE\\Datadog\\Datadog Agent'
+SDK_REG_PATH = WINDOWS_REG_PATH + '\\Integrations\\'
 
 
 log = logging.getLogger(__name__)
@@ -31,6 +32,15 @@ def get_registry_conf(agentConfig):
 
     return registry_conf
 
+def get_windows_sdk_check(name):
+    sdk_reg_path = SDK_REG_PATH + name
+    try:
+        with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, sdk_reg_path) as reg_key:
+            directory = _winreg.QueryValueEx(reg_key, "InstallPath")[0]
+            return os.path.join(directory, 'Integrations', name, 'check.py')
+    except WindowsError:
+        pass
+    return None
 
 def update_conf_file(registry_conf, config_path):
     config_dir = os.path.dirname(config_path)
