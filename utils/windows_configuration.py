@@ -37,7 +37,7 @@ def get_windows_sdk_check(name):
         with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,sdk_reg_path) as reg_key:
             directory = _winreg.QueryValueEx(reg_key, "InstallPath")[0]
             return os.path.join(directory, 'Integrations', name, 'check.py')
-    except WindowsError as e:
+    except WindowsError:
         pass
     return None
 
