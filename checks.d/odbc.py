@@ -47,6 +47,10 @@ VALUE_AND_BASE_QUERY = '''select cntr_value
                           and instance_name=?
                           order by cntr_type;'''
 
+# Performance tables
+DEFAULT_PERFORMANCE_TABLE = "sys.dm_os_performance_counters"
+DM_OS_WAIT_STATS_TABLE = "sys.dm_os_wait_stats"
+DM_OS_MEMORY_CLERKS_TABLE = "sys.dm_os_memory_clerks"
 
 class ODBCConnectionError(Exception):
     """
@@ -119,24 +123,50 @@ class SQLServer(AgentCheck):
 
         # Load any custom metrics from conf.d/sqlserver.yaml
         for row in custom_metrics:
-            user_type = row.get('type')
-            if user_type is not None and user_type not in VALID_METRIC_TYPES:
-                self.log.error('%s has an invalid metric type: %s', row['name'], user_type)
-            sql_type = None
-            try:
-                if user_type is None:
-                    sql_type, base_name = self.get_sql_type(instance, row['counter_name'])
-            except Exception:
-                self.log.warning("Can't load the metric %s, ignoring", row['name'], exc_info=True)
-                continue
+            db_table = row.get('table')
+            if not db_table or db_table == DEFAULT_PERFORMANCE_TABLE:
+                user_type = row.get('type')
+                if user_type is not None and user_type not in VALID_METRIC_TYPES:
+                    self.log.error('%s has an invalid metric type: %s', row['name'], user_type)
+                sql_type = None
+                try:
+                    if user_type is None:
+                        sql_type, base_name = self.get_sql_type(instance, row['counter_name'])
+                except Exception:
+                    self.log.warning("Can't load the metric %s, ignoring", row['name'], exc_info=True)
+                    continue
 
-            metrics_to_collect.append(self.typed_metric(row['name'],
-                                                        row['counter_name'],
-                                                        base_name,
-                                                        user_type,
-                                                        sql_type,
-                                                        row.get('instance_name', ''),
-                                                        row.get('tag_by', None)))
+                metrics_to_collect.append(self.typed_metric(row['name'],
+                                                            row['counter_name'],
+                                                            base_name,
+                                                            user_type,
+                                                            sql_type,
+                                                            row.get('instance_name', ''),
+                                                            row.get('tag_by', None)))
+            elif db_table == DM_OS_WAIT_STATS_TABLE:
+                metric = SqlOsWaitStat(row['name'],
+                                    row['counter_name'],
+                                    None,
+                                    self.gauge,
+                                    None,
+                                    row.get('tag_by', None),
+                                    self.log)
+                metrics_to_collect.append(metric)
+            elif db_table == DM_OS_MEMORY_CLERKS_TABLE:
+                for column in row['columns']:
+                    metric = SqlOsMemoryClerksStat(row['name'],
+                                        row['counter_name'],
+                                        None,
+                                        self.gauge,
+                                        row.get('instance_name', ALL_INSTANCES),
+                                        row.get('tag_by', None),
+                                        column,
+                                        self.log)
+                    metrics_to_collect.append(metric)
+            else:
+                self.log.error('%s is from unknown table: %s', row['name'], db_table)
+                continue
+                
 
         instance_key = self._conn_key(instance)
         self.instances_metrics[instance_key] = metrics_to_collect
@@ -380,6 +410,46 @@ class SqlServerMetric(object):
     def fetch_metrics(self, cursor, tags):
         raise NotImplementedError
 
+class SqlOsWaitStat(SqlServerMetric):
+    def fetch_metric(self, cursor, tags):
+        query_base = '''
+                    select wait_time_ms
+                    from sys.dm_os_wait_stats
+                    WHERE wait_type = ?
+                     '''
+        query_content = (self.sql_name,)
+        cursor.execute(query_base, query_content)
+        rows = cursor.fetchall()
+        wait_time = rows[0].wait_time_ms
+        metric_tags = tags
+        self.report_function(self.datadog_name, wait_time, tags=metric_tags)
+
+class SqlOsMemoryClerksStat(SqlServerMetric):
+    def __init__(self, datadog_name, sql_name, base_name,
+                 report_function, instance, tag_by, column, logger):
+        SqlServerMetric.__init__(self, datadog_name, sql_name,base_name,
+                 report_function, instance, tag_by, logger)
+        self.column = column
+
+    def fetch_metric(self, cursor, tags):
+        query_base = "select %s, memory_node_id" % self.column
+        query_base += '''
+                    from sys.dm_os_memory_clerks
+                    WHERE type = ?
+                    '''
+        query = query_base
+        query_content = (self.sql_name)
+
+        cursor.execute(query, query_content)
+        rows = cursor.fetchall()
+        for row in rows:
+            column_val = row[0]
+            node_id = row[1]
+            metric_tags = tags
+            metric_tags = metric_tags + ['memory_node_id:%s' % (str(node_id).strip())]
+            metric_name = '%s.%s' %(self.datadog_name, self.column)
+            self.report_function(metric_name, column_val,
+                                 tags=metric_tags)
 
 class SqlSimpleMetric(SqlServerMetric):
 
