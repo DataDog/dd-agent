@@ -4,6 +4,7 @@ import logging
 
 # 3p
 from requests.utils import get_environ_proxies
+from nose.plugins.attrib import attr
 
 # project
 from utils.proxy import set_no_proxy_settings
@@ -51,8 +52,9 @@ class TestProxy(TestCase):
         env.pop("HTTP_PROXY", None)
         env.pop("HTTPS_PROXY", None)
 
+    @attr(requires='core_integration')
     def test_proxy(self):
-        self.assertEquals(1, 1)
+        self.assertEquals(2, 1)
 
     def setUp(self):
         self.docker_client = DockerUtil().client
