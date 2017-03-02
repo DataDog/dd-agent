@@ -973,9 +973,7 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
         check_path = check_path_builder(check_name)
         # The windows SDK function will return None,
         # so the loop should also continue if there is no path.
-        if not check_path:
-            continue
-        if not os.path.exists(check_path):
+        if not (check_path and os.path.exists(check_path)):
             continue
 
         check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path)
