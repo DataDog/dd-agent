@@ -1,4 +1,4 @@
-sudo: false
+sudo: required
 
 branches:
   only:
@@ -9,9 +9,9 @@ branches:
 language: python
 python:
   - "2.7"
-  
-# services:
-#   - docker
+
+services:
+  - docker
 
 cache:
   directories:
