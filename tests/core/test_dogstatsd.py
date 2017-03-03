@@ -47,7 +47,7 @@ class TestFunctions(TestCase):
 
 class TestServer(TestCase):
     def test_init(self):
-        s = Server(None, 'localhost', '1234')
+        s = Server(None, 'localhost', '12344')
 
         self.assertIsNone(s.sockaddr)
         self.assertIsNone(s.socket)
@@ -55,7 +55,7 @@ class TestServer(TestCase):
     @mock.patch('dogstatsd.select')
     def test_start(self, select):
         select.select.side_effect = [KeyboardInterrupt, SystemExit]
-        s1 = Server(mock.MagicMock(), '::1', '1234')
+        s1 = Server(mock.MagicMock(), '::1', '12344')
         s1.start()
         self.assertEqual(s1.socket.family, socket.AF_INET6)
 
