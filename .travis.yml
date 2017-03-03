@@ -1,4 +1,4 @@
-sudo: required
+sudo: false
 
 branches:
   only:
@@ -9,9 +9,6 @@ branches:
 language: python
 python:
   - "2.7"
-
-services:
-  - docker
 
 cache:
   directories:
@@ -32,8 +29,13 @@ env:
     - DD_CASHER_DIR=/tmp/casher
   matrix:
     - TRAVIS_FLAVOR=default
-    # - TRAVIS_FLAVOR=core_integration
-    # - TRAVIS_FLAVOR=checks_mock
+    - TRAVIS_FLAVOR=checks_mock
+
+matrix:
+  include:
+    - sudo: required
+      services: docker
+      env: TRAVIS_FLAVOR=core_integration
 
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"
