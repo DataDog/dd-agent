@@ -32,15 +32,21 @@ def get_registry_conf(agentConfig):
 
     return registry_conf
 
+def get_sdk_integration_path(hkey, reg_path):
+    with _winreg.OpenKey(hkey, reg_path) as reg_key:
+        directory = _winreg.QueryValueEx(reg_key, "InstallPath")[0]
+
+    return directory
+
 def get_windows_sdk_check(name):
     sdk_reg_path = SDK_REG_PATH + name
     try:
-        with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, sdk_reg_path) as reg_key:
-            directory = _winreg.QueryValueEx(reg_key, "InstallPath")[0]
-            return (os.path.join(directory, 'check.py'),
-                    os.path.join(directory, 'manifest.json'))
+        directory = get_sdk_integration_path(_winreg.HKEY_LOCAL_MACHINE, sdk_reg_path)
+        return (os.path.join(directory, 'check.py'),
+                os.path.join(directory, 'manifest.json'))
     except WindowsError:
         pass
+
     return None, None
 
 def subkeys(key):
@@ -60,9 +66,8 @@ def get_sdk_integration_paths():
             for integration_subkey in subkeys(reg_key):
                 integration_name = integration_subkey.split('\\')[-1]
                 try:
-                    with _winreg.OpenKey(reg_key, integration_subkey) as reg_integration_key:
-                        integration_path = _winreg.QueryValueEx(reg_integration_key, "InstallPath")[0]
-                        integrations[integration_name] = integration_path
+                    directory = get_sdk_integration_path(reg_key, integration_subkey)
+                    integrations[integration_name] = os.path.join(directory, 'Integrations', integration_name)
                 except WindowsError as e:
                     log.error('Unable to get keys from Registry for %s: %s', integration_name, e)
     except WindowsError as e:
