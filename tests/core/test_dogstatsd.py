@@ -47,7 +47,7 @@ class TestFunctions(TestCase):
 
 class TestServer(TestCase):
     def test_init(self):
-        s = Server(None, 'localhost', '12344')
+        s = Server(None, 'localhost', '1234')
 
         self.assertIsNone(s.sockaddr)
         self.assertIsNone(s.socket)
