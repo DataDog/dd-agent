@@ -41,3 +41,4 @@ tests/core/fixtures/flare/dd*
 tags
 
 checks.d
+conf.d
