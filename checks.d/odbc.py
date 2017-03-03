@@ -51,6 +51,7 @@ VALUE_AND_BASE_QUERY = '''select cntr_value
 DEFAULT_PERFORMANCE_TABLE = "sys.dm_os_performance_counters"
 DM_OS_WAIT_STATS_TABLE = "sys.dm_os_wait_stats"
 DM_OS_MEMORY_CLERKS_TABLE = "sys.dm_os_memory_clerks"
+DM_OS_VIRTUAL_FILE_STATS = "sys.dm_io_virtual_file_stats"
 
 class ODBCConnectionError(Exception):
     """
@@ -161,6 +162,19 @@ class SQLServer(AgentCheck):
                                         row.get('instance_name', ALL_INSTANCES),
                                         row.get('tag_by', None),
                                         column,
+                                        self.log)
+                    metrics_to_collect.append(metric)
+            elif db_table == DM_OS_VIRTUAL_FILE_STATS:
+                for column in row['columns']:
+                    metric = SqlOsVirtualFileStat(row['name'],
+                                        row['counter_name'],
+                                        None,
+                                        self.gauge,
+                                        row.get('instance_name', ALL_INSTANCES),
+                                        row.get('tag_by', None),
+                                        column,
+                                        row.get('database_id', None),
+                                        row.get('file_id', None),
                                         self.log)
                     metrics_to_collect.append(metric)
             else:
@@ -423,6 +437,41 @@ class SqlOsWaitStat(SqlServerMetric):
         wait_time = rows[0].wait_time_ms
         metric_tags = tags
         self.report_function(self.datadog_name, wait_time, tags=metric_tags)
+
+class SqlOsVirtualFileStat(SqlServerMetric):
+    def __init__(self, datadog_name, sql_name, base_name,
+                 report_function, instance, tag_by, column, db_id, file_id, logger):
+        SqlServerMetric.__init__(self, datadog_name, sql_name,base_name,
+                 report_function, instance, tag_by, logger)
+        self.column = column
+        self.db_id = db_id
+        self.file_id = file_id
+
+    def fetch_metric(self, cursor, tags):
+        query_base = "select database_id, file_id, %s " % self.column
+
+        dbid = 'null'
+        if self.db_id:
+            dbid = str(self.db_id)
+        fid = 'null'
+        if self.file_id:
+            fid = str(self.file_id)
+
+        query_from = "from sys.dm_io_virtual_file_stats(%s, %s)" % (dbid, fid)
+        query = query_base + query_from
+
+        cursor.execute(query) #, query_content)
+        rows = cursor.fetchall()
+        for row in rows:
+            dbid = row[0]
+            fid = row[1]
+            value = row[2]
+            metric_tags = tags
+            metric_tags = metric_tags + ['database_id:%s' % (str(dbid).strip())]
+            metric_tags = metric_tags + ['file_id:%s' % (str(fid).strip())]
+            metric_name = '%s.%s' %(self.datadog_name, self.column)
+            self.report_function(metric_name, value,
+                                 tags=metric_tags)
 
 class SqlOsMemoryClerksStat(SqlServerMetric):
     def __init__(self, datadog_name, sql_name, base_name,
