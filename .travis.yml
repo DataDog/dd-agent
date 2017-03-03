@@ -33,7 +33,8 @@ env:
 
 matrix:
   include:
-    - sudo: required
+    - python: 2.7
+      sudo: required
       services: docker
       env: TRAVIS_FLAVOR=core_integration
 

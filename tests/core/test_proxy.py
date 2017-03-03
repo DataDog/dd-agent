@@ -57,15 +57,15 @@ class TestNoProxy(TestCase):
 class TestProxy(TestCase):
     @attr(requires='core_integration')
     def test_proxy(self):
-        # config = {
-        #     "endpoints": {"https://foo.bar.com": ["foo"]},
-        #     "dd_url": "https://foo.bar.com",
-        #     "api_key": "foo",
-        #     "use_dd": True
-        # }
+        config = {
+            "endpoints": {"https://foo.bar.com": ["foo"]},
+            "dd_url": "https://foo.bar.com",
+            "api_key": "foo",
+            "use_dd": True
+        }
 
-        # app = Application()
-        # app._agentConfig = config
+        app = Application()
+        app._agentConfig = config
         self.assertEquals(2, 1)
 
     def setUp(self):
