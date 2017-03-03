@@ -55,7 +55,7 @@ class TestServer(TestCase):
     @mock.patch('dogstatsd.select')
     def test_start(self, select):
         select.select.side_effect = [KeyboardInterrupt, SystemExit]
-        s1 = Server(mock.MagicMock(), '::1', '12344')
+        s1 = Server(mock.MagicMock(), '::1', '1234')
         s1.start()
         self.assertEqual(s1.socket.family, socket.AF_INET6)
 
@@ -75,7 +75,7 @@ class TestServer(TestCase):
 
     def test_connection_v4(self):
         # start the server with a v4 mapped address
-        sock = self._get_socket('::ffff:127.0.0.1', 12345)
+        sock = self._get_socket('::ffff:127.0.0.1', 53627)
         results = Queue.Queue()
 
         def listen():
@@ -89,13 +89,13 @@ class TestServer(TestCase):
 
         # send packets with a v4 client
         client_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        client_sock.sendto('msg4', ('127.0.0.1', 12345))
+        client_sock.sendto('msg4', ('127.0.0.1', 53627))
         msg = results.get(True, 1)
         self.assertEqual(msg[0], 'msg4')
 
         # send packets with a v6 client
         client_sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        client_sock.sendto('msg6', ('::1', 12345))
+        client_sock.sendto('msg6', ('::1', 53627))
         self.assertRaises(Queue.Empty, results.get, True, 1)
 
     def test_connection_v6(self):
