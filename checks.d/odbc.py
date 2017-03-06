@@ -13,6 +13,7 @@ import traceback
 
 # 3rd party
 import pyodbc
+import adodbapi
 
 # project
 from checks import AgentCheck
@@ -80,6 +81,13 @@ class SQLServer(AgentCheck):
         ('odbcsql.stats.procs_blocked', 'Processes blocked', ''),  # LARGE_RAWCOUNT
         ('odbcsql.buffer.checkpoint_pages', 'Checkpoint pages/sec', '')  # BULK_COUNT
     ]
+    valid_connectors = [ 'odbc', 'adodbapi' ]
+    valid_tables = [
+        DEFAULT_PERFORMANCE_TABLE, 
+        DM_OS_WAIT_STATS_TABLE, 
+        DM_OS_MEMORY_CLERKS_TABLE,
+        DM_OS_VIRTUAL_FILE_STATS
+    ]
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
@@ -88,6 +96,10 @@ class SQLServer(AgentCheck):
         self.connections = {}
         self.failed_connections = {}
         self.instances_metrics = {}
+        self.connector = init_config.get('connector', 'adodbapi')
+        if not self.connector.lower() in self.valid_connectors:
+            self.log.exception("Invalid database connector %s, defaulting to adodbapi" % self.connector)
+            self.connector = 'adodbapi'
 
         # Pre-process the list of metrics to collect
         custom_metrics = init_config.get('custom_metrics', [])
@@ -109,12 +121,17 @@ class SQLServer(AgentCheck):
         for name, counter_name, instance_name in self.METRICS:
             try:
                 sql_type, base_name = self.get_sql_type(instance, counter_name)
-                metrics_to_collect.append(self.typed_metric(name,
-                                                            counter_name,
+                cfg = {}
+                cfg['name'] = sql_type
+                cfg['counter_name'] = counter_name
+                cfg['instance_name'] = instance_name
+
+                metrics_to_collect.append(self.typed_metric(instance,
+                                                            cfg,
+                                                            DEFAULT_PERFORMANCE_TABLE,
                                                             base_name,
                                                             None,
                                                             sql_type,
-                                                            instance_name,
                                                             None))
             except ODBCConnectionError:
                 raise
@@ -124,8 +141,12 @@ class SQLServer(AgentCheck):
 
         # Load any custom metrics from conf.d/sqlserver.yaml
         for row in custom_metrics:
-            db_table = row.get('table')
-            if not db_table or db_table == DEFAULT_PERFORMANCE_TABLE:
+            db_table = row.get('table', DEFAULT_PERFORMANCE_TABLE)
+            if not db_table in self.valid_tables:
+                self.log.error('%s has an invalid table name: %s', row['name'], db_table)
+                continue
+
+            if db_table == DEFAULT_PERFORMANCE_TABLE:
                 user_type = row.get('type')
                 if user_type is not None and user_type not in VALID_METRIC_TYPES:
                     self.log.error('%s has an invalid metric type: %s', row['name'], user_type)
@@ -137,55 +158,35 @@ class SQLServer(AgentCheck):
                     self.log.warning("Can't load the metric %s, ignoring", row['name'], exc_info=True)
                     continue
 
-                metrics_to_collect.append(self.typed_metric(row['name'],
-                                                            row['counter_name'],
+                metrics_to_collect.append(self.typed_metric(instance,
+                                                            row,
+                                                            db_table,
                                                             base_name,
                                                             user_type,
                                                             sql_type,
-                                                            row.get('instance_name', ''),
-                                                            row.get('tag_by', None)))
+                                                            None))
+                                                            
             elif db_table == DM_OS_WAIT_STATS_TABLE:
-                metric = SqlOsWaitStat(row['name'],
-                                    row['counter_name'],
-                                    None,
-                                    self.gauge,
-                                    None,
-                                    row.get('tag_by', None),
-                                    self.log)
-                metrics_to_collect.append(metric)
-            elif db_table == DM_OS_MEMORY_CLERKS_TABLE:
-                for column in row['columns']:
-                    metric = SqlOsMemoryClerksStat(row['name'],
-                                        row['counter_name'],
-                                        None,
-                                        self.gauge,
-                                        row.get('instance_name', ALL_INSTANCES),
-                                        row.get('tag_by', None),
-                                        column,
-                                        self.log)
-                    metrics_to_collect.append(metric)
-            elif db_table == DM_OS_VIRTUAL_FILE_STATS:
-                for column in row['columns']:
-                    metric = SqlOsVirtualFileStat(row['name'],
-                                        row['counter_name'],
-                                        None,
-                                        self.gauge,
-                                        row.get('instance_name', ALL_INSTANCES),
-                                        row.get('tag_by', None),
-                                        column,
-                                        row.get('database_id', None),
-                                        row.get('file_id', None),
-                                        self.log)
-                    metrics_to_collect.append(metric)
+                metrics_to_collect.append(self.typed_metric(instance,
+                                                            row,
+                                                            db_table,
+                                                            base_name,
+                                                            None,
+                                                            sql_type,
+                                                            None))
             else:
-                self.log.error('%s is from unknown table: %s', row['name'], db_table)
-                continue
-                
-
+                for column in row['columns']:
+                   metrics_to_collect.append(self.typed_metric(instance,
+                                                            row,
+                                                            db_table,
+                                                            base_name,
+                                                            None,
+                                                            sql_type,
+                                                            column))
         instance_key = self._conn_key(instance)
         self.instances_metrics[instance_key] = metrics_to_collect
 
-    def typed_metric(self, dd_name, sql_name, base_name, user_type, sql_type, instance_name, tag_by):
+    def typed_metric(self, instance, cfg_inst, table, base_name, user_type, sql_type, column):
         '''
         Create the appropriate SqlServerMetric object, each implementing its method to
         fetch the metrics properly.
@@ -193,24 +194,41 @@ class SQLServer(AgentCheck):
         directly fetched from SQLServer. Otherwise, it is decided based on the
         sql_type, according to microsoft's documentation.
         '''
+        if table == DEFAULT_PERFORMANCE_TABLE:
+            metric_type_mapping = {
+                PERF_COUNTER_BULK_COUNT: (self.rate, SqlSimpleMetric),
+                PERF_COUNTER_LARGE_RAWCOUNT: (self.gauge, SqlSimpleMetric),
+                PERF_LARGE_RAW_BASE: (self.gauge, SqlSimpleMetric),
+                PERF_RAW_LARGE_FRACTION: (self.gauge, SqlFractionMetric),
+                PERF_AVERAGE_BULK: (self.gauge, SqlIncrFractionMetric)
+            }
+            if user_type is not None:
+                # user type overrides any other value
+                metric_type = getattr(self, user_type)
+                cls = SqlSimpleMetric
 
-        metric_type_mapping = {
-            PERF_COUNTER_BULK_COUNT: (self.rate, SqlSimpleMetric),
-            PERF_COUNTER_LARGE_RAWCOUNT: (self.gauge, SqlSimpleMetric),
-            PERF_LARGE_RAW_BASE: (self.gauge, SqlSimpleMetric),
-            PERF_RAW_LARGE_FRACTION: (self.gauge, SqlFractionMetric),
-            PERF_AVERAGE_BULK: (self.gauge, SqlIncrFractionMetric)
-        }
-        if user_type is not None:
-            # user type overrides any other value
-            metric_type = getattr(self, user_type)
-            cls = SqlSimpleMetric
-
+            else:
+                metric_type, cls = metric_type_mapping[sql_type]
         else:
-            metric_type, cls = metric_type_mapping[sql_type]
+            table_type_mapping = {
+                DM_OS_WAIT_STATS_TABLE: (self.gauge, SqlOsWaitStat),
+                DM_OS_MEMORY_CLERKS_TABLE: (self.gauge, SqlOsMemoryClerksStat),
+                DM_OS_VIRTUAL_FILE_STATS: (self.gauge, SqlOsVirtualFileStat)
+            }
+            metric_type, cls = table_type_mapping[table]
 
-        return cls(dd_name, sql_name, base_name,
-                   metric_type, instance_name, tag_by, self.log)
+        return cls(self._get_connector(instance), cfg_inst, base_name, metric_type, column, self.log)
+
+    def _get_connector(self, instance):
+        connector = instance.get('connector', self.connector)
+        if connector != self.connector:
+            if not connector.lower() in self.valid_connectors:
+                self.log.warning("Invalid database connector %s using default %s" ,
+                     connector, self.connector)
+                connector = self.connector
+            else:
+                self.log.info("Overriding default connector for %s with %s", instance['host'], connector)
+        return connector
 
     def _get_access_info(self, instance):
         ''' Convenience method to extract info from instance
@@ -236,8 +254,8 @@ class SQLServer(AgentCheck):
         dsn, host, username, password, database, driver = self._get_access_info(instance)
         return '%s:%s:%s:%s:%s:%s' % (dsn, host, username, password, database, driver)
 
-    def _conn_string(self, instance=None, conn_key=None):
-        ''' Return a connection string to use with adodbapi
+    def _conn_string_odbc(self, instance=None, conn_key=None):
+        ''' Return a connection string to use with odbc
         '''
         if instance:
             dsn, host, username, password, database, driver = self._get_access_info(instance)
@@ -262,6 +280,23 @@ class SQLServer(AgentCheck):
         if password:
             conn_str += 'PWD=%s;' % (password)
         
+        return conn_str
+
+    def _conn_string_adodbapi(self, instance=None, conn_key=None):
+        ''' Return a connection string to use with adodbapi
+        '''
+        if instance:
+            dsn, host, username, password, database, driver= self._get_access_info(instance)
+        elif conn_key:
+            dsn, host, username, password, database, driver = conn_key.split(":")
+        conn_str = 'Provider=SQLOLEDB;Data Source=%s;Initial Catalog=%s;' \
+            % (host, database)
+        if username:
+            conn_str += 'User ID=%s;' % (username)
+        if password:
+            conn_str += 'Password=%s;' % (password)
+        if not username and not password:
+            conn_str += 'Integrated Security=SSPI;'
         return conn_str
 
     def get_cursor(self, instance):
@@ -376,8 +411,12 @@ class SQLServer(AgentCheck):
         ]
 
         try:
-            rawconn = pyodbc.connect(self._conn_string(instance=instance),
+            if self._get_connector(instance) == 'adodbapi':
+                rawconn = adodbapi.connect(self._conn_string_adodbapi(instance=instance),
                                        timeout=timeout)
+            else:
+                rawconn = pyodbc.connect(self._conn_string_odbc(instance=instance),
+                                        timeout=timeout)
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                                tags=service_check_tags)
             if conn_key not in self.connections:
@@ -409,14 +448,17 @@ class SqlServerMetric(object):
     '''General class for common methods, should never be instantiated directly
     '''
 
-    def __init__(self, datadog_name, sql_name, base_name,
-                 report_function, instance, tag_by, logger):
-        self.datadog_name = datadog_name
-        self.sql_name = sql_name
+    def __init__(self, connector,  cfg_instance, base_name,
+                 report_function, column, logger):
+        self.connector = connector
+        self.cfg_instance = cfg_instance
+        self.datadog_name = cfg_instance['name']
+        self.sql_name = cfg_instance['counter_name']
         self.base_name = base_name
         self.report_function = report_function
-        self.instance = instance
-        self.tag_by = tag_by
+        self.instance = cfg_instance.get('instance_name', '')
+        self.tag_by = cfg_instance.get('tag_by', None)
+        self.column = column
         self.instances = None
         self.past_values = {}
         self.log = logger
@@ -429,35 +471,30 @@ class SqlOsWaitStat(SqlServerMetric):
         query_base = '''
                     select wait_time_ms
                     from sys.dm_os_wait_stats
-                    WHERE wait_type = ?
+                    WHERE wait_type = ?;
                      '''
         query_content = (self.sql_name,)
         cursor.execute(query_base, query_content)
         rows = cursor.fetchall()
-        wait_time = rows[0].wait_time_ms
+        if len(rows) == 0:
+            self.log.debug("No rows in %s" % self.sql_name)
+        if self.connector == 'odbc':
+            wait_time = rows[0].wait_time_ms
+        else:
+            wait_time = rows[0, "wait_time_ms"]
+
         metric_tags = tags
         self.report_function(self.datadog_name, wait_time, tags=metric_tags)
 
 class SqlOsVirtualFileStat(SqlServerMetric):
-    def __init__(self, datadog_name, sql_name, base_name,
-                 report_function, instance, tag_by, column, db_id, file_id, logger):
-        SqlServerMetric.__init__(self, datadog_name, sql_name,base_name,
-                 report_function, instance, tag_by, logger)
-        self.column = column
-        self.db_id = db_id
-        self.file_id = file_id
-
+    
     def fetch_metric(self, cursor, tags):
         query_base = "select database_id, file_id, %s " % self.column
 
-        dbid = 'null'
-        if self.db_id:
-            dbid = str(self.db_id)
-        fid = 'null'
-        if self.file_id:
-            fid = str(self.file_id)
+        dbid = self.cfg_instance.get('database_id', 'null')
+        fid = self.cfg_instance.get('file_id', 'null')
 
-        query_from = "from sys.dm_io_virtual_file_stats(%s, %s)" % (dbid, fid)
+        query_from = "from sys.dm_io_virtual_file_stats(%s, %s);" % (dbid, fid)
         query = query_base + query_from
 
         cursor.execute(query) #, query_content)
@@ -474,17 +511,11 @@ class SqlOsVirtualFileStat(SqlServerMetric):
                                  tags=metric_tags)
 
 class SqlOsMemoryClerksStat(SqlServerMetric):
-    def __init__(self, datadog_name, sql_name, base_name,
-                 report_function, instance, tag_by, column, logger):
-        SqlServerMetric.__init__(self, datadog_name, sql_name,base_name,
-                 report_function, instance, tag_by, logger)
-        self.column = column
-
     def fetch_metric(self, cursor, tags):
         query_base = "select %s, memory_node_id" % self.column
         query_base += '''
                     from sys.dm_os_memory_clerks
-                    WHERE type = ?
+                    WHERE type = ?;
                     '''
         query = query_base
         query_content = (self.sql_name)
@@ -517,6 +548,11 @@ class SqlSimpleMetric(SqlServerMetric):
 
         cursor.execute(query, query_content)
         rows = cursor.fetchall()
+        if len(rows) == 0:
+            self.log.debug("No rows in %s" % self.instance)
+        else:
+            self.log.debug("%d rows in instance %s" % ( len(rows), self.instance))
+
         for instance_name, cntr_value in rows:
             metric_tags = tags
             if self.instance == ALL_INSTANCES:
@@ -550,8 +586,12 @@ class SqlFractionMetric(SqlServerMetric):
                 self.log.warning("Missing counter to compute fraction for "
                                  "metric %s instance %s, skipping", self.sql_name, instance)
                 continue
-            value = rows[0].cntr_value
-            base = rows[1].cntr_value
+            if self.connector == 'odbc':
+                value = rows[0].cntr_value
+                base = rows[1].cntr_value
+            else:
+                value = rows[0, "cntr_value"]
+                base = rows[1, "cntr_value"]
 
             metric_tags = tags
             if self.instance == ALL_INSTANCES:
