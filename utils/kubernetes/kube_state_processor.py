@@ -245,7 +245,7 @@ class KubeStateProcessor:
             tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
             if val:
                 self.service_check(service_check_name, self.kube_check.OK, tags=tags)
-            else
+            else:
                 self.service_check(service_check_name, self.kube_check.CRITICAL, tags=tags)
 
     # note that these three prometheus metrics share a service_check_name
