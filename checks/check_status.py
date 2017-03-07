@@ -701,6 +701,7 @@ class CollectorStatus(AgentStatus):
                         status_info['checks'][cs.name]['instances'][s.instance_id]['error'] = s.error
                     if s.has_warnings():
                         status_info['checks'][cs.name]['instances'][s.instance_id]['warnings'] = s.warnings
+                status_info['checks'][cs.name]['check_version'] = cs.check_version
                 status_info['checks'][cs.name]['metric_count'] = cs.metric_count
                 status_info['checks'][cs.name]['event_count'] = cs.event_count
                 status_info['checks'][cs.name]['service_check_count'] = cs.service_check_count
