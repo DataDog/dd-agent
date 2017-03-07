@@ -74,6 +74,11 @@ class Flare(object):
             r'\1://\2:********@',
             'password in a uri'
         ),
+        CredentialPattern(
+            re.compile('^\s*(community_string): *.+$'),
+            r'\1 ********',
+            'SNMP community string'
+        ),
     ]
     MAIN_CREDENTIALS = [
         CredentialPattern(
