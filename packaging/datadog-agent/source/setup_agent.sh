@@ -389,25 +389,31 @@ tar -xz -C "$DD_HOME/agent" --strip-components 1 -f "$DD_HOME/agent.tar.gz"
 rm -f "$DD_HOME/agent.tar.gz"
 print_done
 
-print_console "* Downloading integrations from GitHub"
-mkdir -p "$DD_HOME/integrations"
-$DOWNLOADER "$DD_HOME/integrations.tar.gz" "https://api.github.com/repos/DataDog/integrations-core/tarball"
-print_done
+AGENT_VERSION_ARRAY=(${AGENT_VERSION//./ })
+AGENT_MAJOR_VERSION=${AGENT_VERSION_ARRAY[0]}
+AGENT_MINOR_VERSION=${AGENT_VERSION_ARRAY[1]}
+# Only install the integrations from the integrations-core if it's version 5.11 or above.
+if [[ (("$AGENT_MAJOR_VERSION" = "5")) && (("$AGENT_MINOR_VERSION" > "11")) ]]; then
+  print_console "* Downloading integrations from GitHub"
+  mkdir -p "$DD_HOME/integrations"
+  $DOWNLOADER "$DD_HOME/integrations.tar.gz" "https://api.github.com/repos/DataDog/integrations-core/tarball/$AGENT_VERSION"
+  print_done
 
-print_console "* Uncompressing tarball"
-tar -xz -C "$DD_HOME/integrations" --strip-components 1 -f "$DD_HOME/integrations.tar.gz"
-rm -f "$DD_HOME/integrations.tar.gz"
-print_done
+  print_console "* Uncompressing tarball"
+  tar -xz -C "$DD_HOME/integrations" --strip-components 1 -f "$DD_HOME/integrations.tar.gz"
+  rm -f "$DD_HOME/integrations.tar.gz"
+  print_done
 
-print_console "* Trying to install integration requirements"
-for INT_DIR in "$DD_HOME/integrations/*"; do
-  if [ -d $INT_DIR ]; then
-    if [-f "$INT_DIR/requirements.txt" ]; then
-      "$DD_HOME/agent/utils/pip-allow-failures.sh" "$INT_DIR/requirements.txt"
+  print_console "* Trying to install integration requirements"
+  for INT_DIR in "$DD_HOME/integrations/*"; do
+    if [ -d $INT_DIR ]; then
+      if [-f "$INT_DIR/requirements.txt" ]; then
+        "$DD_HOME/agent/utils/pip-allow-failures.sh" "$INT_DIR/requirements.txt"
+      fi
     fi
-  fi
-done
-print_done
+  done
+  print_done
+fi
 
 print_console "* Trying to install optional requirements"
 $DOWNLOADER "$DD_HOME/requirements-opt.txt" "$BASE_GITHUB_URL/requirements-opt.txt"
