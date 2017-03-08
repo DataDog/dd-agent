@@ -324,7 +324,7 @@ class Flare(object):
             integrations = get_sdk_integration_paths()
             for integration, path in integrations.iteritems():
                 manifest_path = os.path.join(path, 'manifest.json')
-                if self.can_read(manifest_path):
+                if self._can_read(manifest_path):
                     manifest = load_manifest(manifest_path)
                     if manifest:
                         sdk_manifest[integration] = manifest
@@ -401,7 +401,7 @@ class Flare(object):
         iobuff = StringIO.StringIO(contents)
 
         obj = tarfile.TarInfo(name=file_path)
-        obj.size = len(iobuff.buf)
+        obj.size = len(iobuff.getvalue())
         self._tar.addfile(obj, fileobj=iobuff)
 
     # Returns whether JMXFetch should run or not
