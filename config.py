@@ -904,7 +904,7 @@ def get_checks_places(osname, agentConfig):
 
     try:
         if Platform.is_windows():
-            places.append(get_windows_sdk_check)
+            places.append(lambda name: (get_windows_sdk_check(name), None))
         else:
             sdk_integrations = get_sdk_integrations_path(osname)
             places.append(lambda name: (os.path.join(sdk_integrations, name, 'check.py'),
