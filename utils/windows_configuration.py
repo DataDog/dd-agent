@@ -37,10 +37,11 @@ def get_windows_sdk_check(name):
     try:
         with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, sdk_reg_path) as reg_key:
             directory = _winreg.QueryValueEx(reg_key, "InstallPath")[0]
-            return os.path.join(directory, 'Integrations', name, 'check.py')
+            return (os.path.join(directory, 'Integrations', name, 'check.py'),
+                    os.path.join(directory, 'Integrations', name, 'manifest.json'))
     except WindowsError:
         pass
-    return None
+    return None, None
 
 def update_conf_file(registry_conf, config_path):
     config_dir = os.path.dirname(config_path)

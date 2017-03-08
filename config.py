@@ -904,7 +904,7 @@ def get_checks_places(osname, agentConfig):
 
     try:
         if Platform.is_windows():
-            places.append(lambda name: (get_windows_sdk_check(name), None))
+            places.append(get_windows_sdk_check)
         else:
             sdk_integrations = get_sdk_integrations_path(osname)
             places.append(lambda name: (os.path.join(sdk_integrations, name, 'check.py'),
@@ -997,8 +997,9 @@ def validate_sdk_check(manifest_path):
                 min_validated = False if min_version > get_version() else True
                 break
     except IOError:
-        log.warn("Manifest file (%s) not present " % manifest_path)
-        pass
+        log.debug("Manifest file (%s) not present." % manifest_path)
+    except json.JSONDecodeError:
+        log.debug("Manifest file (%s) has badly formatted json." % manifest_path)
 
     return (min_validated and max_validated)
 
