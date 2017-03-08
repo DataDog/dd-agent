@@ -389,11 +389,12 @@ tar -xz -C "$DD_HOME/agent" --strip-components 1 -f "$DD_HOME/agent.tar.gz"
 rm -f "$DD_HOME/agent.tar.gz"
 print_done
 
-AGENT_VERSION_ARRAY=(${AGENT_VERSION//./ })
-AGENT_MAJOR_VERSION=${AGENT_VERSION_ARRAY[0]}
-AGENT_MINOR_VERSION=${AGENT_VERSION_ARRAY[1]}
-# Only install the integrations from the integrations-core if it's version 5.11 or above.
-if [[ (("$AGENT_MAJOR_VERSION" = "5")) && (("$AGENT_MINOR_VERSION" > "11")) ]]; then
+IFS='.' read AGENT_MAJOR_VERSION AGENT_MINOR_VERSION AGENT_BUGFIX_VERSION<<VERSION
+$AGENT_VERSION
+VERSION
+
+# Only install the integrations from the integrations-core if it's version 5.12 or above.
+if [ "$AGENT_MAJOR_VERSION" -eq "5" -a "$AGENT_MINOR_VERSION" -gt "11" ]; then
   print_console "* Downloading integrations from GitHub"
   mkdir -p "$DD_HOME/integrations"
   $DOWNLOADER "$DD_HOME/integrations.tar.gz" "https://api.github.com/repos/DataDog/integrations-core/tarball/$AGENT_VERSION"
