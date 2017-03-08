@@ -49,7 +49,8 @@ from config import (
     get_logging_config,
     get_url_endpoint,
     get_version,
-    _is_affirmative
+    _is_affirmative,
+    setup_temp_dir
 )
 import modules
 from transaction import Transaction, TransactionManager
@@ -580,6 +581,7 @@ class Application(tornado.web.Application):
 
 def init(skip_ssl_validation=False, use_simple_http_client=False):
     agentConfig = get_config(parse_args=False)
+    setup_temp_dir(agentConfig)
 
     port = agentConfig.get('listen_port', 17123)
     if port is None:

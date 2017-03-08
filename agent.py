@@ -44,7 +44,8 @@ from config import (
     load_check,
     generate_jmx_configs,
     _is_affirmative,
-    SD_PIPE_NAME
+    SD_PIPE_NAME,
+    setup_temp_dir
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
@@ -471,6 +472,8 @@ def main():
     autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
     in_developer_mode = agentConfig.get('developer_mode')
+
+    setup_temp_dir(agentConfig)
 
     COMMANDS_AGENT = [
         'start',

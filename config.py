@@ -21,6 +21,7 @@ import string
 import sys
 import traceback
 from urlparse import urlparse
+import tempfile
 
 # 3p
 import simplejson as json
@@ -590,6 +591,14 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
         agentConfig["gce_updated_hostname"] = False
         if config.has_option("Main", "gce_updated_hostname"):
             agentConfig["gce_updated_hostname"] = _is_affirmative(config.get("Main", "gce_updated_hostname"))
+
+        agentConfig["use_dd_temp_dir"] = False
+        if config.has_option("Main", "use_dd_temp_dir"):
+            agentConfig["use_dd_temp_dir"] = _is_affirmative(config.get("Main", "use_dd_temp_dir"))
+
+        agentConfig["custom_temp_dir"] = None
+        if config.has_option("Main", "custom_temp_dir"):
+            agentConfig["custom_temp_dir"] = config.get("Main", "custom_temp_dir")
 
     except ConfigParser.NoSectionError as e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
@@ -1378,3 +1387,30 @@ def initialize_logging(logger_name):
     # re-get the log after logging is initialized
     global log
     log = logging.getLogger(__name__)
+
+def setup_temp_dir(agentConfig):
+    # if it has neither of these, then just drop back
+    if not agentConfig["use_dd_temp_dir"] and not agentConfig["custom_temp_dir"]:
+        return
+
+    if agentConfig["custom_temp_dir"]:
+        temp_dir = agentConfig["custom_temp_dir"]
+
+    if agentConfig["use_dd_temp_dir"]:
+        temp_dir = os.path.abspath(os.path.join(__file__, '..', 'run', 'temp'))
+
+    # make sure that it exists
+    if not os.path.exists(temp_dir):
+        # This is being run by every process,
+        # creating a race condition which will throw an OSError
+        # when one tries ot make the folder after the other
+        # We should just pass on an OSError
+        try:
+            # the default is 0777, it should probably be 0666
+            os.makedirs(temp_dir, '0666')
+        except OSError:
+            pass
+
+    # Python will look at this variable first to determine what tempdir to use,
+    # it only uses system tempdirs or looks in envvars if it is not set
+    tempfile.tempdir = temp_dir

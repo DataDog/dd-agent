@@ -28,7 +28,8 @@ from config import (
     get_jmx_pipe_path,
     get_logging_config,
     PathNotFound,
-    _is_affirmative
+    _is_affirmative,
+    setup_temp_dir
 )
 from util import yLoader
 from utils.jmx import JMX_FETCH_JAR_NAME, JMXFiles
@@ -491,6 +492,7 @@ def get_jmx_checks(confd_path=None, auto_conf=False):
 
 def init(config_path=None):
     agentConfig = get_config(parse_args=False, cfg_path=config_path)
+    setup_temp_dir(agentConfig)
     try:
         confd_path = get_confd_path()
     except PathNotFound as e:

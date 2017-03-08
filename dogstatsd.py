@@ -39,7 +39,7 @@ import simplejson as json
 from aggregator import get_formatter, MetricsBucketAggregator
 from checks.check_status import DogstatsdStatus
 from checks.metric_types import MetricTypes
-from config import get_config, get_version
+from config import get_config, get_version, setup_temp_dir
 from daemon import AgentSupervisor, Daemon
 from util import chunks, get_uuid, plural
 from utils.hostname import get_hostname
@@ -483,6 +483,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     """Configure the server and the reporting thread.
     """
     c = get_config(parse_args=False, cfg_path=config_path)
+    setup_temp_dir(c)
 
     if (not c['use_dogstatsd'] and
             (args and args[0] in ['start', 'restart'] or not args)):
