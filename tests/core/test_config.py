@@ -172,7 +172,7 @@ FIXTURE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'fixtur
 @mock.patch('config.get_confd_path', return_value=TEMP_ETC_CONF_DIR)
 @mock.patch('config.get_sdk_integrations_path', return_value=TEMP_SDK_INTEGRATIONS_CHECKS_DIR)
 @mock.patch('config.get_windows_sdk_check',
-            return_value=os.path.join(TEMP_SDK_INTEGRATIONS_CHECKS_DIR, 'test_check', 'check.py'))
+            return_value=(os.path.join(TEMP_SDK_INTEGRATIONS_CHECKS_DIR, 'test_check', 'check.py'), None))
 class TestConfigLoadCheckDirectory(unittest.TestCase):
 
     TEMP_DIRS = [
