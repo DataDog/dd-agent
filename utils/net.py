@@ -4,7 +4,10 @@
 
 # lib
 import ctypes
+import time
+import random
 import socket
+
 
 # 3p
 
@@ -26,6 +29,7 @@ try:
 except AttributeError:
     IPV6_V6ONLY = 27  # from `Ws2ipdef.h`
 
+DEFAULT_DNS_TTL = 300
 
 class sockaddr(ctypes.Structure):
     _fields_ = [("sa_family", ctypes.c_short),
@@ -34,6 +38,29 @@ class sockaddr(ctypes.Structure):
                 ("ipv6_addr", ctypes.c_byte * 16),
                 ("__pad2", ctypes.c_ulong)]
 
+class DNSCache(object):
+    """
+    Simple, rudimentary DNS cache
+    """
+    def __init__(self, ttl=DEFAULT_DNS_TTL):
+        self._cache = {}
+        self._ttl = ttl
+        random.seed()
+
+    def resolve(self, url):
+        try:
+            ts, entry = self._cache.get(url, (None, None))
+            now = int(time.time())
+            if not ts or ts < now:
+                _, _, entry = socket.gethostbyaddr(url)
+                ttl = now + self._ttl
+                self._cache[url] = ttl, entry
+
+            resolve = entry[random.randint(0, len(entry)-1)]
+        except Exception:
+            resolve = url
+
+        return resolve
 
 def _inet_pton_win(address_family, ip_string):
     """
