@@ -125,6 +125,9 @@ gce_updated_hostname: yes
 # and modify its value.
 # sd_template_dir: /datadog/check_configs
 #
+# If you Consul store requires token authentication for service discovery, you can define that token here.
+# consul_token:
+#
 # Enable JMX checks for service discovery
 # sd_jmx_enable: no
 #
