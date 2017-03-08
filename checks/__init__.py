@@ -394,6 +394,14 @@ class AgentCheck(object):
         from checks.network_checks import NetworkCheck
         if not manifest_path:
             frames = inspect.stack()
+            # As we mention in the docstring this is expected to be called from
+            # AgentCheck constructor. By doing so we can assume two things:
+            #    - If the caller is a NetworkCheck, the Check() constructor
+            #      frame will be on the third frame in the stack.
+            #    - Otherwise it will be a regular check, so the Check()
+            #      constructor frame will be the second frame in the stack.
+            # In frame[1] we have the __file__ for that particular frame
+            # source.
             frame_idx = NETWORK_CHECK_FRAME if isinstance(self, NetworkCheck) else AGENT_CHECK_FRAME
             caller_frame = frames[frame_idx]  # frame_idx _should_ be the check __init__ frame
             module_path = os.path.dirname(caller_frame[1])  # idx 1 contains the filename.
@@ -404,13 +412,9 @@ class AgentCheck(object):
     def set_check_version(self, manifest=None):
         version = AGENT_VERSION
 
-        if manifest:
-            try:
-                version = "{core}:{sdk}".format(core=AGENT_VERSION,
-                                            sdk=manifest['version'])
-            except Exception:
-                self.log.info('Invalid manifest - unable to extract check version.')
-                version = 'Unknown'
+        if manifest is not None:
+            version = "{core}:{sdk}".format(core=AGENT_VERSION,
+                                        sdk=manifest.get('version', 'unknown'))
 
         self.check_version = version
 

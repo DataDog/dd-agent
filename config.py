@@ -968,10 +968,21 @@ def _initialize_check(check_config, check_name, check_class, agentConfig):
     except Exception as e:
         log.exception('Unable to initialize check %s' % check_name)
         traceback_message = traceback.format_exc()
+        # exc_info returns a tuple with traceback in idx 2
         frames = inspect.getinnerframes(sys.exc_info()[2])
+        # This is a best effort. It "hopes" the exception originated
+        # in the check.py and thus the `-1` index when inspecting the
+        # frames. frames[idx][1] because 1 contains the frame's __file__.
+        #
+        # For debugging purposes we still have the flare with the
+        # collected manifests.
         manifest_path = os.path.join(os.path.basedir(frames[-1][1]), 'manifest.json')
         manifest = load_manifest(manifest_path)
-        check_version = manifest.get('version', 'unknown') if manifest else AGENT_VERSION
+        if manifest is not None:
+            check_version = '{core}:{vers}'.format(core=AGENT_VERSION,
+                                                   vers=manifest.get('version', 'unknown'))
+        else:
+            check_version = AGENT_VERSION
 
         return {}, {check_name: {'error': e, 'traceback': traceback_message, 'version': check_version}}
     else:

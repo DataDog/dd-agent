@@ -21,7 +21,8 @@ def load_manifest(path):
         if os.path.exists(path):
             with open(path) as fp:
                 manifest = json.load(fp)
-    except Exception:
-        log.warn("Unable to read manifest at %s", path)
+    except (IOError, json.JSONDecodeError) as e:
+        log.warn("Unable to read manifest at %s : %s", path, e)
+        manifest = {}
 
     return manifest
