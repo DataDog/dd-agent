@@ -21,6 +21,10 @@ SWARM_SVC_LABEL = 'com.docker.swarm.service.name'
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 
 
+class BogusPIDException(Exception):
+    pass
+
+
 class MountException(Exception):
     pass
 
