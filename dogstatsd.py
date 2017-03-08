@@ -483,7 +483,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     """Configure the server and the reporting thread.
     """
     c = get_config(parse_args=False, cfg_path=config_path)
-    setup_temp_dir(c)
+    setup_temp_dir(c, proc_name='dogstatsd')
 
     if (not c['use_dogstatsd'] and
             (args and args[0] in ['start', 'restart'] or not args)):

@@ -581,7 +581,7 @@ class Application(tornado.web.Application):
 
 def init(skip_ssl_validation=False, use_simple_http_client=False):
     agentConfig = get_config(parse_args=False)
-    setup_temp_dir(agentConfig)
+    setup_temp_dir(agentConfig, proc_name='forwarder')
 
     port = agentConfig.get('listen_port', 17123)
     if port is None:

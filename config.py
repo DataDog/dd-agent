@@ -1388,7 +1388,7 @@ def initialize_logging(logger_name):
     global log
     log = logging.getLogger(__name__)
 
-def setup_temp_dir(agentConfig):
+def setup_temp_dir(agentConfig, proc_name=None):
     # if it has neither of these, then just drop back
     if not agentConfig["use_dd_temp_dir"] and not agentConfig["custom_temp_dir"]:
         return
@@ -1397,7 +1397,12 @@ def setup_temp_dir(agentConfig):
         temp_dir = agentConfig["custom_temp_dir"]
 
     if agentConfig["use_dd_temp_dir"]:
-        temp_dir = os.path.abspath(os.path.join(__file__, '..', 'run', 'temp'))
+        temp_dir = os.path.join(__file__, '..', 'run', 'temp')
+
+    if proc_name:
+        temp_dir = os.path.join(temp_dir, proc_name)
+
+    temp_dir = os.path.abspath(temp_dir)
 
     # make sure that it exists
     if not os.path.exists(temp_dir):
@@ -1405,6 +1410,8 @@ def setup_temp_dir(agentConfig):
         # creating a race condition which will throw an OSError
         # when one tries ot make the folder after the other
         # We should just pass on an OSError
+        # This should be lessened by adding the proc_name to each tempdir
+        # But, the error should be caught regardless
         try:
             # the default is 0777, it should probably be 0666
             os.makedirs(temp_dir, '0666')

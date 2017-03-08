@@ -473,7 +473,7 @@ def main():
     hostname = get_hostname(agentConfig)
     in_developer_mode = agentConfig.get('developer_mode')
 
-    setup_temp_dir(agentConfig)
+    setup_temp_dir(agentConfig, proc_name='agent')
 
     COMMANDS_AGENT = [
         'start',
