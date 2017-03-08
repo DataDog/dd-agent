@@ -338,8 +338,11 @@ class AbstractConfigStore(object):
 
     def _get_image_ident(self, ident):
         """Extract an identifier from the image"""
+        # handle the 'redis@sha256:...' format
+        if '@' in ident:
+            return ident.split('@')[0].split('/')[-1]
         # if a custom image store is used there can be a port which adds a colon
-        if ident.count(':') > 1:
+        elif ident.count(':') > 1:
             return ident.split(':')[1].split('/')[-1]
         # otherwise we just strip the tag and keep the image name
         else:
