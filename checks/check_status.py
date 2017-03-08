@@ -690,7 +690,6 @@ class CollectorStatus(AgentStatus):
                 status_info['checks'][cs.name]['traceback'] = \
                     cs.init_failed_traceback or cs.init_failed_error
             else:
-                status_info['checks'][cs.name] = {'instances': {}}
                 status_info['checks'][cs.name]['init_failed'] = False
                 for s in cs.instance_statuses:
                     status_info['checks'][cs.name]['instances'][s.instance_id] = {
