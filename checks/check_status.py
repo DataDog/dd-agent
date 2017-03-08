@@ -684,6 +684,7 @@ class CollectorStatus(AgentStatus):
         check_statuses = self.check_statuses + get_jmx_status()
         for cs in check_statuses:
             status_info['checks'][cs.name] = {'instances': {}}
+            status_info['checks'][cs.name]['check_version'] = cs.check_version
             if cs.init_failed_error:
                 status_info['checks'][cs.name]['init_failed'] = True
                 status_info['checks'][cs.name]['traceback'] = \
@@ -701,7 +702,6 @@ class CollectorStatus(AgentStatus):
                         status_info['checks'][cs.name]['instances'][s.instance_id]['error'] = s.error
                     if s.has_warnings():
                         status_info['checks'][cs.name]['instances'][s.instance_id]['warnings'] = s.warnings
-                status_info['checks'][cs.name]['check_version'] = cs.check_version
                 status_info['checks'][cs.name]['metric_count'] = cs.metric_count
                 status_info['checks'][cs.name]['event_count'] = cs.event_count
                 status_info['checks'][cs.name]['service_check_count'] = cs.service_check_count
