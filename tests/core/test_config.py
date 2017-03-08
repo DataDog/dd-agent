@@ -11,7 +11,12 @@ from shutil import copyfile, rmtree
 import ntpath
 
 # project
-from config import get_config, load_check_directory, _conf_path_to_check_name
+from config import (
+    get_config,
+    load_check_directory,
+    validate_sdk_check,
+    _conf_path_to_check_name
+)
 from util import windows_friendly_colon_split
 from utils.hostname import is_valid_hostname
 from utils.pidfile import PidFile
@@ -316,6 +321,24 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         checks = load_check_directory({"additional_checksd": TEMP_ETC_CHECKS_DIR}, "foo")
         self.assertEquals(1, len(checks['initialized_checks']))
         self.assertEquals(2, checks['initialized_checks'][0].instance_count())  # check that we picked the right conf
+
+    @mock.patch('config.get_version', return_value='5.9.1')
+    def testManifestValidateOK(self, *args):
+        manifest_path = '{}/manifest.json'.format(FIXTURE_PATH)
+        validate = validate_sdk_check(manifest_path)
+        self.assertEquals(True, validate)
+
+    @mock.patch('config.get_version', return_value='4.0.1')
+    def testManifestValidateNOKHigh(self, *args):
+        manifest_path = '{}/manifest.json'.format(FIXTURE_PATH)
+        validate = validate_sdk_check(manifest_path)
+        self.assertEquals(False, validate)
+
+    @mock.patch('config.get_version', return_value='6.0.1')
+    def testManifestValidateNOKLow(self, *args):
+        manifest_path = '{}/manifest.json'.format(FIXTURE_PATH)
+        validate = validate_sdk_check(manifest_path)
+        self.assertEquals(False, validate)
 
     def tearDown(self):
         for _dir in self.TEMP_DIRS:

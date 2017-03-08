@@ -38,7 +38,7 @@ def get_check_class(agentConfig, check_name):
     osname = get_os()
     checks_places = get_checks_places(osname, agentConfig)
     for check_path_builder in checks_places:
-        check_path = check_path_builder(check_name)
+        check_path, _ = check_path_builder(check_name)
         if not os.path.exists(check_path):
             continue
 
