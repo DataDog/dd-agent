@@ -88,7 +88,7 @@ class TestServiceDiscovery(unittest.TestCase):
         u'Image': u'nginx',
         u'Name': u'/nginx',
         u'NetworkSettings': {u'IPAddress': u'172.17.0.21', u'Ports': {u'443/tcp': None, u'80/tcp': None}},
-        u'Labels': {'com.datadoghq.sd.check.id': 'custom-nginx'}
+        u'Config': {'Labels': {'com.datadoghq.sd.check.id': 'custom-nginx'}}
     }
     kubernetes_container_inspect = {
         u'Id': u'389dc8a4361f3d6c866e9e9a7b6972b26a31c589c4e2f097375d55656a070bc9',
@@ -587,7 +587,7 @@ class TestServiceDiscovery(unittest.TestCase):
             for c_ins, _, _, _, expected_ident in self.container_inspects:
                 sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
                 self.assertEqual(
-                    sd_backend.get_config_id(c_ins.get('Image'), c_ins.get('Labels', {})),
+                    sd_backend.get_config_id(c_ins.get('Image'), c_ins.get('Config', {}).get('Labels', {})),
                     expected_ident)
                 clear_singletons(self.auto_conf_agentConfig)
 
