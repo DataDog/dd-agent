@@ -14,7 +14,7 @@ from checks import (
     UnknownValue,
 )
 from checks.collector import Collector
-from tests.checks.common import load_check, copy_checks, remove_checks
+from tests.checks.common import load_check
 from utils.hostname import get_hostname
 from utils.proxy import get_proxy
 
@@ -211,11 +211,6 @@ class TestCore(unittest.TestCase):
 
 
 class TestCollectionInterval(unittest.TestCase):
-    def setUp(self):
-        copy_checks()
-
-    def tearDown(self):
-        remove_checks()
 
     def test_min_collection_interval(self):
         config = {'instances': [{}], 'init_config': {}}
@@ -299,6 +294,7 @@ class TestCollectionInterval(unittest.TestCase):
             "init_config": {},
             "instances": [{"host": "localhost", "port": 6379}]
         }
+
         checks = [load_check('redisdb', redis_config, agentConfig)]
 
         c = Collector(agentConfig, [], {}, get_hostname(agentConfig))
@@ -336,6 +332,7 @@ class TestCollectionInterval(unittest.TestCase):
             "init_config": {},
             "instances": [{"host": "localhost", "port": 6379}]
         }
+
         checks = [load_check('redisdb', redis_config, agentConfig)]
 
         c = Collector(agentConfig, [], {}, get_hostname(agentConfig))

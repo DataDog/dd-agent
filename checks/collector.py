@@ -441,7 +441,7 @@ class Collector(object):
                 event_count, service_check_count, service_metadata=current_check_metadata,
                 library_versions=check.get_library_info(),
                 source_type_name=check.SOURCE_TYPE_NAME or check.name,
-                check_stats=check_stats
+                check_stats=check_stats, check_version=check.check_version
             )
 
             # Service check for Agent checks failures
@@ -476,6 +476,7 @@ class Collector(object):
             if not self.continue_running:
                 return
             check_status = CheckStatus(check_name, None, None, None, None,
+                                       check_version=info.get('version'),
                                        init_failed_error=info['error'],
                                        init_failed_traceback=info['traceback'])
             check_statuses.append(check_status)

@@ -29,6 +29,7 @@ import simplejson as json
 from util import check_yaml, config_to_yaml
 from utils.platform import Platform, get_os
 from utils.proxy import get_proxy
+from utils.sdk import load_manifest
 from utils.service_discovery.config import extract_agent_config
 from utils.service_discovery.config_stores import CONFIG_FROM_FILE, TRACE_CONFIG
 from utils.service_discovery.sd_backend import get_sd_backend, AUTO_CONFIG_DIR, SD_BACKENDS
@@ -195,6 +196,11 @@ def _confd_path(directory):
 
 
 def _checksd_path(directory):
+    path_override = os.environ.get('CHECKSD_OVERRIDE')
+    if path_override and os.path.exists(path_override):
+        return path_override
+
+    # this is deprecated in testing on versions after SDK (5.12.0)
     path = os.path.join(directory, 'checks.d')
     if os.path.exists(path):
         return path
@@ -962,7 +968,23 @@ def _initialize_check(check_config, check_name, check_class, agentConfig):
     except Exception as e:
         log.exception('Unable to initialize check %s' % check_name)
         traceback_message = traceback.format_exc()
-        return {}, {check_name: {'error': e, 'traceback': traceback_message}}
+        # exc_info returns a tuple with traceback in idx 2
+        frames = inspect.getinnerframes(sys.exc_info()[2])
+        # This is a best effort. It "hopes" the exception originated
+        # in the check.py and thus the `-1` index when inspecting the
+        # frames. frames[idx][1] because 1 contains the frame's __file__.
+        #
+        # For debugging purposes we still have the flare with the
+        # collected manifests.
+        manifest_path = os.path.join(os.path.basedir(frames[-1][1]), 'manifest.json')
+        manifest = load_manifest(manifest_path)
+        if manifest is not None:
+            check_version = '{core}:{vers}'.format(core=AGENT_VERSION,
+                                                   vers=manifest.get('version', 'unknown'))
+        else:
+            check_version = AGENT_VERSION
+
+        return {}, {check_name: {'error': e, 'traceback': traceback_message, 'version': check_version}}
     else:
         return {check_name: check}, {}
 

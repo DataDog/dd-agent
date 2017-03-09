@@ -1,16 +1,10 @@
 import mock
 
-from tests.checks.common import AgentCheckTest, load_check, copy_checks, remove_checks
+from tests.checks.common import AgentCheckTest, load_check
 
 class TestNoProfiling(AgentCheckTest):
 
     CHECK_NAME = 'redisdb'
-
-    def setUp(self):
-        copy_checks()
-
-    def tearDown(self):
-        remove_checks()
 
     def test_no_profiling(self):
         agentConfig = {
