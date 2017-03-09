@@ -1188,7 +1188,6 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
             try:
                 yaml = config_to_yaml(check_config)
                 generated["{}_{}".format(check_name, 0)] = yaml
-                log.debug("YAML generated: %s", yaml)
             except Exception:
                 log.exception("Unable to generate YAML config for %s", check_name)
 
