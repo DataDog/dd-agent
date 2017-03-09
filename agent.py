@@ -62,6 +62,7 @@ from utils.profile import AgentProfiler
 from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.sd_backend import get_sd_backend
 from utils.watchdog import Watchdog
+from utils.windows_configuration import get_sdk_integration_paths
 
 # Constants
 PID_NAME = "dd-agent"
@@ -231,6 +232,12 @@ class Agent(Daemon):
 
             # A SIGHUP signals a configuration reload
             signal.signal(signal.SIGHUP, self._handle_sighup)
+        else:
+            sdk_integrations = get_sdk_integration_paths()
+            for name, path in sdk_integrations.iteritems():
+                lib_path = os.path.join(path, 'lib')
+                if os.path.exists(lib_path):
+                    sys.path.append(lib_path)
 
         # Save the agent start-up stats.
         CollectorStatus().persist()
