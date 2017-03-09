@@ -67,7 +67,7 @@ def get_sdk_integration_paths():
                 integration_name = integration_subkey.split('\\')[-1]
                 try:
                     directory = get_sdk_integration_path(reg_key, integration_subkey)
-                    integrations[integration_name] = os.path.join(directory, 'Integrations', integration_name)
+                    integrations[integration_name] = directory
                 except WindowsError as e:
                     log.error('Unable to get keys from Registry for %s: %s', integration_name, e)
     except WindowsError as e:
