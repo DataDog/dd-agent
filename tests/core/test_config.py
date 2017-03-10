@@ -15,7 +15,8 @@ from config import (
     get_config,
     load_check_directory,
     validate_sdk_check,
-    _conf_path_to_check_name
+    _conf_path_to_check_name,
+    _version_string_to_tuple
 )
 from util import windows_friendly_colon_split
 from utils.hostname import is_valid_hostname
@@ -324,7 +325,13 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         self.assertEquals(1, len(checks['initialized_checks']))
         self.assertEquals(2, checks['initialized_checks'][0].instance_count())  # check that we picked the right conf
 
-    @mock.patch('config.get_version', return_value='5.9.1')
+    def tearDown(self):
+        for _dir in self.TEMP_DIRS:
+            rmtree(_dir)
+
+
+class TestManifestValidation(unittest.TestCase):
+    @mock.patch('config.get_version', return_value='5.12.0')
     def testManifestValidateOK(self, *args):
         manifest_path = '{}/manifest.json'.format(FIXTURE_PATH)
         validate = validate_sdk_check(manifest_path)
@@ -342,6 +349,6 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         validate = validate_sdk_check(manifest_path)
         self.assertEquals(False, validate)
 
-    def tearDown(self):
-        for _dir in self.TEMP_DIRS:
-            rmtree(_dir)
+    def testVersionStringToTupleBadVersion(self, *args):
+        with self.assertRaises(ValueError):
+            _version_string_to_tuple('5.10.4a')
