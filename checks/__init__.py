@@ -393,7 +393,11 @@ class AgentCheck(object):
             CheckClass.__init__() -> AgentCheck.__init__() -> AgentCheck._get_check_manifest()
         """
         from checks.network_checks import NetworkCheck
-        from checks.wmi_check import WinWMICheck
+        try:
+            from checks.wmi_check import WinWMICheck
+        except ImportError:
+            WinWMICheck = None
+
         if not manifest_path:
             frames = inspect.stack()
             # As we mention in the docstring this is expected to be called from
@@ -407,7 +411,7 @@ class AgentCheck(object):
             frame_idx = AGENT_CHECK_FRAME
             if isinstance(self, NetworkCheck):
                 frame_idx = NETWORK_CHECK_FRAME
-            elif isinstance(self, WinWMICheck):
+            elif WinWMICheck and isinstance(self, WinWMICheck):
                 frame_idx = WMI_CHECK_FRAME
             caller_frame = frames[frame_idx]  # frame_idx _should_ be the check __init__ frame
             module_path = os.path.dirname(caller_frame[1])  # idx 1 contains the filename.
