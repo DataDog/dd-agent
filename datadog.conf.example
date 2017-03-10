@@ -25,6 +25,9 @@ api_key:
 # Force the hostname to whatever you want. (default: auto-detected)
 # hostname: mymachine.mydomain
 
+# Enable the trace agent.
+# apm_enabled: false
+
 # Set the host's tags (optional)
 # tags: mytag, env:prod, role:database
 
