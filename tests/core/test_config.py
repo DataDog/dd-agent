@@ -349,6 +349,6 @@ class TestManifestValidation(unittest.TestCase):
         validate = validate_sdk_check(manifest_path)
         self.assertEquals(False, validate)
 
-    def testVersionStringToTupleResilience(self, *args):
-        version_tuple = _version_string_to_tuple('5.10.4a')
-        self.assertEquals((5, 10, 0), version_tuple)
+    def testVersionStringToTupleBadVersion(self, *args):
+        with self.assertRaises(ValueError):
+            _version_string_to_tuple('5.10.4a')

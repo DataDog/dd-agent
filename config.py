@@ -133,7 +133,8 @@ def _version_string_to_tuple(version_string):
             elem_int = int(elem)
         except ValueError:
             log.warning("Unable to parse element '%s' of version string '%s'", elem, version_string)
-            elem_int = 0
+            raise
+
         version_list.append(elem_int)
 
     return tuple(version_list)
@@ -1037,6 +1038,8 @@ def validate_sdk_check(manifest_path):
         log.debug("Manifest file (%s) not present." % manifest_path)
     except json.JSONDecodeError:
         log.debug("Manifest file (%s) has badly formatted json." % manifest_path)
+    except ValueError:
+        log.debug("Versions in manifest file (%s) can't be validated.", manifest_path)
 
     return (min_validated and max_validated)
 
