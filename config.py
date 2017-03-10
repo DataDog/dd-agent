@@ -935,7 +935,7 @@ def _load_file_config(config_path, check_name, agentConfig):
     except Exception as e:
         log.exception("Unable to parse yaml config in %s" % config_path)
         traceback_message = traceback.format_exc()
-        return False, None, {check_name: {'error': str(e), 'traceback': traceback_message}}
+        return False, None, {check_name: {'error': str(e), 'traceback': traceback_message, 'version': 'unknown'}}
     return True, check_config, {}
 
 
