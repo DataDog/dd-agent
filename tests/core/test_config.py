@@ -324,11 +324,20 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         self.assertEquals(1, len(checks['initialized_checks']))
         self.assertEquals(2, checks['initialized_checks'][0].instance_count())  # check that we picked the right conf
 
-    @mock.patch('config.get_version', return_value='5.9.1')
+    def tearDown(self):
+        for _dir in self.TEMP_DIRS:
+            rmtree(_dir)
+
+
+class TestManifestValidation(unittest.TestCase):
     def testManifestValidateOK(self, *args):
         manifest_path = '{}/manifest.json'.format(FIXTURE_PATH)
-        validate = validate_sdk_check(manifest_path)
-        self.assertEquals(True, validate)
+        with mock.patch('config.get_version', return_value='5.9.1'):
+            validate = validate_sdk_check(manifest_path)
+            self.assertEquals(True, validate)
+        with mock.patch('config.get_version', return_value='5.12.0'):
+            validate = validate_sdk_check(manifest_path)
+            self.assertEquals(True, validate)
 
     @mock.patch('config.get_version', return_value='4.0.1')
     def testManifestValidateNOKHigh(self, *args):
@@ -342,6 +351,3 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         validate = validate_sdk_check(manifest_path)
         self.assertEquals(False, validate)
 
-    def tearDown(self):
-        for _dir in self.TEMP_DIRS:
-            rmtree(_dir)

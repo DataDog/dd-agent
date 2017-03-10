@@ -125,6 +125,11 @@ def get_version():
     return AGENT_VERSION
 
 
+def _version_string_to_tuple(version_string):
+    '''Return a (X, Y, Z) version tuple from an 'X.Y.Z' version string'''
+    return tuple(int(version_elem) for version_elem in version_string.split('.'))
+
+
 # Return url endpoint, here because needs access to version number
 def get_url_endpoint(default_url, endpoint_type='app'):
     parsed_url = urlparse(default_url)
@@ -1003,12 +1008,13 @@ def validate_sdk_check(manifest_path):
     try:
         with open(manifest_path, 'r') as fp:
             manifest = json.load(fp)
+            current_version = _version_string_to_tuple(get_version())
             for maxfield in MANIFEST_VALIDATION['max']:
                 max_version = manifest.get(maxfield)
                 if not max_version:
                     continue
 
-                max_validated = False if max_version < get_version() else True
+                max_validated = _version_string_to_tuple(max_version) >= current_version
                 break
 
             for minfield in MANIFEST_VALIDATION['min']:
@@ -1016,7 +1022,7 @@ def validate_sdk_check(manifest_path):
                 if not min_version:
                     continue
 
-                min_validated = False if min_version > get_version() else True
+                min_validated = _version_string_to_tuple(min_version) <= current_version
                 break
     except IOError:
         log.debug("Manifest file (%s) not present." % manifest_path)
