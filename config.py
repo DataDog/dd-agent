@@ -127,7 +127,16 @@ def get_version():
 
 def _version_string_to_tuple(version_string):
     '''Return a (X, Y, Z) version tuple from an 'X.Y.Z' version string'''
-    return tuple(int(version_elem) for version_elem in version_string.split('.'))
+    version_list = []
+    for elem in version_string.split('.'):
+        try:
+            elem_int = int(elem)
+        except ValueError:
+            log.warning("Unable to parse element '%s' of version string '%s'", elem, version_string)
+            elem_int = 0
+        version_list.append(elem_int)
+
+    return tuple(version_list)
 
 
 # Return url endpoint, here because needs access to version number

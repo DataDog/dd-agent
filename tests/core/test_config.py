@@ -15,7 +15,8 @@ from config import (
     get_config,
     load_check_directory,
     validate_sdk_check,
-    _conf_path_to_check_name
+    _conf_path_to_check_name,
+    _version_string_to_tuple
 )
 from util import windows_friendly_colon_split
 from utils.hostname import is_valid_hostname
@@ -330,14 +331,11 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
 
 
 class TestManifestValidation(unittest.TestCase):
+    @mock.patch('config.get_version', return_value='5.12.0')
     def testManifestValidateOK(self, *args):
         manifest_path = '{}/manifest.json'.format(FIXTURE_PATH)
-        with mock.patch('config.get_version', return_value='5.9.1'):
-            validate = validate_sdk_check(manifest_path)
-            self.assertEquals(True, validate)
-        with mock.patch('config.get_version', return_value='5.12.0'):
-            validate = validate_sdk_check(manifest_path)
-            self.assertEquals(True, validate)
+        validate = validate_sdk_check(manifest_path)
+        self.assertEquals(True, validate)
 
     @mock.patch('config.get_version', return_value='4.0.1')
     def testManifestValidateNOKHigh(self, *args):
@@ -351,3 +349,6 @@ class TestManifestValidation(unittest.TestCase):
         validate = validate_sdk_check(manifest_path)
         self.assertEquals(False, validate)
 
+    def testVersionStringToTupleResilience(self, *args):
+        version_tuple = _version_string_to_tuple('5.10.4a')
+        self.assertEquals((5, 10, 0), version_tuple)
