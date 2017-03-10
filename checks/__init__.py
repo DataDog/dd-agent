@@ -49,6 +49,7 @@ AGENT_METRICS_CHECK_NAME = 'agent_metrics'
 
 AGENT_CHECK_FRAME = 2
 NETWORK_CHECK_FRAME = 3
+WMI_CHECK_FRAME = 3
 
 
 # Konstants
@@ -392,17 +393,22 @@ class AgentCheck(object):
             CheckClass.__init__() -> AgentCheck.__init__() -> AgentCheck._get_check_manifest()
         """
         from checks.network_checks import NetworkCheck
+        from checks.wmi_check import WinWMICheck
         if not manifest_path:
             frames = inspect.stack()
             # As we mention in the docstring this is expected to be called from
             # AgentCheck constructor. By doing so we can assume two things:
-            #    - If the caller is a NetworkCheck, the Check() constructor
-            #      frame will be on the third frame in the stack.
+            #    - If the caller is a NetworkCheck/WinWMICheck, the Check()
+            #      constructor frame will be on the third frame in the stack.
             #    - Otherwise it will be a regular check, so the Check()
             #      constructor frame will be the second frame in the stack.
             # In frame[1] we have the __file__ for that particular frame
             # source.
-            frame_idx = NETWORK_CHECK_FRAME if isinstance(self, NetworkCheck) else AGENT_CHECK_FRAME
+            frame_idx = AGENT_CHECK_FRAME
+            if isinstance(self, NetworkCheck):
+                frame_idx = NETWORK_CHECK_FRAME
+            elif isinstance(self, WinWMICheck):
+                frame_idx = WMI_CHECK_FRAME
             caller_frame = frames[frame_idx]  # frame_idx _should_ be the check __init__ frame
             module_path = os.path.dirname(caller_frame[1])  # idx 1 contains the filename.
             manifest_path = os.path.join(module_path, 'manifest.json')
