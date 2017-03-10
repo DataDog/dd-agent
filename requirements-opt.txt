@@ -52,4 +52,4 @@ psycopg2==2.6.2
 wmi==1.4.9
 
 # checks.d/directory.py
-scandir==1.2
+scandir==1.5
