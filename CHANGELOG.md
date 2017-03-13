@@ -12,6 +12,10 @@ In all agents, we are now able to release independent check packages, so that we
 
 The Windows agent is now built with Omnibus.
 
+The Windows agent is now always installed as a "per-machine"; previous versions installed as "per-user" by default.  Upgrades from "per-user" to "per-machine" are performed using the executable (.exe) distribution.
+
+The Windows agent is now digitally signed.
+
 ### Changes
 
 
