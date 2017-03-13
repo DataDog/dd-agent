@@ -126,7 +126,7 @@ def validate_api_key(config):
         request_proxy = {}
         if proxy:
             request_proxy = {'https': "http://{user}:{password}@{host}:{port}".format(**proxy)}
-        r = requests.get("https://app.datadoghq.com/api/v1/validate",
+        r = requests.get("%s/api/v1/validate" % config['dd_url'].rstrip('/'),
             params={'api_key': config.get('api_key')}, proxies=request_proxy, timeout=3)
 
         if r.status_code == 403:
