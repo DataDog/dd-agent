@@ -1,6 +1,21 @@
 Changes
 =======
 
+# 5.12.0 / unreleased
+**Linux, Windows and Docker**
+
+### Details
+
+5.12 marks a few major changes to the agent.
+
+In all agents, we are now able to release independent check packages, so that we can update checks independently and also release 3rd party packages from the community. To aid in this, we now have three repos: the [agent repo](https://github.com/datadog/dd-agent), the [core integrations repo](https://github.com/datadog/integrations-core), and the [extras integrations repo](https://github.com/datadog/integrations-extras). Core integrations are officially supported by Datadog, extras are supported by the community.
+
+The Windows agent is now built with Omnibus.
+
+### Changes
+
+
+
 # 5.11.3 / 02-27-2017
 **Mac OS only**
 
