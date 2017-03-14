@@ -39,8 +39,8 @@ class WinWMICheck(AgentCheck):
 
     Windows only.
     """
-    def __init__(self, name, init_config, agentConfig, instances):
-        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+    def __init__(self, name, init_config, agentConfig, instances, manifest_path=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances, manifest_path)
         self.wmi_samplers = {}
         self.wmi_props = {}
 
