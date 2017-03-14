@@ -400,6 +400,10 @@ class Flare(object):
     def _add_object_tar(self, file_path, contents):
         iobuff = StringIO.StringIO(contents)
 
+        # All paths in the tar should be "/"-separated. Python does the replacement for us in TarFile.add
+        # but not in TarFile.addfile (in TarInfo neither for that matter)
+        file_path = file_path.replace(os.sep, "/")
+
         obj = tarfile.TarInfo(name=file_path)
         obj.size = len(iobuff.getvalue())
         self._tar.addfile(obj, fileobj=iobuff)
