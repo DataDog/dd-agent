@@ -10,7 +10,6 @@ The Check class is being deprecated so don't write new checks with it.
 # stdlib
 from collections import defaultdict
 import copy
-import inspect
 import logging
 import numbers
 import os
@@ -36,7 +35,6 @@ from utils.hostname import get_hostname
 from utils.proxy import get_proxy
 from utils.platform import Platform
 from utils.profile import pretty_statistics
-from utils.sdk import load_manifest
 if Platform.is_windows():
     from utils.debug import run_check  # noqa - windows debug purpose
 
@@ -310,7 +308,7 @@ class AgentCheck(object):
     def is_check_enabled(cls, name):
         return name in cls._enabled_checks
 
-    def __init__(self, name, init_config, agentConfig, instances=None, manifest_path=None):
+    def __init__(self, name, init_config, agentConfig, instances=None):
         """
         Initialize a new check.
 
@@ -359,9 +357,7 @@ class AgentCheck(object):
         self._instance_metadata = []
         self.svc_metadata = []
         self.historate_dict = {}
-
-        self.manifest_path = manifest_path
-        self.set_check_version(manifest=load_manifest(self.manifest_path))
+        self.manifest_path = None
 
         # Set proxy settings
         self.proxy_settings = get_proxy(self.agentConfig)
@@ -381,6 +377,9 @@ class AgentCheck(object):
                     uri=uri)
             self.proxies['http'] = "http://{uri}".format(uri=uri)
             self.proxies['https'] = "https://{uri}".format(uri=uri)
+
+    def set_manifest_path(self, manifest_path):
+        self.manifest_path = manifest_path
 
     def set_check_version(self, manifest=None):
         version = AGENT_VERSION

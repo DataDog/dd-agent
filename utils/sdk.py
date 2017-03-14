@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 def load_manifest(path):
     manifest = None
     try:
-        if os.path.exists(path):
+        if path and os.path.exists(path):
             with open(path) as fp:
                 manifest = json.load(fp)
     except (IOError, json.JSONDecodeError) as e:

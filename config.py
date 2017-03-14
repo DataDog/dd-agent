@@ -973,14 +973,17 @@ def _initialize_check(check_config, check_name, check_class, agentConfig, manife
     try:
         try:
             check = check_class(check_name, init_config=init_config,
-                                agentConfig=agentConfig, instances=instances,
-                                manifest_path=manifest_path)
+                                agentConfig=agentConfig, instances=instances)
         except TypeError as e:
             # Backwards compatibility for checks which don't support the
             # instances argument in the constructor.
             check = check_class(check_name, init_config=init_config,
                                 agentConfig=agentConfig)
             check.instances = instances
+
+        if manifest_path:
+            check.set_manifest_path(manifest_path)
+        check.set_check_version(load_manifest(manifest_path))
     except Exception as e:
         log.exception('Unable to initialize check %s' % check_name)
         traceback_message = traceback.format_exc()
