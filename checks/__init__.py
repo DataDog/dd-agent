@@ -10,7 +10,6 @@ The Check class is being deprecated so don't write new checks with it.
 # stdlib
 from collections import defaultdict
 import copy
-import inspect
 import logging
 import numbers
 import os
@@ -36,7 +35,6 @@ from utils.hostname import get_hostname
 from utils.proxy import get_proxy
 from utils.platform import Platform
 from utils.profile import pretty_statistics
-from utils.sdk import load_manifest
 if Platform.is_windows():
     from utils.debug import run_check  # noqa - windows debug purpose
 
@@ -46,10 +44,6 @@ log = logging.getLogger(__name__)
 DEFAULT_PSUTIL_METHODS = ['memory_info', 'io_counters']
 
 AGENT_METRICS_CHECK_NAME = 'agent_metrics'
-
-AGENT_CHECK_FRAME = 2
-NETWORK_CHECK_FRAME = 3
-WMI_CHECK_FRAME = 3
 
 
 # Konstants
@@ -363,8 +357,7 @@ class AgentCheck(object):
         self._instance_metadata = []
         self.svc_metadata = []
         self.historate_dict = {}
-
-        self.set_check_version(manifest=self._get_check_manifest())
+        self.manifest_path = None
 
         # Set proxy settings
         self.proxy_settings = get_proxy(self.agentConfig)
@@ -385,39 +378,8 @@ class AgentCheck(object):
             self.proxies['http'] = "http://{uri}".format(uri=uri)
             self.proxies['https'] = "https://{uri}".format(uri=uri)
 
-    def _get_check_manifest(self, manifest_path=None):
-        """
-        Attempts to collect the manifest for SDK checks.
-
-        Do not use outside of the constructor if called without args, it assumes the following call chain:
-            CheckClass.__init__() -> AgentCheck.__init__() -> AgentCheck._get_check_manifest()
-        """
-        from checks.network_checks import NetworkCheck
-        try:
-            from checks.wmi_check import WinWMICheck
-        except ImportError:
-            WinWMICheck = None
-
-        if not manifest_path:
-            frames = inspect.stack()
-            # As we mention in the docstring this is expected to be called from
-            # AgentCheck constructor. By doing so we can assume two things:
-            #    - If the caller is a NetworkCheck/WinWMICheck, the Check()
-            #      constructor frame will be on the third frame in the stack.
-            #    - Otherwise it will be a regular check, so the Check()
-            #      constructor frame will be the second frame in the stack.
-            # In frame[1] we have the __file__ for that particular frame
-            # source.
-            frame_idx = AGENT_CHECK_FRAME
-            if isinstance(self, NetworkCheck):
-                frame_idx = NETWORK_CHECK_FRAME
-            elif WinWMICheck and isinstance(self, WinWMICheck):
-                frame_idx = WMI_CHECK_FRAME
-            caller_frame = frames[frame_idx]  # frame_idx _should_ be the check __init__ frame
-            module_path = os.path.dirname(caller_frame[1])  # idx 1 contains the filename.
-            manifest_path = os.path.join(module_path, 'manifest.json')
-
-        return load_manifest(manifest_path)
+    def set_manifest_path(self, manifest_path):
+        self.manifest_path = manifest_path
 
     def set_check_version(self, manifest=None):
         version = AGENT_VERSION

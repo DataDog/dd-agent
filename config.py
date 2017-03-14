@@ -967,7 +967,7 @@ def get_valid_check_class(check_name, check_path):
     return True, check_class, {}
 
 
-def _initialize_check(check_config, check_name, check_class, agentConfig):
+def _initialize_check(check_config, check_name, check_class, agentConfig, manifest_path):
     init_config = check_config.get('init_config') or {}
     instances = check_config['instances']
     try:
@@ -980,18 +980,13 @@ def _initialize_check(check_config, check_name, check_class, agentConfig):
             check = check_class(check_name, init_config=init_config,
                                 agentConfig=agentConfig)
             check.instances = instances
+
+        if manifest_path:
+            check.set_manifest_path(manifest_path)
+        check.set_check_version(load_manifest(manifest_path))
     except Exception as e:
         log.exception('Unable to initialize check %s' % check_name)
         traceback_message = traceback.format_exc()
-        # exc_info returns a tuple with traceback in idx 2
-        frames = inspect.getinnerframes(sys.exc_info()[2])
-        # This is a best effort. It "hopes" the exception originated
-        # in the check.py and thus the `-1` index when inspecting the
-        # frames. frames[idx][1] because 1 contains the frame's __file__.
-        #
-        # For debugging purposes we still have the flare with the
-        # collected manifests.
-        manifest_path = os.path.join(os.path.basedir(frames[-1][1]), 'manifest.json')
         manifest = load_manifest(manifest_path)
         if manifest is not None:
             check_version = '{core}:{vers}'.format(core=AGENT_VERSION,
@@ -1066,7 +1061,7 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
                          "or couldnt be validated - behavior is undefined" % check_name)
 
         load_success, load_failure = _initialize_check(
-            check_config, check_name, check_class, agentConfig
+            check_config, check_name, check_class, agentConfig, manifest_path
         )
 
         _update_python_path(check_config)
