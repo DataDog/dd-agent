@@ -1,7 +1,6 @@
 # stdlib
 from unittest import TestCase
 import logging
-from time import sleep
 
 # 3p
 from requests.utils import get_environ_proxies
