@@ -22,10 +22,14 @@ import sys
 import traceback
 from urlparse import urlparse
 
+# 3p
+import simplejson as json
+
 # project
 from util import check_yaml, config_to_yaml
 from utils.platform import Platform, get_os
 from utils.proxy import get_proxy
+from utils.sdk import load_manifest
 from utils.service_discovery.config import extract_agent_config
 from utils.service_discovery.config_stores import CONFIG_FROM_FILE, TRACE_CONFIG
 from utils.service_discovery.sd_backend import get_sd_backend, AUTO_CONFIG_DIR, SD_BACKENDS
@@ -33,7 +37,7 @@ from utils.subprocess_output import (
     get_subprocess_output,
     SubprocessOutputEmptyError,
 )
-from utils.windows_configuration import get_registry_conf
+from utils.windows_configuration import get_registry_conf, get_windows_sdk_check
 
 
 # CONSTANTS
@@ -79,6 +83,13 @@ LEGACY_DATADOG_URLS = [
 
 JMX_SD_CONF_TEMPLATE = '.jmx.{}.yaml'
 
+# These are unlikely to change, but manifests are versioned,
+# so keeping these as a list just in case we change add stuff.
+MANIFEST_VALIDATION = {
+    'max': ['max_agent_version'],
+    'min': ['min_agent_version']
+}
+
 
 class PathNotFound(Exception):
     pass
@@ -112,6 +123,21 @@ def get_parsed_args():
 
 def get_version():
     return AGENT_VERSION
+
+
+def _version_string_to_tuple(version_string):
+    '''Return a (X, Y, Z) version tuple from an 'X.Y.Z' version string'''
+    version_list = []
+    for elem in version_string.split('.'):
+        try:
+            elem_int = int(elem)
+        except ValueError:
+            log.warning("Unable to parse element '%s' of version string '%s'", elem, version_string)
+            raise
+
+        version_list.append(elem_int)
+
+    return tuple(version_list)
 
 
 # Return url endpoint, here because needs access to version number
@@ -185,6 +211,11 @@ def _confd_path(directory):
 
 
 def _checksd_path(directory):
+    path_override = os.environ.get('CHECKSD_OVERRIDE')
+    if path_override and os.path.exists(path_override):
+        return path_override
+
+    # this is deprecated in testing on versions after SDK (5.12.0)
     path = os.path.join(directory, 'checks.d')
     if os.path.exists(path):
         return path
@@ -890,15 +921,19 @@ def get_checks_places(osname, agentConfig):
         log.error(e.args[0])
         sys.exit(3)
 
-    places = [lambda name: os.path.join(agentConfig['additional_checksd'], '%s.py' % name)]
+    places = [lambda name: (os.path.join(agentConfig['additional_checksd'], '%s.py' % name), None)]
 
     try:
-        sdk_integrations = get_sdk_integrations_path(osname)
-        places.append(lambda name: os.path.join(sdk_integrations, name, 'check.py'))
+        if Platform.is_windows():
+            places.append(get_windows_sdk_check)
+        else:
+            sdk_integrations = get_sdk_integrations_path(osname)
+            places.append(lambda name: (os.path.join(sdk_integrations, name, 'check.py'),
+                                        os.path.join(sdk_integrations, name, 'manifest.json')))
     except PathNotFound:
         log.debug('No sdk integrations path found')
 
-    places.append(lambda name: os.path.join(checksd_path, '%s.py' % name))
+    places.append(lambda name: (os.path.join(checksd_path, '%s.py' % name), None))
     return places
 
 
@@ -915,7 +950,7 @@ def _load_file_config(config_path, check_name, agentConfig):
     except Exception as e:
         log.exception("Unable to parse yaml config in %s" % config_path)
         traceback_message = traceback.format_exc()
-        return False, None, {check_name: {'error': str(e), 'traceback': traceback_message}}
+        return False, None, {check_name: {'error': str(e), 'traceback': traceback_message, 'version': 'unknown'}}
     return True, check_config, {}
 
 
@@ -932,7 +967,7 @@ def get_valid_check_class(check_name, check_path):
     return True, check_class, {}
 
 
-def _initialize_check(check_config, check_name, check_class, agentConfig):
+def _initialize_check(check_config, check_name, check_class, agentConfig, manifest_path):
     init_config = check_config.get('init_config') or {}
     instances = check_config['instances']
     try:
@@ -945,10 +980,21 @@ def _initialize_check(check_config, check_name, check_class, agentConfig):
             check = check_class(check_name, init_config=init_config,
                                 agentConfig=agentConfig)
             check.instances = instances
+
+        if manifest_path:
+            check.set_manifest_path(manifest_path)
+        check.set_check_version(load_manifest(manifest_path))
     except Exception as e:
         log.exception('Unable to initialize check %s' % check_name)
         traceback_message = traceback.format_exc()
-        return {}, {check_name: {'error': e, 'traceback': traceback_message}}
+        manifest = load_manifest(manifest_path)
+        if manifest is not None:
+            check_version = '{core}:{vers}'.format(core=AGENT_VERSION,
+                                                   vers=manifest.get('version', 'unknown'))
+        else:
+            check_version = AGENT_VERSION
+
+        return {}, {check_name: {'error': e, 'traceback': traceback_message, 'version': check_version}}
     else:
         return {check_name: check}, {}
 
@@ -962,21 +1008,60 @@ def _update_python_path(check_config):
         sys.path.extend(pythonpath)
 
 
+def validate_sdk_check(manifest_path):
+    max_validated = min_validated = False
+    try:
+        with open(manifest_path, 'r') as fp:
+            manifest = json.load(fp)
+            current_version = _version_string_to_tuple(get_version())
+            for maxfield in MANIFEST_VALIDATION['max']:
+                max_version = manifest.get(maxfield)
+                if not max_version:
+                    continue
+
+                max_validated = _version_string_to_tuple(max_version) >= current_version
+                break
+
+            for minfield in MANIFEST_VALIDATION['min']:
+                min_version = manifest.get(minfield)
+                if not min_version:
+                    continue
+
+                min_validated = _version_string_to_tuple(min_version) <= current_version
+                break
+    except IOError:
+        log.debug("Manifest file (%s) not present." % manifest_path)
+    except json.JSONDecodeError:
+        log.debug("Manifest file (%s) has badly formatted json." % manifest_path)
+    except ValueError:
+        log.debug("Versions in manifest file (%s) can't be validated.", manifest_path)
+
+    return (min_validated and max_validated)
+
+
 def load_check_from_places(check_config, check_name, checks_places, agentConfig):
     '''Find a check named check_name in the given checks_places and try to initialize it with the given check_config.
     A failure (`load_failure`) can happen when the check class can't be validated or when the check can't be initialized. '''
     load_success, load_failure = {}, {}
     for check_path_builder in checks_places:
-        check_path = check_path_builder(check_name)
-        if not os.path.exists(check_path):
+        check_path, manifest_path = check_path_builder(check_name)
+        # The windows SDK function will return None,
+        # so the loop should also continue if there is no path.
+        if not (check_path and os.path.exists(check_path)):
             continue
 
         check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path)
         if not check_is_valid:
             continue
 
+        if manifest_path:
+            validated = validate_sdk_check(manifest_path)
+            if not validated:
+                log.warn("The SDK check (%s) was designed for a different agent core "
+                         "or couldnt be validated - behavior is undefined" % check_name)
+
         load_success, load_failure = _initialize_check(
-            check_config, check_name, check_class, agentConfig
+            check_config, check_name, check_class, agentConfig, manifest_path
         )
 
         _update_python_path(check_config)
@@ -1116,7 +1201,6 @@ def generate_jmx_configs(agentConfig, hostname, checknames=None):
             try:
                 yaml = config_to_yaml(check_config)
                 generated["{}_{}".format(check_name, 0)] = yaml
-                log.debug("YAML generated: %s", yaml)
             except Exception:
                 log.exception("Unable to generate YAML config for %s", check_name)
 

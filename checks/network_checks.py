@@ -18,7 +18,6 @@ DEFAULT_SIZE_POOL = 6
 MAX_LOOP_ITERATIONS = 1000
 FAILURE = "FAILURE"
 
-
 class Status:
     DOWN = "DOWN"
     WARNING = "WARNING"
@@ -34,6 +33,7 @@ class EventType:
 class NetworkCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'servicecheck'
     SERVICE_CHECK_PREFIX = 'network_check'
+    _global_current_pool_size = 0
 
     STATUS_TO_SERVICE_CHECK = {
         Status.UP : AgentCheck.OK,
@@ -68,6 +68,7 @@ class NetworkCheck(AgentCheck):
         self.statuses = {}
         self.notified = {}
         self.nb_failures = 0
+        self.pool_size = 0
         self.pool_started = False
 
         # Make sure every instance has a name that we use as a unique key
@@ -95,6 +96,9 @@ class NetworkCheck(AgentCheck):
         default_size = min(self.instance_count(), DEFAULT_SIZE_POOL)
         self.pool_size = int(self.init_config.get('threads_count', default_size))
 
+        # To keep track on the total number of threads we should have running
+        NetworkCheck._global_current_pool_size += self.pool_size
+
         self.pool = Pool(self.pool_size)
 
         self.resultsq = Queue()
@@ -104,6 +108,10 @@ class NetworkCheck(AgentCheck):
 
     def stop_pool(self):
         self.log.info("Stopping Thread Pool")
+
+        # To keep track on the total number of threads we should have running
+        NetworkCheck._global_current_pool_size -= self.pool_size
+
         if self.pool_started:
             self.pool.terminate()
             self.pool.join()
@@ -117,7 +125,8 @@ class NetworkCheck(AgentCheck):
     def check(self, instance):
         if not self.pool_started:
             self.start_pool()
-        if threading.activeCount() > 5 * self.pool_size + 5: # On Windows the agent runs on multiple threads so we need to have an offset of 5 in case the pool_size is 1
+        if threading.activeCount() > 5 * NetworkCheck._global_current_pool_size + 6:
+            # On Windows the agent runs on multiple threads because of WMI so we need an offset of 6
             raise Exception("Thread number (%s) is exploding. Skipping this check" % threading.activeCount())
         self._process_results()
         self._clean()

@@ -176,7 +176,7 @@
           {% if collector['checks'] %}
           <ul id="checks" style ="list-style-type: None; padding-left: 0;">
             {% for name, check in collector['checks'].iteritems() %}
-            <li><h4>{{ name }}</h4>
+            <li><h4>{{ name }} ({{ check.get('check_version') }})</h4>
             <ul>
             {% if check['init_failed'] %}
               <li>Initialization error: {{check['traceback']}}</li></ul>

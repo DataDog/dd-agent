@@ -10,7 +10,7 @@ import simplejson as json
 from docker.errors import NullResource, NotFound
 
 # project
-from utils.dockerutil import DockerUtil
+from utils.dockerutil import DockerUtil, SWARM_SVC_LABEL
 from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
@@ -285,11 +285,10 @@ class SDDockerBackend(AbstractSDBackend):
             # Details: https://kubernetes.io/docs/user-guide/deployments/#selector
 
         elif Platform.is_swarm():
-            c_labels = state.inspect_container(c_id).get('Labels', {})
-            swarm_svc = c_labels.get(DockerUtil.SWARM_SVC_LABEL)
+            c_labels = state.inspect_container(c_id).get('Config', {}).get('Labels', {})
+            swarm_svc = c_labels.get(SWARM_SVC_LABEL)
             if swarm_svc:
-                tags.append('swarm_service:%s' % c_labels)
-
+                tags.append('swarm_service:%s' % swarm_svc)
 
         return tags
 

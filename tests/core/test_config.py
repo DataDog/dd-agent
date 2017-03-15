@@ -11,7 +11,13 @@ from shutil import copyfile, rmtree
 import ntpath
 
 # project
-from config import get_config, load_check_directory, _conf_path_to_check_name
+from config import (
+    get_config,
+    load_check_directory,
+    validate_sdk_check,
+    _conf_path_to_check_name,
+    _version_string_to_tuple
+)
 from util import windows_friendly_colon_split
 from utils.hostname import is_valid_hostname
 from utils.pidfile import PidFile
@@ -166,6 +172,8 @@ FIXTURE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'fixtur
 @mock.patch('config.get_checksd_path', return_value=TEMP_AGENT_CHECK_DIR)
 @mock.patch('config.get_confd_path', return_value=TEMP_ETC_CONF_DIR)
 @mock.patch('config.get_sdk_integrations_path', return_value=TEMP_SDK_INTEGRATIONS_CHECKS_DIR)
+@mock.patch('config.get_windows_sdk_check',
+            return_value=(os.path.join(TEMP_SDK_INTEGRATIONS_CHECKS_DIR, 'test_check', 'check.py'), None))
 class TestConfigLoadCheckDirectory(unittest.TestCase):
 
     TEMP_DIRS = [
@@ -257,6 +265,7 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         checks = load_check_directory({"additional_checksd": TEMP_ETC_CHECKS_DIR}, "foo")
         self.assertEquals(1, len(checks['init_failed_checks']))
 
+    @mock.patch('utils.platform.Platform.is_windows', return_value=True)
     def testConfig3rdPartyAgent(self, *args):
         copyfile('%s/valid_conf.yaml' % FIXTURE_PATH,
             '%s/test_check.yaml' % TEMP_ETC_CONF_DIR)
@@ -319,3 +328,27 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
     def tearDown(self):
         for _dir in self.TEMP_DIRS:
             rmtree(_dir)
+
+
+class TestManifestValidation(unittest.TestCase):
+    @mock.patch('config.get_version', return_value='5.12.0')
+    def testManifestValidateOK(self, *args):
+        manifest_path = '{}/manifest.json'.format(FIXTURE_PATH)
+        validate = validate_sdk_check(manifest_path)
+        self.assertEquals(True, validate)
+
+    @mock.patch('config.get_version', return_value='4.0.1')
+    def testManifestValidateNOKHigh(self, *args):
+        manifest_path = '{}/manifest.json'.format(FIXTURE_PATH)
+        validate = validate_sdk_check(manifest_path)
+        self.assertEquals(False, validate)
+
+    @mock.patch('config.get_version', return_value='6.0.1')
+    def testManifestValidateNOKLow(self, *args):
+        manifest_path = '{}/manifest.json'.format(FIXTURE_PATH)
+        validate = validate_sdk_check(manifest_path)
+        self.assertEquals(False, validate)
+
+    def testVersionStringToTupleBadVersion(self, *args):
+        with self.assertRaises(ValueError):
+            _version_string_to_tuple('5.10.4a')

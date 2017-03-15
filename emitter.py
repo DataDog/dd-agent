@@ -128,10 +128,15 @@ def split_payload(legacy_payload):
         }
 
         if len(ts) >= 4:
-            if ts[3].get('type'):
-                sample['type'] = ts[3]['type']
+            # Default to the metric hostname if present
             if ts[3].get('hostname'):
                 sample['host'] = ts[3]['hostname']
+            else:
+                # If not use the general payload one
+                sample['host'] = legacy_payload['internalHostname']
+
+            if ts[3].get('type'):
+                sample['type'] = ts[3]['type']
             if ts[3].get('tags'):
                 sample['tags'] = ts[3]['tags']
             if ts[3].get('device_name'):

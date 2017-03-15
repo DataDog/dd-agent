@@ -29,6 +29,7 @@ import yaml
 
 # project
 from checks import check_status
+from config import AGENT_VERSION
 from util import get_next_id, yLoader
 from utils.hostname import get_hostname
 from utils.proxy import get_proxy
@@ -350,11 +351,13 @@ class AgentCheck(object):
         self.service_checks = []
         self.instances = instances or []
         self.warnings = []
+        self.check_version = None
         self.library_versions = None
         self.last_collection_time = defaultdict(int)
         self._instance_metadata = []
         self.svc_metadata = []
         self.historate_dict = {}
+        self.manifest_path = None
 
         # Set proxy settings
         self.proxy_settings = get_proxy(self.agentConfig)
@@ -374,6 +377,18 @@ class AgentCheck(object):
                     uri=uri)
             self.proxies['http'] = "http://{uri}".format(uri=uri)
             self.proxies['https'] = "https://{uri}".format(uri=uri)
+
+    def set_manifest_path(self, manifest_path):
+        self.manifest_path = manifest_path
+
+    def set_check_version(self, manifest=None):
+        version = AGENT_VERSION
+
+        if manifest is not None:
+            version = "{core}:{sdk}".format(core=AGENT_VERSION,
+                                        sdk=manifest.get('version', 'unknown'))
+
+        self.check_version = version
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """

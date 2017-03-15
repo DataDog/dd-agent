@@ -562,7 +562,7 @@ class Processes(Check):
             processLines = output.splitlines()  # Also removes a trailing empty line
 
             del processLines[0]  # Removes the headers
-        except StandardError:
+        except Exception:
             self.logger.exception('getProcesses')
             return False
 

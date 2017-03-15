@@ -25,6 +25,9 @@ api_key:
 # Force the hostname to whatever you want. (default: auto-detected)
 # hostname: mymachine.mydomain
 
+# Enable the trace agent.
+# apm_enabled: false
+
 # Set the host's tags (optional)
 # tags: mytag, env:prod, role:database
 
@@ -124,6 +127,9 @@ gce_updated_hostname: yes
 # `/datadog/check_configs` key in the back-end. If you wish otherwise, uncomment this option
 # and modify its value.
 # sd_template_dir: /datadog/check_configs
+#
+# If you Consul store requires token authentication for service discovery, you can define that token here.
+# consul_token:
 #
 # Enable JMX checks for service discovery
 # sd_jmx_enable: no
