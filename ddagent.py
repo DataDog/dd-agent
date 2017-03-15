@@ -163,7 +163,6 @@ class AgentTransaction(Transaction):
     _emitter_manager = None
     _type = None
     _request_timeout = 20
-    _use_blocking_http_client = False # Useful for tests
 
     @classmethod
     def set_application(cls, app):
