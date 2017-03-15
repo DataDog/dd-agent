@@ -85,6 +85,7 @@ class TestProxy(TestCase):
         trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
         AgentTransaction.set_tr_manager(trManager)
         app.use_simple_http_client = False # We need proxy capabilities
+        app.agent_dns_caching = False # We need proxy capabilities
         AgentTransaction.set_application(app)
         AgentTransaction.set_endpoints(config['endpoints'])
         AgentTransaction._use_blocking_http_client = True # Use the synchronous HTTP client
