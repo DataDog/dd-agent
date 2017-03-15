@@ -159,6 +159,7 @@ class AgentTransaction(Transaction):
     _emitter_manager = None
     _type = None
     _request_timeout = 20
+    _use_blocking_http_client = False # Useful for tests
 
     @classmethod
     def set_application(cls, app):
@@ -261,7 +262,11 @@ class AgentTransaction(Transaction):
                 tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
         else:
             log.debug("Using SimpleHTTPClient")
-        http = tornado.httpclient.AsyncHTTPClient()
+
+        if self._use_blocking_http_client:
+            http = tornado.httpclient.HTTPClient()
+        else:
+            http = tornado.httpclient.AsyncHTTPClient()
 
         url = self.get_url(self._endpoint, self._api_key)
         log.debug(

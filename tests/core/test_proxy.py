@@ -1,6 +1,7 @@
 # stdlib
 from unittest import TestCase
 import logging
+from time import sleep
 
 # 3p
 from requests.utils import get_environ_proxies
@@ -11,6 +12,15 @@ from utils.proxy import set_no_proxy_settings
 from utils.dockerutil import DockerUtil
 
 from tornado.web import Application
+
+from ddagent import (
+    MAX_QUEUE_SIZE,
+    MAX_WAIT_FOR_REPLAY,
+    THROTTLING_DELAY,
+    AgentTransaction
+)
+
+from transaction import TransactionManager
 
 log = logging.getLogger('tests')
 
@@ -58,15 +68,33 @@ class TestProxy(TestCase):
     @attr(requires='core_integration')
     def test_proxy(self):
         config = {
-            "endpoints": {"https://foo.bar.com": ["foo"]},
-            "dd_url": "https://foo.bar.com",
-            "api_key": "foo",
-            "use_dd": True
+            "endpoints": {"https://app.datadoghq.com": ["foo"]},
+            "proxy_settings": {
+                "host": "localhost",
+                "port": 3128,
+                "user": None,
+                "password": None
+            }
         }
 
         app = Application()
+        app.skip_ssl_validation = True
         app._agentConfig = config
-        self.assertEquals(2, 1)
+
+        trManager = TransactionManager(MAX_WAIT_FOR_REPLAY, MAX_QUEUE_SIZE, THROTTLING_DELAY)
+        trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
+        AgentTransaction.set_tr_manager(trManager)
+        app.use_simple_http_client = False # We need proxy capabilities
+        AgentTransaction.set_application(app)
+        AgentTransaction.set_endpoints(config['endpoints'])
+        AgentTransaction._use_blocking_http_client = True # Use the synchronous HTTP client
+
+        AgentTransaction('body', {}, "") # Create and flush the transaction
+        access_log = self.docker_client.exec_start(
+            self.docker_client.exec_create(CONTAINER_NAME, 'cat /var/log/squid/access.log')['Id'])
+        self.assertTrue(access_log) # There should be an entry in the proxy access log
+        log.info(trManager._endpoints_errors)
+        self.assertEquals(len(trManager._endpoints_errors), 1) # There should be an error since we gave a bogus api_key
 
     def setUp(self):
         self.docker_client = DockerUtil().client
@@ -74,10 +102,11 @@ class TestProxy(TestCase):
         for line in self.docker_client.pull(CONTAINER_TO_RUN, stream=True):
             log.info(line)
 
-        self.container = self.docker_client.create_container(CONTAINER_TO_RUN, detach=True, name=CONTAINER_NAME)
-
+        self.container = self.docker_client.create_container(CONTAINER_TO_RUN, detach=True, name=CONTAINER_NAME,
+            ports=[3128], host_config=self.docker_client.create_host_config(port_bindings={3128: 3128}))
         log.info("Starting container: {0}".format(CONTAINER_TO_RUN))
         self.docker_client.start(CONTAINER_NAME)
+        sleep(1) # Give time for the container to properly start, otherwise we get 'Proxy CONNECT aborted'
 
     def tearDown(self):
         log.info("Stopping container: {0}".format(CONTAINER_TO_RUN))
