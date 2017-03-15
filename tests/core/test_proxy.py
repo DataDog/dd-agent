@@ -65,7 +65,7 @@ class TestNoProxy(TestCase):
         env.pop("HTTPS_PROXY", None)
 
 class TestProxy(TestCase):
-    @attr(requires='core_integration')
+    @attr(requires='test')
     def test_proxy(self):
         config = {
             "endpoints": {"https://app.datadoghq.com": ["foo"]},
@@ -92,8 +92,7 @@ class TestProxy(TestCase):
         AgentTransaction('body', {}, "") # Create and flush the transaction
         access_log = self.docker_client.exec_start(
             self.docker_client.exec_create(CONTAINER_NAME, 'cat /var/log/squid/access.log')['Id'])
-        self.assertTrue(access_log) # There should be an entry in the proxy access log
-        log.info(trManager._endpoints_errors)
+        self.assertTrue("CONNECT" in access_log) # There should be an entry in the proxy access log
         self.assertEquals(len(trManager._endpoints_errors), 1) # There should be an error since we gave a bogus api_key
 
     def setUp(self):
