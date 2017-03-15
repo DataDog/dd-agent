@@ -28,6 +28,7 @@ CONTAINER_TO_RUN = "datadog/squid"
 CONTAINER_NAME = "test-squid"
 
 class TestNoProxy(TestCase):
+    @attr(requires="core_integration")
     def test_no_proxy(self):
         """
         Starting with Agent 5.0.0, there should always be a local forwarder
@@ -65,7 +66,7 @@ class TestNoProxy(TestCase):
         env.pop("HTTPS_PROXY", None)
 
 class TestProxy(TestCase):
-    @attr(requires='test')
+    @attr(requires='core_integration')
     def test_proxy(self):
         config = {
             "endpoints": {"https://app.datadoghq.com": ["foo"]},
@@ -89,23 +90,26 @@ class TestProxy(TestCase):
         AgentTransaction.set_endpoints(config['endpoints'])
         AgentTransaction._use_blocking_http_client = True # Use the synchronous HTTP client
 
+        def get_log(logfile):
+            return self.docker_client.exec_start(
+                self.docker_client.exec_create(CONTAINER_NAME, 'cat ' + logfile)['Id'])
+
+        while("Accepting HTTP Socket connections" not in get_log('/var/log/squid/cache.log')):
+            sleep(1) # Give time for the container to properly start, otherwise we get 'Proxy CONNECT aborted'
+
         AgentTransaction('body', {}, "") # Create and flush the transaction
-        access_log = self.docker_client.exec_start(
-            self.docker_client.exec_create(CONTAINER_NAME, 'cat /var/log/squid/access.log')['Id'])
-        self.assertTrue("CONNECT" in access_log) # There should be an entry in the proxy access log
-        self.assertEquals(len(trManager._endpoints_errors), 1) # There should be an error since we gave a bogus api_key
+        self.assertTrue("CONNECT" in get_log('/var/log/squid/access.log')) # There should be an entry in the proxy access log
+        self.assertEquals(len(trManager._endpoints_errors), 2) # There should be an error since we gave a bogus api_key
 
     def setUp(self):
         self.docker_client = DockerUtil().client
 
-        for line in self.docker_client.pull(CONTAINER_TO_RUN, stream=True):
-            log.info(line)
+        self.docker_client.pull(CONTAINER_TO_RUN)
 
         self.container = self.docker_client.create_container(CONTAINER_TO_RUN, detach=True, name=CONTAINER_NAME,
             ports=[3128], host_config=self.docker_client.create_host_config(port_bindings={3128: 3128}))
         log.info("Starting container: {0}".format(CONTAINER_TO_RUN))
         self.docker_client.start(CONTAINER_NAME)
-        sleep(1) # Give time for the container to properly start, otherwise we get 'Proxy CONNECT aborted'
 
     def tearDown(self):
         log.info("Stopping container: {0}".format(CONTAINER_TO_RUN))
