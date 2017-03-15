@@ -98,7 +98,7 @@ class TestProxy(AsyncTestCase):
         CustomAgentTransaction._test = self
         CustomAgentTransaction.set_application(app)
         CustomAgentTransaction.set_endpoints(config['endpoints'])
-        
+
         CustomAgentTransaction('body', {}, "") # Create and flush the transaction
         self.wait()
 
