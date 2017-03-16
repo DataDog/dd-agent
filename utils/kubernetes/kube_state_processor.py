@@ -202,7 +202,7 @@ class KubeStateProcessor:
         """ Number of desired pods for a deployment. """
         metric_name = NAMESPACE + '.container.restarts'
         for metric in message.metric:
-            val = metric.gauge.value
+            val = metric.counter.value
             tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
             self.gauge(metric_name, val, tags)
 
