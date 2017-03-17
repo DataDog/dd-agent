@@ -71,115 +71,115 @@ The Windows agent is now digitally signed.
 
 ### Changes
 
-* [Feature] Core: Adds a local DNS cache. See [#3197][]
-* [Feature] JMXFetch: Add `histogram` metric type. See [jmxfetch-115](https://github.com/DataDog/jmxfetch/issues/115)
-* [Feature] JMXFetch: Add `list_jvms` command to list available JVMs when using the Attach API. See [jmxfetch-100](https://github.com/DataDog/jmxfetch/issues/100), [jmxfetch-112](https://github.com/DataDog/jmxfetch/issues/112) (Thanks [@cslee00][])
-* [Feature] JMXFetch: Add tag blacklisting. See [jmxfetch-116](https://github.com/DataDog/jmxfetch/issues/116)
-* [Feature] JMXFetch: Add user tags definition for MBeans. See [jmxfetch-117](https://github.com/DataDog/jmxfetch/issues/117).
-* [Feature] JMXFetch: Enable service discovery via a named pipe. See [jmxfetch-113](https://github.com/DataDog/jmxfetch/issues/113)
-* [Feature] JMXFetch: Support `javax.management.openmbean.TabularData` attribute types. See [jmxfetch-111](https://github.com/DataDog/jmxfetch/issues/111), [jmxfetch-128](https://github.com/DataDog/jmxfetch/issues/128) (Thanks [@brothhaar][])
-* [Feature] JMXFetch: Support user tag value substitution by attribute name. See [jmxfetch-117](https://github.com/DataDog/jmxfetch/issues/117).
-* [Feature] Service Discovery, JMX: Allows JMX Checks to use Service Discovery. See [#3010][], [#3150][]
-* [Feature] Service Discovery: Add a Zookeeper backend. See [#3038][]
-* [Feature] Service Discovery: Use a template cache to reduce calls to template store. See [#3060][]
-* [Feature] Service Discovery: Add namespace, daemon_set and replica_set tags for kubernetes. See [#3176][]
-* [Feature] Windows: Adds new service and packaging. See [#2417][], [#3244][]
+* [FEATURE] Core: Adds a local DNS cache. See [#3197][]
+* [FEATURE] JMXFetch: Add `histogram` metric type. See [jmxfetch-115](https://github.com/DataDog/jmxfetch/issues/115)
+* [FEATURE] JMXFetch: Add `list_jvms` command to list available JVMs when using the Attach API. See [jmxfetch-100](https://github.com/DataDog/jmxfetch/issues/100), [jmxfetch-112](https://github.com/DataDog/jmxfetch/issues/112) (Thanks [@cslee00][])
+* [FEATURE] JMXFetch: Add tag blacklisting. See [jmxfetch-116](https://github.com/DataDog/jmxfetch/issues/116)
+* [FEATURE] JMXFetch: Add user tags definition for MBeans. See [jmxfetch-117](https://github.com/DataDog/jmxfetch/issues/117).
+* [FEATURE] JMXFetch: Enable service discovery via a named pipe. See [jmxfetch-113](https://github.com/DataDog/jmxfetch/issues/113)
+* [FEATURE] JMXFetch: Support `javax.management.openmbean.TabularData` attribute types. See [jmxfetch-111](https://github.com/DataDog/jmxfetch/issues/111), [jmxfetch-128](https://github.com/DataDog/jmxfetch/issues/128) (Thanks [@brothhaar][])
+* [FEATURE] JMXFetch: Support user tag value substitution by attribute name. See [jmxfetch-117](https://github.com/DataDog/jmxfetch/issues/117).
+* [FEATURE] Service Discovery, JMX: Allows JMX Checks to use Service Discovery. See [#3010][], [#3150][]
+* [FEATURE] Service Discovery: Add a Zookeeper backend. See [#3038][]
+* [FEATURE] Service Discovery: Use a template cache to reduce calls to template store. See [#3060][]
+* [FEATURE] Service Discovery: Add namespace, daemon_set and replica_set tags for kubernetes. See [#3176][]
+* [FEATURE] Windows: Adds new service and packaging. See [#2417][], [#3244][]
 
-* [Improvement] Core: Allows developer mode to be used without profiling. See [#2898][] (Thanks [@cberry777][])
-* [Improvement] Core: Better EC2 detection. See [#3174][]
-* [Improvement] Core: Splits the payload into a legacy payload and a metrics payload. See [#3180][], [#3240][]
-* [Improvement] Forwarder: Validate API Key against any endpoint. See [#3256][]
-* [Improvement] JMXFetch: Print exception messages on Attach API connection failures. See [jmxfetch-122](https://github.com/DataDog/jmxfetch/issues/122) (Thanks [@aoking][])
-* [Improvement] Packaging: Don't require pgp key to be added on every install. [dd-agent-omnibus-143](https://github.com/DataDog/dd-agent-omnibus/pull/143)
-* [Improvement] Windows: Better pagefile memory on Windows. See [#3072][]
+* [IMPROVEMENT] Core: Allows developer mode to be used without profiling. See [#2898][] (Thanks [@cberry777][])
+* [IMPROVEMENT] Core: Better EC2 detection. See [#3174][]
+* [IMPROVEMENT] Core: Splits the payload into a legacy payload and a metrics payload. See [#3180][], [#3240][]
+* [IMPROVEMENT] Forwarder: Validate API Key against any endpoint. See [#3256][]
+* [IMPROVEMENT] JMXFetch: Print exception messages on Attach API connection failures. See [jmxfetch-122](https://github.com/DataDog/jmxfetch/issues/122) (Thanks [@aoking][])
+* [IMPROVEMENT] Packaging: Don't require pgp key to be added on every install. [dd-agent-omnibus-143](https://github.com/DataDog/dd-agent-omnibus/pull/143)
+* [IMPROVEMENT] Windows: Better pagefile memory on Windows. See [#3072][]
 
-* [Bugfix] Aggregator: Parse tags even if sample rate is bad. See [#3073][]
-* [Bugfix] Core: Fix config parsing when variable is missing. See [#3041][]
-* [Bugfix] Core: Exclude sensitive data from Google Cloud metadata. See [#3076][]
-* [Bugfix] Core: Stops agent from dying when no proc table is returned. See [#3043][] (Thanks [@ahamilton55][])
-* [Bugfix] Flare: Fix config file parsing. See [#3040][], [#3059][]
-* [Bugfix] JMXFetch: Allow specifying no alias on detailed attribute. See [jmxfetch-133](https://github.com/DataDog/jmxfetch/issues/133)
-* [Bugfix] JMXFetch: Fix connectivity loss when multiple instances are assigned to a same JVM. See [jmxfetch-124](https://github.com/DataDog/jmxfetch/issues/124)
-* [Bugfix] JMXFetch: Parse string-defined ports to integers in user configurations. See [jmxfetch-121](https://github.com/DataDog/jmxfetch/issues/121)
-* [Bugfix] JMXFetch: Support `java.util.Map` attribute types. See [jmxfetch-130](https://github.com/DataDog/jmxfetch/issues/130)
-* [Bugfix] JMXFetch: Support list-defined user tags at instance level. See [jmxfetch-132](https://github.com/DataDog/jmxfetch/issues/132)
-* [Bugfix] Windows GUI: Better detection and termination of old processes on startup. See [#3125][]
+* [BUGFIX] Aggregator: Parse tags even if sample rate is bad. See [#3073][]
+* [BUGFIX] Core: Fix config parsing when variable is missing. See [#3041][]
+* [BUGFIX] Core: Exclude sensitive data from Google Cloud metadata. See [#3076][]
+* [BUGFIX] Core: Stops agent from dying when no proc table is returned. See [#3043][] (Thanks [@ahamilton55][])
+* [BUGFIX] Flare: Fix config file parsing. See [#3040][], [#3059][]
+* [BUGFIX] JMXFetch: Allow specifying no alias on detailed attribute. See [jmxfetch-133](https://github.com/DataDog/jmxfetch/issues/133)
+* [BUGFIX] JMXFetch: Fix connectivity loss when multiple instances are assigned to a same JVM. See [jmxfetch-124](https://github.com/DataDog/jmxfetch/issues/124)
+* [BUGFIX] JMXFetch: Parse string-defined ports to integers in user configurations. See [jmxfetch-121](https://github.com/DataDog/jmxfetch/issues/121)
+* [BUGFIX] JMXFetch: Support `java.util.Map` attribute types. See [jmxfetch-130](https://github.com/DataDog/jmxfetch/issues/130)
+* [BUGFIX] JMXFetch: Support list-defined user tags at instance level. See [jmxfetch-132](https://github.com/DataDog/jmxfetch/issues/132)
+* [BUGFIX] Windows GUI: Better detection and termination of old processes on startup. See [#3125][]
 
-* [Deprecate] Core: hard-deprecate start/stop/restart/status commands. See [#3004][]
+* [DEPRECATE] Core: hard-deprecate start/stop/restart/status commands. See [#3004][]
 
 ### Integration Changes
 
-* [Feature] DNS Check: Change to a network check. See [#2924][]
-* [Feature] Docker Daemon: Add a number of new metrics for container and volume counts. See [#2740][], [#3077][]. (Thanks [@parkr][])
-* [Feature] Docker Daemon: Tag container metrics with swarm if available. See [#3182][], [#3243][]
-* [Feature] Http Check: Mark the Service Check as down if result matches content match option. See [#3069][]
-* [Feature] HAProxy: Allow the use of Unix Socket URLs. See [#3005][] (Thanks [@sj26][])
-* [Feature] HAProxy: Add support for haproxy.backend.uptime. See [#2639][]
-* [Feature] Kubernetes: Allow kublet host to be specified from environment. See [#3051][] (Thanks [@stonith][])
-* [Feature] Kubernetes: Add image_name and image_tag to container metrics. See [#2990][] (Thanks [@tarvip][])
-* [Feature] Kubernetes State: Add State metrics for pods and containers. See [#3070][]. (Thanks [@therc][])
-* [Feature] Marathon: Add token auth. See [#3208][], [#3037][]. (Thanks [@jkorzekwa-atlassian][])
-* [Feature] Mongo: Add metric with number of databases. See [#3124][]. (Thanks [@mpidlisnyi][])
-* [Feature] Network: Add InCsumErrors to UDP metrics. See [#3117][]. (Thanks [@diver-in-sky][])
-* [Feature] Network: Adds an option to split apart connection states. See [#3158][], [#2856][]. (Thanks [@joewilliams][])
-* [Feature] PowerDNS: Add support for v4. See [#3166][], [#3066][]. (Thanks [@jimmystewpot][])
-* [Feature] Redis: Add some additional metrics. See [#2749][]
-* [Feature] SQLServer: Allow connection through pyodbc as well as adodbapi. See [integrations-core-259](https://github.com/DataDog/integrations-core/pull/259), [integrations-core-264](https://github.com/DataDog/integrations-core/pull/264), [omnibus-software-129](https://github.com/DataDog/omnibus-software/pull/129), [dd-agent-omnibus-154](https://github.com/DataDog/dd-agent-omnibus/pull/154)
-* [Feature] Riak: Add support for Riak Security. See: [#2389][], [#3168][]. (Thanks [@hamano][])
-* [Feature] Riak: Add support for Riak 2.0 LTS. See: [#3189][], [#2762][]. (Thanks [@jcapricebasho][])
-* [Feature] VSphere: Improve tagging, v6 compatibility, infrastructure reporting and performance. See [#3055][]
+* [FEATURE] DNS Check: Change to a network check. See [#2924][]
+* [FEATURE] Docker Daemon: Add a number of new metrics for container and volume counts. See [#2740][], [#3077][]. (Thanks [@parkr][])
+* [FEATURE] Docker Daemon: Tag container metrics with swarm if available. See [#3182][], [#3243][]
+* [FEATURE] Http Check: Mark the Service Check as down if result matches content match option. See [#3069][]
+* [FEATURE] HAProxy: Allow the use of Unix Socket URLs. See [#3005][] (Thanks [@sj26][])
+* [FEATURE] HAProxy: Add support for haproxy.backend.uptime. See [#2639][]
+* [FEATURE] Kubernetes: Allow kublet host to be specified from environment. See [#3051][] (Thanks [@stonith][])
+* [FEATURE] Kubernetes: Add image_name and image_tag to container metrics. See [#2990][] (Thanks [@tarvip][])
+* [FEATURE] Kubernetes State: Add State metrics for pods and containers. See [#3070][]. (Thanks [@therc][])
+* [FEATURE] Marathon: Add token auth. See [#3208][], [#3037][]. (Thanks [@jkorzekwa-atlassian][])
+* [FEATURE] Mongo: Add metric with number of databases. See [#3124][]. (Thanks [@mpidlisnyi][])
+* [FEATURE] Network: Add InCsumErrors to UDP metrics. See [#3117][]. (Thanks [@diver-in-sky][])
+* [FEATURE] Network: Adds an option to split apart connection states. See [#3158][], [#2856][]. (Thanks [@joewilliams][])
+* [FEATURE] PowerDNS: Add support for v4. See [#3166][], [#3066][]. (Thanks [@jimmystewpot][])
+* [FEATURE] Redis: Add some additional metrics. See [#2749][]
+* [FEATURE] SQLServer: Allow connection through pyodbc as well as adodbapi. See [integrations-core-259](https://github.com/DataDog/integrations-core/pull/259), [integrations-core-264](https://github.com/DataDog/integrations-core/pull/264), [omnibus-software-129](https://github.com/DataDog/omnibus-software/pull/129), [dd-agent-omnibus-154](https://github.com/DataDog/dd-agent-omnibus/pull/154)
+* [FEATURE] Riak: Add support for Riak Security. See: [#2389][], [#3168][]. (Thanks [@hamano][])
+* [FEATURE] Riak: Add support for Riak 2.0 LTS. See: [#3189][], [#2762][]. (Thanks [@jcapricebasho][])
+* [FEATURE] VSphere: Improve tagging, v6 compatibility, infrastructure reporting and performance. See [#3055][]
 
-* [Improvement] Consul: Add configuration parameter that overrides `MAX_SERVICES`. See [integrations-core-140](https://github.com/DataDog/integrations-core/pull/140)
-* [Improvement] Couchbase: Add user specified tags to service checks. See [#3079][]. (Thanks [@arzarif][])
-* [Improvement] DNS Check: Support monitoring performance of NXDOMAIN queries. See [#2849][]. (Thanks [@jnewland][])
-* [Improvement] Docker: Improved Hostname logic for containers. See [#3116][]
-* [Improvement] Docker: Better detection and handling of incorrect PIDs. See [#3218][], [integrations-core-237](https://github.com/DataDog/integrations-core/pull/237)
-* [Improvement] Docker Daemon: Make Docker Healthcheck a Service Check. See [#2859][]
-* [Improvement] Etcd: Report errors connecting to etcd endpoint. See [#3007][] (Thanks [@pbitty][])
-* [Improvement] HTTP Check: Adds optiont to disable default http headers. See [integrations-core-182](https://github.com/DataDog/integrations-core/pull/182). (Thanks [@eredjar][])
-* [Improvement] HTTP Check: Remove noisy debug logging. See [integrations-core-267](https://github.com/DataDog/integrations-core/pull/267)
-* [Improvement] Kubernetes: handle multiple namespaces. See [#3028][]
-* [Improvement] Kubernetes: Support api server auth with a cert. See [#3145][]
-* [Improvement] Kubernetes: Allow configurable custom certs. See [#3160][]
-* [Improvement] Kubernetes: Add support for kublet auth when the read-only port is disabled. See [#3142][], [integrations-core-242](https://github.com/DataDog/integrations-core/pull/242)
-* [Improvement] Kubernetes: Updates the path to grab certs. See [#3210][]. (Thanks [@dturn][])
-* [Improvement] Marathon: Add option to disable SSL validation and support groups. See [#3140][]. (Thanks [@Carles-Figuerola][])
-* [Improvement] Mesos: Adds `mesos.registrar.log.recovered` to metrics. [integrations-core-260](https://github.com/DataDog/integrations-core/pull/260)
-* [Improvement] MySQL: Add another format for innodb writes innodb. See [#3148][]
-* [Improvement] Network: Use a global counter for thread pool size. See [#3095][], [#3080][]
-* [Improvement] OpenStack: Support regex for Network ID exclusion. See [integrations-core-181](https://github.com/DataDog/integrations-core/pull/181)
-* [Improvement] PHP-FPM: Include Custom Tags in Service Check. See [#3109][]
-* [Improvement] PHP-FPM: Add http_host tag to metrics. See [#3165][], [#3074][]. (Thanks [@toksvaeth][])
-* [Improvement] Postgres: Makes db size collection optional. See [#3035][] (Thanks [@jstotzs][])
-* [Improvement] Spark: No events on job status change. See [#3194][]. This is a potentially breaking change, but it was flooding event streams with what, for most people, was useless information.
-* [Improvement] TCP Check: add instance tags to respose_time metric. See [#3118][], [#3206][]. (Thanks [@mberner-ch][])
-* [Improvement] TokuMX: Skip dbs that aren't accessible. See [#3093][]. (Thanks [@pbrisbin][])
-* [Improvement] Yarn: Add configurable application tags. See [#3041][], [integrations-core-261](https://github.com/DataDog/integrations-core/pull/261)
-* [Improvement] Zookeeper: Include user specified tags. See [#3078][]. (Thanks [@arzarif][])
+* [IMPROVEMENT] Consul: Add configuration parameter that overrides `MAX_SERVICES`. See [integrations-core-140](https://github.com/DataDog/integrations-core/pull/140)
+* [IMPROVEMENT] Couchbase: Add user specified tags to service checks. See [#3079][]. (Thanks [@arzarif][])
+* [IMPROVEMENT] DNS Check: Support monitoring performance of NXDOMAIN queries. See [#2849][]. (Thanks [@jnewland][])
+* [IMPROVEMENT] Docker: Improved Hostname logic for containers. See [#3116][]
+* [IMPROVEMENT] Docker: Better detection and handling of incorrect PIDs. See [#3218][], [integrations-core-237](https://github.com/DataDog/integrations-core/pull/237)
+* [IMPROVEMENT] Docker Daemon: Make Docker Healthcheck a Service Check. See [#2859][]
+* [IMPROVEMENT] Etcd: Report errors connecting to etcd endpoint. See [#3007][] (Thanks [@pbitty][])
+* [IMPROVEMENT] HTTP Check: Adds optiont to disable default http headers. See [integrations-core-182](https://github.com/DataDog/integrations-core/pull/182). (Thanks [@eredjar][])
+* [IMPROVEMENT] HTTP Check: Remove noisy debug logging. See [integrations-core-267](https://github.com/DataDog/integrations-core/pull/267)
+* [IMPROVEMENT] Kubernetes: handle multiple namespaces. See [#3028][]
+* [IMPROVEMENT] Kubernetes: Support api server auth with a cert. See [#3145][]
+* [IMPROVEMENT] Kubernetes: Allow configurable custom certs. See [#3160][]
+* [IMPROVEMENT] Kubernetes: Add support for kublet auth when the read-only port is disabled. See [#3142][], [integrations-core-242](https://github.com/DataDog/integrations-core/pull/242)
+* [IMPROVEMENT] Kubernetes: Updates the path to grab certs. See [#3210][]. (Thanks [@dturn][])
+* [IMPROVEMENT] Marathon: Add option to disable SSL validation and support groups. See [#3140][]. (Thanks [@Carles-Figuerola][])
+* [IMPROVEMENT] Mesos: Adds `mesos.registrar.log.recovered` to metrics. [integrations-core-260](https://github.com/DataDog/integrations-core/pull/260)
+* [IMPROVEMENT] MySQL: Add another format for innodb writes innodb. See [#3148][]
+* [IMPROVEMENT] Network: Use a global counter for thread pool size. See [#3095][], [#3080][]
+* [IMPROVEMENT] OpenStack: Support regex for Network ID exclusion. See [integrations-core-181](https://github.com/DataDog/integrations-core/pull/181)
+* [IMPROVEMENT] PHP-FPM: Include Custom Tags in Service Check. See [#3109][]
+* [IMPROVEMENT] PHP-FPM: Add http_host tag to metrics. See [#3165][], [#3074][]. (Thanks [@toksvaeth][])
+* [IMPROVEMENT] Postgres: Makes db size collection optional. See [#3035][] (Thanks [@jstotzs][])
+* [IMPROVEMENT] Spark: No events on job status change. See [#3194][]. This is a potentially breaking change, but it was flooding event streams with what, for most people, was useless information.
+* [IMPROVEMENT] TCP Check: add instance tags to respose_time metric. See [#3118][], [#3206][]. (Thanks [@mberner-ch][])
+* [IMPROVEMENT] TokuMX: Skip dbs that aren't accessible. See [#3093][]. (Thanks [@pbrisbin][])
+* [IMPROVEMENT] Yarn: Add configurable application tags. See [#3041][], [integrations-core-261](https://github.com/DataDog/integrations-core/pull/261)
+* [IMPROVEMENT] Zookeeper: Include user specified tags. See [#3078][]. (Thanks [@arzarif][])
 
-* [Bugfix] Disk: Tag metrics with filesystem tag key instead of filesystem itself. See [integrations-core-252](https://github.com/DataDog/integrations-core/pull/252)
-* [Bugfix] Docker: Fix whitelist pattern matching. See [#3048][]
-* [Bugfix] Docker: Fix image tag extraction. See [#3172][]
-* [Bugfix] Docker Daemon: Report as many cgroup metrics as possible. See [#3134][]
-* [Bugfix] Elasticsearch: Fix autoconf to use the correct port. See [#3129][]
-* [Bugfix] Http Check: Fix content match for non ascii characters. See [#3100][]
-* [Bugfix] IIS: Fix is_2008 option. See [#3039][]
-* [Bugfix] Kubernetes: Only use annotations for service discovery once per pod. See [#2901][] (Thanks [@mikekap][])
-* [Bugfix] Kubernetes: Fix tags param in example config file. See [#3044][]
-* [Bugfix] Kubernetes: Remove potentially sensitive information from logs. See [integrations-core-254](https://github.com/DataDog/integrations-core/pull/254)
-* [Bugfix] Marathon: Catch nodata found errors and report them properly. See [#3127][]
-* [Bugfix] MySQL: Use `information_schema` in versions below 5.6.0. See [#3196][]
-* [Bugfix] MySQL: Fix version comparison operator. See [integrations-core-231](https://github.com/DataDog/integrations-core/pull/231)
-* [Bugfix] OpenStack: Fallback to v2 endpoint if v2.1 fails. See [#3154][]
-* [Bugfix] PGBouncer: Disable PGBouncer on Windows, as it doesn't work. See [#3252][]
-* [Bugfix] Process: No longer errors when process is down. See [#3052][] and [#3049][] (Thanks [@Radstake][])
-* [Bugfix] Process: Send all configured tags with process check. See [#2976][] (Thanks [@jdavisp3][])
-* [Bugfix] Spark: Properly report job IDs. See [#3111][]
-* [Bugfix] Spark: Fix event source name. See [#3193][]
-* [Bugfix] SQLServer: Stops passwords from leaking into logs. See [#3053][]
-* [Bugfix] SQLServer: Collect metric list if SQLServer is not up during check init. See [#3067][]
+* [BUGFIX] Disk: Tag metrics with filesystem tag key instead of filesystem itself. See [integrations-core-252](https://github.com/DataDog/integrations-core/pull/252)
+* [BUGFIX] Docker: Fix whitelist pattern matching. See [#3048][]
+* [BUGFIX] Docker: Fix image tag extraction. See [#3172][]
+* [BUGFIX] Docker Daemon: Report as many cgroup metrics as possible. See [#3134][]
+* [BUGFIX] Elasticsearch: Fix autoconf to use the correct port. See [#3129][]
+* [BUGFIX] Http Check: Fix content match for non ascii characters. See [#3100][]
+* [BUGFIX] IIS: Fix is_2008 option. See [#3039][]
+* [BUGFIX] Kubernetes: Only use annotations for service discovery once per pod. See [#2901][] (Thanks [@mikekap][])
+* [BUGFIX] Kubernetes: Fix tags param in example config file. See [#3044][]
+* [BUGFIX] Kubernetes: Remove potentially sensitive information from logs. See [integrations-core-254](https://github.com/DataDog/integrations-core/pull/254)
+* [BUGFIX] Marathon: Catch nodata found errors and report them properly. See [#3127][]
+* [BUGFIX] MySQL: Use `information_schema` in versions below 5.6.0. See [#3196][]
+* [BUGFIX] MySQL: Fix version comparison operator. See [integrations-core-231](https://github.com/DataDog/integrations-core/pull/231)
+* [BUGFIX] OpenStack: Fallback to v2 endpoint if v2.1 fails. See [#3154][]
+* [BUGFIX] PGBouncer: Disable PGBouncer on Windows, as it doesn't work. See [#3252][]
+* [BUGFIX] Process: No longer errors when process is down. See [#3052][] and [#3049][] (Thanks [@Radstake][])
+* [BUGFIX] Process: Send all configured tags with process check. See [#2976][] (Thanks [@jdavisp3][])
+* [BUGFIX] Spark: Properly report job IDs. See [#3111][]
+* [BUGFIX] Spark: Fix event source name. See [#3193][]
+* [BUGFIX] SQLServer: Stops passwords from leaking into logs. See [#3053][]
+* [BUGFIX] SQLServer: Collect metric list if SQLServer is not up during check init. See [#3067][]
 
-* [Deprecate] ActiveMQ: Remove old JMX config file. See [#3141][]
+* [DEPRECATE] ActiveMQ: Remove old JMX config file. See [#3141][]
 
 
 # 5.11.3 / 02-27-2017
