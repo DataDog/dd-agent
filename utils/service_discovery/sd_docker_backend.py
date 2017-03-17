@@ -171,13 +171,14 @@ class SDDockerBackend(AbstractSDBackend):
             if pod_ip:
                 return pod_ip
 
-        # try to get the rancher IP address
-        log.debug("No IP address was found in container %s (%s) "
-            "trying with the Rancher label" % (c_id[:12], c_img))
+        if Platform.is_rancher():
+            # try to get the rancher IP address
+            log.debug("No IP address was found in container %s (%s) "
+                "trying with the Rancher label" % (c_id[:12], c_img))
 
-        ip_addr = c_inspect.get('Config', {}).get('Labels', {}).get('io.rancher.container.ip')
-        if ip_addr:
-            return ip_addr.split('/')[0]
+            ip_addr = c_inspect.get('Config', {}).get('Labels', {}).get('io.rancher.container.ip')
+            if ip_addr:
+                return ip_addr.split('/')[0]
 
         log.error("No IP address was found for container %s (%s)" % (c_id[:12], c_img))
         return None
