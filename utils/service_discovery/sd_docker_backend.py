@@ -217,6 +217,8 @@ class SDDockerBackend(AbstractSDBackend):
 
         try:
             ports = map(lambda x: x.split('/')[0], container_inspect['NetworkSettings']['Ports'].keys())
+            if len(ports) == 0: # There might be a key Port in NetworkSettings but no ports so we raise IndexError to check in ExposedPorts
+                raise IndexError
         except (IndexError, KeyError, AttributeError):
             # try to get ports from the docker API. Works if the image has an EXPOSE instruction
             ports = map(lambda x: x.split('/')[0], container_inspect['Config'].get('ExposedPorts', {}).keys())
