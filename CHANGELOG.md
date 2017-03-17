@@ -5,14 +5,15 @@ Changes
 **Linux, Windows, Docker and Source Install**
 
 ### Details
+https://github.com/DataDog/dd-agent/compare/5.11.3...5.12.0
 
-5.12 marks a few major changes to the agent.
-
+### Integrations SDK
 In all agents, we are now able to release independent check packages, so that we can update checks independently and also release 3rd party packages from the community. To aid in this, we now have three repos: the [agent repo](https://github.com/datadog/dd-agent), the [core integrations repo](https://github.com/datadog/integrations-core), and the [extras integrations repo](https://github.com/datadog/integrations-extras). Core integrations are officially supported by Datadog, extras are supported by the community.
 
-The Windows agent is now built with Omnibus.
-
+### Windows packaging changes
 The Windows agent is now always installed as a "per-machine"; previous versions installed as "per-user" by default.  Upgrades from "per-user" to "per-machine" are performed using the executable (.exe) distribution.
+
+The Windows agent is now built with Omnibus. It now ships a full python interpreter, easing the [install of additional python libraries](https://github.com/DataDog/dd-agent/wiki/Install-additional-pip-dependencies-in-the-agent-env) for custom checks.
 
 The Windows agent is now digitally signed.
 
