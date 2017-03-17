@@ -85,7 +85,6 @@ The Windows agent is now digitally signed.
 * [FEATURE] Service Discovery: Use a template cache to reduce calls to template store. See [#3060][]
 * [FEATURE] Service Discovery: Add namespace, daemon_set and replica_set tags for kubernetes. See [#3176][]
 * [FEATURE] Windows: Adds new service and packaging. See [#2417][], [#3244][]
-
 * [IMPROVEMENT] Core: Allows developer mode to be used without profiling. See [#2898][] (Thanks [@cberry777][])
 * [IMPROVEMENT] Core: Better EC2 detection. See [#3174][]
 * [IMPROVEMENT] Core: Splits the payload into a legacy payload and a metrics payload. See [#3180][], [#3240][]
@@ -93,7 +92,6 @@ The Windows agent is now digitally signed.
 * [IMPROVEMENT] JMXFetch: Print exception messages on Attach API connection failures. See [jmxfetch-122](https://github.com/DataDog/jmxfetch/issues/122) (Thanks [@aoking][])
 * [IMPROVEMENT] Packaging: Don't require pgp key to be added on every install. [dd-agent-omnibus-143](https://github.com/DataDog/dd-agent-omnibus/pull/143)
 * [IMPROVEMENT] Windows: Better pagefile memory on Windows. See [#3072][]
-
 * [BUGFIX] Aggregator: Parse tags even if sample rate is bad. See [#3073][]
 * [BUGFIX] Core: Fix config parsing when variable is missing. See [#3041][]
 * [BUGFIX] Core: Exclude sensitive data from Google Cloud metadata. See [#3076][]
@@ -105,7 +103,6 @@ The Windows agent is now digitally signed.
 * [BUGFIX] JMXFetch: Support `java.util.Map` attribute types. See [jmxfetch-130](https://github.com/DataDog/jmxfetch/issues/130)
 * [BUGFIX] JMXFetch: Support list-defined user tags at instance level. See [jmxfetch-132](https://github.com/DataDog/jmxfetch/issues/132)
 * [BUGFIX] Windows GUI: Better detection and termination of old processes on startup. See [#3125][]
-
 * [DEPRECATE] Core: hard-deprecate start/stop/restart/status commands. See [#3004][]
 
 ### Integration Changes
@@ -129,7 +126,6 @@ The Windows agent is now digitally signed.
 * [FEATURE] Riak: Add support for Riak Security. See: [#2389][], [#3168][]. (Thanks [@hamano][])
 * [FEATURE] Riak: Add support for Riak 2.0 LTS. See: [#3189][], [#2762][]. (Thanks [@jcapricebasho][])
 * [FEATURE] VSphere: Improve tagging, v6 compatibility, infrastructure reporting and performance. See [#3055][]
-
 * [IMPROVEMENT] Consul: Add configuration parameter that overrides `MAX_SERVICES`. See [integrations-core-140](https://github.com/DataDog/integrations-core/pull/140)
 * [IMPROVEMENT] Couchbase: Add user specified tags to service checks. See [#3079][]. (Thanks [@arzarif][])
 * [IMPROVEMENT] DNS Check: Support monitoring performance of NXDOMAIN queries. See [#2849][]. (Thanks [@jnewland][])
@@ -157,7 +153,6 @@ The Windows agent is now digitally signed.
 * [IMPROVEMENT] TokuMX: Skip dbs that aren't accessible. See [#3093][]. (Thanks [@pbrisbin][])
 * [IMPROVEMENT] Yarn: Add configurable application tags. See [#3041][], [integrations-core-261](https://github.com/DataDog/integrations-core/pull/261)
 * [IMPROVEMENT] Zookeeper: Include user specified tags. See [#3078][]. (Thanks [@arzarif][])
-
 * [BUGFIX] Disk: Tag metrics with filesystem tag key instead of filesystem itself. See [integrations-core-252](https://github.com/DataDog/integrations-core/pull/252)
 * [BUGFIX] Docker: Fix whitelist pattern matching. See [#3048][]
 * [BUGFIX] Docker: Fix image tag extraction. See [#3172][]
@@ -179,7 +174,6 @@ The Windows agent is now digitally signed.
 * [BUGFIX] Spark: Fix event source name. See [#3193][]
 * [BUGFIX] SQLServer: Stops passwords from leaking into logs. See [#3053][]
 * [BUGFIX] SQLServer: Collect metric list if SQLServer is not up during check init. See [#3067][]
-
 * [DEPRECATE] ActiveMQ: Remove old JMX config file. See [#3141][]
 
 
