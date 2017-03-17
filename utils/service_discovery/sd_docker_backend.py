@@ -302,7 +302,8 @@ class SDDockerBackend(AbstractSDBackend):
         if Platform.is_rancher():
             c_inspect = state.inspect_container(c_id)
             service_name = c_inspect.get('Config', {}).get('Labels', {}).get('io.rancher.container.name')
-            tags.append('rancher_service:%s' % service_name)
+            if service_name:
+                tags.append('rancher_service:%s' % service_name)
 
         return tags
 
