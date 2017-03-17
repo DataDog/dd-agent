@@ -71,7 +71,8 @@ class CustomAgentTransaction(AgentTransaction):
 
     def on_response(self, response):
         super(CustomAgentTransaction, self).on_response(response)
-        self._test.stop()
+        if hasattr(self, '_test'):
+            self._test.stop()
 
 @attr('unix')
 class TestProxy(AsyncTestCase):
@@ -104,7 +105,7 @@ class TestProxy(AsyncTestCase):
 
         CustomAgentTransaction('body', {}, "") # Create and flush the transaction
         self.wait()
-
+        del CustomAgentTransaction._test
         access_log = self.docker_client.exec_start(
             self.docker_client.exec_create(CONTAINER_NAME, 'cat /var/log/squid/access.log')['Id'])
         self.assertTrue("CONNECT" in access_log) # There should be an entry in the proxy access log
