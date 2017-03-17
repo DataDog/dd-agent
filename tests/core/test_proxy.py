@@ -96,6 +96,8 @@ class TestProxy(AsyncTestCase):
         CustomAgentTransaction.set_tr_manager(trManager)
         app.use_simple_http_client = False # We need proxy capabilities
         app.agent_dns_caching = False
+        # _test is the instance of this class. It is needed to call the method stop() and deal with the asynchronous
+        # calls as described here : http://www.tornadoweb.org/en/stable/testing.html
         CustomAgentTransaction._test = self
         CustomAgentTransaction.set_application(app)
         CustomAgentTransaction.set_endpoints(config['endpoints'])
