@@ -73,6 +73,7 @@ class CustomAgentTransaction(AgentTransaction):
         super(CustomAgentTransaction, self).on_response(response)
         self._test.stop()
 
+@attr('unix')
 class TestProxy(AsyncTestCase):
     @attr(requires='core_integration')
     def test_proxy(self):
