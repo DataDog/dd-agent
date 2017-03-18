@@ -29,8 +29,14 @@ env:
     - DD_CASHER_DIR=/tmp/casher
   matrix:
     - TRAVIS_FLAVOR=default
-    - TRAVIS_FLAVOR=core_integration
     - TRAVIS_FLAVOR=checks_mock
+
+matrix:
+  include:
+    - python: 2.7
+      sudo: required
+      services: docker
+      env: TRAVIS_FLAVOR=core_integration
 
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"
