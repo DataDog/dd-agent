@@ -157,6 +157,7 @@ The Windows agent is now digitally signed.
 * [IMPROVEMENT] Trace Agent: Reduce sampler log verbosity and expose internal state with Go expvar. [datadog-trace-agent-248](https://github.com/DataDog/datadog-trace-agent/pull/248)
 * [IMPROVEMENT] Trace Agent: Adaptive sampling. [datadog-trace-agent-228](https://github.com/DataDog/datadog-trace-agent/pull/228)
 * [IMPROVEMENT] Trace Agent: Stream decoding. [datadog-trace-agent-227](https://github.com/DataDog/datadog-trace-agent/pull/227)
+* [IMPROVEMENT] Trace Agent: Quantize SQL AS aliases. [trace-trace-agent-225](https://github.com/DataDog/datadog-trace-agent/pull/225)
 * [IMPROVEMENT] Trace Agent: Updated the output of trace-agent info. [datadog-trace-agent-219](https://github.com/DataDog/datadog-trace-agent/pull/219)
 * [BUGFIX] Disk: Tag metrics with filesystem tag key instead of filesystem itself. See [integrations-core-252](https://github.com/DataDog/integrations-core/pull/252)
 * [BUGFIX] Docker: Fix whitelist pattern matching. See [#3048][]
