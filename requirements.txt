@@ -3,7 +3,8 @@
 # for the dev env, the source install and the Win build.
 # It is also used as a constraint reference (`pip install -c`)
 # to avoid requirements from `integrations-core` overwrite
-# these when building official distribution packages.
+# these when building official distribution packages,
+# (although versions should be aligned across repos).
 ###########################################################
 
 ###########################################################
