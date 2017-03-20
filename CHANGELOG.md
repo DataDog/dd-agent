@@ -153,6 +153,11 @@ The Windows agent is now digitally signed.
 * [IMPROVEMENT] TokuMX: Skip dbs that aren't accessible. See [#3093][]. (Thanks [@pbrisbin][])
 * [IMPROVEMENT] Yarn: Add configurable application tags. See [#3041][], [integrations-core-261](https://github.com/DataDog/integrations-core/pull/261)
 * [IMPROVEMENT] Zookeeper: Include user specified tags. See [#3078][]. (Thanks [@arzarif][])
+* [IMPROVEMENT] Trace Agent: Watchdog restarts trace agent if it consumes too much memory or opens too many network connections. [trace-trace-agent-182](https://github.com/DataDog/datadog-trace-agent/pull/182)
+* [IMPROVEMENT] Trace Agent: Reduce sampler log verbosity and expose internal state with Go expvar. [datadog-trace-agent-248](https://github.com/DataDog/datadog-trace-agent/pull/248)
+* [IMPROVEMENT] Trace Agent: Adaptive sampling. [datadog-trace-agent-228](https://github.com/DataDog/datadog-trace-agent/pull/228)
+* [IMPROVEMENT] Trace Agent: Stream decoding. [datadog-trace-agent-227](https://github.com/DataDog/datadog-trace-agent/pull/227)
+* [IMPROVEMENT] Trace Agent: Updated the output of trace-agent info. [datadog-trace-agent-219](https://github.com/DataDog/datadog-trace-agent/pull/219)
 * [BUGFIX] Disk: Tag metrics with filesystem tag key instead of filesystem itself. See [integrations-core-252](https://github.com/DataDog/integrations-core/pull/252)
 * [BUGFIX] Docker: Fix whitelist pattern matching. See [#3048][]
 * [BUGFIX] Docker: Fix image tag extraction. See [#3172][]
@@ -174,6 +179,9 @@ The Windows agent is now digitally signed.
 * [BUGFIX] Spark: Fix event source name. See [#3193][]
 * [BUGFIX] SQLServer: Stops passwords from leaking into logs. See [#3053][]
 * [BUGFIX] SQLServer: Collect metric list if SQLServer is not up during check init. See [#3067][]
+* [BUGFIX] Trace Agent: Now shells out to dd-agent to retrieve hostname. [datadog-trace-agent-242](https://github.com/DataDog/datadog-trace-agent/pull/242)
+* [BUGFIX] Trace Agent: Normalize environment strings in spans and in the configuration [datadog-trace-agent-233](https://github.com/DataDog/datadog-trace-agent/pull/233)
+* [BUGFIX] Trace Agent: Fixed race issue between concentrator and sampler. [datadog-trace-agent-229](https://github.com/DataDog/datadog-trace-agent/pull/229)
 * [DEPRECATE] ActiveMQ: Remove old JMX config file. See [#3141][]
 
 
