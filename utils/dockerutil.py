@@ -18,6 +18,8 @@ from utils.platform import Platform
 from utils.singleton import Singleton
 
 SWARM_SVC_LABEL = 'com.docker.swarm.service.name'
+RANCHER_CONTAINER_NAME = 'io.rancher.container.name'
+RANCHER_CONTAINER_IP = 'io.rancher.container.ip'
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 
 

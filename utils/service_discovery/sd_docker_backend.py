@@ -10,15 +10,13 @@ import simplejson as json
 from docker.errors import NullResource, NotFound
 
 # project
-from utils.dockerutil import DockerUtil, SWARM_SVC_LABEL
+from utils.dockerutil import DockerUtil, SWARM_SVC_LABEL, RANCHER_CONTAINER_IP, RANCHER_CONTAINER_NAME
 from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
-RANCHER_CONTAINER_NAME = 'io.rancher.container.name'
-RANCHER_CONTAINER_IP = 'io.rancher.container.ip'
 
 log = logging.getLogger(__name__)
 
