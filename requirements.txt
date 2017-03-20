@@ -1,9 +1,9 @@
 ######################## WARNING ##########################
 # This file currently determines the python deps installed
 # for the dev env, the source install and the Win build.
-# It is NOT used for the DEB/RPM packages and the OS X
-# build. For these please update:
-# https://github.com/DataDog/omnibus-software
+# It is also used as a constraint reference (`pip install -c`)
+# to avoid requirements from `integrations-core` overwrite
+# these when building official distribution packages.
 ###########################################################
 
 ###########################################################
