@@ -17,6 +17,8 @@ from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
+RANCHER_CONTAINER_NAME = 'io.rancher.container.name'
+RANCHER_CONTAINER_IP = 'io.rancher.container.ip'
 
 log = logging.getLogger(__name__)
 
@@ -176,7 +178,7 @@ class SDDockerBackend(AbstractSDBackend):
             log.debug("No IP address was found in container %s (%s) "
                 "trying with the Rancher label" % (c_id[:12], c_img))
 
-            ip_addr = c_inspect.get('Config', {}).get('Labels', {}).get('io.rancher.container.ip')
+            ip_addr = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_CONTAINER_IP)
             if ip_addr:
                 return ip_addr.split('/')[0]
 
@@ -303,7 +305,7 @@ class SDDockerBackend(AbstractSDBackend):
 
         if Platform.is_rancher():
             c_inspect = state.inspect_container(c_id)
-            service_name = c_inspect.get('Config', {}).get('Labels', {}).get('io.rancher.container.name')
+            service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_CONTAINER_NAME)
             if service_name:
                 tags.append('rancher_service:%s' % service_name)
 
