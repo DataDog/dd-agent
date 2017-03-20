@@ -156,6 +156,7 @@ The Windows agent is now digitally signed.
 * [IMPROVEMENT] Trace Agent: Watchdog restarts trace agent if it consumes too much memory or opens too many network connections. [trace-trace-agent-182](https://github.com/DataDog/datadog-trace-agent/pull/182)
 * [IMPROVEMENT] Trace Agent: Reduce sampler log verbosity and expose internal state with Go expvar. [datadog-trace-agent-248](https://github.com/DataDog/datadog-trace-agent/pull/248)
 * [IMPROVEMENT] Trace Agent: Adaptive sampling. [datadog-trace-agent-228](https://github.com/DataDog/datadog-trace-agent/pull/228)
+* [IMPROVEMENT] Trace Agent: Weight spans using their sample rate. [datadog-trace-agent-226](https://github.com/DataDog/datadog-trace-agent/pull/226)
 * [IMPROVEMENT] Trace Agent: Stream decoding. [datadog-trace-agent-227](https://github.com/DataDog/datadog-trace-agent/pull/227)
 * [IMPROVEMENT] Trace Agent: Quantize SQL AS aliases. [trace-trace-agent-225](https://github.com/DataDog/datadog-trace-agent/pull/225)
 * [IMPROVEMENT] Trace Agent: Updated the output of trace-agent info. [datadog-trace-agent-219](https://github.com/DataDog/datadog-trace-agent/pull/219)
