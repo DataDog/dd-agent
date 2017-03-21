@@ -10,7 +10,14 @@ import simplejson as json
 from docker.errors import NullResource, NotFound
 
 # project
-from utils.dockerutil import DockerUtil, SWARM_SVC_LABEL, RANCHER_CONTAINER_IP, RANCHER_CONTAINER_NAME
+from utils.dockerutil import (
+    DockerUtil,
+    SWARM_SVC_LABEL,
+    RANCHER_CONTAINER_IP,
+    RANCHER_CONTAINER_NAME,
+    RANCHER_SVC_NAME,
+    RANCHER_STACK_NAME
+)
 from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
@@ -303,9 +310,15 @@ class SDDockerBackend(AbstractSDBackend):
 
         if Platform.is_rancher():
             c_inspect = state.inspect_container(c_id)
-            service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_CONTAINER_NAME)
+            service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_SVC_NAME)
+            stack_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_STACK_NAME)
+            container_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_CONTAINER_NAME)
             if service_name:
                 tags.append('rancher_service:%s' % service_name)
+            if stack_name:
+                tags.append('rancher_stack:%s' % stack_name)
+            if container_name:
+                tags.append('rancher_container:%s' % container_name)
 
         return tags
 
