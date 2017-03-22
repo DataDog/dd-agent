@@ -14,7 +14,7 @@ set -u
 DEFAULT_AGENT_VERSION="5.12.0"
 # Pin pip version, in the past there was some buggy releases and get-pip.py
 # always pulls the latest version
-PIP_VERSION="6.1.1"
+PIP_VERSION="8.1.2"
 VIRTUALENV_VERSION="1.11.6"
 SUPERVISOR_VERSION="3.3.0"
 SETUPTOOLS_VERSION="20.9.0"
