@@ -125,7 +125,7 @@ def split_payload(legacy_payload):
         sample = {
             "metric": ts[0],
             "points": [(ts[1], ts[2])],
-            "source_type_name": "system",
+            "source_type_name": "System",
         }
 
         if len(ts) >= 4:
