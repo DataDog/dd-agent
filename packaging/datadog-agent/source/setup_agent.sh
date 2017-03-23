@@ -412,28 +412,23 @@ if [ "$AGENT_MAJOR_VERSION" -eq "5" -a "$AGENT_MINOR_VERSION" -gt "11" ]; then
   INTEGRATIONS=$(ls $DD_HOME/integrations/)
   for INT in $INTEGRATIONS; do
     INT_DIR="$DD_HOME/integrations/$INT"
-    if [ -d $INT_DIR ]; then
-      if [-f "$INT_DIR/requirements.txt" ]; then
+      if [ -f "$INT_DIR/requirements.txt" ]; then
         "$DD_HOME/agent/utils/pip-allow-failures.sh" "$INT_DIR/requirements.txt"
       fi
-      if [-f "$INT_DIR/check.py" ]; then
+      if [ -f "$INT_DIR/check.py" ]; then
         cp "$INT_DIR/check.py" "$DD_HOME/agent/checks.d/$INT.py"
       fi
-      if [-f "$INT_DIR/conf.yaml.example" ]; then
+      if [ -f "$INT_DIR/conf.yaml.example" ]; then
         cp "$INT_DIR/conf.yaml.example" "$DD_HOME/agent/conf.d/$INT.yaml.example"
       fi
-      if [-f "$INT_DIR/auto_conf.yaml" ]; then
+      if [ -f "$INT_DIR/auto_conf.yaml" ]; then
         cp "$INT_DIR/auto_conf.yaml" "$DD_HOME/agent/conf.d/auto_conf/$INT.yaml"
       fi
-      if [-f "$INT_DIR/conf.yaml.default" ]; then
+      if [ -f "$INT_DIR/conf.yaml.default" ]; then
         cp "$INT_DIR/conf.yaml.default" "$DD_HOME/agent/conf.d/$INT.yaml.default"
       fi
-    fi
   done
   print_done
-
-  # Remove the integrations directory
-  rm -rf "$DD_HOME/integrations/"
 fi
 
 print_console "* Trying to install optional requirements"
