@@ -1,6 +1,18 @@
 Changes
 =======
 
+# 5.12.1 / Unreleased
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.12.0...5.12.1
+
+### Changes
+
+* [BUGFIX] Source Install: Fixes a bug in the source install where the integrations wouldn't be properly installed. See [#3281][]
+* [BUGFIX] Emitter: Force source type to system for legacy payload. See [#3280][]
+* [BUGFIX] MySQL: Allow for configurable collection of replica statuses [integrations-core-288](https://github.com/DataDog/integrations-core/pull/288)
+
 # 5.12.0 / 03-22-2017
 **Linux, Windows, Docker and Source Install**
 
@@ -4016,6 +4028,8 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3244]: https://github.com/DataDog/dd-agent/issues/3244
 [#3252]: https://github.com/DataDog/dd-agent/issues/3252
 [#3256]: https://github.com/DataDog/dd-agent/issues/3256
+[#3280]: https://github.com/DataDog/dd-agent/issues/3280
+[#3281]: https://github.com/DataDog/dd-agent/issues/3281
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
