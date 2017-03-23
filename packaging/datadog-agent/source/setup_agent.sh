@@ -397,6 +397,9 @@ VERSION
 if [ "$AGENT_MAJOR_VERSION" -eq "5" -a "$AGENT_MINOR_VERSION" -gt "11" ]; then
   print_console "* Downloading integrations from GitHub"
   mkdir -p "$DD_HOME/integrations"
+  mkdir -p "$DD_HOME/agent/checks.d"
+  mkdir -p "$DD_HOME/agent/conf.d/auto_conf"
+
   $DOWNLOADER "$DD_HOME/integrations.tar.gz" "https://api.github.com/repos/DataDog/integrations-core/tarball/$AGENT_VERSION"
   print_done
 
@@ -405,11 +408,25 @@ if [ "$AGENT_MAJOR_VERSION" -eq "5" -a "$AGENT_MINOR_VERSION" -gt "11" ]; then
   rm -f "$DD_HOME/integrations.tar.gz"
   print_done
 
-  print_console "* Trying to install integration requirements"
-  for INT_DIR in "$DD_HOME/integrations/*"; do
+  print_console "* Setting up integrations"
+  INTEGRATIONS=$(ls $DD_HOME/integrations/)
+  for INT in $INTEGRATIONS; do
+    INT_DIR="$DD_HOME/integrations/$INT"
     if [ -d $INT_DIR ]; then
       if [-f "$INT_DIR/requirements.txt" ]; then
         "$DD_HOME/agent/utils/pip-allow-failures.sh" "$INT_DIR/requirements.txt"
+      fi
+      if [-f "$INT_DIR/check.py" ]; then
+        cp "$INT_DIR/check.py" "$DD_HOME/agent/checks.d/$INT.py"
+      fi
+      if [-f "$INT_DIR/conf.yaml.example" ]; then
+        cp "$INT_DIR/conf.yaml.example" "$DD_HOME/agent/conf.d/$INT.yaml.example"
+      fi
+      if [-f "$INT_DIR/auto_conf.yaml" ]; then
+        cp "$INT_DIR/auto_conf.yaml" "$DD_HOME/agent/conf.d/auto_conf/$INT.yaml"
+      fi
+      if [-f "$INT_DIR/conf.yaml.default" ]; then
+        cp "$INT_DIR/conf.yaml.default" "$DD_HOME/agent/conf.d/$INT.yaml.default"
       fi
     fi
   done
