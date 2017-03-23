@@ -12,6 +12,7 @@ https://github.com/DataDog/dd-agent/compare/5.12.0...5.12.1
 * [BUGFIX] Source Install: Fixes a bug in the source install where the integrations wouldn't be properly installed. See [#3281][]
 * [BUGFIX] Emitter: Force source type to system for legacy payload. See [#3280][]
 * [BUGFIX] MySQL: Allow for configurable collection of replica statuses [integrations-core-288](https://github.com/DataDog/integrations-core/pull/288)
+* [BUGFIX] MySQL: Slaves_connected should be a gauge. [integrations-core-291](https://github.com/DataDog/integrations-core/pull/291)
 
 # 5.12.0 / 03-22-2017
 **Linux, Windows, Docker and Source Install**
