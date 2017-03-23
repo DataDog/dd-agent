@@ -431,6 +431,9 @@ if [ "$AGENT_MAJOR_VERSION" -eq "5" -a "$AGENT_MINOR_VERSION" -gt "11" ]; then
     fi
   done
   print_done
+
+  # Remove the integrations directory
+  rm -rf "$DD_HOME/integrations/"
 fi
 
 print_console "* Trying to install optional requirements"
