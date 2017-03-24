@@ -39,7 +39,7 @@ import simplejson as json
 from aggregator import get_formatter, MetricsBucketAggregator
 from checks.check_status import DogstatsdStatus
 from checks.metric_types import MetricTypes
-from config import get_config, get_version, setup_temp_dir
+from config import get_config, get_version
 from daemon import AgentSupervisor, Daemon
 from util import chunks, get_uuid, plural
 from utils.hostname import get_hostname
@@ -47,6 +47,7 @@ from utils.net import inet_pton
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
 from utils.pidfile import PidFile
 from utils.watchdog import Watchdog
+from utils.tmp_files import setup_temp_dir
 
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")

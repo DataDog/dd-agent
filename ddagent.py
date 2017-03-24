@@ -49,8 +49,7 @@ from config import (
     get_logging_config,
     get_url_endpoint,
     get_version,
-    _is_affirmative,
-    setup_temp_dir
+    _is_affirmative
 )
 import modules
 from transaction import Transaction, TransactionManager
@@ -62,6 +61,7 @@ from utils.net import DEFAULT_DNS_TTL, DNSCache
 from utils.hostname import get_hostname
 from utils.logger import RedactedLogRecord
 from utils.watchdog import Watchdog
+from utils.tmp_files import setup_temp_dir
 
 logging.LogRecord = RedactedLogRecord
 log = logging.getLogger('forwarder')

@@ -28,13 +28,13 @@ from config import (
     get_jmx_pipe_path,
     get_logging_config,
     PathNotFound,
-    _is_affirmative,
-    setup_temp_dir
+    _is_affirmative
 )
 from util import yLoader
 from utils.jmx import JMX_FETCH_JAR_NAME, JMXFiles
 from utils.platform import Platform
 from utils.subprocess_output import subprocess
+from utils.tmp_files import setup_temp_dir
 
 log = logging.getLogger('jmxfetch')
 
