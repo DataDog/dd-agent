@@ -1,8 +1,8 @@
 ######################## WARNING ##########################
 # This file currently determines the python deps installed
-# for the dev env, the source install and the Win build.
+# for the dev env and the source install.
 # It is NOT used for the DEB/RPM packages and the OS X
-# build. For these please update:
+# and Windows builds. For these please update:
 # https://github.com/DataDog/omnibus-software
 ###########################################################
 
@@ -14,42 +14,8 @@
 pycurl==7.19.5.1
 
 # core-ish/system -> system check on windows
-# checks.d/process.py
-# checks.d/gunicorn.py
-# checks.d/btrfs.py
-# checks.d/system_core.py
 psutil==4.4.1
 
 # checks.d/kubernetes_state.py -> used in utils/prometheus/*
 # Pure python module for dev purposes, the Agent is shipped with the optimized version built with --cpp_implementation
 protobuf==3.1.0
-
-# checks.d/snmp.py
-# Require a compiler because pycrypto is a dep
-pysnmp-mibs==0.1.4
-pyasn1==0.1.9
-pysnmp==4.2.5
-
-# checks.d/mongo.py
-# checks.d/tokumx.py
-# Require a compiler
-# TODO: our checks are not compatible with 3.x
-pymongo==3.2
-
-# checks.d/ssh_check.py
-winrandom-ctypes
-# Require a compiler because pycrypto is a dep
-paramiko==1.15.2
-
-# checks.d/pgbouncer.py
-# Require libpq
-psycopg2==2.6.2
-
-# checks.d/win32_event_log.py
-# checks.d/wmi.py
-# It's a pure python module, it doesn't require anything to install,
-# but needs the pywin32 extension to work
-wmi==1.4.9
-
-# checks.d/directory.py
-scandir==1.5
