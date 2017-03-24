@@ -26,7 +26,7 @@ def setup_temp_dir(agentConfig, proc_name=None):
         # This should be lessened by adding the proc_name to each tempdir
         # But, the error should be caught regardless
         try:
-            # the default is 0777, it should probably be 0666
+            # the default is 0777, it should probably be 0755
             os.makedirs(temp_dir, 0755)
         except OSError:
             pass
