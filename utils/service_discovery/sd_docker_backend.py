@@ -17,6 +17,7 @@ from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
+DEFAULT_COLLECT_LABELS_AS_TAGS = ""
 
 log = logging.getLogger(__name__)
 
@@ -73,6 +74,7 @@ class SDDockerBackend(AbstractSDBackend):
 
     def __init__(self, agentConfig):
         try:
+            self.collect_labels_as_tags = agentConfig.get('sd_docker_collect_labels_as_tags', DEFAULT_COLLECT_LABELS_AS_TAGS).split(",")
             self.config_store = get_config_store(agentConfig=agentConfig)
         except Exception as e:
             log.error('Failed to instantiate the config store client. '
@@ -245,6 +247,29 @@ class SDDockerBackend(AbstractSDBackend):
     def get_tags(self, state, c_id):
         """Extract useful tags from docker or platform APIs. These are collected by default."""
         tags = []
+
+        container = state.inspect_container(c_id)
+
+        # Get some standard tags, like container name
+        container_name = container.get("Name", container.get("Id"))
+        if container_name.count('/') <= 1:
+            container_name = str(container_name).lstrip('/')
+
+        tags.append("%s:%s" % ("container_name", container_name))
+
+        # Collect any specified docker labels as tags
+        c_labels = container.get('Config', {}).get('Labels', {})
+        for k in self.collect_labels_as_tags:
+            if k in c_labels.keys():
+                v = c_labels[k]
+                if k == SWARM_SVC_LABEL and Platform.is_swarm():
+                    if v:
+                        tags.append("swarm_service:%s" % v)
+                elif not v:
+                    tags.append(k)
+                else:
+                    tags.append("%s:%s" % (k,v))
+
         if Platform.is_k8s():
             pod_metadata = state.get_kube_config(c_id, 'metadata')
 
@@ -283,12 +308,6 @@ class SDDockerBackend(AbstractSDBackend):
             # For service it's straight forward.
             # For deployment we only need to do it if the pod creator is a ReplicaSet.
             # Details: https://kubernetes.io/docs/user-guide/deployments/#selector
-
-        elif Platform.is_swarm():
-            c_labels = state.inspect_container(c_id).get('Config', {}).get('Labels', {})
-            swarm_svc = c_labels.get(SWARM_SVC_LABEL)
-            if swarm_svc:
-                tags.append('swarm_service:%s' % swarm_svc)
 
         return tags
 
