@@ -201,6 +201,10 @@ class TransactionManager(object):
             # Running for too long?
             if datetime.utcnow() - self._flush_time >= self._MAX_FLUSH_DURATION:
                 log.warn('Flush %s is taking more than 10s, stopping it', self._flush_count)
+                for tr in self._trs_to_flush:
+                    # Recompute these transactions' next flush so that if we hit the max queue size
+                    # newer transactions are preserved
+                    tr.compute_next_flush(self._MAX_WAIT_FOR_REPLAY)
                 self._trs_to_flush = []
                 return self.flush_next()
 
