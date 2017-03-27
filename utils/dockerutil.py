@@ -450,6 +450,35 @@ class DockerUtil:
         return [co.get('Id')[:12]]
 
     @classmethod
+    def get_container_network_mapping(cls, container):
+        """Matches /proc/$PID/net/route and docker inspect to map interface names to docker network name.
+        Raises an exception on error (dict lookup or file parsing), to be caught by the using method"""
+
+        try:
+            proc_net_route_file = os.path.join(container['_proc_root'], 'net/route')
+
+            docker_gateways = {}
+            for netname, netconf in container['NetworkSettings']['Networks'].iteritems():
+                docker_gateways[netname] = struct.unpack('<L', socket.inet_aton(netconf.get(u'Gateway')))[0]
+
+            mapping = {}
+            with open(proc_net_route_file, 'r') as fp:
+                lines = fp.readlines()
+                for l in lines[1:]:
+                    cols = l.split()
+                    if cols[1] == '00000000':
+                        continue
+                    destination = int(cols[1], 16)
+                    mask = int(cols[7], 16)
+                    for net, gw in docker_gateways.iteritems():
+                        if gw & mask == destination:
+                            mapping[cols[0]] = net
+                return mapping
+        except KeyError as e:
+            log.exception("Missing container key: %s", e)
+            raise ValueError("Invalid container dict")
+
+    @classmethod
     def _drop(cls):
         if cls in cls._instances:
             del cls._instances[cls]
