@@ -329,7 +329,7 @@ class SDDockerBackend(AbstractSDBackend):
                 tags.append('rancher_container:%s' % container_name)
 
         elif Platform.is_nomad():
-            nomad_tags = DockerUtil.extract_nomad_tags(state.inspect_container(c_id))
+            nomad_tags = DockerUtil().extract_nomad_tags(state.inspect_container(c_id))
             if nomad_tags:
                 tags.extend(list(nomad_tags))
 
