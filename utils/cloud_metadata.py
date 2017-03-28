@@ -37,7 +37,7 @@ class GCE(object):
             r = requests.get(
                 GCE.URL,
                 timeout=GCE.TIMEOUT,
-                headers={'X-Google-Metadata-Request': True}
+                headers={'Metadata-Flavor': 'Google'}
             )
             r.raise_for_status()
             GCE.metadata = r.json()
