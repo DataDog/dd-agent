@@ -85,26 +85,25 @@ class DockerUtil:
         self._is_rancher = False
         self._is_nomad = False
 
-        try:
-            containers = self.client.containers()
-            for co in containers:
-                log.warning("bla")
-                if '/ecs-agent' in co.get('Names', ''):
-                    self._is_ecs = True
+        configured_orch = os.environ.get('DOCKER_ORCHESTRATOR', '').lower()
 
-                elif '/rancher-agent' in co.get('Names', ''):
-                    self._is_rancher = True
+        if configured_orch == 'nomad':
+            self._is_nomad = True
+        else:
+            try:
+                containers = self.client.containers()
+                for co in containers:
+                    if '/ecs-agent' in co.get('Names', ''):
+                        self._is_ecs = True
+                        break
 
-                    break
-                if self._detect_nomad(co):
-                    self._is_nomad = True
-                    log.warning("found nomad")
-                    # FIXME : will break if no nomad jobs are running, should try again later
-                    break
+                    elif '/rancher-agent' in co.get('Names', ''):
+                        self._is_rancher = True
+                        break
 
-        except Exception as e:
-            log.warning("Error while detecting orchestrator: %s" % e)
-            pass
+            except Exception as e:
+                log.warning("Error while detecting orchestrator: %s" % e)
+                pass
 
         # Build include/exclude patterns for containers
         self._include, self._exclude = instance.get('include', []), instance.get('exclude', [])
@@ -161,16 +160,6 @@ class DockerUtil:
 
     def is_nomad(self):
         return self._is_nomad
-
-    def _detect_nomad(self, container):
-        log.warning("testing nomad")
-        is_found = False
-        inspect_info = self.client.inspect_container(container.get('Id', ''))
-        for env in inspect_info.get('Config', {}).get('Env', []):
-            if env.startswith('NOMAD_'):
-                is_found = True
-                break
-        return is_found
 
     def is_swarm(self):
         if self.swarm_node_state == 'pending':
