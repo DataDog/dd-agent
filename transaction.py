@@ -153,7 +153,6 @@ class TransactionManager(object):
         except ValueError:
             # Should not happen if we order the queue consistently, but we should catch the error anyway
             log.warn("Tried to remove transaction %s from queue but it was not in the queue anymore.", tr.get_id())
-            pass
         else:
             self._total_count -= 1
             self._total_size -= tr.get_size()
