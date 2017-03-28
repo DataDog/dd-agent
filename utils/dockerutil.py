@@ -47,6 +47,9 @@ DEFAULT_CONTAINER_EXCLUDE = ["docker_image:gcr.io/google_containers/pause.*"]
 
 log = logging.getLogger(__name__)
 
+NOMAD_TASK_NAME = 'NOMAD_TASK_NAME'
+NOMAD_JOB_NAME = 'NOMAD_JOB_NAME'
+NOMAD_ALLOC_NAME = 'NOMAD_ALLOC_NAME'
 
 class DockerUtil:
     __metaclass__ = Singleton
@@ -79,13 +82,20 @@ class DockerUtil:
         # Try to detect if we are on ECS or Rancher
         self._is_ecs = False
         self._is_rancher = False
+        self._is_nomad = False
         try:
             containers = self.client.containers()
             for co in containers:
                 if '/ecs-agent' in co.get('Names', ''):
                     self._is_ecs = True
-                if '/rancher-agent' in co.get('Names', ''):
+
+                elif '/rancher-agent' in co.get('Names', ''):
                     self._is_rancher = True
+
+                    break
+                elif 'NOMAD_ALLOC_ID' in co.get('Config', {}).get('Env', ''):
+                    self._is_nomad = True
+                    break
         except Exception:
             pass
 
@@ -141,6 +151,9 @@ class DockerUtil:
 
     def is_rancher(self):
         return self._is_rancher
+
+    def is_nomad(self):
+        return self._is_nomad
 
     def is_swarm(self):
         if self.swarm_node_state == 'pending':
@@ -518,6 +531,7 @@ class DockerUtil:
         return [co.get('Id')[:12]]
 
     @classmethod
+
     def get_container_network_mapping(cls, container):
         """Matches /proc/$PID/net/route and docker inspect to map interface names to docker network name.
         Raises an exception on error (dict lookup or file parsing), to be caught by the using method"""
@@ -551,6 +565,22 @@ class DockerUtil:
         except KeyError as e:
             log.exception("Missing container key: %s", e)
             raise ValueError("Invalid container dict")
+
+    def extract_nomad_tags(cls, co):
+        tags = []
+        try:
+            envvars = co.get('Config', {}).get('Env', {})
+            for var in envvars:
+                if var.startswith(NOMAD_TASK_NAME):
+                    tags.append('nomad_task:%s' % var[len(NOMAD_TASK_NAME)+1:])
+                elif var.startswith(NOMAD_JOB_NAME):
+                    tags.append('nomad_job:%s' % var[len(NOMAD_JOB_NAME)+1:])
+                elif var.startswith(NOMAD_ALLOC_NAME):
+                    tags.append('nomad_alloc:%s' % var[len(NOMAD_ALLOC_NAME)+1:var.index('[')])
+        except Exception as e:
+            log.warning("Error while parsing Nomad tags: %s" % str(e))
+        finally:
+            return tags
 
     @classmethod
     def _drop(cls):

@@ -316,7 +316,7 @@ class SDDockerBackend(AbstractSDBackend):
             if swarm_svc:
                 tags.append('swarm_service:%s' % swarm_svc)
 
-        if Platform.is_rancher():
+        elif Platform.is_rancher():
             c_inspect = state.inspect_container(c_id)
             service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_SVC_NAME)
             stack_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_STACK_NAME)
@@ -327,6 +327,11 @@ class SDDockerBackend(AbstractSDBackend):
                 tags.append('rancher_stack:%s' % stack_name)
             if container_name:
                 tags.append('rancher_container:%s' % container_name)
+
+        elif Platform.is_nomad():
+            nomad_tags = DockerUtil.extract_nomad_tags(state.inspect_container(c_id))
+            if nomad_tags:
+                tags.extend(list(nomad_tags))
 
         return tags
 
