@@ -5,6 +5,18 @@ Changes
 **Linux, Windows, Docker and Source Install**
 
 ### Details
+https://github.com/DataDog/dd-agent/compare/5.12.1...5.12.2
+
+### Changes
+
+* [BUGFIX] Cloud Metadata: Use Metadata-Flavor to ensure that tags are properly collected on GCE. See [#3288][]
+* [BUGFIX] Forwarder: Fix error on removal of transactions. See [#3287][]
+* [BUGFIX] Docker: Fix cgroup parsing on RancherOS. See [#3274][]
+
+# 5.12.1 / 03-23-2017
+**Linux, Windows, Docker and Source Install**
+
+### Details
 https://github.com/DataDog/dd-agent/compare/5.12.0...5.12.1
 
 ### Changes
@@ -4032,8 +4044,11 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3244]: https://github.com/DataDog/dd-agent/issues/3244
 [#3252]: https://github.com/DataDog/dd-agent/issues/3252
 [#3256]: https://github.com/DataDog/dd-agent/issues/3256
+[#3274]: https://github.com/DataDog/dd-agent/issues/3274
 [#3280]: https://github.com/DataDog/dd-agent/issues/3280
 [#3281]: https://github.com/DataDog/dd-agent/issues/3281
+[#3287]: https://github.com/DataDog/dd-agent/issues/3287
+[#3288]: https://github.com/DataDog/dd-agent/issues/3288
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
