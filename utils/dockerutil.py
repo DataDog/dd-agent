@@ -36,6 +36,7 @@ class MountException(Exception):
 class CGroupException(Exception):
     pass
 
+
 # Default docker client settings
 DEFAULT_TIMEOUT = 5
 DEFAULT_VERSION = 'auto'
@@ -89,6 +90,7 @@ class DockerUtil:
 
         if configured_orch == 'nomad':
             self._is_nomad = True
+            self._nomad_tags_cache = {}
         else:
             try:
                 containers = self.client.containers()
@@ -572,9 +574,32 @@ class DockerUtil:
             raise ValueError("Invalid container dict")
 
     def extract_nomad_tags(self, co):
+        """
+        Queries docker inspect to get nomad tags in the container's environment vars.
+        As this is expensive, it is cached in the self._nomad_tags_cache dict.
+        The cache invalidation goes through invalidate_nomad_cache, called by docker_daemon
+
+        :param co: container dict returned by docker-py
+        :return: tags as list<string>, cached
+        """
+        if not self._is_nomad:
+            return []
+
+        co_id = co.get('Id', 'INVALID')
+
+        if co_id == 'INVALID':
+            log.warning("Invalid container object in extract_nomad_tags")
+            return
+
+        # Cache lookup on Id, verified on Created timestamp
+        if co_id in self._nomad_tags_cache:
+            created, tags = self._nomad_tags_cache[co_id]
+            if created == co.get('Created', -1):
+                return tags
+
         tags = []
         try:
-            inspect_info = self.client.inspect_container(co.get('Id', ''))
+            inspect_info = self.client.inspect_container(co_id)
             envvars = inspect_info.get('Config', {}).get('Env', {})
             for var in envvars:
                 if var.startswith(NOMAD_TASK_NAME):
@@ -588,10 +613,24 @@ class DockerUtil:
                         tags.append('nomad_group:%s' % var[start:end])
                     except ValueError:
                         pass
+            self._nomad_tags_cache[co_id] = (co.get('Created'), tags)
         except Exception as e:
             log.warning("Error while parsing Nomad tags: %s" % str(e))
         finally:
             return tags
+
+    def invalidate_caches(self, events, id_list):
+        """
+        Allows docker_daemon to invalidate the caches when container events occur
+        :param events, id_list from self.get_events
+        """
+        try:
+            if self.is_nomad():
+                for ev in events:
+                    if ev.get('status') == 'die' and ev.get('id') in self._nomad_tags_cache:
+                        del self._nomad_tags_cache[ev.get('id')]
+        except Exception as e:
+            log.warning("Error when invalidating caches: " + str(e))
 
     @classmethod
     def _drop(cls):
