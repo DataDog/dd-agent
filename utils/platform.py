@@ -96,6 +96,11 @@ class Platform(object):
         return 'KUBERNETES_PORT' in os.environ
 
     @staticmethod
+    def is_rancher():
+        from utils.dockerutil import DockerUtil
+        return DockerUtil().is_rancher()
+
+    @staticmethod
     def is_swarm():
         from utils.dockerutil import DockerUtil
         return DockerUtil().is_swarm()

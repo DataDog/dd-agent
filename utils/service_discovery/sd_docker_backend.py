@@ -10,7 +10,14 @@ import simplejson as json
 from docker.errors import NullResource, NotFound
 
 # project
-from utils.dockerutil import DockerUtil, SWARM_SVC_LABEL
+from utils.dockerutil import (
+    DockerUtil,
+    SWARM_SVC_LABEL,
+    RANCHER_CONTAINER_IP,
+    RANCHER_CONTAINER_NAME,
+    RANCHER_SVC_NAME,
+    RANCHER_STACK_NAME
+)
 from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
@@ -171,6 +178,15 @@ class SDDockerBackend(AbstractSDBackend):
             if pod_ip:
                 return pod_ip
 
+        if Platform.is_rancher():
+            # try to get the rancher IP address
+            log.debug("No IP address was found in container %s (%s) "
+                "trying with the Rancher label" % (c_id[:12], c_img))
+
+            ip_addr = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_CONTAINER_IP)
+            if ip_addr:
+                return ip_addr.split('/')[0]
+
         log.error("No IP address was found for container %s (%s)" % (c_id[:12], c_img))
         return None
 
@@ -208,6 +224,8 @@ class SDDockerBackend(AbstractSDBackend):
 
         try:
             ports = map(lambda x: x.split('/')[0], container_inspect['NetworkSettings']['Ports'].keys())
+            if len(ports) == 0: # There might be a key Port in NetworkSettings but no ports so we raise IndexError to check in ExposedPorts
+                raise IndexError
         except (IndexError, KeyError, AttributeError):
             # try to get ports from the docker API. Works if the image has an EXPOSE instruction
             ports = map(lambda x: x.split('/')[0], container_inspect['Config'].get('ExposedPorts', {}).keys())
@@ -289,6 +307,18 @@ class SDDockerBackend(AbstractSDBackend):
             swarm_svc = c_labels.get(SWARM_SVC_LABEL)
             if swarm_svc:
                 tags.append('swarm_service:%s' % swarm_svc)
+
+        if Platform.is_rancher():
+            c_inspect = state.inspect_container(c_id)
+            service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_SVC_NAME)
+            stack_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_STACK_NAME)
+            container_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_CONTAINER_NAME)
+            if service_name:
+                tags.append('rancher_service:%s' % service_name)
+            if stack_name:
+                tags.append('rancher_stack:%s' % stack_name)
+            if container_name:
+                tags.append('rancher_container:%s' % container_name)
 
         return tags
 
