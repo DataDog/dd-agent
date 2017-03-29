@@ -591,6 +591,11 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
         if config.has_option("Main", "gce_updated_hostname"):
             agentConfig["gce_updated_hostname"] = _is_affirmative(config.get("Main", "gce_updated_hostname"))
 
+        agentConfig["docker_orchestrator"] = None
+        if config.has_option('Main', 'docker_orchestrator'):
+            agentConfig['docker_orchestrator'] = config.get("docker_orchestrator", None)
+
+
     except ConfigParser.NoSectionError as e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)

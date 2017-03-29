@@ -107,5 +107,5 @@ class Platform(object):
 
     @staticmethod
     def is_nomad():
-        from utils.dockerutil import DockerUtil
-        return DockerUtil().is_nomad()
+        from orchestrator import NomadUtil
+        return NomadUtil().is_enabled()

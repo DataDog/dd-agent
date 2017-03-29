@@ -48,10 +48,6 @@ DEFAULT_CONTAINER_EXCLUDE = ["docker_image:gcr.io/google_containers/pause.*"]
 
 log = logging.getLogger(__name__)
 
-NOMAD_TASK_NAME = 'NOMAD_TASK_NAME'
-NOMAD_JOB_NAME = 'NOMAD_JOB_NAME'
-NOMAD_ALLOC_NAME = 'NOMAD_ALLOC_NAME'
-
 
 class DockerUtil:
     __metaclass__ = Singleton
@@ -86,26 +82,18 @@ class DockerUtil:
         self._is_rancher = False
         self._is_nomad = False
 
-        configured_orch = os.environ.get('DOCKER_ORCHESTRATOR', '').lower()
-
-        if configured_orch == 'nomad':
-            self._is_nomad = True
-            self._nomad_tags_cache = {}
-        else:
-            try:
-                containers = self.client.containers()
-                for co in containers:
-                    if '/ecs-agent' in co.get('Names', ''):
-                        self._is_ecs = True
-                        break
-
-                    elif '/rancher-agent' in co.get('Names', ''):
-                        self._is_rancher = True
-                        break
-
-            except Exception as e:
-                log.warning("Error while detecting orchestrator: %s" % e)
-                pass
+        try:
+            containers = self.client.containers()
+            for co in containers:
+                if '/ecs-agent' in co.get('Names', ''):
+                    self._is_ecs = True
+                    break
+                elif '/rancher-agent' in co.get('Names', ''):
+                    self._is_rancher = True
+                    break
+        except Exception as e:
+            log.warning("Error while detecting orchestrator: %s" % e)
+            pass
 
         # Build include/exclude patterns for containers
         self._include, self._exclude = instance.get('include', []), instance.get('exclude', [])
@@ -159,9 +147,6 @@ class DockerUtil:
 
     def is_rancher(self):
         return self._is_rancher
-
-    def is_nomad(self):
-        return self._is_nomad
 
     def is_swarm(self):
         if self.swarm_node_state == 'pending':
@@ -573,64 +558,14 @@ class DockerUtil:
             log.exception("Missing container key: %s", e)
             raise ValueError("Invalid container dict")
 
-    def extract_nomad_tags(self, co):
+
+    def inspect_container(self, co_id):
         """
-        Queries docker inspect to get nomad tags in the container's environment vars.
-        As this is expensive, it is cached in the self._nomad_tags_cache dict.
-        The cache invalidation goes through invalidate_nomad_cache, called by docker_daemon
-
-        :param co: container dict returned by docker-py
-        :return: tags as list<string>, cached
+        Requests docker inspect for one container. This is a costly operation!
+        :param co_id: container id
+        :return: dict from docker-py
         """
-        if not self._is_nomad:
-            return []
-
-        co_id = co.get('Id', 'INVALID')
-
-        if co_id == 'INVALID':
-            log.warning("Invalid container object in extract_nomad_tags")
-            return
-
-        # Cache lookup on Id, verified on Created timestamp
-        if co_id in self._nomad_tags_cache:
-            created, tags = self._nomad_tags_cache[co_id]
-            if created == co.get('Created', -1):
-                return tags
-
-        tags = []
-        try:
-            inspect_info = self.client.inspect_container(co_id)
-            envvars = inspect_info.get('Config', {}).get('Env', {})
-            for var in envvars:
-                if var.startswith(NOMAD_TASK_NAME):
-                    tags.append('nomad_task:%s' % var[len(NOMAD_TASK_NAME)+1:])
-                elif var.startswith(NOMAD_JOB_NAME):
-                    tags.append('nomad_job:%s' % var[len(NOMAD_JOB_NAME)+1:])
-                elif var.startswith(NOMAD_ALLOC_NAME):
-                    try:
-                        start = var.index('.', len(NOMAD_ALLOC_NAME)) + 1
-                        end = var.index('[')
-                        tags.append('nomad_group:%s' % var[start:end])
-                    except ValueError:
-                        pass
-            self._nomad_tags_cache[co_id] = (co.get('Created'), tags)
-        except Exception as e:
-            log.warning("Error while parsing Nomad tags: %s" % str(e))
-        finally:
-            return tags
-
-    def invalidate_caches(self, events, id_list):
-        """
-        Allows docker_daemon to invalidate the caches when container events occur
-        :param events, id_list from self.get_events
-        """
-        try:
-            if self.is_nomad():
-                for ev in events:
-                    if ev.get('status') == 'die' and ev.get('id') in self._nomad_tags_cache:
-                        del self._nomad_tags_cache[ev.get('id')]
-        except Exception as e:
-            log.warning("Error when invalidating caches: " + str(e))
+        return self.client.inspect_container(co_id)
 
     @classmethod
     def _drop(cls):
