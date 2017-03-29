@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 5.12.1 / 03-23-2017
+# 5.12.2 / 03-29-2017
 **Linux, Windows, Docker and Source Install**
 
 ### Details
