@@ -1,6 +1,16 @@
 Changes
 =======
 
+# 5.12.3 / 03-31-2017
+**Linux, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.12.2...5.12.3
+
+### Changes
+
+* [BUGFIX] Docker: Fix CGroup parsing. See [#3293][]
+
 # 5.12.2 / 03-29-2017
 **Linux, Windows, Docker and Source Install**
 
@@ -4049,6 +4059,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3281]: https://github.com/DataDog/dd-agent/issues/3281
 [#3287]: https://github.com/DataDog/dd-agent/issues/3287
 [#3288]: https://github.com/DataDog/dd-agent/issues/3288
+[#3293]: https://github.com/DataDog/dd-agent/issues/3293
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
