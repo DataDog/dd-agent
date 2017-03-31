@@ -214,7 +214,6 @@ class Collector(object):
             'io': w32.IO(log),
             'proc': w32.Processes(log),
             'memory': w32.Memory(log),
-            'network': w32.Network(log),
             'cpu': w32.Cpu(log),
             'system': w32.System(log)
         }
@@ -294,7 +293,7 @@ class Collector(object):
         # Run the system checks. Checks will depend on the OS
         if Platform.is_windows():
             # Win32 system checks
-            for check_name in ['memory', 'cpu', 'network', 'io', 'proc', 'system']:
+            for check_name in ['memory', 'cpu', 'io', 'proc', 'system']:
                 try:
                     metrics.extend(self._win32_system_checks[check_name].check(self.agentConfig))
                 except Exception:
