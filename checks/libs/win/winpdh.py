@@ -1,6 +1,8 @@
 import time
 import win32pdh
 
+DATA_POINT_INTERVAL = 0.01
+
 class WinPDHCounter(object):
     def __init__(self, class_name, instance_name):
         self._class_name = class_name
@@ -45,7 +47,7 @@ class WinPDHMultiCounter(WinPDHCounter):
             except Exception as e:
                 # exception usually means self type needs two data points to calculate. Wait
                 # a bit and try again
-                time.sleep(0.01)
+                time.sleep(DATA_POINT_INTERVAL)
                 win32pdh.CollectQueryData(self.hq)
                 # if we get exception self time, just return it up
                 try:
