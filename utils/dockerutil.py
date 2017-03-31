@@ -336,8 +336,21 @@ class DockerUtil:
 
     @classmethod
     def _parse_subsystem(cls, line):
+        """
+        If 'docker' is in the path, it can be there once or twice:
+        /docker/$CONTAINER_ID
+        /docker/$USER_DOCKER_CID/docker/$CONTAINER_ID
+        so we pick the last one.
+        In /host/sys/fs/cgroup/$CGROUP_FOLDER/ cgroup/container IDs can be at the root
+        or in a docker folder, so if we find 'docker/' in the path we don't strip it away.
+        """
         i = line[2].rfind('docker')
-        return line[2][i:]
+        if i != -1:  # rfind returns -1 if docker is not found
+            return line[2][i:]
+        elif line[2][0] == '/':
+            return line[2][1:]
+        else:
+            return line[2]
 
     @classmethod
     def find_cgroup_from_proc(cls, mountpoints, pid, subsys, docker_root='/'):
