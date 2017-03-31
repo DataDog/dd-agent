@@ -8,6 +8,7 @@ Changes
 https://github.com/DataDog/dd-agent/compare/5.12.2...5.12.3
 
 ### Changes
+Please refer to the [Trace Agent 5.12.3 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.12.3) for the list of changes on the Trace Agent.
 
 * [BUGFIX] Docker: Fix CGroup parsing. See [#3293][]
 
