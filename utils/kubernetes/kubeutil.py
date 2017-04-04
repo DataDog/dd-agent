@@ -65,6 +65,9 @@ class KubeUtil:
         self.host_name = os.environ.get('HOSTNAME')
         self.tls_settings = self._init_tls_settings(instance)
 
+        # caches
+        self.services_cache = {}
+
         # apiserver
         self.kubernetes_api_url = 'https://%s/api/v1' % (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME)
 
@@ -230,6 +233,20 @@ class KubeUtil:
         """
         return retrieve_json(self.metrics_url)
 
+    def get_deployment_for_replicaset(self, rs_name):
+        """
+        Get the deployment name for a given replicaset name
+        For now, the rs name's first part always is the deployment's name, see
+        https://github.com/kubernetes/kubernetes/blob/release-1.6/pkg/controller/deployment/sync.go#L299
+        But it might change in a future k8s version. The other way to match RS and deployments is comparing
+        label selectors, which would be very costly, especially matchExpressions matching.
+        """
+        end = rs_name.rfind("-")
+        if end > 0:
+            return rs_name[0:end]
+        else:
+            return None
+
     def perform_kubelet_query(self, url, verbose=True, timeout=10):
         """
         Perform and return a GET request against kubelet. Support auth and TLS validation.
@@ -337,3 +354,6 @@ class KubeUtil:
             log.error('Unable to read token from {}: {}'.format(cls.AUTH_TOKEN_PATH, e))
 
         return None
+
+    def _fill_services_cache(self):
+

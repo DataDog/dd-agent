@@ -306,6 +306,9 @@ class SDDockerBackend(AbstractSDBackend):
                     tags.append('kube_daemon_set:%s' % creator_name)
                 elif creator_kind == 'ReplicaSet':
                     tags.append('kube_replica_set:%s' % creator_name)
+                    deployment = self.kubeutil.get_deployment_for_replicaset(creator_name)
+                    if deployment:
+                        tags.append('kube_deployment:%s' % deployment)                        
             else:
                 log.debug('creator-name for pod %s is empty, this should not happen' % pod_metadata.get('name'))
 
