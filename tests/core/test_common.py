@@ -290,12 +290,12 @@ class TestCollectionInterval(unittest.TestCase):
         }
 
         # Run a single checks.d check as part of the collector.
-        redis_config = {
+        disk_config = {
             "init_config": {},
-            "instances": [{"host": "localhost", "port": 6379}]
+            "instances": [{}]
         }
 
-        checks = [load_check('redisdb', redis_config, agentConfig)]
+        checks = [load_check('disk', disk_config, agentConfig)]
 
         c = Collector(agentConfig, [], {}, get_hostname(agentConfig))
         payload = c.run({
@@ -328,12 +328,12 @@ class TestCollectionInterval(unittest.TestCase):
         }
 
         # Run a single checks.d check as part of the collector.
-        redis_config = {
+        disk_config = {
             "init_config": {},
-            "instances": [{"host": "localhost", "port": 6379}]
+            "instances": [{}]
         }
 
-        checks = [load_check('redisdb', redis_config, agentConfig)]
+        checks = [load_check('disk', disk_config, agentConfig)]
 
         c = Collector(agentConfig, [], {}, get_hostname(agentConfig))
         payload = c.run({
@@ -342,7 +342,7 @@ class TestCollectionInterval(unittest.TestCase):
         })
 
         # We check that the redis DD_CHECK_TAG is sent in the payload
-        self.assertTrue('dd_check:redisdb' in payload['host-tags']['system'])
+        self.assertTrue('dd_check:disk' in payload['host-tags']['system'])
 
 
 class TestAggregator(unittest.TestCase):

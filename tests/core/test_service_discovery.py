@@ -525,11 +525,11 @@ class TestServiceDiscovery(unittest.TestCase):
     def test_get_auto_config(self, mock_get_auto_confd_path):
         """Test _get_auto_config"""
         expected_tpl = {
-            'redis': [('redisdb', None, {"host": "%%host%%", "port": "%%port%%"})],
+            'disk': [('disk', None, {"host": "%%host%%", "port": "%%port%%"})],
             'consul': [('consul', None, {
                         "url": "http://%%host%%:%%port%%", "catalog_checks": True, "new_leader_checks": True
                         })],
-            'redis:v1': [('redisdb', None, {"host": "%%host%%", "port": "%%port%%"})],
+            'disk:v1': [('disk', None, {"host": "%%host%%", "port": "%%port%%"})],
             'foobar': []
         }
         config_store = get_config_store(self.auto_conf_agentConfig)

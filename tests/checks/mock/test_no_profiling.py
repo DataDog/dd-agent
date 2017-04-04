@@ -16,11 +16,11 @@ class TestNoProfiling(AgentCheckTest):
         mocks = {
             '_set_internal_profiling_stats': mock.MagicMock(side_effect=SystemExit),
         }
-        redis_config = {
+        disk_config = {
             "init_config": {},
-            "instances": [{"host": "localhost", "port": 6379}]
+            "instances": [{}]
         }
-        check = load_check('redisdb', redis_config, agentConfig)
+        check = load_check('disk', disk_config, agentConfig)
 
         self.assertFalse(check.allow_profiling)
         self.assertTrue(check.in_developer_mode)
