@@ -20,6 +20,8 @@
 boto==2.39.0
 # utils/platform.py
 docker-py==1.10.6
+# utils/service_discovery/config_stores.py
+kazoo==2.2.1
 ntplib==0.3.3
 # utils/service_discovery/config_stores.py
 python-consul==0.4.7
