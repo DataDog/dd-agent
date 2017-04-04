@@ -72,6 +72,53 @@ class KubeStateProcessor:
                 return label.value
         return None
 
+    # All these methods try to follow the same order as https://github.com/kubernetes/kube-state-metrics/blob/master/README.md
+
+    # Labels attached: node, kernel_version, os_image, container_runtime_version, kubelet_version, kubeproxy_version
+    def kube_node_info(self, message, **kwargs):
+        """ Node information and versions. """
+        metric_name = NAMESPACE + '.node.info'
+        for metric in message.metric:
+            val = metric.gauge.value
+            tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
+            self.gauge(metric_name, val, tags)
+
+    def kube_node_spec_unschedulable(self, message, **kwargs):
+        """ Whether a node can schedule new pods. """
+        metric_name = NAMESPACE + '.node.status'
+        statuses = ('schedulable', 'unschedulable')
+        for metric in message.metric:
+            tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
+            status = statuses[int(metric.gauge.value)]  # value can be 0 or 1
+            tags.append('status:{}'.format(status))
+            self.gauge(metric_name, 1, tags)  # metric value is always one, value is on the tags
+
+    def kube_node_status_ready(self, message, **kwargs):
+        """ The ready status of a cluster node. """
+        service_check_name = NAMESPACE + '.node.ready'
+        for metric in message.metric:
+            name, val = self._eval_metric_condition(metric)
+            tags = ['node:{}'.format(self._extract_label_value("node", metric.label))]
+            if name == 'true' and val:
+                self.service_check(service_check_name, self.kube_check.OK, tags=tags)
+            elif name == 'false' and val:
+                self.service_check(service_check_name, self.kube_check.CRITICAL, tags=tags)
+            else:
+                self.service_check(service_check_name, self.kube_check.UNKNOWN, tags=tags)
+
+    def kube_node_status_out_of_disk(self, message, **kwargs):
+        """ Whether the node is out of disk space. """
+        service_check_name = NAMESPACE + '.node.out_of_disk'
+        for metric in message.metric:
+            name, val = self._eval_metric_condition(metric)
+            tags = ['node:{}'.format(self._extract_label_value("node", metric.label))]
+            if name == 'true' and val:
+                self.service_check(service_check_name, self.kube_check.CRITICAL, tags=tags)
+            elif name == 'false' and val:
+                self.service_check(service_check_name, self.kube_check.OK, tags=tags)
+            else:
+                self.service_check(service_check_name, self.kube_check.UNKNOWN, tags=tags)
+
     def kube_node_status_capacity_cpu_cores(self, message, **kwargs):
         """ The total CPU resources of the node. """
         metric_name = NAMESPACE + '.node.cpu_capacity'
@@ -120,6 +167,36 @@ class KubeStateProcessor:
             tags = ['node:{}'.format(self._extract_label_value("node", metric.label))]
             self.gauge(metric_name, val, tags)
 
+    # Labels attached: daemonset, namespace
+    def kube_daemonset_status_current_number_scheduled(self, message, **kwargs):
+        """ The number of nodes that are running at least one daemon pod and are supposed to. """
+        metric_name = NAMESPACE + '.daemonset.current_scheduled'
+        for metric in message.metric:
+            val = metric.gauge.value
+            tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
+            self.gauge(metric_name, val, tags)
+
+    # Labels attached: daemonset, namespace
+    def kube_daemonset_status_number_misscheduled(self, message, **kwargs):
+        """ The number of nodes that are running at least one daemon pod that are NOT supposed to. """
+        metric_name = NAMESPACE + '.daemonset.misscheduled'
+        for metric in message.metric:
+            val = metric.gauge.value
+            tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
+            self.gauge(metric_name, val, tags)
+
+    # Labels attached: daemonset, namespace
+    def kube_daemonset_status_desired_number_scheduled(self, message, **kwargs):
+        """ Number of nodes that should be running a daemon pod. """
+        metric_name = NAMESPACE + '.daemonset.desired_scheduled'
+        for metric in message.metric:
+            val = metric.gauge.value
+            tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
+            self.gauge(metric_name, val, tags)
+
+    # IGNORED: kube_daemonset_metadata_generation
+
+    # Labels attached: deployment, namespace
     def kube_deployment_status_replicas_available(self, message, **kwargs):
         """ The number of available replicas per deployment. """
         metric_name = NAMESPACE + '.deployment.replicas_available'
@@ -128,6 +205,7 @@ class KubeStateProcessor:
             tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
             self.gauge(metric_name, val, tags)
 
+    # Labels attached: deployment, namespace
     def kube_deployment_status_replicas_unavailable(self, message, **kwargs):
         """ The number of unavailable replicas per deployment. """
         metric_name = NAMESPACE + '.deployment.replicas_unavailable'
@@ -136,6 +214,7 @@ class KubeStateProcessor:
             tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
             self.gauge(metric_name, val, tags)
 
+    # Labels attached: deployment, namespace
     def kube_deployment_status_replicas_updated(self, message, **kwargs):
         """ The number of updated replicas per deployment. """
         metric_name = NAMESPACE + '.deployment.replicas_updated'
@@ -144,9 +223,69 @@ class KubeStateProcessor:
             tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
             self.gauge(metric_name, val, tags)
 
+    # Labels attached: deployment, namespace
     def kube_deployment_spec_replicas(self, message, **kwargs):
         """ Number of desired pods for a deployment. """
         metric_name = NAMESPACE + '.deployment.replicas_desired'
+        for metric in message.metric:
+            val = metric.gauge.value
+            tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
+            self.gauge(metric_name, val, tags)
+
+    # Labels attached: deployment, namespace
+    def kube_deployment_spec_paused(self, message, **kwargs):
+        """ Indicates if the deployment is paused. """
+        metric_name = NAMESPACE + '.deployment.paused'
+        for metric in message.metric:
+            val = metric.gauge.value
+            tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
+            self.gauge(metric_name, val, tags)
+
+    # Labels attached: deployment, namespace
+    def kube_deployment_spec_strategy_rollingupdate_max_unavailable(self, message, **kwargs):
+        """ Maximum number of pods unavailable during rolling updates. """
+        metric_name = NAMESPACE + '.deployment.rollingupdate_max_unavailable'
+        for metric in message.metric:
+            val = metric.gauge.value
+            tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
+            self.gauge(metric_name, val, tags)
+
+    # IGNORED: kube_deployment_metadata_generation(
+
+    # TODO: implement kube_pod_info
+
+    # Labels attached: namespace, pod, phase=Pending|Running|Succeeded|Failed|Unknown
+    # The phase gets not passed through; rather, it becomes the service check suffix.
+    def kube_pod_status_phase(self, message, **kwargs):
+        """ Phase a pod is in. """
+        check_basename = NAMESPACE + '.pod.phase.'
+        for metric in message.metric:
+            # The gauge value is always 1, no point in fetching it.
+            phase = ''
+            tags = []
+            for label in metric.label:
+                if label.name == 'phase':
+                    phase = label.value.lower()
+                else:
+                    tags.append('{}:{}'.format(label.name, label.value))
+            #TODO: add deployment/replicaset?
+            status = self.pod_phase_to_status.get(phase, self.kube_check.UNKNOWN)
+            self.service_check(check_basename + phase, status, tags=tags)
+
+    # TODO: implement kube_pod_status_ready
+    # TODO: implement kube_pod_status_scheduled
+
+    # TODO: implement kube_pod_container_info
+
+    # TODO: implement kube_pod_container_status_waiting
+    # TODO: implement kube_pod_container_status_running
+    # TODO: implement kube_pod_container_status_terminated
+    # TODO: implement kube_pod_container_status_ready
+
+    # Labels attached: namespace, pod, container
+    def kube_pod_container_status_restarts(self, message, **kwargs):
+        """ Number of times a container has restarted. """
+        metric_name = NAMESPACE + '.container.restarts'
         for metric in message.metric:
             val = metric.gauge.value
             tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
@@ -171,95 +310,32 @@ class KubeStateProcessor:
             tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
             self.gauge(metric_name, val, tags)
 
-    # TODO: Uncomment after kube-state-metrics 0.4 is released
     # Labels attached: namespace, pod, container, node
-    # def kube_pod_container_limits_cpu_cores(self, message, **kwargs):
-    #     """ CPU cores limit for a container in a pod. """
-    #     metric_name = NAMESPACE + '.container.cpu_limit'
-    #     for metric in message.metric:
-    #         val = metric.gauge.value
-    #         tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
-    #         #TODO: add deployment/replicaset?
-    #         self.gauge(metric_name, val, tags)
+    def kube_pod_container_limits_cpu_cores(self, message, **kwargs):
+        """ CPU cores limit for a container in a pod. """
+        metric_name = NAMESPACE + '.container.cpu_limit'
+        for metric in message.metric:
+            val = metric.gauge.value
+            tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
+            #TODO: add deployment/replicaset?
+            self.gauge(metric_name, val, tags)
 
-    # TODO: Uncomment after kube-state-metrics 0.4 is released
     # Labels attached: namespace, pod, container, node
-    # def kube_pod_container_limits_memory_bytes(self, message, **kwargs):
-    #     """ Memory byte limit for a container in a pod. """
-    #     metric_name = NAMESPACE + '.container.memory_limit'
-    #     for metric in message.metric:
-    #         val = metric.gauge.value
-    #         tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
-    #         self.gauge(metric_name, val, tags)
-
-    # TODO: implement kube_pod_container_status_ready
-    # TODO: implement kube_pod_container_status_running
-    # TODO: implement kube_pod_container_status_terminated
-    # TODO: implement kube_pod_container_status_waiting
-
-    # Labels attached: namespace, pod, container
-    def kube_pod_container_status_restarts(self, message, **kwargs):
-        """ Number of desired pods for a deployment. """
-        metric_name = NAMESPACE + '.container.restarts'
+    def kube_pod_container_limits_memory_bytes(self, message, **kwargs):
+        """ Memory byte limit for a container in a pod. """
+        metric_name = NAMESPACE + '.container.memory_limit'
         for metric in message.metric:
             val = metric.gauge.value
             tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
             self.gauge(metric_name, val, tags)
 
-    # TODO: implement kube_pod_info
-    # TODO: implement kube_pod_status_ready
-    # TODO: implement kube_pod_status_scheduled
+    # TODO: implement kube_replicaset_*
 
-    # Labels attached: namespace, pod, phase=Pending|Running|Succeeded|Failed|Unknown
-    # The phase gets not passed through; rather, it becomes the service check suffix.
-    def kube_pod_status_phase(self, message, **kwargs):
-        """ Phase a pod is in. """
-        check_basename = NAMESPACE + '.pod.phase.'
+    # Labels attached: resourcequota, namespace, resource, type
+    def kube_resource_quota(self, message, **kwargs):
+        """ Aggregate quota restrictions per namespace. """
+        metric_name = NAMESPACE + '.resource.quota'
         for metric in message.metric:
-            # The gauge value is always 1, no point in fetching it.
-            phase = ''
-            tags = []
-            for label in metric.label:
-                if label.name == 'phase':
-                    phase = label.value.lower()
-                else:
-                    tags.append('{}:{}'.format(label.name, label.value))
-            #TODO: add deployment/replicaset?
-            status = self.pod_phase_to_status.get(phase, self.kube_check.UNKNOWN)
-            self.service_check(check_basename + phase, status, tags=tags)
-
-    def kube_node_status_ready(self, message, **kwargs):
-        """ The ready status of a cluster node. """
-        service_check_name = NAMESPACE + '.node.ready'
-        for metric in message.metric:
-            name, val = self._eval_metric_condition(metric)
-            tags = ['node:{}'.format(self._extract_label_value("node", metric.label))]
-            if name == 'true' and val:
-                self.service_check(service_check_name, self.kube_check.OK, tags=tags)
-            elif name == 'false' and val:
-                self.service_check(service_check_name, self.kube_check.CRITICAL, tags=tags)
-            elif name == 'unknown' and val:
-                self.service_check(service_check_name, self.kube_check.UNKNOWN, tags=tags)
-
-    def kube_node_status_out_of_disk(self, message, **kwargs):
-        """ Whether the node is out of disk space. """
-        service_check_name = NAMESPACE + '.node.out_of_disk'
-        for metric in message.metric:
-            name, val = self._eval_metric_condition(metric)
-            tags = ['node:{}'.format(self._extract_label_value("node", metric.label))]
-            if name == 'true' and val:
-                self.service_check(service_check_name, self.kube_check.CRITICAL, tags=tags)
-            elif name == 'false' and val:
-                self.service_check(service_check_name, self.kube_check.OK, tags=tags)
-            elif name == 'unknown' and val:
-                self.service_check(service_check_name, self.kube_check.UNKNOWN, tags=tags)
-
-    def kube_node_spec_unschedulable(self, message, **kwargs):
-        """ Whether a node can schedule new pods. """
-        metric_name = NAMESPACE + '.node.status'
-        statuses = ('schedulable', 'unschedulable')
-        for metric in message.metric:
+            val = metric.gauge.value
             tags = ['{}:{}'.format(label.name, label.value) for label in metric.label]
-            status = statuses[int(metric.gauge.value)]  # value can be 0 or 1
-            tags.append('status:{}'.format(status))
-            self.gauge(metric_name, 1, tags)  # metric value is always one, value is on the tags
+            self.gauge(metric_name, val, tags)
