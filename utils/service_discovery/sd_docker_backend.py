@@ -124,6 +124,9 @@ class SDDockerBackend(AbstractSDBackend):
     def update_checks(self, changed_containers):
         state = self._make_fetch_state()
 
+        if Platform.is_k8s():
+            self.kubeutil.check_services_cache_freshness()
+
         conf_reload_set = set()
         for c_id in changed_containers:
             checks = self._get_checks_to_refresh(state, c_id)
@@ -308,15 +311,13 @@ class SDDockerBackend(AbstractSDBackend):
                     tags.append('kube_replica_set:%s' % creator_name)
                     deployment = self.kubeutil.get_deployment_for_replicaset(creator_name)
                     if deployment:
-                        tags.append('kube_deployment:%s' % deployment)                        
+                        tags.append('kube_deployment:%s' % deployment)
             else:
                 log.debug('creator-name for pod %s is empty, this should not happen' % pod_metadata.get('name'))
 
-            # FIXME haissam: for service and deployment we need to store a list of these guys
-            # that we query from the apiserver and to compare their selectors with the pod labels.
-            # For service it's straight forward.
-            # For deployment we only need to do it if the pod creator is a ReplicaSet.
-            # Details: https://kubernetes.io/docs/user-guide/deployments/#selector
+            services = self.kubeutil.match_services_for_pod(pod_metadata)
+            for s in services:
+                tags.append('kube_service:%s' % s)
 
         elif Platform.is_swarm():
             c_labels = state.inspect_container(c_id).get('Config', {}).get('Labels', {})

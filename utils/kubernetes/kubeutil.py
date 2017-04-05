@@ -65,8 +65,11 @@ class KubeUtil:
         self.host_name = os.environ.get('HOSTNAME')
         self.tls_settings = self._init_tls_settings(instance)
 
-        # caches
-        self.services_cache = {}
+        # service selector caches, will be filled on first match_services_for_pod() call
+        self._services_cache = None
+        # last event ressource version triggering cache invalidatation
+        self._services_cache_last_ressourceversion = -1
+
 
         # apiserver
         self.kubernetes_api_url = 'https://%s/api/v1' % (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME)
@@ -264,7 +267,7 @@ class KubeUtil:
         return requests.get(url, timeout=timeout, verify=verify,
             cert=cert, headers=headers, params={'verbose': verbose})
 
-    def retrieve_json_auth(self, url, timeout=10, verify=None):
+    def retrieve_json_auth(self, url, timeout=10, verify=None, params=None):
         """
         Kubernetes API requires authentication using a token available in
         every pod, or with a client X509 cert/key pair.
@@ -283,7 +286,7 @@ class KubeUtil:
         bearer_token = self.tls_settings.get('bearer_token') if not cert else None
         headers = {'Authorization': 'Bearer {}'.format(bearer_token)} if bearer_token else None
 
-        r = requests.get(url, timeout=timeout, headers=headers, verify=verify, cert=cert)
+        r = requests.get(url, timeout=timeout, headers=headers, verify=verify, cert=cert, params=params)
         r.raise_for_status()
         return r.json()
 
@@ -356,4 +359,84 @@ class KubeUtil:
         return None
 
     def _fill_services_cache(self):
+        """
+        Get the list of services from the kubelet API and store the label selector dicts.
+        The cache is to be invalidated by the user class by calling check_services_cache_freshness
+        """
+        try:
+            if self._services_cache_last_ressourceversion == -1:
+                # Retrieving latest service event number with check_services_cache_freshness dry run
+                self.check_services_cache_freshness()
+            reply = self.retrieve_json_auth(self.kubernetes_api_url + '/services')
+            self._services_cache = {}
+            for service in reply.get('items', []):
+                name = service.get('metadata', {}).get('name', '')
+                selector = service.get('spec', {}).get('selector', {})
+                if len(name) and len(selector):
+                    self._services_cache[name] = selector
+            log.debug("Latest services revision: %d", self._services_cache_last_ressourceversion)
+        except Exception as e:
+            log.exception('Unable to read service list from kubelet: %s', e)
+            self._services_cache = {}
 
+    def check_services_cache_freshness(self):
+        """
+        Entry point for sd_docker_backend to check whether to invalidate the cached services
+        For now, we remove the whole cache as the fill_service_cache logic
+        doesn't handle partial lookups
+
+        We use the event's resourceVersion, as using the service's version wouldn't catch deletion
+        """
+        log.debug("Testing service cache freshness, current latest: %d", self._services_cache_last_ressourceversion)
+        lastestVersion = None
+        flush = False
+        try:
+            reply = self.retrieve_json_auth(self.kubernetes_api_url + '/events',
+                params={'fieldSelector': 'involvedObject.kind=Service'})
+            for event in reply.get('items', []):
+                version = int(event.get('metadata', {}).get('resourceVersion', None))
+                if version > self._services_cache_last_ressourceversion:
+                    flush = True
+                    lastestVersion = max(lastestVersion, version)
+            if flush:
+                self._services_cache_last_ressourceversion = lastestVersion
+                self._services_cache = None
+                log.debug("Flushing services cache triggered by ressourceVersion %d", lastestVersion)
+        except Exception as e:
+            log.warning("Exception while parsing service events, not invalidating cache: %s", e)
+
+    def match_services_for_pod(self, pod_metadata):
+        """
+        Match the pods labels with services' label selectors to determine the list
+        of services that point to that pod. Returns an array of service names.
+        """
+        if (self._services_cache is None):
+            self._fill_services_cache()
+        matches = []
+
+        try:
+            for name, label_selectors in self._services_cache.iteritems():
+                if self._do_pod_fulfill_selectors(pod_metadata, label_selectors):
+                    matches.append(name)
+        except Exception as e:
+            log.exception('Error while matching k8s services: %s', e)
+        finally:
+            log.debug("Services match for pod %s: %s", pod_metadata.get('name'), str(matches))
+            return matches
+
+    @classmethod
+    def _do_pod_fulfill_selectors(cls, pod_metadata, label_selectors):
+        """
+        Allows to check if a pod fulfills the label_selectors for a service by
+        iterating over the dictionnary.
+        If the pod's label or label_selectors are empty, the match is assumed false
+        Note: Job, Deployment, ReplicaSet and DaemonSet introduce matchExpressions
+        that are not handled by this method
+        """
+        pod_labels = pod_metadata.get('labels', {})
+        if len(pod_labels) == 0 or len(label_selectors) == 0:
+            return False
+        for label, value in label_selectors.iteritems():
+            if pod_labels.get(label, '') != value:
+                return False
+        return True
