@@ -67,8 +67,8 @@ class KubeUtil:
 
         # service selector caches, will be filled on first match_services_for_pod() call
         self._services_cache = None
-        # last event ressource version triggering cache invalidatation
-        self._services_cache_last_ressourceversion = -1
+        # last event resource version triggering cache invalidatation
+        self._services_cache_last_resourceversion = -1
 
 
         # apiserver
@@ -364,7 +364,7 @@ class KubeUtil:
         The cache is to be invalidated by the user class by calling check_services_cache_freshness
         """
         try:
-            if self._services_cache_last_ressourceversion == -1:
+            if self._services_cache_last_resourceversion == -1:
                 # Retrieving latest service event number with check_services_cache_freshness dry run
                 self.check_services_cache_freshness()
             reply = self.retrieve_json_auth(self.kubernetes_api_url + '/services')
@@ -374,9 +374,8 @@ class KubeUtil:
                 selector = service.get('spec', {}).get('selector', {})
                 if len(name) and len(selector):
                     self._services_cache[name] = selector
-            log.debug("Latest services revision: %d", self._services_cache_last_ressourceversion)
         except Exception as e:
-            log.exception('Unable to read service list from kubelet: %s', e)
+            log.exception('Unable to read service list from apiserver: %s', e)
             self._services_cache = {}
 
     def check_services_cache_freshness(self):
@@ -387,7 +386,7 @@ class KubeUtil:
 
         We use the event's resourceVersion, as using the service's version wouldn't catch deletion
         """
-        log.debug("Testing service cache freshness, current latest: %d", self._services_cache_last_ressourceversion)
+        log.debug("Testing service cache freshness, current latest: %d", self._services_cache_last_resourceversion)
         lastestVersion = None
         flush = False
         try:
@@ -395,13 +394,13 @@ class KubeUtil:
                 params={'fieldSelector': 'involvedObject.kind=Service'})
             for event in reply.get('items', []):
                 version = int(event.get('metadata', {}).get('resourceVersion', None))
-                if version > self._services_cache_last_ressourceversion:
+                if version > self._services_cache_last_resourceversion:
                     flush = True
                     lastestVersion = max(lastestVersion, version)
             if flush:
-                self._services_cache_last_ressourceversion = lastestVersion
+                self._services_cache_last_resourceversion = lastestVersion
                 self._services_cache = None
-                log.debug("Flushing services cache triggered by ressourceVersion %d", lastestVersion)
+                log.debug("Flushing services cache triggered by resourceVersion %d", lastestVersion)
         except Exception as e:
             log.warning("Exception while parsing service events, not invalidating cache: %s", e)
 
@@ -416,7 +415,7 @@ class KubeUtil:
 
         try:
             for name, label_selectors in self._services_cache.iteritems():
-                if self._do_pod_fulfill_selectors(pod_metadata, label_selectors):
+                if self._does_pod_fulfill_selectors(pod_metadata, label_selectors):
                     matches.append(name)
         except Exception as e:
             log.exception('Error while matching k8s services: %s', e)
@@ -425,7 +424,7 @@ class KubeUtil:
             return matches
 
     @classmethod
-    def _do_pod_fulfill_selectors(cls, pod_metadata, label_selectors):
+    def _does_pod_fulfill_selectors(cls, pod_metadata, label_selectors):
         """
         Allows to check if a pod fulfills the label_selectors for a service by
         iterating over the dictionnary.
