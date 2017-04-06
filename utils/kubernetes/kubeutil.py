@@ -366,6 +366,7 @@ class KubeUtil:
         try:
             if self._services_cache_last_resourceversion == -1:
                 # Retrieving latest service event number with check_services_cache_freshness dry run
+                self._services_cache = {}   # check___freshness skips if None
                 self.check_services_cache_freshness()
             reply = self.retrieve_json_auth(self.kubernetes_api_url + '/services')
             self._services_cache = {}
@@ -386,7 +387,11 @@ class KubeUtil:
 
         We use the event's resourceVersion, as using the service's version wouldn't catch deletion
         """
-        log.debug("Testing service cache freshness, current latest: %d", self._services_cache_last_resourceversion)
+
+        # Don't check if cache is already empty
+        if self._services_cache is None:
+            return
+
         lastestVersion = None
         flush = False
         try:

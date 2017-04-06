@@ -366,6 +366,9 @@ class SDDockerBackend(AbstractSDBackend):
             container.get('Id'), container.get('Labels')
         ) for container in self.docker_client.containers()]
 
+        if Platform.is_k8s():
+            self.kubeutil.check_services_cache_freshness()
+
         for image, cid, labels in containers:
             try:
                 # value of the DATADOG_ID tag or the image name if the label is missing
