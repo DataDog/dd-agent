@@ -1,0 +1,91 @@
+{
+  "kind": "EventList",
+  "apiVersion": "v1",
+  "metadata": {
+    "selfLink": "/api/v1/namespaces/default/events",
+    "resourceVersion": "2707"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "frontend-hello.14b2c5c0ac899bef",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/frontend-hello.14b2c5c0ac899bef",
+        "uid": "9a59dcf8-1aad-11e7-8b67-42010a840226",
+        "resourceVersion": "2704",
+        "creationTimestamp": "2017-04-06T09:44:17Z"
+      },
+      "involvedObject": {
+        "kind": "Service",
+        "namespace": "default",
+        "name": "frontend-hello",
+        "uid": "9467fc38-1aad-11e7-8b67-42010a840226",
+        "apiVersion": "v1",
+        "resourceVersion": "661817"
+      },
+      "reason": "CreatingLoadBalancer",
+      "message": "Creating load balancer",
+      "source": {
+        "component": "service-controller"
+      },
+      "firstTimestamp": "2017-04-06T09:44:17Z",
+      "lastTimestamp": "2017-04-06T09:44:17Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "frontend-hello.14b2c5cb738e7515",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/frontend-hello.14b2c5cb738e7515",
+        "uid": "b5f0f2be-1aad-11e7-8b67-42010a840226",
+        "resourceVersion": "2706",
+        "creationTimestamp": "2017-04-06T09:45:04Z"
+      },
+      "involvedObject": {
+        "kind": "Service",
+        "namespace": "default",
+        "name": "frontend-hello",
+        "uid": "9467fc38-1aad-11e7-8b67-42010a840226",
+        "apiVersion": "v1",
+        "resourceVersion": "661817"
+      },
+      "reason": "CreatedLoadBalancer",
+      "message": "Created load balancer",
+      "source": {
+        "component": "service-controller"
+      },
+      "firstTimestamp": "2017-04-06T09:45:04Z",
+      "lastTimestamp": "2017-04-06T09:45:04Z",
+      "count": 1,
+      "type": "Normal"
+    },
+    {
+      "metadata": {
+        "name": "redis-hello.14b2c5cb741560aa",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/events/redis-hello.14b2c5cb741560aa",
+        "uid": "b5f2383f-1aad-11e7-8b67-42010a840226",
+        "resourceVersion": "2707",
+        "creationTimestamp": "2017-04-06T09:45:04Z"
+      },
+      "involvedObject": {
+        "kind": "Service",
+        "namespace": "default",
+        "name": "redis-hello",
+        "uid": "9474d98a-1aad-11e7-8b67-42010a840226",
+        "apiVersion": "v1",
+        "resourceVersion": "661821"
+      },
+      "reason": "CreatingLoadBalancer",
+      "message": "Creating load balancer",
+      "source": {
+        "component": "service-controller"
+      },
+      "firstTimestamp": "2017-04-06T09:45:04Z",
+      "lastTimestamp": "2017-04-06T09:45:04Z",
+      "count": 1,
+      "type": "Normal"
+    }
+  ]
+}
