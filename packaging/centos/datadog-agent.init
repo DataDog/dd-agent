@@ -24,6 +24,7 @@
 
 AGENTPATH="/opt/datadog-agent/agent/agent.py"
 AGENTCONF="/etc/dd-agent/datadog.conf"
+AGENTSYSCONFIG="/etc/sysconfig/datadog-agent"
 DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
 KILL_PATH="/opt/datadog-agent/embedded/bin/kill"
 AGENTUSER="dd-agent"
@@ -45,6 +46,8 @@ DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro|trace-agent"
 # Source function library.
 . /etc/rc.d/init.d/functions
 
+# pull in sysconfig settings
+[ -f $AGENTSYSCONFIG ] && . $AGENTSYSCONFIG
 
 check_status() {
     # run checks to determine if the service is running or use generic status
@@ -131,6 +134,11 @@ start() {
     if [ ! -f $AGENTCONF ]; then
         echo "$AGENTCONF not found. Exiting."
         exit 3
+    fi
+
+    if [ "$DATADOG_ENABLED" == "no" ]; then
+        echo "Disabled via $AGENTSYSCONFIG. Exiting."
+        exit 0
     fi
 
     su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null 2>&1
