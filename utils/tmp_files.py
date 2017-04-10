@@ -10,7 +10,7 @@ def setup_temp_dir(agentConfig, proc_name=None):
         temp_dir = agentConfig["custom_temp_dir"]
 
     if agentConfig["use_dd_temp_dir"]:
-        temp_dir = os.path.join(__file__, '..', 'tmp')
+        os.path.join(os.path.basename(__file__), '..', '..', 'tmp')
 
     if proc_name:
         temp_dir = os.path.join(temp_dir, proc_name)
