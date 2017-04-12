@@ -316,6 +316,7 @@ class SDDockerBackend(AbstractSDBackend):
                 log.debug('creator-name for pod %s is empty, this should not happen' % pod_metadata.get('name'))
 
             services = self.kubeutil.match_services_for_pod(pod_metadata)
+
             for s in services:
                 tags.append('kube_service:%s' % s)
 
