@@ -58,6 +58,7 @@ JMX_CHECKS = [
     'jmx',
     'solr',
     'tomcat',
+    'kafka',
 ]
 JMX_COLLECT_COMMAND = 'collect'
 JMX_LIST_COMMANDS = {
