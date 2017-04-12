@@ -56,6 +56,7 @@ JMX_CHECKS = [
     'activemq_58',
     'cassandra',
     'jmx',
+    'kafka',
     'solr',
     'tomcat',
 ]
