@@ -252,6 +252,12 @@ class Collector(object):
         for check in self.initialized_checks_d:
             check.stop()
 
+        # Run the system checks. Checks will depend on the OS
+        if Platform.is_windows():
+            # Win32 system checks
+            for check in self._win32_system_checks:
+                check.stop()
+
     @staticmethod
     def _stats_for_display(raw_stats):
         return pprint.pformat(raw_stats, indent=4)

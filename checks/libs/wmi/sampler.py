@@ -23,6 +23,8 @@ Credits to @TheCloudlessSky (https://github.com/TheCloudlessSky)
 from copy import deepcopy
 from itertools import izip
 import pywintypes
+from threading import Thread, Event, Lock
+import time
 
 # 3p
 import pythoncom
@@ -30,7 +32,6 @@ from win32com.client import Dispatch
 
 # project
 from checks.libs.wmi.counter_type import get_calculator, get_raw, UndefinedCalculator
-from utils.timeout import timeout, TimeoutException
 
 
 class CaseInsensitiveDict(dict):
@@ -71,7 +72,7 @@ class ProviderArchitecture(object):
     _AVAILABLE_PROVIDER_ARCHITECTURES = frozenset([DEFAULT, _32BIT, _64BIT])
 
 
-class WMISampler(object):
+class WMISampler(Thread):
     """
     WMI Sampler.
     """
@@ -89,9 +90,11 @@ class WMISampler(object):
     # Sampling state
     _sampling = False
 
+
     def __init__(self, logger, class_name, property_names, filters="", host="localhost",
                  namespace="root\\cimv2", provider=None,
                  username="", password="", and_props=[], timeout_duration=10):
+        Thread.__init__(self)
         self.logger = logger
 
         # Connection information
@@ -126,7 +129,90 @@ class WMISampler(object):
         self.filters = filters
         self._and_props = and_props
         self._timeout_duration = timeout_duration
-        self._query = timeout(timeout_duration)(self._query)
+
+        self.stopEvent = Event()
+        self.firstPassEvent = Event()
+        self.sampleLock = Lock()
+        self.start()
+
+    def __del__(self):
+        self.stop()
+
+    # background thread for taking WMI samples
+    def run(self):
+        self.logger.debug("wmi thread started")
+        last_duration = 0
+        """
+        Query WMI using WMI Query Language (WQL) & parse the results.
+
+        Returns: List of WMI objects or `TimeoutException`.
+        """
+        formated_property_names = ",".join(self.property_names)
+        wql = "Select {property_names} from {class_name}{filters}".format(
+            property_names=formated_property_names,
+            class_name=self.class_name,
+            filters=self.formatted_filters,
+        )
+        self.logger.debug(u"Querying WMI: {0}".format(wql))
+
+        # From: https://msdn.microsoft.com/en-us/library/aa393866(v=vs.85).aspx
+        flag_return_immediately = 0x10  # Default flag.
+        flag_forward_only = 0x20
+        flag_use_amended_qualifiers = 0x20000
+
+        query_flags = flag_return_immediately | flag_forward_only
+
+        # For the first query, cache the qualifiers to determine each
+        # propertie's "CounterType"
+        includes_qualifiers = self.is_raw_perf_class and self._property_counter_types is None
+        if includes_qualifiers:
+            self._property_counter_types = CaseInsensitiveDict()
+            query_flags |= flag_use_amended_qualifiers
+
+        my_connection = self.get_connection()
+
+        while True:
+            self.logger.debug("starting WMI query run")
+            start = time.time()
+            try:
+                raw_results = my_connection.ExecQuery(wql, "WQL", query_flags)
+
+                results = self._parse_results(raw_results, includes_qualifiers=includes_qualifiers)
+
+            except pywintypes.com_error:
+                self.logger.warning(u"Failed to execute WMI query (%s)", wql, exc_info=True)
+                results = []
+
+            self.sampleLock.acquire()
+            if self.is_raw_perf_class and not self._previous_sample:
+                self._previous_sample = results
+                self._current_sample = results
+                self.sampleLock.release()
+                continue
+
+            self._previous_sample = self._current_sample
+            self._current_sample = results
+            self.sampleLock.release()
+
+            self.firstPassEvent.set()
+            now = time.time()
+            self.logger.debug("wmi query run completed %s %s " % (str(now), str(start)))
+
+            last_duration = now - start
+            if last_duration < 15:
+                waittime = 15 - last_duration
+            else:
+                waittime = 0
+            if self.stopEvent.wait(waittime):
+                self.logger.info("exiting sampler thread (%s) %s" % (waittime, self.class_name))
+                return
+
+    def stop(self):
+        self.logger.debug("sampler.stop() %s" % self.class_name)
+        self.stopEvent.set()
+        self.join()
+        self.logger.debug("sampler.stop() completed %s" % self.class_name)
+
 
     @property
     def provider(self):
@@ -202,23 +288,9 @@ class WMISampler(object):
         """
         Compute new samples.
         """
-        self._sampling = True
-
-        try:
-            if self.is_raw_perf_class and not self._previous_sample:
-                self._current_sample = self._query()
-
-            self._previous_sample = self._current_sample
-            self._current_sample = self._query()
-        except TimeoutException:
-            self.logger.debug(
-                u"Query timeout after {timeout}s".format(
-                    timeout=self._timeout_duration
-                )
-            )
-            raise
-        else:
-            self._sampling = False
+        self.logger.debug("checking for first run %s" % self.class_name)
+        self.firstPassEvent.wait()
+        self.logger.debug("returning from sample %s" % self.class_name)
 
     def __len__(self):
         """
@@ -230,36 +302,48 @@ class WMISampler(object):
                 u"Sampling `WMISampler` object has no len()"
             )
 
-        return len(self._current_sample)
+        if self._current_sample is not None:
+            return len(self._current_sample)
+        return 0
 
     def __iter__(self):
         """
         Iterate on the current sample's WMI Objects and format the property values.
         """
         # No data is returned while sampling
-        if self._sampling:
-            raise TypeError(
-                u"Sampling `WMISampler` object is not iterable"
-            )
+        self.sampleLock.acquire()
+        iter_previous_sample = self._previous_sample
+        iter_current_sample = self._current_sample
+        self.sampleLock.release()
+        if iter_previous_sample is None:
+            self.logger.warning("pvs sample is None")
+        if iter_current_sample is None:
+            self.logger.warning("current sample is None")
 
         if self.is_raw_perf_class:
             # Format required
             for previous_wmi_object, current_wmi_object in \
-                    izip(self._previous_sample, self._current_sample):
-                formatted_wmi_object = self._format_property_values(
-                    previous_wmi_object,
-                    current_wmi_object
-                )
+                    izip(iter_previous_sample, iter_current_sample):
+
+                try:
+                    formatted_wmi_object = self._format_property_values(
+                        previous_wmi_object,
+                        current_wmi_object
+                    )
+                except Exception as e:
+                    self.logger.error("caught exception type %s exception %s" % (self.class_name, str(e)))
+                    raise e
                 yield formatted_wmi_object
         else:
             #  No format required
-            for wmi_object in self._current_sample:
+            for wmi_object in iter_current_sample:
                 yield wmi_object
 
     def __getitem__(self, index):
         """
         Get the specified formatted WMI Object from the current sample.
         """
+        self.sampleLock.acquire()
         if self.is_raw_perf_class:
             previous_wmi_object = self._previous_sample[index]
             current_wmi_object = self._current_sample[index]
@@ -267,8 +351,10 @@ class WMISampler(object):
                 previous_wmi_object,
                 current_wmi_object
             )
+            self.sampleLock.release()
             return formatted_wmi_object
         else:
+            self.sampleLock.release()
             return self._current_sample[index]
 
     def __eq__(self, other):

@@ -91,6 +91,12 @@ class Check(object):
         self._counters = {}  # metric_name: bool
         self.logger = logger
 
+    def stop(self):
+        """
+        To be executed when the agent is being stopped to clean resources
+        """
+        pass
+
     def normalize(self, metric, prefix=None):
         """Turn a metric into a well-formed metric name
         prefix.b.c
