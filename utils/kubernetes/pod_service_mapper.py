@@ -89,6 +89,10 @@ class PodServiceMapper:
         try:
             # Fail intentionally if no uid
             pod_id = pod_metadata['uid']
+            pod_labels = pod_metadata.get('labels', {})
+
+            # Keep pod labels in cache for service->pod search
+            self._pod_labels_cache[pod_id] = pod_labels
 
             # Mapping cache lookup
             if (refresh is False and pod_id in self._pod_services_mapping):
@@ -98,7 +102,7 @@ class PodServiceMapper:
             if (self._service_cache_invalidated is True):
                 self._fill_services_cache()
             for name, label_selectors in self._service_cache_selectors.iteritems():
-                if self._does_pod_fulfill_selectors(pod_metadata.get('labels', {}), label_selectors):
+                if self._does_pod_fulfill_selectors(pod_labels, label_selectors):
                     matches.append(name)
             self._pod_services_mapping[pod_id] = matches
         except Exception as e:
@@ -122,3 +126,27 @@ class PodServiceMapper:
             if pod_labels.get(label, '') != value:
                 return False
         return True
+
+    def search_pods_for_service(self, service_name):
+        """
+        Returns the [pod_uid] list matching a service name.
+        Uses the service selector and pod labels caches, but not _pod_services_mapping
+        """
+        matches = []
+
+        try:
+            if (self._service_cache_invalidated is True):
+                self._fill_services_cache()
+
+            if service_name not in self._service_cache_selectors:
+                log.debug("No selectors cached for service %s, skipping search", service_name)
+                return []
+
+            for pod_uid, labels in self._pod_labels_cache.iteritems():
+                if self._does_pod_fulfill_selectors(labels, self._service_cache_selectors[service_name]):
+                    matches.append(pod_uid)
+        except Exception as e:
+            log.exception('Error while matching k8s services: %s', e)
+        finally:
+            log.debug("Pods match for service %s: %s", service_name, str(matches))
+            return matches
