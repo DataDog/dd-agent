@@ -75,7 +75,7 @@ set -u
 # CONSTANTS
 #######################################################################
 SDK_RELEASE="5.12.0"
-JMXFETCH_URL="https://yumtesting.datad0g.com/jmxfetch"
+JMXFETCH_URL="http://dd-jmxfetch.s3-website-us-east-1.amazonaws.com/"
 REPORT_FAILURE_URL="https://app.datadoghq.com/agent_stats/report_failure"
 REPORT_FAILURE_EMAIL="support@datadoghq.com"
 
