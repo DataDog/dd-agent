@@ -1,6 +1,22 @@
 Changes
 =======
 
+# 5.12.3 / Unreleased
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.12.3...5.13.0
+
+### Changes
+Please refer to the [Trace Agent 5.13.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.13.0) for the list of changes on the Trace Agent.
+
+* [FEATURE] Docker, Service Discovery: Add ability to get docker IP address from Rancher labels for Rancher 1.3. See [#3265][]
+
+* [BUGFIX] Kubernetes_state: refactor gauge submission, fix `container.restarts`. See [#3297][]
+
+* [SANITY] Kafka: adding Kafka to list of JMX checks (NOP). See [#3304][]
+
+
 # 5.12.3 / 03-31-2017
 **Linux, Docker and Source Install**
 
@@ -4055,12 +4071,15 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3244]: https://github.com/DataDog/dd-agent/issues/3244
 [#3252]: https://github.com/DataDog/dd-agent/issues/3252
 [#3256]: https://github.com/DataDog/dd-agent/issues/3256
+[#3265]: https://github.com/DataDog/dd-agent/issues/3265
 [#3274]: https://github.com/DataDog/dd-agent/issues/3274
 [#3280]: https://github.com/DataDog/dd-agent/issues/3280
 [#3281]: https://github.com/DataDog/dd-agent/issues/3281
 [#3287]: https://github.com/DataDog/dd-agent/issues/3287
 [#3288]: https://github.com/DataDog/dd-agent/issues/3288
 [#3293]: https://github.com/DataDog/dd-agent/issues/3293
+[#3297]: https://github.com/DataDog/dd-agent/issues/3297
+[#3304]: https://github.com/DataDog/dd-agent/issues/3304
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
