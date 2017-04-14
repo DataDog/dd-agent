@@ -1,13 +1,14 @@
 Changes
 =======
 
-# 5.12.3 / Unreleased
+# 5.13.0 / Unreleased
 **Linux, Windows, Docker and Source Install**
 
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.12.3...5.13.0
 
 ### Changes
+Please refer to the [Integrations Core Checks 5.13.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.13.0) for the list of changes on the Integrations Core checks repository.
 Please refer to the [Trace Agent 5.13.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.13.0) for the list of changes on the Trace Agent.
 
 * [FEATURE] Docker, Service Discovery: Add ability to get docker IP address from Rancher labels for Rancher 1.3. See [#3265][]
