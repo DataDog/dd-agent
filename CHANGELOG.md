@@ -11,10 +11,14 @@ https://github.com/DataDog/dd-agent/compare/5.12.3...5.13.0
 Please refer to the [Trace Agent 5.13.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.13.0) for the list of changes on the Trace Agent.
 
 * [FEATURE] Docker, Service Discovery: Add ability to get docker IP address from Rancher labels for Rancher 1.3. See [#3265][]
+* [FEATURE] Docker: improve network tagging. See [#3272][]
 
 * [BUGFIX] Kubernetes_state: refactor gauge submission, fix `container.restarts`. See [#3297][]
 
+* [SANITY] Windows: Remove system network check (metrics already reported by [integrations-core](https://github.com/DataDog/integrations-core/blob/master/network/check.py)). See [#3096][]
 * [SANITY] Kafka: adding Kafka to list of JMX checks (NOP). See [#3304][]
+
+* [REVERT] Core: SpooledTemporaryFile for subprocess output. See [#3291][]
 
 
 # 5.12.3 / 03-31-2017
@@ -4027,6 +4031,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3080]: https://github.com/DataDog/dd-agent/issues/3080
 [#3093]: https://github.com/DataDog/dd-agent/issues/3093
 [#3095]: https://github.com/DataDog/dd-agent/issues/3095
+[#3096]: https://github.com/DataDog/dd-agent/issues/3096
 [#3100]: https://github.com/DataDog/dd-agent/issues/3100
 [#3109]: https://github.com/DataDog/dd-agent/issues/3109
 [#3111]: https://github.com/DataDog/dd-agent/issues/3111
@@ -4072,11 +4077,13 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3252]: https://github.com/DataDog/dd-agent/issues/3252
 [#3256]: https://github.com/DataDog/dd-agent/issues/3256
 [#3265]: https://github.com/DataDog/dd-agent/issues/3265
+[#3272]: https://github.com/DataDog/dd-agent/issues/3272
 [#3274]: https://github.com/DataDog/dd-agent/issues/3274
 [#3280]: https://github.com/DataDog/dd-agent/issues/3280
 [#3281]: https://github.com/DataDog/dd-agent/issues/3281
 [#3287]: https://github.com/DataDog/dd-agent/issues/3287
 [#3288]: https://github.com/DataDog/dd-agent/issues/3288
+[#3291]: https://github.com/DataDog/dd-agent/issues/3291
 [#3293]: https://github.com/DataDog/dd-agent/issues/3293
 [#3297]: https://github.com/DataDog/dd-agent/issues/3297
 [#3304]: https://github.com/DataDog/dd-agent/issues/3304
