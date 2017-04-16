@@ -10,6 +10,8 @@ python:
   - "2.7"
 
 cache:
+  debug: true
+  edge: true
   directories:
     - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION.9
     - vendor/cache
@@ -39,7 +41,7 @@ matrix:
       env: TRAVIS_FLAVOR=core_integration
 
 # Override travis defaults with empty jobs
-before_install: echo "OVERRIDING TRAVIS STEPS"
+before_install: cat $HOME/.casher/fetch.log
 install: echo "OVERRIDING TRAVIS STEPS"
 before_script: echo "OVERRIDING TRAVIS STEPS"
 
