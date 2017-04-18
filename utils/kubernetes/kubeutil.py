@@ -17,7 +17,7 @@ from utils.checkfiles import get_conf_path
 from utils.http import retrieve_json
 from utils.singleton import Singleton
 from utils.dockerutil import DockerUtil
-from utils.kubernetes import PodServiceMapper
+from utils.kubernetes import PodServiceMapper, KubeEventRetriever
 
 import requests
 
@@ -384,43 +384,27 @@ class KubeUtil:
         events and lead to double triggers for the same c_id
         """
 
-    def get_events(self, namespaces):
+    def search_docker_cids_for_pods(self, pod_uid_list):
+        container_ids = set()
+
+        # TODO
+
+        return container_ids
+
+    def get_event_retriever(self, namespaces=None, kinds=None):
         """
-        Fetch events from the apiserver for the namespaces set
-        and returns ([events], set(changed_container_id))
-
-        New / deleted pods don't import changed_container_id as this would duplicate
-        docker_daemon events and lead to double triggers for the same container
+        Returns a KubeEventRetriever object ready for action
         """
-        now = int(time.time())
-        changed_container_ids = set()
-        filtered_events = []
+        return KubeEventRetriever(self, namespaces, kinds)
 
-        events = self.kubeutil.retrieve_json_auth(self.kubernetes_api_url + '/events')
-        event_items = events.get('items', [])
-        last_read = self.last_event_collection_ts
-        most_recent_read = 0
+    def compute_changed_containers(self, service_events):
+        """
+        Reads a list of kube events and computes a set of container_ids impacted
+        by the Service changes, to refresh service discovery
+        """
+        cids = set()
 
-        self.log.debug('Found {} events, filtering out using timestamp: {} and namespaces: {}'.format(len(event_items), last_read, namespaces))
+        # TODO
 
-        for event in event_items:
-            # skip if the event is too old
-            event_ts = calendar.timegm(time.strptime(event.get('lastTimestamp'), '%Y-%m-%dT%H:%M:%SZ'))
-            if event_ts <= last_read:
-                continue
+        return cids
 
-            involved_obj = event.get('involvedObject', {})
-
-            # filter events by white listed namespaces (empty namespace belong to the 'default' one)
-            if involved_obj.get('namespace', 'default') not in namespaces:
-                continue
-
-            filtered_events.append(event)
-
-            # Handle changed container lookup
-
-        if most_recent_read > 0:
-            self.last_event_collection_ts = most_recent_read
-            self.log.debug('last_event_collection_ts is now {}'.format(most_recent_read))
-
-        return (filtered_events, changed_container_ids)

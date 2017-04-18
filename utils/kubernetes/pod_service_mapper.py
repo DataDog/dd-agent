@@ -8,6 +8,7 @@ import logging
 
 log = logging.getLogger('collector')
 
+
 class PodServiceMapper:
     _service_cache_selectors = defaultdict(dict)   # {service_name:{selectors}}
     _service_cache_invalidated = True              # True to trigger service parsing
@@ -64,7 +65,7 @@ class PodServiceMapper:
         invalidate = False
         try:
             reply = self.kube.retrieve_json_auth(self.kube.kubernetes_api_url + '/events',
-                params={'fieldSelector': 'involvedObject.kind=Service'})
+                                                 params={'fieldSelector': 'involvedObject.kind=Service'})
             for event in reply.get('items', []):
                 version = int(event.get('metadata', {}).get('resourceVersion', None))
                 if version > self._service_cache_last_event_resversion:
