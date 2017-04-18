@@ -9,42 +9,54 @@ class KubeEventRetriever:
 
     Needs a KubeUtil objet to route requests through
     Best way to get one is through KubeUtil.get_event_retriever()
+
+    At the moment (k8s v1.3) there is no support to select events based on a timestamp query, so we
+    go through the whole list every time. This should be fine for now as events
+    have a TTL of one hour[1] but logic needs to improve as soon as they provide
+    query capabilities or at least pagination, see [2][3].
+
+    [1] https://github.com/kubernetes/kubernetes/blob/release-1.3.0/cmd/kube-apiserver/app/options/options.go#L51
+    [2] https://github.com/kubernetes/kubernetes/issues/4432
+    [3] https://github.com/kubernetes/kubernetes/issues/1362
     """
+
     def __init__(self, kubeutil_object, namespaces=None, kinds=None):
         self.kubeutil = kubeutil_object
         self.last_resversion = -1
+        self.set_namespaces(namespaces)
+        self.set_kinds(kinds)
 
+    def set_namespaces(self, namespaces):
         self.request_url = self.kubeutil.kubernetes_api_url + '/events'
-        self.request_params = {}
-
         self.namespace_filter = None
-        if isinstance(namespaces, basestring):
-            self.request_url = "%s/namespaces/%s/events" % self.kubeutil.kubernetes_api_url, namespaces
-        elif isinstance(namespaces, set) or isinstance(namespaces, list):
+        if isinstance(namespaces, set) or isinstance(namespaces, list):
             if len(namespaces == 1):
-                self.request_url = "%s/namespaces/%s/events" % self.kubeutil.kubernetes_api_url, namespaces[0]
+                namespaces = namespaces[0]
             else:
                 # Client-side filtering
                 self.namespace_filter = set(namespaces)
-
-        self.kind_filter = None
-        if isinstance(kinds, basestring):
+        if isinstance(namespaces, basestring):
             self.request_url = "%s/namespaces/%s/events" % self.kubeutil.kubernetes_api_url, namespaces
-            self.request_params['fieldSelector'] = 'involvedObject.kind=' + kinds
-        elif isinstance(kinds, set) or isinstance(kinds, list):
+
+    def set_kinds(self, kinds):
+        self.kind_filter = None
+        self.request_params = {}
+        if isinstance(kinds, set) or isinstance(kinds, list):
             if len(kinds == 1):
-                self.request_params['fieldSelector'] = 'involvedObject.kind=' + kinds[0]
+                kinds = kinds[0]
             else:
                 # Client-side filtering
                 self.kind_filter = set(kinds)
+        if isinstance(kinds, basestring):
+            self.request_params['fieldSelector'] = 'involvedObject.kind=' + kinds
 
-
-    def get_events(self):
+    def get_generator(self):
         """
         Fetch latest events from the apiserver for the namespaces and kinds set on init
-        and returns as list of events
+        and returns a generator of event objects
+
+        This method is not reentrant
         """
-        filtered_events = []
         lastest_resversion = None
 
         events = self.kubeutil.retrieve_json_auth(self.request_url, params=self.request_params)
@@ -64,8 +76,17 @@ class KubeEventRetriever:
                     if kind is None or kind not in self.kind_filter:
                         continue
 
-                filtered_events.append(event)
+                yield event
 
         self.last_resversion = max(self.last_resversion, lastest_resversion)
 
-        return filtered_events
+    def get_event_array(self):
+        """
+        Fetch latest events from the apiserver for the namespaces and kinds set on init
+        and returns an array of event objects
+        """
+        events = []
+        for event in self.get_generator():
+            events.append(event)
+
+        return events
