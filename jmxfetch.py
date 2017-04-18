@@ -272,7 +272,7 @@ class JMXFetch(object):
                 pipe_path = get_jmx_pipe_path()
                 subprocess_args.insert(4, '--tmp_directory')
                 subprocess_args.insert(5, pipe_path)
-                subprocess_args.insert(4, '--sd_standby')
+                subprocess_args.insert(4, '--sd_enabled')
 
             if jmx_checks:
                 subprocess_args.insert(4, '--check')
