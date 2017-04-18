@@ -36,7 +36,7 @@ class KubeEventRetriever:
                 # Client-side filtering
                 self.namespace_filter = set(namespaces)
         if isinstance(namespaces, basestring):
-            self.request_url = "%s/namespaces/%s/events" % self.kubeutil.kubernetes_api_url, namespaces
+            self.request_url = "%s/namespaces/%s/events" % (self.kubeutil.kubernetes_api_url, namespaces)
 
     def set_kinds(self, kinds):
         self.kind_filter = None
@@ -63,7 +63,7 @@ class KubeEventRetriever:
 
         for event in events.get('items', []):
             resversion = int(event.get('metadata', {}).get('resourceVersion', None))
-            if resversion > self._service_cache_last_event_resversion:
+            if resversion > self.last_resversion:
                 lastest_resversion = max(lastest_resversion, resversion)
 
                 if self.namespace_filter is not None:
