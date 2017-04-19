@@ -82,10 +82,15 @@ def get_hostname(config=None):
             hostname = docker_hostname
 
         elif Platform.is_k8s(): # Let's try from the kubelet
-            kube_util = KubeUtil()
-            _, kube_hostname = kube_util.get_node_info()
-            if kube_hostname is not None and is_valid_hostname(kube_hostname):
-                hostname = kube_hostname
+            try:
+                kube_util = KubeUtil()
+            except Exception as ex:
+                log.error("Couldn't instantiate the kubernetes client, "
+                    "getting the k8s hostname won't work. Error: %s" % str(ex))
+            else:
+                _, kube_hostname = kube_util.get_node_info()
+                if kube_hostname is not None and is_valid_hostname(kube_hostname):
+                    hostname = kube_hostname
 
     # then move on to os-specific detection
     if hostname is None:

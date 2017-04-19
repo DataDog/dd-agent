@@ -89,8 +89,12 @@ class SDDockerBackend(AbstractSDBackend):
 
         self.docker_client = DockerUtil(config_store=self.config_store).client
         if Platform.is_k8s():
-            self.kubeutil = KubeUtil()
-
+            try:
+                self.kubeutil = KubeUtil()
+            except Exception as ex:
+                self.kubeutil = None
+                self.log.error("Couldn't instantiate the kubernetes client, "
+                    "subsequent kubernetes calls will fail as well. Error: %s" % str(ex))
         self.VAR_MAPPING = {
             'host': self._get_host_address,
             'port': self._get_port,
@@ -102,10 +106,13 @@ class SDDockerBackend(AbstractSDBackend):
     def _make_fetch_state(self):
         pod_list = []
         if Platform.is_k8s():
-            try:
-                pod_list = self.kubeutil.retrieve_pods_list().get('items', [])
-            except Exception as ex:
-                log.warning("Failed to retrieve pod list: %s" % str(ex))
+            if not self.kubeutil:
+                self.log.error("kubelet client not created, cannot retrieve pod list.")
+            else:
+                try:
+                    pod_list = self.kubeutil.retrieve_pods_list().get('items', [])
+                except Exception as ex:
+                    log.warning("Failed to retrieve pod list: %s" % str(ex))
         return _SDDockerBackendConfigFetchState(self.docker_client.inspect_container, pod_list)
 
     def update_checks(self, changed_containers):
