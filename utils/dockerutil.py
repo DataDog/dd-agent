@@ -482,6 +482,12 @@ class DockerUtil:
 
             docker_gateways = {}
             for netname, netconf in container['NetworkSettings']['Networks'].iteritems():
+
+                if netname == 'host' or netconf.get(u'Gateway') == '':
+                    log.debug("Empty network gateway, container %s is in network host mode, "
+                        "its network metrics are for the whole host." % container['Id'][:12])
+                    return {'eth0': 'bridge'}
+
                 docker_gateways[netname] = struct.unpack('<L', socket.inet_aton(netconf.get(u'Gateway')))[0]
 
             mapping = {}
