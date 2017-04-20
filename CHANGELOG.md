@@ -13,12 +13,11 @@ Please refer to the [Trace Agent 5.13.0 tag](https://github.com/DataDog/datadog-
 
 * [FEATURE] Docker, Service Discovery: Add ability to get docker IP address from Rancher labels for Rancher 1.3. See [#3265][]
 * [FEATURE] Docker: improve network tagging. See [#3272][]
-
+* [IMPROVEMENT] Kubeutil: catch errors from kubeutil init. See [#3310][]
+* [BUGFIX] JMXFetch: fix race condition preventing SD initialization. See [jmxfetch-135](https://github.com/DataDog/jmxfetch/pull/135)
 * [BUGFIX] Kubernetes_state: refactor gauge submission, fix `container.restarts`. See [#3297][]
-
 * [SANITY] Windows: Remove system network check (metrics already reported by [integrations-core](https://github.com/DataDog/integrations-core/blob/master/network/check.py)). See [#3096][]
 * [SANITY] Kafka: adding Kafka to list of JMX checks (NOP). See [#3304][]
-
 * [REVERT] Core: SpooledTemporaryFile for subprocess output. See [#3291][]
 
 
@@ -4088,6 +4087,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3293]: https://github.com/DataDog/dd-agent/issues/3293
 [#3297]: https://github.com/DataDog/dd-agent/issues/3297
 [#3304]: https://github.com/DataDog/dd-agent/issues/3304
+[#3310]: https://github.com/DataDog/dd-agent/issues/3310
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
