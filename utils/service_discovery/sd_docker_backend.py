@@ -93,7 +93,7 @@ class SDDockerBackend(AbstractSDBackend):
                 self.kubeutil = KubeUtil()
             except Exception as ex:
                 self.kubeutil = None
-                self.log.error("Couldn't instantiate the kubernetes client, "
+                log.error("Couldn't instantiate the kubernetes client, "
                     "subsequent kubernetes calls will fail as well. Error: %s" % str(ex))
         self.VAR_MAPPING = {
             'host': self._get_host_address,
@@ -107,7 +107,7 @@ class SDDockerBackend(AbstractSDBackend):
         pod_list = []
         if Platform.is_k8s():
             if not self.kubeutil:
-                self.log.error("kubelet client not created, cannot retrieve pod list.")
+                log.error("kubelet client not created, cannot retrieve pod list.")
             else:
                 try:
                     pod_list = self.kubeutil.retrieve_pods_list().get('items', [])
