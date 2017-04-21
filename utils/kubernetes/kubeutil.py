@@ -397,14 +397,47 @@ class KubeUtil:
         """
         return KubeEventRetriever(self, namespaces, kinds)
 
-    def compute_changed_containers(self, service_events):
+    def match_containers_for_pods(self, pod_uids, podlist=None):
         """
-        Reads a list of kube events and computes a set of container_ids impacted
-        by the Service changes, to refresh service discovery
+        Reads a set of pod uids and returns the set of docker
+        container ids they manage
+        podlist should be a recent self.retrieve_pods_list return value,
+        if not given that method will be called
         """
         cids = set()
 
-        # TODO
+        if not isinstance(pod_uids, set) or len(pod_uids) < 1:
+            return cids
+
+        if podlist is None:
+            podlist = self.retrieve_pods_list()
+
+        for pod in podlist.get('items', {}):
+            uid = pod.get('metadata', {}).get('uid', None)
+            if uid in pod_uids:
+                for container in pod.get('status', {}).get('containerStatuses', None):
+                    id = container.get('containerID', "")
+                    if id.startswith("docker://"):
+                        cids.add(id[9:])
 
         return cids
 
+    def process_events(self, event_array):
+        """
+        Reads a list of kube events, invalidates caches and and computes a set
+        of pods impacted by the changes, to refresh service discovery
+        Pod creation/deletion events are ignored for now, as docker_daemon already
+        sends container creation/deletion events to SD
+
+        Note: pod uids must be matched to docker container ids with match_containers_for_pods
+        """
+        try:
+            pods = set()
+            if self._service_mapper:
+                pods.update(self._service_mapper.process_events(event_array))
+
+            self.log.warning("Processed pods %s for events %s" % (str(pods), str(event_array)))
+            return pods
+        except Exception as e:
+            self.log.warning("Error processing events %s: %s" % (str(event_array), e))
+            return set()

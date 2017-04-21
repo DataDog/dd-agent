@@ -151,3 +151,47 @@ class PodServiceMapper:
         finally:
             log.debug("Pods match for service %s: %s", service_name, str(matches))
             return matches
+
+    def process_events(self, event_array):
+        """
+        Reads a list of kube events, invalidates caches and and computes a set
+        of pods impacted by the changes, to refresh service discovery
+        """
+        pod_uids = set()
+        service_cache_checked = False
+
+        log.warning("Processing events " + str(event_array))
+
+        for event in event_array:
+            kind = event.get('involvedObject', {}).get('kind', None)
+            reason = event.get('reason', None)
+            if kind == 'Pod' and reason == 'Killing':
+                pod_id = event.get('involvedObject', {}).get('uid', None)
+
+                # Possible values in kubernetes/pkg/kubelet/events/event.go
+                if pod_id in self._pod_labels_cache:
+                    del self._pod_labels_cache[pod_id]
+                if pod_id in self._pod_services_mapping[pod_id]:
+                    del self._pod_services_mapping[pod_id]
+
+            elif kind == 'Service':
+                service_name = event.get('involvedObject', {}).get('name', None)
+
+                if service_cache_checked is False:
+                    self.check_services_cache_freshness()
+                    service_cache_checked = True
+
+                # Possible values in kubernetes/pkg/controller/service/servicecontroller.go
+                if reason == 'DeletedLoadBalancer':
+                    for pod, services in self._pod_services_mapping:
+                        if service_name in services:
+                            services.remove(service_name)
+                            pod_uids.add(pod)
+                elif reason == 'CreatedLoadBalancer' or reason == 'UpdatedLoadBalancer':
+                    for pod in self.search_pods_for_service(service_name):
+                        if (pod in self._pod_services_mapping and
+                                service_name not in self._pod_services_mapping[pod]):
+                            self._pod_services_mapping[pod].append(service_name)
+                            pod_uids.add(pod)
+
+        return pod_uids
