@@ -48,7 +48,6 @@ class PodServiceMapper:
                 if len(selector):
                     self._service_cache_selectors[uid] = selector
             self._service_cache_invalidated = False
-            log.warning(self._service_cache_selectors)
         except Exception as e:
             log.exception('Unable to read service list from apiserver: %s', e)
             self._service_cache_selectors = defaultdict(dict)
@@ -105,7 +104,6 @@ class PodServiceMapper:
 
             # Mapping cache lookup
             if (refresh is False and pod_id in self._pod_services_mapping):
-                log.debug("Returning cache for pod %s: pod_id %s", pod_metadata.get('name'), pod_id)
                 matches = self._pod_services_mapping[pod_id]
             else:
                 if (self._service_cache_invalidated is True):
@@ -115,7 +113,6 @@ class PodServiceMapper:
                         matches.append(service_uid)
                 self._pod_services_mapping[pod_id] = matches
 
-            log.warning("Services match for pod %s: %s", pod_metadata.get('name'), str(matches))
             if names:
                 return [self._service_cache_names.get(uid) for uid in matches]
             else:
@@ -171,8 +168,6 @@ class PodServiceMapper:
         """
         pod_uids = set()
         service_cache_checked = False
-
-        log.warning("Processing events " + str(event_array))
 
         for event in event_array:
             kind = event.get('involvedObject', {}).get('kind', None)

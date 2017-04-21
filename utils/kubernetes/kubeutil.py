@@ -376,7 +376,7 @@ class KubeUtil:
         Pass refresh=True if you want to bypass the cached cid->services mapping (after a service change)
         """
         s = self._service_mapper.match_services_for_pod(pod_metadata, refresh, names=True)
-        log.warning("Matches for %s: %s" % (pod_metadata.get('name'), str(s)))
+        #log.warning("Matches for %s: %s" % (pod_metadata.get('name'), str(s)))
         return s
 
     def _process_events_get_cid_to_update(self, events):
@@ -385,13 +385,6 @@ class KubeUtil:
         New / deleted pods are not processed as this would duplicate docker_daemon
         events and lead to double triggers for the same c_id
         """
-
-    def search_docker_cids_for_pods(self, pod_uid_list):
-        container_ids = set()
-
-        # TODO
-
-        return container_ids
 
     def get_event_retriever(self, namespaces=None, kinds=None):
         """
@@ -437,8 +430,6 @@ class KubeUtil:
             pods = set()
             if self._service_mapper:
                 pods.update(self._service_mapper.process_events(event_array))
-
-            log.warning("Processed pods %s for events %s" % (str(pods), str(event_array)))
             return pods
         except Exception as e:
             log.warning("Error processing events %s: %s" % (str(event_array), e))
