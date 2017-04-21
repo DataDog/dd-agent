@@ -1,3 +1,7 @@
+import logging
+
+log = logging.getLogger('collector')
+
 class KubeEventRetriever:
     """
     Queries the apiserver for events of given kinds and namespaces
@@ -30,7 +34,7 @@ class KubeEventRetriever:
         self.request_url = self.kubeutil.kubernetes_api_url + '/events'
         self.namespace_filter = None
         if isinstance(namespaces, set) or isinstance(namespaces, list):
-            if len(namespaces == 1):
+            if len(namespaces) == 1:
                 namespaces = namespaces[0]
             else:
                 # Client-side filtering
@@ -42,7 +46,7 @@ class KubeEventRetriever:
         self.kind_filter = None
         self.request_params = {}
         if isinstance(kinds, set) or isinstance(kinds, list):
-            if len(kinds == 1):
+            if len(kinds) == 1:
                 kinds = kinds[0]
             else:
                 # Client-side filtering

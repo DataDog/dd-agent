@@ -195,7 +195,7 @@ class PodServiceMapper:
 
                 # Possible values in kubernetes/pkg/controller/service/servicecontroller.go
                 if reason == 'DeletedLoadBalancer':
-                    for pod, services in self._pod_services_mapping:
+                    for pod, services in self._pod_services_mapping.iteritems():
                         if service_uid in services:
                             services.remove(service_uid)
                             pod_uids.add(pod)
