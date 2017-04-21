@@ -315,10 +315,11 @@ class SDDockerBackend(AbstractSDBackend):
             else:
                 log.debug('creator-name for pod %s is empty, this should not happen' % pod_metadata.get('name'))
 
+            # add services tags
             services = self.kubeutil.match_services_for_pod(pod_metadata)
-
             for s in services:
-                tags.append('kube_service:%s' % s)
+                if s is not None:
+                    tags.append('kube_service:%s' % s)
 
         elif Platform.is_swarm():
             c_labels = state.inspect_container(c_id).get('Config', {}).get('Labels', {})

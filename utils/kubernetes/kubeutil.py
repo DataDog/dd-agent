@@ -375,7 +375,9 @@ class KubeUtil:
 
         Pass refresh=True if you want to bypass the cached cid->services mapping (after a service change)
         """
-        return self._service_mapper.match_services_for_pod(pod_metadata, refresh)
+        s = self._service_mapper.match_services_for_pod(pod_metadata, refresh, names=True)
+        log.warning("Matches for %s: %s" % (pod_metadata.get('name'), str(s)))
+        return s
 
     def _process_events_get_cid_to_update(self, events):
         """
@@ -436,8 +438,8 @@ class KubeUtil:
             if self._service_mapper:
                 pods.update(self._service_mapper.process_events(event_array))
 
-            self.log.warning("Processed pods %s for events %s" % (str(pods), str(event_array)))
+            log.warning("Processed pods %s for events %s" % (str(pods), str(event_array)))
             return pods
         except Exception as e:
-            self.log.warning("Error processing events %s: %s" % (str(event_array), e))
+            log.warning("Error processing events %s: %s" % (str(event_array), e))
             return set()

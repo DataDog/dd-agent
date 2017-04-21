@@ -10,12 +10,13 @@ log = logging.getLogger('collector')
 
 
 class PodServiceMapper:
-    _service_cache_selectors = defaultdict(dict)   # {service_name:{selectors}}
+    _service_cache_selectors = defaultdict(dict)   # {service_uid:{selectors}}
+    _service_cache_names = {}                      # {service_uid:service_name
     _service_cache_invalidated = True              # True to trigger service parsing
     _service_cache_last_event_resversion = -1      # last event ressource version
 
     _pod_labels_cache = defaultdict(dict)          # {pod_uid:{label}}
-    _pod_services_mapping = defaultdict(list)      # {pod_uid:[service_name]}
+    _pod_services_mapping = defaultdict(list)      # {pod_uid:[service_uid]}
 
     def __init__(self, kubeutil_object):
         """
@@ -36,16 +37,22 @@ class PodServiceMapper:
                 self.check_services_cache_freshness()
             reply = self.kube.retrieve_json_auth(self.kube.kubernetes_api_url + '/services')
             self._service_cache_selectors = defaultdict(dict)
+            self._service_cache_names = {}
             for service in reply.get('items', []):
+                uid = service.get('metadata', {}).get('uid', '')
                 name = service.get('metadata', {}).get('name', '')
                 selector = service.get('spec', {}).get('selector', {})
-                if len(name) and len(selector):
-                    self._service_cache_selectors[name] = selector
+                if uid == '':
+                    continue
+                self._service_cache_names[uid] = name
+                if len(selector):
+                    self._service_cache_selectors[uid] = selector
             self._service_cache_invalidated = False
             log.warning(self._service_cache_selectors)
         except Exception as e:
             log.exception('Unable to read service list from apiserver: %s', e)
             self._service_cache_selectors = defaultdict(dict)
+            self._service_cache_names = {}
             self._service_cache_invalidated = False
 
     def check_services_cache_freshness(self):
@@ -78,11 +85,12 @@ class PodServiceMapper:
         except Exception as e:
             log.warning("Exception while parsing service events, not invalidating cache: %s", e)
 
-    def match_services_for_pod(self, pod_metadata, refresh=False):
+    def match_services_for_pod(self, pod_metadata, refresh=False, names=False):
         """
         Match the pods labels with services' label selectors to determine the list
-        of services that point to that pod. Returns an array of service names.
+        of services that point to that pod. Returns an array of service uids or names.
 
+        Pass names=True if you want the service name instead of the uids
         Pass refresh=True if you want to bypass the cached cid->services mapping (after a service change)
         """
         matches = []
@@ -98,19 +106,23 @@ class PodServiceMapper:
             # Mapping cache lookup
             if (refresh is False and pod_id in self._pod_services_mapping):
                 log.debug("Returning cache for pod %s: pod_id %s", pod_metadata.get('name'), pod_id)
-                return self._pod_services_mapping[pod_id]
+                matches = self._pod_services_mapping[pod_id]
+            else:
+                if (self._service_cache_invalidated is True):
+                    self._fill_services_cache()
+                for service_uid, label_selectors in self._service_cache_selectors.iteritems():
+                    if self._does_pod_fulfill_selectors(pod_labels, label_selectors):
+                        matches.append(service_uid)
+                self._pod_services_mapping[pod_id] = matches
 
-            if (self._service_cache_invalidated is True):
-                self._fill_services_cache()
-            for name, label_selectors in self._service_cache_selectors.iteritems():
-                if self._does_pod_fulfill_selectors(pod_labels, label_selectors):
-                    matches.append(name)
-            self._pod_services_mapping[pod_id] = matches
+            log.warning("Services match for pod %s: %s", pod_metadata.get('name'), str(matches))
+            if names:
+                return [self._service_cache_names.get(uid) for uid in matches]
+            else:
+                return matches
         except Exception as e:
             log.exception('Error while matching k8s services: %s', e)
-        finally:
-            log.debug("Services match for pod %s: %s", pod_metadata.get('name'), str(matches))
-            return matches
+            return []
 
     @classmethod
     def _does_pod_fulfill_selectors(cls, pod_labels, label_selectors):
@@ -128,9 +140,9 @@ class PodServiceMapper:
                 return False
         return True
 
-    def search_pods_for_service(self, service_name):
+    def search_pods_for_service(self, service_uid):
         """
-        Returns the [pod_uid] list matching a service name.
+        Returns the [pod_uid] list matching a service uid.
         Uses the service selector and pod labels caches, but not _pod_services_mapping
         """
         matches = []
@@ -139,17 +151,17 @@ class PodServiceMapper:
             if (self._service_cache_invalidated is True):
                 self._fill_services_cache()
 
-            if service_name not in self._service_cache_selectors:
-                log.debug("No selectors cached for service %s, skipping search", service_name)
+            if service_uid not in self._service_cache_selectors:
+                log.debug("No selectors cached for service %s, skipping search", service_uid)
                 return []
 
             for pod_uid, labels in self._pod_labels_cache.iteritems():
-                if self._does_pod_fulfill_selectors(labels, self._service_cache_selectors[service_name]):
+                if self._does_pod_fulfill_selectors(labels, self._service_cache_selectors[service_uid]):
                     matches.append(pod_uid)
         except Exception as e:
             log.exception('Error while matching k8s services: %s', e)
         finally:
-            log.debug("Pods match for service %s: %s", service_name, str(matches))
+            log.debug("Pods match for service %s: %s", service_uid, str(matches))
             return matches
 
     def process_events(self, event_array):
@@ -175,7 +187,7 @@ class PodServiceMapper:
                     del self._pod_services_mapping[pod_id]
 
             elif kind == 'Service':
-                service_name = event.get('involvedObject', {}).get('name', None)
+                service_uid = event.get('involvedObject', {}).get('uid', None)
 
                 if service_cache_checked is False:
                     self.check_services_cache_freshness()
@@ -184,14 +196,14 @@ class PodServiceMapper:
                 # Possible values in kubernetes/pkg/controller/service/servicecontroller.go
                 if reason == 'DeletedLoadBalancer':
                     for pod, services in self._pod_services_mapping:
-                        if service_name in services:
-                            services.remove(service_name)
+                        if service_uid in services:
+                            services.remove(service_uid)
                             pod_uids.add(pod)
                 elif reason == 'CreatedLoadBalancer' or reason == 'UpdatedLoadBalancer':
-                    for pod in self.search_pods_for_service(service_name):
+                    for pod in self.search_pods_for_service(service_uid):
                         if (pod in self._pod_services_mapping and
-                                service_name not in self._pod_services_mapping[pod]):
-                            self._pod_services_mapping[pod].append(service_name)
+                                service_uid not in self._pod_services_mapping[pod]):
+                            self._pod_services_mapping[pod].append(service_uid)
                             pod_uids.add(pod)
 
         return pod_uids
