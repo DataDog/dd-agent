@@ -7,12 +7,12 @@ Changes
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.12.3...5.13.0
 
-On this release the APM tracing agent is now enabled by *default*.
+On this release the APM tracing agent is now enabled by *default* on supported platforms (linux).
 Should you wish to disable it please set:
 ```
 apm_enabled: no
 ```
-in the relevant section in `dd-agent.conf` and restart the agent.
+in the relevant section in `datadog.conf` and restart the agent.
 
 ### Changes
 Please refer to the [Integrations Core Checks 5.13.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.13.0) for the list of changes on the Integrations Core checks repository.
