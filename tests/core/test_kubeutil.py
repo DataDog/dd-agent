@@ -19,8 +19,6 @@ class KubeTestCase(unittest.TestCase):
     def tearDown(self):
         self.kube = None
 
-
-class TestKubeUtilServiceTag(KubeTestCase):
     @classmethod
     def _load_json_array(cls, names):
         json_array = []
@@ -29,6 +27,9 @@ class TestKubeUtilServiceTag(KubeTestCase):
             with open(path) as data_file:
                 json_array.append(json.load(data_file))
         return json_array
+
+
+class TestKubeUtilServiceTag(KubeTestCase):
 
     @classmethod
     def _build_pod_metadata(cls, labels=None):
