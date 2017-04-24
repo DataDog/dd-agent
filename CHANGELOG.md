@@ -12,7 +12,7 @@ Should you wish to disable it please set:
 ```
 apm_enabled: no
 ```
-in the relevant section in dd-agent.conf and restart the agent.
+in the relevant section in `dd-agent.conf` and restart the agent.
 
 ### Changes
 Please refer to the [Integrations Core Checks 5.13.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.13.0) for the list of changes on the Integrations Core checks repository.
