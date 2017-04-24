@@ -8,8 +8,7 @@ import logging
 import os
 from urlparse import urljoin
 from urllib import urlencode
-import time
-import calendar
+import simplejson as json
 
 # project
 from util import check_yaml
@@ -26,6 +25,14 @@ log = logging.getLogger('collector')
 KUBERNETES_CHECK_NAME = 'kubernetes'
 
 DEFAULT_TLS_VERIFY = True
+
+CREATOR_KIND_TO_TAG = {
+    'DaemonSet': 'kube_daemon_set',
+    'ReplicaSet': 'kube_replica_set',
+    'ReplicationController': 'kube_replication_controller',
+    'Deployment': 'kube_deployment',
+    'Job': 'kube_job'
+}
 
 
 class KubeUtil:
@@ -416,6 +423,44 @@ class KubeUtil:
                         cids.add(id[9:])
 
         return cids
+
+    def get_pod_creator(self, pod_metadata):
+        """
+        Get the pod's creator from its metadata and returns a
+        tuple (creator_kind, creator_name)
+
+        This allows for consitency across code path
+        """
+        try:
+            created_by = json.loads(pod_metadata['annotations']['kubernetes.io/created-by'])
+            creator_kind = created_by.get('reference', {}).get('kind')
+            creator_name = created_by.get('reference', {}).get('name')
+            return (creator_kind, creator_name)
+        except Exception:
+            log.debug('Could not parse creator for pod ' + pod_metadata.get('name', ''))
+            return (None, None)
+
+    def get_pod_creator_tags(self, pod_metadata, legacy_rep_controller_tag=False):
+        """
+        Get the pod's creator from its metadata and returns a list of tags
+        in the form kube_$kind:$name, ready to add to the metrics
+        """
+        try:
+            tags = []
+            creator_kind, creator_name = self.get_pod_creator(pod_metadata)
+            if creator_kind in CREATOR_KIND_TO_TAG and creator_name:
+                tags.append(CREATOR_KIND_TO_TAG[creator_kind] + creator_name)
+                if creator_kind == 'ReplicaSet':
+                    deployment = self.get_deployment_for_replicaset(creator_name)
+                    if deployment:
+                        tags.append(CREATOR_KIND_TO_TAG['Deployment'] + deployment)
+            if legacy_rep_controller_tag and creator_kind != 'ReplicationController' and creator_name:
+                tags.append('kube_replication_controller:{0}'.format(creator_name))
+
+            return tags
+        except Exception:
+            log.warning('Could not parse creator tags for pod ' + pod_metadata.get('name'))
+            return []
 
     def process_events(self, event_array):
         """

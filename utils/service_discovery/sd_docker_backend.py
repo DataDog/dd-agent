@@ -296,24 +296,9 @@ class SDDockerBackend(AbstractSDBackend):
             namespace = pod_metadata.get('namespace')
             tags.append('kube_namespace:%s' % namespace)
 
-            # get created-by
-            created_by = json.loads(pod_metadata.get('annotations', {}).get('kubernetes.io/created-by', '{}'))
-            creator_kind = created_by.get('reference', {}).get('kind')
-            creator_name = created_by.get('reference', {}).get('name')
-
             # add creator tags
-            if creator_name:
-                if creator_kind == 'ReplicationController':
-                    tags.append('kube_replication_controller:%s' % creator_name)
-                elif creator_kind == 'DaemonSet':
-                    tags.append('kube_daemon_set:%s' % creator_name)
-                elif creator_kind == 'ReplicaSet':
-                    tags.append('kube_replica_set:%s' % creator_name)
-                    deployment = self.kubeutil.get_deployment_for_replicaset(creator_name)
-                    if deployment:
-                        tags.append('kube_deployment:%s' % deployment)
-            else:
-                log.debug('creator-name for pod %s is empty, this should not happen' % pod_metadata.get('name'))
+            creator_tags = self.kubeutil.get_pod_creator_tags(pod_metadata)
+            tags.extend(creator_tags)
 
             # add services tags
             services = self.kubeutil.match_services_for_pod(pod_metadata)
