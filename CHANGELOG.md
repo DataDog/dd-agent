@@ -10,7 +10,7 @@ https://github.com/DataDog/dd-agent/compare/5.12.3...5.13.0
 On this release the APM tracing agent is now enabled by *default*.
 Should you wish to disable it please set:
 ```
-apm_enabled: no`
+apm_enabled: no
 ```
 in the relevant section in dd-agent.conf and restart the agent.
 
