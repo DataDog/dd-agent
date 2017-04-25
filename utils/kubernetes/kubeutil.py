@@ -449,11 +449,11 @@ class KubeUtil:
             tags = []
             creator_kind, creator_name = self.get_pod_creator(pod_metadata)
             if creator_kind in CREATOR_KIND_TO_TAG and creator_name:
-                tags.append(CREATOR_KIND_TO_TAG[creator_kind] + creator_name)
+                tags.append("%s:%s" % (CREATOR_KIND_TO_TAG[creator_kind], creator_name))
                 if creator_kind == 'ReplicaSet':
                     deployment = self.get_deployment_for_replicaset(creator_name)
                     if deployment:
-                        tags.append(CREATOR_KIND_TO_TAG['Deployment'] + deployment)
+                        tags.append("%s:%s" % (CREATOR_KIND_TO_TAG['Deployment'], deployment))
             if legacy_rep_controller_tag and creator_kind != 'ReplicationController' and creator_name:
                 tags.append('kube_replication_controller:{0}'.format(creator_name))
 

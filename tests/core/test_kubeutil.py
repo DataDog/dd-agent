@@ -37,3 +37,23 @@ class TestKubeUtilDeploymentTag(KubeTestCase):
     def test_deployment_illegal_name(self):
         self.assertIsNone(self.kube.get_deployment_for_replicaset('frontend2891696001'))
         self.assertIsNone(self.kube.get_deployment_for_replicaset('-frontend2891696001'))
+
+class TestKubeUtilCreatorTags(KubeTestCase):
+    @classmethod
+    def _fake_pod(cls,creator_kind, creator_name):
+        payload = '{"reference": {"kind":"%s", "name":"%s"}}' % (creator_kind, creator_name)
+        return {'annotations': {'kubernetes.io/created-by': payload}}
+
+    def test_with_replicaset(self):
+        self.assertEqual(['kube_replica_set:test-5432', 'kube_deployment:test'],
+                         self.kube.get_pod_creator_tags(self._fake_pod("ReplicaSet", "test-5432")))
+
+    def test_with_legacy_repcontroller(self):
+        self.assertEqual(['kube_daemon_set:test', 'kube_replication_controller:test'],
+                         self.kube.get_pod_creator_tags(self._fake_pod("DaemonSet", "test"), True))
+
+    def test_with_unknown(self):
+        self.assertEqual([], self.kube.get_pod_creator_tags(self._fake_pod("Unknown", "test")))
+
+    def test_invalid_input(self):
+        self.assertEqual([], self.kube.get_pod_creator_tags({}))
