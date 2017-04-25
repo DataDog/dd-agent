@@ -1,11 +1,8 @@
-# stdlib
-import unittest
-
 # 3rd party
 from mock import patch
 
 # project
-from utils.kubernetes import KubeUtil, KubeEventRetriever
+from utils.kubernetes import KubeEventRetriever
 from tests.core.test_kubeutil import KubeTestCase
 
 
@@ -44,7 +41,7 @@ class TestKubeEventRetriever(KubeTestCase):
     def test_namespace_serverside_filtering(self):
         with patch.object(self.kube, 'retrieve_json_auth', return_value={}) as mock_method:
             retr = KubeEventRetriever(self.kube, namespaces=['testns'])
-            events = retr.get_event_array()
+            retr.get_event_array()
         mock_method.assert_called_once_with('https://kubernetes/api/v1/namespaces/testns/events', params={})
 
     def test_namespace_clientside_filtering(self):
@@ -58,7 +55,7 @@ class TestKubeEventRetriever(KubeTestCase):
     def test_kind_serverside_filtering(self):
         with patch.object(self.kube, 'retrieve_json_auth', return_value={}) as mock_method:
             retr = KubeEventRetriever(self.kube, kinds=['k1'])
-            events = retr.get_event_array()
+            retr.get_event_array()
         mock_method.assert_called_once_with('https://kubernetes/api/v1/events',
                                             params={'fieldSelector': 'involvedObject.kind=k1'})
 
