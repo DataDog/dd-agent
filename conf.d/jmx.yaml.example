@@ -1,5 +1,6 @@
 init_config:
-  # custom_jar_paths: # Optional, allows specifying custom jars that will be added to the classpath of the agent's JVM
+  # custom_jar_paths: # Optional, allows specifying custom jars that will be added to the classpath of the agent's JVM, 
+  # BREAKING CHANGE NOTICE : The agent currently supports a string if there is only one custom JAR. In future versions, this will be deprecated and MUST be a list in all cases.
   #   - /path/to/custom/jarfile.jar
   #   - /path/to/another/custom/jarfile2.jar
 

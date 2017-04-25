@@ -438,6 +438,8 @@ class JMXFetch(object):
 
             if custom_jar_paths:
                 if isinstance(custom_jar_paths, basestring):
+                    log.warn('Using a string when having only one custom jar will be deprecated in future versions' +
+                        ' of the agent. Only the list syntax will be supported. %s', LINK_TO_DOC)
                     custom_jar_paths = [custom_jar_paths]
                 for custom_jar_path in custom_jar_paths:
                     if not os.path.isfile(custom_jar_path):
