@@ -10,20 +10,18 @@ log = logging.getLogger('collector')
 
 
 class PodServiceMapper:
-    _service_cache_selectors = defaultdict(dict)   # {service_uid:{selectors}}
-    _service_cache_names = {}                      # {service_uid:service_name
-    _service_cache_invalidated = True              # True to trigger service parsing
-    _service_cache_last_event_resversion = -1      # last event ressource version
-
-    _pod_labels_cache = defaultdict(dict)          # {pod_uid:{label}}
-    _pod_services_mapping = defaultdict(list)      # {pod_uid:[service_uid]}
-
     def __init__(self, kubeutil_object):
         """
         Create a new service PodServiceMapper
         The apiserver requests are routed through the given KubeUtil instance
         """
         self.kube = kubeutil_object
+        self._service_cache_selectors = defaultdict(dict)   # {service_uid:{selectors}}
+        self._service_cache_names = {}                      # {service_uid:service_name
+        self._service_cache_invalidated = True              # True to trigger service parsing
+        self._service_cache_last_event_resversion = -1      # last event ressource version
+        self._pod_labels_cache = defaultdict(dict)          # {pod_uid:{label}}
+        self._pod_services_mapping = defaultdict(list)      # {pod_uid:[service_uid]}
 
     def _fill_services_cache(self):
         """
@@ -42,11 +40,10 @@ class PodServiceMapper:
                 uid = service.get('metadata', {}).get('uid', '')
                 name = service.get('metadata', {}).get('name', '')
                 selector = service.get('spec', {}).get('selector', {})
-                if uid == '':
+                if uid == '' or len(selector) == 0:
                     continue
                 self._service_cache_names[uid] = name
-                if len(selector):
-                    self._service_cache_selectors[uid] = selector
+                self._service_cache_selectors[uid] = selector
             self._service_cache_invalidated = False
         except Exception as e:
             log.exception('Unable to read service list from apiserver: %s', e)
@@ -172,13 +169,12 @@ class PodServiceMapper:
         for event in event_array:
             kind = event.get('involvedObject', {}).get('kind', None)
             reason = event.get('reason', None)
+            # Possible values in kubernetes/pkg/kubelet/events/event.go
             if kind == 'Pod' and reason == 'Killing':
                 pod_id = event.get('involvedObject', {}).get('uid', None)
-
-                # Possible values in kubernetes/pkg/kubelet/events/event.go
                 if pod_id in self._pod_labels_cache:
                     del self._pod_labels_cache[pod_id]
-                if pod_id in self._pod_services_mapping[pod_id]:
+                if pod_id in self._pod_services_mapping:
                     del self._pod_services_mapping[pod_id]
 
             elif kind == 'Service':
