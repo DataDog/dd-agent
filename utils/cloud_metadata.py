@@ -20,7 +20,7 @@ class GCE(object):
     SOURCE_TYPE_NAME = 'google cloud platform'
     metadata = None
     EXCLUDED_ATTRIBUTES = ["kube-env", "startup-script", "shutdown-script", "configure-sh", "sshKeys", "user-data",
-    "cli-cert", "ipsec-cert", "ssl-cert", "google-container-manifest"]
+    "cli-cert", "ipsec-cert", "ssl-cert", "google-container-manifest", "bosh_settings"]
 
 
     @staticmethod
