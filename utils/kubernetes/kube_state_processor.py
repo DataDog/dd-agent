@@ -131,7 +131,6 @@ class KubeStateProcessor:
         """ Phase a pod is in. """
         check_basename = NAMESPACE + '.pod.phase.'
         for metric in message.metric:
-            # The gauge value is always 1, no point in fetching it.
             phase = ''
             tags = []
             for label in metric.label:
@@ -140,6 +139,7 @@ class KubeStateProcessor:
                 else:
                     tags.append('{}:{}'.format(label.name, label.value))
             #TODO: add deployment/replicaset?
+            self.gauge(check_basename + phase, 1, tags)
             status = self.pod_phase_to_status.get(phase, self.kube_check.UNKNOWN)
             self.service_check(check_basename + phase, status, tags=tags)
 
