@@ -3,8 +3,9 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 import requests
+from google.protobuf.internal.decoder import _DecodeVarint32  # pylint: disable=E0611,E0401
 from checks import AgentCheck
-from utils.prometheus import parse_metric_family
+from utils.prometheus import metrics_pb2
 
 # Prometheus check is a mother class providing a structure and some helpers
 # to collect metrics, events and service checks exposed via Prometheus.
@@ -85,13 +86,36 @@ class PrometheusCheck(AgentCheck):
         """
         raise NotImplementedError()
 
+    def parse_metric_family(self, buf):
+        """
+        Parse the binary buffer in input, searching for Prometheus messages
+        of type MetricFamily [0] delimited by a varint32 [1].
+
+        [0] https://github.com/prometheus/client_model/blob/086fe7ca28bde6cec2acd5223423c1475a362858/metrics.proto#L76-%20%20L81
+        [1] https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/AbstractMessageLite#writeDelimitedTo(java.io.OutputStream)
+
+        Imported from the utils/prometheus/functions.
+
+        TODO: adapt to detect the text format and import it in protobuf classes for easier use.
+        """
+        n = 0
+        while n < len(buf):
+            msg_len, new_pos = _DecodeVarint32(buf, n)
+            n = new_pos
+            msg_buf = buf[n:n+msg_len]
+            n += msg_len
+
+            message = metrics_pb2.MetricFamily()
+            message.ParseFromString(msg_buf)
+            yield message
+
     def process(self, endpoint, send_histograms_buckets=True, instance=None):
         """
         Polls the data from prometheus and pushes them as gauges
         `endpoint` is the metrics endpoint to use to poll metrics from Prometheus
         """
         data = self.poll(endpoint)
-        for metric in parse_metric_family(data):
+        for metric in self.parse_metric_family(data):
             self.process_metric(metric, instance=instance)
 
     def process_metric(self, message, send_histograms_buckets=True, **kwargs):

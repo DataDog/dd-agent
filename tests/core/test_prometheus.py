@@ -55,6 +55,11 @@ class TestPrometheusProcessor(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             self.check.check(None)
 
+    def test_parse_metric_family(self):
+        messages = list(self.check.parse_metric_family(self.bin_data))
+        self.assertEqual(len(messages), 61)
+        self.assertEqual(messages[-1].name, 'process_virtual_memory_bytes')
+
     def test_process(self):
         endpoint = "http://fake.endpoint:10055/metrics"
         self.check.poll = MagicMock(return_value=self.bin_data)

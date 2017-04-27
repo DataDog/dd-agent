@@ -7,6 +7,7 @@ from google.protobuf.internal.decoder import _DecodeVarint32  # pylint: disable=
 from . import metrics_pb2
 
 
+# Deprecated, please use the PrometheusCheck class
 def parse_metric_family(buf):
     """
     Parse the binary buffer in input, searching for Prometheus messages
