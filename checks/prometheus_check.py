@@ -21,41 +21,6 @@ from utils.prometheus import metrics_pb2
 #     AND/OR
 #   - create method named after the prometheus metric they will handle (see self.prometheus_metric_name)
 #
-# Check class example:
-# from checks import CheckException
-# from checks.prometheus_check import PrometheusCheck
-#
-# EVENT_TYPE = SOURCE_TYPE_NAME = 'kubedns'
-#
-# class KubeDNSCheck(PrometheusCheck):
-#     """
-#     Collect kube dns metrics from Prometheus
-#     """
-#     def __init__(self, name, init_config, agentConfig, instances=None):
-#         super(PrometheusDNSCheck, self).__init__(name, init_config, agentConfig, instances)
-#         self.client = PrometheusCheck(self)
-#         self.client.NAMESPACE='kubedns'
-#
-#         self.client.metrics_mapper = {
-#             'skydns_skydns_dns_response_size_bytes': 'dns.response_size.bytes',
-#             'skydns_skydns_dns_request_duration_seconds': 'dns.request_duration.seconds',
-#             'skydns_skydns_dns_request_count_total': 'dns.request_count.total',
-#             'skydns_skydns_dns_error_count_total': 'dns.error_count.total',
-#             'skydns_skydns_dns_cachemiss_count_total': 'dns.cachemiss_count.total',
-#         }
-#
-#
-#     def check(self, instance):
-#         endpoint = 'http://localhost:10055/metrics'
-#         if endpoint is None:
-#             raise CheckException("Unable to find prometheus_endpoint in config file.")
-#
-#         send_buckets = instance.get('send_histograms_buckets')
-#         if send_buckets is None:
-#             raise CheckException("Unable to find send_histograms_buckets in config file.")
-#
-#         self.client.process(endpoint, send_histograms_buckets=send_buckets, instance=instance)
-#
 
 # Used to specify if you want to use the protobuf format or the text format when
 # querying prometheus metrics
@@ -151,7 +116,7 @@ class PrometheusCheck(AgentCheck):
         req.raise_for_status()
         return req.content
 
-    def _submit_metric(self, metric_name, message, send_histograms_buckets=True, labels_mapper={}, custom_tags=None):
+    def _submit_metric(self, metric_name, message, send_histograms_buckets=True, labels_mapper={}, custom_tags=None, exclude_labels=None):
         """
         For each metric in the message, report it as a gauge with all labels as tags
         except if a labels dict is passed, in which case keys are label names we'll extract
@@ -166,39 +131,49 @@ class PrometheusCheck(AgentCheck):
 
         `custom_tags` is an array of 'tag:value' that will be added to the
         metric when sending the gauge to Datadog.
+
+        `exclude_labels` is an array of labels names to exclude. Those labels
+        will just not be added as tags when submitting the metric.
         """
         if message.type < len(self.METRIC_TYPES):
             for metric in message.metric:
                 if message.type == 4:
-                    self._submit_gauges_from_histogram(metric_name, metric, send_histograms_buckets, labels_mapper, custom_tags)
+                    self._submit_gauges_from_histogram(metric_name, metric, send_histograms_buckets, labels_mapper, custom_tags, exclude_labels)
                 elif message.type == 2:
-                    self._submit_gauges_from_summary(metric_name, metric, labels_mapper, custom_tags)
+                    self._submit_gauges_from_summary(metric_name, metric, labels_mapper, custom_tags, exclude_labels)
                 else:
                     val = getattr(metric, self.METRIC_TYPES[message.type]).value
-                    self._submit_gauge(metric_name, val, metric, labels_mapper, custom_tags)
+                    self._submit_gauge(metric_name, val, metric, labels_mapper, custom_tags, exclude_labels)
 
         else:
             self.log.error("Metric type {} unsupported for metric {}.".format(message.type, message.name))
 
-    def _submit_gauge(self, metric_name, val, metric, labels_mapper=None, custom_tags=None):
+    def _submit_gauge(self, metric_name, val, metric, labels_mapper=None, custom_tags=None, exclude_labels=None):
         """
         Submit a metric as a gauge, additional tags provided will be added to
         the ones from the label provided via the metrics object.
 
         If the `labels_mapper` dictionnary is provided, the metrics labels names
         in the `labels_mapper` will use the corresponding value as tag name.
+
+        `custom_tags` is an array of 'tag:value' that will be added to the
+        metric when sending the gauge to Datadog.
+
+        `exclude_labels` is an array of labels names to exclude. Those labels
+        will just not be added as tags when submitting the metric.
         """
         _tags = custom_tags
         if _tags is None:
             _tags = []
         for label in metric.label:
-            tag_name = label.name
-            if labels_mapper is not None and label.name in labels_mapper:
-                tag_name = labels_mapper[label.name]
-            _tags.append('{}:{}'.format(tag_name, label.value))
+            if exclude_labels is None or label.name not in exclude_labels:
+                tag_name = label.name
+                if labels_mapper is not None and label.name in labels_mapper:
+                    tag_name = labels_mapper[label.name]
+                _tags.append('{}:{}'.format(tag_name, label.value))
         self.gauge('{}.{}'.format(self.NAMESPACE, metric_name), val, _tags)
 
-    def _submit_gauges_from_summary(self, name, metric, labels_mapper={}, custom_tags=None):
+    def _submit_gauges_from_summary(self, name, metric, labels_mapper={}, custom_tags=None, exclude_labels=None):
         """
         Extracts metrics from a prometheus summary metric and sends them as gauges
         """
@@ -206,15 +181,15 @@ class PrometheusCheck(AgentCheck):
             custom_tags = []
         # summaries do not have a value attribute
         val = getattr(metric, self.METRIC_TYPES[2]).sample_count
-        self._submit_gauge("{}.count".format(name), val, metric, labels_mapper, custom_tags)
+        self._submit_gauge("{}.count".format(name), val, metric, labels_mapper, custom_tags, exclude_labels)
         val = getattr(metric, self.METRIC_TYPES[2]).sample_sum
-        self._submit_gauge("{}.sum".format(name), val, metric, labels_mapper, custom_tags)
+        self._submit_gauge("{}.sum".format(name), val, metric, labels_mapper, custom_tags, exclude_labels)
         for quantile in getattr(metric, self.METRIC_TYPES[2]).quantile:
             val = quantile.value
             limit = quantile.quantile
-            self._submit_gauge("{}.quantile".format(name), val, metric, labels_mapper, custom_tags=custom_tags+["quantile:{}".format(limit)])
+            self._submit_gauge("{}.quantile".format(name), val, metric, labels_mapper, custom_tags=custom_tags+["quantile:{}".format(limit)], exclude_labels=exclude_labels)
 
-    def _submit_gauges_from_histogram(self, name, metric, send_histograms_buckets=True, labels_mapper={}, custom_tags=None):
+    def _submit_gauges_from_histogram(self, name, metric, send_histograms_buckets=True, labels_mapper={}, custom_tags=None, exclude_labels=None):
         """
         Extracts metrics from a prometheus histogram and sends them as gauges
         """
@@ -222,11 +197,11 @@ class PrometheusCheck(AgentCheck):
             custom_tags = []
         # histograms do not have a value attribute
         val = getattr(metric, self.METRIC_TYPES[4]).sample_count
-        self._submit_gauge("{}.count".format(name), val, metric, labels_mapper, custom_tags)
+        self._submit_gauge("{}.count".format(name), val, metric, labels_mapper, custom_tags, exclude_labels)
         val = getattr(metric, self.METRIC_TYPES[4]).sample_sum
-        self._submit_gauge("{}.sum".format(name), val, metric, labels_mapper, custom_tags)
+        self._submit_gauge("{}.sum".format(name), val, metric, labels_mapper, custom_tags, exclude_labels)
         if send_histograms_buckets:
             for bucket in getattr(metric, self.METRIC_TYPES[4]).bucket:
                 val = bucket.cumulative_count
                 limit = bucket.upper_bound
-                self._submit_gauge("{}.count".format(name), val, metric, labels_mapper=labels_mapper, custom_tags=custom_tags+["upper_bound:{}".format(limit)])
+                self._submit_gauge("{}.count".format(name), val, metric, labels_mapper=labels_mapper, custom_tags=custom_tags+["upper_bound:{}".format(limit)], exclude_labels=exclude_labels)

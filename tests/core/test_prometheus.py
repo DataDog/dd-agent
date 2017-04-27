@@ -130,6 +130,24 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                 ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
 
+    def test_submit_metric_gauge_with_exclude_labels(self):
+        '''
+        Submitting metrics when filtering with exclude_labels should end up with
+        a filtered tags list
+        '''
+        _l1 = self.ref_gauge.metric[0].label.add()
+        _l1.name = 'my_1st_label'
+        _l1.value = 'my_1st_label_value'
+        _l2 = self.ref_gauge.metric[0].label.add()
+        _l2.name = 'my_2nd_label'
+        _l2.value = 'my_2nd_label_value'
+        label_mapper = {'my_1st_label': 'transformed_1st', 'non_existent': 'should_not_matter', 'env': 'dont_touch_custom_tags'}
+        tags = ['env:dev', 'app:my_pretty_app']
+        filters = ['my_2nd_label', 'whatever_else', 'env'] # custom tags are not filtered out
+        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, labels_mapper=label_mapper, custom_tags=tags, exclude_labels=filters)
+        self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
+                ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value'])
+
     def test_submit_metric_counter(self):
         _counter = metrics_pb2.MetricFamily()
         _counter.name = 'my_counter'
