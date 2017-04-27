@@ -316,6 +316,8 @@ class WMISampler(object):
             if counter_type:
                 calculator = self._get_property_calculator(counter_type)
                 property_formatted_value = calculator(previous, current, property_name)
+                self.logger.debug(u"formatted value: pvs: {0} current {1} final {2}".format(
+                    previous, current, property_formatted_value))
 
             formatted_wmi_object[property_name] = property_formatted_value
 
@@ -467,6 +469,7 @@ class WMISampler(object):
             raw_results = self.get_connection().ExecQuery(wql, "WQL", query_flags)
 
             results = self._parse_results(raw_results, includes_qualifiers=includes_qualifiers)
+            self.logger.debug("Parsed results %s" % str(results))
 
         except pywintypes.com_error:
             self.logger.warning(u"Failed to execute WMI query (%s)", wql, exc_info=True)
