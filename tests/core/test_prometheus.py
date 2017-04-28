@@ -30,6 +30,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.log.debug = MagicMock()
         self.check.metrics_mapper = {'process_virtual_memory_bytes': 'process.vm.bytes'}
         self.check.NAMESPACE = 'prometheus'
+        self.protobuf_content_type = 'application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=delimited'
         # reference gauge metric in the protobuf target class type
         self.ref_gauge = metrics_pb2.MetricFamily()
         self.ref_gauge.name = 'process_virtual_memory_bytes'
@@ -55,14 +56,96 @@ class TestPrometheusProcessor(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             self.check.check(None)
 
-    def test_parse_metric_family(self):
-        messages = list(self.check.parse_metric_family(self.bin_data))
+    def test_parse_metric_family_protobuf(self):
+        messages = list(self.check.parse_metric_family(self.bin_data, self.protobuf_content_type))
         self.assertEqual(len(messages), 61)
         self.assertEqual(messages[-1].name, 'process_virtual_memory_bytes')
 
+    def test_parse_metric_family_text(self):
+        ''' Test the high level method for loading metrics from text format '''
+        _text_data = None
+        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'metrics.txt')
+        with open(f_name, 'r') as f:
+            _text_data = f.read()
+            self.assertEqual(len(_text_data), 14488)
+        messages = list(self.check.parse_metric_family(_text_data, 'text/plain; version=0.0.4'))
+        self.assertEqual(len(messages), 41)
+        # Tests correct parsing of counters
+        _counter = metrics_pb2.MetricFamily()
+        _counter.name = 'skydns_skydns_dns_cachemiss_count_total'
+        _counter.help = 'Counter of DNS requests that result in a cache miss.'
+        _counter.type = 0 # COUNTER
+        _c = _counter.metric.add()
+        _c.counter.value = 1359194.0
+        _lc = _c.label.add()
+        _lc.name = 'cache'
+        _lc.value = 'response'
+        self.assertIn(_counter, messages)
+        # Tests correct parsing of gauges
+        _gauge = metrics_pb2.MetricFamily()
+        _gauge.name = 'go_memstats_heap_alloc_bytes'
+        _gauge.help = 'Number of heap bytes allocated and still in use.'
+        _gauge.type = 1 # GAUGE
+        _gauge.metric.add().gauge.value = 6396288.0
+        self.assertIn(_gauge, messages)
+        # Tests correct parsing of summaries
+        _summary = metrics_pb2.MetricFamily()
+        _summary.name = 'http_response_size_bytes'
+        _summary.help = 'The HTTP response sizes in bytes.'
+        _summary.type = 2 # SUMMARY
+        _sm = _summary.metric.add()
+        _lsm = _sm.label.add()
+        _lsm.name = 'handler'
+        _lsm.value = 'prometheus'
+        _sm.summary.sample_count = 25
+        _sm.summary.sample_sum = 147728.0
+        _sq1 = _sm.summary.quantile.add()
+        _sq1.quantile = 0.5
+        _sq1.value = 21470.0
+        _sq2 = _sm.summary.quantile.add()
+        _sq2.quantile = 0.9
+        _sq2.value = 21470.0
+        _sq3 = _sm.summary.quantile.add()
+        _sq3.quantile = 0.99
+        _sq3.value = 21470.0
+        self.assertIn(_summary, messages)
+        # Tests correct parsing of histograms
+        _histo = metrics_pb2.MetricFamily()
+        _histo.name = 'skydns_skydns_dns_response_size_bytes'
+        _histo.help = 'Size of the returns response in bytes.'
+        _histo.type = 4 # HISTOGRAM
+        _sample_data = [
+            {'ct':1359194,'sum':199427281.0, 'lbl': {'system':'auth'},
+                'buckets':{0.0: 0, 512.0:1359194, 1024.0:1359194,
+                    1500.0:1359194, 2048.0:1359194, float('+Inf'):1359194}},
+            {'ct':1359194,'sum':199427281.0, 'lbl': {'system':'recursive'},
+                'buckets':{0.0: 0, 512.0:520924, 1024.0:520924, 1500.0:520924,
+                    2048.0:520924, float('+Inf'):520924}},
+            {'ct':1359194,'sum':199427281.0, 'lbl': {'system':'reverse'},
+                'buckets':{0.0: 0, 512.0:67648, 1024.0:67648, 1500.0:67648,
+                    2048.0:67648, float('+Inf'):67648}},
+        ]
+        for _data in _sample_data:
+            _h = _histo.metric.add()
+            _h.histogram.sample_count = _data['ct']
+            _h.histogram.sample_sum = _data['sum']
+            for k, v in _data['lbl'].items():
+                _lh = _h.label.add()
+                _lh.name = k
+                _lh.value = v
+            for _b in sorted(_data['buckets'].iterkeys()):
+                _subh = _h.histogram.bucket.add()
+                _subh.upper_bound = _b
+                _subh.cumulative_count = _data['buckets'][_b]
+        self.assertIn(_histo, messages)
+
+    def test_parse_metric_family_unsupported(self):
+        with self.assertRaises(PrometheusCheck.UnknownFormatError):
+            list(self.check.parse_metric_family(self.bin_data, 'application/json'))
+
     def test_process(self):
         endpoint = "http://fake.endpoint:10055/metrics"
-        self.check.poll = MagicMock(return_value=self.bin_data)
+        self.check.poll = MagicMock(return_value=[self.protobuf_content_type, self.bin_data])
         self.check.process_metric = MagicMock()
         self.check.process(endpoint, instance=None)
         self.check.poll.assert_called_with(endpoint)
@@ -88,9 +171,9 @@ class TestPrometheusProcessor(unittest.TestCase):
     @patch('requests.get')
     def test_poll_protobuf(self, mock_get):
         ''' Tests poll using the protobuf format '''
-        mock_get.return_value = MagicMock(status_code=200, content=self.bin_data)
-        data = self.check.poll("http://fake.endpoint:10055/metrics")
-        messages = list(parse_metric_family(data))
+        mock_get.return_value = MagicMock(status_code=200, content=self.bin_data, headers={'Content-Type': self.protobuf_content_type})
+        ct, data = self.check.poll("http://fake.endpoint:10055/metrics")
+        messages = list(self.check.parse_metric_family(data, ct))
         self.assertEqual(len(messages), 61)
         self.assertEqual(messages[-1].name, 'process_virtual_memory_bytes')
 
@@ -124,9 +207,9 @@ class TestPrometheusProcessor(unittest.TestCase):
         _l2 = self.ref_gauge.metric[0].label.add()
         _l2.name = 'my_2nd_label'
         _l2.value = 'my_2nd_label_value'
-        label_mapper = {'my_1st_label': 'transformed_1st', 'non_existent': 'should_not_matter', 'env': 'dont_touch_custom_tags'}
+        self.check.labels_mapper = {'my_1st_label': 'transformed_1st', 'non_existent': 'should_not_matter', 'env': 'dont_touch_custom_tags'}
         tags = ['env:dev', 'app:my_pretty_app']
-        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, labels_mapper=label_mapper, custom_tags=tags)
+        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                 ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
 
@@ -141,10 +224,10 @@ class TestPrometheusProcessor(unittest.TestCase):
         _l2 = self.ref_gauge.metric[0].label.add()
         _l2.name = 'my_2nd_label'
         _l2.value = 'my_2nd_label_value'
-        label_mapper = {'my_1st_label': 'transformed_1st', 'non_existent': 'should_not_matter', 'env': 'dont_touch_custom_tags'}
+        self.check.labels_mapper = {'my_1st_label': 'transformed_1st', 'non_existent': 'should_not_matter', 'env': 'dont_touch_custom_tags'}
         tags = ['env:dev', 'app:my_pretty_app']
-        filters = ['my_2nd_label', 'whatever_else', 'env'] # custom tags are not filtered out
-        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, labels_mapper=label_mapper, custom_tags=tags, exclude_labels=filters)
+        self.check.exclude_labels = ['my_2nd_label', 'whatever_else', 'env'] # custom tags are not filtered out
+        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                 ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value'])
 
