@@ -7,6 +7,26 @@
 PIP_COMMAND=${PIP_COMMAND:-pip}
 PIP_OPTIONS=${PIP_OPTIONS:-}
 
+print_console() {
+    printf "%s\n" "$*" | tee -a "$LOGFILE" >&3
+}
+
+print_console_wo_nl() {
+    printf "%s" "$*" | tee -a "$LOGFILE" >&3
+}
+
+print_red() {
+    printf "\033[31m%s\033[0m\n" "$*" | tee -a "$LOGFILE" >&3
+}
+
+print_green() {
+    printf "\033[32m%s\033[0m\n" "$*" | tee -a "$LOGFILE" >&3
+}
+
+print_done() {
+    print_green "Done"
+}
+
 while read dependency; do
     dependency_stripped="$(echo "${dependency}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     case "$dependency_stripped" in

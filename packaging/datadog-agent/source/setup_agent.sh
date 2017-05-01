@@ -413,7 +413,7 @@ if [ "$AGENT_MAJOR_VERSION" -eq "5" -a "$AGENT_MINOR_VERSION" -gt "11" ]; then
   for INT in $INTEGRATIONS; do
     INT_DIR="$DD_HOME/integrations/$INT"
     if [ -f "$INT_DIR/requirements.txt" ]; then
-      "$DD_HOME/agent/utils/pip-allow-failures.sh" "$INT_DIR/requirements.txt"
+      LOGFILE=$LOGFILE "$DD_HOME/agent/utils/pip-allow-failures.sh" "$INT_DIR/requirements.txt"
     fi
     if [ -f "$INT_DIR/check.py" ]; then
       cp "$INT_DIR/check.py" "$DD_HOME/agent/checks.d/$INT.py"
@@ -433,7 +433,7 @@ fi
 
 print_console "* Trying to install optional requirements"
 $DOWNLOADER "$DD_HOME/requirements-opt.txt" "$BASE_GITHUB_URL/requirements-opt.txt"
-"$DD_HOME/agent/utils/pip-allow-failures.sh" "$DD_HOME/requirements-opt.txt"
+LOGFILE=$LOGFILE "$DD_HOME/agent/utils/pip-allow-failures.sh" "$DD_HOME/requirements-opt.txt"
 print_done
 
 print_console "* Setting up a datadog.conf generic configuration file"
