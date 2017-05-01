@@ -133,7 +133,7 @@ DOG="
 "
 
 LOGFILE="$DD_HOME/ddagent-install.log"
-BASE_GITHUB_URL="https://raw.githubusercontent.com/DataDog/dd-agent/$AGENT_VERSION"
+BASE_GITHUB_URL="https://raw.githubusercontent.com/DataDog/dd-agent/greg/alpine"
 
 #######################################################################
 # Error reporting helpers
@@ -411,6 +411,7 @@ if [ "$AGENT_MAJOR_VERSION" -eq "5" -a "$AGENT_MINOR_VERSION" -gt "11" ]; then
   print_console "* Setting up integrations"
   INTEGRATIONS=$(ls $DD_HOME/integrations/)
   for INT in $INTEGRATIONS; do
+    print_console "* Setting up $INT"
     INT_DIR="$DD_HOME/integrations/$INT"
     if [ -f "$INT_DIR/requirements.txt" ]; then
       LOGFILE=$LOGFILE "$DD_HOME/agent/utils/pip-allow-failures.sh" "$INT_DIR/requirements.txt"
