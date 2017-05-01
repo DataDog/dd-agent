@@ -614,6 +614,7 @@ class Aggregator(object):
                 self.count += 1
                 for name, value, mtype, tags, sample_rate in parsed_packets:
                     hostname, device_name, tags = self._extract_magic_tags(tags)
+                    log.info('submitting metric: %s, %s, %s' % (name, value, mtype))
                     self.submit_metric(name, value, mtype, tags=tags, hostname=hostname,
                                        device_name=device_name, sample_rate=sample_rate)
 

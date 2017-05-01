@@ -273,14 +273,16 @@ class Reporter(threading.Thread):
                 service_check_count=service_check_count,
             ).persist()
 
-        except Exception:
+        except Exception as e:
             if self.finished.isSet():
                 log.debug("Couldn't flush metrics, but that's expected as we're stopping")
             else:
                 log.exception("Error flushing metrics")
+                log.info(e)
 
     def submit(self, metrics):
         body, headers = serialize_metrics(metrics, self.hostname)
+        log.info("sending metrics: %s", body)
         params = {}
         if self.api_key:
             params['api_key'] = self.api_key
@@ -416,6 +418,7 @@ class Server(object):
                 ready = select_select(sock, [], [], timeout)
                 if ready[0]:
                     message = socket_recv(buffer_size)
+                    log.info("Recvd message: %s", message)
                     aggregator_submit(message)
 
                     if should_forward:
