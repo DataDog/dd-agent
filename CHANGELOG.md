@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 5.12.2 / 03-29-2017
+# 5.13.1 / 05-02-2017
 **Docker Alpine and Source Install Only**
 
 ### Details
