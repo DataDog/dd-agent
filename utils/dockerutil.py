@@ -481,20 +481,20 @@ class DockerUtil:
                     else:
                         image_spec = self.client.inspect_image(image)
                         try:
-                            name = image_spec.get('RepoTags')[0]
+                            name = image_spec['RepoTags'][0]
                             self._image_sha_to_name_mapping[image] = name
                             return name
-                        except Exception:
-                            pass
+                        except (LookupError, TypeError) as e:
+                            log.debug("Failed finding image name in RepoTag, trying RepoDigests: %s", e)
                         try:
-                            name = image_spec.get('RepoDigests')[0]
+                            name = image_spec['RepoDigests'][0]
                             name = name.split('@')[0]   # Last resort, we get the name with no tag
                             self._image_sha_to_name_mapping[image] = name
                             return name
-                        except Exception:
-                            pass
+                        except (LookupError, TypeError) as e:
+                            log.warning("Failed finding image name in RepoTag and RepoDigests: %s", e)
                 except Exception:
-                    pass
+                    log.exception("Exception getting docker image name")
             else:
                 return image
         return None
