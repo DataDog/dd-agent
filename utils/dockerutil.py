@@ -70,6 +70,9 @@ class DockerUtil:
         # At first run we'll just collect the events from the latest 60 secs
         self._latest_event_collection_ts = int(time.time()) - 60
 
+        # Memory cache for sha256 to image name mapping
+        self._image_sha_to_name_mapping = {}
+
         # Try to detect if we are on Swarm
         self.fetch_swarm_state()
 
@@ -428,10 +431,10 @@ class DockerUtil:
 
         raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
-    @classmethod
-    def image_tag_extractor(cls, entity, key):
-        if "Image" in entity:
-            split = entity["Image"].split(":")
+    def image_tag_extractor(self, entity, key):
+        name = self.image_name_extractor(entity)
+        if len(name):
+            split = name.split(":")
             if len(split) <= key:
                 return None
             elif len(split) > 2:
@@ -439,7 +442,8 @@ class DockerUtil:
                 # the split will be like [repo_url, repo_port/image_name, image_tag]. Let's avoid that
                 split = [':'.join(split[:-1]), split[-1]]
             return [split[key]]
-        if entity.get('RepoTags'):
+        # Entity is an image. TODO: deprecate?
+        elif entity.get('RepoTags'):
             splits = [el.split(":") for el in entity["RepoTags"]]
             tags = set()
             for split in splits:
@@ -457,6 +461,42 @@ class DockerUtil:
             if len(split) > 1:
                 return [split[key]]
 
+        return None
+
+    def image_name_extractor(self, co):
+        """
+        Returns the image name for a container, either directly from the
+        container's Image property or by inspecting the image entity if
+        the reference is its sha256 sum and not its name.
+        Result is cached for performance, no invalidation planned as image
+        churn is low on typical hosts.
+        """
+        if "Image" in co:
+            image = co.get('Image', '')
+            if image.startswith('sha256:'):
+                # Some orchestrators setup containers with image checksum instead of image name
+                try:
+                    if image in self._image_sha_to_name_mapping:
+                        return self._image_sha_to_name_mapping[image]
+                    else:
+                        image_spec = self.client.inspect_image(image)
+                        try:
+                            name = image_spec.get('RepoTags')[0]
+                            self._image_sha_to_name_mapping[image] = name
+                            return name
+                        except Exception:
+                            pass
+                        try:
+                            name = image_spec.get('RepoDigests')[0]
+                            name = name.split('@')[0]   # Last resort, we get the name with no tag
+                            self._image_sha_to_name_mapping[image] = name
+                            return name
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+            else:
+                return image
         return None
 
     @classmethod

@@ -1,6 +1,9 @@
 # stdlib
 import unittest
 
+# 3rd party
+import mock
+
 # project
 from utils.dockerutil import DockerUtil
 
@@ -28,3 +31,31 @@ class TestDockerUtil(unittest.TestCase):
         du = DockerUtil()
         for line, exp_res in lines:
             self.assertEquals(du._parse_subsystem(line), exp_res)
+
+    def test_image_name_from_container(self):
+        co = {'Image': 'redis:3.2'}
+        self.assertEqual('redis:3.2', DockerUtil().image_name_extractor(co))
+        pass
+
+    @mock.patch('docker.Client.inspect_image')
+    @mock.patch('docker.Client.__init__')
+    def test_image_name_from_image_repotags(self, mock_init, mock_image):
+        mock_image.return_value = {'RepoTags': ["redis:3.2"], 'RepoDigests': []}
+        mock_init.return_value = None
+        sha = 'sha256:e48e77eee11b6d9ac9fc35a23992b4158355a8ec3fd3725526eba3f467e4b6c9'
+        co = {'Image': sha}
+        self.assertEqual('redis:3.2', DockerUtil().image_name_extractor(co))
+        mock_image.assert_called_once_with(sha)
+
+        # Make sure cache is used insead of call again inspect_image
+        DockerUtil().image_name_extractor(co)
+        mock_image.assert_called_once()
+
+    @mock.patch('docker.Client.inspect_image')
+    @mock.patch('docker.Client.__init__')
+    def test_image_name_from_image_repodigests(self, mock_init, mock_image):
+        mock_image.return_value = {'RepoTags': [],
+            'RepoDigests': ['alpine@sha256:4f2d8bbad359e3e6f23c0498e009aaa3e2f31996cbea7269b78f92ee43647811']}
+        mock_init.return_value = None
+        co = {'Image': 'sha256:e48e77eee11b6d9ac9fc35a23992b4158355a8ec3fd3725526eba3f467e4b6d9'}
+        self.assertEqual('alpine', DockerUtil().image_name_extractor(co))
