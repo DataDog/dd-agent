@@ -18,7 +18,7 @@ from utils.prometheus import metrics_pb2
 # Minimal config for checks based on this class include:
 #   - implementing the check method
 #   - overriding self.NAMESPACE
-#   - overriding self.metric_to_gauge
+#   - overriding self.metrics_mapper
 #     AND/OR
 #   - create method named after the prometheus metric they will handle (see self.prometheus_metric_name)
 #
@@ -31,6 +31,7 @@ class PrometheusFormat:
 
 class PrometheusCheck(AgentCheck):
     def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         # message.type is the index in this array
         # see: https://github.com/prometheus/client_model/blob/master/ruby/lib/prometheus/client/model/metrics.pb.rb
         self.METRIC_TYPES = ['counter', 'gauge', 'summary', 'untyped', 'histogram']
@@ -65,6 +66,10 @@ class PrometheusCheck(AgentCheck):
         from the instance and using the utils to process messages and submit metrics.
         """
         raise NotImplementedError()
+
+    def prometheus_metric_name(self, message, **kwargs):
+        """ Example method"""
+        pass
 
     class UnknownFormatError(Exception):
         def __init__(self, arg):
