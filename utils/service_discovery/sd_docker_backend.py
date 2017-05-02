@@ -87,7 +87,8 @@ class SDDockerBackend(AbstractSDBackend):
             agentConfig['sd_config_backend'] = None
             self.config_store = get_config_store(agentConfig=agentConfig)
 
-        self.docker_client = DockerUtil(config_store=self.config_store).client
+        self.dockerutil = DockerUtil(config_store=self.config_store)
+        self.docker_client = self.dockerutil.client
         if Platform.is_k8s():
             try:
                 self.kubeutil = KubeUtil()
@@ -347,7 +348,7 @@ class SDDockerBackend(AbstractSDBackend):
         configs = {}
         state = self._make_fetch_state()
         containers = [(
-            container.get('Image'),
+            self.dockerutil.image_name_extractor(container),
             container.get('Id'), container.get('Labels')
         ) for container in self.docker_client.containers()]
 
