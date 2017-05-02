@@ -1,6 +1,17 @@
 Changes
 =======
 
+# 5.12.2 / 03-29-2017
+**Docker Alpine and Source Install Only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.13.0...5.13.1
+
+### Changes
+
+* [BUGFIX] Redis: Fixes a bug where the redis python library would not install using the source install. See [integrations-core-389](https://github.com/DataDog/integrations-core/pull/389)
+
+
 # 5.13.0 / 04-24-2017
 **Linux, Windows, Docker and Source Install**
 
