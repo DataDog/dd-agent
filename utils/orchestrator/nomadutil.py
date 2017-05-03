@@ -18,11 +18,9 @@ NOMAD_ALLOC_NAME = 'NOMAD_ALLOC_NAME'
 class NomadUtil:
     __metaclass__ = Singleton
 
-    def __init__(self, instance=None):
+    def __init__(self):
         self.docker_util = DockerUtil()
-        if instance is None:
-            log.debug("New NomadUtil instance")
-            self._container_tags_cache = {}
+        self._container_tags_cache = {}
 
     def extract_container_tags(self, co):
         """
