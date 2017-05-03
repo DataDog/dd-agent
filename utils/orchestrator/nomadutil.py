@@ -23,26 +23,6 @@ class NomadUtil:
         if instance is None:
             log.debug("New NomadUtil instance")
             self._container_tags_cache = {}
-            self._enabled = None
-
-    def init_platform(self, agentConfig):
-        """
-        Enable/disable Nomad support depending on the docker_orchestrator config file entry
-        :param agentConfig: dict from config.get_config()
-        """
-        self._enabled = agentConfig.get('docker_orchestrator', None) == 'nomad'
-
-    def is_enabled(self):
-        """
-        Allows user classes to check whether nomad is to be activated.
-        init_platform has to be called once first
-        :return: True/False
-        """
-        if self._enabled is None:
-            log.warning("Calling nomad.is_nomad before init_platform, replying False")
-            return False
-        else:
-            return self._enabled
 
     def extract_container_tags(self, co):
         """

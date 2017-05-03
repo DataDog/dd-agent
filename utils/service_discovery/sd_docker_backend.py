@@ -98,8 +98,8 @@ class SDDockerBackend(AbstractSDBackend):
                 log.error("Couldn't instantiate the kubernetes client, "
                     "subsequent kubernetes calls will fail as well. Error: %s" % str(ex))
 
-        self.nomadutil = NomadUtil()
-        self.nomadutil.init_platform(agentConfig)
+        if Platform.is_nomad():
+            self.nomadutil = NomadUtil()
 
         self.VAR_MAPPING = {
             'host': self._get_host_address,

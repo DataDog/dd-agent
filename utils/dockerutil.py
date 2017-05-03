@@ -80,7 +80,6 @@ class DockerUtil:
         # Try to detect if an orchestrator is running
         self._is_ecs = False
         self._is_rancher = False
-        self._is_nomad = False
 
         try:
             containers = self.client.containers()
