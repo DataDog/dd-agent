@@ -20,22 +20,24 @@ class NomadUtil:
 
     def __init__(self):
         self.docker_util = DockerUtil()
+
+        # Tags cache as a dict {co_id: (create_timestamp, [tags])}
         self._container_tags_cache = {}
 
     def extract_container_tags(self, co):
         """
         Queries docker inspect to get nomad tags in the container's environment vars.
         As this is expensive, it is cached in the self._nomad_tags_cache dict.
-        The cache invalidation goes through invalidate_nomad_cache, called by docker_daemon
+        The cache invalidation goes through invalidate_nomad_cache, called by the docker_daemon check
 
         :param co: container dict returned by docker-py
         :return: tags as list<string>, cached
         """
 
-        co_id = co.get('Id', 'INVALID')
+        co_id = co.get('Id', None)
 
-        if co_id == 'INVALID':
-            log.warning("Invalid container object in extract_nomad_tags")
+        if co_id is None:
+            log.warning("Invalid container object in extract_container_tags")
             return
 
         # Cache lookup on Id, verified on Created timestamp
@@ -51,9 +53,9 @@ class NomadUtil:
             envvars = inspect_info.get('Config', {}).get('Env', {})
             for var in envvars:
                 if var.startswith(NOMAD_TASK_NAME):
-                    tags.append('nomad_task:%s' % var[len(NOMAD_TASK_NAME)+1:])
+                    tags.append('nomad_task:%s' % var[len(NOMAD_TASK_NAME) + 1:])
                 elif var.startswith(NOMAD_JOB_NAME):
-                    tags.append('nomad_job:%s' % var[len(NOMAD_JOB_NAME)+1:])
+                    tags.append('nomad_job:%s' % var[len(NOMAD_JOB_NAME) + 1:])
                 elif var.startswith(NOMAD_ALLOC_NAME):
                     try:
                         start = var.index('.', len(NOMAD_ALLOC_NAME)) + 1
