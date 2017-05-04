@@ -336,7 +336,7 @@ class SDDockerBackend(AbstractSDBackend):
         elif Platform.is_nomad():
             nomad_tags = self.nomadutil.extract_container_tags(state.inspect_container(c_id))
             if nomad_tags:
-                tags.extend(list(nomad_tags))
+                tags.extend(nomad_tags)
 
         return tags
 

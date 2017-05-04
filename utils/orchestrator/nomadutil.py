@@ -44,7 +44,6 @@ class NomadUtil:
         if co_id in self._container_tags_cache:
             created, tags = self._container_tags_cache[co_id]
             if created == co.get('Created', -1):
-                log.debug("Gettings nomad tags from cache")
                 return tags
 
         tags = []
@@ -61,11 +60,9 @@ class NomadUtil:
                         start = var.index('.', len(NOMAD_ALLOC_NAME)) + 1
                         end = var.index('[')
                         tags.append('nomad_group:%s' % var[start:end])
-                        log.debug("Gettings nomad tags from docker")
                     except ValueError:
                         pass
                     self._container_tags_cache[co_id] = (co.get('Created'), tags)
-                    log.debug(self._container_tags_cache)
         except Exception as e:
             log.warning("Error while parsing Nomad tags: %s" % str(e))
         finally:
@@ -79,7 +76,6 @@ class NomadUtil:
         try:
             for ev in events:
                 if ev.get('status') == 'die' and ev.get('id') in self._container_tags_cache:
-                    log.debug("Invalidating nomad cache for %s" % ev.get('id'))
                     del self._container_tags_cache[ev.get('id')]
                     log.debug(self._container_tags_cache)
         except Exception as e:
