@@ -22,6 +22,9 @@ class TestDockerUtil(unittest.TestCase):
             ), (
                 ['10', 'memory', '/docker/864daa0a0b19aa4703231b6c76f85c6f369b2452a5a7f777f0c9101c0fd5772a/docker/3bac629503293d1bb61e74f3e25b6c525f0c262f22974634c5d6988bb4b07927'],
                 'docker/3bac629503293d1bb61e74f3e25b6c525f0c262f22974634c5d6988bb4b07927'
+            ), (
+                ['7', 'memory', '/system.slice/docker-71116698eb215f2a5819f11ece7ea721f0e8d45169c7484d1cd7812596fad454.scope'],
+                'system.slice/docker-71116698eb215f2a5819f11ece7ea721f0e8d45169c7484d1cd7812596fad454.scope'
             )
         ]
 
