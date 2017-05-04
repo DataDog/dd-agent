@@ -350,13 +350,18 @@ class DockerUtil:
     @classmethod
     def _parse_subsystem(cls, line):
         """
-        If 'docker' is in the path, it can be there once or twice:
-        /docker/$CONTAINER_ID
-        /docker/$USER_DOCKER_CID/docker/$CONTAINER_ID
-        so we pick the last one.
+        Parse cgroup path.
+        - If the path is a slice (see https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Resource_Management_Guide/sec-Default_Cgroup_Hierarchies.html)
+          we return the path as-is (we still strip out any leading '/')
+        - If 'docker' is in the path, it can be there once or twice:
+          /docker/$CONTAINER_ID
+          /docker/$USER_DOCKER_CID/docker/$CONTAINER_ID
+          so we pick the last one.
         In /host/sys/fs/cgroup/$CGROUP_FOLDER/ cgroup/container IDs can be at the root
         or in a docker folder, so if we find 'docker/' in the path we don't strip it away.
         """
+        if '.slice' in line[2]:
+            return line[2].lstrip('/')
         i = line[2].rfind('docker')
         if i != -1:  # rfind returns -1 if docker is not found
             return line[2][i:]
