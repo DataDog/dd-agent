@@ -438,7 +438,7 @@ class DockerUtil:
 
     def image_tag_extractor(self, entity, key):
         name = self.image_name_extractor(entity)
-        if len(name):
+        if name is not None and len(name):
             split = name.split(":")
             if len(split) <= key:
                 return None
