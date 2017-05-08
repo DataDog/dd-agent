@@ -1,7 +1,32 @@
 Changes
 =======
 
-# 5.13.0 / Unreleased
+# 5.13.2 / Unreleased
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.13.1...5.13.2
+
+### Changes
+
+* [BUGFIX] Dockerutil: fix exception when image name is `None`. See #3329
+* [BUFGIX] Dockerutil: support systemd slices in cgroup paths. See #3328
+* [BUGFIX] Dockerutil: fix image name when using sha256 for specs. See #3326
+* [BUGFIX] Packaging: fix os detection for "exotic" distributions. See [dd-agent-omnibus-171](https://github.com/DataDog/dd-agent-omnibus/pull/171)
+* [SANITY] Packaging: Remove reliance on `pedump` fork. See [dd-agent-omnibus-167](https://github.com/DataDog/dd-agent-omnibus/pull/167)
+
+# 5.13.1 / 05-02-2017
+**Docker Alpine and Source Install Only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.13.0...5.13.1
+
+### Changes
+
+* [BUGFIX] Redis: Fixes a bug where the redis python library would not install using the source install. See [integrations-core-389](https://github.com/DataDog/integrations-core/pull/389)
+
+
+# 5.13.0 / 04-24-2017
 **Linux, Windows, Docker and Source Install**
 
 ### Details
