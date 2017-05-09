@@ -36,6 +36,7 @@ import simplejson as json
 # DD imports
 from checks.check_status import CollectorStatus, DogstatsdStatus, ForwarderStatus
 from config import (
+    get_auto_confd_path,
     get_confd_path,
     get_config,
     get_config_path,
@@ -313,6 +314,14 @@ class Flare(object):
                 self._add_clean_conf(
                     file_path,
                     os.path.join('etc', 'confd'),
+                    self.CHECK_CREDENTIALS
+                )
+
+        for file_path in glob.glob(os.path.join(get_auto_confd_path(), '*.yaml')):
+            if self._can_read(file_path, output=False):
+                self._add_clean_conf(
+                    file_path,
+                    os.path.join('etc', 'confd', 'auto_conf'),
                     self.CHECK_CREDENTIALS
                 )
 
