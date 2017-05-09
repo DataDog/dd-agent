@@ -56,7 +56,3 @@ script:
 after_failure:
   - echo "Logs from installation process come here / DEBUG LOGS"
   - cat /tmp/ci.log
-
-notifications:
-  slack:
-    secure: DTv6FhbyKCfQVAQkz4QXDwZeKkGQsFFSoFBdry/Rn+tWet3y/dSDDRCVl7wumJbfsURCtR7qAp2wAn0h/6RGjFBYozzO3Y7UlxA0mtKgIFi7jyMz287NLnIwTN6deHqEaMpMdpiWeBn9QANF/Scyl5/isCOwUpRXYgQR9beV/Rk=
