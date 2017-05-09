@@ -9,7 +9,7 @@ https://github.com/DataDog/dd-agent/compare/5.13.1...5.13.2
 
 ### Changes
 
-* [BUGFIX] Flare: add `auto_conf` templates. See [#3329][]
+* [BUGFIX] Flare: add `auto_conf` templates. See [#3330][]
 * [BUGFIX] Dockerutil: fix exception when image name is `None`. See [#3329][]
 * [BUFGIX] Dockerutil: support systemd slices in cgroup paths. See [#3328][]
 * [BUGFIX] Dockerutil: fix image name when using sha256 for specs. See [#3326][]
@@ -4127,6 +4127,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3326]: https://github.com/DataDog/dd-agent/issues/3326
 [#3328]: https://github.com/DataDog/dd-agent/issues/3328
 [#3329]: https://github.com/DataDog/dd-agent/issues/3329
+[#3330]: https://github.com/DataDog/dd-agent/issues/3330
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
