@@ -509,6 +509,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         target = c['dogstatsd_target']
 
     hostname = get_hostname(c)
+    log.debug("Using hostname \"%s\"", hostname)
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
