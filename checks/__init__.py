@@ -29,12 +29,13 @@ import yaml
 
 # project
 from checks import check_status
-from config import AGENT_VERSION
+from config import AGENT_VERSION, _is_affirmative
 from util import get_next_id, yLoader
 from utils.hostname import get_hostname
 from utils.proxy import get_proxy
 from utils.platform import Platform
 from utils.profile import pretty_statistics
+from utils.proxy import get_no_proxy_from_env, config_proxy_skip
 if Platform.is_windows():
     from utils.debug import run_check  # noqa - windows debug purpose
 
@@ -389,6 +390,12 @@ class AgentCheck(object):
                                         sdk=manifest.get('version', 'unknown'))
 
         self.check_version = version
+
+    def get_instance_proxy(self, instance, uri):
+        proxies = self.proxies.copy()
+        proxies['no'] = get_no_proxy_from_env()
+
+        return config_proxy_skip(proxies, uri, _is_affirmative(instance.get('skip_proxy', False)))
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
