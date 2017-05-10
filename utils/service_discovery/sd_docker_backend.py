@@ -144,7 +144,7 @@ class SDDockerBackend(AbstractSDBackend):
             return
 
         identifier = inspect.get('Config', {}).get('Labels', {}).get(DATADOG_ID) or \
-            inspect.get('Config', {}).get('Image')
+            self.dockerutil.image_name_extractor(inspect)
 
         platform_kwargs = {}
         if Platform.is_k8s():
