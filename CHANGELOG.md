@@ -1,13 +1,14 @@
 Changes
 =======
 
-# 5.13.2 / Unreleased
+# 5.13.2 / 05-11-2017
 **Linux, Windows, Docker and Source Install**
 
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.13.1...5.13.2
 
 ### Changes
+Please refer to the [Integrations Core Checks 5.13.2 tag](https://github.com/DataDog/integrations-core/releases/tag/5.13.2) for the list of changes on the Integrations Core checks repository.
 
 * [IMPROVEMENT] Flare: add `auto_conf` templates. See [#3330][]
 * [BUGFIX] Dockerutil: use DockerUtil.image_name_extractor for all code paths. See [#3334][]
