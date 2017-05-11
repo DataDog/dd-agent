@@ -816,6 +816,8 @@ class AgentCheck(object):
                 )
             finally:
                 self._roll_up_instance_metadata()
+                # Discard any remaining warning so that next instance starts clean
+                self.get_warnings()
 
             instance_statuses.append(instance_status)
 
