@@ -492,7 +492,7 @@ print_done
 
 print_console "* Starting the agent"
 if [ "$DD_START_AGENT" = "0" ]; then
-    print_console "    Skipping due to \$DD_AGENT_START"
+    print_console "    Skipping due to \$DD_START_AGENT"
     exit 0
 fi
 
