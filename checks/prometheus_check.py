@@ -225,12 +225,18 @@ class PrometheusCheck(AgentCheck):
         """
         Polls the data from prometheus and pushes them as gauges
         `endpoint` is the metrics endpoint to use to poll metrics from Prometheus
+
+        Note that if the instance has a 'tags' attribute, it will be pushed
+        automatically as additionnal custom tags and added to the metrics
         """
         content_type, data = self.poll(endpoint)
+        tags = []
+        if instance is not None:
+            tags = instance.get('tags', [])
         for metric in self.parse_metric_family(data, content_type):
-            self.process_metric(metric, instance=instance)
+            self.process_metric(metric, send_histograms_buckets=send_histograms_buckets, custom_tags=tags, instance=instance)
 
-    def process_metric(self, message, send_histograms_buckets=True, **kwargs):
+    def process_metric(self, message, send_histograms_buckets=True, custom_tags=None, **kwargs):
         """
         Handle a prometheus metric message according to the following flow:
             - search self.metrics_mapper for a prometheus.metric <--> datadog.metric mapping
@@ -241,7 +247,7 @@ class PrometheusCheck(AgentCheck):
         """
         try:
             if message.name in self.metrics_mapper:
-                self._submit_metric(self.metrics_mapper[message.name], message, send_histograms_buckets)
+                self._submit_metric(self.metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
             else:
                 getattr(self, message.name)(message, **kwargs)
         except AttributeError as err:

@@ -149,7 +149,26 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.process_metric = MagicMock()
         self.check.process(endpoint, instance=None)
         self.check.poll.assert_called_with(endpoint)
-        self.check.process_metric.assert_called_with(self.ref_gauge, instance=None)
+        self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=[], instance=None, send_histograms_buckets=True)
+
+    def test_process_send_histograms_buckets(self):
+        """ Cheks that the send_histograms_buckets parameter is passed along """
+        endpoint = "http://fake.endpoint:10055/metrics"
+        self.check.poll = MagicMock(return_value=[self.protobuf_content_type, self.bin_data])
+        self.check.process_metric = MagicMock()
+        self.check.process(endpoint, send_histograms_buckets=False, instance=None)
+        self.check.poll.assert_called_with(endpoint)
+        self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=[], instance=None, send_histograms_buckets=False)
+
+    def test_process_instance_with_tags(self):
+        """ Checks that an instances with tags passes them as custom tag """
+        endpoint = "http://fake.endpoint:10055/metrics"
+        self.check.poll = MagicMock(return_value=[self.protobuf_content_type, self.bin_data])
+        self.check.process_metric = MagicMock()
+        instance = {'endpoint': 'IgnoreMe', 'tags': ['tag1:tagValue1', 'tag2:tagValue2']}
+        self.check.process(endpoint, instance=instance)
+        self.check.poll.assert_called_with(endpoint)
+        self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=['tag1:tagValue1', 'tag2:tagValue2'], instance=instance, send_histograms_buckets=True)
 
     def test_process_metric_gauge(self):
         ''' Gauge ref submission '''
