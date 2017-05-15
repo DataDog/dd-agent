@@ -22,6 +22,7 @@ from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store
+from utils.orchestrator import NomadUtil
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 
@@ -96,6 +97,10 @@ class SDDockerBackend(AbstractSDBackend):
                 self.kubeutil = None
                 log.error("Couldn't instantiate the kubernetes client, "
                     "subsequent kubernetes calls will fail as well. Error: %s" % str(ex))
+
+        if Platform.is_nomad():
+            self.nomadutil = NomadUtil()
+
         self.VAR_MAPPING = {
             'host': self._get_host_address,
             'port': self._get_port,
@@ -316,7 +321,7 @@ class SDDockerBackend(AbstractSDBackend):
             if swarm_svc:
                 tags.append('swarm_service:%s' % swarm_svc)
 
-        if Platform.is_rancher():
+        elif Platform.is_rancher():
             c_inspect = state.inspect_container(c_id)
             service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_SVC_NAME)
             stack_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_STACK_NAME)
@@ -327,6 +332,11 @@ class SDDockerBackend(AbstractSDBackend):
                 tags.append('rancher_stack:%s' % stack_name)
             if container_name:
                 tags.append('rancher_container:%s' % container_name)
+
+        elif Platform.is_nomad():
+            nomad_tags = self.nomadutil.extract_container_tags(state.inspect_container(c_id))
+            if nomad_tags:
+                tags.extend(nomad_tags)
 
         return tags
 

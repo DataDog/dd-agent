@@ -36,6 +36,7 @@ class MountException(Exception):
 class CGroupException(Exception):
     pass
 
+
 # Default docker client settings
 DEFAULT_TIMEOUT = 5
 DEFAULT_VERSION = 'auto'
@@ -76,17 +77,21 @@ class DockerUtil:
         # Try to detect if we are on Swarm
         self.fetch_swarm_state()
 
-        # Try to detect if we are on ECS or Rancher
+        # Try to detect if an orchestrator is running
         self._is_ecs = False
         self._is_rancher = False
+
         try:
             containers = self.client.containers()
             for co in containers:
                 if '/ecs-agent' in co.get('Names', ''):
                     self._is_ecs = True
-                if '/rancher-agent' in co.get('Names', ''):
+                    break
+                elif '/rancher-agent' in co.get('Names', ''):
                     self._is_rancher = True
-        except Exception:
+                    break
+        except Exception as e:
+            log.warning("Error while detecting orchestrator: %s" % e)
             pass
 
         # Build include/exclude patterns for containers
@@ -551,6 +556,15 @@ class DockerUtil:
         except KeyError as e:
             log.exception("Missing container key: %s", e)
             raise ValueError("Invalid container dict")
+
+
+    def inspect_container(self, co_id):
+        """
+        Requests docker inspect for one container. This is a costly operation!
+        :param co_id: container id
+        :return: dict from docker-py
+        """
+        return self.client.inspect_container(co_id)
 
     @classmethod
     def _drop(cls):
