@@ -108,4 +108,3 @@ class Platform(object):
     @staticmethod
     def is_nomad():
         return 'NOMAD_ALLOC_ID' in os.environ
-
