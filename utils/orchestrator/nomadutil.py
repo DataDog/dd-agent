@@ -59,6 +59,8 @@ class NomadUtil:
                     try:
                         start = var.index('.', len(NOMAD_ALLOC_NAME)) + 1
                         end = var.index('[')
+                        if end <= start:
+                            raise ValueError("Error extracting group from %s, check format" % var)
                         tags.append('nomad_group:%s' % var[start:end])
                     except ValueError:
                         pass
@@ -77,6 +79,5 @@ class NomadUtil:
             for ev in events:
                 if ev.get('status') == 'die' and ev.get('id') in self._container_tags_cache:
                     del self._container_tags_cache[ev.get('id')]
-                    log.debug(self._container_tags_cache)
         except Exception as e:
             log.warning("Error when invalidating nomad cache: " + str(e))
