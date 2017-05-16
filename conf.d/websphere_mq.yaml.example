@@ -1,0 +1,5 @@
+init_config:
+
+instances:
+    # The instances are the queue managers
+    - qmgr: QMGR_TEST
