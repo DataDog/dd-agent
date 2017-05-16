@@ -1,0 +1,25 @@
+init_config:
+
+
+instances:
+    -   ip: ip of cluster to be monitored
+        # ip of aerospike node you want to monitor e.g. 10.71.75.156
+        port: 3000
+        # By default aerospike runs on port 3000. If you have changed the
+        # configuration then please update the port number here.
+        user: n/s
+        # optional n/s for unsecured Aerospike
+        password: n/s
+        # optional n/s for unsecured Aerospike
+        cluster_mode: false
+        # true for clustered mode
+        debug_mode: false
+        # true for debug mode, also change log_level in datadog.conf to DEBUG
+        cluster_name: cannonical name for cluster
+        # Canonical Name to identify a node. It must be same for all nodes in
+        # one cluster.
+        api_key: API_Key for your Datadog account
+        # Datadog Account API Key required for creating pre-defined Dashboards
+        api_application_key: Application_Key for your Datadog account
+        # Datadog Application API Key required for creating pre-defined
+        # Dashboards
