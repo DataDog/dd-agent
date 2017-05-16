@@ -1,0 +1,16 @@
+init_config:
+
+instances:
+  - status_url: http://localhost:8000
+    # tags:
+    #   - optional_tag
+
+    # The (optional) connect_timeout will override the default value, and fail
+    # the check if the time to establish the (TCP) connection exceeds the
+    # connect_timeout value (in seconds)
+    # connect_timeout: 5
+
+    # The (optional) receive_timeout will override the default value, and fail
+    # the check if the time to receive the server status from the Apache server
+    # exceeds the receive_timeout value (in seconds)
+    # receive_timeout: 15
