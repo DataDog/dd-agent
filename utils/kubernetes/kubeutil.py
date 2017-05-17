@@ -38,6 +38,7 @@ class KubeUtil:
     DEFAULT_HTTPS_KUBELET_PORT = 10250
     DEFAULT_MASTER_PORT = 8080
     DEFAULT_MASTER_NAME = 'kubernetes'  # DNS name to reach the master from a pod.
+    DEFAULT_LABEL_PREFIX = 'kube_'
     CA_CRT_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
     AUTH_TOKEN_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/token'
 
@@ -80,6 +81,7 @@ class KubeUtil:
         self.kubelet_host = self.kubelet_api_url.split(':')[1].lstrip('/')
         self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
         self.kube_health_url = urljoin(self.kubelet_api_url, KubeUtil.KUBELET_HEALTH_PATH)
+        self.kube_label_prefix = os.environ.get('KUBERNETES_LABEL_PREFIX') or self.DEFAULT_LABEL_PREFIX
 
         # cadvisor
         self.cadvisor_port = instance.get('port', KubeUtil.DEFAULT_CADVISOR_PORT)
@@ -194,6 +196,7 @@ class KubeUtil:
         excluded_keys = excluded_keys or []
         kube_labels = defaultdict(list)
         pod_items = pods_list.get("items") or []
+        prefix = self.kube_label_prefix
         for pod in pod_items:
             metadata = pod.get("metadata", {})
             name = metadata.get("name")
@@ -206,7 +209,7 @@ class KubeUtil:
                     if k in excluded_keys:
                         continue
 
-                    kube_labels[key].append(u"kube_%s:%s" % (k, v))
+                    kube_labels[key].append(u"%s%s:%s" % (prefix, k, v))
 
         return kube_labels
 
