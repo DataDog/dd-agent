@@ -74,7 +74,8 @@ set -u
 #######################################################################
 # CONSTANTS
 #######################################################################
-SDK_RELEASE="5.12.0"
+PRE_SDK_RELEASE="5.11.3"
+LAST_JMXFETCH_BUNDLE_RELEASE="5.13.2"
 JMXFETCH_URL="http://dd-jmxfetch.s3-website-us-east-1.amazonaws.com/"
 REPORT_FAILURE_URL="https://app.datadoghq.com/agent_stats/report_failure"
 REPORT_FAILURE_EMAIL="support@datadoghq.com"
@@ -406,7 +407,8 @@ $AGENT_VERSION
 VERSION
 
 # Only install the integrations from the integrations-core if it's version 5.12 or above.
-if [ "$AGENT_MAJOR_VERSION" -eq "5" -a "$AGENT_MINOR_VERSION" -gt "11" ]; then
+if check_version $PRE_SDK_RELEASE $AGENT_VERSION;
+then
   print_console "* Downloading integrations from GitHub"
   mkdir -p "$DD_HOME/integrations"
   mkdir -p "$DD_HOME/agent/checks.d"
@@ -448,7 +450,7 @@ $DOWNLOADER "$DD_HOME/requirements-opt.txt" "$BASE_GITHUB_URL/requirements-opt.t
 "$DD_HOME/agent/utils/pip-allow-failures.sh" "$DD_HOME/requirements-opt.txt"
 print_done
 
-if check_version $SDK_RELEASE $AGENT_VERSION;
+if check_version $LAST_JMXFETCH_BUNDLE_RELEASE $AGENT_VERSION;
 then
     print_console "* Trying to install JMXFetch jarfile from $JMXFETCH_URL"
     mkdir -p "$DD_HOME/libs"
