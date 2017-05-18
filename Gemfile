@@ -4,6 +4,7 @@ gem 'addressable'
 gem 'colorize'
 gem 'httparty', '~>0.14.0'
 gem 'rake'
+gem 'json'
 gem 'rubocop', '~>0.38.0'
 
 # Upper versions are incompatible with ruby version on Travis (1.9.3)
