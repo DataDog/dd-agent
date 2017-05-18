@@ -9,6 +9,10 @@ language: python
 python:
   - "2.7"
 
+language: ruby
+rvm:
+  - 2.2
+
 cache:
   directories:
     - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION.9
