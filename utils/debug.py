@@ -51,10 +51,17 @@ def get_check(name, config_str):
     check_module = __import__(name)
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
+
+    max_hierarchy_len = 0
     for name, clsmember in classes:
         if issubclass(clsmember, AgentCheck) and clsmember != AgentCheck:
             check_class = clsmember
             break
+        class_hierarchy = inspect.getmro(clsmember)
+        if AgentCheck in class_hierarchy:
+            if len(class_hier) > max_hierarchy_len:
+               max_hierarchy_len = len(class_hierarchy)
+               check_class = clsmember
     if check_class is None:
         raise Exception("Unable to import check %s. Missing a class that inherits AgentCheck" % name)
 
