@@ -127,7 +127,8 @@ def validate_api_key(config):
         if proxy:
             request_proxy = {'https': "http://{user}:{password}@{host}:{port}".format(**proxy)}
         r = requests.get("%s/api/v1/validate" % config['dd_url'].rstrip('/'),
-            params={'api_key': config.get('api_key')}, proxies=request_proxy, timeout=3)
+            params={'api_key': config.get('api_key')}, proxies=request_proxy,
+            timeout=3, verify=(not config.get('skip_ssl_validation', False)))
 
         if r.status_code == 403:
             return "API Key is invalid"
