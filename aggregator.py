@@ -61,7 +61,20 @@ class Gauge(Metric):
         self.timestamp = time()
 
     def sample(self, value, sample_rate, timestamp=None):
-        self.value = value
+        # Parse optional leading +which means gauge delta
+        # Note that we deviate from the statsd implementation by allowing negative values
+        # for gauges, rather than treating -N as a negative delta
+        # This is a known oversight of the protocol
+        try:
+            if len(str(value)) > 0 and str(value)[0] in ('+'):
+                if self.value is None:
+                    self.value = 0
+                self.value += float(value)
+            else:
+                self.value = float(value)
+        except ValueError:
+            log.warn("Cannot parse gauge value: %s" % value)
+
         self.last_sample_time = time()
         self.timestamp = timestamp
 
@@ -398,7 +411,7 @@ class Aggregator(object):
     Abstract metric aggregator class.
     """
     # Types of metrics that allow strings
-    ALLOW_STRINGS = ['s', ]
+    ALLOW_STRINGS = ['s', 'g']
 
     def __init__(self, hostname, interval=1.0, expiry_seconds=300,
             formatter=None, recent_point_threshold=None,
