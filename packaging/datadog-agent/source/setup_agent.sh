@@ -76,7 +76,7 @@ set -u
 #######################################################################
 PRE_SDK_RELEASE="5.11.3"
 LAST_JMXFETCH_BUNDLE_RELEASE="5.13.2"
-JMXFETCH_URL="http://dd-jmxfetch.s3.amazonaws.com/"
+JMXFETCH_URL="http://dd-jmxfetch.s3.amazonaws.com"
 REPORT_FAILURE_URL="https://app.datadoghq.com/agent_stats/report_failure"
 REPORT_FAILURE_EMAIL="support@datadoghq.com"
 
@@ -222,8 +222,8 @@ and we'll do our very best to help you solve your problem."
 check_version()
 {
     local version=$1 check=$2
-    local winner=$(echo -e "$version\n$check" | sort -t '.' -k1,1 -k2,2 -k3,3 | head -n 1)
-    [[ "$winner" = "$version" ]] && return 0
+    local winner=$(printf "%s\n%s" "$version" "$check" | sort -t '.' -n -k1,1 -k2,2 -k3,3 | head -n 1)
+    [ "$winner" = "$version" ] && return 0
     return 1
 }
 
@@ -402,6 +402,9 @@ tar -xz -C "$DD_HOME/agent" --strip-components 1 -f "$DD_HOME/agent.tar.gz"
 rm -f "$DD_HOME/agent.tar.gz"
 print_done
 
+# get the version from the actual config file in the branch
+AGENT_VERSION=$(cat $DD_HOME/agent/config.py | grep 'AGENT_VERSION' | head -n 1 | cut -f2 -d'=' | tr -d '[:space:]' | tr -d '["]')
+INTEGRATIONS_VERSION=${INTEGRATIONS_VERSION:-$AGENT_VERSION}
 IFS='.' read AGENT_MAJOR_VERSION AGENT_MINOR_VERSION AGENT_BUGFIX_VERSION<<VERSION
 $AGENT_VERSION
 VERSION
@@ -414,7 +417,7 @@ then
   mkdir -p "$DD_HOME/agent/checks.d"
   mkdir -p "$DD_HOME/agent/conf.d/auto_conf"
 
-  $DOWNLOADER "$DD_HOME/integrations.tar.gz" "https://api.github.com/repos/DataDog/integrations-core/tarball/$AGENT_VERSION"
+  $DOWNLOADER "$DD_HOME/integrations.tar.gz" "https://api.github.com/repos/DataDog/integrations-core/tarball/$INTEGRATIONS_VERSION"
   print_done
 
   print_console "* Uncompressing tarball"
@@ -453,9 +456,11 @@ print_done
 if check_version $LAST_JMXFETCH_BUNDLE_RELEASE $AGENT_VERSION;
 then
     print_console "* Trying to install JMXFetch jarfile from $JMXFETCH_URL"
-    mkdir -p "$DD_HOME/libs"
-    JMX_VERSION=${JMX_VERSION:-$(cat $DD_HOME/config.py | grep JMX_VERSION | cut -f2 -d'=')}
-    $DOWNLOADER "$DD_HOME/libs/" "$JMXFETCH_URL/jmxfetch-$(JMX_VERSION)-jar-with-dependencies.jar"
+    JMX_VERSION=$(cat $DD_HOME/agent/config.py | grep 'JMX_VERSION' | cut -f2 -d'=' | tr -d '[:space:]' | tr -d '["]')
+    JMX_ARTIFACT="jmxfetch-${JMX_VERSION}-jar-with-dependencies.jar"
+
+    mkdir -p "$DD_HOME/agent/checks/libs"
+    $DOWNLOADER "$DD_HOME/agent/checks/libs/${JMX_ARTIFACT}" "$JMXFETCH_URL/${JMX_ARTIFACT}"
     print_done
 fi
 
