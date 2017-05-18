@@ -1,0 +1,21 @@
+init_config:
+
+instances:
+  # Specify the aerospike hostname
+  # E.g. localhost
+  - hosts: localhost
+    # tags:
+    #   - optional_tag1
+    #   - optional_tag2
+
+
+    # sets namespaces to fetch namespace specific metrics.
+    # namespaces:
+    #  - namespace_name1
+    #  - namespace_name2
+    
+    # Set the host's tags
+    # tags:
+    #   - tag_name: tag_value
+
+
