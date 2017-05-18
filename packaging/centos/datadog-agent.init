@@ -202,6 +202,15 @@ configcheck() {
     exit $?
 }
 
+# Source /etc/default/datadog-agent environment values
+#  NOTE: The purpose of /etc/default/XX files is to provide extra overrides or startup options on top of whatever
+#         configuration the daemon already has. It provides a hook for configuration management systems like Puppet or Chef,
+#         or for any 12 factor system, to pass environment specific variables directly to custom Checks and Emitters.
+#         It means you don't have to fiddle with the conf.d files. And that it is easier to interact
+#         with libraries like boto that can receive input via env-vars
+APPLICATION_DEFAULTS=/etc/default/datadog-agent
+[[ -f "${APPLICATION_DEFAULTS}" ]] && source "${APPLICATION_DEFAULTS}"
+
 
 case "$1" in
     start)
