@@ -455,20 +455,20 @@ class KubeUtil:
             log.warning('Could not parse creator tags for pod ' + pod_metadata.get('name'))
             return []
 
-    def process_events(self, event_array):
+    def process_events(self, event_array, podlist=None):
         """
         Reads a list of kube events, invalidates caches and and computes a set
-        of pods impacted by the changes, to refresh service discovery
+        of containers impacted by the changes, to refresh service discovery
         Pod creation/deletion events are ignored for now, as docker_daemon already
         sends container creation/deletion events to SD
 
-        Note: pod uids must be matched to docker container ids with match_containers_for_pods
+        Pod->containers matching is done using match_containers_for_pods
         """
         try:
             pods = set()
             if self._service_mapper:
                 pods.update(self._service_mapper.process_events(event_array))
-            return pods
+            return self.match_containers_for_pods(pods, podlist)
         except Exception as e:
             log.warning("Error processing events %s: %s" % (str(event_array), e))
             return set()
