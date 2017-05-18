@@ -16,12 +16,16 @@ class PodServiceMapper:
         The apiserver requests are routed through the given KubeUtil instance
         """
         self.kube = kubeutil_object
+        self._event_retriever = self.kube.get_event_retriever(kinds=['Service'])
         self._service_cache_selectors = defaultdict(dict)   # {service_uid:{selectors}}
         self._service_cache_names = {}                      # {service_uid:service_name
-        self._service_cache_invalidated = True              # True to trigger service parsing
-        self._service_cache_last_event_resversion = -1      # last event ressource version
+        self._service_cache_invalidated = False             # True to trigger service parsing
         self._pod_labels_cache = defaultdict(dict)          # {pod_uid:{label}}
         self._pod_services_mapping = defaultdict(list)      # {pod_uid:[service_uid]}
+
+        # Consume past events
+        self.check_services_cache_freshness()
+        self._service_cache_invalidated = True
 
     def _fill_services_cache(self):
         """
@@ -29,10 +33,6 @@ class PodServiceMapper:
         The cache is to be invalidated by the user class by calling check_services_cache_freshness
         """
         try:
-            if self._service_cache_last_event_resversion == -1:
-                self._service_cache_invalidated = False
-                # Retrieving latest service event number with check_services_cache_freshness dry run
-                self.check_services_cache_freshness()
             reply = self.kube.retrieve_json_auth(self.kube.kubernetes_api_url + '/services')
             self._service_cache_selectors = defaultdict(dict)
             self._service_cache_names = {}
@@ -56,28 +56,15 @@ class PodServiceMapper:
         Entry point for sd_docker_backend to check whether to invalidate the cached services
         For now, we remove the whole cache as the fill_service_cache logic
         doesn't handle partial lookups
-
-        We use the event's resourceVersion, as using the service's version wouldn't catch deletion
         """
 
         # Don't check if cache is already invalidated
         if self._service_cache_invalidated:
             return
 
-        lastestVersion = None
-        invalidate = False
         try:
-            reply = self.kube.retrieve_json_auth(self.kube.kubernetes_api_url + '/events',
-                                                 params={'fieldSelector': 'involvedObject.kind=Service'})
-            for event in reply.get('items', []):
-                version = int(event.get('metadata', {}).get('resourceVersion', None))
-                if version > self._service_cache_last_event_resversion:
-                    invalidate = True
-                    lastestVersion = max(lastestVersion, version)
-            if invalidate:
-                self._service_cache_last_event_resversion = lastestVersion
+            if self._event_retriever.get_event_array():
                 self._service_cache_invalidated = True
-                log.debug("Flushing services cache triggered by resourceVersion %d", lastestVersion)
         except Exception as e:
             log.warning("Exception while parsing service events, not invalidating cache: %s", e)
 

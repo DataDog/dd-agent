@@ -2,6 +2,7 @@ import logging
 
 log = logging.getLogger('collector')
 
+
 class KubeEventRetriever:
     """
     Queries the apiserver for events of given kinds and namespaces
@@ -54,14 +55,13 @@ class KubeEventRetriever:
         if isinstance(kinds, basestring):
             self.request_params['fieldSelector'] = 'involvedObject.kind=' + kinds
 
-    def get_generator(self):
+    def get_event_array(self):
         """
         Fetch latest events from the apiserver for the namespaces and kinds set on init
-        and returns a generator of event objects
-
-        This method is not reentrant
+        and returns an array of event objects
         """
         lastest_resversion = None
+        filtered_events = []
 
         events = self.kubeutil.retrieve_json_auth(self.request_url, params=self.request_params)
 
@@ -80,17 +80,8 @@ class KubeEventRetriever:
                     if kind is None or kind not in self.kind_filter:
                         continue
 
-                yield event
+                filtered_events.append(event)
 
         self.last_resversion = max(self.last_resversion, lastest_resversion)
 
-    def get_event_array(self):
-        """
-        Fetch latest events from the apiserver for the namespaces and kinds set on init
-        and returns an array of event objects
-        """
-        events = []
-        for event in self.get_generator():
-            events.append(event)
-
-        return events
+        return filtered_events

@@ -75,9 +75,6 @@ class KubeUtil:
         self.host_name = os.environ.get('HOSTNAME')
         self.tls_settings = self._init_tls_settings(instance)
 
-        # Service mapping helper class
-        self._service_mapper = PodServiceMapper(self)
-
         # apiserver
         self.kubernetes_api_url = 'https://%s/api/v1' % (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME)
 
@@ -89,6 +86,9 @@ class KubeUtil:
         except Exception as ex:
             log.error("Kubernetes check exiting, cannot run without access to kubelet.")
             raise ex
+
+        # Service mapping helper class
+        self._service_mapper = PodServiceMapper(self)
 
         self.kubelet_host = self.kubelet_api_url.split(':')[1].lstrip('/')
         self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
