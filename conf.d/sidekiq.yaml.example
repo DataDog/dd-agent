@@ -1,0 +1,13 @@
+init_config:
+
+instances:
+  # tag is used for service check on current workers and as 'sidekiq_app:<tag>'
+  # datadog tag. It should match output of
+  #   `pgrep -fa '^sidekiq' | cut -d' ' -f 4`
+  # or (equivalently) a --tag or -g value to sidekiq when it is started
+  #
+  # redis configuration mirrors the arguments to Sidekiq.configure_client's
+  # .redis member.
+  # - tag: myapp
+  #   redis_url: redis://:password@localhost:6379/0
+  #   redis_namespace: myapp
