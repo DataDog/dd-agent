@@ -76,7 +76,7 @@ set -u
 #######################################################################
 PRE_SDK_RELEASE="5.11.3"
 LAST_JMXFETCH_BUNDLE_RELEASE="5.13.2"
-JMXFETCH_URL="http://dd-jmxfetch.s3-website-us-east-1.amazonaws.com/"
+JMXFETCH_URL="http://dd-jmxfetch.s3.amazonaws.com/"
 REPORT_FAILURE_URL="https://app.datadoghq.com/agent_stats/report_failure"
 REPORT_FAILURE_EMAIL="support@datadoghq.com"
 
