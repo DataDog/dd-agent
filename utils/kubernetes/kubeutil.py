@@ -252,7 +252,7 @@ class KubeUtil:
         label selectors, which would be very costly, especially matchExpressions matching.
         """
         end = rs_name.rfind("-")
-        if end > 0:
+        if end > 0 and rs_name[end + 1:].isdigit():
             return rs_name[0:end]
         else:
             return None
@@ -385,13 +385,6 @@ class KubeUtil:
         s = self._service_mapper.match_services_for_pod(pod_metadata, refresh, names=True)
         #log.warning("Matches for %s: %s" % (pod_metadata.get('name'), str(s)))
         return s
-
-    def _process_events_get_cid_to_update(self, events):
-        """
-        Process a [k8s_event] list and get a list of docker containers to update for SD
-        New / deleted pods are not processed as this would duplicate docker_daemon
-        events and lead to double triggers for the same c_id
-        """
 
     def get_event_retriever(self, namespaces=None, kinds=None):
         """

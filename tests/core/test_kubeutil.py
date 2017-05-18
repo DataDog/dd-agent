@@ -32,11 +32,12 @@ class KubeTestCase(unittest.TestCase):
 class TestKubeUtilDeploymentTag(KubeTestCase):
     def test_deployment_name_nominal(self):
         self.assertEqual('frontend', self.kube.get_deployment_for_replicaset('frontend-2891696001'))
-        self.assertEqual('front-end', self.kube.get_deployment_for_replicaset('front-end-28916aq96001'))
+        self.assertEqual('front-end', self.kube.get_deployment_for_replicaset('front-end-2891696001'))
 
     def test_deployment_illegal_name(self):
         self.assertIsNone(self.kube.get_deployment_for_replicaset('frontend2891696001'))
         self.assertIsNone(self.kube.get_deployment_for_replicaset('-frontend2891696001'))
+        self.assertIsNone(self.kube.get_deployment_for_replicaset('manually-created'))
 
 class TestKubeUtilCreatorTags(KubeTestCase):
     @classmethod
