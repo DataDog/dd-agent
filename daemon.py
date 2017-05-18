@@ -170,7 +170,7 @@ class Daemon(object):
 
         if not foreground:
             self.daemonize()
-        self.write_pidfile()
+            self.write_pidfile()
         self.run()
 
     def stop(self):
