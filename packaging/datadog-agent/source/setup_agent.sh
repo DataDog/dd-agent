@@ -227,6 +227,17 @@ check_version()
     return 1
 }
 
+# Grab any param from the python config.
+get_from_py_config()
+{
+    cd $DD_HOME/agent >/dev/null 2>&1
+    local param=$(PYTHONPATH='agent/checks/libs:$PYTHONPATH' $DD_HOME/venv/bin/python -c "import config ; print config.$1")
+    cd - >/dev/null 2>&1
+
+    printf "%s" $param
+}
+
+
 # Will be called if an unknown error appears and that the Agent is not running
 # It asks the user if he wants to automatically send a failure report
 error_trap() {
@@ -403,7 +414,7 @@ rm -f "$DD_HOME/agent.tar.gz"
 print_done
 
 # get the version from the actual config file in the branch
-AGENT_VERSION=$(cat $DD_HOME/agent/config.py | grep 'AGENT_VERSION' | head -n 1 | cut -f2 -d'=' | tr -d '[:space:]' | tr -d '["]')
+AGENT_VERSION=$(get_from_py_config AGENT_VERSION)
 INTEGRATIONS_VERSION=${INTEGRATIONS_VERSION:-$AGENT_VERSION}
 IFS='.' read AGENT_MAJOR_VERSION AGENT_MINOR_VERSION AGENT_BUGFIX_VERSION<<VERSION
 $AGENT_VERSION
@@ -456,7 +467,7 @@ print_done
 if check_version $LAST_JMXFETCH_BUNDLE_RELEASE $AGENT_VERSION;
 then
     print_console "* Trying to install JMXFetch jarfile from $JMXFETCH_URL"
-    JMX_VERSION=$(cat $DD_HOME/agent/config.py | grep 'JMX_VERSION' | cut -f2 -d'=' | tr -d '[:space:]' | tr -d '["]')
+    JMX_VERSION=$(get_from_py_config JMX_VERSION)
     JMX_ARTIFACT="jmxfetch-${JMX_VERSION}-jar-with-dependencies.jar"
 
     mkdir -p "$DD_HOME/agent/checks/libs"
