@@ -248,8 +248,8 @@ class KubeUtil:
         Get the deployment name for a given replicaset name
         For now, the rs name's first part always is the deployment's name, see
         https://github.com/kubernetes/kubernetes/blob/release-1.6/pkg/controller/deployment/sync.go#L299
-        But it might change in a future k8s version. The other way to match RS and deployments is comparing
-        label selectors, which would be very costly, especially matchExpressions matching.
+        But it might change in a future k8s version. The other way to match RS and deployments is
+        to parse and cache /apis/extensions/v1beta1/replicasets, mirroring PodServiceMapper
         """
         end = rs_name.rfind("-")
         if end > 0 and rs_name[end + 1:].isdigit():
