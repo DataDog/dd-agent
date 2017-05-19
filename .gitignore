@@ -21,6 +21,7 @@ dist/*
 *.msi
 *.wixobj
 *.wixpdb
+*.jar
 *.exe
 nosetests*.xml
 stats.dat
