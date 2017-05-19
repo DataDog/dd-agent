@@ -47,13 +47,12 @@ end
 desc 'Grab libs'
 task 'setup_libs' do
     in_venv = system "python -c \"import sys ; exit(not hasattr(sys, 'real_prefix'))\""
-    fail "not in dev virtual environment - bailing out." if not in_venv and not ENV['CI']
+    fail "Not in dev virtual environment - bailing out." if not in_venv and not ENV['CI']
 
     jmx_version = `python -c "import config ; print config.JMX_VERSION"`
     jmx_version = jmx_version.delete("\n")
     jmx_artifact = "jmxfetch-#{jmx_version}-jar-with-dependencies.jar"
-    puts "#{ENV['JMXFETCH_URL']}/#{jmx_artifact}"
-    `wget -O checks/libs/#{jmx_artifact} #{ENV['JMXFETCH_URL']}/#{jmx_artifact}`
+    `wget -O checks/libs/#{jmx_artifact} #{ENV['JMXFETCH_URL']}/#{jmx_artifact}` unless File.file?("checks/libs/#{jmx_artifact}")
 end
 
 namespace :test do
