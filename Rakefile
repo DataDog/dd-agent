@@ -24,7 +24,7 @@ unless ENV['CI']
   ENV['VOLATILE_DIR'] = '/tmp/dd-agent-testing'
   ENV['CONCURRENCY'] = ENV['CONCURRENCY'] || '2'
   ENV['NOSE_FILTER'] = 'not windows'
-  ENV['JMXFETCH_URL'] = "http://dd-jmxfetch.s3.amazonaws.com"
+  ENV['JMXFETCH_URL'] = 'https://dd-jmxfetch.s3.amazonaws.com'
 end
 
 desc 'Setup a development environment for the Agent'
@@ -43,16 +43,15 @@ task 'setup_env' do
   `./utils/pip-allow-failures.sh requirements-opt.txt`
 end
 
-
 desc 'Grab libs'
 task 'setup_libs' do
-    in_venv = system "python -c \"import sys ; exit(not hasattr(sys, 'real_prefix'))\""
-    fail "Not in dev virtual environment - bailing out." if not in_venv and not ENV['CI']
+  in_venv = system "python -c \"import sys ; exit(not hasattr(sys, 'real_prefix'))\""
+  raise 'Not in dev venv/CI environment - bailing out.' if !in_venv && !ENV['CI']
 
-    jmx_version = `python -c "import config ; print config.JMX_VERSION"`
-    jmx_version = jmx_version.delete("\n")
-    jmx_artifact = "jmxfetch-#{jmx_version}-jar-with-dependencies.jar"
-    `wget -O checks/libs/#{jmx_artifact} #{ENV['JMXFETCH_URL']}/#{jmx_artifact}` unless File.file?("checks/libs/#{jmx_artifact}")
+  jmx_version = `python -c "import config ; print config.JMX_VERSION"`
+  jmx_version = jmx_version.delete("\n")
+  jmx_artifact = "jmxfetch-#{jmx_version}-jar-with-dependencies.jar"
+  `wget -O checks/libs/#{jmx_artifact} #{ENV['JMXFETCH_URL']}/#{jmx_artifact}` unless File.file?("checks/libs/#{jmx_artifact}")
 end
 
 namespace :test do
