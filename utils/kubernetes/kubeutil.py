@@ -81,7 +81,7 @@ class KubeUtil:
         self.kubelet_host = self.kubelet_api_url.split(':')[1].lstrip('/')
         self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
         self.kube_health_url = urljoin(self.kubelet_api_url, KubeUtil.KUBELET_HEALTH_PATH)
-        self.kube_label_prefix = os.environ.get('KUBERNETES_LABEL_PREFIX') or self.DEFAULT_LABEL_PREFIX
+        self.kube_label_prefix = instance.get('label_to_tag_prefix', KubeUtil.DEFAULT_LABEL_PREFIX)
 
         # cadvisor
         self.cadvisor_port = instance.get('port', KubeUtil.DEFAULT_CADVISOR_PORT)
