@@ -124,6 +124,9 @@ class SDDockerBackend(AbstractSDBackend):
     def update_checks(self, changed_containers):
         state = self._make_fetch_state()
 
+        if Platform.is_k8s():
+            self.kubeutil.check_services_cache_freshness()
+
         conf_reload_set = set()
         for c_id in changed_containers:
             checks = self._get_checks_to_refresh(state, c_id)
@@ -293,27 +296,15 @@ class SDDockerBackend(AbstractSDBackend):
             namespace = pod_metadata.get('namespace')
             tags.append('kube_namespace:%s' % namespace)
 
-            # get created-by
-            created_by = json.loads(pod_metadata.get('annotations', {}).get('kubernetes.io/created-by', '{}'))
-            creator_kind = created_by.get('reference', {}).get('kind')
-            creator_name = created_by.get('reference', {}).get('name')
-
             # add creator tags
-            if creator_name:
-                if creator_kind == 'ReplicationController':
-                    tags.append('kube_replication_controller:%s' % creator_name)
-                elif creator_kind == 'DaemonSet':
-                    tags.append('kube_daemon_set:%s' % creator_name)
-                elif creator_kind == 'ReplicaSet':
-                    tags.append('kube_replica_set:%s' % creator_name)
-            else:
-                log.debug('creator-name for pod %s is empty, this should not happen' % pod_metadata.get('name'))
+            creator_tags = self.kubeutil.get_pod_creator_tags(pod_metadata)
+            tags.extend(creator_tags)
 
-            # FIXME haissam: for service and deployment we need to store a list of these guys
-            # that we query from the apiserver and to compare their selectors with the pod labels.
-            # For service it's straight forward.
-            # For deployment we only need to do it if the pod creator is a ReplicaSet.
-            # Details: https://kubernetes.io/docs/user-guide/deployments/#selector
+            # add services tags
+            services = self.kubeutil.match_services_for_pod(pod_metadata)
+            for s in services:
+                if s is not None:
+                    tags.append('kube_service:%s' % s)
 
         elif Platform.is_swarm():
             c_labels = state.inspect_container(c_id).get('Config', {}).get('Labels', {})
@@ -361,6 +352,9 @@ class SDDockerBackend(AbstractSDBackend):
             self.dockerutil.image_name_extractor(container),
             container.get('Id'), container.get('Labels')
         ) for container in self.docker_client.containers()]
+
+        if Platform.is_k8s():
+            self.kubeutil.check_services_cache_freshness()
 
         for image, cid, labels in containers:
             try:

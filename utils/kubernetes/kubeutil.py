@@ -8,6 +8,7 @@ import logging
 import os
 from urlparse import urljoin
 from urllib import urlencode
+import simplejson as json
 
 # project
 from util import check_yaml
@@ -15,6 +16,7 @@ from utils.checkfiles import get_conf_path
 from utils.http import retrieve_json
 from utils.singleton import Singleton
 from utils.dockerutil import DockerUtil
+from utils.kubernetes import PodServiceMapper, KubeEventRetriever
 
 import requests
 
@@ -23,6 +25,14 @@ log = logging.getLogger('collector')
 KUBERNETES_CHECK_NAME = 'kubernetes'
 
 DEFAULT_TLS_VERIFY = True
+
+CREATOR_KIND_TO_TAG = {
+    'DaemonSet': 'kube_daemon_set',
+    'ReplicaSet': 'kube_replica_set',
+    'ReplicationController': 'kube_replication_controller',
+    'Deployment': 'kube_deployment',
+    'Job': 'kube_job'
+}
 
 
 class KubeUtil:
@@ -76,6 +86,9 @@ class KubeUtil:
         except Exception as ex:
             log.error("Kubernetes check exiting, cannot run without access to kubelet.")
             raise ex
+
+        # Service mapping helper class
+        self._service_mapper = PodServiceMapper(self)
 
         self.kubelet_host = self.kubelet_api_url.split(':')[1].lstrip('/')
         self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
@@ -230,6 +243,20 @@ class KubeUtil:
         """
         return retrieve_json(self.metrics_url)
 
+    def get_deployment_for_replicaset(self, rs_name):
+        """
+        Get the deployment name for a given replicaset name
+        For now, the rs name's first part always is the deployment's name, see
+        https://github.com/kubernetes/kubernetes/blob/release-1.6/pkg/controller/deployment/sync.go#L299
+        But it might change in a future k8s version. The other way to match RS and deployments is
+        to parse and cache /apis/extensions/v1beta1/replicasets, mirroring PodServiceMapper
+        """
+        end = rs_name.rfind("-")
+        if end > 0 and rs_name[end + 1:].isdigit():
+            return rs_name[0:end]
+        else:
+            return None
+
     def perform_kubelet_query(self, url, verbose=True, timeout=10):
         """
         Perform and return a GET request against kubelet. Support auth and TLS validation.
@@ -247,7 +274,7 @@ class KubeUtil:
         return requests.get(url, timeout=timeout, verify=verify,
             cert=cert, headers=headers, params={'verbose': verbose})
 
-    def retrieve_json_auth(self, url, timeout=10, verify=None):
+    def retrieve_json_auth(self, url, timeout=10, verify=None, params=None):
         """
         Kubernetes API requires authentication using a token available in
         every pod, or with a client X509 cert/key pair.
@@ -266,7 +293,7 @@ class KubeUtil:
         bearer_token = self.tls_settings.get('bearer_token') if not cert else None
         headers = {'Authorization': 'Bearer {}'.format(bearer_token)} if bearer_token else None
 
-        r = requests.get(url, timeout=timeout, headers=headers, verify=verify, cert=cert)
+        r = requests.get(url, timeout=timeout, headers=headers, verify=verify, cert=cert, params=params)
         r.raise_for_status()
         return r.json()
 
@@ -337,3 +364,111 @@ class KubeUtil:
             log.error('Unable to read token from {}: {}'.format(cls.AUTH_TOKEN_PATH, e))
 
         return None
+
+    def check_services_cache_freshness(self):
+        """
+        Entry point for sd_docker_backend to check whether to invalidate the cached services
+        For now, we remove the whole cache as the fill_service_cache logic
+        doesn't handle partial lookups
+
+        We use the event's resourceVersion, as using the service's version wouldn't catch deletion
+        """
+        return self._service_mapper.check_services_cache_freshness()
+
+    def match_services_for_pod(self, pod_metadata, refresh=False):
+        """
+        Match the pods labels with services' label selectors to determine the list
+        of services that point to that pod. Returns an array of service names.
+
+        Pass refresh=True if you want to bypass the cached cid->services mapping (after a service change)
+        """
+        s = self._service_mapper.match_services_for_pod(pod_metadata, refresh, names=True)
+        #log.warning("Matches for %s: %s" % (pod_metadata.get('name'), str(s)))
+        return s
+
+    def get_event_retriever(self, namespaces=None, kinds=None):
+        """
+        Returns a KubeEventRetriever object ready for action
+        """
+        return KubeEventRetriever(self, namespaces, kinds)
+
+    def match_containers_for_pods(self, pod_uids, podlist=None):
+        """
+        Reads a set of pod uids and returns the set of docker
+        container ids they manage
+        podlist should be a recent self.retrieve_pods_list return value,
+        if not given that method will be called
+        """
+        cids = set()
+
+        if not isinstance(pod_uids, set) or len(pod_uids) < 1:
+            return cids
+
+        if podlist is None:
+            podlist = self.retrieve_pods_list()
+
+        for pod in podlist.get('items', {}):
+            uid = pod.get('metadata', {}).get('uid', None)
+            if uid in pod_uids:
+                for container in pod.get('status', {}).get('containerStatuses', None):
+                    id = container.get('containerID', "")
+                    if id.startswith("docker://"):
+                        cids.add(id[9:])
+
+        return cids
+
+    def get_pod_creator(self, pod_metadata):
+        """
+        Get the pod's creator from its metadata and returns a
+        tuple (creator_kind, creator_name)
+
+        This allows for consitency across code path
+        """
+        try:
+            created_by = json.loads(pod_metadata['annotations']['kubernetes.io/created-by'])
+            creator_kind = created_by.get('reference', {}).get('kind')
+            creator_name = created_by.get('reference', {}).get('name')
+            return (creator_kind, creator_name)
+        except Exception:
+            log.debug('Could not parse creator for pod ' + pod_metadata.get('name', ''))
+            return (None, None)
+
+    def get_pod_creator_tags(self, pod_metadata, legacy_rep_controller_tag=False):
+        """
+        Get the pod's creator from its metadata and returns a list of tags
+        in the form kube_$kind:$name, ready to add to the metrics
+        """
+        try:
+            tags = []
+            creator_kind, creator_name = self.get_pod_creator(pod_metadata)
+            if creator_kind in CREATOR_KIND_TO_TAG and creator_name:
+                tags.append("%s:%s" % (CREATOR_KIND_TO_TAG[creator_kind], creator_name))
+                if creator_kind == 'ReplicaSet':
+                    deployment = self.get_deployment_for_replicaset(creator_name)
+                    if deployment:
+                        tags.append("%s:%s" % (CREATOR_KIND_TO_TAG['Deployment'], deployment))
+            if legacy_rep_controller_tag and creator_kind != 'ReplicationController' and creator_name:
+                tags.append('kube_replication_controller:{0}'.format(creator_name))
+
+            return tags
+        except Exception:
+            log.warning('Could not parse creator tags for pod ' + pod_metadata.get('name'))
+            return []
+
+    def process_events(self, event_array, podlist=None):
+        """
+        Reads a list of kube events, invalidates caches and and computes a set
+        of containers impacted by the changes, to refresh service discovery
+        Pod creation/deletion events are ignored for now, as docker_daemon already
+        sends container creation/deletion events to SD
+
+        Pod->containers matching is done using match_containers_for_pods
+        """
+        try:
+            pods = set()
+            if self._service_mapper:
+                pods.update(self._service_mapper.process_events(event_array))
+            return self.match_containers_for_pods(pods, podlist)
+        except Exception as e:
+            log.warning("Error processing events %s: %s" % (str(event_array), e))
+            return set()
