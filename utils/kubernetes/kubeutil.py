@@ -197,14 +197,19 @@ class KubeUtil:
                     return address['address']
         return None
 
-    def get_kube_labels(self, excluded_keys=None):
-        pods = self.retrieve_pods_list()
-        return self.extract_kube_labels(pods, excluded_keys=excluded_keys)
-
-    def extract_kube_labels(self, pods_list, excluded_keys=None):
+    def get_kube_pod_tags(self, excluded_keys=None):
         """
-        Extract labels from a list of pods coming from
-        the kubelet API.
+        Gets pods' labels as tags + creator and service tags.
+        Returns a dict{namespace/podname: [tags]}
+        """
+        pods = self.retrieve_pods_list()
+        return self.extract_kube_pod_tags(pods, excluded_keys=excluded_keys)
+
+    def extract_kube_pod_tags(self, pods_list, excluded_keys=None):
+        """
+        Extract labels + creator and service tags from a list of
+        pods coming from the kubelet API.
+        Returns a dict{namespace/podname: [tags]}
         """
         excluded_keys = excluded_keys or []
         kube_labels = defaultdict(list)
@@ -214,15 +219,25 @@ class KubeUtil:
             metadata = pod.get("metadata", {})
             name = metadata.get("name")
             namespace = metadata.get("namespace")
-            labels = metadata.get("labels")
-            if name and labels and namespace:
+            labels = metadata.get("labels", {})
+            if name and namespace:
                 key = "%s/%s" % (namespace, name)
 
+                # Extract creator tags
+                podtags = self.get_pod_creator_tags(metadata)
+
+                # Extract services tags
+                for service in self.match_services_for_pod(metadata):
+                    if service is not None:
+                        podtags.append(u'kube_service:%s' % service)
+
+                # Extract labels
                 for k, v in labels.iteritems():
                     if k in excluded_keys:
                         continue
+                    podtags.append(u"%s%s:%s" % (prefix, k, v))
 
-                    kube_labels[key].append(u"%s%s:%s" % (prefix, k, v))
+                kube_labels[key] = podtags
 
         return kube_labels
 
