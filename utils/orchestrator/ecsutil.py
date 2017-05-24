@@ -82,6 +82,7 @@ class ECSUtil:
         if cid in self.ecs_tags:
             return self.ecs_tags[cid]
         else:
+            log.debug("Container %s doesn't seem to be an ECS task, skipping." % cid[:12])
             self.ecs_tags[cid] = []
         return []
 
