@@ -22,7 +22,7 @@ from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store
-from utils.orchestrator import NomadUtil
+from utils.orchestrator import NomadUtil, ECSUtil
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 
@@ -100,6 +100,8 @@ class SDDockerBackend(AbstractSDBackend):
 
         if Platform.is_nomad():
             self.nomadutil = NomadUtil()
+        elif Platform.is_ecs_instance():
+            self.ecsutil = ECSUtil()
 
         self.VAR_MAPPING = {
             'host': self._get_host_address,
@@ -279,6 +281,13 @@ class SDDockerBackend(AbstractSDBackend):
     def get_tags(self, state, c_id):
         """Extract useful tags from docker or platform APIs. These are collected by default."""
         tags = []
+
+        ctr = state.inspect_container(c_id)
+        # TODO: extend with labels, container ID, etc.
+        tags.append('docker_image:%s' % self.dockerutil.image_name_extractor(ctr))
+        tags.append('image_name:%s' % self.dockerutil.image_tag_extractor(ctr, 0)[0])
+        tags.append('image_tag:%s' % self.dockerutil.image_tag_extractor(ctr, 1)[0])
+
         if Platform.is_k8s():
             pod_metadata = state.get_kube_config(c_id, 'metadata')
 
@@ -328,6 +337,10 @@ class SDDockerBackend(AbstractSDBackend):
             nomad_tags = self.nomadutil.extract_container_tags(state.inspect_container(c_id))
             if nomad_tags:
                 tags.extend(nomad_tags)
+
+        elif Platform.is_ecs_instance():
+            ecs_tags = self.ecsutil.extract_container_tags(state.inspect_container(c_id))
+            tags.extend(ecs_tags)
 
         return tags
 
