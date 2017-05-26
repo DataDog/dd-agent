@@ -24,6 +24,10 @@ SETUPTOOLS_VERSION="20.9.0"
 # $AGENT_VERSION
 #   The tag or branch from which the source install performs.
 #   Defaults to $DEFAULT_AGENT_VERSION
+# $INTEGRATIONS_VERSION
+#   The tag or branch from which the source install grabs the check
+#   sources in the GH integrations-core repo (DataDog/integrations-core).
+#   Defaults to $AGENT_VERSION
 # $DD_API_KEY
 #   Sets your API key in the config when installing.
 #   If not specified, the script will not install a default config.
