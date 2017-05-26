@@ -441,6 +441,25 @@ class DockerUtil:
 
         raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
+    def extract_container_tags(self, co):
+        """
+        Retrives docker_image, image_name and image_tag tags as a list for a
+        container. If the container or image is invalid, will gracefully
+        return an empty list
+        """
+        tags = []
+        docker_image = self.image_name_extractor(co)
+        image_name_array = self.image_tag_extractor(co, 0)
+        image_tag_array = self.image_tag_extractor(co, 1)
+
+        if docker_image:
+            tags.append('docker_image:%s' % docker_image)
+        if image_name_array and len(image_name_array) > 0:
+            tags.append('image_name:%s' % image_name_array[0])
+        if image_tag_array and len(image_tag_array) > 0:
+            tags.append('image_tag:%s' % image_tag_array[0])
+        return tags
+
     def image_tag_extractor(self, entity, key):
         name = self.image_name_extractor(entity)
         if name is not None and len(name):
