@@ -205,16 +205,20 @@ class KubeUtil:
         pods = self.retrieve_pods_list()
         return self.extract_kube_pod_tags(pods, excluded_keys=excluded_keys)
 
-    def extract_kube_pod_tags(self, pods_list, excluded_keys=None):
+    def extract_kube_pod_tags(self, pods_list, excluded_keys=None, label_prefix=None):
         """
         Extract labels + creator and service tags from a list of
         pods coming from the kubelet API.
+
+        :param excluded_keys: labels to skip
+        :param label_prefix: prefix for label->tag conversion, None defaults
+        to the configuration option label_to_tag_prefix
         Returns a dict{namespace/podname: [tags]}
         """
         excluded_keys = excluded_keys or []
         kube_labels = defaultdict(list)
         pod_items = pods_list.get("items") or []
-        prefix = self.kube_label_prefix
+        label_prefix = label_prefix or self.kube_label_prefix
         for pod in pod_items:
             metadata = pod.get("metadata", {})
             name = metadata.get("name")
@@ -235,7 +239,7 @@ class KubeUtil:
                 for k, v in labels.iteritems():
                     if k in excluded_keys:
                         continue
-                    podtags.append(u"%s%s:%s" % (prefix, k, v))
+                    podtags.append(u"%s%s:%s" % (label_prefix, k, v))
 
                 kube_labels[key] = podtags
 
