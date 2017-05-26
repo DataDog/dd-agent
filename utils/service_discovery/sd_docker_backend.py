@@ -280,13 +280,8 @@ class SDDockerBackend(AbstractSDBackend):
 
     def get_tags(self, state, c_id):
         """Extract useful tags from docker or platform APIs. These are collected by default."""
-        tags = []
-
-        ctr = state.inspect_container(c_id)
-        # TODO: extend with labels, container ID, etc.
-        tags.append('docker_image:%s' % self.dockerutil.image_name_extractor(ctr))
-        tags.append('image_name:%s' % self.dockerutil.image_tag_extractor(ctr, 0)[0])
-        tags.append('image_tag:%s' % self.dockerutil.image_tag_extractor(ctr, 1)[0])
+        c_inspect = state.inspect_container(c_id)
+        tags = self.dockerutil.extract_container_tags(c_inspect)
 
         if Platform.is_k8s():
             pod_metadata = state.get_kube_config(c_id, 'metadata')
@@ -316,13 +311,12 @@ class SDDockerBackend(AbstractSDBackend):
                     tags.append('kube_service:%s' % s)
 
         elif Platform.is_swarm():
-            c_labels = state.inspect_container(c_id).get('Config', {}).get('Labels', {})
+            c_labels = c_inspect.get('Config', {}).get('Labels', {})
             swarm_svc = c_labels.get(SWARM_SVC_LABEL)
             if swarm_svc:
                 tags.append('swarm_service:%s' % swarm_svc)
 
         elif Platform.is_rancher():
-            c_inspect = state.inspect_container(c_id)
             service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_SVC_NAME)
             stack_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_STACK_NAME)
             container_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_CONTAINER_NAME)
@@ -334,12 +328,12 @@ class SDDockerBackend(AbstractSDBackend):
                 tags.append('rancher_container:%s' % container_name)
 
         elif Platform.is_nomad():
-            nomad_tags = self.nomadutil.extract_container_tags(state.inspect_container(c_id))
+            nomad_tags = self.nomadutil.extract_container_tags(c_inspect)
             if nomad_tags:
                 tags.extend(nomad_tags)
 
         elif Platform.is_ecs_instance():
-            ecs_tags = self.ecsutil.extract_container_tags(state.inspect_container(c_id))
+            ecs_tags = self.ecsutil.extract_container_tags(c_inspect)
             tags.extend(ecs_tags)
 
         return tags

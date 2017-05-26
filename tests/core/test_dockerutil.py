@@ -38,7 +38,6 @@ class TestDockerUtil(unittest.TestCase):
     def test_image_name_from_container(self):
         co = {'Image': 'redis:3.2'}
         self.assertEqual('redis:3.2', DockerUtil().image_name_extractor(co))
-        pass
 
     @mock.patch('docker.Client.inspect_image')
     @mock.patch('docker.Client.__init__')
@@ -62,3 +61,15 @@ class TestDockerUtil(unittest.TestCase):
         mock_init.return_value = None
         co = {'Image': 'sha256:e48e77eee11b6d9ac9fc35a23992b4158355a8ec3fd3725526eba3f467e4b6d9'}
         self.assertEqual('alpine', DockerUtil().image_name_extractor(co))
+
+    def test_extract_container_tags(self):
+        test_data = [
+            # Nominal case
+            [{'Image': 'redis:3.2'}, ['docker_image:redis:3.2', 'image_name:redis', 'image_tag:3.2']],
+            # No tag
+            [{'Image': 'redis'}, ['docker_image:redis', 'image_name:redis']],
+            # No image
+            [{}, []],
+        ]
+        for test in test_data:
+            self.assertEqual(test[1], DockerUtil().extract_container_tags(test[0]))
