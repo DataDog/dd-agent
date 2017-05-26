@@ -18,6 +18,7 @@ from utils.service_discovery.abstract_config_store import AbstractConfigStore, \
 from utils.service_discovery.sd_backend import get_sd_backend
 from utils.service_discovery.sd_docker_backend import SDDockerBackend, _SDDockerBackendConfigFetchState
 from utils.dockerutil import DockerUtil
+from utils.rancher.rancherutil import RancherUtil
 
 
 def clear_singletons(agentConfig):
@@ -98,6 +99,22 @@ class TestServiceDiscovery(unittest.TestCase):
         u'Config': {u'ExposedPorts': {u'6379/tcp': {}}},
         u'NetworkSettings': {u'IPAddress': u'', u'Ports': None}
     }
+    rancher_ipsec_network_inspect_with_exposed_ports = {
+        u'Id': u'389dc8a4361f3d6c866e9e9a7b6972b26a31c589c4e2f097375d55656a070bc9',
+        u'Image': u'foo',
+        u'Name': u'bar',
+        u'Config': {u'ExposedPorts': {u'80/tcp': {}},
+                    u'Labels': {u'io.rancher.container.name': u'nginx_1'}},
+        u'NetworkSettings': {u'IPAddress': u'', u'Ports': None}
+    }
+    rancher_ipsec_network_inspect_without_exposed_ports = {
+        u'Id': u'389dc8a4361f3d6c866e9e9a7b6972b26a31c589c4e2f097375d55656a070bc9',
+        u'Image': u'foo',
+        u'Name': u'bar',
+        u'Config': {u'ExposedPorts': None,
+                    u'Labels': {u'io.rancher.container.name': u'nginx_1'}},
+        u'NetworkSettings': {u'IPAddress': u'', u'Ports': None}
+    }
     malformed_container_inspect = {
         u'Id': u'69ff25598b2314d1cdb7752cc3a659fb1c1352b32546af4f1454321550e842c0',
         u'Image': u'foo',
@@ -108,7 +125,9 @@ class TestServiceDiscovery(unittest.TestCase):
         (docker_container_inspect, '172.17.0.21', 'port', '443', 'nginx'),
         (docker_container_inspect_with_label, '172.17.0.21', 'port', '443', 'custom-nginx'),
         (kubernetes_container_inspect, None, 'port', '6379', 'foo'),  # arbitrarily defined in the mocked pod_list
-        (malformed_container_inspect, None, 'port', KeyError, 'foo')
+        (malformed_container_inspect, None, 'port', None, 'foo'),
+        (rancher_ipsec_network_inspect_with_exposed_ports, None, 'port', '80', 'foo'),
+        (rancher_ipsec_network_inspect_without_exposed_ports, None, 'port', '80', 'foo')
     ]
 
     # templates with variables already extracted
@@ -194,7 +213,10 @@ class TestServiceDiscovery(unittest.TestCase):
     @mock.patch.object(AbstractConfigStore, '__init__', return_value=None)
     @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
     @mock.patch('utils.kubernetes.kubeutil.get_conf_path', return_value=None)
-    def test_get_host_address(self, mock_check_yaml, mock_get, *args):
+    @mock.patch.object(RancherUtil, 'is_rancher', return_value=True)
+    @mock.patch.object(RancherUtil, 'get_hosts_ip_for_container', return_value='10.42.0.2')
+    def test_get_host_address(self, mock_get_hosts_for_container, mock_is_rancher, mock_get_conf_path, mock_client,
+                              mock___init__, mock_check_yaml, mock_get, *args):
         kubernetes_config = {'instances': [{'kubelet_port': 1337}]}
         pod_list = {
             'items': [{
@@ -243,7 +265,13 @@ class TestServiceDiscovery(unittest.TestCase):
                     'bridge': {'IPAddress': '172.17.0.2'},
                     'foo': {'IPAddress': '192.168.0.2'}
                 }}},
-             'host_foo', '192.168.0.2')
+             'host_foo', '192.168.0.2'),
+            ({'Config': {'Labels': {'io.rancher.container.ip': '10.42.0.1'}}}, 'host', '10.42.0.1'),
+            ({'Config': {'Labels': {'io.rancher.container.name': 'container_name'}}}, 'host', '10.42.0.2'),
+            ({'NetworkSettings': {'Networks': {}},
+              'Config': {'Labels': {'io.rancher.container.ip': '10.42.0.1'}}}, 'host', '10.42.0.1'),
+            ({'NetworkSettings': {'Networks': {}},
+              'Config': {'Labels': {'io.rancher.container.name': 'container_name'}}}, 'host', '10.42.0.2')
         ]
 
         mock_check_yaml.return_value = kubernetes_config
@@ -258,14 +286,13 @@ class TestServiceDiscovery(unittest.TestCase):
     @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
         os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
+    @mock.patch.object(RancherUtil, 'is_rancher', return_value=True)
+    @mock.patch.object(RancherUtil, 'get_ports_for_container', return_value=['80'])
     def test_get_port(self, *args):
         for c_ins, _, var_tpl, expected_ports, _ in self.container_inspects:
             state = _SDDockerBackendConfigFetchState(lambda _: c_ins)
             sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
-            if isinstance(expected_ports, str):
-                self.assertEquals(sd_backend._get_port(state, 'container id', var_tpl), expected_ports)
-            else:
-                self.assertRaises(expected_ports, sd_backend._get_port, state, 'c_id', var_tpl)
+            self.assertEquals(sd_backend._get_port(state, 'container id', var_tpl), expected_ports)
             clear_singletons(self.auto_conf_agentConfig)
 
     @mock.patch('config.get_auto_confd_path', return_value=os.path.join(

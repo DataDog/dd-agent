@@ -97,8 +97,8 @@ class Platform(object):
 
     @staticmethod
     def is_rancher():
-        from utils.dockerutil import DockerUtil
-        return DockerUtil().is_rancher()
+        from utils.rancher import RancherUtil
+        return RancherUtil().is_rancher()
 
     @staticmethod
     def is_swarm():
