@@ -116,13 +116,16 @@ class TestServiceDiscovery(unittest.TestCase):
         # image_name: ([(source, (check_name, init_tpl, instance_tpl, variables))], (expected_config_template))
         'image_0': (
             [('template', ('check_0', {}, {'host': '%%host%%'}, ['host']))],
-            ('template', ('check_0', {}, {'host': '127.0.0.1'}))),
+            ('template', ('check_0', {}, [{'host': '127.0.0.1'}]))),
         'image_1': (
             [('template', ('check_1', {}, {'port': '%%port%%'}, ['port']))],
-            ('template', ('check_1', {}, {'port': '1337'}))),
+            ('template', ('check_1', {}, [{'port': '1337'}]))),
         'image_2': (
             [('template', ('check_2', {}, {'host': '%%host%%', 'port': '%%port%%'}, ['host', 'port']))],
-            ('template', ('check_2', {}, {'host': '127.0.0.1', 'port': '1337'}))),
+            ('template', ('check_2', {}, [{'host': '127.0.0.1', 'port': '1337'}]))),
+        'image_3': (
+            [('template', ('check_3', {}, [{'host': '%%host%%', 'port': '%%port%%'}, {"foo": "%%host%%", "bar": "%%port%%"}], ['host', 'port', 'host', 'port']))],
+            ('template', ('check_3', {}, [{'host': '127.0.0.1', 'port': '1337'},{'foo': '127.0.0.1', 'bar': '1337'}]))),
     }
 
     # raw templates coming straight from the config store
@@ -137,6 +140,13 @@ class TestServiceDiscovery(unittest.TestCase):
         'image_2': (
             ('["check_2"]', '[{}]', '[{"host": "%%host%%", "port": "%%port%%"}]'),
             [('template', ('check_2', {}, {"host": "%%host%%", "port": "%%port%%"}))]),
+        'image_3': (
+            ('["check_3"]', '[{}]', '[[{"host": "%%host%%", "port": "%%port%%"},{"foo": "%%host%%", "bar": "%%port%%"}]]'),
+            [('template', ('check_3', {}, [{"host": "%%host%%", "port": "%%port%%"}, {"foo": "%%host%%", "bar": "%%port%%"}]))]),
+        # multi-checks environment
+        'image_4': (
+            ('["check_4a", "check_4b"]', '[{},{}]', '[[{"host": "%%host%%", "port": "%%port%%"}],[{"foo": "%%host%%", "bar": "%%port%%"}]]'),
+            [('template', ('check_4a', {}, [{"host": "%%host%%", "port": "%%port%%"}])), ('template', ('check_4b', {}, [{"foo": "%%host%%", "bar": "%%port%%"}]))]),
         'bad_image_0': ((['invalid template']), []),
         'bad_image_1': (('invalid template'), []),
         'bad_image_2': (None, []),
@@ -558,7 +568,7 @@ class TestServiceDiscovery(unittest.TestCase):
     @mock.patch.object(AbstractConfigStore, 'client_read', side_effect=client_read)
     def test_get_check_tpls_kube(self, *args):
         """Test get_check_tpls for kubernetes annotations"""
-        valid_config = ['image_0', 'image_1', 'image_2']
+        valid_config = ['image_0', 'image_1', 'image_2', 'image_3', 'image_4']
         invalid_config = ['bad_image_0']
         config_store = get_config_store(self.auto_conf_agentConfig)
         for image in valid_config + invalid_config:
