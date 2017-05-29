@@ -212,36 +212,35 @@ class KubeStateProcessor:
         else:
             self.log.error("Metric type %s unsupported for metric %s" % (message.type, message.name))
 
-    # TODO: uncomment when they are released
-    # def kube_limitrange(self, message, **kwargs):
-    #     """ Resource limits by consumer type. """
-    #     # type's cardinality is low: https://github.com/kubernetes/kubernetes/blob/v1.6.1/pkg/api/v1/types.go#L3872-L3879
-    #     # idem for resource: https://github.com/kubernetes/kubernetes/blob/v1.6.1/pkg/api/v1/types.go#L3342-L3352
-    #     # idem for constraint: https://github.com/kubernetes/kubernetes/blob/v1.6.1/pkg/api/v1/types.go#L3882-L3901
-    #     metric_base_name = NAMESPACE + '.limitrange.{}.{}'
-    #     constraints = {
-    #         'min': 'min',
-    #         'max': 'max',
-    #         'default': 'default',
-    #         'defaultRequest': 'default_request',
-    #         'maxLimitRequestRatio': 'max_limit_request_ratio',
+    def kube_limitrange(self, message, **kwargs):
+        """ Resource limits by consumer type. """
+        # type's cardinality is low: https://github.com/kubernetes/kubernetes/blob/v1.6.1/pkg/api/v1/types.go#L3872-L3879
+        # idem for resource: https://github.com/kubernetes/kubernetes/blob/v1.6.1/pkg/api/v1/types.go#L3342-L3352
+        # idem for constraint: https://github.com/kubernetes/kubernetes/blob/v1.6.1/pkg/api/v1/types.go#L3882-L3901
+        metric_base_name = NAMESPACE + '.limitrange.{}.{}'
+        constraints = {
+            'min': 'min',
+            'max': 'max',
+            'default': 'default',
+            'defaultRequest': 'default_request',
+            'maxLimitRequestRatio': 'max_limit_request_ratio',
 
-    #     }
-    #     if message.type < len(METRIC_TYPES):
-    #         for metric in message.metric:
-    #             constraint = self._extract_label_value("constraint", metric.label)
-    #             if constraint in constraints:
-    #                 constraint = constraints[constraint]
-    #             else:
-    #                 self.error("Constraint %s unsupported for metric %s" % (constraint, message.name))
-    #                 continue
-    #             resource = self._extract_label_value("resource", metric.label)
-    #             tags = [
-    #                 'namespace:%s' % self._extract_label_value("namespace", metric.label),
-    #                 'resourcequota:%s' % self._extract_label_value("resourcequota", metric.label),
-    #                 'consumer_type:%s' % self._extract_label_value("type", metric.label)
-    #             ]
-    #             val = getattr(metric, METRIC_TYPES[message.type]).value
-    #             self.gauge(metric_base_name.format(resource, constraint), val, tags)
-    #     else:
-    #         self.log.error("Metric type %s unsupported for metric %s" % (message.type, message.name))
+        }
+        if message.type < len(METRIC_TYPES):
+            for metric in message.metric:
+                constraint = self._extract_label_value("constraint", metric.label)
+                if constraint in constraints:
+                    constraint = constraints[constraint]
+                else:
+                    self.error("Constraint %s unsupported for metric %s" % (constraint, message.name))
+                    continue
+                resource = self._extract_label_value("resource", metric.label)
+                tags = [
+                    'namespace:%s' % self._extract_label_value("namespace", metric.label),
+                    'limitrange:%s' % self._extract_label_value("limitrange", metric.label),
+                    'consumer_type:%s' % self._extract_label_value("type", metric.label)
+                ]
+                val = getattr(metric, METRIC_TYPES[message.type]).value
+                self.gauge(metric_base_name.format(resource, constraint), val, tags)
+        else:
+            self.log.error("Metric type %s unsupported for metric %s" % (message.type, message.name))
