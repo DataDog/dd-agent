@@ -24,6 +24,10 @@ SETUPTOOLS_VERSION="20.9.0"
 # $AGENT_VERSION
 #   The tag or branch from which the source install performs.
 #   Defaults to $DEFAULT_AGENT_VERSION
+# $INTEGRATIONS_VERSION
+#   The tag or branch from which the source install grabs the check
+#   sources in the GH integrations-core repo (DataDog/integrations-core).
+#   Defaults to $AGENT_VERSION
 # $DD_API_KEY
 #   Sets your API key in the config when installing.
 #   If not specified, the script will not install a default config.
@@ -74,6 +78,9 @@ set -u
 #######################################################################
 # CONSTANTS
 #######################################################################
+PRE_SDK_RELEASE="5.11.3"
+LAST_JMXFETCH_BUNDLE_RELEASE="5.13.2"
+JMXFETCH_URL="http://dd-jmxfetch.s3.amazonaws.com"
 REPORT_FAILURE_URL="https://app.datadoghq.com/agent_stats/report_failure"
 REPORT_FAILURE_EMAIL="support@datadoghq.com"
 
@@ -213,6 +220,27 @@ and we'll do our very best to help you solve your problem."
         report_using_mail
     fi
 }
+
+# Allows us to compare versions
+# Returns 0 if the second arg version is > than the first.
+check_version()
+{
+    local version=$1 check=$2
+    local winner=$(printf "%s\n%s" "$version" "$check" | sort -t '.' -n -k1,1 -k2,2 -k3,3 | head -n 1)
+    [ "$winner" = "$version" ] && return 0
+    return 1
+}
+
+# Grab any param from the python config.
+get_from_py_config()
+{
+    cd $DD_HOME/agent >/dev/null 2>&1
+    local param=$(PYTHONPATH='agent/checks/libs:$PYTHONPATH' $DD_HOME/venv/bin/python -c "import config ; print config.$1")
+    cd - >/dev/null 2>&1
+
+    printf "%s" $param
+}
+
 
 # Will be called if an unknown error appears and that the Agent is not running
 # It asks the user if he wants to automatically send a failure report
@@ -389,18 +417,22 @@ tar -xz -C "$DD_HOME/agent" --strip-components 1 -f "$DD_HOME/agent.tar.gz"
 rm -f "$DD_HOME/agent.tar.gz"
 print_done
 
+# get the version from the actual config file in the branch
+AGENT_VERSION=$(get_from_py_config AGENT_VERSION)
+INTEGRATIONS_VERSION=${INTEGRATIONS_VERSION:-$AGENT_VERSION}
 IFS='.' read AGENT_MAJOR_VERSION AGENT_MINOR_VERSION AGENT_BUGFIX_VERSION<<VERSION
 $AGENT_VERSION
 VERSION
 
 # Only install the integrations from the integrations-core if it's version 5.12 or above.
-if [ "$AGENT_MAJOR_VERSION" -eq "5" -a "$AGENT_MINOR_VERSION" -gt "11" ]; then
+if check_version $PRE_SDK_RELEASE $AGENT_VERSION;
+then
   print_console "* Downloading integrations from GitHub"
   mkdir -p "$DD_HOME/integrations"
   mkdir -p "$DD_HOME/agent/checks.d"
   mkdir -p "$DD_HOME/agent/conf.d/auto_conf"
 
-  $DOWNLOADER "$DD_HOME/integrations.tar.gz" "https://api.github.com/repos/DataDog/integrations-core/tarball/$AGENT_VERSION"
+  $DOWNLOADER "$DD_HOME/integrations.tar.gz" "https://api.github.com/repos/DataDog/integrations-core/tarball/$INTEGRATIONS_VERSION"
   print_done
 
   print_console "* Uncompressing tarball"
@@ -435,6 +467,17 @@ print_console "* Trying to install optional requirements"
 $DOWNLOADER "$DD_HOME/requirements-opt.txt" "$BASE_GITHUB_URL/requirements-opt.txt"
 "$DD_HOME/agent/utils/pip-allow-failures.sh" "$DD_HOME/requirements-opt.txt"
 print_done
+
+if check_version $LAST_JMXFETCH_BUNDLE_RELEASE $AGENT_VERSION;
+then
+    print_console "* Trying to install JMXFetch jarfile from $JMXFETCH_URL"
+    JMX_VERSION=$(get_from_py_config JMX_VERSION)
+    JMX_ARTIFACT="jmxfetch-${JMX_VERSION}-jar-with-dependencies.jar"
+
+    mkdir -p "$DD_HOME/agent/checks/libs"
+    $DOWNLOADER "$DD_HOME/agent/checks/libs/${JMX_ARTIFACT}" "$JMXFETCH_URL/${JMX_ARTIFACT}"
+    print_done
+fi
 
 print_console "* Setting up a datadog.conf generic configuration file"
 if [ -z "$SED_CMD" ]; then
