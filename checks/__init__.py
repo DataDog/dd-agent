@@ -395,7 +395,7 @@ class AgentCheck(object):
         proxies = self.proxies.copy()
         proxies['no'] = get_no_proxy_from_env()
 
-        return config_proxy_skip(proxies, uri, _is_affirmative(instance.get('skip_proxy', False)))
+        return config_proxy_skip(proxies, uri, _is_affirmative(instance.get('no_proxy', False)))
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
