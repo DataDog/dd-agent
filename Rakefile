@@ -50,8 +50,14 @@ task 'setup_libs' do
 
   jmx_version = `python -c "import config ; print config.JMX_VERSION"`
   jmx_version = jmx_version.delete("\n")
+  puts "jmx-fetch version: #{jmx_version}"
   jmx_artifact = "jmxfetch-#{jmx_version}-jar-with-dependencies.jar"
-  `wget -O checks/libs/#{jmx_artifact} #{ENV['JMXFETCH_URL']}/#{jmx_artifact}` unless File.file?("checks/libs/#{jmx_artifact}")
+  if File.size?("checks/libs/#{jmx_artifact}")
+    puts "Artifact already in place: #{jmx_artifact}"
+  else
+    # let's use `sh` so we can see on the log if wget fails
+    sh "wget -O checks/libs/#{jmx_artifact} #{ENV['JMXFETCH_URL']}/#{jmx_artifact}"
+  end
 end
 
 namespace :test do
