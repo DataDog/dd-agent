@@ -204,9 +204,13 @@ class TestPrometheusProcessor(unittest.TestCase):
         _l2 = self.ref_gauge.metric[0].label.add()
         _l2.name = 'my_2nd_label'
         _l2.value = 'my_2nd_label_value'
-        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge)
+        tags = ['test']
+        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
+        # Call a second time to check that the labels were not added once more as to the tags list and
+        # avoid regression on https://github.com/DataDog/dd-agent/pull/3359
+        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
-                ['my_1st_label:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
+                ['test', 'my_1st_label:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
 
     def test_submit_metric_gauge_with_custom_tags(self):
         ''' Providing custom tags should add them as is on the gauge call '''
