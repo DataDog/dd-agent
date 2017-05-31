@@ -305,9 +305,9 @@ class PrometheusCheck(AgentCheck):
         `custom_tags` is an array of 'tag:value' that will be added to the
         metric when sending the gauge to Datadog.
         """
-        _tags = custom_tags
-        if _tags is None:
-            _tags = []
+        _tags = []
+        if custom_tags is not None:
+            _tags += custom_tags
         for label in metric.label:
             if self.exclude_labels is None or label.name not in self.exclude_labels:
                 tag_name = label.name
