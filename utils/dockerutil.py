@@ -36,6 +36,7 @@ class MountException(Exception):
 class CGroupException(Exception):
     pass
 
+
 # Default docker client settings
 DEFAULT_TIMEOUT = 5
 DEFAULT_VERSION = 'auto'
@@ -70,20 +71,27 @@ class DockerUtil:
         # At first run we'll just collect the events from the latest 60 secs
         self._latest_event_collection_ts = int(time.time()) - 60
 
+        # Memory cache for sha256 to image name mapping
+        self._image_sha_to_name_mapping = {}
+
         # Try to detect if we are on Swarm
         self.fetch_swarm_state()
 
-        # Try to detect if we are on ECS or Rancher
+        # Try to detect if an orchestrator is running
         self._is_ecs = False
         self._is_rancher = False
+
         try:
             containers = self.client.containers()
             for co in containers:
                 if '/ecs-agent' in co.get('Names', ''):
                     self._is_ecs = True
-                if '/rancher-agent' in co.get('Names', ''):
+                    break
+                elif '/rancher-agent' in co.get('Names', ''):
                     self._is_rancher = True
-        except Exception:
+                    break
+        except Exception as e:
+            log.warning("Error while detecting orchestrator: %s" % e)
             pass
 
         # Build include/exclude patterns for containers
@@ -347,13 +355,18 @@ class DockerUtil:
     @classmethod
     def _parse_subsystem(cls, line):
         """
-        If 'docker' is in the path, it can be there once or twice:
-        /docker/$CONTAINER_ID
-        /docker/$USER_DOCKER_CID/docker/$CONTAINER_ID
-        so we pick the last one.
+        Parse cgroup path.
+        - If the path is a slice (see https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Resource_Management_Guide/sec-Default_Cgroup_Hierarchies.html)
+          we return the path as-is (we still strip out any leading '/')
+        - If 'docker' is in the path, it can be there once or twice:
+          /docker/$CONTAINER_ID
+          /docker/$USER_DOCKER_CID/docker/$CONTAINER_ID
+          so we pick the last one.
         In /host/sys/fs/cgroup/$CGROUP_FOLDER/ cgroup/container IDs can be at the root
         or in a docker folder, so if we find 'docker/' in the path we don't strip it away.
         """
+        if '.slice' in line[2]:
+            return line[2].lstrip('/')
         i = line[2].rfind('docker')
         if i != -1:  # rfind returns -1 if docker is not found
             return line[2][i:]
@@ -428,10 +441,29 @@ class DockerUtil:
 
         raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
-    @classmethod
-    def image_tag_extractor(cls, entity, key):
-        if "Image" in entity:
-            split = entity["Image"].split(":")
+    def extract_container_tags(self, co):
+        """
+        Retrives docker_image, image_name and image_tag tags as a list for a
+        container. If the container or image is invalid, will gracefully
+        return an empty list
+        """
+        tags = []
+        docker_image = self.image_name_extractor(co)
+        image_name_array = self.image_tag_extractor(co, 0)
+        image_tag_array = self.image_tag_extractor(co, 1)
+
+        if docker_image:
+            tags.append('docker_image:%s' % docker_image)
+        if image_name_array and len(image_name_array) > 0:
+            tags.append('image_name:%s' % image_name_array[0])
+        if image_tag_array and len(image_tag_array) > 0:
+            tags.append('image_tag:%s' % image_tag_array[0])
+        return tags
+
+    def image_tag_extractor(self, entity, key):
+        name = self.image_name_extractor(entity)
+        if name is not None and len(name):
+            split = name.split(":")
             if len(split) <= key:
                 return None
             elif len(split) > 2:
@@ -439,7 +471,8 @@ class DockerUtil:
                 # the split will be like [repo_url, repo_port/image_name, image_tag]. Let's avoid that
                 split = [':'.join(split[:-1]), split[-1]]
             return [split[key]]
-        if entity.get('RepoTags'):
+        # Entity is an image. TODO: deprecate?
+        elif entity.get('RepoTags'):
             splits = [el.split(":") for el in entity["RepoTags"]]
             tags = set()
             for split in splits:
@@ -457,6 +490,42 @@ class DockerUtil:
             if len(split) > 1:
                 return [split[key]]
 
+        return None
+
+    def image_name_extractor(self, co):
+        """
+        Returns the image name for a container, either directly from the
+        container's Image property or by inspecting the image entity if
+        the reference is its sha256 sum and not its name.
+        Result is cached for performance, no invalidation planned as image
+        churn is low on typical hosts.
+        """
+        if "Image" in co:
+            image = co.get('Image', '')
+            if image.startswith('sha256:'):
+                # Some orchestrators setup containers with image checksum instead of image name
+                try:
+                    if image in self._image_sha_to_name_mapping:
+                        return self._image_sha_to_name_mapping[image]
+                    else:
+                        image_spec = self.client.inspect_image(image)
+                        try:
+                            name = image_spec['RepoTags'][0]
+                            self._image_sha_to_name_mapping[image] = name
+                            return name
+                        except (LookupError, TypeError) as e:
+                            log.debug("Failed finding image name in RepoTag, trying RepoDigests: %s", e)
+                        try:
+                            name = image_spec['RepoDigests'][0]
+                            name = name.split('@')[0]   # Last resort, we get the name with no tag
+                            self._image_sha_to_name_mapping[image] = name
+                            return name
+                        except (LookupError, TypeError) as e:
+                            log.warning("Failed finding image name in RepoTag and RepoDigests: %s", e)
+                except Exception:
+                    log.exception("Exception getting docker image name")
+            else:
+                return image
         return None
 
     @classmethod
@@ -482,6 +551,12 @@ class DockerUtil:
 
             docker_gateways = {}
             for netname, netconf in container['NetworkSettings']['Networks'].iteritems():
+
+                if netname == 'host' or netconf.get(u'Gateway') == '':
+                    log.debug("Empty network gateway, container %s is in network host mode, "
+                        "its network metrics are for the whole host." % container['Id'][:12])
+                    return {'eth0': 'bridge'}
+
                 docker_gateways[netname] = struct.unpack('<L', socket.inet_aton(netconf.get(u'Gateway')))[0]
 
             mapping = {}
@@ -500,6 +575,15 @@ class DockerUtil:
         except KeyError as e:
             log.exception("Missing container key: %s", e)
             raise ValueError("Invalid container dict")
+
+
+    def inspect_container(self, co_id):
+        """
+        Requests docker inspect for one container. This is a costly operation!
+        :param co_id: container id
+        :return: dict from docker-py
+        """
+        return self.client.inspect_container(co_id)
 
     @classmethod
     def _drop(cls):

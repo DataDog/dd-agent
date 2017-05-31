@@ -24,6 +24,7 @@ unless ENV['CI']
   ENV['VOLATILE_DIR'] = '/tmp/dd-agent-testing'
   ENV['CONCURRENCY'] = ENV['CONCURRENCY'] || '2'
   ENV['NOSE_FILTER'] = 'not windows'
+  ENV['JMXFETCH_URL'] = 'https://dd-jmxfetch.s3.amazonaws.com'
 end
 
 desc 'Setup a development environment for the Agent'
@@ -40,6 +41,17 @@ task 'setup_env' do
   # These deps are not really needed, so we ignore failures
   ENV['PIP_COMMAND'] = 'venv/bin/pip'
   `./utils/pip-allow-failures.sh requirements-opt.txt`
+end
+
+desc 'Grab libs'
+task 'setup_libs' do
+  in_venv = system "python -c \"import sys ; exit(not hasattr(sys, 'real_prefix'))\""
+  raise 'Not in dev venv/CI environment - bailing out.' if !in_venv && !ENV['CI']
+
+  jmx_version = `python -c "import config ; print config.JMX_VERSION"`
+  jmx_version = jmx_version.delete("\n")
+  jmx_artifact = "jmxfetch-#{jmx_version}-jar-with-dependencies.jar"
+  `wget -O checks/libs/#{jmx_artifact} #{ENV['JMXFETCH_URL']}/#{jmx_artifact}` unless File.file?("checks/libs/#{jmx_artifact}")
 end
 
 namespace :test do

@@ -17,6 +17,7 @@ from utils.service_discovery.abstract_config_store import AbstractConfigStore, \
     _TemplateCache, CONFIG_FROM_KUBE, CONFIG_FROM_TEMPLATE, CONFIG_FROM_AUTOCONF
 from utils.service_discovery.sd_backend import get_sd_backend
 from utils.service_discovery.sd_docker_backend import SDDockerBackend, _SDDockerBackendConfigFetchState
+from utils.dockerutil import DockerUtil
 
 
 def clear_singletons(agentConfig):
@@ -115,13 +116,13 @@ class TestServiceDiscovery(unittest.TestCase):
         # image_name: ([(source, (check_name, init_tpl, instance_tpl, variables))], (expected_config_template))
         'image_0': (
             [('template', ('check_0', {}, {'host': '%%host%%'}, ['host']))],
-            ('template', ('check_0', {}, {'host': '127.0.0.1'}))),
+            ('template', ('check_0', {}, {'host': '127.0.0.1', 'tags': [u'docker_image:nginx', u'image_name:nginx']}))),
         'image_1': (
             [('template', ('check_1', {}, {'port': '%%port%%'}, ['port']))],
-            ('template', ('check_1', {}, {'port': '1337'}))),
+            ('template', ('check_1', {}, {'port': '1337', 'tags': [u'docker_image:nginx', u'image_name:nginx']}))),
         'image_2': (
             [('template', ('check_2', {}, {'host': '%%host%%', 'port': '%%port%%'}, ['host', 'port']))],
-            ('template', ('check_2', {}, {'host': '127.0.0.1', 'port': '1337'}))),
+            ('template', ('check_2', {}, {'host': '127.0.0.1', 'port': '1337', 'tags': [u'docker_image:nginx', u'image_name:nginx']}))),
     }
 
     # raw templates coming straight from the config store
@@ -587,7 +588,7 @@ class TestServiceDiscovery(unittest.TestCase):
             for c_ins, _, _, _, expected_ident in self.container_inspects:
                 sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
                 self.assertEqual(
-                    sd_backend.get_config_id(c_ins.get('Image'), c_ins.get('Config', {}).get('Labels', {})),
+                    sd_backend.get_config_id(DockerUtil().image_name_extractor(c_ins), c_ins.get('Config', {}).get('Labels', {})),
                     expected_ident)
                 clear_singletons(self.auto_conf_agentConfig)
 

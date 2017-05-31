@@ -1,6 +1,62 @@
 Changes
 =======
 
+# 5.13.2 / 05-11-2017
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.13.1...5.13.2
+
+### Changes
+Please refer to the [Integrations Core Checks 5.13.2 tag](https://github.com/DataDog/integrations-core/releases/tag/5.13.2) for the list of changes on the Integrations Core checks repository.
+
+* [IMPROVEMENT] Flare: add `auto_conf` templates. See [#3330][]
+* [BUGFIX] Dockerutil: use DockerUtil.image_name_extractor for all code paths. See [#3334][]
+* [BUGFIX] Dockerutil: fix exception when image name is `None`. See [#3329][]
+* [BUFGIX] Dockerutil: support systemd slices in cgroup paths. See [#3328][]
+* [BUGFIX] Dockerutil: fix image name when using sha256 for specs. See [#3326][]
+* [BUGFIX] Packaging: fix os detection for "exotic" distributions. See [dd-agent-omnibus-171](https://github.com/DataDog/dd-agent-omnibus/pull/171)
+* [SANITY] Packaging: Remove reliance on `pedump` fork. See [dd-agent-omnibus-167](https://github.com/DataDog/dd-agent-omnibus/pull/167)
+
+# 5.13.1 / 05-02-2017
+**Docker Alpine and Source Install Only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.13.0...5.13.1
+
+### Changes
+
+* [BUGFIX] Redis: Fixes a bug where the redis python library would not install using the source install. See [integrations-core-389](https://github.com/DataDog/integrations-core/pull/389)
+
+
+# 5.13.0 / 04-24-2017
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.12.3...5.13.0
+
+On this release the APM tracing agent is now enabled by *default* on supported platforms (linux).
+Should you wish to disable it please set:
+```
+apm_enabled: no
+```
+in the relevant section in `datadog.conf` and restart the agent.
+
+### Changes
+Please refer to the [Integrations Core Checks 5.13.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.13.0) for the list of changes on the Integrations Core checks repository.
+Please refer to the [Trace Agent 5.13.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.13.0) for the list of changes on the Trace Agent.
+
+* [FEATURE] Docker, Service Discovery: Add ability to get docker IP address from Rancher labels for Rancher 1.3. See [#3265][]
+* [FEATURE] Docker: improve network tagging. See [#3272][]
+* [IMPROVEMENT] Kubeutil: catch errors from kubeutil init. See [#3310][]
+* [BUGFIX] JMXFetch: fix race condition preventing SD initialization. See [jmxfetch-135](https://github.com/DataDog/jmxfetch/pull/135)
+* [BUGFIX] Kubernetes_state: refactor gauge submission, fix `container.restarts`. See [#3297][]
+* [BUGFIX] Dockerutil: fix net metrics in host mode. See [#3313][] and [#3314][]
+* [SANITY] Windows: Remove system network check (metrics already reported by [integrations-core](https://github.com/DataDog/integrations-core/blob/master/network/check.py)). See [#3096][]
+* [SANITY] Kafka: adding Kafka to list of JMX checks (NOP). See [#3304][]
+* [REVERT] Core: SpooledTemporaryFile for subprocess output. See [#3291][]
+
+
 # 5.12.3 / 03-31-2017
 **Linux, Docker and Source Install**
 
@@ -4011,6 +4067,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3080]: https://github.com/DataDog/dd-agent/issues/3080
 [#3093]: https://github.com/DataDog/dd-agent/issues/3093
 [#3095]: https://github.com/DataDog/dd-agent/issues/3095
+[#3096]: https://github.com/DataDog/dd-agent/issues/3096
 [#3100]: https://github.com/DataDog/dd-agent/issues/3100
 [#3109]: https://github.com/DataDog/dd-agent/issues/3109
 [#3111]: https://github.com/DataDog/dd-agent/issues/3111
@@ -4055,12 +4112,25 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3244]: https://github.com/DataDog/dd-agent/issues/3244
 [#3252]: https://github.com/DataDog/dd-agent/issues/3252
 [#3256]: https://github.com/DataDog/dd-agent/issues/3256
+[#3265]: https://github.com/DataDog/dd-agent/issues/3265
+[#3272]: https://github.com/DataDog/dd-agent/issues/3272
 [#3274]: https://github.com/DataDog/dd-agent/issues/3274
 [#3280]: https://github.com/DataDog/dd-agent/issues/3280
 [#3281]: https://github.com/DataDog/dd-agent/issues/3281
 [#3287]: https://github.com/DataDog/dd-agent/issues/3287
 [#3288]: https://github.com/DataDog/dd-agent/issues/3288
+[#3291]: https://github.com/DataDog/dd-agent/issues/3291
 [#3293]: https://github.com/DataDog/dd-agent/issues/3293
+[#3297]: https://github.com/DataDog/dd-agent/issues/3297
+[#3304]: https://github.com/DataDog/dd-agent/issues/3304
+[#3310]: https://github.com/DataDog/dd-agent/issues/3310
+[#3313]: https://github.com/DataDog/dd-agent/issues/3313
+[#3314]: https://github.com/DataDog/dd-agent/issues/3314
+[#3326]: https://github.com/DataDog/dd-agent/issues/3326
+[#3328]: https://github.com/DataDog/dd-agent/issues/3328
+[#3329]: https://github.com/DataDog/dd-agent/issues/3329
+[#3330]: https://github.com/DataDog/dd-agent/issues/3330
+[#3334]: https://github.com/DataDog/dd-agent/issues/3334
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine

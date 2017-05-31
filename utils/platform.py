@@ -104,3 +104,7 @@ class Platform(object):
     def is_swarm():
         from utils.dockerutil import DockerUtil
         return DockerUtil().is_swarm()
+
+    @staticmethod
+    def is_nomad():
+        return 'NOMAD_ALLOC_ID' in os.environ

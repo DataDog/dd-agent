@@ -12,13 +12,13 @@ import time
 import yaml
 
 # datadog
-from config import _windows_commondata_path, get_confd_path
+from config import _windows_commondata_path, get_confd_path, JMX_VERSION
 from util import yDumper
 from utils.pidfile import PidFile
 from utils.platform import Platform
 
 # JMXFetch java version
-JMX_FETCH_JAR_NAME = "jmxfetch-0.13.0-jar-with-dependencies.jar"
+JMX_FETCH_JAR_NAME = "jmxfetch-{ver}-jar-with-dependencies.jar".format(ver=JMX_VERSION)
 
 log = logging.getLogger(__name__)
 

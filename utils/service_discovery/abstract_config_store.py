@@ -241,7 +241,8 @@ class AbstractConfigStore(object):
                     continue
                 auto_conf = get_auto_conf(check_name)
                 init_config, instances = auto_conf.get('init_config', {}), auto_conf.get('instances', [])
-                templates.append((check_name, init_config, instances[0] or {}))
+                for instance in instances:
+                    templates.append((check_name, init_config, instance or {}))
 
         return templates
 

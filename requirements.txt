@@ -17,7 +17,7 @@
 # fails, so they shouldn't have too many deps
 ###########################################################
 
-boto==2.39.0
+boto==2.46.1
 # utils/platform.py
 docker-py==1.10.6
 # utils/service_discovery/config_stores.py

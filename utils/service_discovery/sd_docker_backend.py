@@ -22,6 +22,7 @@ from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store
+from utils.orchestrator import NomadUtil, ECSUtil
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 
@@ -87,9 +88,20 @@ class SDDockerBackend(AbstractSDBackend):
             agentConfig['sd_config_backend'] = None
             self.config_store = get_config_store(agentConfig=agentConfig)
 
-        self.docker_client = DockerUtil(config_store=self.config_store).client
+        self.dockerutil = DockerUtil(config_store=self.config_store)
+        self.docker_client = self.dockerutil.client
         if Platform.is_k8s():
-            self.kubeutil = KubeUtil()
+            try:
+                self.kubeutil = KubeUtil()
+            except Exception as ex:
+                self.kubeutil = None
+                log.error("Couldn't instantiate the kubernetes client, "
+                    "subsequent kubernetes calls will fail as well. Error: %s" % str(ex))
+
+        if Platform.is_nomad():
+            self.nomadutil = NomadUtil()
+        elif Platform.is_ecs_instance():
+            self.ecsutil = ECSUtil()
 
         self.VAR_MAPPING = {
             'host': self._get_host_address,
@@ -102,14 +114,20 @@ class SDDockerBackend(AbstractSDBackend):
     def _make_fetch_state(self):
         pod_list = []
         if Platform.is_k8s():
-            try:
-                pod_list = self.kubeutil.retrieve_pods_list().get('items', [])
-            except Exception as ex:
-                log.warning("Failed to retrieve pod list: %s" % str(ex))
+            if not self.kubeutil:
+                log.error("kubelet client not created, cannot retrieve pod list.")
+            else:
+                try:
+                    pod_list = self.kubeutil.retrieve_pods_list().get('items', [])
+                except Exception as ex:
+                    log.warning("Failed to retrieve pod list: %s" % str(ex))
         return _SDDockerBackendConfigFetchState(self.docker_client.inspect_container, pod_list)
 
     def update_checks(self, changed_containers):
         state = self._make_fetch_state()
+
+        if Platform.is_k8s():
+            self.kubeutil.check_services_cache_freshness()
 
         conf_reload_set = set()
         for c_id in changed_containers:
@@ -136,7 +154,7 @@ class SDDockerBackend(AbstractSDBackend):
             return
 
         identifier = inspect.get('Config', {}).get('Labels', {}).get(DATADOG_ID) or \
-            inspect.get('Config', {}).get('Image')
+            self.dockerutil.image_name_extractor(inspect)
 
         platform_kwargs = {}
         if Platform.is_k8s():
@@ -262,7 +280,9 @@ class SDDockerBackend(AbstractSDBackend):
 
     def get_tags(self, state, c_id):
         """Extract useful tags from docker or platform APIs. These are collected by default."""
-        tags = []
+        c_inspect = state.inspect_container(c_id)
+        tags = self.dockerutil.extract_container_tags(c_inspect)
+
         if Platform.is_k8s():
             pod_metadata = state.get_kube_config(c_id, 'metadata')
 
@@ -280,36 +300,23 @@ class SDDockerBackend(AbstractSDBackend):
             namespace = pod_metadata.get('namespace')
             tags.append('kube_namespace:%s' % namespace)
 
-            # get created-by
-            created_by = json.loads(pod_metadata.get('annotations', {}).get('kubernetes.io/created-by', '{}'))
-            creator_kind = created_by.get('reference', {}).get('kind')
-            creator_name = created_by.get('reference', {}).get('name')
-
             # add creator tags
-            if creator_name:
-                if creator_kind == 'ReplicationController':
-                    tags.append('kube_replication_controller:%s' % creator_name)
-                elif creator_kind == 'DaemonSet':
-                    tags.append('kube_daemon_set:%s' % creator_name)
-                elif creator_kind == 'ReplicaSet':
-                    tags.append('kube_replica_set:%s' % creator_name)
-            else:
-                log.debug('creator-name for pod %s is empty, this should not happen' % pod_metadata.get('name'))
+            creator_tags = self.kubeutil.get_pod_creator_tags(pod_metadata)
+            tags.extend(creator_tags)
 
-            # FIXME haissam: for service and deployment we need to store a list of these guys
-            # that we query from the apiserver and to compare their selectors with the pod labels.
-            # For service it's straight forward.
-            # For deployment we only need to do it if the pod creator is a ReplicaSet.
-            # Details: https://kubernetes.io/docs/user-guide/deployments/#selector
+            # add services tags
+            services = self.kubeutil.match_services_for_pod(pod_metadata)
+            for s in services:
+                if s is not None:
+                    tags.append('kube_service:%s' % s)
 
         elif Platform.is_swarm():
-            c_labels = state.inspect_container(c_id).get('Config', {}).get('Labels', {})
+            c_labels = c_inspect.get('Config', {}).get('Labels', {})
             swarm_svc = c_labels.get(SWARM_SVC_LABEL)
             if swarm_svc:
                 tags.append('swarm_service:%s' % swarm_svc)
 
-        if Platform.is_rancher():
-            c_inspect = state.inspect_container(c_id)
+        elif Platform.is_rancher():
             service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_SVC_NAME)
             stack_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_STACK_NAME)
             container_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_CONTAINER_NAME)
@@ -319,6 +326,15 @@ class SDDockerBackend(AbstractSDBackend):
                 tags.append('rancher_stack:%s' % stack_name)
             if container_name:
                 tags.append('rancher_container:%s' % container_name)
+
+        elif Platform.is_nomad():
+            nomad_tags = self.nomadutil.extract_container_tags(c_inspect)
+            if nomad_tags:
+                tags.extend(nomad_tags)
+
+        elif Platform.is_ecs_instance():
+            ecs_tags = self.ecsutil.extract_container_tags(c_inspect)
+            tags.extend(ecs_tags)
 
         return tags
 
@@ -340,9 +356,12 @@ class SDDockerBackend(AbstractSDBackend):
         configs = {}
         state = self._make_fetch_state()
         containers = [(
-            container.get('Image'),
+            self.dockerutil.image_name_extractor(container),
             container.get('Id'), container.get('Labels')
         ) for container in self.docker_client.containers()]
+
+        if Platform.is_k8s():
+            self.kubeutil.check_services_cache_freshness()
 
         for image, cid, labels in containers:
             try:
