@@ -38,8 +38,8 @@ class ECSUtil:
             port = ECS_INTROSPECT_DEFAULT_PORT
             if self._is_ecs_agent_local():
                 ip = "localhost"
-            elif Platform.is_containerized() and self.docker_gateway:
-                ip = self.docker_gateway
+            elif Platform.is_containerized():
+                ip = self.docker_util.get_gateway()
             else:
                 raise Exception("Unable to determine ecs-agent IP address")
 
