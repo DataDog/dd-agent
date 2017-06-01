@@ -348,6 +348,11 @@ class SDDockerBackend(AbstractSDBackend):
                 return []
             tags.append('node_name:%s' % pod_spec.get('nodeName'))
             tags.append('pod_name:%s' % pod_metadata.get('name'))
+
+            c_inspect = state.inspect_container(c_id)
+            c_name = c_inspect.get('Config', {}).get('Labels', {}).get(self.kubeutil.CONTAINER_NAME_LABEL)
+            if c_name:
+                tags.append('kube_container_name:%s' % c_name)
         return tags
 
     def get_configs(self):
