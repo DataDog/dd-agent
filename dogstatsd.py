@@ -47,6 +47,7 @@ from utils.net import inet_pton
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
 from utils.pidfile import PidFile
 from utils.watchdog import Watchdog
+from utils.tmp_files import setup_temp_dir
 
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")
@@ -483,6 +484,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     """Configure the server and the reporting thread.
     """
     c = get_config(parse_args=False, cfg_path=config_path)
+    setup_temp_dir(c, proc_name='dogstatsd')
 
     if (not c['use_dogstatsd'] and
             (args and args[0] in ['start', 'restart'] or not args)):

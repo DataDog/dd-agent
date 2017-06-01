@@ -592,6 +592,14 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
         if config.has_option("Main", "gce_updated_hostname"):
             agentConfig["gce_updated_hostname"] = _is_affirmative(config.get("Main", "gce_updated_hostname"))
 
+        agentConfig["use_dd_temp_dir"] = False
+        if config.has_option("Main", "use_dd_temp_dir"):
+            agentConfig["use_dd_temp_dir"] = _is_affirmative(config.get("Main", "use_dd_temp_dir"))
+
+        agentConfig["custom_temp_dir"] = None
+        if config.has_option("Main", "custom_temp_dir"):
+            agentConfig["custom_temp_dir"] = config.get("Main", "custom_temp_dir")
+
     except ConfigParser.NoSectionError as e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)

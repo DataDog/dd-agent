@@ -61,6 +61,7 @@ from utils.net import DEFAULT_DNS_TTL, DNSCache
 from utils.hostname import get_hostname
 from utils.logger import RedactedLogRecord
 from utils.watchdog import Watchdog
+from utils.tmp_files import setup_temp_dir
 
 logging.LogRecord = RedactedLogRecord
 log = logging.getLogger('forwarder')
@@ -580,6 +581,7 @@ class Application(tornado.web.Application):
 
 def init(skip_ssl_validation=False, use_simple_http_client=False):
     agentConfig = get_config(parse_args=False)
+    setup_temp_dir(agentConfig, proc_name='forwarder')
 
     port = agentConfig.get('listen_port', 17123)
     if port is None:

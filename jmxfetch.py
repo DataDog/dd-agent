@@ -34,6 +34,7 @@ from util import yLoader
 from utils.jmx import JMX_FETCH_JAR_NAME, JMXFiles
 from utils.platform import Platform
 from utils.subprocess_output import subprocess
+from utils.tmp_files import setup_temp_dir
 
 log = logging.getLogger('jmxfetch')
 
@@ -494,6 +495,7 @@ def get_jmx_checks(confd_path=None, auto_conf=False):
 
 def init(config_path=None):
     agentConfig = get_config(parse_args=False, cfg_path=config_path)
+    setup_temp_dir(agentConfig, proc_name='jmxfetch')
     try:
         confd_path = get_confd_path()
     except PathNotFound as e:

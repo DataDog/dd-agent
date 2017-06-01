@@ -63,6 +63,7 @@ from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.sd_backend import get_sd_backend
 from utils.watchdog import Watchdog
 from utils.windows_configuration import get_sdk_integration_paths
+from utils.tmp_files import setup_temp_dir
 
 # Constants
 PID_NAME = "dd-agent"
@@ -471,6 +472,8 @@ def main():
     autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
     in_developer_mode = agentConfig.get('developer_mode')
+
+    setup_temp_dir(agentConfig, proc_name='collector')
 
     COMMANDS_AGENT = [
         'start',
