@@ -1,0 +1,30 @@
+
+init_config:
+  #
+  # Captures custom metrics from a SQL stored procedure
+  # The proc must return a dataset with columns:
+  # - metric : the name of the metric
+  # - type   : gauge / rate / histogram
+  # - value  : the value to be logged
+  # - tags   : comma seprated list of tags
+  #
+  # instance values 
+  # - host: server to connect to
+  #   username: Will default to integrated security on SQL Server if not set
+  #   password: Will default to integrated security on SQL Server if not set
+  #   command_timeout: Optional, timeout in seconds for the connection and each command run
+  #   database: database to connect to 
+  #   procedure: Stored procedure to run
+  #   provider: The OLE-DB provider to use to connect. SQLOLEDB for MS SQL Server
+  #   only_if: Optional, SQL statement to run before proc. If the first column of the first row contains 1 then the proc is run
+  #   only_if_database: Optional, database to connect to when running the only_if SQL. Will use database setting if not set
+
+instances:
+  - host: localhost
+    username: my_username
+    password: my_password
+    database: my_db
+    procedure: my_proc
+    provider: SQLOLEDB
+    # only_if: SELECT 0
+    # only_if_database: master
