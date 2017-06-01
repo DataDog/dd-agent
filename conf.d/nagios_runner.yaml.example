@@ -1,0 +1,7 @@
+init_config:
+
+instances:
+  # - name: i.am.a.service.check.name
+  #   command: /usr/bin/foobar -A baz -C gorch
+  # - name: nagios.check.swap
+  #   command: /usr/lib/nagios/plugins/check_swap -w 524288000 -c 104857600 
