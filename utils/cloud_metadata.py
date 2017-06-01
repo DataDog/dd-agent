@@ -11,6 +11,7 @@ import requests
 
 # project
 from utils.proxy import get_proxy
+from utils.rancher import RancherUtil
 
 log = logging.getLogger(__name__)
 
@@ -226,3 +227,28 @@ class EC2(object):
             return EC2.get_metadata(agentConfig).get("instance-id", None)
         except Exception:
             return None
+
+
+class Rancher(object):
+    rancherutil = RancherUtil()
+
+    @staticmethod
+    def get_host_labels(agentConfig):
+        if not agentConfig['collect_rancher_host_labels'] or not Rancher.rancherutil.is_rancher():
+            return []
+
+        raw_labels = Rancher.rancherutil.get_labels_for_host()
+        labels = []
+
+        for (k, v) in raw_labels.iteritems():
+            if k == RancherUtil.HOST_AGENT_IMAGE_LABEL:
+                labels.append('rancher_agent_image:%s' % v)
+            elif k == RancherUtil.HOST_DOCKER_VERSION_LABEL:
+                labels.append('rancher_docker_version:%s' % v)
+            elif k == RancherUtil.HOST_LINUX_KERNEL_VERSION_LABEL:
+                labels.append('rancher_linux_kernel_version:%s' % v)
+
+            else:
+                labels.append("%s:%s" % (k, v))
+
+        return labels

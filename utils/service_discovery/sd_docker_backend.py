@@ -349,18 +349,38 @@ class SDDockerBackend(AbstractSDBackend):
 
         elif Platform.is_rancher():
             c_inspect = state.inspect_container(c_id)
-            service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RancherUtil.SERVICE_NAME_LABEL)
-            stack_name = c_inspect.get('Config', {}).get('Labels', {}).get(RancherUtil.STACK_NAME_LABEL)
+
             container_name = c_inspect.get('Config', {}).get('Labels', {}).get(RancherUtil.CONTAINER_NAME_LABEL)
 
-            #TODO metadata API fetch
+            container_metadata = self.rancherutil.get_container_metadata(container_name=container_name)
 
+            service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RancherUtil.SERVICE_NAME_LABEL) \
+                or container_metadata.get('service_name')
+
+            stack_name = c_inspect.get('Config', {}).get('Labels', {}).get(RancherUtil.STACK_NAME_LABEL) \
+                or container_metadata.get('stack_name')
+
+            if container_name:
+                tags.append('rancher_container:%s' % container_name)
             if service_name:
                 tags.append('rancher_service:%s' % service_name)
             if stack_name:
                 tags.append('rancher_stack:%s' % stack_name)
-            if container_name:
-                tags.append('rancher_container:%s' % container_name)
+
+            host_labels = self.rancherutil.get_labels_for_host()
+
+            for (k, v) in host_labels.iteritems():
+                if k == RancherUtil.HOST_AGENT_IMAGE_LABEL:
+                    tags.append('rancher_host_agent_image:%s' % v)
+
+                elif k == RancherUtil.HOST_DOCKER_VERSION_LABEL:
+                    tags.append('rancher_host_docker_version:%s' % v)
+
+                elif k == RancherUtil.HOST_LINUX_KERNEL_VERSION_LABEL:
+                    tags.append('rancher_host_linux_kernel_version:%s' % v)
+
+                else:
+                    tags.append('%s:%s' % (k, v))
 
         elif Platform.is_nomad():
             nomad_tags = self.nomadutil.extract_container_tags(c_inspect)

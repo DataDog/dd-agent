@@ -37,6 +37,9 @@ api_key:
 # for more information
 # collect_instance_metadata: yes
 
+# Collect Rancher host labels as agent tags
+# collect_rancher_host_labels: no
+
 # Set the threshold for accepting points to allow anything
 # with recent_point_threshold seconds
 # Defaults to 30 seconds if no value is provided
