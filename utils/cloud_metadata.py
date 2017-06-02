@@ -11,7 +11,7 @@ import requests
 
 # project
 from utils.proxy import get_proxy
-from utils.rancher import RancherUtil
+from utils.orchestrator import RancherUtil
 
 log = logging.getLogger(__name__)
 

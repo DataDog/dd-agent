@@ -18,7 +18,7 @@ from utils.service_discovery.abstract_config_store import AbstractConfigStore, \
 from utils.service_discovery.sd_backend import get_sd_backend
 from utils.service_discovery.sd_docker_backend import SDDockerBackend, _SDDockerBackendConfigFetchState
 from utils.dockerutil import DockerUtil
-from utils.rancher import RancherUtil
+from utils.orchestrator import RancherUtil
 
 
 def clear_singletons(agentConfig):

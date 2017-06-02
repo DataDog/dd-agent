@@ -15,11 +15,10 @@ from utils.dockerutil import (
     SWARM_SVC_LABEL
 )
 from utils.kubernetes import KubeUtil
-from utils.rancher import RancherUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store
-from utils.orchestrator import NomadUtil, ECSUtil
+from utils.orchestrator import NomadUtil, ECSUtil, RancherUtil
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 
@@ -366,21 +365,6 @@ class SDDockerBackend(AbstractSDBackend):
                 tags.append('rancher_service:%s' % service_name)
             if stack_name:
                 tags.append('rancher_stack:%s' % stack_name)
-
-            host_labels = self.rancherutil.get_labels_for_host()
-
-            for (k, v) in host_labels.iteritems():
-                if k == RancherUtil.HOST_AGENT_IMAGE_LABEL:
-                    tags.append('rancher_host_agent_image:%s' % v)
-
-                elif k == RancherUtil.HOST_DOCKER_VERSION_LABEL:
-                    tags.append('rancher_host_docker_version:%s' % v)
-
-                elif k == RancherUtil.HOST_LINUX_KERNEL_VERSION_LABEL:
-                    tags.append('rancher_host_linux_kernel_version:%s' % v)
-
-                else:
-                    tags.append('%s:%s' % (k, v))
 
         elif Platform.is_nomad():
             nomad_tags = self.nomadutil.extract_container_tags(c_inspect)

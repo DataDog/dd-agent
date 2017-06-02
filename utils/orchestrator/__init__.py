@@ -4,3 +4,4 @@
 
 from nomadutil import NomadUtil  # noqa: F401
 from ecsutil import ECSUtil  # noqa: F401
+from rancherutil import RancherUtil  # noqa: F401

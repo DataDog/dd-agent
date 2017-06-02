@@ -32,9 +32,9 @@ class RancherUtil:
     def is_rancher():
         if RancherUtil._is_rancher is None:
             try:
-                response = requests.get(url=RancherUtil.METADATA_URL)
+                response = requests.get(url=RancherUtil.METADATA_URL, timeout=1)
                 RancherUtil._is_rancher = response.status_code == 200
-            except requests.exceptions.ConnectionError:
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
                 RancherUtil._is_rancher = False
 
         return RancherUtil._is_rancher
