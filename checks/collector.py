@@ -38,7 +38,7 @@ from util import (
     get_uuid,
     Timer,
 )
-from utils.cloud_metadata import GCE, EC2
+from utils.cloud_metadata import GCE, EC2, Rancher
 from utils.logger import log_exceptions
 from utils.jmx import JMXFiles
 from utils.platform import Platform, get_os
@@ -660,6 +660,9 @@ class Collector(object):
 
             if self.agentConfig['collect_ec2_tags']:
                 host_tags.extend(EC2.get_tags(self.agentConfig))
+
+            if self.agentConfig['collect_rancher_host_labels']:
+                host_tags.extend(Rancher.get_host_labels(self.agentConfig))
 
             if host_tags:
                 payload['host-tags']['system'] = host_tags

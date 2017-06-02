@@ -12,17 +12,13 @@ from docker.errors import NullResource, NotFound
 # project
 from utils.dockerutil import (
     DockerUtil,
-    SWARM_SVC_LABEL,
-    RANCHER_CONTAINER_IP,
-    RANCHER_CONTAINER_NAME,
-    RANCHER_SVC_NAME,
-    RANCHER_STACK_NAME
+    SWARM_SVC_LABEL
 )
 from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store
-from utils.orchestrator import NomadUtil, ECSUtil
+from utils.orchestrator import NomadUtil, ECSUtil, RancherUtil
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 
@@ -102,6 +98,8 @@ class SDDockerBackend(AbstractSDBackend):
             self.nomadutil = NomadUtil()
         elif Platform.is_ecs_instance():
             self.ecsutil = ECSUtil()
+        elif Platform.is_rancher():
+            self.rancherutil = RancherUtil()
 
         self.VAR_MAPPING = {
             'host': self._get_host_address,
@@ -197,13 +195,26 @@ class SDDockerBackend(AbstractSDBackend):
                 return pod_ip
 
         if Platform.is_rancher():
-            # try to get the rancher IP address
+            # Rancher-managed-network: Try to look up IP address in container metadata directly (Rancher 1.2+)
             log.debug("No IP address was found in container %s (%s) "
-                "trying with the Rancher label" % (c_id[:12], c_img))
+                      "trying with the Rancher label" % (c_id[:12], c_img))
 
-            ip_addr = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_CONTAINER_IP)
-            if ip_addr:
-                return ip_addr.split('/')[0]
+            rmn_ip_addr = c_inspect.get('Config', {}).get('Labels', {}).get(RancherUtil.CONTAINER_IP_LABEL, '')
+
+            if rmn_ip_addr:
+                return rmn_ip_addr.split('/')[0]
+
+            # The IP address label isn't consistently exposed.  In this situation hit the Rancher Metadata API
+            log.debug("No IP address was found in container %s (%s) "
+                      "trying with the Rancher Metadata API" % (c_id[:12], c_img))
+
+            container_name = c_inspect.get('Config', {}).get('Labels', {}) \
+                .get(RancherUtil.CONTAINER_NAME_LABEL, '')
+
+            if container_name:
+                rmn_ip_addr = self.rancherutil.get_hosts_ip_for_container(container_name=container_name)
+                if rmn_ip_addr:
+                    return rmn_ip_addr.split('/')[0]
 
         log.error("No IP address was found for container %s (%s)" % (c_id[:12], c_img))
         return None
@@ -239,22 +250,41 @@ class SDDockerBackend(AbstractSDBackend):
     def _get_port(self, state, c_id, tpl_var):
         """Extract a port from a container_inspect or the k8s API given a template variable."""
         container_inspect = state.inspect_container(c_id)
+        ports = []
 
-        try:
+        if 'NetworkSettings' in container_inspect \
+                and 'Ports' in container_inspect['NetworkSettings'] \
+                and type(container_inspect['NetworkSettings']['Ports']) is dict:
             ports = map(lambda x: x.split('/')[0], container_inspect['NetworkSettings']['Ports'].keys())
-            if len(ports) == 0: # There might be a key Port in NetworkSettings but no ports so we raise IndexError to check in ExposedPorts
-                raise IndexError
-        except (IndexError, KeyError, AttributeError):
-            # try to get ports from the docker API. Works if the image has an EXPOSE instruction
+
+        # try to get ports from the docker API. Works if the image has an EXPOSE instruction
+        if not ports and 'Config' in container_inspect \
+                and 'ExposedPorts' in container_inspect['Config'] \
+                and container_inspect['Config']['ExposedPorts']:
             ports = map(lambda x: x.split('/')[0], container_inspect['Config'].get('ExposedPorts', {}).keys())
 
-            # if it failed, try with the kubernetes API
-            if not ports and Platform.is_k8s():
-                log.debug("Didn't find the port for container %s (%s), trying the kubernetes way." %
-                          (c_id[:12], container_inspect.get('Config', {}).get('Image', '')))
-                spec = state.get_kube_container_spec(c_id)
-                if spec:
-                    ports = [str(x.get('containerPort')) for x in spec.get('ports', [])]
+        # if it failed, try with the kubernetes API
+        if not ports and Platform.is_k8s():
+            log.debug("Didn't find the port for container %s (%s), trying the kubernetes way." %
+                      (c_id[:12], container_inspect.get('Config', {}).get('Image', '')))
+            spec = state.get_kube_container_spec(c_id)
+            if spec:
+                ports = [str(x.get('containerPort')) for x in spec.get('ports', [])]
+
+        # finally, contact the Rancher Metadata API if running inside a Rancher-managed network
+        if not ports and Platform.is_rancher():
+            log.debug("Didn't find the port for container %s (%s), trying the Rancher Metadata API." %
+                      (c_id[:12], container_inspect.get('Config', {}).get('Image', '')))
+
+            container_name = container_inspect.get('Config', {}).get('Labels', {})\
+                .get(RancherUtil.CONTAINER_NAME_LABEL, '')
+
+            if container_name:
+                ports = self.rancherutil.get_ports_for_container(container_name=container_name)
+
+            if ports:
+                log.debug("Ports found in the Rancher Metadata API: %s" % ports)
+
         ports = sorted(ports, key=int)
         return self._extract_port_from_list(ports, tpl_var)
 
@@ -317,15 +347,24 @@ class SDDockerBackend(AbstractSDBackend):
                 tags.append('swarm_service:%s' % swarm_svc)
 
         elif Platform.is_rancher():
-            service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_SVC_NAME)
-            stack_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_STACK_NAME)
-            container_name = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_CONTAINER_NAME)
+            c_inspect = state.inspect_container(c_id)
+
+            container_name = c_inspect.get('Config', {}).get('Labels', {}).get(RancherUtil.CONTAINER_NAME_LABEL)
+
+            container_metadata = self.rancherutil.get_container_metadata(container_name=container_name)
+
+            service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RancherUtil.SERVICE_NAME_LABEL) \
+                or container_metadata.get('service_name')
+
+            stack_name = c_inspect.get('Config', {}).get('Labels', {}).get(RancherUtil.STACK_NAME_LABEL) \
+                or container_metadata.get('stack_name')
+
+            if container_name:
+                tags.append('rancher_container:%s' % container_name)
             if service_name:
                 tags.append('rancher_service:%s' % service_name)
             if stack_name:
                 tags.append('rancher_stack:%s' % stack_name)
-            if container_name:
-                tags.append('rancher_container:%s' % container_name)
 
         elif Platform.is_nomad():
             nomad_tags = self.nomadutil.extract_container_tags(c_inspect)

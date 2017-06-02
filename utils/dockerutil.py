@@ -18,10 +18,6 @@ from utils.platform import Platform
 from utils.singleton import Singleton
 
 SWARM_SVC_LABEL = 'com.docker.swarm.service.name'
-RANCHER_CONTAINER_NAME = 'io.rancher.container.name'
-RANCHER_CONTAINER_IP = 'io.rancher.container.ip'
-RANCHER_STACK_NAME = 'io.rancher.stack.name'
-RANCHER_SVC_NAME = 'io.rancher.stack_service.name'
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 
 
@@ -79,16 +75,12 @@ class DockerUtil:
 
         # Try to detect if an orchestrator is running
         self._is_ecs = False
-        self._is_rancher = False
 
         try:
             containers = self.client.containers()
             for co in containers:
                 if '/ecs-agent' in co.get('Names', ''):
                     self._is_ecs = True
-                    break
-                elif '/rancher-agent' in co.get('Names', ''):
-                    self._is_rancher = True
                     break
         except Exception as e:
             log.warning("Error while detecting orchestrator: %s" % e)
@@ -143,9 +135,6 @@ class DockerUtil:
 
     def is_ecs(self):
         return self._is_ecs
-
-    def is_rancher(self):
-        return self._is_rancher
 
     def is_swarm(self):
         if self.swarm_node_state == 'pending':
