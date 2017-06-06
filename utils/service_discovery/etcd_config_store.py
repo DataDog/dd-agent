@@ -25,6 +25,8 @@ class EtcdStore(AbstractConfigStore):
         settings = {
             'host': config.get('sd_backend_host', DEFAULT_ETCD_HOST),
             'port': int(config.get('sd_backend_port', -1)),
+            'username': config.get('sd_backend_username', None),
+            'password': config.get('sd_backend_password', None),
             # these two are always set to their default value for now
             'allow_reconnect': config.get('etcd_allow_reconnect', DEFAULT_RECO),
             'protocol': config.get('etcd_protocol', DEFAULT_ETCD_PROTOCOL),
@@ -45,6 +47,8 @@ class EtcdStore(AbstractConfigStore):
                 self.client = etcd_client(
                     host=self.settings.get('host'),
                     port=port,
+                    username=self.settings.get('username'),
+                    password=self.settings.get('password'),
                     allow_reconnect=self.settings.get('allow_reconnect'),
                     protocol=self.settings.get('protocol'),
                 )

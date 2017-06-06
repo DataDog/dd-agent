@@ -26,7 +26,7 @@ ntplib==0.3.3
 # utils/service_discovery/config_stores.py
 python-consul==0.4.7
 # utils/service_discovery/config_stores.py
-python-etcd==0.4.2
+python-etcd==0.4.5
 # the libyaml bindings are optional
 pyyaml==3.11
 # note: requests is also used in many checks
