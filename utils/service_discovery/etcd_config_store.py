@@ -3,16 +3,19 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 from requests.packages.urllib3.exceptions import TimeoutError
+import logging
 
-from etcd import EtcdKeyNotFound
+from etcd import EtcdKeyNotFound, EtcdConnectionFailed
 from etcd import Client as etcd_client
 from utils.service_discovery.abstract_config_store import AbstractConfigStore, KeyNotFound
 
 DEFAULT_ETCD_HOST = '127.0.0.1'
-DEFAULT_ETCD_PORT = 4001
+DEFAULT_ETCD_PORTS = [4001, 2379]
 DEFAULT_ETCD_PROTOCOL = 'http'
 DEFAULT_RECO = True
 DEFAULT_TIMEOUT = 5
+
+log = logging.getLogger(__name__)
 
 
 class EtcdStore(AbstractConfigStore):
@@ -21,7 +24,7 @@ class EtcdStore(AbstractConfigStore):
         """Extract settings from a config object"""
         settings = {
             'host': config.get('sd_backend_host', DEFAULT_ETCD_HOST),
-            'port': int(config.get('sd_backend_port', DEFAULT_ETCD_PORT)),
+            'port': int(config.get('sd_backend_port', -1)),
             # these two are always set to their default value for now
             'allow_reconnect': config.get('etcd_allow_reconnect', DEFAULT_RECO),
             'protocol': config.get('etcd_protocol', DEFAULT_ETCD_PROTOCOL),
@@ -29,14 +32,37 @@ class EtcdStore(AbstractConfigStore):
         return settings
 
     def get_client(self, reset=False):
-        if self.client is None or reset is True:
-            self.client = etcd_client(
-                host=self.settings.get('host'),
-                port=self.settings.get('port'),
-                allow_reconnect=self.settings.get('allow_reconnect'),
-                protocol=self.settings.get('protocol'),
-            )
-        return self.client
+        if self.client and reset is False:
+            return self.client  # Use cached client
+
+        if self.settings.get('port') is not -1:
+            try_ports = [self.settings.get('port')]
+        else:
+            try_ports = DEFAULT_ETCD_PORTS
+
+        for port in try_ports:
+            try:
+                self.client = etcd_client(
+                    host=self.settings.get('host'),
+                    port=port,
+                    allow_reconnect=self.settings.get('allow_reconnect'),
+                    protocol=self.settings.get('protocol'),
+                )
+                return self.client
+            except EtcdConnectionFailed as e:
+                log.debug("Can't connect to etcd on %s://%s:%d: %s" %
+                          (self.settings.get('protocol'), self.settings.get('host'), port, str(e)))
+
+        # No port succeeded, raise an exception
+        if self.settings.get('port') is not -1:
+            raise ValueError("Can't connect to etcd on %s://%s:%d" %
+                             (self.settings.get('protocol'),
+                              self.settings.get('host'),
+                              self.settings.get('port')))
+        else:
+            raise ValueError("Can't connect to etcd host on %s://%s on default ports 4001 and 2379" %
+                             (self.settings.get('protocol'),
+                              self.settings.get('host')))
 
     def client_read(self, path, **kwargs):
         """Retrieve a value from a etcd key."""
