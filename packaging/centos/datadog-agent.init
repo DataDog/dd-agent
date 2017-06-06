@@ -9,7 +9,7 @@
 #
 ###############################################################################
 #
-# chkconfig: 345 85 15
+# chkconfig: 345 99 01
 # description: Datadog Monitoring Agent
 
 ### BEGIN INIT INFO
