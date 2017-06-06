@@ -249,13 +249,13 @@ class DockerUtil:
             client_cert_path = init_config.get('tls_client_cert')
             client_key_path = init_config.get('tls_client_key')
             cacert = init_config.get('tls_cacert')
-            verify = init_config.get('tls_verify')
+            verify = init_config.get('tls_verify', False)
 
             client_cert = None
             if client_cert_path is not None and client_key_path is not None:
                 client_cert = (client_cert_path, client_key_path)
 
-            verify = verify if verify is not None else cacert
+            verify = cacert if cacert is not None else verify
             tls_config = tls.TLSConfig(client_cert=client_cert, verify=verify)
             self.settings["tls"] = tls_config
 
