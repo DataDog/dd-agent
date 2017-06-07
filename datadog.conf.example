@@ -159,6 +159,9 @@ gce_updated_hostname: yes
 #  Make sure your client is sending to the same port.
 # dogstatsd_port: 8125
 
+# DogStatsD maximum udp packet size, options in Kilobytes -> Default is 8. Choose from 16, 32 or 64.
+# dogstatsd_max_packet_size: 8
+
 # By default dogstatsd will post aggregate metrics to the Agent (which handles
 # errors/timeouts/retries/etc). To send directly to the datadog api, set this
 # to https://app.datadoghq.com.
@@ -198,7 +201,7 @@ gce_updated_hostname: yes
 # ganglia_port: 8651
 
 # -------------------------------------------------------------------------- #
-#  Dogstream (log file parser)												 #
+#  Dogstream (log file parser)												                       #
 # -------------------------------------------------------------------------- #
 
 # Comma-separated list of logs to parse and optionally custom parsers to use.

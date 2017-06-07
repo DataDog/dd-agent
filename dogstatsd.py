@@ -62,6 +62,10 @@ PID_DIR = None
 DOGSTATSD_FLUSH_INTERVAL = 10
 DOGSTATSD_AGGREGATOR_BUCKET_SIZE = 10
 
+# Dogstatsd UDP packet size in K
+UDP_PACKET_SIZE_OPTIONS = [8, 16, 32, 64]
+DEFAULT_UDP_PACKET_SIZE = 8
+DEFAULT_UDP_PACKET_SIZE_BYTES = DEFAULT_UDP_PACKET_SIZE * 1024
 
 WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
@@ -343,13 +347,14 @@ class Server(object):
     """
     A statsd udp server.
     """
-    def __init__(self, metrics_aggregator, host, port, forward_to_host=None, forward_to_port=None):
-        self.sockaddr = None
+    def __init__(self, metrics_aggregator, host, port, forward_to_host=None, forward_to_port=None,
+                 max_packet_size=DEFAULT_UDP_PACKET_SIZE_BYTES):
+        self.sockaddr = get_socket_address(host, int(port))
         self.socket = None
         self.metrics_aggregator = metrics_aggregator
         self.host = host
         self.port = port
-        self.buffer_size = 1024 * 8
+        self.max_packet_size = max_packet_size
 
         self.running = False
 
@@ -398,7 +403,7 @@ class Server(object):
         log.info('Listening on socket address: %s', str(self.sockaddr))
 
         # Inline variables for quick look-up.
-        buffer_size = self.buffer_size
+        max_packet_size = self.max_packet_size
         aggregator_submit = self.metrics_aggregator.submit_packets
         sock = [self.socket]
         socket_recv = self.socket.recv
@@ -408,6 +413,8 @@ class Server(object):
         should_forward = self.should_forward
         forward_udp_sock = self.forward_udp_sock
 
+        log.debug("UDP packet size set to %s bytes." % (max_packet_size))
+
         # Run our select loop.
         self.running = True
         message = None
@@ -415,7 +422,7 @@ class Server(object):
             try:
                 ready = select_select(sock, [], [], timeout)
                 if ready[0]:
-                    message = socket_recv(buffer_size)
+                    message = socket_recv(max_packet_size)
                     aggregator_submit(message)
 
                     if should_forward:
@@ -504,6 +511,13 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     recent_point_threshold = c.get('recent_point_threshold', None)
     server_host = c['bind_host']
 
+    max_packet_size = int(c.get('dogstatsd_max_packet_size', DEFAULT_UDP_PACKET_SIZE))
+    if max_packet_size in UDP_PACKET_SIZE_OPTIONS:
+        max_packet_size = max_packet_size * 1024
+    else:
+        max_packet_size = DEFAULT_UDP_PACKET_SIZE_BYTES
+        log.warning("Specified maximum udp packet size is invalid. Defaulting to %s K." % (DEFAULT_UDP_PACKET_SIZE))
+
     target = c['dd_url']
     if use_forwarder:
         target = c['dogstatsd_target']
@@ -537,7 +551,8 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     if non_local_traffic:
         server_host = '0.0.0.0'
 
-    server = Server(aggregator, server_host, port, forward_to_host=forward_to_host, forward_to_port=forward_to_port)
+    server = Server(aggregator, server_host, port, forward_to_host=forward_to_host, forward_to_port=forward_to_port,
+                    max_packet_size=max_packet_size)
 
     return reporter, server, c
 
