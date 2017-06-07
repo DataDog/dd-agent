@@ -1308,6 +1308,11 @@ def get_logging_config(cfg_path=None):
 
 
 def initialize_logging(logger_name):
+    # This function should only be called once per process, return here if it's already been called
+    if hasattr(initialize_logging, "called"):
+        return
+    initialize_logging.called = True
+
     try:
         logging_config = get_logging_config()
 
