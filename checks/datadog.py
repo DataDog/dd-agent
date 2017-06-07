@@ -25,8 +25,10 @@ def partition(s, sep):
 
 
 def point_sorter(p):
-    # Sort and group by timestamp, metric name, host_name, device_name
-    return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None))
+    # Sort and group by timestamp, metric name, and custom attributes
+    default_attrs = [p[3].pop('host_name', None), p[3].pop('device_name', None)]
+    keys = sorted(p[3].keys())
+    return tuple([p[1], p[0]] + default_attrs + [p[3][key] for key in keys])
 
 
 class EventDefaults(object):
@@ -303,7 +305,8 @@ class Dogstream(object):
 
         values.sort(key=point_sorter)
 
-        for (timestamp, metric, host_name, device_name), val_attrs in groupby(values, key=point_sorter):
+        for grouped, val_attrs in groupby(values, key=point_sorter):
+            (timestamp, metric, host_name, device_name) = grouped[:4]
             attributes = {}
             vals = []
             for _metric, _timestamp, v, a in val_attrs:
