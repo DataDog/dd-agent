@@ -137,3 +137,53 @@ def calculate_perf_counter_counter(previous, current, property_name):
         return
 
     return (n1 - n0) / ((d1 - d0) / f)
+
+@calculator(805438464)
+def calculate_perf_average_timer(previous, current, property_name):
+    """
+    PERF_AVERAGE_TIMER
+
+    https://msdn.microsoft.com/en-us/library/ms804010.aspx
+    Description	This counter type measures the time it takes, on average, to
+    complete a process or operation. Counters of this type display a ratio of
+    the total elapsed time of the sample interval to the number of processes
+    or operations completed during that time. This counter type measures time
+    in ticks of the system clock. The F variable represents the number of
+    ticks per second. The value of F is factored into the equation so that
+    the result can be displayed in seconds.
+
+    Generic type	Average
+    Formula	((N1 - N0) / F) / (D1 - D0), where the numerator (N) represents the number of ticks counted during the last sample interval, F represents the frequency of the ticks, and the denominator (D) represents the number of operations completed during the last sample interval.
+    Average	((Nx - N0) / F) / (Dx - D0)
+    Example	PhysicalDisk\ Avg. Disk sec/Transfer
+    """
+    n0 = previous[property_name]
+    n1 = current[property_name]
+    d0 = previous["Timestamp_Sys100NS"]
+    d1 = current["Timestamp_Sys100NS"]
+    f = current["Frequency_Sys100NS"]
+
+    if n0 is None or n1 is None:
+        return
+
+    return ((n1 - n0) / f) / (d1 - d0)
+
+@calculator(5571840)
+def calculate_perf_counter_100ns_queuelen_type(previous, current, property_name):
+    """
+    PERF_COUNTER_100NS_QUEUELEN_TYPE
+
+    Average length of a queue to a resource over time in 100 nanosecond units.
+
+    https://msdn.microsoft.com/en-us/library/aa392905(v=vs.85).aspx
+
+    Formula (n1 - n0) / (d1 - d0)
+    """
+    n0 = previous[property_name]
+    n1 = current[property_name]
+    d0 = previous["Timestamp_Sys100NS"]
+    d1 = current["Timestamp_Sys100NS"]
+    if n0 is None or n1 is None:
+        return
+
+    return (n1 - n0) / (d1 - d0)
