@@ -14,20 +14,29 @@ class TestDockerUtil(unittest.TestCase):
         lines = [
             # (line, expected_result)
             (
+                # Kubernetes < 1.6
                 ['10', 'memory', '/2ea504688cad325b9105f183b0d7831266a05f95b513c7327a6e9989ce8a450a'],
                 '2ea504688cad325b9105f183b0d7831266a05f95b513c7327a6e9989ce8a450a'
             ), (
+                # New CoreOS / most systems
                 ['10', 'memory', '/docker/2ea504688cad325b9105f183b0d7831266a05f95b513c7327a6e9989ce8a450a'],
                 'docker/2ea504688cad325b9105f183b0d7831266a05f95b513c7327a6e9989ce8a450a'
             ), (
+                # Unidentified legacy system?
                 ['10', 'memory', '2ea504688cad325b9105f183b0d7831266a05f95b513c7327a6e9989ce8a450a'],
                 '2ea504688cad325b9105f183b0d7831266a05f95b513c7327a6e9989ce8a450a'
             ), (
+                # Rancher
                 ['10', 'memory', '/docker/864daa0a0b19aa4703231b6c76f85c6f369b2452a5a7f777f0c9101c0fd5772a/docker/3bac629503293d1bb61e74f3e25b6c525f0c262f22974634c5d6988bb4b07927'],
                 'docker/3bac629503293d1bb61e74f3e25b6c525f0c262f22974634c5d6988bb4b07927'
             ), (
+                # Legacy CoreOS 7xx
                 ['7', 'memory', '/system.slice/docker-71116698eb215f2a5819f11ece7ea721f0e8d45169c7484d1cd7812596fad454.scope'],
                 'system.slice/docker-71116698eb215f2a5819f11ece7ea721f0e8d45169c7484d1cd7812596fad454.scope'
+            ), (
+                # Kubernetes >= 1.6 QoS cgroups
+                ['7', 'memory', '/kubepods/burstable/poda0f63163-3fa8-11e7-a098-42010a840216/7e071d0086ebe623dcbf3a7e0005f23eb08d7ea4df4bb42075df43c9359ce078'],
+                'kubepods/burstable/poda0f63163-3fa8-11e7-a098-42010a840216/7e071d0086ebe623dcbf3a7e0005f23eb08d7ea4df4bb42075df43c9359ce078'
             )
         ]
 
