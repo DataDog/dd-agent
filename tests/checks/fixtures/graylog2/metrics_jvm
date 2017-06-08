@@ -1,0 +1,37 @@
+{
+  "total": 4,
+  "metrics": [
+    {
+      "full_name": "jvm.memory.pools.PS-Eden-Space.committed",
+      "metric": {
+        "value": 177209344
+      },
+      "name": "committed",
+      "type": "gauge"
+    },
+    {
+      "full_name": "jvm.memory.pools.Code-Cache.usage",
+      "metric": {
+        "value": 0.2557779947916667
+      },
+      "name": "usage",
+      "type": "gauge"
+    },
+    {
+      "full_name": "jvm.threads.waiting.count",
+      "metric": {
+        "value": 139
+      },
+      "name": "count",
+      "type": "gauge"
+    },
+    {
+      "full_name": "jvm.memory.pools.PS-Survivor-Space.init",
+      "metric": {
+        "value": 2621440
+      },
+      "name": "init",
+      "type": "gauge"
+    }
+  ]
+}
