@@ -1,0 +1,15 @@
+init_config:
+
+instances:
+# refer to https://docs.docker.com/machine/reference/ls/ formatting
+  - format_args: [Name, State, Error, DriverName, URL, ResponseTime]
+    docker_machine_cmd: "docker-machine ls -f"
+    api_key: DATADOG_API_KEY 
+#
+# If your environment requires sudo, please add a line like:
+#          dd-agent ALL=(ALL) NOPASSWD:/usr/bin/ceph
+# to your sudoers file, and uncomment the below option.
+#
+#    use_sudo: True
+
+
