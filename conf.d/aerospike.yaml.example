@@ -1,0 +1,23 @@
+init_config:
+
+instances:
+  - host: 127.0.0.1
+    port: 3003
+
+    # All metrics collected by default. You probably don't want to do this,
+    # so list the ones you do want here. Check with asinfo -v statistics -l
+    # and asinfo -v namespace/YOURNAMESPACE -l.
+
+    # metrics:
+    # - migrate_rx_objs
+    # - migrate_tx_objs
+    # namespace_metrics:
+    # - free-pct-disk
+    # - free-pct-memory
+    # - evicted-objects
+    # - expired-objects
+    # - master-objects
+    # - migrate-rx-partitions-initial
+    # - migrate-rx-partitions-remaining
+    # - migrate-tx-partitions-initial
+    # - migrate-tx-partitions-remaining
