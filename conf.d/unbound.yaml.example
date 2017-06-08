@@ -1,0 +1,9 @@
+# dd-agent needs permissions to read:
+# /etc/unbound/unbound_control.pem
+# /etc/unbound/unbound_control.key
+# /etc/unbound/unbound_server.pem
+
+init_config:
+
+instances:
+  - host: 127.0.0.1
