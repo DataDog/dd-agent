@@ -42,7 +42,7 @@ DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro"
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-[ -r /etc/default/datadog-agent ] && . /etc/default/datadog-agent
+[ -r /etc/sysconfig/datadog-agent ] && . /etc/sysconfig/datadog-agent
 
 check_status() {
     # run checks to determine if the service is running or use generic status
