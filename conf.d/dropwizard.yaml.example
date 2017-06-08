@@ -1,0 +1,47 @@
+###
+###   DropwizardCheck configuration
+###
+
+init_config:
+  # Turn on debug logging
+  #debug: False
+
+  # Debug logging on steriods
+  #log_at_trace: False
+
+  # Sometimes you want to see teh metrics you'll send
+  #log_each_metric: False
+
+  # Timeout for the call to /metrics
+  #http_timeout: 0.25
+
+  # By default, we do not process the following suffixes: ".p75, .p98"
+  # You can modify that list, or you can disable the behavior altogether by specifying; "none"
+  #metrictype_blacklist: min, .p75, .p98
+
+  # Tags applied to all of these Dropwizard services
+  #service_tags: grp:webtier, xx:yy
+
+  # Default behavior is to remove Java package names from the front of the metric
+  #leave_package_names: False
+
+  # Default behavior is to remove zero metrics.
+  # Be forewarned, leaving zero metrics will cause confusion in DataDog
+  #leave_zero_metrics: False
+
+instances:
+  # Overrides for the default Dropwizard stats URL; http://localhost:8081/metrics
+  - host: localhost
+    port: 8081
+    stats_url: /metrics
+
+    # The name of this Dropwizard application
+    # NOTE: if defined, "appname" is prefixed as the first field of the metrics,
+    #       so that all of the dropwizard metrics don't end up in the single, default "dropwizard" first field
+    #appname: myapp
+
+    # Tags applied to this specific instance
+    # NOTE: it is strongly recommended that you supply and "app:xxx" tag,
+    #       if you do not plan to use "appname" above
+    #instance_tags: appgrp:homepage, app:myapp
+

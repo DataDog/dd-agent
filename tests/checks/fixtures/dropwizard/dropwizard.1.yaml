@@ -1,0 +1,21 @@
+init_config:
+  debug: True
+  log_at_trace: True
+  log_each_metric: False
+
+  http_timeout: 0.25
+
+  metrictype_blacklist: min, .p75, .p98
+
+  service_tags: grp:celia, xx:yy
+
+  leave_package_names: True
+
+instances:
+  - appname: chris
+    host: myhost.stooges.com
+    port: 8081
+    stats_url: /metrics
+
+    instance_tags: appgrp:mady
+
