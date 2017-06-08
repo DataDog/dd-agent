@@ -1,0 +1,26 @@
+# The user running dd-agent may need passwordless sudo access for the shell
+# command to run the shell check.  Here's an example:
+#
+# example for the find command:
+# /etc/sudoers entry:
+#          dd-agent ALL=(ALL) NOPASSWD:/usr/bin/find
+#
+# Redhat/CentOS/Amazon Linux flavors will need to add:
+#          Defaults:dd-agent !requiretty
+
+init_config:
+
+instances:
+  # count number of files in directory
+  - command: "ls -l /path/to/foo | wc -l"
+    metric_name: file.count
+    metric_type: gauge
+    tags:
+      - directory:foo
+
+  # count number of users currently logged on from uptime command
+  - command: "uptime | awk '{print $4}'"
+    metric_name: current.users
+    metric_type: gauge
+    tags:
+      - optional_tag1
