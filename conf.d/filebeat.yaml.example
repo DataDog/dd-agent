@@ -1,0 +1,7 @@
+init_config:
+
+instances:
+  # The absolute path to the registry file used by filebeat
+  # See https://www.elastic.co/guide/en/beats/filebeat/current/migration-registry-file.html
+
+  - registry_file_path: /var/lib/filebeat/registry
