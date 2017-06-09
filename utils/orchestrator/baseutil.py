@@ -25,10 +25,10 @@ class BaseUtil:
     __metaclass__ = Singleton
 
     def __init__(self):
-        # Whether your get___tags methods need the inspect result
-        self.needs_inspect = False
-        # Whether your methods need the env portion (not in partial inspect)
-        self.needs_env = False
+        # Whether your get___tags methods need the Config section inspect data
+        self.needs_inspect_config = False
+        # Whether your get___tags methods need the Labels section inspect data
+        self.needs_inspect_labels = False
 
         self.log = logging.getLogger(__name__)
         self.docker_util = DockerUtil()
@@ -59,10 +59,11 @@ class BaseUtil:
         if cid in self._container_tags_cache:
             return self._container_tags_cache[cid]
         else:
-            if (self.needs_inspect or self.needs_env) and co is None:
+            if self.needs_inspect_config and (co is None or 'Config' not in co):
                 co = self.docker_util.inspect_container(cid)
-            if self.needs_env and 'Env' not in co.get('Config', {}):
+            if self.needs_inspect_labels and (co is None or 'Labels' not in co):
                 co = self.docker_util.inspect_container(cid)
+
             self._container_tags_cache[cid] = self._get_cacheable_tags(cid, co)
             return self._container_tags_cache[cid]
 

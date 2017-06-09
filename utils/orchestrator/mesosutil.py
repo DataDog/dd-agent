@@ -14,8 +14,7 @@ MESOS_TASK_ID = "MESOS_TASK_ID"
 class MesosUtil(BaseUtil):
     def __init__(self):
         BaseUtil.__init__(self)
-        self.needs_inspect = True
-        self.needs_env = True
+        self.needs_inspect_config = True
 
     def _get_cacheable_tags(self, cid, co=None):
         tags = []
