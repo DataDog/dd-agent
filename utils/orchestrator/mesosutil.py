@@ -18,11 +18,7 @@ class MesosUtil(BaseUtil):
 
     def _get_cacheable_tags(self, cid, co=None):
         tags = []
-
-        self.log.warning("called")
-
         envvars = co.get('Config', {}).get('Env', {})
-        self.log.warning(envvars)
 
         for var in envvars:
             if var.startswith(CHRONOS_JOB_NAME):
