@@ -22,7 +22,7 @@ from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store
-from utils.orchestrator import NomadUtil, ECSUtil
+from utils.orchestrator import NomadUtil, ECSUtil, MetadataCollector
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 
@@ -102,6 +102,8 @@ class SDDockerBackend(AbstractSDBackend):
             self.nomadutil = NomadUtil()
         elif Platform.is_ecs_instance():
             self.ecsutil = ECSUtil()
+
+        self.metadata_collector = MetadataCollector()
 
         self.VAR_MAPPING = {
             'host': self._get_host_address,
@@ -335,6 +337,10 @@ class SDDockerBackend(AbstractSDBackend):
         elif Platform.is_ecs_instance():
             ecs_tags = self.ecsutil.extract_container_tags(c_inspect)
             tags.extend(ecs_tags)
+
+        if self.metadata_collector.has_detected():
+            orch_tags = self.metadata_collector.get_container_tags(co=c_inspect)
+            tags.extend(orch_tags)
 
         return tags
 

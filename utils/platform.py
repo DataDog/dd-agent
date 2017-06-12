@@ -22,6 +22,7 @@ def get_os():
     else:
         return sys.platform
 
+
 class Platform(object):
     """
     Return information about the given platform.
@@ -108,3 +109,8 @@ class Platform(object):
     @staticmethod
     def is_nomad():
         return 'NOMAD_ALLOC_ID' in os.environ
+
+    @staticmethod
+    def is_mesos():
+        from utils.orchestrator import MesosUtil
+        return MesosUtil.is_detected()
