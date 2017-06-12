@@ -41,6 +41,7 @@ from utils.jmx import JMXFiles
 from utils.platform import Platform, get_os
 from utils.subprocess_output import get_subprocess_output
 from utils.timer import Timer
+from utils.orchestrator import MetadataCollector
 
 log = logging.getLogger(__name__)
 
@@ -658,6 +659,11 @@ class Collector(object):
 
             if self.agentConfig['collect_ec2_tags']:
                 host_tags.extend(EC2.get_tags(self.agentConfig))
+
+            if self.agentConfig['collect_orchestrator_tags'] and Platform.is_containerized():
+                host_docker_tags = MetadataCollector().get_host_tags()
+                if host_docker_tags:
+                    host_tags.extend(host_docker_tags)
 
             if host_tags:
                 payload['host-tags']['system'] = host_tags

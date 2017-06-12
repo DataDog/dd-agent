@@ -4,11 +4,24 @@ import os
 
 # 3rd party
 import mock
+import requests  # noqa: F401
 
 # project
 from utils.orchestrator import MesosUtil, BaseUtil
 
 CO_ID = 1234
+
+
+class MockResponse:
+    """
+    Helper class to mock a json response from requests
+    """
+    def __init__(self, json_data, status_code):
+        self.json_data = json_data
+        self.status_code = status_code
+
+    def json(self):
+        return self.json_data
 
 
 class TestMesosUtil(unittest.TestCase):
@@ -35,6 +48,48 @@ class TestMesosUtil(unittest.TestCase):
     @mock.patch.dict(os.environ, {})
     def test_no_detect(self):
         self.assertFalse(MesosUtil.is_detected())
+
+    @mock.patch.dict(os.environ, {"LIBPROCESS_IP": "a", "HOST": "b", "HOSTNAME": "c"})
+    @mock.patch('requests.get')
+    @mock.patch('docker.Client.__init__')
+    def test_agents_detection(self, mock_init, mock_get):
+        mock_get.side_effect = [
+            MockResponse({}, 404),  # LIBPROCESS_IP fails
+            MockResponse({'badfield': 'fail'}, 200),  # HOST is invalid reply
+            MockResponse({'version': '1.2.1'}, 200),  # HOSTNAME is valid reply
+            MockResponse({'dcos_version': '1.9.0'}, 200),  # LIBPROCESS_IP works for DCOS
+            # _detect_agent might run twice if first MesosUtil instance, duplicating test data
+            MockResponse({}, 404),  # LIBPROCESS_IP fails
+            MockResponse({'badfield': 'fail'}, 200),  # HOST is invalid reply
+            MockResponse({'version': '1.2.1'}, 200),  # HOSTNAME is valid reply
+            MockResponse({'dcos_version': '1.9.0'}, 200),  # LIBPROCESS_IP works for DCOS
+        ]
+        mock_init.return_value = None
+
+        mesos, dcos = MesosUtil()._detect_agents()
+        self.assertEqual('http://c:5051/version', mesos)
+        self.assertEqual('http://a:61001/system/health/v1', dcos)
+
+    @mock.patch.dict(os.environ, {"LIBPROCESS_IP": "a"})
+    @mock.patch('requests.get')
+    @mock.patch('docker.Client.__init__')
+    def test_host_tags(self, mock_init, mock_get):
+        mock_get.side_effect = [
+            MockResponse({'version': '1.2.1'}, 200),
+            MockResponse({'dcos_version': '1.9.0'}, 200),
+            MockResponse({'version': '1.2.1'}, 200),
+            MockResponse({'dcos_version': '1.9.0'}, 200),
+            # _detect_agent might run twice if first MesosUtil instance, duplicating test data
+            MockResponse({'version': '1.2.1'}, 200),
+            MockResponse({'dcos_version': '1.9.0'}, 200),
+        ]
+        mock_init.return_value = None
+
+        util = MesosUtil()
+        util.__init__()
+        tags = util.get_host_tags()
+
+        self.assertEqual(['mesos_version:1.2.1', 'dcos_version:1.9.0'], tags)
 
 
 class TestBaseUtil(unittest.TestCase):

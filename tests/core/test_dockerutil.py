@@ -82,3 +82,29 @@ class TestDockerUtil(unittest.TestCase):
         ]
         for test in test_data:
             self.assertEqual(test[1], DockerUtil().extract_container_tags(test[0]))
+
+    @mock.patch('docker.Client.version')
+    @mock.patch('docker.Client.__init__')
+    def test_docker_host_tags_ok(self, mock_init, mock_version):
+        mock_version.return_value = {'Version': '1.13.1'}
+        mock_init.return_value = None
+        self.assertEqual(['docker_version:1.13.1'], DockerUtil().get_host_tags())
+        mock_version.assert_called_once()
+
+    @mock.patch('docker.Client.version')
+    @mock.patch('docker.Client.__init__')
+    def test_docker_host_tags_invalid_response(self, mock_init, mock_version):
+        mock_version.return_value = None
+        mock_init.return_value = None
+        self.assertEqual([], DockerUtil().get_host_tags())
+        mock_version.assert_called_once()
+
+    @mock.patch('utils.dockerutil.DockerUtil.is_swarm')
+    @mock.patch('docker.Client.version')
+    @mock.patch('docker.Client.__init__')
+    def test_docker_host_tags_swarm_ok(self, mock_init, mock_version, mock_isswarm):
+        mock_isswarm.return_value = True
+        mock_version.return_value = {'Version': '1.13.1'}
+        mock_init.return_value = None
+        self.assertEqual(['docker_version:1.13.1', 'docker_swarm:active'], DockerUtil().get_host_tags())
+        mock_version.assert_called_once()

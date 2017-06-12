@@ -584,6 +584,10 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
         if config.has_option("Main", "collect_ec2_tags"):
             agentConfig["collect_ec2_tags"] = _is_affirmative(config.get("Main", "collect_ec2_tags"))
 
+        agentConfig["collect_orchestrator_tags"] = True
+        if config.has_option("Main", "collect_orchestrator_tags"):
+            agentConfig["collect_orchestrator_tags"] = _is_affirmative(config.get("Main", "collect_orchestrator_tags"))
+
         agentConfig["utf8_decoding"] = False
         if config.has_option("Main", "utf8_decoding"):
             agentConfig["utf8_decoding"] = _is_affirmative(config.get("Main", "utf8_decoding"))

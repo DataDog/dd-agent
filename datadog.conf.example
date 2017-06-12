@@ -30,6 +30,9 @@ api_key:
 # Set the host's tags (optional)
 # tags: mytag, env:prod, role:database
 
+# Collect docker orchestrator name and version as agent tags
+# collect_orchestrator_tags: yes
+
 # Set timeout in seconds for outgoing requests to Datadog. (default: 20)
 # When a request timeout, it will be retried after some time.
 # It will only be deleted if the forwarder queue becomes too big. (30 MB by default)

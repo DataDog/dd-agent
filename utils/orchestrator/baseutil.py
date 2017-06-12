@@ -4,6 +4,7 @@
 
 # stdlib
 import logging
+import requests
 
 # project
 from utils.dockerutil import DockerUtil
@@ -84,3 +85,33 @@ class BaseUtil:
         Empties all caches to reset the singleton to initial state
         """
         self._container_tags_cache = {}
+
+    # Util methods for children classes
+
+    def _try_urls(self, urls, validation_lambda=None, timeout=1):
+        """
+        When detecting orchestrator agents, one might need to try several IPs
+        before finding the good one.
+        The first url returning a 200 and validating the lambda will be returned.
+        If no lambda is provided, the first url to return a 200 is returned.
+        :param urls: list of urls to try
+        :param validation_lambda: lambda to return a boolean from a Request.Response
+        :return: first url matching, or None
+        """
+        if not urls:
+            return None
+
+        for url in urls:
+            try:
+                response = requests.get(url, timeout=timeout)
+                if response.status_code is not requests.codes.ok:
+                    continue
+                if validation_lambda and not validation_lambda(response):
+                    continue
+                return url
+            except requests.exceptions.RequestException:  # Network
+                continue
+            except ValueError:  # JSON parsing or dict search
+                continue
+
+        return None
