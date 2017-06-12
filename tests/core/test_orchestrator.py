@@ -42,10 +42,10 @@ class TestBaseUtil(unittest.TestCase):
         def _get_cacheable_tags(self, cid, co=None):
             return ["test:tag"]
 
-    class NeedInspectUtil(BaseUtil):
+    class NeedLabelsUtil(BaseUtil):
         def __init__(self):
             BaseUtil.__init__(self)
-            self.needs_inspect = True
+            self.needs_inspect_labels = True
 
         def _get_cacheable_tags(self, cid, co=None):
             return ["test:tag"]
@@ -53,7 +53,7 @@ class TestBaseUtil(unittest.TestCase):
     class NeedEnvUtil(BaseUtil):
         def __init__(self):
             BaseUtil.__init__(self)
-            self.needs_env = True
+            self.needs_inspect_config = True
 
         def _get_cacheable_tags(self, cid, co=None):
             return ["test:tag"]
@@ -96,7 +96,7 @@ class TestBaseUtil(unittest.TestCase):
     def test_auto_inspect(self, mock_init, mock_inspect):
         mock_init.return_value = None
 
-        dummy = self.NeedInspectUtil()
+        dummy = self.NeedLabelsUtil()
         dummy.reset_cache()
 
         dummy.get_container_tags(cid=CO_ID)
@@ -107,7 +107,7 @@ class TestBaseUtil(unittest.TestCase):
     def test_no_inspect_if_cached(self, mock_init, mock_inspect):
         mock_init.return_value = None
 
-        dummy = self.NeedInspectUtil()
+        dummy = self.NeedLabelsUtil()
         dummy.reset_cache()
 
         dummy.get_container_tags(cid=CO_ID)
@@ -121,11 +121,11 @@ class TestBaseUtil(unittest.TestCase):
     def test_no_useless_inspect(self, mock_init, mock_inspect):
         mock_init.return_value = None
 
-        dummy = self.NeedInspectUtil()
+        dummy = self.NeedLabelsUtil()
         dummy.reset_cache()
-        co = {'Id': CO_ID, 'Created': 1}
+        co = {'Id': CO_ID, 'Created': 1, 'Labels': {}}
 
-        dummy.get_container_tags(cid=1, co=co)
+        dummy.get_container_tags(co=co)
         mock_inspect.assert_not_called()
 
         dummy.get_container_tags(co=co)
