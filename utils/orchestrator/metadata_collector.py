@@ -7,7 +7,7 @@ from .mesosutil import MesosUtil
 from utils.singleton import Singleton
 
 
-class Tagger():
+class MetadataCollector():
     """
     Wraps several BaseUtil classes with autodetection and allows to query
     them through the same interface as BaseUtil classes
