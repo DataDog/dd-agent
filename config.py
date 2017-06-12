@@ -343,6 +343,7 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
     # General config
     agentConfig = {
         'check_freq': DEFAULT_CHECK_FREQUENCY,
+        'collect_orchestrator_tags': True,
         'dogstatsd_port': 8125,
         'dogstatsd_target': 'http://localhost:17123',
         'graphite_listen_port': None,
