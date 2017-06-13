@@ -3,7 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 
-from .mesosutil import MesosUtil
+from .mesosutil import MesosUtil, NomadUtil
 from utils.singleton import Singleton
 from utils.dockerutil import DockerUtil
 
@@ -55,9 +55,13 @@ class MetadataCollector():
         self._utils = []
 
         if MesosUtil.is_detected():
-            m = MesosUtil()
-            m.reset_cache()
-            self._utils.append(m)
+            util = MesosUtil()
+            util.reset_cache()
+            self._utils.append(util)
+        if NomadUtil.is_detected():
+            util = NomadUtil()
+            util.reset_cache()
+            self._utils.append(util)
 
         self._has_detected = bool(self._utils)
 
