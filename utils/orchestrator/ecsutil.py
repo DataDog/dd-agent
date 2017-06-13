@@ -30,10 +30,6 @@ class ECSUtil(BaseUtil):
         from utils.dockerutil import DockerUtil
         return DockerUtil().is_ecs()
 
-    # FIXME: backwards compat to remove
-    def extract_container_tags(self, c_inspect):
-        return []
-
     def __init__(self):
         BaseUtil.__init__(self)
         self.agent_url = self._detect_agent()

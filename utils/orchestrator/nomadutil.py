@@ -25,10 +25,6 @@ class NomadUtil(BaseUtil):
         self.needs_inspect_config = True
         self.agent_url = self._detect_agent()
 
-    # FIXME: backwards compat to remove
-    def extract_container_tags(self, c_inspect):
-        return []
-
     def _get_cacheable_tags(self, cid, co=None):
         tags = []
         envvars = co.get('Config', {}).get('Env', {})
