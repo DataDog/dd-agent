@@ -563,6 +563,8 @@ class AgentCheck(object):
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
+        self.warning("Deprecation notice: the `set` method of `AgentCheck` is deprecated and will be removed " +
+            "in the next major version of the Agent, please compute aggregates in your check and use `gauge` instead")
         self.aggregator.set(metric, value, tags, hostname, device_name)
 
     def event(self, event):
