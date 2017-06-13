@@ -3,7 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 
-from . import NomadUtil, MesosUtil
+from . import NomadUtil, MesosUtil, ECSUtil
 from utils.singleton import Singleton
 from utils.dockerutil import DockerUtil
 
@@ -60,6 +60,10 @@ class MetadataCollector():
             self._utils.append(util)
         if NomadUtil.is_detected():
             util = NomadUtil()
+            util.reset_cache()
+            self._utils.append(util)
+        if ECSUtil.is_detected():
+            util = ECSUtil()
             util.reset_cache()
             self._utils.append(util)
 
