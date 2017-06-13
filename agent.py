@@ -16,6 +16,7 @@ initialize_logging('collector')
 # stdlib
 from copy import copy
 import logging
+import io
 import os
 import signal
 import sys
@@ -64,6 +65,12 @@ from utils.service_discovery.sd_backend import get_sd_backend
 from utils.watchdog import Watchdog
 from utils.windows_configuration import get_sdk_integration_paths
 
+# conditional win imports
+if Platform.is_windows():
+    import win32pipe
+    import win32file
+    import msvcrt
+
 # Constants
 PID_NAME = "dd-agent"
 PID_DIR = None
@@ -72,7 +79,6 @@ RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 
 JMX_SUPERVISOR_ENTRY = 'datadog-agent:jmxfetch'
 JMX_GRACE_SECS = 2
-SERVICE_DISCOVERY_PREFIX = 'SD-'
 SD_CONFIG_SEP = "#### SERVICE-DISCOVERY ####\n"
 
 DEFAULT_SUPERVISOR_SOCKET = '/opt/datadog-agent/run/datadog-supervisor.sock'
@@ -261,18 +267,39 @@ class Agent(Daemon):
             pipe_path = get_jmx_pipe_path()
             if Platform.is_windows():
                 pipe_name = pipe_path.format(pipename=SD_PIPE_NAME)
+                exists = win32pipe.WaitNamedPipe(pipe_name,
+                                                 win32pipe.NMPWAIT_USE_DEFAULT_WAIT)
+                if not exists:
+                    pipe = win32pipe.CreateNamedPipe(pipe_name, win32pipe.PIPE_ACCESS_DUPLEX,
+                                            win32pipe.PIPE_TYPE_MESSAGE | win32pipe.PIPE_WAIT,
+                                            win32pipe.PIPE_UNLIMITED_INSTANCES, 65536, 655356, 300,
+                                            None)
+                else:
+                    pipe = win32file.CreateFile(pipe_name,
+                                                win32file.GENERIC_READ | win32file.GENERIC_WRITE,
+                                                0, None,
+                                                win32file.OPEN_EXISTING,
+                                                0, None)
+
+
+                if pipe != win32file.INVALID_HANDLE_VALUE:
+                    win32pipe.SetNamedPipeHandleState(
+                                pipe, win32pipe.PIPE_READMODE_MESSAGE, None, None)
+                    pipe_fd = msvcrt.open_osfhandle(pipe, os.O_RDWR)
+                    self.sd_pipe = io.open(pipe_fd, os.O_RDWR) # RW to avoid blocking (will only W)
+                else:
+                    log.warn('Unable to get valid handle to pipe. JMX service discovery disabled.')
             else:
                 pipe_name = os.path.join(pipe_path, SD_PIPE_NAME)
+                if os.access(pipe_path, os.W_OK):
+                    if not os.path.exists(pipe_name):
+                            os.mkfifo(pipe_name)
+                            self.sd_pipe = os.open(pipe_name, os.O_RDWR) # RW to avoid blocking (will only W)
 
-            if os.access(pipe_path, os.W_OK):
-                if not os.path.exists(pipe_name):
-                    os.mkfifo(pipe_name)
-                self.sd_pipe = os.open(pipe_name, os.O_RDWR) # RW to avoid blocking (will only W)
-
-                # Initialize Supervisor proxy
-                self.supervisor_proxy = self._get_supervisor_socket(self._agentConfig)
-            else:
-                log.debug('Unable to create pipe in temporary directory. JMX service discovery disabled.')
+                    # Initialize Supervisor proxy
+                    self.supervisor_proxy = self._get_supervisor_socket(self._agentConfig)
+                else:
+                    log.warn('Unable to create pipe in temporary directory. JMX service discovery disabled.')
 
         # Load the checks.d checks
         self._checksd = load_check_directory(self._agentConfig, hostname)
