@@ -3,7 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 
-from .mesosutil import MesosUtil, NomadUtil
+from . import NomadUtil, MesosUtil
 from utils.singleton import Singleton
 from utils.dockerutil import DockerUtil
 

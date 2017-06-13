@@ -3,6 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 import os
+import requests
 
 from .baseutil import BaseUtil
 
@@ -14,10 +15,19 @@ NOMAD_ALLOC_ID = 'NOMAD_ALLOC_ID'
 NOMAD_AGENT_URL = "http://%s:4646/v1/agent/self"
 
 
+def NOMAD_AGENT_VALIDATION(r):
+    return "Version" in r.json().get('config', {})
+
+
 class NomadUtil(BaseUtil):
     def __init__(self):
         BaseUtil.__init__(self)
         self.needs_inspect_config = True
+        self.agent_url = self._detect_agent()
+
+    # FIXME: backwards compat to remove
+    def extract_container_tags(self, c_inspect):
+        return []
 
     def _get_cacheable_tags(self, cid, co=None):
         tags = []
@@ -41,3 +51,45 @@ class NomadUtil(BaseUtil):
     @staticmethod
     def is_detected():
         return NOMAD_ALLOC_ID in os.environ
+
+    def _detect_agent(self):
+        """
+        The Nomad agent runs on every node and listens to http port 4646
+        See https://www.nomadproject.io/docs/http/agent-self.html
+        We'll use the unauthenticated endpoint /v1/agent/self
+
+        We don't have any envvars or downwards API to help us, so we try
+        default gw (network=bridge) and localhost (network=host), but can't
+        auto-detect more complicated cases
+        We need the agent to listen to 0.0.0.0, which is not the case on a devnode
+        """
+        urls = []
+
+        gw = self.docker_util.get_gateway()
+        if gw:
+            urls.append(NOMAD_AGENT_URL % gw)
+        urls.append(NOMAD_AGENT_URL % "127.0.0.1")
+
+        nomad_url = self._try_urls(urls, validation_lambda=NOMAD_AGENT_VALIDATION)
+        if nomad_url:
+            self.log.debug("Found Nomad agent at " + nomad_url)
+        else:
+            self.log.debug("Count not find Nomad agent at urls " + str(urls))
+
+        return nomad_url
+
+    def get_host_tags(self):
+        tags = []
+        if self.agent_url:
+            try:
+                resp = requests.get(self.agent_url, timeout=1).json().get('config', {})
+                if "Version" in resp:
+                    tags.append('nomad_version:%s' % resp.get("Version"))
+                if "Region" in resp:
+                    tags.append('nomad_region:%s' % resp.get("Region"))
+                if "Datacenter" in resp:
+                    tags.append('nomad_datacenter:%s' % resp.get("Datacenter"))
+            except Exception as e:
+                self.log.debug("Error getting Nomad version: %s" % str(e))
+
+        return tags
