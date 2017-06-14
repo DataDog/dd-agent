@@ -49,6 +49,7 @@ class KubeUtil:
     DEFAULT_MASTER_PORT = 8080
     DEFAULT_MASTER_NAME = 'kubernetes'  # DNS name to reach the master from a pod.
     DEFAULT_LABEL_PREFIX = 'kube_'
+    DEFAULT_COLLECT_SERVICE_TAG = True
     CA_CRT_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
     AUTH_TOKEN_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/token'
 
@@ -101,6 +102,9 @@ class KubeUtil:
         self.cadvisor_url = '%s://%s:%d' % (self.method, self.kubelet_host, self.cadvisor_port)
         self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
         self.machine_info_url = urljoin(self.cadvisor_url, KubeUtil.MACHINE_INFO_PATH)
+
+        from config import _is_affirmative
+        self.collect_service_tag = _is_affirmative(instance.get('collect_service_tags', KubeUtil.DEFAULT_COLLECT_SERVICE_TAG))
 
         # keep track of the latest k8s event we collected and posted
         # default value is 0 but TTL for k8s events is one hour anyways
@@ -231,9 +235,10 @@ class KubeUtil:
                 podtags = self.get_pod_creator_tags(metadata)
 
                 # Extract services tags
-                for service in self.match_services_for_pod(metadata):
-                    if service is not None:
-                        podtags.append(u'kube_service:%s' % service)
+                if self.collect_service_tag:
+                    for service in self.match_services_for_pod(metadata):
+                        if service is not None:
+                            podtags.append(u'kube_service:%s' % service)
 
                 # Extract labels
                 for k, v in labels.iteritems():
@@ -387,16 +392,6 @@ class KubeUtil:
 
         return None
 
-    def check_services_cache_freshness(self):
-        """
-        Entry point for sd_docker_backend to check whether to invalidate the cached services
-        For now, we remove the whole cache as the fill_service_cache logic
-        doesn't handle partial lookups
-
-        We use the event's resourceVersion, as using the service's version wouldn't catch deletion
-        """
-        return self._service_mapper.check_services_cache_freshness()
-
     def match_services_for_pod(self, pod_metadata, refresh=False):
         """
         Match the pods labels with services' label selectors to determine the list
@@ -408,11 +403,11 @@ class KubeUtil:
         #log.warning("Matches for %s: %s" % (pod_metadata.get('name'), str(s)))
         return s
 
-    def get_event_retriever(self, namespaces=None, kinds=None):
+    def get_event_retriever(self, namespaces=None, kinds=None, delay=None):
         """
         Returns a KubeEventRetriever object ready for action
         """
-        return KubeEventRetriever(self, namespaces, kinds)
+        return KubeEventRetriever(self, namespaces, kinds, delay)
 
     def match_containers_for_pods(self, pod_uids, podlist=None):
         """
