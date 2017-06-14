@@ -1,3 +1,6 @@
+# stdlib
+import time  # noqa: F401
+
 # 3rd party
 from mock import patch
 
@@ -36,6 +39,30 @@ class TestKubeEventRetriever(KubeTestCase):
             self.assertEquals(2709, retr.last_resversion)
             events = retr.get_event_array()
             self.assertEquals(0, len(events))   # No new event
+            self.assertEquals(2709, retr.last_resversion)
+
+    @patch('time.time')
+    def test_events_delay(self, mock_time):
+        jsons = self._load_json_array(
+            ['service_cache_events1.json', 'service_cache_events2.json'])
+        with patch.object(self.kube, 'retrieve_json_auth', side_effect=jsons):
+            retr = KubeEventRetriever(self.kube, delay=500)
+
+            mock_time.return_value = 10000
+            events = retr.get_event_array()
+            self.assertEquals(3, len(events))
+            self.assertEquals(2707, retr.last_resversion)
+
+            # Must skip request
+            mock_time.return_value = 10400
+            events = retr.get_event_array()
+            self.assertEquals(0, len(events))
+            self.assertEquals(2707, retr.last_resversion)
+
+            # Must retrieve events
+            mock_time.return_value = 10600
+            events = retr.get_event_array()
+            self.assertEquals(2, len(events))
             self.assertEquals(2709, retr.last_resversion)
 
     def test_namespace_serverside_filtering(self):

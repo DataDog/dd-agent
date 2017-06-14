@@ -16,21 +16,16 @@ class PodServiceMapper:
         The apiserver requests are routed through the given KubeUtil instance
         """
         self.kube = kubeutil_object
-        self._event_retriever = self.kube.get_event_retriever(kinds=['Service'])
         self._service_cache_selectors = defaultdict(dict)   # {service_uid:{selectors}}
         self._service_cache_names = {}                      # {service_uid:service_name
-        self._service_cache_invalidated = False             # True to trigger service parsing
+        self._service_cache_invalidated = True
         self._pod_labels_cache = defaultdict(dict)          # {pod_uid:{label}}
         self._pod_services_mapping = defaultdict(list)      # {pod_uid:[service_uid]}
-
-        # Consume past events
-        self.check_services_cache_freshness()
-        self._service_cache_invalidated = True
 
     def _fill_services_cache(self):
         """
         Get the list of services from the kubelet API and store the label selector dicts.
-        The cache is to be invalidated by the user class by calling check_services_cache_freshness
+        The cache is to be invalidated by the user class by calling process_events
         """
         try:
             reply = self.kube.retrieve_json_auth(self.kube.kubernetes_api_url + '/services')
@@ -50,23 +45,6 @@ class PodServiceMapper:
             self._service_cache_selectors = defaultdict(dict)
             self._service_cache_names = {}
             self._service_cache_invalidated = False
-
-    def check_services_cache_freshness(self):
-        """
-        Entry point for sd_docker_backend to check whether to invalidate the cached services
-        For now, we remove the whole cache as the fill_service_cache logic
-        doesn't handle partial lookups
-        """
-
-        # Don't check if cache is already invalidated
-        if self._service_cache_invalidated:
-            return
-
-        try:
-            if self._event_retriever.get_event_array():
-                self._service_cache_invalidated = True
-        except Exception as e:
-            log.warning("Exception while parsing service events, not invalidating cache: %s", e)
 
     def match_services_for_pod(self, pod_metadata, refresh=False, names=False):
         """
@@ -168,7 +146,7 @@ class PodServiceMapper:
                 service_uid = event.get('involvedObject', {}).get('uid', None)
 
                 if service_cache_checked is False:
-                    self.check_services_cache_freshness()
+                    self._service_cache_invalidated = True
                     service_cache_checked = True
 
                 # Possible values in kubernetes/pkg/controller/service/servicecontroller.go
