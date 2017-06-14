@@ -284,7 +284,7 @@ class Agent(Daemon):
 
                 if pipe != win32file.INVALID_HANDLE_VALUE:
                     win32pipe.SetNamedPipeHandleState(
-                                pipe, win32pipe.PIPE_READMODE_MESSAGE, None, None)
+                        pipe, win32pipe.PIPE_READMODE_MESSAGE, None, None)
                     pipe_fd = msvcrt.open_osfhandle(pipe, os.O_RDWR)
                     self.sd_pipe = io.open(pipe_fd, os.O_RDWR) # RW to avoid blocking (will only W)
                 else:
