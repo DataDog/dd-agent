@@ -4,8 +4,10 @@
 
 
 from . import NomadUtil, MesosUtil, ECSUtil
+from .dockerutilproxy import DockerUtilProxy
+from .kubeutilproxy import KubeUtilProxy
+
 from utils.singleton import Singleton
-from utils.dockerutil import DockerUtil
 
 
 class MetadataCollector():
@@ -40,7 +42,7 @@ class MetadataCollector():
             util.reset_cache()
 
     def get_host_tags(self):
-        concat_tags = DockerUtil().get_host_tags()
+        concat_tags = []
         for util in self._utils:
             meta = util.get_host_tags()
             if meta:
@@ -54,6 +56,14 @@ class MetadataCollector():
         """
         self._utils = []
 
+        if DockerUtilProxy.is_detected():
+            util = DockerUtilProxy()
+            util.reset_cache()
+            self._utils.append(util)
+        if KubeUtilProxy.is_detected():
+            util = KubeUtilProxy()
+            util.reset_cache()
+            self._utils.append(util)
         if MesosUtil.is_detected():
             util = MesosUtil()
             util.reset_cache()
