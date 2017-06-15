@@ -136,6 +136,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             log.info('Updating conf file options: %s', registry_conf.keys())
             try:
                 update_conf_file(registry_conf, get_config_path())
+                log.info('update succeeded, deleting old values')
                 remove_registry_conf()
             except Exception:
                 log.warning('Failed to update config file; registry configuration persisted')
