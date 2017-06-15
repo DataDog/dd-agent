@@ -22,11 +22,12 @@ config_attributes = ['api_key', 'tags', 'hostname', 'proxy_host', 'proxy_port', 
 def remove_registry_conf():
     try:
         with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
-                             WINDOWS_REG_PATH, _winreg.KEY_WRITE) as reg_key:
+                             WINDOWS_REG_PATH, 0, _winreg.KEY_WRITE) as reg_key:
             for attribute in config_attributes:
                 try:
                     _winreg.DeleteValue(reg_key, attribute)
-                except Exception:
+                except Exception as e:
+                    log.error("Failed to delete value %s %s", attribute, str(e))
                     # it's ok if it's not there.
                     pass
     except Exception:
