@@ -10,11 +10,11 @@ https://github.com/DataDog/dd-agent/compare/5.14.0...5.14.1
 ### Changes
 Please refer to the [Integrations Core Checks 5.14.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.14.1) for the list of changes on the core checks.
 
-* [IMPROVEMENT] Reduce apiserver request count for pod_service_mapper. See [#3387][] and [integrations-core-476](https://github.com/DataDog/integrations-core/pull/476)
+* [IMPROVEMENT] Kubernetes: Reduce apiserver request count for pod_service_mapper. See [#3387][] and [integrations-core-476](https://github.com/DataDog/integrations-core/pull/476)
 * [IMPROVEMENT] CentOS: Make sure we start the last and stop first. See [#3376][]
-* [IMPROVEMENT] Make TLS settings more intuitive. See [#3373][]
-* [BUGFIX] Fix multi-instance service discovery. See [#3341][]
-* [BUGFIX] Fix typo in the network exception log. See [#3374][]
+* [IMPROVEMENT] Docker: Make TLS settings more intuitive. See [#3373][]
+* [BUGFIX] Auto Conf: Fix multi-instance service discovery. See [#3341][]
+* [BUGFIX] Network checks: Fix typo in the network exception log. See [#3374][]
 
 # 5.14.0 / 06-05-2017
 **Linux, Windows, Docker and Source Install**
