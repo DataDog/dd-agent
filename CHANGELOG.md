@@ -1,6 +1,21 @@
 Changes
 =======
 
+# 5.14.1 / 06-15-2017
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.13.2...5.14.1
+
+### Changes
+Please refer to the [Integrations Core Checks 5.14.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.14.1) for the list of changes on the core checks.
+
+* [IMPROVEMENT] Reduce apiserver request count for pod_service_mapper. See [#3387][] and [integrations-core-476](https://github.com/DataDog/integrations-core/pull/476)
+* [IMPROVEMENT] CentOS: Make sure we start the last and stop first. See [#3376][]
+* [IMPROVEMENT] Make TLS settings more intuitive. See [#3373][]
+* [BUGFIX] Fix multi-instance service discovery. See [#3341][]
+* [BUGFIX] Fix typo in the network exception log. See [#3374][]
+
 # 5.14.0 / 06-05-2017
 **Linux, Windows, Docker and Source Install**
 
@@ -4184,6 +4199,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3334]: https://github.com/DataDog/dd-agent/issues/3334
 [#3335]: https://github.com/DataDog/dd-agent/issues/3335
 [#3339]: https://github.com/DataDog/dd-agent/issues/3339
+[#3341]: https://github.com/DataDog/dd-agent/issues/3341
 [#3344]: https://github.com/DataDog/dd-agent/issues/3344
 [#3346]: https://github.com/DataDog/dd-agent/issues/3346
 [#3348]: https://github.com/DataDog/dd-agent/issues/3348
@@ -4192,6 +4208,10 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3356]: https://github.com/DataDog/dd-agent/issues/3356
 [#3358]: https://github.com/DataDog/dd-agent/issues/3358
 [#3359]: https://github.com/DataDog/dd-agent/issues/3359
+[#3373]: https://github.com/DataDog/dd-agent/issues/3373
+[#3374]: https://github.com/DataDog/dd-agent/issues/3374
+[#3376]: https://github.com/DataDog/dd-agent/issues/3376
+[#3387]: https://github.com/DataDog/dd-agent/issues/3387
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
