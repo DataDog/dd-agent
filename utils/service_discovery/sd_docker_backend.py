@@ -379,13 +379,20 @@ class SDDockerBackend(AbstractSDBackend):
 
                     # build instances list if needed
                     if configs.get(check_name) is None:
-                        configs[check_name] = (source, (init_config, [instance]))
+                        if isinstance(instance, list):
+                            configs[check_name] = (source, (init_config, instance))
+                        else:
+                            configs[check_name] = (source, (init_config, [instance]))
                     else:
                         conflict_init_msg = 'Different versions of `init_config` found for check {}. ' \
                             'Keeping the first one found.'
                         if configs[check_name][1][0] != init_config:
                             log.warning(conflict_init_msg.format(check_name))
-                        configs[check_name][1][1].append(instance)
+                        if isinstance(instance, list):
+                            for inst in instance:
+                                configs[check_name][1][1].append(inst)
+                        else:
+                            configs[check_name][1][1].append(instance)
             except Exception:
                 log.exception('Building config for container %s based on image %s using service '
                               'discovery failed, leaving it alone.' % (cid[:12], image))
@@ -414,13 +421,26 @@ class SDDockerBackend(AbstractSDBackend):
             source, config_tpl = config_tpl
             check_name, init_config_tpl, instance_tpl, variables = config_tpl
 
-            # insert tags in instance_tpl and process values for template variables
-            instance_tpl, var_values = self._fill_tpl(state, c_id, instance_tpl, variables, tags)
+            # covering mono-instance and multi-instances cases
+            tmpl_array = instance_tpl
+            if not isinstance(instance_tpl, list):
+                tmpl_array = [instance_tpl]
 
-            tpl = self._render_template(init_config_tpl or {}, instance_tpl or {}, var_values)
-            if tpl and len(tpl) == 2:
-                init_config, instance = tpl
-                check_configs.append((source, (check_name, init_config, instance)))
+            # insert tags in instance_tpl and process values for template variables
+            result_instances = []
+            result_init_config = None
+            for inst_tmpl in tmpl_array:
+                instance_tpl, var_values = self._fill_tpl(state, c_id, inst_tmpl, variables, tags)
+                tpl = self._render_template(init_config_tpl or {}, instance_tpl or {}, var_values)
+                if tpl and len(tpl) == 2:
+                    init_config, instance = tpl
+                    result_instances.append(instance)
+                    if not result_init_config:
+                        result_init_config = init_config
+                    elif result_init_config != init_config:
+                        self.log.warning("Different versions of `init_config` found for "
+                            "check {}. Keeping the first one found.".format('check_name'))
+            check_configs.append((source, (check_name, result_init_config, result_instances)))
 
         return check_configs
 
@@ -449,7 +469,7 @@ class SDDockerBackend(AbstractSDBackend):
                 variables = map(lambda x: x.strip('%'), variables)
                 if not isinstance(init_config_tpl, dict):
                     init_config_tpl = json.loads(init_config_tpl or '{}')
-                if not isinstance(instance_tpl, dict):
+                if not isinstance(instance_tpl, dict) and not isinstance(instance_tpl, list):
                     instance_tpl = json.loads(instance_tpl or '{}')
             except json.JSONDecodeError:
                 log.exception('Failed to decode the JSON template fetched for check {0}. Its configuration'
