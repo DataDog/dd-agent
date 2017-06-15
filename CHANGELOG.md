@@ -13,7 +13,7 @@ Please refer to the [Integrations Core Checks 5.14.1 tag](https://github.com/Dat
 * [IMPROVEMENT] Kubernetes: Reduce apiserver request count for pod_service_mapper. See [#3387][] and [integrations-core-476](https://github.com/DataDog/integrations-core/pull/476)
 * [IMPROVEMENT] CentOS: Make sure we start the last and stop first. See [#3376][]
 * [IMPROVEMENT] Docker: Make TLS settings more intuitive. See [#3373][]
-* [BUGFIX] Auto Conf: Fix multi-instance service discovery. See [#3341][]
+* [BUGFIX] Autodiscovery: Fix multi-instance autodiscovery. See [#3341][]
 * [BUGFIX] Network checks: Fix typo in the network exception log. See [#3374][]
 
 # 5.14.0 / 06-05-2017
@@ -37,7 +37,7 @@ Please refer to the [Trace Agent 5.14.0 tag](https://github.com/DataDog/datadog-
   * Nomad task, group and job names ([#3289][])
   * Kubernetes service and creator (deployment/daemon_set/replica_set/job). See [#3300][] and [#3348][]
 * [IMPROVEMENT] New PrometheusCheck base class to enable simpler development of integrations pulling Prometheus format metrics. See [#3317][], [#3344][] and [#3359][], thanks [@aerostitch][]
-* [IMPROVEMENT] Auto Conf: allow multiple instances per check. See [#3311][]
+* [IMPROVEMENT] Autodiscovery: allow multiple instances per check. See [#3311][]
 * [IMPROVEMENT] AWS: bump `boto` version to `2.46.1`. See [#3307][] and [omnibus-software-137](https://github.com/DataDog/omnibus-software/pull/137)
 * [IMPROVEMENT] JMXFetch: Add support for `min_collection_interval`. See [jmxfetch-135](https://github.com/DataDog/jmxfetch/pull/135) and [jmxfetch-140](https://github.com/DataDog/jmxfetch/pull/140)
 * [IMPROVEMENT] JMXFetch packaging: build JMXFetch with omnibus and store the jar on S3 bucket. See [dd-agent-omnibus-100](https://github.com/DataDog/dd-agent-omnibus/pull/100) and [#3220][]
