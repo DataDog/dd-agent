@@ -89,6 +89,7 @@ case $1 in
         else
             echo "$DESC was not running"
         fi
+        sleep 5
         "$0" start
         ;;
 
