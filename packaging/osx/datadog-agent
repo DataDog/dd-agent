@@ -8,6 +8,7 @@ AGENTCONF="/opt/datadog-agent/etc/datadog.conf"
 SUPERVISOR_PIDFILE="/opt/datadog-agent/run/datadog-supervisord.pid"
 SUPERVISOR_CONF_FILE="/opt/datadog-agent/etc/supervisor.conf"
 SUPERVISOR_SOCK="/opt/datadog-agent/run/datadog-supervisor.sock"
+SUPERVISOR_PROCESS="/opt/datadog-agent/bin/supervisord"
 SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
 COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
@@ -89,7 +90,14 @@ case $1 in
         else
             echo "$DESC was not running"
         fi
-        sleep 5
+        checks=0
+        pid=$(cat $SUPERVISOR_PIDFILE 2>/dev/null)
+        if [ -n $pid ]; then
+            while ps aux $pid | grep $SUPERVISOR_PROCESS >/dev/null && [ $checks -lt 10 ]; do
+                  let "checks = checks + 1"
+                sleep 1
+            done
+        fi
         "$0" start
         ;;
 
