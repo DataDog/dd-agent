@@ -20,12 +20,10 @@ log = logging.getLogger(__name__)
 config_attributes = ['api_key', 'tags', 'hostname', 'proxy_host', 'proxy_port', 'proxy_user', 'proxy_password']
 
 def remove_registry_conf():
-    log.info("deleting registry values")
     try:
         with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
-                             WINDOWS_REG_PATH) as reg_key:
+                             WINDOWS_REG_PATH, _winreg.KEY_WRITE) as reg_key:
             for attribute in config_attributes:
-                log.info("deleting %s", attribute)
                 try:
                     _winreg.DeleteValue(reg_key, attribute)
                 except Exception:
