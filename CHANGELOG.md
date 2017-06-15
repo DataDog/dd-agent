@@ -5,7 +5,7 @@ Changes
 **Linux, Windows, Docker and Source Install**
 
 ### Details
-https://github.com/DataDog/dd-agent/compare/5.13.2...5.14.1
+https://github.com/DataDog/dd-agent/compare/5.14.0...5.14.1
 
 ### Changes
 Please refer to the [Integrations Core Checks 5.14.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.14.1) for the list of changes on the core checks.
