@@ -6,7 +6,6 @@
 import logging
 import platform
 import re
-import time
 import uuid
 
 # 3p
@@ -26,6 +25,7 @@ except ImportError:
 from utils.pidfile import PidFile  # noqa, see ^^^
 from utils.platform import Platform, get_os # noqa, see ^^^
 from utils.proxy import get_proxy # noqa, see ^^^
+from utils.timer import Timer # noqa, see ^^^
 
 COLON_NON_WIN_PATH = re.compile(':(?!\\\\)')
 
@@ -137,30 +137,6 @@ def config_to_yaml(config):
         raise Exception('You need to have at least one instance defined in your config.')
 
     return yaml_output
-
-
-class Timer(object):
-    """ Helper class """
-
-    def __init__(self):
-        self.start()
-
-    def _now(self):
-        return time.time()
-
-    def start(self):
-        self.started = self._now()
-        self.last = self.started
-        return self
-
-    def step(self):
-        now = self._now()
-        step = now - self.last
-        self.last = now
-        return step
-
-    def total(self, as_sec=True):
-        return self._now() - self.started
 
 """
 Iterable Recipes
