@@ -23,7 +23,7 @@ def get_registry_conf(agentConfig):
     try:
         with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
                              WINDOWS_REG_PATH) as reg_key:
-            for attribute in ['api_key', 'tags', 'hostname']:
+            for attribute in ['api_key', 'tags', 'hostname', 'proxy_host', 'proxy_port', 'proxy_user', 'proxy_password']:
                 option = _winreg.QueryValueEx(reg_key, attribute)[0]
                 if option != '':
                     registry_conf[attribute] = option
