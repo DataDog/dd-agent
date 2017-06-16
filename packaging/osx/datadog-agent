@@ -8,6 +8,7 @@ AGENTCONF="/opt/datadog-agent/etc/datadog.conf"
 SUPERVISOR_PIDFILE="/opt/datadog-agent/run/datadog-supervisord.pid"
 SUPERVISOR_CONF_FILE="/opt/datadog-agent/etc/supervisor.conf"
 SUPERVISOR_SOCK="/opt/datadog-agent/run/datadog-supervisor.sock"
+SUPERVISOR_PROCESS="/opt/datadog-agent/bin/supervisord"
 SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
 COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
@@ -76,6 +77,17 @@ case $1 in
         check_status > /dev/null
         if [ $? -ne 2 ]; then
             $SUPERVISORCTL_PATH -c $SUPERVISOR_CONF_FILE shutdown
+            # This section checks to see if supervisor is still running before we attempt a start. We will wait 
+            # up to 10 seconds as this is how long Supervisor waits for processes to stop before force exiting using SIGKILL
+            # http://supervisord.org/configuration.html#program-x-section-values
+            checks=0
+            pid=$(cat $SUPERVISOR_PIDFILE 2>/dev/null)
+            if [ -n $pid ]; then
+                while [ $checks -lt 10 ] && ps aux $pid | grep $SUPERVISOR_PROCESS >/dev/null; do
+                    let "checks = checks + 1"
+                    sleep 1
+                done
+            fi
         else
             echo "$DESC (supervisor) is not running"
         fi
