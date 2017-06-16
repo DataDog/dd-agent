@@ -40,7 +40,7 @@ class TestWatchdog(unittest.TestCase):
         Helper, a context manager to set the current time value.
         """
         # Set the current time within `util` module
-        mock_time = patch("util.time.time")
+        mock_time = patch("utils.timer.time.time")
         mock_time.start().return_value = time
 
         # Yield
