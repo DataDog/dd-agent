@@ -5,6 +5,7 @@
 
 from .mesosutil import MesosUtil
 from utils.singleton import Singleton
+from utils.dockerutil import DockerUtil
 
 
 class MetadataCollector():
@@ -37,6 +38,15 @@ class MetadataCollector():
     def reset_cache(self):
         for util in self._utils:
             util.reset_cache()
+
+    def get_host_tags(self):
+        concat_tags = DockerUtil().get_host_tags()
+        for util in self._utils:
+            meta = util.get_host_tags()
+            if meta:
+                concat_tags.extend(meta)
+
+        return concat_tags
 
     def reset(self):
         """

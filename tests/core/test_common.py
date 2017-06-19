@@ -283,6 +283,7 @@ class TestCollectionInterval(unittest.TestCase):
             'api_key': 'test_apikey',
             'check_timings': True,
             'collect_ec2_tags': True,
+            'collect_orchestrator_tags': False,
             'collect_instance_metadata': False,
             'create_dd_check_tags': False,
             'version': 'test',
@@ -321,6 +322,7 @@ class TestCollectionInterval(unittest.TestCase):
         agentConfig = {
             'api_key': 'test_apikey',
             'collect_ec2_tags': False,
+            'collect_orchestrator_tags': False,
             'collect_instance_metadata': False,
             'create_dd_check_tags': True,
             'version': 'test',

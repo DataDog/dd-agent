@@ -1,40 +1,26 @@
 # stdlib
 import unittest
-import os
 
 # 3rd party
 import mock
+import requests  # noqa: F401
 
 # project
-from utils.orchestrator import MesosUtil, BaseUtil
+from utils.orchestrator import BaseUtil
 
 CO_ID = 1234
 
 
-class TestMesosUtil(unittest.TestCase):
-    @mock.patch('docker.Client.__init__')
-    def test_extract_tags(self, mock_init):
-        mock_init.return_value = None
-        mesos = MesosUtil()
+class MockResponse:
+    """
+    Helper class to mock a json response from requests
+    """
+    def __init__(self, json_data, status_code):
+        self.json_data = json_data
+        self.status_code = status_code
 
-        env = ["CHRONOS_JOB_NAME=test-job",
-               "MARATHON_APP_ID=/system/dd-agent",
-               "MESOS_TASK_ID=system_dd-agent.dcc75b42-4b87-11e7-9a62-70b3d5800001"]
-
-        tags = ['chronos_job:test-job', 'marathon_app:/system/dd-agent',
-                'mesos_task:system_dd-agent.dcc75b42-4b87-11e7-9a62-70b3d5800001']
-
-        container = {'Config': {'Env': env}}
-
-        self.assertEqual(sorted(tags), sorted(mesos._get_cacheable_tags(CO_ID, co=container)))
-
-    @mock.patch.dict(os.environ, {"MESOS_TASK_ID": "test"})
-    def test_detect(self):
-        self.assertTrue(MesosUtil.is_detected())
-
-    @mock.patch.dict(os.environ, {})
-    def test_no_detect(self):
-        self.assertFalse(MesosUtil.is_detected())
+    def json(self):
+        return self.json_data
 
 
 class TestBaseUtil(unittest.TestCase):
