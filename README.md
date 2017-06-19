@@ -7,6 +7,13 @@ you can do something useful with your monitoring and performance data.
 You're looking at the source code right now. We provide a number of
 [pre-packaged binaries](https://app.datadoghq.com/account/settings#agent) for your convenience.
 
+Note: this repository does not contain the sources of the Trace Agent that
+collects traces for the APM feature. If you choose the installation from source
+or the Windows and Mac OS X builds you will need to install the Trace Agent
+separately. See
+[dd-trace-agent](https://github.com/DataDog/datadog-trace-agent) for
+instructions.
+
 # [Change log](https://github.com/DataDog/dd-agent/blob/master/CHANGELOG.md)
 
 # How to contribute code
