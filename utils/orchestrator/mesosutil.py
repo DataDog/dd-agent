@@ -16,13 +16,8 @@ MESOS_AGENT_HTTP_PORT = 5051
 DCOS_AGENT_HTTP_PORT = 61001
 DOCS_AGENT_HTTPS_PORT = 61002
 
-
-def MESOS_AGENT_VALIDATION(r):
-    return "version" in r.json()
-
-
-def DCOS_AGENT_VALIDATION(r):
-    return "dcos_version" in r.json()
+MESOS_VERSION_URL_TEMPLATE = "http://%s:%d/version"
+DCOS_HEALTH_URL_TEMPLATE = "http://%s:%d/system/health/v1"
 
 
 class MesosUtil(BaseUtil):
@@ -45,6 +40,14 @@ class MesosUtil(BaseUtil):
 
         return tags
 
+    @staticmethod
+    def mesos_agent_validation(r):
+        return "version" in r.json()
+
+    @staticmethod
+    def dcos_agent_validation(r):
+        return "dcos_version" in r.json()
+
     def _detect_agents(self):
         """
         The Mesos agent runs on every node and listens to http port 5051
@@ -59,29 +62,29 @@ class MesosUtil(BaseUtil):
         dcos_urls = []
         for var in MESOS_AGENT_IP_ENV:
             if var in os.environ:
-                mesos_urls.append("http://%s:%d/version" %
+                mesos_urls.append(MESOS_VERSION_URL_TEMPLATE %
                                   (os.environ.get(var), MESOS_AGENT_HTTP_PORT))
-                dcos_urls.append("http://%s:%d/system/health/v1" %
+                dcos_urls.append(DCOS_HEALTH_URL_TEMPLATE %
                                  (os.environ.get(var), DCOS_AGENT_HTTP_PORT))
-                dcos_urls.append("https://%s:%d/system/health/v1" %
+                dcos_urls.append(DCOS_HEALTH_URL_TEMPLATE %
                                  (os.environ.get(var), DOCS_AGENT_HTTPS_PORT))
         # Try network gateway last
         gw = self.docker_util.get_gateway()
         if gw:
-            mesos_urls.append("http://%s:%d/version" % (gw, MESOS_AGENT_HTTP_PORT))
-            dcos_urls.append("http://%s:%d/system/health/v1" % (gw, DCOS_AGENT_HTTP_PORT))
-            dcos_urls.append("https://%s:%d/system/health/v1" % (gw, DOCS_AGENT_HTTPS_PORT))
+            mesos_urls.append(MESOS_VERSION_URL_TEMPLATE % (gw, MESOS_AGENT_HTTP_PORT))
+            dcos_urls.append(DCOS_HEALTH_URL_TEMPLATE % (gw, DCOS_AGENT_HTTP_PORT))
+            dcos_urls.append(DCOS_HEALTH_URL_TEMPLATE % (gw, DOCS_AGENT_HTTPS_PORT))
 
-        mesos_url = self._try_urls(mesos_urls, validation_lambda=MESOS_AGENT_VALIDATION)
+        mesos_url = self._try_urls(mesos_urls, validation_lambda=MesosUtil.mesos_agent_validation)
         if mesos_url:
             self.log.debug("Found Mesos agent at " + mesos_url)
         else:
-            self.log.debug("Count not find Mesos agent at urls " + str(mesos_urls))
-        dcos_url = self._try_urls(dcos_urls, validation_lambda=DCOS_AGENT_VALIDATION)
+            self.log.debug("Could not find Mesos agent at urls " + str(mesos_urls))
+        dcos_url = self._try_urls(dcos_urls, validation_lambda=MesosUtil.dcos_agent_validation)
         if dcos_url:
             self.log.debug("Found DCOS agent at " + dcos_url)
         else:
-            self.log.debug("Count not find DCOS agent at urls " + str(dcos_urls))
+            self.log.debug("Could not find DCOS agent at urls " + str(dcos_urls))
 
         return (mesos_url, dcos_url)
 
