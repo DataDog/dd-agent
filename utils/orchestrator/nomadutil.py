@@ -15,10 +15,6 @@ NOMAD_ALLOC_ID = 'NOMAD_ALLOC_ID'
 NOMAD_AGENT_URL = "http://%s:4646/v1/agent/self"
 
 
-def NOMAD_AGENT_VALIDATION(r):
-    return "Version" in r.json().get('config', {})
-
-
 class NomadUtil(BaseUtil):
     def __init__(self):
         BaseUtil.__init__(self)
@@ -48,6 +44,10 @@ class NomadUtil(BaseUtil):
     def is_detected():
         return NOMAD_ALLOC_ID in os.environ
 
+    @staticmethod
+    def nomad_agent_validation(r):
+        return "Version" in r.json().get('config', {})
+
     def _detect_agent(self):
         """
         The Nomad agent runs on every node and listens to http port 4646
@@ -66,11 +66,11 @@ class NomadUtil(BaseUtil):
             urls.append(NOMAD_AGENT_URL % gw)
         urls.append(NOMAD_AGENT_URL % "127.0.0.1")
 
-        nomad_url = self._try_urls(urls, validation_lambda=NOMAD_AGENT_VALIDATION)
+        nomad_url = self._try_urls(urls, validation_lambda=NomadUtil.nomad_agent_validation)
         if nomad_url:
             self.log.debug("Found Nomad agent at " + nomad_url)
         else:
-            self.log.debug("Count not find Nomad agent at urls " + str(urls))
+            self.log.debug("Could not find Nomad agent at urls " + str(urls))
 
         return nomad_url
 

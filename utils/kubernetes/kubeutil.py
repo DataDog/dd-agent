@@ -78,8 +78,8 @@ class KubeUtil:
         self.tls_settings = self._init_tls_settings(instance)
 
         # apiserver
-        self.kubernetes_api_root_url = 'https://%s/' % (os.environ.get('KUBERNETES_SERVICE_HOST') or
-                                                        self.DEFAULT_MASTER_NAME)
+        self.kubernetes_api_root_url = 'https://%s' % (os.environ.get('KUBERNETES_SERVICE_HOST') or
+                                                       self.DEFAULT_MASTER_NAME)
         self.kubernetes_api_url = '%s/api/v1' % self.kubernetes_api_root_url
         # kubelet
         try:
@@ -350,6 +350,8 @@ class KubeUtil:
         # Kubelet version
         try:
             _, node_name = self.get_node_info()
+            if not node_name:
+                raise ValueError("node name missing or empty")
             request_url = "%s/nodes/%s" % (self.kubernetes_api_url, node_name)
             node_info = self.retrieve_json_auth(request_url)
             version = node_info.get("status").get("nodeInfo").get("kubeletVersion")

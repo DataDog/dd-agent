@@ -19,10 +19,6 @@ ECS_AGENT_TASKS_PATH = '/v1/tasks'
 AGENT_VERSION_EXP = re.compile(r'v([0-9.]+)')
 
 
-def ECS_AGENT_VALIDATION(r):
-    return "/v1/metadata" in r.json().get("AvailableCommands", [])
-
-
 class ECSUtil(BaseUtil):
     # FIXME: move the ecs detection logic from DockerUtil here?
     @staticmethod
@@ -35,6 +31,10 @@ class ECSUtil(BaseUtil):
         self.agent_url = self._detect_agent()
         self.ecs_tags = {}
         self._populate_ecs_tags()
+
+    @staticmethod
+    def ecs_agent_validation(r):
+        return ECS_AGENT_METADATA_PATH in r.json().get("AvailableCommands", [])
 
     def _detect_agent(self):
         """
@@ -59,11 +59,11 @@ class ECSUtil(BaseUtil):
         # Try localhost (both ecs-agent and dd-agent in host networking)
         urls.append("http://localhost:%d/" % ECS_AGENT_DEFAULT_PORT)
 
-        url = self._try_urls(urls, validation_lambda=ECS_AGENT_VALIDATION)
+        url = self._try_urls(urls, validation_lambda=ECSUtil.ecs_agent_validation)
         if url:
             self.log.debug("Found ECS agent at " + url)
         else:
-            self.log.debug("Count not find ECS agent at urls " + str(urls))
+            self.log.debug("Could not find ECS agent at urls " + str(urls))
 
         return url
 

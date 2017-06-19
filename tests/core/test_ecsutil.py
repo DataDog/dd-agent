@@ -31,11 +31,13 @@ class TestECSUtil(unittest.TestCase):
         mock_get.assert_called_once_with('http://dummy/v1/tasks', timeout=1)
 
     @mock.patch('requests.get')
+    @mock.patch('utils.dockerutil.DockerUtil.get_gateway')
     @mock.patch('utils.dockerutil.DockerUtil.inspect_container')
     @mock.patch('docker.Client.__init__')
-    def test_detect_agent(self, mock_init, mock_inspect, mock_get):
+    def test_detect_agent(self, mock_init, mock_inspect, mock_gw, mock_get):
         mock_get.return_value = MockResponse({}, 404)
         mock_init.return_value = None
+        mock_gw.return_value = "10.0.2.2"
 
         mock_inspect.return_value = {'NetworkSettings': {'IPAddress': '10.0.0.42',
                                                          'Ports': {'1234/tcp': '1234/tcp'}}}
