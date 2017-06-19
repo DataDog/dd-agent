@@ -239,8 +239,12 @@ class DockerUtil:
             tags.append('docker_version:%s' % version['Version'])
         else:
             log.debug("Could not determine Docker version")
+
         if self.is_swarm():
             tags.append('docker_swarm:active')
+        else:
+            tags.append('docker_swarm:inactive')
+
         return tags
 
     @property
