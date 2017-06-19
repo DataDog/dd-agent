@@ -46,7 +46,7 @@ class KubeUtil:
     DEFAULT_CADVISOR_PORT = 4194
     DEFAULT_HTTP_KUBELET_PORT = 10255
     DEFAULT_HTTPS_KUBELET_PORT = 10250
-    DEFAULT_MASTER_PORT = 8080
+    DEFAULT_MASTER_PORT = 443
     DEFAULT_MASTER_NAME = 'kubernetes'  # DNS name to reach the master from a pod.
     DEFAULT_LABEL_PREFIX = 'kube_'
     DEFAULT_COLLECT_SERVICE_TAG = True
@@ -78,9 +78,12 @@ class KubeUtil:
         self.tls_settings = self._init_tls_settings(instance)
 
         # apiserver
-        self.kubernetes_api_root_url = 'https://%s' % (os.environ.get('KUBERNETES_SERVICE_HOST') or
-                                                       self.DEFAULT_MASTER_NAME)
+        master_host = instance.get('api_server_host', (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME))
+        master_port = instance.get('api_server_port', self.DEFAULT_MASTER_PORT)
+        self.kubernetes_api_root_url = 'https://%s:%d' % (master_host, master_port)
+
         self.kubernetes_api_url = '%s/api/v1' % self.kubernetes_api_root_url
+
         # kubelet
         try:
             self.kubelet_api_url = self._locate_kubelet(instance)
@@ -128,7 +131,7 @@ class KubeUtil:
         if apiserver_cacert and os.path.exists(apiserver_cacert):
             tls_settings['apiserver_cacert'] = apiserver_cacert
 
-        token = self.get_auth_token()
+        token = self.get_auth_token(instance)
         if token:
             tls_settings['bearer_token'] = token
 
@@ -296,8 +299,8 @@ class KubeUtil:
         verify = tls_context.get('kubelet_verify', DEFAULT_TLS_VERIFY)
 
         # if cert-based auth is enabled, don't use the token.
-        if not cert and url.lower().startswith('https'):
-            headers = {'Authorization': 'Bearer {}'.format(self.get_auth_token())}
+        if not cert and url.lower().startswith('https') and 'bearer_token' in self.tls_settings:
+            headers = {'Authorization': 'Bearer {}'.format(self.tls_settings.get('bearer_token'))}
 
         return requests.get(url, timeout=timeout, verify=verify,
             cert=cert, headers=headers, params={'verbose': verbose})
@@ -409,15 +412,17 @@ class KubeUtil:
         return self.docker_util.are_tags_filtered(tags)
 
     @classmethod
-    def get_auth_token(cls):
+    def get_auth_token(cls, instance):
         """
         Return a string containing the authorization token for the pod.
         """
+
+        token_path = instance.get('bearer_token_path', cls.AUTH_TOKEN_PATH)
         try:
-            with open(cls.AUTH_TOKEN_PATH) as f:
+            with open(token_path) as f:
                 return f.read()
         except IOError as e:
-            log.error('Unable to read token from {}: {}'.format(cls.AUTH_TOKEN_PATH, e))
+            log.error('Unable to read token from {}: {}'.format(token_path, e))
 
         return None
 
