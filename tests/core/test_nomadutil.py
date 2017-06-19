@@ -1,11 +1,15 @@
 # stdlib
 import unittest
+import os
 
 # 3rd party
 import mock
 
 # project
 from utils.orchestrator import NomadUtil
+
+# MockResponse class
+from .test_orchestrator import MockResponse
 
 ENV = ['NOMAD_TASK_NAME=test-task',
        'NOMAD_JOB_NAME=test-job',
@@ -15,53 +19,33 @@ CO_ID = 1234
 
 
 class TestNomadUtil(unittest.TestCase):
-    @mock.patch('docker.Client.inspect_container')
     @mock.patch('docker.Client.__init__')
-    def test_extract_tags(self, mock_init, mock_inspect):
+    def test_extract_tags(self, mock_init):
+        mock_init.return_value = None
         nomad = NomadUtil()
 
-        mock_inspect.return_value = {'Config': {'Env': ENV}}
-        mock_init.return_value = None
-        co = {'Id': CO_ID, 'Created': 1}
+        co = {'Id': CO_ID, 'Config': {'Env': ENV}}
 
-        tags = nomad.extract_container_tags(co)
-
+        tags = nomad._get_cacheable_tags(CO_ID, co=co)
         self.assertEqual(sorted(EXPECTED_TAGS), sorted(tags))
 
-    @mock.patch('docker.Client.inspect_container')
+    @mock.patch.dict(os.environ, {'NOMAD_ALLOC_ID': "test"})
+    def test_detect(self):
+        self.assertTrue(NomadUtil.is_detected())
+
+    @mock.patch.dict(os.environ, {})
+    def test_no_detect(self):
+        self.assertFalse(NomadUtil.is_detected())
+
+    @mock.patch('requests.get')
     @mock.patch('docker.Client.__init__')
-    def test_cache_invalidation_created_timestamp(self, mock_init, mock_inspect):
-        nomad = NomadUtil()
-
-        mock_inspect.return_value = {'Config': {'Env': ENV}}
+    def test_host_tags(self, mock_init, mock_get):
+        mock_get.return_value = MockResponse({"config": {"Datacenter": "dc1", "Region": "global",
+                                                         "Version": "0.5.4"}}, 200)
         mock_init.return_value = None
-        co = {'Id': CO_ID, 'Created': 1}
-        nomad.extract_container_tags(co)
 
-        self.assertTrue(CO_ID in nomad._container_tags_cache)
-        mock_inspect.assert_called_once()
+        util = NomadUtil()
+        util.__init__()
+        tags = util.get_host_tags()
 
-        # Cache is used
-        nomad.extract_container_tags(co)
-        mock_inspect.assert_called_once()
-
-        # Different timestamp: cache is invalidated
-        nomad.extract_container_tags({'Id': CO_ID, 'Created': 2})
-        self.assertEqual(2, mock_inspect.call_count)
-
-    @mock.patch('docker.Client.inspect_container')
-    @mock.patch('docker.Client.__init__')
-    def test_cache_invalidation_event(self, mock_init, mock_inspect):
-        nomad = NomadUtil()
-
-        mock_inspect.return_value = {'Config': {'Env': ENV}}
-        mock_init.return_value = None
-        co = {'Id': CO_ID, 'Created': 1}
-        nomad.extract_container_tags(co)
-
-        self.assertTrue(CO_ID in nomad._container_tags_cache)
-
-        EVENT = {'status': 'die', 'id': CO_ID}
-        nomad.invalidate_cache([EVENT])
-
-        self.assertFalse(CO_ID in nomad._container_tags_cache)
+        self.assertEqual(['nomad_version:0.5.4', 'nomad_region:global', 'nomad_datacenter:dc1'], tags)

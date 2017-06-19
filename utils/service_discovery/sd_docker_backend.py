@@ -22,7 +22,7 @@ from utils.kubernetes import KubeUtil
 from utils.platform import Platform
 from utils.service_discovery.abstract_sd_backend import AbstractSDBackend
 from utils.service_discovery.config_stores import get_config_store
-from utils.orchestrator import NomadUtil, ECSUtil, MetadataCollector
+from utils.orchestrator import MetadataCollector
 
 DATADOG_ID = 'com.datadoghq.sd.check.id'
 
@@ -97,11 +97,6 @@ class SDDockerBackend(AbstractSDBackend):
                 self.kubeutil = None
                 log.error("Couldn't instantiate the kubernetes client, "
                     "subsequent kubernetes calls will fail as well. Error: %s" % str(ex))
-
-        if Platform.is_nomad():
-            self.nomadutil = NomadUtil()
-        elif Platform.is_ecs_instance():
-            self.ecsutil = ECSUtil()
 
         self.metadata_collector = MetadataCollector()
 
@@ -326,15 +321,6 @@ class SDDockerBackend(AbstractSDBackend):
                 tags.append('rancher_stack:%s' % stack_name)
             if container_name:
                 tags.append('rancher_container:%s' % container_name)
-
-        elif Platform.is_nomad():
-            nomad_tags = self.nomadutil.extract_container_tags(c_inspect)
-            if nomad_tags:
-                tags.extend(nomad_tags)
-
-        elif Platform.is_ecs_instance():
-            ecs_tags = self.ecsutil.extract_container_tags(c_inspect)
-            tags.extend(ecs_tags)
 
         if self.metadata_collector.has_detected():
             orch_tags = self.metadata_collector.get_container_tags(co=c_inspect)

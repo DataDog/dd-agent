@@ -78,8 +78,9 @@ class KubeUtil:
         self.tls_settings = self._init_tls_settings(instance)
 
         # apiserver
-        self.kubernetes_api_url = 'https://%s/api/v1' % (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME)
-
+        self.kubernetes_api_root_url = 'https://%s' % (os.environ.get('KUBERNETES_SERVICE_HOST') or
+                                                       self.DEFAULT_MASTER_NAME)
+        self.kubernetes_api_url = '%s/api/v1' % self.kubernetes_api_root_url
         # kubelet
         try:
             self.kubelet_api_url = self._locate_kubelet(instance)
@@ -331,6 +332,34 @@ class KubeUtil:
         if None in (self._node_ip, self._node_name):
             self._fetch_host_data()
         return self._node_ip, self._node_name
+
+    def get_node_hosttags(self):
+        tags = []
+
+        # API server version
+        try:
+            request_url = "%s/version" % self.kubernetes_api_root_url
+            master_info = self.retrieve_json_auth(request_url)
+            version = master_info.get("gitVersion")
+            tags.append("kube_master_version:%s" % version[1:])
+        except Exception as e:
+            # Intentional use of non-safe lookups to get the exception in the debug logs
+            # if the parsing were to fail
+            log.debug("Error getting Kube master version: %s" % str(e))
+
+        # Kubelet version
+        try:
+            _, node_name = self.get_node_info()
+            if not node_name:
+                raise ValueError("node name missing or empty")
+            request_url = "%s/nodes/%s" % (self.kubernetes_api_url, node_name)
+            node_info = self.retrieve_json_auth(request_url)
+            version = node_info.get("status").get("nodeInfo").get("kubeletVersion")
+            tags.append("kubelet_version:%s" % version[1:])
+        except Exception as e:
+            log.debug("Error getting Kubelet version: %s" % str(e))
+
+        return tags
 
     def _fetch_host_data(self):
         """

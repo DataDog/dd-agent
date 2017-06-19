@@ -2,82 +2,90 @@
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
-# stdlib
-import logging
-from utils.dockerutil import DockerUtil
-from utils.singleton import Singleton
+import os
+import requests
 
-
-log = logging.getLogger(__name__)
+from .baseutil import BaseUtil
 
 NOMAD_TASK_NAME = 'NOMAD_TASK_NAME'
 NOMAD_JOB_NAME = 'NOMAD_JOB_NAME'
 NOMAD_ALLOC_NAME = 'NOMAD_ALLOC_NAME'
+NOMAD_ALLOC_ID = 'NOMAD_ALLOC_ID'
+
+NOMAD_AGENT_URL = "http://%s:4646/v1/agent/self"
 
 
-class NomadUtil:
-    __metaclass__ = Singleton
-
+class NomadUtil(BaseUtil):
     def __init__(self):
-        self.docker_util = DockerUtil()
+        BaseUtil.__init__(self)
+        self.needs_inspect_config = True
+        self.agent_url = self._detect_agent()
 
-        # Tags cache as a dict {co_id: (create_timestamp, [tags])}
-        self._container_tags_cache = {}
-
-    def extract_container_tags(self, co):
-        """
-        Queries docker inspect to get nomad tags in the container's environment vars.
-        As this is expensive, it is cached in the self._nomad_tags_cache dict.
-        The cache invalidation goes through invalidate_nomad_cache, called by the docker_daemon check
-
-        :param co: container dict returned by docker-py
-        :return: tags as list<string>, cached
-        """
-
-        co_id = co.get('Id', None)
-
-        if co_id is None:
-            log.warning("Invalid container object in extract_container_tags")
-            return
-
-        # Cache lookup on Id, verified on Created timestamp
-        if co_id in self._container_tags_cache:
-            created, tags = self._container_tags_cache[co_id]
-            if created == co.get('Created', -1):
-                return tags
-
+    def _get_cacheable_tags(self, cid, co=None):
         tags = []
-        try:
-            inspect_info = self.docker_util.inspect_container(co_id)
-            envvars = inspect_info.get('Config', {}).get('Env', {})
-            for var in envvars:
-                if var.startswith(NOMAD_TASK_NAME):
-                    tags.append('nomad_task:%s' % var[len(NOMAD_TASK_NAME) + 1:])
-                elif var.startswith(NOMAD_JOB_NAME):
-                    tags.append('nomad_job:%s' % var[len(NOMAD_JOB_NAME) + 1:])
-                elif var.startswith(NOMAD_ALLOC_NAME):
-                    try:
-                        start = var.index('.', len(NOMAD_ALLOC_NAME)) + 1
-                        end = var.index('[')
-                        if end <= start:
-                            raise ValueError("Error extracting group from %s, check format" % var)
-                        tags.append('nomad_group:%s' % var[start:end])
-                    except ValueError:
-                        pass
-                    self._container_tags_cache[co_id] = (co.get('Created'), tags)
-        except Exception as e:
-            log.warning("Error while parsing Nomad tags: %s" % str(e))
-        finally:
-            return tags
+        envvars = co.get('Config', {}).get('Env', {})
+        for var in envvars:
+            if var.startswith(NOMAD_TASK_NAME):
+                tags.append('nomad_task:%s' % var[len(NOMAD_TASK_NAME) + 1:])
+            elif var.startswith(NOMAD_JOB_NAME):
+                tags.append('nomad_job:%s' % var[len(NOMAD_JOB_NAME) + 1:])
+            elif var.startswith(NOMAD_ALLOC_NAME):
+                try:
+                    start = var.index('.', len(NOMAD_ALLOC_NAME)) + 1
+                    end = var.index('[')
+                    if end <= start:
+                        raise ValueError("Error extracting group from %s, check format" % var)
+                    tags.append('nomad_group:%s' % var[start:end])
+                except ValueError:
+                    pass
+        return tags
 
-    def invalidate_cache(self, events):
+    @staticmethod
+    def is_detected():
+        return NOMAD_ALLOC_ID in os.environ
+
+    @staticmethod
+    def nomad_agent_validation(r):
+        return "Version" in r.json().get('config', {})
+
+    def _detect_agent(self):
         """
-        Allows cache invalidation when containers dies
-        :param events from self.get_events
+        The Nomad agent runs on every node and listens to http port 4646
+        See https://www.nomadproject.io/docs/http/agent-self.html
+        We'll use the unauthenticated endpoint /v1/agent/self
+
+        We don't have any envvars or downwards API to help us, so we try
+        default gw (network=bridge) and localhost (network=host), but can't
+        auto-detect more complicated cases
+        We need the agent to listen to 0.0.0.0, which is not the case on a devnode
         """
-        try:
-            for ev in events:
-                if ev.get('status') == 'die' and ev.get('id') in self._container_tags_cache:
-                    del self._container_tags_cache[ev.get('id')]
-        except Exception as e:
-            log.warning("Error when invalidating nomad cache: " + str(e))
+        urls = []
+
+        gw = self.docker_util.get_gateway()
+        if gw:
+            urls.append(NOMAD_AGENT_URL % gw)
+        urls.append(NOMAD_AGENT_URL % "127.0.0.1")
+
+        nomad_url = self._try_urls(urls, validation_lambda=NomadUtil.nomad_agent_validation)
+        if nomad_url:
+            self.log.debug("Found Nomad agent at " + nomad_url)
+        else:
+            self.log.debug("Could not find Nomad agent at urls " + str(urls))
+
+        return nomad_url
+
+    def get_host_tags(self):
+        tags = []
+        if self.agent_url:
+            try:
+                resp = requests.get(self.agent_url, timeout=1).json().get('config', {})
+                if "Version" in resp:
+                    tags.append('nomad_version:%s' % resp.get("Version"))
+                if "Region" in resp:
+                    tags.append('nomad_region:%s' % resp.get("Region"))
+                if "Datacenter" in resp:
+                    tags.append('nomad_datacenter:%s' % resp.get("Datacenter"))
+            except Exception as e:
+                self.log.debug("Error getting Nomad version: %s" % str(e))
+
+        return tags

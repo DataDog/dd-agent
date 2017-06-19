@@ -113,5 +113,7 @@ class BaseUtil:
                 continue
             except ValueError:  # JSON parsing or dict search
                 continue
+            except TypeError:  # NoneType errors
+                continue
 
         return None

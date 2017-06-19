@@ -108,7 +108,8 @@ class Platform(object):
 
     @staticmethod
     def is_nomad():
-        return 'NOMAD_ALLOC_ID' in os.environ
+        from utils.orchestrator import NomadUtil
+        return NomadUtil.is_detected()
 
     @staticmethod
     def is_mesos():
