@@ -21,6 +21,7 @@ import string
 import sys
 import traceback
 from urlparse import urlparse
+from importlib import import_module
 
 # 3p
 import simplejson as json
@@ -842,13 +843,19 @@ def _get_check_class(check_name, check_path):
     '''Return the corresponding check class for a check name if available.'''
     from checks import AgentCheck
     check_class = None
+
     try:
-        check_module = imp.load_source('checksd_%s' % check_name, check_path)
-    except Exception as e:
-        traceback_message = traceback.format_exc()
-        # There is a configuration file for that check but the module can't be imported
-        log.exception('Unable to import check module %s.py from checks.d' % check_name)
-        return {'error': e, 'traceback': traceback_message}
+        # see whether the check was installed as a wheel package...
+        check_module = import_module("check.{}".format(check_name))
+    except ImportError:
+        # ...if not, let's go with plain old check import
+        try:
+            check_module = imp.load_source('checksd_%s' % check_name, check_path)
+        except Exception as e:
+            traceback_message = traceback.format_exc()
+            # There is a configuration file for that check but the module can't be imported
+            log.exception('Unable to import check module %s.py from checks.d' % check_name)
+            return {'error': e, 'traceback': traceback_message}
 
     # We make sure that there is an AgentCheck class defined
     check_class = None

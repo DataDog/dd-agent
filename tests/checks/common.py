@@ -15,6 +15,7 @@ import time
 import traceback
 import unittest
 import json
+from importlib import import_module
 
 # project
 from checks import AgentCheck
@@ -27,27 +28,32 @@ from utils.platform import get_os
 log = logging.getLogger('tests')
 
 def _is_sdk():
-    return "SDK_TESTING" in os.environ
+    # for the POC scope, let's assume it's always SDK time
+    return True
 
 def _load_sdk_module(name):
-    sdk_path = get_sdk_integrations_path(get_os())
-    module_path = os.path.join(sdk_path, name)
-    sdk_module_name = "_{}".format(name)
-    if sdk_module_name in sys.modules:
-        return sys.modules[sdk_module_name]
+    try:
+        # see whether the check was installed as a wheel package
+        return import_module("check.{}".format(name))
+    except ImportError:
+        sdk_path = get_sdk_integrations_path(get_os())
+        module_path = os.path.join(sdk_path, name)
+        sdk_module_name = "_{}".format(name)
+        if sdk_module_name in sys.modules:
+            return sys.modules[sdk_module_name]
 
-    if sdk_path not in sys.path:
-        sys.path.append(sdk_path)
-    if module_path not in sys.path:
-        sys.path.append(module_path)
+        if sdk_path not in sys.path:
+            sys.path.append(sdk_path)
+        if module_path not in sys.path:
+            sys.path.append(module_path)
 
-    fd, filename, desc = imp.find_module('check', [module_path])
-    module = imp.load_module("_{}".format(name), fd, filename, desc)
-    if fd:
-        fd.close()
-    # module = __import__(module_name, fromlist=['check'])
+        fd, filename, desc = imp.find_module('check', [module_path])
+        module = imp.load_module("_{}".format(name), fd, filename, desc)
+        if fd:
+            fd.close()
+        # module = __import__(module_name, fromlist=['check'])
 
-    return module
+        return module
 
 def get_check_class(name):
     if not _is_sdk():
