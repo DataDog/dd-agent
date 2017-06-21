@@ -228,9 +228,12 @@ class File_Handlers(Check):
         if not Platform.is_linux():
             return False
 
-        with open('/proc/sys/fs/file-nr', 'r') as file_handlers:
-            handler_contents = file_handlers.read()
-        file_handlers.close()
+        try:
+            with open('/proc/sys/fs/file-nr', 'r') as file_handlers:
+                handler_contents = file_handlers.read()
+        except Exception:
+            self.logger.exception("Cannot extract system file handler stats")
+            return False
 
         handler_metrics = handler_contents.split()
 
