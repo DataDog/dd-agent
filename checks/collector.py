@@ -206,7 +206,7 @@ class Collector(object):
             'processes': u.Processes(log),
             'cpu': u.Cpu(log),
             'system': u.System(log),
-            'fh': u.File_Handlers(log)
+            'file_handles': u.FileHandles(log)
         }
 
         # Win32 System `Checks
@@ -302,7 +302,7 @@ class Collector(object):
             # Unix system checks
             sys_checks = self._unix_system_checks
 
-            for check_name in ['load', 'system', 'cpu', 'fh']:
+            for check_name in ['load', 'system', 'cpu', 'file_handles']:
                 try:
                     result_check = sys_checks[check_name].check(self.agentConfig)
                     if result_check:

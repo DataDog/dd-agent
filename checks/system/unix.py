@@ -221,7 +221,7 @@ class IO(Check):
             return False
 
 
-class File_Handlers(Check):
+class FileHandles(Check):
 
     def check(self, agentConfig):
 
@@ -229,22 +229,24 @@ class File_Handlers(Check):
             return False
 
         try:
-            with open('/proc/sys/fs/file-nr', 'r') as file_handlers:
-                handler_contents = file_handlers.read()
+            proc_location = agentConfig.get('procfs_path', '/proc').rstrip('/')
+            proc_fh = "{}/sys/fs/file-nr".format(proc_location)
+            with open(proc_fh, 'r') as file_handle:
+                handle_contents = file_handle.read()
         except Exception:
-            self.logger.exception("Cannot extract system file handler stats")
+            self.logger.exception("Cannot extract system file handles stats")
             return False
 
-        handler_metrics = handler_contents.split()
+        handle_metrics = handle_contents.split()
 
         # https://www.kernel.org/doc/Documentation/sysctl/fs.txt
-        allocated_fh = float(handler_metrics[0])
-        allocated_unused_fh = float(handler_metrics[1])
-        max_fh = float(handler_metrics[2])
+        allocated_fh = float(handle_metrics[0])
+        allocated_unused_fh = float(handle_metrics[1])
+        max_fh = float(handle_metrics[2])
 
         fh_in_use = (allocated_fh - allocated_unused_fh) / max_fh
 
-        return {'system.file_handles_in_use': float(fh_in_use)}
+        return {'system.fs.file_handles.in_use': float(fh_in_use)}
 
 class Load(Check):
 
@@ -788,7 +790,7 @@ def main():
     io = IO(log)
     load = Load(log)
     mem = Memory(log)
-    fh = File_Handlers(log)
+    fh = FileHandles(log)
 
     # proc = Processes(log)
     system = System(log)
