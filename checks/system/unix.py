@@ -808,7 +808,7 @@ def main():
         print(mem.check(config))
         print("--- System ---")
         print(system.check(config))
-        print("--- File Handlers ---")
+        print("--- File Handles ---")
         print(fh.check(config))
         print("\n\n\n")
         # print("--- Processes ---")
