@@ -221,6 +221,28 @@ class IO(Check):
             return False
 
 
+class File_Handlers(Check):
+
+    def check(self, agentConfig):
+
+        if not Platform.is_linux():
+            return False
+
+        with open('/proc/sys/fs/file-nr', 'r') as file_handlers:
+            handler_contents = file_handlers.read()
+        file_handlers.close()
+
+        handler_metrics = handler_contents.split()
+
+        # https://www.kernel.org/doc/Documentation/sysctl/fs.txt
+        allocated_fh = float(handler_metrics[0])
+        allocated_unused_fh = float(handler_metrics[1])
+        max_fh = float(handler_metrics[2])
+
+        fh_in_use = (allocated_fh - allocated_unused_fh) / max_fh
+
+        return {'system.file_handles_in_use': float(fh_in_use)}
+
 class Load(Check):
 
     def check(self, agentConfig):
@@ -763,6 +785,8 @@ def main():
     io = IO(log)
     load = Load(log)
     mem = Memory(log)
+    fh = File_Handlers(log)
+
     # proc = Processes(log)
     system = System(log)
 
@@ -779,6 +803,8 @@ def main():
         print(mem.check(config))
         print("--- System ---")
         print(system.check(config))
+        print("--- File Handlers ---")
+        print(fh.check(config))
         print("\n\n\n")
         # print("--- Processes ---")
         # print(proc.check(config))
