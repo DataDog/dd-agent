@@ -117,7 +117,7 @@ class Flare(object):
         self._troubleshoot = troubleshoot
         self._url = "{0}{1}".format(
             get_url_endpoint(self._config.get('dd_url'), endpoint_type='flare'),
-            self.DATADOG_TROUBLESHOOT_URL if self._troubleshoot else self.DATADOG_SUPPORT_URL
+            self.DATADOG_SUPPORT_URL
         )
         self._hostname = get_hostname(self._config)
         self._prefix = "datadog-{0}".format(self._hostname)
@@ -200,22 +200,21 @@ class Flare(object):
         if self._cmdline:
             self._ask_for_confirmation()
 
-        url = self._url
+        if not email:
+            email = self._ask_for_email()
 
-        request_data = {'hostname': self._hostname}
-        if not self._troubleshoot:
-            if not email:
-                email = self._ask_for_email()
-            request_data['email'] = email
-            if self._case_id:
-                url = '{0}/{1}'.format(self._url, str(self._case_id))
-            request_data['case_id'] = self._case_id
-
-        url = "{0}?api_key={1}".format(url, self._api_key)
         log.info("Uploading {0} to Datadog Support".format(self.tar_path))
+        url = self._url
+        if self._case_id:
+            url = '{0}/{1}'.format(self._url, str(self._case_id))
+        url = "{0}?api_key={1}".format(url, self._api_key)
         with open(self.tar_path, 'rb') as flare_file:
             requests_options = {
-                'data': request_data,
+                'data': {
+                    'case_id': self._case_id,
+                    'hostname': self._hostname,
+                    'email': email
+                },
                 'files': {'flare_file': flare_file},
                 'timeout': self.TIMEOUT
             }
@@ -225,9 +224,7 @@ class Flare(object):
 
             self._resp = requests.post(url, **requests_options)
             self._analyse_result()
-        # TODO Using self._troubleshoot is pretty gross -- create new upload method? Extend Flare class?
-        if self._troubleshoot:
-            return self._resp.text
+
         return self._case_id
 
     # Start by preparing the tar file which will contain everything
@@ -666,3 +663,47 @@ class Flare(object):
         # Finally, correct
         log.info("Your logs were successfully uploaded. For future reference,"
                  " your internal case id is {0}".format(self._case_id))
+
+
+class TroubleshootFlare(Flare):
+    DATADOG_SUPPORT_URL = "/support/troubleshoot"
+
+    def upload(self, email=None):
+        self._check_size()
+
+        if self._cmdline:
+            self._ask_for_confirmation()
+
+        url = self._url
+        url = "{0}?api_key={1}".format(url, self._api_key)
+        log.info("Uploading {0} to Datadog Support for troubleshooting".format(self.tar_path))
+        with open(self.tar_path, 'rb') as flare_file:
+            requests_options = {
+                'data': {'hostname': self._hostname},
+                'files': {'flare_file': flare_file},
+                'timeout': self.TIMEOUT
+            }
+
+            self.set_proxy(requests_options)
+            self.set_ssl_validation(requests_options)
+
+            self._resp = requests.post(url, **requests_options)
+            self._analyse_result()
+
+        return self._resp.text
+
+    def _analyse_result(self):
+        # First catch our custom explicit 400
+        if self._resp.status_code == 400:
+            raise Exception('Your request is incorrect: {0}'.format(self._resp.json()['error']))
+        # Then raise potential 500 and 404
+        self._resp.raise_for_status()
+        try:
+            # Passing for now, we may want to do some validation here
+            pass
+        # Failed parsing
+        except ValueError:
+            raise Exception('An unknown error has occured - '
+                            'Please contact support by email')
+        # Finally, correct
+        log.info("Your logs were successfully uploaded.")

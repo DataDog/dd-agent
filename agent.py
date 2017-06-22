@@ -53,7 +53,7 @@ from jmxfetch import get_jmx_checks
 # utils
 from utils.cloud_metadata import EC2
 from utils.configcheck import configcheck, sd_configcheck
-from utils.flare import Flare
+from utils.flare import Flare, TroubleshootFlare
 from utils.hostname import get_hostname
 from utils.jmx import jmx_command
 from utils.pidfile import PidFile
@@ -594,11 +594,11 @@ def main():
             print 'The upload failed:\n{0}'.format(str(e))
 
     elif 'troubleshoot' == command:
-        Flare.check_user_rights()
-        f = Flare(True, troubleshoot=True)
-        f.collect()
+        TroubleshootFlare.check_user_rights()
+        tf = TroubleshootFlare(True)
+        tf.collect()
         try:
-            print f.upload()
+            print tf.upload()
         except Exception as e:
             print 'The upload failed:\n{0}'.format(str(e))
 
