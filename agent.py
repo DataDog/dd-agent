@@ -486,6 +486,7 @@ def main():
         'configcheck',
         'jmx',
         'flare',
+        'troubleshoot',
     ]
 
     COMMANDS = COMMANDS_AGENT + COMMANDS_NO_AGENT
@@ -589,6 +590,15 @@ def main():
         f.collect()
         try:
             f.upload()
+        except Exception as e:
+            print 'The upload failed:\n{0}'.format(str(e))
+
+    elif 'troubleshoot' == command:
+        Flare.check_user_rights()
+        f = Flare(True, troubleshoot=True)
+        f.collect()
+        try:
+            print f.upload()
         except Exception as e:
             print 'The upload failed:\n{0}'.format(str(e))
 
