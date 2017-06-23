@@ -11,6 +11,7 @@ class AgentGUI: NSObject {
     var exitItem: NSMenuItem!
     var countUpdate: Int
     var agentStatus: Bool!
+    var loginStatus: Bool!
 
 
     override init() {
@@ -33,7 +34,7 @@ class AgentGUI: NSObject {
         stopItem.target = self
         restartItem = NSMenuItem(title: "Restart", action: #selector(restartAgent), keyEquivalent: "")
         restartItem.target = self
-        loginItem = NSMenuItem(title: "Enable at login", action: nil, keyEquivalent: "")
+        loginItem = NSMenuItem(title: "Enable at login", action: #selector(loginAction), keyEquivalent: "")
         loginItem.target = self
         exitItem = NSMenuItem(title: "Exit", action: #selector(exitGUI), keyEquivalent: "")
         exitItem.target = self
@@ -55,10 +56,11 @@ class AgentGUI: NSObject {
 
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         // Count to check only once agent status
-        if (countUpdate >= 4){
+        if (countUpdate >= 5){
             countUpdate = 0
             agentStatus = AgentManager.status()
         }
+
         // Update menu items
         if (menuItem == startItem) {
             menuItem.isEnabled = !agentStatus
@@ -75,8 +77,9 @@ class AgentGUI: NSObject {
     }
 
     func run() {
-        print("run_start")
+        // Initialising
         agentStatus = AgentManager.status()
+        loginStatus = false // TODO check if enabled
         NSApp.run()
     }
 
@@ -84,6 +87,19 @@ class AgentGUI: NSObject {
         startItem.isEnabled = !agentStatus
         stopItem.isEnabled = agentStatus
         restartItem.isEnabled = agentStatus
+    }
+
+    func loginAction(_ sender: Any?) {
+        if (loginStatus) {
+            // TODO Disable
+            loginItem.title = "Disable at login"
+        }
+        else {
+            // TODO Enable
+            loginItem.title = "Enable at login"
+        }
+        loginStatus = !loginStatus
+
     }
 
     func startAgent(_ sender: Any?) {
