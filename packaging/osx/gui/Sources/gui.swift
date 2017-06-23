@@ -54,7 +54,7 @@ class AgentGUI: NSObject {
         systemTrayItem = NSStatusBar.system().statusItem(withLength: NSVariableStatusItemLength)
 
         // Set image
-        let ddImage =  NSImage(named: "agent.png")
+        let ddImage =  NSImage(byReferencingFile: "../agent.png")
         ddImage!.size = NSMakeSize(15, 15)
         systemTrayItem!.button!.image = ddImage
 
