@@ -12,6 +12,7 @@ class AgentGUI: NSObject {
     var countUpdate: Int
     var agentStatus: Bool!
     var loginStatus: Bool!
+    var updatingAgent: Bool!
 
 
     override init() {
@@ -56,22 +57,22 @@ class AgentGUI: NSObject {
 
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         // Count to check only once agent status
-        if (countUpdate >= 5){
-            countUpdate = 0
-            agentStatus = AgentManager.status()
-        }
+        if (self.countUpdate >= 5){
+            if (self.updatingAgent){
+                disableActionItems()
+            }
+            else {
+                self.countUpdate = 0
+                DispatchQueue.global().async {
+                    self.agentStatus = AgentManager.status()
+                    DispatchQueue.main.async(execute: {
+                        self.updateMenuItems(agentStatus: self.agentStatus)
+                        })
+                    }
+                }
+            }
 
-        // Update menu items
-        if (menuItem == startItem) {
-            menuItem.isEnabled = !agentStatus
-        }
-        if (menuItem == stopItem) {
-            menuItem.isEnabled = agentStatus
-        }
-        if (menuItem == restartItem) {
-            menuItem.isEnabled = agentStatus
-        }
-        countUpdate += 1
+        self.countUpdate += 1
 
         return menuItem.isEnabled
     }
@@ -80,7 +81,14 @@ class AgentGUI: NSObject {
         // Initialising
         agentStatus = AgentManager.status()
         loginStatus = false // TODO check if enabled
+        updatingAgent = false
         NSApp.run()
+    }
+
+    func disableActionItems(){
+        startItem.isEnabled = false
+        stopItem.isEnabled = false
+        restartItem.isEnabled = false
     }
 
     func updateMenuItems(agentStatus: Bool) {
@@ -103,18 +111,32 @@ class AgentGUI: NSObject {
     }
 
     func startAgent(_ sender: Any?) {
-        AgentManager.exec(command: "start")
-        updateMenuItems(agentStatus: true)
+        self.commandAgent(command: "start")
     }
 
     func stopAgent(_ sender: Any?) {
-        AgentManager.exec(command: "stop")
-        updateMenuItems(agentStatus: false)
+        self.commandAgent(command: "stop")
     }
 
     func restartAgent(_ sender: Any?) {
-        AgentManager.exec(command: "restart")
-        updateMenuItems(agentStatus: true)
+        self.commandAgent(command: "restart")
+    }
+
+    func commandAgent(command: String) {
+        self.updatingAgent = true
+        DispatchQueue.global().async {
+            self.disableActionItems()
+
+            // Sending agent command
+            AgentManager.exec(command: command)
+            self.agentStatus = AgentManager.status()
+
+            DispatchQueue.main.async(execute: {
+                // Updating the menu items after completion
+                self.updatingAgent = false
+                self.updateMenuItems(agentStatus: self.agentStatus)
+            })
+        }
     }
 
     func exitGUI(_ sender: Any?) {
