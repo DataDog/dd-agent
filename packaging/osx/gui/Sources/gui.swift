@@ -2,21 +2,27 @@ import Cocoa
 
 class AgentGUI: NSObject {
     var systemTrayItem: NSStatusItem!
-    var menu: NSMenu!
+    var ddMenu: NSMenu!
     var versionItem: NSMenuItem!
     var startItem: NSMenuItem!
     var stopItem: NSMenuItem!
     var restartItem: NSMenuItem!
     var loginItem: NSMenuItem!
     var exitItem: NSMenuItem!
+    var countUpdate: Int
+    var agentStatus: Bool!
+
 
     override init() {
+        // initialising at for update
+        countUpdate = 10
+
         super.init()
 
         NSApplication.shared()
 
-        menu = NSMenu(title: "Menu")
-        menu.autoenablesItems = false
+        ddMenu = NSMenu(title: "Menu")
+        ddMenu.autoenablesItems = true
 
         // Create menu items
         versionItem = NSMenuItem(title: "Datadog Agent", action: nil, keyEquivalent: "")
@@ -32,24 +38,45 @@ class AgentGUI: NSObject {
         exitItem = NSMenuItem(title: "Exit", action: #selector(exitGUI), keyEquivalent: "")
         exitItem.target = self
 
-        menu.addItem(versionItem)
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(startItem)
-        menu.addItem(stopItem)
-        menu.addItem(restartItem)
-        menu.addItem(loginItem)
-        menu.addItem(exitItem)
+        ddMenu.addItem(versionItem)
+        ddMenu.addItem(NSMenuItem.separator())
+        ddMenu.addItem(startItem)
+        ddMenu.addItem(stopItem)
+        ddMenu.addItem(restartItem)
+        ddMenu.addItem(loginItem)
+        ddMenu.addItem(exitItem)
 
         // Create tray icon
         systemTrayItem = NSStatusBar.system().statusItem(withLength: NSVariableStatusItemLength)
         systemTrayItem!.button!.title = "DD"
 
-        systemTrayItem!.menu = menu
+        systemTrayItem!.menu = ddMenu
+    }
+
+    override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        // Count to check only once agent status
+        if (countUpdate >= 4){
+            countUpdate = 0
+            agentStatus = AgentManager.status()
+        }
+        // Update menu items
+        if (menuItem == startItem) {
+            menuItem.isEnabled = !agentStatus
+        }
+        if (menuItem == stopItem) {
+            menuItem.isEnabled = agentStatus
+        }
+        if (menuItem == restartItem) {
+            menuItem.isEnabled = agentStatus
+        }
+        countUpdate += 1
+
+        return menuItem.isEnabled
     }
 
     func run() {
-        updateMenuItems(agentStatus: AgentManager.status())
-
+        print("run_start")
+        agentStatus = AgentManager.status()
         NSApp.run()
     }
 
@@ -80,10 +107,12 @@ class AgentGUI: NSObject {
 }
 
 class AgentManager {
+    var countUpdate: Int!
+    var agentStatus: Bool!
+
     static func status() -> Bool {
         return call(command: "status").exitCode == 0
     }
-
 
     static func exec(command: String) {
         let processInfo = call(command: command)
