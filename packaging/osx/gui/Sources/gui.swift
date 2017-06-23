@@ -50,7 +50,11 @@ class AgentGUI: NSObject {
 
         // Create tray icon
         systemTrayItem = NSStatusBar.system().statusItem(withLength: NSVariableStatusItemLength)
-        systemTrayItem!.button!.title = "DD"
+
+        // Set image
+        let ddImage =  NSImage(named: "agent.png")
+        ddImage!.size = NSMakeSize(15, 15)
+        systemTrayItem!.button!.image = ddImage
 
         systemTrayItem!.menu = ddMenu
     }
