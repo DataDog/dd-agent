@@ -54,7 +54,7 @@ class AgentGUI: NSObject {
         systemTrayItem = NSStatusBar.system().statusItem(withLength: NSVariableStatusItemLength)
 
         // Set image
-        let ddImage =  NSImage(byReferencingFile: "../agent.png")
+        let ddImage =  NSImage(byReferencingFile: "/Applications/Datadog Agent.app/Contents/MacOS/agent.png")
         ddImage!.size = NSMakeSize(15, 15)
         systemTrayItem!.button!.image = ddImage
 
