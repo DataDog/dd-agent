@@ -13,6 +13,8 @@ class AgentGUI: NSObject {
     var agentStatus: Bool!
     var loginStatus: Bool!
     var updatingAgent: Bool!
+    var loginStatusEnableTitle = "Enable at login"
+    var loginStatusDisableTitle = "Disable at login"
 
 
     override init() {
@@ -35,7 +37,7 @@ class AgentGUI: NSObject {
         stopItem.target = self
         restartItem = NSMenuItem(title: "Restart", action: #selector(restartAgent), keyEquivalent: "")
         restartItem.target = self
-        loginItem = NSMenuItem(title: "Enable at login", action: #selector(loginAction), keyEquivalent: "")
+        loginItem = NSMenuItem(title: loginStatusEnableTitle, action: #selector(loginAction), keyEquivalent: "")
         loginItem.target = self
         exitItem = NSMenuItem(title: "Exit", action: #selector(exitGUI), keyEquivalent: "")
         exitItem.target = self
@@ -84,7 +86,8 @@ class AgentGUI: NSObject {
     func run() {
         // Initialising
         agentStatus = AgentManager.status()
-        loginStatus = false // TODO check if enabled
+        loginStatus = AgentManager.getLoginStatus()
+        updateLoginItem()
         updatingAgent = false
         NSApp.run()
     }
@@ -101,17 +104,13 @@ class AgentGUI: NSObject {
         restartItem.isEnabled = agentStatus
     }
 
-    func loginAction(_ sender: Any?) {
-        if (loginStatus) {
-            // TODO Disable
-            loginItem.title = "Disable at login"
-        }
-        else {
-            // TODO Enable
-            loginItem.title = "Enable at login"
-        }
-        loginStatus = !loginStatus
+    func updateLoginItem() {
+        loginItem.title = loginStatus! ? loginStatusDisableTitle : loginStatusEnableTitle
+    }
 
+    func loginAction(_ sender: Any?) {
+        self.loginStatus = AgentManager.switchLoginStatus()
+        updateLoginItem()
     }
 
     func startAgent(_ sender: Any?) {
@@ -149,8 +148,7 @@ class AgentGUI: NSObject {
 }
 
 class AgentManager {
-    var countUpdate: Int!
-    var agentStatus: Bool!
+    static let systemEventsCommandFormat = "tell application \"System Events\" to %@"
 
     static func status() -> Bool {
         return call(command: "status").exitCode == 0
@@ -170,6 +168,45 @@ class AgentManager {
         let process = Process()
         process.launchPath = "/usr/local/bin/datadog-agent"
         process.arguments = [command]
+        process.standardOutput = stdOutPipe
+        process.standardError = stdErrPipe
+        process.launch()
+        process.waitUntilExit()
+        let stdOut = String(data: stdOutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: String.Encoding.utf8)
+        let stdErr = String(data: stdErrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: String.Encoding.utf8)
+
+        return (process.terminationStatus, stdOut!, stdErr!)
+    }
+
+    static func getLoginStatus() -> Bool {
+        let processInfo = callSystemEvents(command: "get the path of every login item whose name is \"Datadog Agent\"")
+        return processInfo.stdOut.contains("Datadog")
+    }
+
+    static func switchLoginStatus() -> Bool {
+        let currentLoginStatus = getLoginStatus()
+        var command: String
+        if currentLoginStatus { // enabled -> disable
+            command = "delete every login item whose name is \"Datadog Agent\""
+        } else { // disabled -> enable
+            command = "make login item at end with properties {path:\"/Applications/Datadog Agent.app\", name:\"Datadog Agent\", hidden:false}"
+        }
+        let processInfo = callSystemEvents(command: command)
+        if processInfo.exitCode != 0 {
+            NSLog(processInfo.stdOut)
+            NSLog(processInfo.stdErr)
+            return currentLoginStatus
+        }
+
+        return !currentLoginStatus
+    }
+
+    static func callSystemEvents(command: String) -> (exitCode: Int32, stdOut: String, stdErr: String) {
+        let stdOutPipe = Pipe()
+        let stdErrPipe = Pipe()
+        let process = Process()
+        process.launchPath = "/usr/bin/osascript"
+        process.arguments = ["-e", String(format: systemEventsCommandFormat, command)]
         process.standardOutput = stdOutPipe
         process.standardError = stdErrPipe
         process.launch()
