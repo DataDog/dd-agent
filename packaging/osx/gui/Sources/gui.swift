@@ -16,7 +16,6 @@ class AgentGUI: NSObject {
     var loginStatusEnableTitle = "Enable at login"
     var loginStatusDisableTitle = "Disable at login"
 
-
     override init() {
         // initialising at for update
         countUpdate = 10
@@ -50,15 +49,23 @@ class AgentGUI: NSObject {
         ddMenu.addItem(loginItem)
         ddMenu.addItem(exitItem)
 
-        // Create tray icon
+        // Find and load tray image
+        var imagePath = "./agent.png"
+        if !FileManager.default.isReadableFile(atPath: imagePath) {
+            // fall back to image in applications dir
+            imagePath = "/Applications/Datadog Agent.app/Contents/Resources/agent.png"
+        }
+        let ddImage = NSImage(byReferencingFile: imagePath)
+
+        // Create tray icon and set it up
         systemTrayItem = NSStatusBar.system().statusItem(withLength: NSVariableStatusItemLength)
-
-        // Set image
-        let ddImage =  NSImage(byReferencingFile: "/Applications/Datadog Agent.app/Contents/MacOS/agent.png")
-        ddImage!.size = NSMakeSize(15, 15)
-        systemTrayItem!.button!.image = ddImage
-
         systemTrayItem!.menu = ddMenu
+        if ddImage!.isValid {
+            ddImage!.size = NSMakeSize(15, 15)
+            systemTrayItem!.button!.image = ddImage
+        } else {
+            systemTrayItem!.button!.title = "DD"
+        }
     }
 
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
@@ -99,6 +106,7 @@ class AgentGUI: NSObject {
     }
 
     func updateMenuItems(agentStatus: Bool) {
+        versionItem!.title = "Datadog Agent"
         startItem.isEnabled = !agentStatus
         stopItem.isEnabled = agentStatus
         restartItem.isEnabled = agentStatus
@@ -114,19 +122,20 @@ class AgentGUI: NSObject {
     }
 
     func startAgent(_ sender: Any?) {
-        self.commandAgent(command: "start")
+        self.commandAgent(command: "start", display: "starting")
     }
 
     func stopAgent(_ sender: Any?) {
-        self.commandAgent(command: "stop")
+        self.commandAgent(command: "stop", display: "stopping")
     }
 
     func restartAgent(_ sender: Any?) {
-        self.commandAgent(command: "restart")
+        self.commandAgent(command: "restart", display: "restarting")
     }
 
-    func commandAgent(command: String) {
+    func commandAgent(command: String, display: String) {
         self.updatingAgent = true
+        versionItem!.title = String(format: "Datadog Agent (%@...)", display)
         DispatchQueue.global().async {
             self.disableActionItems()
 
@@ -151,35 +160,23 @@ class AgentManager {
     static let systemEventsCommandFormat = "tell application \"System Events\" to %@"
 
     static func status() -> Bool {
-        return call(command: "status").exitCode == 0
+        return agentCall(command: "status").exitCode == 0
     }
 
     static func exec(command: String) {
-        let processInfo = call(command: command)
+        let processInfo = agentCall(command: command)
         if processInfo.exitCode != 0 {
             NSLog(processInfo.stdOut)
             NSLog(processInfo.stdErr)
         }
     }
 
-    static func call(command: String) -> (exitCode: Int32, stdOut: String, stdErr: String) {
-        let stdOutPipe = Pipe()
-        let stdErrPipe = Pipe()
-        let process = Process()
-        process.launchPath = "/usr/local/bin/datadog-agent"
-        process.arguments = [command]
-        process.standardOutput = stdOutPipe
-        process.standardError = stdErrPipe
-        process.launch()
-        process.waitUntilExit()
-        let stdOut = String(data: stdOutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: String.Encoding.utf8)
-        let stdErr = String(data: stdErrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: String.Encoding.utf8)
-
-        return (process.terminationStatus, stdOut!, stdErr!)
+    static func agentCall(command: String) -> (exitCode: Int32, stdOut: String, stdErr: String) {
+        return call(launchPath: "/usr/local/bin/datadog-agent", arguments: [command])
     }
 
     static func getLoginStatus() -> Bool {
-        let processInfo = callSystemEvents(command: "get the path of every login item whose name is \"Datadog Agent\"")
+        let processInfo = systemEventsCall(command: "get the path of every login item whose name is \"Datadog Agent\"")
         return processInfo.stdOut.contains("Datadog")
     }
 
@@ -191,7 +188,7 @@ class AgentManager {
         } else { // disabled -> enable
             command = "make login item at end with properties {path:\"/Applications/Datadog Agent.app\", name:\"Datadog Agent\", hidden:false}"
         }
-        let processInfo = callSystemEvents(command: command)
+        let processInfo = systemEventsCall(command: command)
         if processInfo.exitCode != 0 {
             NSLog(processInfo.stdOut)
             NSLog(processInfo.stdErr)
@@ -201,12 +198,16 @@ class AgentManager {
         return !currentLoginStatus
     }
 
-    static func callSystemEvents(command: String) -> (exitCode: Int32, stdOut: String, stdErr: String) {
+    static func systemEventsCall(command: String) -> (exitCode: Int32, stdOut: String, stdErr: String) {
+        return call(launchPath: "/usr/bin/osascript", arguments: ["-e", String(format: systemEventsCommandFormat, command)])
+    }
+
+    static func call(launchPath: String, arguments: [String]) -> (exitCode: Int32, stdOut: String, stdErr: String) {
         let stdOutPipe = Pipe()
         let stdErrPipe = Pipe()
         let process = Process()
-        process.launchPath = "/usr/bin/osascript"
-        process.arguments = ["-e", String(format: systemEventsCommandFormat, command)]
+        process.launchPath = launchPath
+        process.arguments = arguments
         process.standardOutput = stdOutPipe
         process.standardError = stdErrPipe
         process.launch()
