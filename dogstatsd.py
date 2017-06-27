@@ -39,7 +39,11 @@ import simplejson as json
 from aggregator import get_formatter, MetricsBucketAggregator
 from checks.check_status import DogstatsdStatus
 from checks.metric_types import MetricTypes
-from config import get_config, get_version
+from config import (
+    get_config,
+    get_version,
+    _is_affirmative
+)
 from daemon import AgentSupervisor, Daemon
 from util import chunks, get_uuid, plural
 from utils.hostname import get_hostname
@@ -490,6 +494,11 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         # We're exiting purposefully, so exit with zero (supervisor's expected
         # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly
         # and thus can exit cleanly.
+        sleep(4)
+        sys.exit(0)
+
+    if _is_affirmative(c.get('dogstatsd_6_enabled')):
+        log.info("Dogstatsd v6 is enabled - shutting down")
         sleep(4)
         sys.exit(0)
 
