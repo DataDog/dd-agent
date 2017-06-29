@@ -3,6 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 from utils.kubernetes import KubeUtil
+from utils.platform import Platform
 from .baseutil import BaseUtil
 
 
@@ -12,11 +13,7 @@ class KubeUtilProxy(BaseUtil):
 
     @staticmethod
     def is_detected():
-        try:
-            tags = KubeUtil().get_node_hosttags()
-            return bool(tags)
-        except Exception:
-            return False
+        return Platform.is_k8s()
 
     def get_host_tags(self):
         return KubeUtil().get_node_hosttags()

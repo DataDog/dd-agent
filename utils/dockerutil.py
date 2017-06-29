@@ -14,7 +14,6 @@ import time
 from docker import Client, tls
 
 # project
-from utils.platform import Platform
 from utils.singleton import Singleton
 
 SWARM_SVC_LABEL = 'com.docker.swarm.service.name'
@@ -80,6 +79,7 @@ class DockerUtil:
         # Try to detect if an orchestrator is running
         self._is_ecs = False
         self._is_rancher = False
+        self._is_k8s = False
 
         try:
             containers = self.client.containers()
@@ -94,12 +94,18 @@ class DockerUtil:
             log.warning("Error while detecting orchestrator: %s" % e)
             pass
 
+        try:
+            from utils.kubernetes import detect_is_k8s
+            self._is_k8s = detect_is_k8s()
+        except Exception:
+            self._is_k8s = False
+
         # Build include/exclude patterns for containers
         self._include, self._exclude = instance.get('include', []), instance.get('exclude', [])
         if not self._exclude:
             # In Kubernetes, pause containers are not interesting to monitor.
             # This part could be reused for other platforms where containers can be safely ignored.
-            if Platform.is_k8s():
+            if self.is_k8s():
                 self.filtering_enabled = True
                 self._exclude = DEFAULT_CONTAINER_EXCLUDE
             else:
@@ -146,6 +152,9 @@ class DockerUtil:
 
     def is_rancher(self):
         return self._is_rancher
+
+    def is_k8s(self):
+        return self._is_k8s
 
     def is_swarm(self):
         if self.swarm_node_state == 'pending':

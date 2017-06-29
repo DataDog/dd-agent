@@ -35,6 +35,23 @@ CREATOR_KIND_TO_TAG = {
 }
 
 
+def detect_is_k8s():
+    """
+    Logic for DockerUtil to detect whether to enable Kubernetes code paths
+    It check whether we have a KUBERNETES_PORT environment variable (running
+    in a pod) or a valid kubernetes.yaml conf file
+    """
+    if 'KUBERNETES_PORT' in os.environ:
+        return True
+    else:
+        try:
+            k8_config_file_path = get_conf_path(KUBERNETES_CHECK_NAME)
+            k8_check_config = check_yaml(k8_config_file_path)
+            return len(k8_check_config['instances']) > 0
+        except Exception:
+            return False
+
+
 class KubeUtil:
     __metaclass__ = Singleton
 
@@ -66,6 +83,7 @@ class KubeUtil:
             # kubernetes.yaml was not found
             except IOError as ex:
                 log.error(ex.message)
+
                 instance = {}
             except Exception:
                 log.error('Kubernetes configuration file is invalid. '

@@ -94,7 +94,8 @@ class Platform(object):
 
     @staticmethod
     def is_k8s():
-        return 'KUBERNETES_PORT' in os.environ
+        from utils.dockerutil import DockerUtil
+        return DockerUtil().is_k8s()
 
     @staticmethod
     def is_rancher():
