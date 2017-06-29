@@ -35,7 +35,7 @@ import checks.system.unix as u
 import checks.system.win32 as w32
 import modules
 from util import get_uuid
-from utils.cloud_metadata import GCE, EC2, CloudFoundry
+from utils.cloud_metadata import GCE, EC2, CloudFoundry, Azure
 from utils.logger import log_exceptions
 from utils.jmx import JMXFiles
 from utils.platform import Platform, get_os
@@ -764,6 +764,11 @@ class Collector(object):
             metadata["host_aliases"] = []
 
         host_aliases = GCE.get_host_aliases(self.agentConfig)
+        if host_aliases:
+            metadata['host_aliases'] += host_aliases
+
+        # Try to get Azure VM ID
+        host_aliases = Azure.get_host_aliases(self.agentConfig)
         if host_aliases:
             metadata['host_aliases'] += host_aliases
 
