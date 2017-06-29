@@ -51,6 +51,11 @@ class PrometheusCheck(AgentCheck):
         # overloaded/hardcoded in the final check not to be counted as custom metric.
         self.metrics_mapper = {}
 
+        # Some metrics are ignored because they are duplicates or introduce a
+        # very high cardinality. Metrics included in this list will be silently
+        # skipped without a 'Unable to handle metric' debug line in the logs
+        self.ignore_metrics = []
+
         # If the `labels_mapper` dictionnary is provided, the metrics labels names
         # in the `labels_mapper` will use the corresponding value as tag name
         # when sending the gauges.
@@ -246,6 +251,8 @@ class PrometheusCheck(AgentCheck):
         `send_histograms_buckets` is used to specify if yes or no you want to send the buckets as tagged values when dealing with histograms.
         """
         try:
+            if message.name in self.ignore_metrics:
+                return  # Ignore the metric
             if message.name in self.metrics_mapper:
                 self._submit_metric(self.metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
             else:
