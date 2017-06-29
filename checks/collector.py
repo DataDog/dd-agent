@@ -745,11 +745,12 @@ class Collector(object):
 
         if self.agentConfig.get('hostname'):
             metadata['agent-hostname'] = self.agentConfig.get('hostname')
-        else:
-            try:
-                metadata["socket-hostname"] = socket.gethostname()
-            except Exception:
-                pass
+
+        try:
+            metadata["socket-hostname"] = socket.gethostname()
+        except Exception:
+            pass
+
         try:
             metadata["socket-fqdn"] = socket.getfqdn()
         except Exception:
