@@ -26,6 +26,8 @@ from utils.platform import get_os
 
 log = logging.getLogger('tests')
 
+RESULTS_TIMEOUT = 20
+
 def _is_sdk():
     return "SDK_TESTING" in os.environ
 
