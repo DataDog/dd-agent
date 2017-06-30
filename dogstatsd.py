@@ -497,7 +497,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         sleep(4)
         sys.exit(0)
 
-    if _is_affirmative(c.get('dogstatsd_6_enabled')):
+    if _is_affirmative(c.get('dogstatsd6_enabled')):
         log.info("Dogstatsd v6 is enabled - shutting down")
         sleep(4)
         sys.exit(0)
