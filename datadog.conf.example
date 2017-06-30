@@ -67,6 +67,13 @@ api_key:
 # when not specified, default: no
 gce_updated_hostname: yes
 
+# when using OpenStack, use the instance's "uuid"
+# the OpenStack instance-id can be recycled but the uuid is not
+# openstack_use_uuid: no
+
+# when using OpenStack, use the instance's metadata as tags
+# openstack_use_metadata_tags: yes
+
 # Set the threshold for accepting points to allow anything
 # within recent_point_threshold seconds (default: 30)
 # recent_point_threshold: 30

@@ -142,6 +142,7 @@ class EC2(object):
     TIMEOUT = 0.1  # second
     DEFAULT_PREFIXES = [u'ip-', u'domu']
     metadata = {}
+    is_openstack = None
 
     class NoIAMRole(Exception):
         """
@@ -220,6 +221,25 @@ class EC2(object):
         except Exception:
             log.exception("Problem retrieving custom EC2 tags")
 
+        if EC2.is_openstack is True and agentConfig['openstack_use_metadata_tags']:
+            log.info(u"Attempting to collect tags from OpenStack meta_data.json")
+            openstack_metadata_url = EC2.EC2_METADATA_HOST + "/openstack/latest/meta_data.json"
+            try:
+                r = requests.get(openstack_metadata_url, timeout=EC2.TIMEOUT)
+                r.raise_for_status() # Fail on 404 etc
+                openstack_metadata = r.json()
+                EC2_tags = [u"%s:%s" % (tag, openstack_metadata['meta'][tag]) for tag in openstack_metadata['meta']]
+                if 'project_id' in openstack_metadata:
+                    EC2_tags.append(u"project_id:%s" % openstack_metadata['project_id'])
+                # Map the OS availability_zone to Datadog's use of availability-zone for UI defaults
+                EC2_tags.append(u"availability-zone:%s" % openstack_metadata['availability_zone'])
+                # Even though the name is set in EC2.metadata it also needs to be a tag for filters
+                if 'name' not in openstack_metadata['meta']:
+                    EC2_tags.append(u"name:%s" % openstack_metadata['name'])
+
+            except Exception:
+                log.warning(u"Problem retrieving tags from OpenStack meta_data.json")
+
         return EC2_tags
 
     @staticmethod
@@ -249,6 +269,31 @@ class EC2(object):
             except Exception as e:
                 log.debug("Collecting EC2 Metadata failed %s", str(e))
                 pass
+
+        # Only check if we don't know yet or if it is known to be OpenStack
+        if EC2.is_openstack is None or EC2.is_openstack is True:
+            log.info(u"Attempting to get OpenStack meta_data.json")
+            openstack_metadata_url = EC2.EC2_METADATA_HOST + "/openstack/latest/meta_data.json"
+            try:
+                r = requests.get(openstack_metadata_url, timeout=EC2.TIMEOUT)
+                r.raise_for_status() # Fail on 404 etc
+
+                EC2.is_openstack = True
+                openstack_metadata = r.json()
+                # Set the "also known as" metadata similar to AWS EC2
+                EC2.metadata['host_aliases'] = [
+                    openstack_metadata['uuid'],
+                    openstack_metadata['name'],
+                ]
+
+                # the OpenStack instance-id can be recycled but the uuid will always be unique
+                if agentConfig['openstack_use_uuid']:
+                    log.info(u"Using the instance's uuid for instance-id")
+                    EC2.metadata["instance-id"] = openstack_metadata['uuid']
+
+            except Exception:
+                log.info(u"Could not load meta_data.json, not OpenStack EC2 instance")
+                EC2.is_openstack = False
 
         return EC2.metadata.copy()
 
