@@ -26,8 +26,6 @@ from utils.platform import get_os
 
 log = logging.getLogger('tests')
 
-RESULTS_TIMEOUT = 20
-
 def _is_sdk():
     return "SDK_TESTING" in os.environ
 
@@ -187,7 +185,7 @@ class AgentCheckTest(unittest.TestCase):
         return "TRAVIS" in os.environ
 
 
-    def wait_for_async(self, method, attribute, count):
+    def wait_for_async(self, method, attribute, count, results_timeout):
         """
         Loop on `self.check.method` until `self.check.attribute >= count`.
         Raise after
@@ -198,7 +196,7 @@ class AgentCheckTest(unittest.TestCase):
         initial_values = getattr(self, attribute)
 
         i = 0
-        while i < RESULTS_TIMEOUT:
+        while i < results_timeout:
             self.check._process_results()
             if len(getattr(self.check, attribute)) + len(initial_values) >= count:
                 return getattr(self.check, method)() + initial_values
