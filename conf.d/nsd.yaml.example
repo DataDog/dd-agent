@@ -1,0 +1,9 @@
+# dd-agent needs permissions to read:
+# /etc/nsd/nsd_control.pem
+# /etc/nsd/nsd_control.key
+# /etc/nsd/nsd_server.pem
+
+init_config:
+
+instances:
+  - host: 127.0.0.1
