@@ -770,7 +770,9 @@ class Collector(object):
         # Add cloud provider aliases
         host_aliases = GCE.get_host_aliases(self.agentConfig)
         if host_aliases:
-            metadata['host_aliases'] = host_aliases
+            if not metadata["host_aliases"]:
+                metadata["host_aliases"] = []
+            metadata['host_aliases'] += host_aliases
 
         return metadata
 
