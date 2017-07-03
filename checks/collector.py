@@ -751,9 +751,11 @@ class Collector(object):
             except Exception:
                 pass
 
-        if self.agentConfig.get('danger_always_add_socket_hostname'):
+        if self.agentConfig.get('use_socket_hostname_as_alias'):
             try:
-                metadata["socket-hostname"] = socket.gethostname()
+                if not metadata["host_aliases"]:
+                    metadata["host_aliases"] = []
+                metadata["host_aliases"] += [socket.gethostname()]
             except Exception:
                 pass
 
