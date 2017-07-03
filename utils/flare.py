@@ -606,8 +606,39 @@ class Flare(object):
     # Print info of all agent components
     def _info_all(self):
         CollectorStatus.print_latest_status(verbose=True)
-        DogstatsdStatus.print_latest_status(verbose=True)
+        if not self._config.get('dogstatsd6_enable'):
+            DogstatsdStatus.print_latest_status(verbose=True)
+        else:
+            dsd6_agg_stats = self._get_expvar_stats('aggregator', 5000)
+            dsd6_stats = self._get_expvar_stats('dogstatsd', 5000)
+
+            if dsd6_stats is not None and dsd6_agg_stats is not None:
+                sc_pkt_cnt = dsd6_stats.get("ServiceCheckPackets", 0)
+                ev_pkt_cnt = dsd6_stats.get("EventPackets", 0)
+                m_pkt_cnt = dsd6_stats.get("MetricPackets", 0)
+
+                dsd6_status = DogstatsdStatus(
+                    flush_count=dsd6_agg_stats.get('NumberOfFlush', -1),
+                    packet_count=dsd6_stats.get('', -1),
+                    packets_per_second=-1,  # unavailable
+                    metric_count=m_pkt_cnt,
+                    event_count=ev_pkt_cnt,
+                    service_check_count=sc_pkt_cnt)
+
+                dsd6_status.render()
+
         ForwarderStatus.print_latest_status(verbose=True)
+
+    # Get DSD6 stats
+    def _get_expvar_stats(self, key, port):
+        try:
+            r = requests.get('http://127.0.0.1:{port}/debug/vars'.format(port=port))
+            r.raise_for_status()
+        except requests.exceptions.RequestException:
+            log.warn("unable to grab dogstatsd6 stats.")
+            return None
+
+        return r.json().get(key)
 
     # Call jmx_command with std streams redirection
     def _jmx_command_call(self, command):
