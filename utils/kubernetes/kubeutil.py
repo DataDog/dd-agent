@@ -48,7 +48,8 @@ def detect_is_k8s():
             k8_config_file_path = get_conf_path(KUBERNETES_CHECK_NAME)
             k8_check_config = check_yaml(k8_config_file_path)
             return len(k8_check_config['instances']) > 0
-        except Exception:
+        except Exception as err:
+            log.debug("Error detecting kubernetes: %s" % str(err))
             return False
 
 
@@ -96,9 +97,12 @@ class KubeUtil:
         self.tls_settings = self._init_tls_settings(instance)
 
         # apiserver
-        master_host = instance.get('api_server_host', (os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME))
-        master_port = instance.get('api_server_port', self.DEFAULT_MASTER_PORT)
-        self.kubernetes_api_root_url = 'https://%s:%d' % (master_host, master_port)
+        if 'api_server_url' in instance:
+            self.kubernetes_api_root_url = instance.get('api_server_url')
+        else:
+            master_host = os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME
+            master_port = os.environ.get('KUBERNETES_SERVICE_PORT') or self.DEFAULT_MASTER_PORT
+            self.kubernetes_api_root_url = 'https://%s:%d' % (master_host, master_port)
 
         self.kubernetes_api_url = '%s/api/v1' % self.kubernetes_api_root_url
 
