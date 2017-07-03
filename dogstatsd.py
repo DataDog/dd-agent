@@ -47,6 +47,7 @@ from config import (
 from daemon import AgentSupervisor, Daemon
 from util import chunks, get_uuid, plural
 from utils.hostname import get_hostname
+from utils.http import get_expvar_stats
 from utils.net import inet_pton
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
 from utils.pidfile import PidFile
@@ -478,9 +479,46 @@ class Dogstatsd(Daemon):
                 sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
     @classmethod
-    def info(self):
+    def info(self, cfg=None):
         logging.getLogger().setLevel(logging.ERROR)
+        if cfg and cfg.get('dogstatsd6_enable', False):
+            dsd6_status = Dogstatsd._get_dsd6_stats(cfg)
+            if dsd6_status:
+                dsd6_status.render()
+                return 0
+            else:
+                return -1
+
         return DogstatsdStatus.print_latest_status()
+
+    @classmethod
+    def _get_dsd6_stats(self, cfg):
+        port = cfg.get('dogstatsd6_stat_port', 5000)
+        try:
+            dsd6_agg_stats = get_expvar_stats('aggregator', port)
+            dsd6_stats = get_expvar_stats('dogstatsd', port)
+        except Exception as e:
+            log.info("Unable to collect dogstatsd6 statistics: %s", e)
+            return None
+
+        if dsd6_stats is not None and dsd6_agg_stats is not None:
+            sc_pkt_cnt = dsd6_stats.get("ServiceCheckPackets", 0)
+            ev_pkt_cnt = dsd6_stats.get("EventPackets", 0)
+            m_pkt_cnt = dsd6_stats.get("MetricPackets", 0)
+
+            dsd6_status = DogstatsdStatus(
+                flush_count=dsd6_agg_stats.get('NumberOfFlush', -1),
+                packet_count=dsd6_stats.get('', -1),
+                packets_per_second=-1,  # unavailable
+                metric_count=m_pkt_cnt,
+                event_count=ev_pkt_cnt,
+                service_check_count=sc_pkt_cnt)
+
+            return dsd6_status
+
+        return None
+
+
 
 
 def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
