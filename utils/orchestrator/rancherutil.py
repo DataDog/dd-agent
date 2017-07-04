@@ -1,13 +1,11 @@
-import logging
 import requests
 from rancher_metadata import MetadataAPI
+from .baseutil import BaseUtil
 
 from utils.singleton import Singleton
 
-log = logging.getLogger(__name__)
 
-
-class RancherUtil:
+class RancherUtil(BaseUtil):
     __metaclass__ = Singleton
 
     METADATA_URL_AUTHORITY = "http://rancher-metadata/"
@@ -19,14 +17,40 @@ class RancherUtil:
     STACK_NAME_LABEL = "io.rancher.stack.name"
     SERVICE_NAME_LABEL = "io.rancher.stack_service.name"
 
-    HOST_AGENT_IMAGE_LABEL = "io.rancher.host.agent_image"
-    HOST_DOCKER_VERSION_LABEL = "io.rancher.host.docker_version"
-    HOST_LINUX_KERNEL_VERSION_LABEL = "io.rancher.host.linux_kernel_version"
-
     _is_rancher = None
 
     def __init__(self):
+        BaseUtil.__init__(self)
+        self.needs_inspect_config = True
+        self.needs_inspect_labels = True
+
         self.api = MetadataAPI(api_url=RancherUtil.METADATA_URL)
+
+    @staticmethod
+    def is_detected():
+        return RancherUtil.is_rancher()
+
+    def _get_cacheable_tags(self, cid=None, co=None):
+        tags = []
+
+        container_name = co.get('Config', {}).get('Labels', {}).get(RancherUtil.CONTAINER_NAME_LABEL)
+
+        container_metadata = self.get_container_metadata(container_name=container_name)
+
+        service_name = co.get('Config', {}).get('Labels', {}).get(RancherUtil.SERVICE_NAME_LABEL) \
+            or container_metadata.get('service_name')
+
+        stack_name = co.get('Config', {}).get('Labels', {}).get(RancherUtil.STACK_NAME_LABEL) \
+            or container_metadata.get('stack_name')
+
+        if container_name:
+            tags.append('rancher_container:%s' % container_name)
+        if service_name:
+            tags.append('rancher_service:%s' % service_name)
+        if stack_name:
+            tags.append('rancher_stack:%s' % stack_name)
+
+        return tags
 
     @staticmethod
     def is_rancher():
@@ -67,3 +91,12 @@ class RancherUtil:
             return {}
 
         return self.api.get_host(host_name=None)['labels']
+
+    def get_host_tags(self):
+        raw_labels = self.get_labels_for_host()
+        labels = []
+
+        for (k, v) in raw_labels.iteritems():
+            labels.append("%s:%s" % (k, v))
+
+        return labels

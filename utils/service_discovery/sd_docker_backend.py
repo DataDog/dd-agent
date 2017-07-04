@@ -342,21 +342,6 @@ class SDDockerBackend(AbstractSDBackend):
             if swarm_svc:
                 tags.append('swarm_service:%s' % swarm_svc)
 
-        elif Platform.is_rancher():
-            c_inspect = state.inspect_container(c_id)
-            service_name = c_inspect.get('Config', {}).get('Labels', {}).get(RancherUtil.SERVICE_NAME_LABEL)
-            stack_name = c_inspect.get('Config', {}).get('Labels', {}).get(RancherUtil.STACK_NAME_LABEL)
-            container_name = c_inspect.get('Config', {}).get('Labels', {}).get(RancherUtil.CONTAINER_NAME_LABEL)
-
-            #TODO metadata API fetch
-
-            if service_name:
-                tags.append('rancher_service:%s' % service_name)
-            if stack_name:
-                tags.append('rancher_stack:%s' % stack_name)
-            if container_name:
-                tags.append('rancher_container:%s' % container_name)
-
         if self.metadata_collector.has_detected():
             orch_tags = self.metadata_collector.get_container_tags(co=c_inspect)
             tags.extend(orch_tags)
