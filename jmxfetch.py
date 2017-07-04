@@ -70,6 +70,8 @@ JMX_LIST_COMMANDS = {
     'list_limited_attributes': "List attributes that do match one of your instances configuration but that are not being collected because it would exceed the number of metrics that can be collected",
     JMX_COLLECT_COMMAND: "Start the collection of metrics based on your current configuration and display them in the console"}
 
+JMX_LAUNCH_FILE = 'jmx.launch'
+
 LINK_TO_DOC = "See http://docs.datadoghq.com/integrations/java/ for more information"
 
 
@@ -335,6 +337,16 @@ class JMXFetch(object):
         except Exception:
             log.exception("Couldn't launch JMXFetch")
             raise
+
+    @staticmethod
+    def _get_jmx_launchtime():
+        fpath = os.path.join(get_jmx_pipe_path(), JMX_LAUNCH_FILE)
+        try:
+            _stat = os.stat(fpath)
+        except OSError as e:
+            raise e
+
+        return _stat.st_atime
 
     @staticmethod
     def _is_jmx_check(check_config, check_name, checks_list):

@@ -48,7 +48,7 @@ from config import (
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from jmxfetch import get_jmx_checks
+from jmxfetch import get_jmx_checks, JMXFetch
 
 # utils
 from utils.cloud_metadata import EC2
@@ -103,6 +103,7 @@ class Agent(Daemon):
         self.sd_backend = None
         self.supervisor_proxy = None
         self.sd_pipe = None
+        self.last_jmx_piped = None
 
     def _handle_sigterm(self, signum, frame):
         """Handles SIGTERM and SIGINT, which gracefully stops the agent."""
@@ -342,6 +343,12 @@ class Agent(Daemon):
                 try:
                     self.sd_backend.reload_check_configs = get_config_store(
                         self._agentConfig).crawl_config_template()
+
+                    # JMXFetch restarts should prompt reload
+                    jmx_launch = JMXFetch._get_jmx_launchtime()
+                    if self.last_jmx_piped and self.last_jmx_piped < jmx_launch:
+                        self.sd_backend.reload_check_configs = True
+
                 except Exception as e:
                     log.warn('Something went wrong while looking for config template changes: %s' % str(e))
 
@@ -454,6 +461,7 @@ class Agent(Daemon):
                 # JMX will unblock when it reads on the other end.
                 os.write(self.sd_pipe, buffer)
                 os.write(self.sd_pipe, SD_CONFIG_TERM)
+                self.last_jmx_piped = time.time()
         except Exception as e:
             log.exception("unable to submit YAML via pipe: %s", e)
         else:
