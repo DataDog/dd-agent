@@ -345,9 +345,12 @@ class Agent(Daemon):
                         self._agentConfig).crawl_config_template()
 
                     # JMXFetch restarts should prompt reload
-                    jmx_launch = JMXFetch._get_jmx_launchtime()
-                    if self.last_jmx_piped and self.last_jmx_piped < jmx_launch:
-                        self.sd_backend.reload_check_configs = True
+                    try:
+                        jmx_launch = JMXFetch._get_jmx_launchtime()
+                        if self.last_jmx_piped and self.last_jmx_piped < jmx_launch:
+                            self.sd_backend.reload_check_configs = True
+                    except OSError as e:
+                        log.debug("could not stat JMX lunch file: %s", e)
 
                 except Exception as e:
                     log.warn('Something went wrong while looking for config template changes: %s' % str(e))
