@@ -153,10 +153,6 @@ class KubeUtil:
         if apiserver_cacert and os.path.exists(apiserver_cacert):
             tls_settings['apiserver_cacert'] = apiserver_cacert
 
-        token = self.get_auth_token(instance)
-        if token:
-            tls_settings['bearer_token'] = token
-
         # kubelet
         kubelet_client_crt = instance.get('kubelet_client_crt')
         kubelet_client_key = instance.get('kubelet_client_key')
@@ -168,6 +164,12 @@ class KubeUtil:
             tls_settings['kubelet_verify'] = cert
         else:
             tls_settings['kubelet_verify'] = instance.get('kubelet_tls_verify', DEFAULT_TLS_VERIFY)
+
+        if ('apiserver_client_cert' not in tls_settings) or ('kubelet_client_cert' not in tls_settings):
+            # Only lookup token if we don't have client certs for both
+            token = self.get_auth_token(instance)
+            if token:
+                tls_settings['bearer_token'] = token
 
         return tls_settings
 
