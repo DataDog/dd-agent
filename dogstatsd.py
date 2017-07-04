@@ -484,10 +484,14 @@ class Dogstatsd(Daemon):
         if cfg and cfg.get('dogstatsd6_enable', False):
             dsd6_status = Dogstatsd._get_dsd6_stats(cfg)
             if dsd6_status:
-                dsd6_status.render()
-                return 0
+                message = dsd6_status.render()
+                exit_code = 0
             else:
-                return -1
+                message = DogstatsdStatus._dogstatsd6_unavailable_message()
+                exit_code = -1
+
+            sys.stdout.write(message)
+            return exit_code
 
         return DogstatsdStatus.print_latest_status()
 
@@ -535,7 +539,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         sleep(4)
         sys.exit(0)
 
-    if _is_affirmative(c.get('dogstatsd6_enabled')):
+    if _is_affirmative(c.get('dogstatsd6_enable')):
         log.info("Dogstatsd v6 is enabled - shutting down")
         sleep(4)
         sys.exit(0)
