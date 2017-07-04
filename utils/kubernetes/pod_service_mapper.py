@@ -4,9 +4,12 @@
 
 # stdlib
 from collections import defaultdict
+import requests
 import logging
 
 log = logging.getLogger('collector')
+
+MAX_403_RETRIES = 4  # Disable service tagging if we get 4 403 errors
 
 
 class PodServiceMapper:
@@ -22,11 +25,17 @@ class PodServiceMapper:
         self._pod_labels_cache = defaultdict(dict)          # {pod_uid:{label}}
         self._pod_services_mapping = defaultdict(list)      # {pod_uid:[service_uid]}
 
+        self._403_errors = 0             # Count how many 403 errors we got from apiserver
+        self._403_backoff = False        # Disable the service mapper because of 403 errors
+
     def _fill_services_cache(self):
         """
         Get the list of services from the kubelet API and store the label selector dicts.
         The cache is to be invalidated by the user class by calling process_events
         """
+        if self._403_backoff:
+            return
+
         try:
             reply = self.kube.retrieve_json_auth(self.kube.kubernetes_api_url + '/services')
             self._service_cache_selectors = defaultdict(dict)
@@ -41,7 +50,16 @@ class PodServiceMapper:
                 self._service_cache_selectors[uid] = selector
             self._service_cache_invalidated = False
         except Exception as e:
-            log.exception('Unable to read service list from apiserver: %s', e)
+            if isinstance(e, requests.exceptions.HTTPError) and e.response.status_code == 403:
+                log.warning('Unable to read service list from apiserver: %s', e)
+                self._403_errors += 1
+                if self._403_errors == MAX_403_RETRIES:
+                    log.error("Disabling kube_service tagging because of %d failed attempts. All other kubernetes features will continue working." % MAX_403_RETRIES)
+                    log.error("Please allow access to /v1/api/services or disable the collect_service_tags option.")
+                    self._403_backoff = True
+            else:
+                log.warning('Unable to read service list from apiserver: %s', e)
+
             self._service_cache_selectors = defaultdict(dict)
             self._service_cache_names = {}
             self._service_cache_invalidated = False
@@ -55,6 +73,9 @@ class PodServiceMapper:
         Pass refresh=True if you want to bypass the cached cid->services mapping (after a service change)
         """
         matches = []
+
+        if self._403_backoff:
+            return matches
 
         try:
             # Fail intentionally if no uid
@@ -106,6 +127,9 @@ class PodServiceMapper:
         """
         matches = []
 
+        if self._403_backoff:
+            return matches
+
         try:
             if (self._service_cache_invalidated is True):
                 self._fill_services_cache()
@@ -130,6 +154,9 @@ class PodServiceMapper:
         """
         pod_uids = set()
         service_cache_checked = False
+
+        if self._403_backoff:
+            return pod_uids
 
         for event in event_array:
             kind = event.get('involvedObject', {}).get('kind', None)
