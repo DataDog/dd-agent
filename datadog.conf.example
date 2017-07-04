@@ -164,7 +164,7 @@ gce_updated_hostname: yes
 # dogstatsd6_enable: false
 #
 # Port from which to collect expvar statistics
-# dogstatsd6_stat_port: 5000
+# dogstatsd6_stats_port: 5000
 
 #  Make sure your client is sending to the same port.
 # dogstatsd_port: 8125
