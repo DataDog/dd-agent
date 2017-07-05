@@ -481,7 +481,7 @@ class Dogstatsd(Daemon):
     @classmethod
     def info(self, cfg=None):
         logging.getLogger().setLevel(logging.ERROR)
-        if cfg and cfg.get('dogstatsd6_enable', False):
+        if cfg and _is_affirmative(cfg.get('dogstatsd6_enable', False)):
             dsd6_status = Dogstatsd._get_dsd6_stats(cfg)
             if dsd6_status:
                 message = dsd6_status.render()
@@ -539,7 +539,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         sleep(4)
         sys.exit(0)
 
-    if _is_affirmative(c.get('dogstatsd6_enable')):
+    if _is_affirmative(c.get('dogstatsd6_enable', False)):
         log.info("Dogstatsd v6 is enabled - shutting down")
         sleep(4)
         sys.exit(0)
@@ -637,7 +637,8 @@ def main(config_path=None):
         elif command == 'status':
             daemon.status()
         elif command == 'info':
-            return Dogstatsd.info()
+            c = get_config(parse_args=False, cfg_path=config_path)
+            return Dogstatsd.info(c)
         else:
             sys.stderr.write("Unknown command: %s\n\n" % command)
             parser.print_help()
