@@ -31,12 +31,13 @@ class MesosUtil(BaseUtil):
         envvars = co.get('Config', {}).get('Env', {})
 
         for var in envvars:
-            if var.startswith(CHRONOS_JOB_NAME):
-                tags.append('chronos_job:%s' % var[len(CHRONOS_JOB_NAME) + 1:])
-            elif var.startswith(MARATHON_APP_ID):
+            if var.startswith(MARATHON_APP_ID):
                 tags.append('marathon_app:%s' % var[len(MARATHON_APP_ID) + 1:])
-            elif var.startswith(MESOS_TASK_ID):
-                tags.append('mesos_task:%s' % var[len(MESOS_TASK_ID) + 1:])
+            ## Disabled for now because of high cardinality (~container card.)
+            #elif var.startswith(CHRONOS_JOB_NAME):
+            #    tags.append('chronos_job:%s' % var[len(CHRONOS_JOB_NAME) + 1:])
+            #elif var.startswith(MESOS_TASK_ID):
+            #    tags.append('mesos_task:%s' % var[len(MESOS_TASK_ID) + 1:])
 
         return tags
 

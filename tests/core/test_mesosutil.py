@@ -22,8 +22,9 @@ class TestMesosUtil(unittest.TestCase):
                "MARATHON_APP_ID=/system/dd-agent",
                "MESOS_TASK_ID=system_dd-agent.dcc75b42-4b87-11e7-9a62-70b3d5800001"]
 
-        tags = ['chronos_job:test-job', 'marathon_app:/system/dd-agent',
-                'mesos_task:system_dd-agent.dcc75b42-4b87-11e7-9a62-70b3d5800001']
+        tags = ['marathon_app:/system/dd-agent']
+        ## Removed 'chronos_job:test-job', 'mesos_task:system_dd-agent.dcc75b42-4b87-11e7-9a62-70b3d5800001'
+        ## because of high cardinality
 
         container = {'Config': {'Env': env}}
 
