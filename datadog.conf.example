@@ -64,9 +64,11 @@ api_key:
 # when not specified, default: no
 gce_updated_hostname: yes
 
-# Always add the socket hostname to the host aliases
-# This is very dangerous and could, in the worst case, merge all your VMs into one.
-# Do not use unless you know what you're going to get.
+# Always add the socket hostname to the host aliases.
+# This is mostly useful for Cloud Foundry.
+# This is dangerous to enable,
+# as many hosts could have the same socket hostname and it could merge dozens of VMs into one.
+# Do not use it unless you know what you're going to get.
 # use_socket_hostname_as_alias: no
 
 # Set the threshold for accepting points to allow anything
