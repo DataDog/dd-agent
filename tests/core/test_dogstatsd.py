@@ -1,5 +1,6 @@
 # stdlib
 from unittest import TestCase
+import os
 import socket
 import threading
 import Queue
@@ -10,7 +11,11 @@ import mock
 
 # project
 from dogstatsd import mapto_v6, get_socket_address
-from dogstatsd import Server, init
+from dogstatsd import (
+    Server,
+    init5,
+    init6
+)
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
 
 
@@ -32,18 +37,29 @@ class TestFunctions(TestCase):
 
     @mock.patch('dogstatsd.get_config')
     @mock.patch('dogstatsd.Server')
-    def test_init(self, s, gc):
+    def test_init5(self, s, gc):
         gc.return_value = defaultdict(str)
         gc.return_value['non_local_traffic'] = True
         gc.return_value['use_dogstatsd'] = True
 
-        init()
+        init5()
 
         # if non_local_traffic was passed, use IPv4 wildcard
         s.assert_called_once()
         args, _ = s.call_args
         self.assertEqual(args[1], '0.0.0.0')
 
+    @mock.patch('dogstatsd.get_config')
+    def test_init6(self, gc):
+        cfg = defaultdict(str)
+        cfg['api_key'] = "deadbeeffeebdaed"
+        cfg['use_dogstatsd'] = True
+        cfg['dogstatsd6_enable'] = True
+        gc.return_value = cfg
+
+        path, _, env = init6(gc)
+        self.assertNotEqual(env, os.environ)
+        self.assertEqual(env.get('DD_API_KEY'), cfg['api_key'])
 
 class TestServer(TestCase):
     def test_init(self):
