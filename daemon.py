@@ -94,6 +94,17 @@ class ProcessRunner(object):
     def __init__(self):
         self.logging_config = get_logging_config()
         self._process = None
+        self._running = True
+
+    @property
+    def status(self):
+        """
+        Get the status of the runner. Exits with 0 if running, 1 if not.
+        """
+        if self._process and self._running:
+            return 0
+
+        return 1
 
     def terminate(self):
         if self._process:
@@ -130,12 +141,14 @@ class ProcessRunner(object):
                     env=env
                 )
                 self._process = process
+                self._running = True
 
                 # Register SIGINT and SIGTERM signal handlers
                 self.register_signal_handlers()
 
                 # Wait for process to return
                 self._process.wait()
+                self._running = False
 
                 if redirect_std_streams:
                     # Write out the stdout and stderr of JMXFetch to sys.stdout and sys.stderr
