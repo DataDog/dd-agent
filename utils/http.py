@@ -14,9 +14,9 @@ def retrieve_json(url, timeout=DEFAULT_TIMEOUT, verify=True):
     return r.json()
 
 # Get expvar stats
-def get_expvar_stats(key, port):
+def get_expvar_stats(key, host="localhost", port=5000):
     try:
-        json = retrieve_json("http://127.0.0.1:{port}/debug/vars".format(port=port))
+        json = retrieve_json("http://{host}:{port}/debug/vars".format(host=host, port=port))
     except requests.exceptions.RequestException as e:
         raise e
 

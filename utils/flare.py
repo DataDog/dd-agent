@@ -44,7 +44,7 @@ from config import (
     get_ssl_certificate,
     get_url_endpoint,
 )
-from dogstatsd import Dogstatsd
+from dogstatsd import Dogstatsd6
 from jmxfetch import JMXFetch
 from utils.hostname import get_hostname
 from utils.jmx import jmx_command, JMXFiles
@@ -610,7 +610,7 @@ class Flare(object):
         if not self._config.get('dogstatsd6_enable'):
             DogstatsdStatus.print_latest_status(verbose=True)
         else:
-            dsd6_status = Dogstatsd._get_dsd6_stats(self._config)
+            dsd6_status = Dogstatsd6._get_dsd6_stats(self._config)
             if dsd6_status:
                 dsd6_status.render()
 

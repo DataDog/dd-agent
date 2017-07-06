@@ -130,7 +130,6 @@ class ProcessRunner(object):
             log.exception("Unable to register signal handlers.")
 
     def execute(self, process_args, redirect_std_streams=None, env=None):
-        # Launch JMXfetch subprocess manually, w/o get_subprocess_output(), since it's a special case
         try:
             with nested(tempfile.TemporaryFile(), tempfile.TemporaryFile()) as (stdout_f, stderr_f):
                 process = subprocess.Popen(
@@ -151,7 +150,6 @@ class ProcessRunner(object):
                 self._running = False
 
                 if redirect_std_streams:
-                    # Write out the stdout and stderr of JMXFetch to sys.stdout and sys.stderr
                     stderr_f.seek(0)
                     err = stderr_f.read()
                     stdout_f.seek(0)
