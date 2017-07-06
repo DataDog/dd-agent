@@ -71,6 +71,11 @@ class Flare(object):
             'password'
         ),
         CredentialPattern(
+            re.compile('( *(\w|_)*token:).+'),
+            r'\1 ********',
+            'access token'
+        ),
+        CredentialPattern(
             re.compile('(.*\ [A-Za-z0-9]+)\:\/\/([A-Za-z0-9_]+)\:(.+)\@'),
             r'\1://\2:********@',
             'password in a uri'
