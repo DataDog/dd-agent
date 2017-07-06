@@ -500,8 +500,7 @@ class Dogstatsd6(ProcessRunner):
     @classmethod
     def info(self, cfg=None):
         logging.getLogger().setLevel(logging.ERROR)
-        conf = cfg if cfg else self.agent_config
-        if conf and not _is_affirmative(conf.get('dogstatsd6_enable', False)):
+        if cfg and not _is_affirmative(cfg.get('dogstatsd6_enable', False)):
             message = DogstatsdStatus._dogstatsd6_unavailable_message()
             exit_code = -1
         else:
@@ -517,7 +516,7 @@ class Dogstatsd6(ProcessRunner):
         return exit_code
 
     @classmethod
-    def _get_dsd6_stats(self, cfg):
+    def _get_dsd6_stats(self, cfg={}):
         port = cfg.get('dogstatsd6_stat_port', 5000)
         try:
             dsd6_agg_stats = get_expvar_stats('aggregator', port)
@@ -546,7 +545,7 @@ class Dogstatsd6(ProcessRunner):
     @classmethod
     def _get_dsd6_path(cls):
         return os.path.realpath(os.path.join(
-            os.path.abspath(__file__), "..", "bin",
+            os.path.abspath(__file__), "..", "..", "bin",
             cls.DSD6_BIN_NAME)
         )
 
@@ -633,15 +632,16 @@ def init6(config_path=None, args=None):
 
     if not _is_affirmative(c.get('dogstatsd6_enable', False)):
         log.debug("Dogstatsd v6 is disabled")
-        return None
+        return None, None, None
 
 
     env = copy.deepcopy(os.environ)
-    env['DOGSTATSD_PORT'] = c['dogstatsd_port']
-    env['API_KEY'] = c['api_key']
-    env['DD_URL'] = c['dd_url']
-    env['DOGSTATSD_NON_LOCAL_TRAFFIC'] = c['non_local_traffic']
-    env['DOGSTATSD_SOCKET'] = c['socket']
+    env['DD_DOGSTATSD_PORT'] = str(c['dogstatsd_port'])
+    env['DD_API_KEY'] = str(c['api_key'])
+    env['DD_DD_URL'] = str(c['dd_url'])
+    env['DD_DOGSTATSD_NON_LOCAL_TRAFFIC'] = str(c['non_local_traffic'])
+    if c.get('dogstatsd_socket'):
+        env['DD_DOGSTATSD_SOCKET'] = str(c['dogstatsd_socket'])
 
     return Dogstatsd6._get_dsd6_path(), c, env
 
@@ -674,13 +674,14 @@ def main(config_path=None):
     # If no args were passed in, run the server in the foreground.
     if not args:
         if dsd6:
-            dsd6.execute(dsd6_path, env)
+            dsd6.execute([dsd6_path, 'start'], env)
         else:
             daemon.start(foreground=True)
             return 0
 
     # Otherwise, we're process the deamon command.
     else:
+        c = get_config(parse_args=False, cfg_path=config_path)
         command = args[0]
 
         # TODO: actually kill the start/stop/restart/status command for 5.11
@@ -690,7 +691,7 @@ def main(config_path=None):
 
         if command == 'start':
             if dsd6:
-                dsd6.execute(dsd6_path, env)
+                dsd6.execute([dsd6_path, command], env)
             else:
                 daemon.start()
         elif command == 'stop':
@@ -701,15 +702,19 @@ def main(config_path=None):
         elif command == 'restart':
             if dsd6:
                 dsd6.terminate()
-                dsd6.execute(dsd6_path, env)
+                dsd6.execute([dsd6_path, 'start'], env)
             else:
                 daemon.restart()
         elif command == 'status':
-            if not dsd6:
+            if c.get('dogstatsd6_enable'):
+                message = 'Status unavailable for dogstatsd6'
+                log.warning(message)
+                sys.stderr.write(message)
+            else:
                 daemon.status()
         elif command == 'info':
-            if dsd6:
-                dsd6.info()
+            if c.get('dogstatsd6_enable'):
+                Dogstatsd6.info(c)
             else:
                 c = get_config(parse_args=False, cfg_path=config_path)
                 return Dogstatsd.info(c)
