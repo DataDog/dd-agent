@@ -751,13 +751,13 @@ class Collector(object):
             except Exception:
                 pass
 
-        if self.agentConfig.get('use_socket_hostname_as_alias'):
-            try:
-                if not metadata["host_aliases"]:
-                    metadata["host_aliases"] = []
-                metadata["host_aliases"] += CloudFoundry.get_host_aliases
-            except Exception:
-                pass
+        if not metadata["host_aliases"]:
+            metadata["host_aliases"] = []
+
+        try:
+            metadata["host_aliases"] += CloudFoundry.get_host_aliases
+        except Exception:
+            pass
 
         try:
             metadata["socket-fqdn"] = socket.getfqdn()
@@ -770,8 +770,6 @@ class Collector(object):
         # Add cloud provider aliases
         host_aliases = GCE.get_host_aliases(self.agentConfig)
         if host_aliases:
-            if not metadata["host_aliases"]:
-                metadata["host_aliases"] = []
             metadata['host_aliases'] += host_aliases
 
         return metadata
