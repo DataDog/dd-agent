@@ -55,6 +55,7 @@ class KubeUtil:
 
     POD_NAME_LABEL = "io.kubernetes.pod.name"
     NAMESPACE_LABEL = "io.kubernetes.pod.namespace"
+    CONTAINER_NAME_LABEL = "io.kubernetes.container.name"
 
     def __init__(self, instance=None):
         self.docker_util = DockerUtil()
