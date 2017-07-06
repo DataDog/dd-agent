@@ -5,6 +5,8 @@
 # stdlib
 import logging
 import types
+import os
+import getpass
 
 # 3rd party
 import requests
@@ -226,3 +228,33 @@ class EC2(object):
             return EC2.get_metadata(agentConfig).get("instance-id", None)
         except Exception:
             return None
+
+class CloudFoundry(object):
+    host_aliases = []
+
+    @staticmethod
+    def get_host_aliases(agentConfig):
+        if not is_cloud_foundry(agentConfig):
+            return CloudFoundry.host_aliases
+        if os.environ.get("DD_BOSH_ID"):
+            CloudFoundry.host_aliases.append(os.environ.get("DD_BOSH_ID"))
+        if len(DD_BOSH_NAME) == 0:
+            # Only use this if the prior one fails
+            # The reliability of the socket hostname is not assured
+            CloudFoundry.host_aliases.append(socket.gethostname())
+        return []
+
+
+    @staticmethod
+    def is_cloud_foundry(agentConfig):
+        if agentConfig.get("cloud_foundry"):
+            return True
+        elif os.environ.get("CLOUD_FOUNDRY"):
+            return True
+        elif os.environ.get("JOB_DIR") == "/var/vcap/jobs/dd-agent":
+            return True
+        elif os.environ.get("HOME") == "/home/vcap":
+            return True
+        elif getpass.getuser() == "vcap":
+            return True
+        return False

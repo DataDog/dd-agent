@@ -35,7 +35,7 @@ import checks.system.unix as u
 import checks.system.win32 as w32
 import modules
 from util import get_uuid
-from utils.cloud_metadata import GCE, EC2
+from utils.cloud_metadata import GCE, EC2, CloudFoundry
 from utils.logger import log_exceptions
 from utils.jmx import JMXFiles
 from utils.platform import Platform, get_os
@@ -755,7 +755,7 @@ class Collector(object):
             try:
                 if not metadata["host_aliases"]:
                     metadata["host_aliases"] = []
-                metadata["host_aliases"] += [socket.gethostname()]
+                metadata["host_aliases"] += CloudFoundry.get_host_aliases
             except Exception:
                 pass
 
