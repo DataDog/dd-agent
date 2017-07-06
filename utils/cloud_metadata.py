@@ -247,7 +247,6 @@ class CloudFoundry(object):
             CloudFoundry.host_aliases.append(socket.gethostname())
         return []
 
-
     @staticmethod
     def is_cloud_foundry(agentConfig):
         if agentConfig.get("cloud_foundry"):
