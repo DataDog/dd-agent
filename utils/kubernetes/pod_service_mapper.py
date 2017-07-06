@@ -26,14 +26,14 @@ class PodServiceMapper:
         self._pod_services_mapping = defaultdict(list)      # {pod_uid:[service_uid]}
 
         self._403_errors = 0             # Count how many 403 errors we got from apiserver
-        self._403_backoff = False        # Disable the service mapper because of 403 errors
+        self._403_disable = False        # Disable the service mapper because of 403 errors
 
     def _fill_services_cache(self):
         """
         Get the list of services from the kubelet API and store the label selector dicts.
         The cache is to be invalidated by the user class by calling process_events
         """
-        if self._403_backoff:
+        if self._403_disable:
             return
 
         try:
@@ -56,7 +56,7 @@ class PodServiceMapper:
                 if self._403_errors == MAX_403_RETRIES:
                     log.error("Disabling kube_service tagging because of %d failed attempts. All other kubernetes features will continue working." % MAX_403_RETRIES)
                     log.error("Please allow access to /v1/api/services or disable the collect_service_tags option.")
-                    self._403_backoff = True
+                    self._403_disable = True
             else:
                 log.warning('Unable to read service list from apiserver: %s', e)
 
@@ -74,7 +74,7 @@ class PodServiceMapper:
         """
         matches = []
 
-        if self._403_backoff:
+        if self._403_disable:
             return matches
 
         try:
@@ -127,7 +127,7 @@ class PodServiceMapper:
         """
         matches = []
 
-        if self._403_backoff:
+        if self._403_disable:
             return matches
 
         try:
@@ -155,7 +155,7 @@ class PodServiceMapper:
         pod_uids = set()
         service_cache_checked = False
 
-        if self._403_backoff:
+        if self._403_disable:
             return pod_uids
 
         for event in event_array:

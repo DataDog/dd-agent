@@ -92,7 +92,7 @@ class TestKubePodServiceMapper(KubeTestCase):
             self.assertEqual([0, 1], sorted(mapper.search_pods_for_service(REDIS_HELLO_UID)))
             self.assertEqual([], sorted(mapper.search_pods_for_service("invalid")))
 
-    def test_403_backoff(self):
+    def test_403_disable(self):
         exception403 = requests.exceptions.HTTPError()
         exception403.response = Mock()
         exception403.response.status_code = 403
@@ -105,10 +105,10 @@ class TestKubePodServiceMapper(KubeTestCase):
             self.assertEqual(0, mapper._403_errors)
 
             for i in range(0, MAX_403_RETRIES):
-                self.assertFalse(mapper._403_backoff)
+                self.assertFalse(mapper._403_disable)
                 mapper._fill_services_cache()
 
-            self.assertTrue(mapper._403_backoff)
+            self.assertTrue(mapper._403_disable)
 
             # No new requests to the apiserver
             request_mock.assert_called()
