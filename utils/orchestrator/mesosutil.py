@@ -8,6 +8,7 @@ import requests
 from .baseutil import BaseUtil
 
 CHRONOS_JOB_NAME = "CHRONOS_JOB_NAME"
+CHRONOS_JOB_OWNER = "CHRONOS_JOB_OWNER"
 MARATHON_APP_ID = "MARATHON_APP_ID"
 MESOS_TASK_ID = "MESOS_TASK_ID"
 
@@ -33,9 +34,11 @@ class MesosUtil(BaseUtil):
         for var in envvars:
             if var.startswith(MARATHON_APP_ID):
                 tags.append('marathon_app:%s' % var[len(MARATHON_APP_ID) + 1:])
+            elif var.startswith(CHRONOS_JOB_NAME) and len(var) > len(CHRONOS_JOB_NAME) + 1:
+                tags.append('chronos_job:%s' % var[len(CHRONOS_JOB_NAME) + 1:])
+            elif var.startswith(CHRONOS_JOB_OWNER) and len(var) > len(CHRONOS_JOB_OWNER) + 1:
+                tags.append('chronos_job_owner:%s' % var[len(CHRONOS_JOB_OWNER) + 1:])
             ## Disabled for now because of high cardinality (~container card.)
-            #elif var.startswith(CHRONOS_JOB_NAME):
-            #    tags.append('chronos_job:%s' % var[len(CHRONOS_JOB_NAME) + 1:])
             #elif var.startswith(MESOS_TASK_ID):
             #    tags.append('mesos_task:%s' % var[len(MESOS_TASK_ID) + 1:])
 

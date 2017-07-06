@@ -18,14 +18,31 @@ class TestMesosUtil(unittest.TestCase):
         mock_init.return_value = None
         mesos = MesosUtil()
 
-        env = ["CHRONOS_JOB_NAME=test-job",
+        env = ["CHRONOS_JOB_NAME=app1_process-orders",
+               "CHRONOS_JOB_OWNER=qa",
                "MARATHON_APP_ID=/system/dd-agent",
                "MESOS_TASK_ID=system_dd-agent.dcc75b42-4b87-11e7-9a62-70b3d5800001"]
 
-        tags = ['marathon_app:/system/dd-agent']
-        ## Removed 'chronos_job:test-job', 'mesos_task:system_dd-agent.dcc75b42-4b87-11e7-9a62-70b3d5800001'
-        ## because of high cardinality
+        tags = ['marathon_app:/system/dd-agent',
+                'chronos_job_owner:qa',
+                'chronos_job:app1_process-orders']
+        # Removed 'mesos_task:' because of high cardinality
 
+        container = {'Config': {'Env': env}}
+
+        self.assertEqual(sorted(tags), sorted(mesos._get_cacheable_tags(CO_ID, co=container)))
+
+    @mock.patch('docker.Client.__init__')
+    def test_dont_extract_empty_owner(self, mock_init):
+        mock_init.return_value = None
+        mesos = MesosUtil()
+
+        env = ["CHRONOS_JOB_NAME=app1_process-orders",
+               "CHRONOS_JOB_OWNER=",
+               "MARATHON_APP_ID=/system/dd-agent"]
+
+        tags = ['marathon_app:/system/dd-agent',
+                'chronos_job:app1_process-orders']
         container = {'Config': {'Env': env}}
 
         self.assertEqual(sorted(tags), sorted(mesos._get_cacheable_tags(CO_ID, co=container)))
