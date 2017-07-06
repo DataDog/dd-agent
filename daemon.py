@@ -11,16 +11,20 @@
 """
 
 # Core modules
+from contextlib import nested
 import atexit
 import errno
 import logging
 import os
 import signal
 import sys
+import tempfile
 import time
 
 # project
 from utils.process import is_my_process
+from utils.subprocess_output import subprocess
+from config import get_logging_config
 
 log = logging.getLogger(__name__)
 
@@ -85,6 +89,67 @@ class AgentSupervisor(object):
         # in the child
         else:
             sys.exit(0)
+
+class ProcessRunner(object):
+    def __init__(self):
+        self.logging_config = get_logging_config()
+        self._process = None
+
+    def terminate(self):
+        if self._process:
+            self._process.terminate()
+
+    def _handle_sigterm(self, signum, frame):
+        # Terminate jmx process on SIGTERM signal
+        log.debug("Caught sigterm. Stopping subprocess.")
+        self.terminate()
+
+    def register_signal_handlers(self):
+        """
+        Enable SIGTERM and SIGINT handlers
+        """
+        try:
+            # Gracefully exit on sigterm
+            signal.signal(signal.SIGTERM, self._handle_sigterm)
+
+            # Handle Keyboard Interrupt
+            signal.signal(signal.SIGINT, self._handle_sigterm)
+
+        except ValueError:
+            log.exception("Unable to register signal handlers.")
+
+    def execute(self, process_args, redirect_std_streams=None, env=None):
+        # Launch JMXfetch subprocess manually, w/o get_subprocess_output(), since it's a special case
+        try:
+            with nested(tempfile.TemporaryFile(), tempfile.TemporaryFile()) as (stdout_f, stderr_f):
+                process = subprocess.Popen(
+                    process_args,
+                    close_fds=not redirect_std_streams,  # only set to True when the streams are not redirected, for WIN compatibility
+                    stdout=stdout_f if redirect_std_streams else None,
+                    stderr=stderr_f if redirect_std_streams else None,
+                    env=env
+                )
+                self._process = process
+
+                # Register SIGINT and SIGTERM signal handlers
+                self.register_signal_handlers()
+
+                # Wait for process to return
+                self._process.wait()
+
+                if redirect_std_streams:
+                    # Write out the stdout and stderr of JMXFetch to sys.stdout and sys.stderr
+                    stderr_f.seek(0)
+                    err = stderr_f.read()
+                    stdout_f.seek(0)
+                    out = stdout_f.read()
+                    sys.stdout.write(out)
+                    sys.stderr.write(err)
+
+            return self._process.returncode
+        except Exception:
+            log.exception("Could not launch process")
+            raise
 
 
 class Daemon(object):
