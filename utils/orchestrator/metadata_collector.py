@@ -3,7 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 
-from . import NomadUtil, MesosUtil, ECSUtil
+from . import NomadUtil, MesosUtil, ECSUtil, RancherUtil
 from .dockerutilproxy import DockerUtilProxy
 from .kubeutilproxy import KubeUtilProxy
 
@@ -74,6 +74,10 @@ class MetadataCollector():
             self._utils.append(util)
         if ECSUtil.is_detected():
             util = ECSUtil()
+            util.reset_cache()
+            self._utils.append(util)
+        if RancherUtil.is_detected():
+            util = RancherUtil()
             util.reset_cache()
             self._utils.append(util)
 
