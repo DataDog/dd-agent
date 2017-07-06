@@ -60,6 +60,11 @@ class MetadataCollector():
             util = DockerUtilProxy()
             util.reset_cache()
             self._utils.append(util)
+        else:
+            # Skip orchestrator detection if docker not found: agent5 is docker-only anyway
+            self._has_detected = False
+            return
+
         if KubeUtilProxy.is_detected():
             util = KubeUtilProxy()
             util.reset_cache()
