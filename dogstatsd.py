@@ -517,10 +517,10 @@ class Dogstatsd6(ProcessRunner):
 
     @classmethod
     def _get_dsd6_stats(self, cfg={}):
-        port = cfg.get('dogstatsd6_stat_port', 5000)
+        port = cfg.get('dogstatsd6_stats_port', 5000)
         try:
-            dsd6_agg_stats = get_expvar_stats('aggregator', port)
-            dsd6_stats = get_expvar_stats('dogstatsd', port)
+            dsd6_agg_stats = get_expvar_stats('aggregator', port=port)
+            dsd6_stats = get_expvar_stats('dogstatsd', port=port)
         except Exception as e:
             log.info("Unable to collect dogstatsd6 statistics: %s", e)
             return None
@@ -694,20 +694,13 @@ def main(config_path=None):
             return 1
 
         if command == 'start':
-            if dsd6:
-                dsd6.execute([dsd6_path, command], env)
-            else:
+            if not dsd6:
                 daemon.start()
         elif command == 'stop':
-            if dsd6:
-                dsd6.terminate()
-            else:
+            if not dsd6:
                 daemon.stop()
         elif command == 'restart':
-            if dsd6:
-                dsd6.terminate()
-                dsd6.execute([dsd6_path, 'start'], env)
-            else:
+            if not dsd6:
                 daemon.restart()
         elif command == 'status':
             if c.get('dogstatsd6_enable'):
@@ -718,9 +711,8 @@ def main(config_path=None):
                 daemon.status()
         elif command == 'info':
             if c.get('dogstatsd6_enable'):
-                Dogstatsd6.info(c)
+                return Dogstatsd6.info(c)
             else:
-                c = get_config(parse_args=False, cfg_path=config_path)
                 return Dogstatsd.info(c)
         else:
             sys.stderr.write("Unknown command: %s\n\n" % command)
