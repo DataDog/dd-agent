@@ -35,6 +35,24 @@ CREATOR_KIND_TO_TAG = {
 }
 
 
+def detect_is_k8s():
+    """
+    Logic for DockerUtil to detect whether to enable Kubernetes code paths
+    It check whether we have a KUBERNETES_PORT environment variable (running
+    in a pod) or a valid kubernetes.yaml conf file
+    """
+    if 'KUBERNETES_PORT' in os.environ:
+        return True
+    else:
+        try:
+            k8_config_file_path = get_conf_path(KUBERNETES_CHECK_NAME)
+            k8_check_config = check_yaml(k8_config_file_path)
+            return len(k8_check_config['instances']) > 0
+        except Exception as err:
+            log.debug("Error detecting kubernetes: %s" % str(err))
+            return False
+
+
 class KubeUtil:
     __metaclass__ = Singleton
 
@@ -46,7 +64,7 @@ class KubeUtil:
     DEFAULT_CADVISOR_PORT = 4194
     DEFAULT_HTTP_KUBELET_PORT = 10255
     DEFAULT_HTTPS_KUBELET_PORT = 10250
-    DEFAULT_MASTER_PORT = 8080
+    DEFAULT_MASTER_PORT = 443
     DEFAULT_MASTER_NAME = 'kubernetes'  # DNS name to reach the master from a pod.
     DEFAULT_LABEL_PREFIX = 'kube_'
     DEFAULT_COLLECT_SERVICE_TAG = True
@@ -67,6 +85,7 @@ class KubeUtil:
             # kubernetes.yaml was not found
             except IOError as ex:
                 log.error(ex.message)
+
                 instance = {}
             except Exception:
                 log.error('Kubernetes configuration file is invalid. '
@@ -79,9 +98,15 @@ class KubeUtil:
         self.tls_settings = self._init_tls_settings(instance)
 
         # apiserver
-        self.kubernetes_api_root_url = 'https://%s' % (os.environ.get('KUBERNETES_SERVICE_HOST') or
-                                                       self.DEFAULT_MASTER_NAME)
+        if 'api_server_url' in instance:
+            self.kubernetes_api_root_url = instance.get('api_server_url')
+        else:
+            master_host = os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME
+            master_port = os.environ.get('KUBERNETES_SERVICE_PORT') or self.DEFAULT_MASTER_PORT
+            self.kubernetes_api_root_url = 'https://%s:%d' % (master_host, master_port)
+
         self.kubernetes_api_url = '%s/api/v1' % self.kubernetes_api_root_url
+
         # kubelet
         try:
             self.kubelet_api_url = self._locate_kubelet(instance)
@@ -129,10 +154,6 @@ class KubeUtil:
         if apiserver_cacert and os.path.exists(apiserver_cacert):
             tls_settings['apiserver_cacert'] = apiserver_cacert
 
-        token = self.get_auth_token()
-        if token:
-            tls_settings['bearer_token'] = token
-
         # kubelet
         kubelet_client_crt = instance.get('kubelet_client_crt')
         kubelet_client_key = instance.get('kubelet_client_key')
@@ -144,6 +165,12 @@ class KubeUtil:
             tls_settings['kubelet_verify'] = cert
         else:
             tls_settings['kubelet_verify'] = instance.get('kubelet_tls_verify', DEFAULT_TLS_VERIFY)
+
+        if ('apiserver_client_cert' not in tls_settings) or ('kubelet_client_cert' not in tls_settings):
+            # Only lookup token if we don't have client certs for both
+            token = self.get_auth_token(instance)
+            if token:
+                tls_settings['bearer_token'] = token
 
         return tls_settings
 
@@ -297,8 +324,8 @@ class KubeUtil:
         verify = tls_context.get('kubelet_verify', DEFAULT_TLS_VERIFY)
 
         # if cert-based auth is enabled, don't use the token.
-        if not cert and url.lower().startswith('https'):
-            headers = {'Authorization': 'Bearer {}'.format(self.get_auth_token())}
+        if not cert and url.lower().startswith('https') and 'bearer_token' in self.tls_settings:
+            headers = {'Authorization': 'Bearer {}'.format(self.tls_settings.get('bearer_token'))}
 
         return requests.get(url, timeout=timeout, verify=verify,
             cert=cert, headers=headers, params={'verbose': verbose})
@@ -410,15 +437,17 @@ class KubeUtil:
         return self.docker_util.are_tags_filtered(tags)
 
     @classmethod
-    def get_auth_token(cls):
+    def get_auth_token(cls, instance):
         """
         Return a string containing the authorization token for the pod.
         """
+
+        token_path = instance.get('bearer_token_path', cls.AUTH_TOKEN_PATH)
         try:
-            with open(cls.AUTH_TOKEN_PATH) as f:
+            with open(token_path) as f:
                 return f.read()
         except IOError as e:
-            log.error('Unable to read token from {}: {}'.format(cls.AUTH_TOKEN_PATH, e))
+            log.error('Unable to read token from {}: {}'.format(token_path, e))
 
         return None
 
