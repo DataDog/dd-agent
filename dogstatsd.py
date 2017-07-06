@@ -636,10 +636,14 @@ def init6(config_path=None, args=None):
 
 
     env = copy.deepcopy(os.environ)
-    env['DD_DOGSTATSD_PORT'] = str(c['dogstatsd_port'])
-    env['DD_API_KEY'] = str(c['api_key'])
-    env['DD_DD_URL'] = str(c['dd_url'])
-    env['DD_DOGSTATSD_NON_LOCAL_TRAFFIC'] = str(c['non_local_traffic'])
+    if c.get('api_key'):
+        env['DD_API_KEY'] = str(c['api_key'])
+    if c.get('dogstatsd_port'):
+        env['DD_DOGSTATSD_PORT'] = str(c['dogstatsd_port'])
+    if c.get('dd_url'):
+        env['DD_DD_URL'] = str(c['dd_url'])
+    if c.get('non_local_traffic'):
+        env['DD_DOGSTATSD_NON_LOCAL_TRAFFIC'] = str(c['non_local_traffic'])
     if c.get('dogstatsd_socket'):
         env['DD_DOGSTATSD_SOCKET'] = str(c['dogstatsd_socket'])
 
