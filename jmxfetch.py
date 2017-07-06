@@ -8,13 +8,10 @@ if __name__ == '__main__':
     initialize_logging('jmxfetch')
 
 # stdlib
-from contextlib import nested
 import glob
 import logging
 import os
-import signal
 import sys
-import tempfile
 import time
 
 # 3p
@@ -33,7 +30,6 @@ from daemon import ProcessRunner
 from util import yLoader
 from utils.jmx import JMX_FETCH_JAR_NAME, JMXFiles
 from utils.platform import Platform
-from utils.subprocess_output import subprocess
 
 log = logging.getLogger('jmxfetch')
 
