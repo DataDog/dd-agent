@@ -7,6 +7,7 @@ import logging
 import types
 import os
 import getpass
+import socket
 
 # 3rd party
 import requests
@@ -234,13 +235,13 @@ class CloudFoundry(object):
 
     @staticmethod
     def get_host_aliases(agentConfig):
-        if not is_cloud_foundry(agentConfig):
+        if not CloudFoundry.is_cloud_foundry(agentConfig):
             return CloudFoundry.host_aliases
         if os.environ.get("DD_BOSH_ID"):
             CloudFoundry.host_aliases.append(os.environ.get("DD_BOSH_ID"))
         if agentConfig.get("bosh_id"):
             CloudFoundry.host_aliases.append(agentConfig.get("bosh_id"))
-        if len(DD_BOSH_NAME) == 0:
+        if len(CloudFoundry.host_aliases) == 0:
             # Only use this if the prior one fails
             # The reliability of the socket hostname is not assured
             CloudFoundry.host_aliases.append(socket.gethostname())
