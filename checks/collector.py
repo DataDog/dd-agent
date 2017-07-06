@@ -751,7 +751,7 @@ class Collector(object):
             except Exception:
                 pass
 
-        if not metadata["host_aliases"]:
+        if not metadata.get("host_aliases"):
             metadata["host_aliases"] = []
 
         try:
