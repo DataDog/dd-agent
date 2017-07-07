@@ -505,13 +505,13 @@ class Dogstatsd6(ProcessRunner):
             message = DogstatsdStatus._dogstatsd6_unavailable_message()
             exit_code = -1
         else:
+            alt_title = "{} (v BETA)".format(self.DSD6_BIN_NAME)
             dsd6_status = Dogstatsd6._get_dsd6_stats(cfg)
             if dsd6_status:
-                alt_title = "{} (v BETA)".format(self.DSD6_BIN_NAME)
                 message = dsd6_status.render(alt_title)
                 exit_code = 0
             else:
-                message = DogstatsdStatus._dogstatsd6_unavailable_message()
+                message = DogstatsdStatus._dogstatsd6_unavailable_message(alt_title)
                 exit_code = -1
 
         sys.stdout.write(message)

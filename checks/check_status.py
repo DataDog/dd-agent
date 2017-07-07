@@ -786,8 +786,8 @@ class DogstatsdStatus(AgentStatus):
         return status_info
 
     @classmethod
-    def _dogstatsd6_unavailable_message(cls):
-        lines = cls._title_lines() + [
+    def _dogstatsd6_unavailable_message(cls, title=None):
+        lines = cls._title_lines(title) + [
             style("  %s6 [BETA] unable to collect statistics." % cls.NAME, 'red'),
             style("  Problem with expvar endpoint or process.", 'red'),
             style("  Please consult dogstatsd6 logs.", 'red'),
