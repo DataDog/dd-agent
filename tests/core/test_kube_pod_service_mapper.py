@@ -1,8 +1,10 @@
 # 3rd party
-from mock import patch
+from mock import patch, Mock
+import requests
 
 # project
 from utils.kubernetes import PodServiceMapper
+from utils.kubernetes.pod_service_mapper import MAX_403_RETRIES
 from tests.core.test_kubeutil import KubeTestCase
 
 ALL_HELLO_UID = "94813607-1aad-11e7-8b67-42010a840226"
@@ -89,6 +91,30 @@ class TestKubePodServiceMapper(KubeTestCase):
             self.assertEqual([0, 1, 3], sorted(mapper.search_pods_for_service(ALL_HELLO_UID)))
             self.assertEqual([0, 1], sorted(mapper.search_pods_for_service(REDIS_HELLO_UID)))
             self.assertEqual([], sorted(mapper.search_pods_for_service("invalid")))
+
+    def test_403_disable(self):
+        exception403 = requests.exceptions.HTTPError()
+        exception403.response = Mock()
+        exception403.response.status_code = 403
+        self.assertEquals(403, exception403.response.status_code)
+        self.assertTrue(isinstance(exception403, requests.exceptions.HTTPError))
+
+        with patch.object(self.kube, 'retrieve_json_auth', side_effect=exception403) as request_mock:
+            # Fill pod label cache
+            mapper = PodServiceMapper(self.kube)
+            self.assertEqual(0, mapper._403_errors)
+
+            for i in range(0, MAX_403_RETRIES):
+                self.assertFalse(mapper._403_disable)
+                mapper._fill_services_cache()
+
+            self.assertTrue(mapper._403_disable)
+
+            # No new requests to the apiserver
+            request_mock.assert_called()
+            request_mock.reset_mock()
+            mapper._fill_services_cache()
+            request_mock.assert_not_called()
 
     def _prepare_events_tests(self, jsonfiles):
         jsons = self._load_json_array(jsonfiles)
