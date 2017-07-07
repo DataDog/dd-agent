@@ -713,14 +713,14 @@ def main(config_path=None):
             if not dsd6:
                 daemon.restart()
         elif command == 'status':
-            if c.get('dogstatsd6_enable'):
+            if _is_affirmative(c.get('dogstatsd6_enable')):
                 message = 'Status unavailable for dogstatsd6'
                 log.warning(message)
                 sys.stderr.write(message)
             else:
                 daemon.status()
         elif command == 'info':
-            if c.get('dogstatsd6_enable'):
+            if _is_affirmative(c.get('dogstatsd6_enable')):
                 return Dogstatsd6.info(c)
             else:
                 return Dogstatsd.info(c)
