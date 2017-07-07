@@ -44,7 +44,6 @@ from config import (
     get_ssl_certificate,
     get_url_endpoint,
 )
-from dogstatsd import Dogstatsd6
 from jmxfetch import JMXFetch
 from utils.hostname import get_hostname
 from utils.jmx import jmx_command, JMXFiles
@@ -52,6 +51,11 @@ from utils.platform import Platform
 from utils.sdk import load_manifest
 from utils.configcheck import configcheck, sd_configcheck
 from utils.windows_configuration import get_sdk_integration_paths
+
+from utils.logger import DisableLoggerInit
+with DisableLoggerInit():  # ensure the dogstatsd6 logger isn't started
+    from dogstatsd import Dogstatsd6
+
 # Globals
 log = logging.getLogger(__name__)
 

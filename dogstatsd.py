@@ -651,7 +651,8 @@ def init6(config_path=None, args=None):
 
     legacy_dogstatsd_log = get_logging_config().get('dogstatsd_log_file')
     if legacy_dogstatsd_log:
-        env['DD_LOG_FILE'] = os.path.join(os.path.dirname(legacy_dogstatsd_log), 'dogstatsd6.log')
+        env['DD_LOG_FILE'] = os.path.join(
+            os.path.dirname(legacy_dogstatsd_log), '{}.log'.format(Dogstatsd6.DSD6_BIN_NAME))
 
     return Dogstatsd6._get_dsd6_path(), c, env
 
