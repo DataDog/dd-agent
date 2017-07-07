@@ -42,6 +42,7 @@ from checks.check_status import DogstatsdStatus
 from checks.metric_types import MetricTypes
 from config import (
     get_config,
+    get_logging_config,
     get_version,
     _is_affirmative
 )
@@ -646,6 +647,11 @@ def init6(config_path=None, args=None):
         env['DD_DOGSTATSD_NON_LOCAL_TRAFFIC'] = str(c['non_local_traffic'])
     if c.get('dogstatsd_socket'):
         env['DD_DOGSTATSD_SOCKET'] = str(c['dogstatsd_socket'])
+    env['DD_LOG_LEVEL'] = c.get('log_level', 'info')
+
+    legacy_dogstatsd_log = get_logging_config().get('dogstatsd_log_file')
+    if legacy_dogstatsd_log:
+        env['DD_LOG_FILE'] = os.path.join(os.path.dirname(legacy_dogstatsd_log), 'dogstatsd6.log')
 
     return Dogstatsd6._get_dsd6_path(), c, env
 
@@ -678,6 +684,8 @@ def main(config_path=None):
     # If no args were passed in, run the server in the foreground.
     if not args:
         if dsd6:
+            logging.info("Launching Dogstatsd6 - logging to dogstatsd6.log")
+            logging.shutdown()
             dsd6.execute([dsd6_path, 'start'], env)
         else:
             daemon.start(foreground=True)
