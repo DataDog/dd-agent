@@ -39,6 +39,7 @@ class DisableLoggerInit():
     def __enter__(self):
         self._original = config.initialize_logging
         config.initialize_logging = lambda x: None
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         config.initialize_logging = self._original
 
