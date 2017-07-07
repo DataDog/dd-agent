@@ -35,7 +35,7 @@ import checks.system.unix as u
 import checks.system.win32 as w32
 import modules
 from util import get_uuid
-from utils.cloud_metadata import GCE, EC2
+from utils.cloud_metadata import GCE, EC2, CloudFoundry
 from utils.logger import log_exceptions
 from utils.jmx import JMXFiles
 from utils.platform import Platform, get_os
@@ -750,6 +750,7 @@ class Collector(object):
                 metadata["socket-hostname"] = socket.gethostname()
             except Exception:
                 pass
+
         try:
             metadata["socket-fqdn"] = socket.getfqdn()
         except Exception:
@@ -759,9 +760,17 @@ class Collector(object):
         metadata["timezones"] = self._decode_tzname(time.tzname)
 
         # Add cloud provider aliases
+        if not metadata.get("host_aliases"):
+            metadata["host_aliases"] = []
+
         host_aliases = GCE.get_host_aliases(self.agentConfig)
         if host_aliases:
-            metadata['host_aliases'] = host_aliases
+            metadata['host_aliases'] += host_aliases
+
+        try:
+            metadata["host_aliases"] += CloudFoundry.get_host_aliases(self.agentConfig)
+        except Exception:
+            pass
 
         return metadata
 

@@ -5,6 +5,9 @@
 # stdlib
 import logging
 import types
+import os
+import getpass
+import socket
 
 # 3rd party
 import requests
@@ -226,3 +229,30 @@ class EC2(object):
             return EC2.get_metadata(agentConfig).get("instance-id", None)
         except Exception:
             return None
+
+class CloudFoundry(object):
+    host_aliases = []
+
+    @staticmethod
+    def get_host_aliases(agentConfig):
+        if not CloudFoundry.is_cloud_foundry(agentConfig):
+            return CloudFoundry.host_aliases
+        if os.environ.get("DD_BOSH_ID"):
+            if os.environ.get("DD_BOSH_ID") not in CloudFoundry.host_aliases:
+                CloudFoundry.host_aliases.append(os.environ.get("DD_BOSH_ID"))
+        if agentConfig.get("bosh_id"):
+            if agentConfig.get("bosh_id") not in CloudFoundry.host_aliases:
+                CloudFoundry.host_aliases.append(agentConfig.get("bosh_id"))
+        if len(CloudFoundry.host_aliases) == 0:
+            # Only use this if the prior one fails
+            # The reliability of the socket hostname is not assured
+            CloudFoundry.host_aliases.append(socket.gethostname())
+        return CloudFoundry.host_aliases
+
+    @staticmethod
+    def is_cloud_foundry(agentConfig):
+        if agentConfig.get("cloud_foundry"):
+            return True
+        elif os.environ.get("CLOUD_FOUNDRY"):
+            return True
+        return False
