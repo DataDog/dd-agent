@@ -255,10 +255,4 @@ class CloudFoundry(object):
             return True
         elif os.environ.get("CLOUD_FOUNDRY"):
             return True
-        elif os.environ.get("JOB_DIR") == "/var/vcap/jobs/dd-agent":
-            return True
-        elif os.environ.get("HOME") == "/home/vcap":
-            return True
-        elif getpass.getuser() == "vcap":
-            return True
         return False
