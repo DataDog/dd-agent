@@ -173,16 +173,16 @@ class AgentStatus(object):
         td = datetime.datetime.now() - self.created_at
         return td.seconds
 
-    def render(self):
+    def render(self, title=None):
         indent = "  "
-        lines = self._header_lines(indent) + [
+        lines = self._header_lines(indent, title) + [
             indent + l for l in self.body_lines()
         ] + ["", ""]
         return "\n".join(lines)
 
     @classmethod
-    def _title_lines(self):
-        name_line = "%s (v %s)" % (self.NAME, config.get_version())
+    def _title_lines(self, title=None):
+        name_line = title if title else "%s (v %s)" % (self.NAME, config.get_version())
         lines = [
             "=" * len(name_line),
             "%s" % name_line,
@@ -191,9 +191,9 @@ class AgentStatus(object):
         ]
         return lines
 
-    def _header_lines(self, indent):
+    def _header_lines(self, indent, title=None):
         # Don't indent the header
-        lines = self._title_lines()
+        lines = self._title_lines(title)
         if self.created_seconds_ago() > 120:
             styles = ['red', 'bold']
         else:
