@@ -39,7 +39,7 @@ class Response(object):
 
 def _get_container_inspect(c_id):
     """Return a mocked container inspect dict from self.container_inspects."""
-    for co, _, _, _, _ in TestServiceDiscovery.container_inspects:
+    for co, _, _, _, _, _ in TestServiceDiscovery.container_inspects:
         if co.get('Id') == c_id:
             return co
         return None
@@ -82,7 +82,8 @@ class TestServiceDiscovery(unittest.TestCase):
         u'Id': u'69ff25598b2314d1cdb7752cc3a659fb1c1352b32546af4f1454321550e842c0',
         u'Image': u'nginx',
         u'Name': u'/nginx',
-        u'NetworkSettings': {u'IPAddress': u'172.17.0.21', u'Ports': {u'443/tcp': None, u'80/tcp': None}}
+        u'NetworkSettings': {u'IPAddress': u'172.17.0.21', u'Ports': {u'443/tcp': None, u'80/tcp': None}},
+        u'State': {u'Pid': 1234}
     }
     docker_container_inspect_with_label = {
         u'Id': u'69ff25598b2314d1cdb7752cc3a659fb1c1352b32546af4f1454321550e842c0',
@@ -104,11 +105,11 @@ class TestServiceDiscovery(unittest.TestCase):
         u'Name': u'/nginx'
     }
     container_inspects = [
-        # (inspect_dict, expected_ip, tpl_var, expected_port, expected_ident)
-        (docker_container_inspect, '172.17.0.21', 'port', '443', 'nginx'),
-        (docker_container_inspect_with_label, '172.17.0.21', 'port', '443', 'custom-nginx'),
-        (kubernetes_container_inspect, None, 'port', '6379', 'foo'),  # arbitrarily defined in the mocked pod_list
-        (malformed_container_inspect, None, 'port', KeyError, 'foo')
+        # (inspect_dict, expected_ip, tpl_var, expected_port, expected_ident, expected_id, expected_pid)
+        (docker_container_inspect, '172.17.0.21', 'port', '443', 'nginx', '1234'),
+        (docker_container_inspect_with_label, '172.17.0.21', 'port', '443', 'custom-nginx', None),
+        (kubernetes_container_inspect, None, 'port', '6379', 'foo', None),  # arbitrarily defined in the mocked pod_list
+        (malformed_container_inspect, None, 'port', KeyError, 'foo', None)
     ]
 
     # templates with variables already extracted
@@ -271,13 +272,23 @@ class TestServiceDiscovery(unittest.TestCase):
         os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
     def test_get_port(self, *args):
-        for c_ins, _, var_tpl, expected_ports, _ in self.container_inspects:
+        for c_ins, _, var_tpl, expected_ports, _, _ in self.container_inspects:
             state = _SDDockerBackendConfigFetchState(lambda _: c_ins)
             sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
             if isinstance(expected_ports, str):
                 self.assertEquals(sd_backend._get_port(state, 'container id', var_tpl), expected_ports)
             else:
                 self.assertRaises(expected_ports, sd_backend._get_port, state, 'c_id', var_tpl)
+            clear_singletons(self.auto_conf_agentConfig)
+
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
+    @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
+    def test_get_container_pid(self, *args):
+        for c_ins, _, var_tpl, _, _, expected_pid in self.container_inspects:
+            state = _SDDockerBackendConfigFetchState(lambda _: c_ins)
+            sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
+            self.assertEquals(sd_backend._get_container_pid(state, 'container id', var_tpl), expected_pid)
             clear_singletons(self.auto_conf_agentConfig)
 
     @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
@@ -597,7 +608,7 @@ class TestServiceDiscovery(unittest.TestCase):
     def test_get_config_id(self, mock_get_auto_confd_path):
         """Test get_config_id"""
         with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
-            for c_ins, _, _, _, expected_ident in self.container_inspects:
+            for c_ins, _, _, _, expected_ident, _ in self.container_inspects:
                 sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
                 self.assertEqual(
                     sd_backend.get_config_id(DockerUtil().image_name_extractor(c_ins), c_ins.get('Config', {}).get('Labels', {})),

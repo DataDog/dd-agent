@@ -102,6 +102,7 @@ class SDDockerBackend(AbstractSDBackend):
 
         self.VAR_MAPPING = {
             'host': self._get_host_address,
+            'pid': self._get_container_pid,
             'port': self._get_port,
             'tags': self._get_additional_tags,
         }
@@ -159,6 +160,14 @@ class SDDockerBackend(AbstractSDBackend):
             }
 
         return self.config_store.get_checks_to_refresh(identifier, **platform_kwargs)
+
+    def _get_container_pid(self, state, cid, tpl_var):
+        """Extract the host-namespace pid of the container pid 0"""
+        pid = state.inspect_container(cid).get('State', {}).get('Pid')
+        if not pid:
+            return None
+
+        return str(pid)
 
     def _get_host_address(self, state, c_id, tpl_var):
         """Extract the container IP from a docker inspect object, or the kubelet API."""
