@@ -751,14 +751,6 @@ class Collector(object):
             except Exception:
                 pass
 
-        if not metadata.get("host_aliases"):
-            metadata["host_aliases"] = []
-
-        try:
-            metadata["host_aliases"] += CloudFoundry.get_host_aliases
-        except Exception:
-            pass
-
         try:
             metadata["socket-fqdn"] = socket.getfqdn()
         except Exception:
@@ -768,9 +760,17 @@ class Collector(object):
         metadata["timezones"] = self._decode_tzname(time.tzname)
 
         # Add cloud provider aliases
+        if not metadata.get("host_aliases"):
+            metadata["host_aliases"] = []
+
         host_aliases = GCE.get_host_aliases(self.agentConfig)
         if host_aliases:
             metadata['host_aliases'] += host_aliases
+
+        try:
+            metadata["host_aliases"] += CloudFoundry.get_host_aliases(self.agentConfig)
+        except Exception:
+            pass
 
         return metadata
 

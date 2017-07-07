@@ -238,14 +238,16 @@ class CloudFoundry(object):
         if not CloudFoundry.is_cloud_foundry(agentConfig):
             return CloudFoundry.host_aliases
         if os.environ.get("DD_BOSH_ID"):
-            CloudFoundry.host_aliases.append(os.environ.get("DD_BOSH_ID"))
+            if os.environ.get("DD_BOSH_ID") not in CloudFoundry.host_aliases:
+                CloudFoundry.host_aliases.append(os.environ.get("DD_BOSH_ID"))
         if agentConfig.get("bosh_id"):
-            CloudFoundry.host_aliases.append(agentConfig.get("bosh_id"))
+            if agentConfig.get("bosh_id") not in CloudFoundry.host_aliases:
+                CloudFoundry.host_aliases.append(agentConfig.get("bosh_id"))
         if len(CloudFoundry.host_aliases) == 0:
             # Only use this if the prior one fails
             # The reliability of the socket hostname is not assured
             CloudFoundry.host_aliases.append(socket.gethostname())
-        return []
+        return CloudFoundry.host_aliases
 
     @staticmethod
     def is_cloud_foundry(agentConfig):
