@@ -440,18 +440,20 @@ class Agent(Daemon):
             log.debug("Unable to automatically start jmxfetch on Windows via supervisor.")
 
         buffer = ""
-        for name, yaml in jmx_sd_configs.iteritems():
-            try:
+        try:
+            for name, yaml in jmx_sd_configs.iteritems():
                 buffer += SD_CONFIG_SEP
                 buffer += "# {}\n".format(name)
                 buffer += yaml
-            except Exception as e:
-                log.exception("unable to submit YAML via RPC: %s", e)
-            else:
-                log.info("JMX SD Config via named pip %s successfully.", name)
 
-        if buffer:
-            os.write(self.sd_pipe, buffer)
+            if buffer:
+                # will block if len(buffer) > OS pipe buffer.
+                # JMX will unblock when it reads on the other end.
+                os.write(self.sd_pipe, buffer)
+        except Exception as e:
+            log.exception("unable to submit YAML via pipe: %s", e)
+        else:
+            log.info("JMX SD Config via named pipe %s successfully.", name)
 
     def _should_restart(self):
         if time.time() - self.agent_start > self.restart_interval:
