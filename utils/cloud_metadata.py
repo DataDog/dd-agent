@@ -6,7 +6,6 @@
 import logging
 import types
 import os
-import getpass
 import socket
 
 # 3rd party
