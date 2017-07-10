@@ -55,11 +55,13 @@ class TestFunctions(TestCase):
         cfg['api_key'] = "deadbeeffeebdaed"
         cfg['use_dogstatsd'] = True
         cfg['dogstatsd6_enable'] = True
+        cfg['dogstatsd6_stats_port'] = 5050
         gc.return_value = cfg
 
         path, _, env = init6(gc)
         self.assertNotEqual(env, os.environ)
         self.assertEqual(env.get('DD_API_KEY'), cfg['api_key'])
+        self.assertEqual(env.get('DD_DOGSTATSD_STATS_PORT'), str(cfg['dogstatsd6_stats_port']))
 
 class TestServer(TestCase):
     def test_init(self):
