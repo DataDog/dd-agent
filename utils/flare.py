@@ -36,6 +36,7 @@ import simplejson as json
 # DD imports
 from checks.check_status import CollectorStatus, DogstatsdStatus, ForwarderStatus
 from config import (
+    _is_affirmative,
     get_auto_confd_path,
     get_confd_path,
     get_config,
@@ -606,7 +607,7 @@ class Flare(object):
     # Print info of all agent components
     def _info_all(self):
         CollectorStatus.print_latest_status(verbose=True)
-        if not self._config.get('dogstatsd6_enable'):
+        if not _is_affirmative(self._config.get('dogstatsd6_enable')):
             DogstatsdStatus.print_latest_status(verbose=True)
         else:
             dsd6_status = Dogstatsd6._get_dsd6_stats(self._config)
