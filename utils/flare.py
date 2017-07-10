@@ -71,6 +71,11 @@ class Flare(object):
             'password'
         ),
         CredentialPattern(
+            re.compile('( *(\w|_)*token:).+'),
+            r'\1 ********',
+            'access token'
+        ),
+        CredentialPattern(
             re.compile('(.*\ [A-Za-z0-9]+)\:\/\/([A-Za-z0-9_]+)\:(.+)\@'),
             r'\1://\2:********@',
             'password in a uri'
@@ -458,7 +463,7 @@ class Flare(object):
         with os.fdopen(fh, 'w') as temp_file:
             with open(file_path, 'r') as orig_file:
                 for line in orig_file.readlines():
-                    if not self.COMMENT_REGEX.match(line):
+                    if not self.COMMENT_REGEX.search(line):
                         clean_line, credential_found = self._clean_credentials(line, credential_patterns)
                         temp_file.write(clean_line)
                         if credential_found:
@@ -480,7 +485,7 @@ class Flare(object):
     def _clean_credentials(self, line, credential_patterns):
         credential_found = None
         for credential_pattern in credential_patterns:
-            if credential_pattern.pattern.match(line):
+            if credential_pattern.pattern.search(line):
                 line = re.sub(credential_pattern.pattern, credential_pattern.replacement, line)
                 credential_found = credential_pattern.label
                 # only one pattern should match per line
