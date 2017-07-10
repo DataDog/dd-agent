@@ -104,6 +104,7 @@ class SDDockerBackend(AbstractSDBackend):
             'host': self._get_host_address,
             'pid': self._get_container_pid,
             'port': self._get_port,
+            'container-name': self._get_container_name,
             'tags': self._get_additional_tags,
         }
 
@@ -337,18 +338,12 @@ class SDDockerBackend(AbstractSDBackend):
 
         return tags
 
-    def _get_container_name(self, state, c_id):
+    def _get_container_name(self, state, c_id, tpl_var):
         container_inspect = state.inspect_container(c_id)
-        name = container_inspect.get('Name', '')
-        if name.startswith('/'):
-            name = name[1:]
-        return name
+        return container_inspect.get('Name', '').lstrip('/')
 
     def _get_additional_tags(self, state, c_id, *args):
         tags = []
-        container_name = self._get_container_name(state, c_id)
-        if container_name:
-            tags.append('container_name:%s' % container_name)
 
         if Platform.is_k8s():
             pod_metadata = state.get_kube_config(c_id, 'metadata')
