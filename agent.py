@@ -74,6 +74,7 @@ JMX_SUPERVISOR_ENTRY = 'datadog-agent:jmxfetch'
 JMX_GRACE_SECS = 2
 SERVICE_DISCOVERY_PREFIX = 'SD-'
 SD_CONFIG_SEP = "#### SERVICE-DISCOVERY ####\n"
+SD_CONFIG_TERM = "#### SERVICE-DISCOVERY TERM ####\n"
 
 DEFAULT_SUPERVISOR_SOCKET = '/opt/datadog-agent/run/datadog-supervisor.sock'
 DEFAULT_COLLECTOR_PROFILE_INTERVAL = 20
@@ -440,20 +441,23 @@ class Agent(Daemon):
             log.debug("Unable to automatically start jmxfetch on Windows via supervisor.")
 
         buffer = ""
+        names = []
         try:
             for name, yaml in jmx_sd_configs.iteritems():
                 buffer += SD_CONFIG_SEP
                 buffer += "# {}\n".format(name)
                 buffer += yaml
+                names.append(name)
 
             if buffer:
                 # will block if len(buffer) > OS pipe buffer.
                 # JMX will unblock when it reads on the other end.
                 os.write(self.sd_pipe, buffer)
+                os.write(self.sd_pipe, SD_CONFIG_TERM)
         except Exception as e:
             log.exception("unable to submit YAML via pipe: %s", e)
         else:
-            log.info("JMX SD Config via named pipe %s successfully.", name)
+            log.info("JMX SD Configs submitted via named pipe successfully: %s", names)
 
     def _should_restart(self):
         if time.time() - self.agent_start > self.restart_interval:
