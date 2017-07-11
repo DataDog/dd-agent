@@ -251,8 +251,6 @@ class DockerUtil:
 
         if self.is_swarm():
             tags.append('docker_swarm:active')
-        else:
-            tags.append('docker_swarm:inactive')
 
         return tags
 
