@@ -103,7 +103,7 @@ class KubeUtil:
         else:
             master_host = os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME
             master_port = os.environ.get('KUBERNETES_SERVICE_PORT') or self.DEFAULT_MASTER_PORT
-            self.kubernetes_api_root_url = 'https://%s:%d' % (master_host, master_port)
+            self.kubernetes_api_root_url = 'https://%s:%s' % (master_host, master_port)
 
         self.kubernetes_api_url = '%s/api/v1' % self.kubernetes_api_root_url
 
