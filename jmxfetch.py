@@ -23,12 +23,13 @@ import yaml
 # project
 from config import (
     DEFAULT_CHECK_FREQUENCY,
+    SD_PIPE_NAME,
     get_confd_path,
     get_config,
     get_jmx_pipe_path,
     get_logging_config,
     PathNotFound,
-    _is_affirmative
+    _is_affirmative,
 )
 from util import yLoader
 from utils.jmx import JMX_FETCH_JAR_NAME, JMXFiles
@@ -273,6 +274,8 @@ class JMXFetch(object):
                 pipe_path = get_jmx_pipe_path()
                 subprocess_args.insert(4, '--tmp_directory')
                 subprocess_args.insert(5, pipe_path)
+                subprocess_args.insert(4, '--sd_pipe')
+                subprocess_args.insert(5, SD_PIPE_NAME)
                 subprocess_args.insert(4, '--sd_enabled')
 
             if jmx_checks:
