@@ -40,7 +40,7 @@ SUPERVISOR_PIDFILE="/opt/datadog-agent/run/datadog-supervisord.pid"
 COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
 
 # Captures processes in the supervisord group that are 'optional' i.e. not essential for the agent to run
-DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro|trace-agent|process-agent"
+DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro|trace-agent"
 
 # Source function library.
 . /etc/rc.d/init.d/functions
