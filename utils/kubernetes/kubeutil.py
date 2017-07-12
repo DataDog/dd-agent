@@ -445,7 +445,7 @@ class KubeUtil:
         token_path = instance.get('bearer_token_path', cls.AUTH_TOKEN_PATH)
         try:
             with open(token_path) as f:
-                return f.read()
+                return f.read().strip()
         except IOError as e:
             log.error('Unable to read token from {}: {}'.format(token_path, e))
 
