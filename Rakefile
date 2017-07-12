@@ -83,6 +83,12 @@ namespace :test do
 
   desc 'Display test coverage for checks'
   task 'coverage' => 'ci:default:coverage'
+
+  task 'outdated' do
+    sh './venv/bin/piprot requirements.txt --outdated'
+    sh './venv/bin/piprot requirements-opt.txt --outdated'
+    sh './venv/bin/piprot requirements-test.txt --outdated'
+  end
 end
 
 RuboCop::RakeTask.new(:rubocop) do |t|
