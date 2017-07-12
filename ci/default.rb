@@ -55,6 +55,9 @@ namespace :ci do
         sh %(find . -name '*.py' -not\
                \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' -or -path '*.git*' -or -path \
                '*.ropeproject*' -or -path '*fixtures*' \\) | xargs -n 80 -P 8 pylint --rcfile=./.pylintrc)
+        sh './venv/bin/piprot requirements.txt --outdated'
+        sh './venv/bin/piprot requirements-opt.txt --outdated'
+        sh './venv/bin/piprot requirements-test.txt --outdated'
       end
     end
 
