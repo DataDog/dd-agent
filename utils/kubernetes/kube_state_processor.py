@@ -142,7 +142,7 @@ class KubeStateProcessor:
     # The phase gets not passed through; rather, it becomes the service check suffix.
     def kube_pod_status_phase(self, message, **kwargs):
         """ Phase a pod is in. """
-        check_basename = NAMESPACE + '.pod.phase.'
+        check_basename = NAMESPACE + '.pod.phase'
         for metric in message.metric:
             # The gauge value is always 1, no point in fetching it.
             phase = ''
@@ -154,7 +154,7 @@ class KubeStateProcessor:
                     tags.append('{}:{}'.format(label.name, label.value))
             #TODO: add deployment/replicaset?
             status = self.pod_phase_to_status.get(phase, self.kube_check.UNKNOWN)
-            self.service_check(check_basename + phase, status, tags=tags)
+            self.service_check(check_basename, status, tags=tags)
 
     def kube_node_status_ready(self, message, **kwargs):
         """ The ready status of a cluster node. """
