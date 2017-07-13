@@ -4,6 +4,49 @@
 
 require './ci/common'
 
+def outdated_packages
+  outdated_array = []
+  outdated_output = `pip list --outdated --format=columns`
+  outdated_packages = `echo "#{outdated_output}" | awk '{print $1}' | grep -v Package | grep -v '\-'`.split("\n")
+  outdated_versions = `echo "#{outdated_output}" | awk '{print $2}' | grep -v Version | grep -v '\-'`.split("\n")
+  outdated_latest = `echo "#{outdated_output}" | awk '{print $3}' | grep -v Latest | grep -v '\-'`.split("\n")
+  outdated_packages.each_with_index do |pkg, i|
+    dep = {
+      package: pkg,
+      version: outdated_versions[i],
+      latest: outdated_latest[i]
+    }
+    outdated_array.push(dep)
+  end
+  outdated_array
+end
+
+def check_outdated
+  outdated = []
+  outdated_array = outdated_packages
+  outdated_array.each do |dep|
+    outdated += outdated? dep
+  end
+  outdated == '' && return
+  print "There are outdated packages: \n"
+  outdated.each do |dep|
+    print dep
+  end
+  raise 'Please upgrade these packages'
+end
+
+def outdated?(dep)
+  outdated = []
+  req_files = [
+    'requirements.txt', 'requirements-opt.txt', 'requirements-test.txt'
+  ]
+  req_files.each do |f|
+    File.read(f).include?(dep[:package]) || next
+    outdated << "#{dep[:package]} in #{f} with version #{dep[:version]} is outdated. Latest is #{dep[:latest]} \n"
+  end
+  outdated
+end
+
 namespace :ci do
   namespace :default do |flavor|
     task before_install: ['ci:common:before_install']
@@ -55,9 +98,7 @@ namespace :ci do
         sh %(find . -name '*.py' -not\
                \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' -or -path '*.git*' -or -path \
                '*.ropeproject*' -or -path '*fixtures*' \\) | xargs -n 80 -P 8 pylint --rcfile=./.pylintrc)
-        sh './venv/bin/piprot requirements.txt --outdated'
-        sh './venv/bin/piprot requirements-opt.txt --outdated'
-        sh './venv/bin/piprot requirements-test.txt --outdated'
+        check_outdated
       end
     end
 

@@ -3,4 +3,3 @@ flake8==2.5.1
 mock==2.0.0
 pep8==1.5.7
 pylint==1.6.4
-piprot==0.9.7
