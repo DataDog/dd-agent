@@ -21,7 +21,7 @@ def outdated_packages
   outdated_array
 end
 
-def check_outdated
+def check_outdated_deps
   outdated = []
   outdated_array = outdated_packages
   outdated_array.each do |dep|
@@ -98,7 +98,7 @@ namespace :ci do
         sh %(find . -name '*.py' -not\
                \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' -or -path '*.git*' -or -path \
                '*.ropeproject*' -or -path '*fixtures*' \\) | xargs -n 80 -P 8 pylint --rcfile=./.pylintrc)
-        check_outdated
+        check_outdated_deps
       end
     end
 
