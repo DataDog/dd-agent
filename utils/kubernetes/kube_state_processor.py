@@ -47,6 +47,7 @@ class KubeStateProcessor:
             'kube_daemonset_status_current_number_scheduled': NAMESPACE + '.daemonset.scheduled',
             'kube_daemonset_status_number_misscheduled': NAMESPACE + '.daemonset.misscheduled',
             'kube_daemonset_status_desired_number_scheduled': NAMESPACE + '.daemonset.desired',
+            'kube_daemonset_status_number_ready': NAMESPACE + '.daemonset.ready',
             # pods
             'kube_pod_status_ready' : NAMESPACE + '.pod.ready',
             'kube_pod_status_scheduled': NAMESPACE + '.pod.scheduled',
