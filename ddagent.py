@@ -29,7 +29,7 @@ import zlib
 os.umask(022)
 
 # 3p
-import simplejson as json
+import json
 try:
     import pycurl
 except ImportError:
@@ -484,13 +484,43 @@ class Application(tornado.web.Application):
             metrics[name] = [[host, device, ts, value]]
 
     def _postMetrics(self):
-
+        BODY_SIZE = 2048  # fixme and put on top of the module, should be the same as the one in propjoe
         if len(self._metrics) > 0:
+            # let's first try to do the same thing as before this patch
             self._metrics['uuid'] = get_uuid()
             self._metrics['internalHostname'] = get_hostname(self._agentConfig)
             self._metrics['apiKey'] = self._agentConfig['api_key']
-            MetricTransaction(json.dumps(self._metrics),
-                              headers={'Content-Type': 'application/json'})
+            data = json.dumps(self._metrics)
+
+            if len(data) < BODY_SIZE:
+                MetricTransaction(data, headers={'Content-Type': 'application/json'})
+            else:
+                # at this point we know the intake would refuse the payload, instead
+                # of performing the request, waiting the response and drop the payload
+                # on the floor, slice it into multiple transactions
+
+                # we do this to avoid copying self._metrics when the payload is ok.
+                # the cost of the copy might be in the realm of milliseconds and even
+                # seconds depending on the number of the keys in self._metric
+                del self._metrics['uuid']
+                del self._metrics['internalHostname']
+                del self._metrics['apiKey']
+
+                # here be slicing
+                payload = {}
+                approx_size = 0
+                for k,v in self._metrics.iteritems():
+                    approx_size += len(json.dumps({k: v}))
+                    if approx_size < BODY_SIZE:
+                        payload[k] = v
+                        continue
+
+                    payload['uuid'] = get_uuid()
+                    payload['internalHostname'] = get_hostname(self._agentConfig)
+                    payload['apiKey'] = self._agentConfig['api_key']
+                    MetricTransaction(json.dumps(payload), headers={'Content-Type': 'application/json'})
+                    payload = {}
+                    approx_size = 0
             self._metrics = {}
 
     def run(self):
