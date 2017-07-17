@@ -6,7 +6,7 @@ require './ci/common'
 
 def outdated_packages
   outdated_array = []
-  outdated_output = `pip list --outdated --format=columns`
+  outdated_output = `venv/bin/pip list --outdated --format=columns`
   outdated_packages = `echo "#{outdated_output}" | awk '{print $1}' | grep -v Package | grep -v '\-'`.split("\n")
   outdated_versions = `echo "#{outdated_output}" | awk '{print $2}' | grep -v Version | grep -v '\-'`.split("\n")
   outdated_latest = `echo "#{outdated_output}" | awk '{print $3}' | grep -v Latest | grep -v '\-'`.split("\n")
