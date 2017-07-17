@@ -30,6 +30,7 @@ CREATOR_KIND_TO_TAG = {
     'DaemonSet': 'kube_daemon_set',
     'ReplicaSet': 'kube_replica_set',
     'ReplicationController': 'kube_replication_controller',
+    'StatefulSet': 'kube_stateful_set',
     'Deployment': 'kube_deployment',
     'Job': 'kube_job'
 }
