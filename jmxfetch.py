@@ -346,7 +346,7 @@ class JMXFetch(object):
         except OSError as e:
             raise e
 
-        return _stat.st_atime
+        return _stat.st_mtime
 
     @staticmethod
     def _is_jmx_check(check_config, check_name, checks_list):
