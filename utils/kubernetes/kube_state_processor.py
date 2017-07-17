@@ -2,6 +2,13 @@
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
+######################
+# DEPRECATION NOTICE #
+######################
+#
+# KubeStateProcess is deprecated and will disappear
+# with agent 5.16. Please use PrometheusCheck instead.
+
 NAMESPACE = 'kubernetes_state'
 
 # message.type is the index in this array
@@ -74,6 +81,8 @@ class KubeStateProcessor:
             - call check method with the same name as the metric
             - log some info if none of the above worked
         """
+        self.log.warn("[DEPRECATION WARNING] KubeStateProcess is deprecated "
+            "and will disappear with agent 5.16. Please use PrometheusCheck instead.")
         try:
             if message.name in self.metric_to_gauge:
                 self._submit_gauges(self.metric_to_gauge[message.name], message)
