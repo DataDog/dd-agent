@@ -434,6 +434,13 @@ class TestServiceDiscovery(unittest.TestCase):
                  ['host', 'port_1'], ['foo', 'bar:baz']),
                 ({'host': '%%host%%', 'port': '%%port_1%%', 'tags': ['env:test', 'foo', 'bar:baz']},
                  {'host': '127.0.0.1', 'port_1': '42'})
+            ),
+            (
+                ({'NetworkSettings': {'IPAddress': '127.0.0.1', 'Ports': {'42/tcp': None, '22/tcp': None}}},
+                 {'host': '%%host%%', 'port': '%%port_1%%', 'tags': {'env': 'test'}},
+                 ['host', 'port_1'], ['foo', 'bar:baz']),
+                ({'host': '%%host%%', 'port': '%%port_1%%', 'tags': ['env:test', 'foo', 'bar:baz']},
+                 {'host': '127.0.0.1', 'port_1': '42'})
             )
         ]
 
@@ -529,6 +536,7 @@ class TestServiceDiscovery(unittest.TestCase):
                     for key in instance_tpl.keys():
                         if isinstance(instance_tpl[key], list):
                             self.assertEquals(len(instance_tpl[key]), len(co[1][0].get(key)))
+
                             for elem in instance_tpl[key]:
                                 self.assertTrue(elem in co[1][0].get(key))
                         else:
