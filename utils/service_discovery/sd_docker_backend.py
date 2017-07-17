@@ -491,7 +491,11 @@ class SDDockerBackend(AbstractSDBackend):
         # add default tags to the instance
         if tags:
             tpl_tags = instance_tpl.get('tags', [])
-            tags += tpl_tags if isinstance(tpl_tags, list) else [tpl_tags]
+            if isinstance(tpl_tags, dict):
+                for key, val in tpl_tags.iteritems():
+                    tags.append("{}:{}".format(key, val))
+            else:
+                tags += tpl_tags if isinstance(tpl_tags, list) else [tpl_tags]
             instance_tpl['tags'] = list(set(tags))
 
         for var in variables:
