@@ -42,6 +42,7 @@ class TestEmitter(unittest.TestCase):
             formatted_sample = [s['metric'], s['points'][0][0], s['points'][0][1], attributes]
             legacy_payload_split['metrics'].append(formatted_sample)
 
+        del legacy_payload['service_checks']
         self.assertEqual(legacy_payload, legacy_payload_split)
 
         with open(FIXTURE_PATH + '/sc_payload.json') as f:
