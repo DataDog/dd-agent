@@ -219,6 +219,11 @@ class Agent(Daemon):
         logging.getLogger().setLevel(logging.ERROR)
         return CollectorStatus.print_latest_status(verbose=verbose)
 
+    def sd_pipe_jmx_configs(self, hostname):
+        jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
+        if jmx_sd_configs:
+            self._submit_jmx_service_discovery(jmx_sd_configs)
+
     def run(self, config=None):
         """Main loop of the collector"""
 
@@ -259,7 +264,7 @@ class Agent(Daemon):
         if self._agentConfig.get('service_discovery'):
             self.sd_backend = get_sd_backend(self._agentConfig)
 
-        if _is_affirmative(self._agentConfig.get('sd_jmx_enable', False)):
+        if self.sd_backend and _is_affirmative(self._agentConfig.get('sd_jmx_enable', False)):
             pipe_path = get_jmx_pipe_path()
             if Platform.is_windows():
                 pipe_name = pipe_path.format(pipename=SD_PIPE_NAME)
@@ -281,9 +286,7 @@ class Agent(Daemon):
 
         # Load JMX configs if available
         if self._jmx_service_discovery_enabled:
-            jmx_sd_configs = generate_jmx_configs(self._agentConfig, hostname)
-            if jmx_sd_configs:
-                self._submit_jmx_service_discovery(jmx_sd_configs)
+            self.sd_pipe_jmx_configs(hostname)
 
         # Initialize the Collector
         self.collector = Collector(self._agentConfig, emitters, systemStats, hostname)
@@ -327,6 +330,16 @@ class Agent(Daemon):
                 else:
                     self.reload_configs()
 
+            # JMXFetch restarts should prompt re-piping *all* JMX configs
+            if self._jmx_service_discovery_enabled and \
+                    (not self.reload_configs_flag or isinstance(self.reload_configs_flag, set)):
+                try:
+                    jmx_launch = JMXFetch._get_jmx_launchtime()
+                    if self.last_jmx_piped and self.last_jmx_piped < jmx_launch:
+                        self.sd_pipe_jmx_configs(hostname)
+                except Exception as e:
+                    log.debug("could not stat JMX lunch file: %s", e)
+
             # Do the work. Pass `configs_reloaded` to let the collector know if it needs to
             # look for the AgentMetrics check and pop it out.
             self.collector.run(checksd=self._checksd,
@@ -343,15 +356,6 @@ class Agent(Daemon):
                 try:
                     self.sd_backend.reload_check_configs = get_config_store(
                         self._agentConfig).crawl_config_template()
-
-                    # JMXFetch restarts should prompt reload
-                    try:
-                        jmx_launch = JMXFetch._get_jmx_launchtime()
-                        if self.last_jmx_piped and self.last_jmx_piped < jmx_launch:
-                            self.sd_backend.reload_check_configs = True
-                    except OSError as e:
-                        log.debug("could not stat JMX lunch file: %s", e)
-
                 except Exception as e:
                     log.warn('Something went wrong while looking for config template changes: %s' % str(e))
 
