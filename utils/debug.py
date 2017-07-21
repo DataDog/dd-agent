@@ -3,13 +3,11 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 # stdlib
-from pprint import pprint
 import inspect
-import os
 import sys
 
 # datadog
-from config import get_checksd_path, get_confd_path
+from config import get_checksd_path
 from utils.platform import get_os
 
 
