@@ -463,7 +463,7 @@ class Application(tornado.web.Application):
             self._agent_transaction_tracker.start_periodic_snapshots(interval=60)
 
     def dump_mem_stats(self):
-        if self._mem_tracker():
+        if self._mem_tracker:
             trmgr_dump_path = os.path.join(
                 os.path.dirname(get_logging_config()['forwarder_log_file']),
                 'forwarder_profile_trmgr.dat'
@@ -588,7 +588,7 @@ class Application(tornado.web.Application):
 
             if self._mem_tracker:
                 diff  = self._mem_tracker.format_diff()
-                for line in summary._format(self._mem_tracker.s0):
+                for line in summary.format_(self._mem_tracker.s0):
                     log.debug("MEM PROFILE[TOTAL]:\t%s", line)
                 for line in diff:
                     log.debug("MEM PROFILE[DIFF]:\t%s", line)
