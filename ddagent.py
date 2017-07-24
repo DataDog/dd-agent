@@ -456,11 +456,19 @@ class Application(tornado.web.Application):
             self._tr_manager_tracker.track_class(TransactionManager)
             self._tr_manager_tracker.track_class(TransactionManager, resolution_level=resolution)
             self._tr_manager_tracker.start_periodic_snapshots(interval=60)
-            dump_path = os.path.join(
+            self._agent_transaction_tracker.track_class(AgentTransaction)
+            self._agent_transaction_tracker.track_class(AgentTransaction, resolution_level=resolution)
+            self._agent_transaction_tracker.start_periodic_snapshots(interval=60)
+            trmgr_dump_path = os.path.join(
                 os.path.dirname(get_logging_config()['forwarder_log_file']),
                 'forwarder_profile.dat'
             )
-            self._tr_manager_tracker.stats.dump_stats(dump_path)
+            atr_dump_path = os.path.join(
+                os.path.dirname(get_logging_config()['forwarder_log_file']),
+                'forwarder_profile.dat'
+            )
+            self._tr_manager_tracker.stats.dump_stats(trmgr_dump_path)
+            self._agent_transaction_tracker.stats.dump_stats(atr_dump_path)
 
 
     def get_from_dns_cache(self, url):
