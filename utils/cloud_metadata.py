@@ -16,6 +16,36 @@ from utils.proxy import get_proxy
 
 log = logging.getLogger(__name__)
 
+class Azure(object):
+    URL = "http://169.254.169.254/metadata/instance?api-version=2017-04-02"
+    TIMEOUT = 0.3 # second
+
+    @staticmethod
+    def _get_metadata(agentConfig):
+        if not agentConfig.get('collect_instance_metadata', True):
+            log.info("Instance metadata collection is disabled: not collecting Azure metadata.")
+            return {}
+
+        try:
+            r = requests.get(
+                Azure.URL,
+                timeout=Azure.TIMEOUT,
+                headers={'Metadata': 'true'}
+            )
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            log.debug("Collecting Azure Metadata failed %s", str(e))
+            return None
+
+    @staticmethod
+    def get_host_aliases(agentConfig):
+        try:
+            host_metadata = Azure._get_metadata(agentConfig)
+            return [host_metadata['compute']['vmId']]
+        except Exception:
+            return []
+
 class GCE(object):
     URL = "http://169.254.169.254/computeMetadata/v1/?recursive=true"
     TIMEOUT = 0.3 # second
