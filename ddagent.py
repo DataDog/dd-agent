@@ -29,6 +29,7 @@ import zlib
 from pympler import (
     tracker,
     classtracker,
+    summary,
 )
 
 # For pickle & PID files, see issue 293
@@ -587,8 +588,10 @@ class Application(tornado.web.Application):
 
             if self._mem_tracker:
                 diff  = self._mem_tracker.format_diff()
+                for line in summary._format(self._mem_tracker.s0):
+                    log.debug("MEM PROFILE[TOTAL]:\t%s", line)
                 for line in diff:
-                    log.debug("MEM PROFILE:\t%s", line)
+                    log.debug("MEM PROFILE[DIFF]:\t%s", line)
 
         tr_sched = tornado.ioloop.PeriodicCallback(flush_trs, TRANSACTION_FLUSH_INTERVAL,
                                                    io_loop=self.mloop)
