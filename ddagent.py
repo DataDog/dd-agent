@@ -452,6 +452,7 @@ class Application(tornado.web.Application):
         if _is_affirmative(agentConfig['profile_forwarder']):
             self._mem_tracker = tracker.SummaryTracker()
             self._tr_manager_tracker = classtracker.ClassTracker()
+            self._agent_transaction_tracker = classtracker.ClassTracker()
             resolution = int(agentConfig.get('profile_resolution', 1))
             self._tr_manager_tracker.track_class(TransactionManager)
             self._tr_manager_tracker.track_class(TransactionManager, resolution_level=resolution)
@@ -459,6 +460,9 @@ class Application(tornado.web.Application):
             self._agent_transaction_tracker.track_class(AgentTransaction)
             self._agent_transaction_tracker.track_class(AgentTransaction, resolution_level=resolution)
             self._agent_transaction_tracker.start_periodic_snapshots(interval=60)
+
+    def dump_mem_stats(self):
+        if self._mem_tracker():
             trmgr_dump_path = os.path.join(
                 os.path.dirname(get_logging_config()['forwarder_log_file']),
                 'forwarder_profile_trmgr.dat'
@@ -469,7 +473,6 @@ class Application(tornado.web.Application):
             )
             self._tr_manager_tracker.stats.dump_stats(trmgr_dump_path)
             self._agent_transaction_tracker.stats.dump_stats(atr_dump_path)
-
 
     def get_from_dns_cache(self, url):
         if not self.agent_dns_caching:
@@ -626,6 +629,7 @@ def init(skip_ssl_validation=False, use_simple_http_client=False):
 
     def sigterm_handler(signum, frame):
         log.info("caught sigterm. stopping")
+        app.dump_mem_stats()
         app.stop()
 
     import signal
