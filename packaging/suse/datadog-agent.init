@@ -31,7 +31,7 @@ COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
 SYSTEM_PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH
 
 # Captures processes in the supervisord group that are 'optional' i.e. not essential for the agent to run
-DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro|trace-agent"
+DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro|trace-agent|process-agent"
 
 if [ ! -x $AGENTPATH ]; then
     echo "$AGENTPATH not found. Exiting."
