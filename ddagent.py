@@ -25,6 +25,12 @@ import threading
 from urlparse import urlparse
 import zlib
 
+# profile forwarder
+from pympler import (
+    tracker,
+    classtracker,
+)
+
 # For pickle & PID files, see issue 293
 os.umask(022)
 
@@ -412,6 +418,7 @@ class Application(tornado.web.Application):
         AgentTransaction.set_endpoints(agentConfig['endpoints'])
         if agentConfig['endpoints'] == {}:
             log.warning(u"No valid endpoint found. Forwarder will drop all incoming payloads.")
+
         AgentTransaction.set_request_timeout(agentConfig['forwarder_timeout'])
 
         max_parallelism = self.NO_PARALLELISM
@@ -439,6 +446,21 @@ class Application(tornado.web.Application):
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER / 1000
             self._watchdog = Watchdog.create(watchdog_timeout,
                                              max_resets=WATCHDOG_HIGH_ACTIVITY_THRESHOLD)
+
+        # Monitor memory
+        self._mem_tracker = None
+        if _is_affirmative(agentConfig['profile_forwarder']):
+            self._mem_tracker = tracker.SummaryTracker()
+            self._tr_manager_tracker = classtracker.ClassTracker()
+            resolution = int(agentConfig.get('profile_resolution', 1))
+            self._tr_manager_tracker.track_class(TransactionManager)
+            self._tr_manager_tracker.track_class(TransactionManager, resolution_level=resolution)
+            self._tr_manager_tracker.start_periodic_snapshots(interval=60)
+            dump_path = os.path.join(
+                os.path.dirname(get_logging_config()['forwarder_log_file']),
+                'forwarder_profile.dat'
+            )
+            self._tr_manager_tracker.stats.dump_stats(dump_path)
 
 
     def get_from_dns_cache(self, url):
@@ -551,6 +573,11 @@ class Application(tornado.web.Application):
                 self._watchdog.reset()
             self._postMetrics()
             self._tr_manager.flush()
+
+            if self._mem_tracker:
+                diff  = self._mem_tracker.format_diff()
+                for line in diff:
+                    log.debug("MEM PROFILE:\t%s", line)
 
         tr_sched = tornado.ioloop.PeriodicCallback(flush_trs, TRANSACTION_FLUSH_INTERVAL,
                                                    io_loop=self.mloop)
