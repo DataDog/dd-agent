@@ -461,11 +461,11 @@ class Application(tornado.web.Application):
             self._agent_transaction_tracker.start_periodic_snapshots(interval=60)
             trmgr_dump_path = os.path.join(
                 os.path.dirname(get_logging_config()['forwarder_log_file']),
-                'forwarder_profile.dat'
+                'forwarder_profile_trmgr.dat'
             )
             atr_dump_path = os.path.join(
                 os.path.dirname(get_logging_config()['forwarder_log_file']),
-                'forwarder_profile.dat'
+                'forwarder_profile_atr.dat'
             )
             self._tr_manager_tracker.stats.dump_stats(trmgr_dump_path)
             self._agent_transaction_tracker.stats.dump_stats(atr_dump_path)
