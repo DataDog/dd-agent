@@ -651,6 +651,8 @@ def init6(config_path=None, args=None):
     if c.get('dogstatsd6_stats_port'):
         env['DD_DOGSTATSD_STATS_PORT'] = str(c['dogstatsd6_stats_port'])
     env['DD_LOG_LEVEL'] = c.get('log_level', 'info')
+    # metadata is sent by the collector, disable it in dogstatsd6 to avoid sending conflicting metadata
+    env['DD_ENABLE_METADATA_COLLECTION'] = 'false'
 
     legacy_dogstatsd_log = get_logging_config().get('dogstatsd_log_file')
     if legacy_dogstatsd_log:
