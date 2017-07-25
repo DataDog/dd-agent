@@ -157,6 +157,28 @@ class Cpu(Check):
 
         return self.get_metrics()
 
+class Network(Check):
+    def __init__(self, logger):
+        Check.__init__(self, logger)
+
+        self.gauge('system.net.bytes_rcvd')
+        self.gauge('system.net.bytes_sent')
+        self.rcounter = WinPDHMultiCounter('Network Interface', 'Bytes Received/sec')
+        self.scounter = WinPDHMultiCounter('Network Interface', 'Bytes Sent/sec')
+
+    def check(self, agentConfig):
+        rcvd = self.rcounter.get_all_values()
+        sent = self.scounter.get_all_values()
+
+        for devname, rate in rcvd.iteritems():
+            name = self.normalize_device_name(devname)
+            self.save_sample('system.net.bytes_rcvd', rate, device_name = name)
+
+        for devname, rate in sent.iteritems():
+            name = self.normalize_device_name(devname)
+            self.save_sample('system.net.bytes_sent', rate, device_name = name)
+
+        return self.get_metrics()
 
 class IO(Check):
     def __init__(self, logger):
