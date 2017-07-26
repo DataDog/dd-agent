@@ -11,7 +11,7 @@ https://github.com/DataDog/dd-agent/compare/5.15.0...5.16.0
 Please refer to the [Integrations Core Checks 5.16.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.16.0) for the list of changes on the core checks.
 Please refer to the [Process Agent](https://github.com/DataDog/datadog-process-agent/) for more information on this new binary.
 
-* [FEATURE][BETA] [process-agent] adding process-agent See #3449
+* [FEATURE][BETA] [process-agent] adding process-agent See [#3449][] and [omnibus-software-181](https://github.com/DataDog/omnibus-software/pull/181)
 
 # 5.15.0 / 07-18-2017
 **Linux, Windows, Docker and Source Install**
@@ -4281,6 +4281,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3414]: https://github.com/DataDog/dd-agent/issues/3414
 [#3417]: https://github.com/DataDog/dd-agent/issues/3417
 [#3421]: https://github.com/DataDog/dd-agent/issues/3421
+[#3449]: https://github.com/DataDog/dd-agent/issues/3449
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
