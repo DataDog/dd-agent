@@ -1,6 +1,18 @@
 Changes
 =======
 
+# 5.16.0 / Unreleased
+**Linux, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.15.0...5.16.0
+
+### Changes
+Please refer to the [Integrations Core Checks 5.16.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.16.0) for the list of changes on the core checks.
+Please refer to the [Process Agent](https://github.com/DataDog/datadog-process-agent/) for more information on this new binary.
+
+* [FEATURE][BETA] [process-agent] adding process-agent See #3449
+
 # 5.15.0 / 07-18-2017
 **Linux, Windows, Docker and Source Install**
 
