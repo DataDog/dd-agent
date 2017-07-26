@@ -14,7 +14,7 @@ from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.consul_config_store import ConsulStore
 from utils.service_discovery.etcd_config_store import EtcdStore
 from utils.service_discovery.abstract_config_store import AbstractConfigStore, \
-    _TemplateCache, CONFIG_FROM_KUBE, CONFIG_FROM_TEMPLATE, CONFIG_FROM_AUTOCONF
+    _TemplateCache, CONFIG_FROM_KUBE, CONFIG_FROM_TEMPLATE, CONFIG_FROM_AUTOCONF, CONFIG_FROM_LABELS
 from utils.service_discovery.sd_backend import get_sd_backend
 from utils.service_discovery.sd_docker_backend import SDDockerBackend, _SDDockerBackendConfigFetchState
 from utils.dockerutil import DockerUtil
@@ -609,6 +609,31 @@ class TestServiceDiscovery(unittest.TestCase):
                         ['service-discovery.datadoghq.com/foo.check_names',
                          'service-discovery.datadoghq.com/foo.init_configs',
                          'service-discovery.datadoghq.com/foo.instances'],
+                        self.mock_raw_templates[image][0]))))
+
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
+    @mock.patch.object(AbstractConfigStore, 'client_read', side_effect=client_read)
+    def test_get_check_tpls_labels(self, *args):
+        """Test get_check_tpls from docker labesl"""
+        valid_config = ['image_0', 'image_1', 'image_2', 'image_3', 'image_4']
+        invalid_config = ['bad_image_0']
+        config_store = get_config_store(self.auto_conf_agentConfig)
+        for image in valid_config + invalid_config:
+            tpl = self.mock_raw_templates.get(image)[1]
+            tpl = [(CONFIG_FROM_LABELS, t[1]) for t in tpl]
+            if tpl:
+                self.assertNotEquals(
+                    tpl,
+                    config_store.get_check_tpls(image, auto_conf=True))
+            self.assertEquals(
+                tpl,
+                config_store.get_check_tpls(
+                    image, auto_conf=True,
+                    docker_labels=dict(zip(
+                        ['service-discovery.datadoghq.com/check_names',
+                         'service-discovery.datadoghq.com/init_configs',
+                         'service-discovery.datadoghq.com/instances'],
                         self.mock_raw_templates[image][0]))))
 
     @mock.patch('config.get_auto_confd_path', return_value=os.path.join(

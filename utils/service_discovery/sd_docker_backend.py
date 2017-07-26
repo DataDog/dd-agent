@@ -149,7 +149,8 @@ class SDDockerBackend(AbstractSDBackend):
             self.reload_check_configs = True
             return
 
-        identifier = inspect.get('Config', {}).get('Labels', {}).get(DATADOG_ID) or \
+        labels = inspect.get('Config', {}).get('Labels', {})
+        identifier = labels.get(DATADOG_ID) or \
             self.dockerutil.image_name_extractor(inspect)
 
         platform_kwargs = {}
@@ -159,7 +160,8 @@ class SDDockerBackend(AbstractSDBackend):
                 'kube_annotations': kube_metadata.get('annotations'),
                 'kube_container_name': state.get_kube_container_name(c_id),
             }
-
+        if labels:
+            platform_kwargs['docker_labels'] = labels
         return self.config_store.get_checks_to_refresh(identifier, **platform_kwargs)
 
     def _get_container_pid(self, state, cid, tpl_var):
@@ -374,7 +376,7 @@ class SDDockerBackend(AbstractSDBackend):
             try:
                 # value of the DATADOG_ID tag or the image name if the label is missing
                 identifier = self.get_config_id(image, labels)
-                check_configs = self._get_check_configs(state, cid, identifier) or []
+                check_configs = self._get_check_configs(state, cid, identifier, labels) or []
                 for conf in check_configs:
                     source, (check_name, init_config, instance) = conf
 
@@ -403,7 +405,7 @@ class SDDockerBackend(AbstractSDBackend):
         """Look for a DATADOG_ID label, return its value or the image name if missing"""
         return labels.get(DATADOG_ID) or image
 
-    def _get_check_configs(self, state, c_id, identifier):
+    def _get_check_configs(self, state, c_id, identifier, labels=None):
         """Retrieve configuration templates and fill them with data pulled from docker and tags."""
         platform_kwargs = {}
         if Platform.is_k8s():
@@ -412,6 +414,9 @@ class SDDockerBackend(AbstractSDBackend):
                 'kube_container_name': state.get_kube_container_name(c_id),
                 'kube_annotations': kube_metadata.get('annotations'),
             }
+        if labels:
+            platform_kwargs['docker_labels'] = labels
+
         config_templates = self._get_config_templates(identifier, **platform_kwargs)
         if not config_templates:
             return None
