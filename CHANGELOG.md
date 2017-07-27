@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 5.16.0 / Unreleased
+# 5.16.0 / 07-26-2017
 **Linux, Docker and Source Install**
 
 ### Details
