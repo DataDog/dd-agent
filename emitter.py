@@ -31,7 +31,9 @@ control_char_re = re.compile('[%s]' % re.escape(control_chars))
 
 # Only enforced for the metrics API on our end, for now
 MAX_COMPRESSED_SIZE = 2 << 20  # 2MB, the backend should accept up to 3MB but let's be conservative here
-MAX_SPLIT_DEPTH = 3  # maximum depth of recursive calls to payload splitting function
+# maximum depth of recursive calls to payload splitting function, a bit arbitrary (we don't want too much
+# depth in the recursive calls, but we want to give up only when some metrics are clearly too large)
+MAX_SPLIT_DEPTH = 2
 
 
 def remove_control_chars(s, log):
@@ -83,15 +85,15 @@ def post_payload(url, message, serialize_func, agentConfig, log):
 
     try:
         payloads = serialize_func(message, MAX_COMPRESSED_SIZE, 0, log)
-    except UnicodeDecodeError as ude:
+    except UnicodeDecodeError:
         log.exception('http_emitter: Unable to convert message to json')
         # early return as we can't actually process the message
         return
-    except RuntimeError as rte:
+    except RuntimeError:
         log.exception('http_emitter: runtime error dumping message to json')
         # early return as we can't actually process the message
         return
-    except Exception as e:
+    except Exception:
         log.exception('http_emitter: unknown exception processing message')
         return
 
@@ -139,7 +141,7 @@ def serialize_and_compress_legacy_payload(legacy_payload, max_compressed_size, d
 
     if len(zipped) > max_compressed_size:
         # let's just log a warning for now, splitting the legacy payload is tricky
-        log.warning("collector payload is above the limit of %dKB compressed", max_compressed_size/(1<<10))
+        log.warning("collector payload is above the limit of %dKB compressed", max_compressed_size/(1 << 10))
 
     return compressed_payloads
 
@@ -147,7 +149,8 @@ def serialize_and_compress_legacy_payload(legacy_payload, max_compressed_size, d
 def serialize_and_compress_metrics_payload(metrics_payload, max_compressed_size, depth, log):
     """
     Serialize and compress the metrics payload
-    If the compressed payload is too big, we attempt to split it into smaller payloads
+    If the compressed payload is too big, we attempt to split it into smaller payloads and call this
+    function recursively on each smaller payload
     """
     compressed_payloads = []
 
@@ -166,14 +169,23 @@ def serialize_and_compress_metrics_payload(metrics_payload, max_compressed_size,
             log.error("Maximum depth of payload splitting reached, dropping the %d metrics in this chunk", len(series))
             return compressed_payloads
 
-        nb_chunks = len(zipped)/max_compressed_size + 1 + int(compression_ratio/2)  # try to account for the compression
-        log.debug("payload is too big (%d bytes), splitting it in %d chunks", len(zipped), nb_chunks)
+        # Try to account for the compression when estimating the number of chunks needed to get small-enough chunks
+        n_chunks = len(zipped)/max_compressed_size + 1 + int(compression_ratio/2)
+        log.debug("payload is too big (%d bytes), splitting it in %d chunks", len(zipped), n_chunks)
 
-        series_per_chunk = len(series)/nb_chunks + 1
+        series_per_chunk = len(series)/n_chunks + 1
 
-        for i in range(nb_chunks):
+        for i in range(n_chunks):
+            # Create each chunk and make them go through this function recursively ; increment the `depth` of the recursive call
             compressed_payloads.extend(
-                serialize_and_compress_metrics_payload({"series": series[i*series_per_chunk:(i+1)*series_per_chunk]}, max_compressed_size, depth+1, log)
+                serialize_and_compress_metrics_payload(
+                    {
+                        "series": series[i*series_per_chunk:(i+1)*series_per_chunk]
+                    },
+                    max_compressed_size,
+                    depth+1,
+                    log
+                )
             )
 
     return compressed_payloads

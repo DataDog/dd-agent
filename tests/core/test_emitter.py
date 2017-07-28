@@ -10,7 +10,6 @@ from emitter import (
     remove_undecodable_chars,
     sanitize_payload,
     serialize_and_compress_metrics_payload,
-    serialize_payload,
     split_payload,
 )
 
@@ -103,7 +102,7 @@ class TestEmitter(unittest.TestCase):
     def test_metrics_payload_chunks(self, compress_mock):
         log = mock.Mock()
         nb_series = 10000
-        max_compressed_size = 1 << 10
+        max_compressed_size = 1 << 10  # 1KB, well below the original size of our payload of 10000 metrics
 
         metrics_payload = {"series": [
             {
