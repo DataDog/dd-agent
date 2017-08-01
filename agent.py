@@ -445,8 +445,13 @@ class Agent(Daemon):
             return
 
         if self.supervisor_proxy is not None:
-            jmx_state = self.supervisor_proxy.supervisor.getProcessInfo(JMX_SUPERVISOR_ENTRY)
-            log.debug("Current JMX check state: %s", jmx_state['statename'])
+            try:
+                jmx_state = self.supervisor_proxy.supervisor.getProcessInfo(JMX_SUPERVISOR_ENTRY)
+                log.debug("Current JMX check state: %s", jmx_state['statename'])
+            except Exception as e:
+                log.exception("Cannot submit JMX autodiscovery configurations. Unable to get JMXFetch process state from supervisor: %s", e)
+                return
+
             # restart jmx if stopped
             if jmx_state['statename'] in ['STOPPED', 'EXITED', 'FATAL'] and self._agentConfig.get('sd_jmx_enable'):
                 self.supervisor_proxy.supervisor.startProcess(JMX_SUPERVISOR_ENTRY)
