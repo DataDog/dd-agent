@@ -65,6 +65,13 @@ class PrometheusCheck(AgentCheck):
         # will just not be added as tags when submitting the metric.
         self.exclude_labels = []
 
+        # `type_overrides` is a dictionnary where the keys are prometheus metric names
+        # and the values are a metric type (name as string) to use instead of the one
+        # listed in the payload. It can be used to force a type on untyped metrics.
+        # Note: it is empty in the mother class but will need to be
+        # overloaded/hardcoded in the final check not to be counted as custom metric.
+        self.type_overrides = {}
+
     def check(self, instance):
         """
         check should take care of getting the url and other params
@@ -102,6 +109,14 @@ class PrometheusCheck(AgentCheck):
 
                 message = metrics_pb2.MetricFamily()
                 message.ParseFromString(msg_buf)
+
+                # Lookup type overrides:
+                if self.type_overrides and message.name in self.type_overrides:
+                    new_type = self.type_overrides[message.name]
+                    if new_type in self.METRIC_TYPES:
+                        message.type = self.METRIC_TYPES.index(new_type)
+                    else:
+                        self.log.debug("type override %s for %s is not a valid type name" % (new_type, message.name))
                 yield message
         elif 'text/plain' in content_type:
             messages = {}  # map with the name of the element (before the labels) and the list of occurrences with labels and values
@@ -109,6 +124,15 @@ class PrometheusCheck(AgentCheck):
             obj_help = {}  # help for the metrics
             for line in buf.splitlines():
                 self._extract_metrics_from_string(line, messages, obj_map, obj_help)
+
+            # Add type overrides:
+            for m_name, m_type in self.type_overrides.iteritems():
+                if m_type in self.METRIC_TYPES:
+                    obj_map[m_name] = m_type
+                else:
+                    self.log.debug("type override %s for %s is not a valid type name" % (m_type,m_name))
+
+
             for _m in obj_map:
                 if _m in messages or (obj_map[_m] == 'histogram' and '{}_bucket'.format(_m) in messages):
                     yield self._extract_metric_from_map(_m, messages, obj_map, obj_help)
