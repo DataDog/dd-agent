@@ -33,6 +33,7 @@ KUBE_ANNOTATIONS = 'kube_annotations'
 KUBE_CONTAINER_NAME = 'kube_container_name'
 DOCKER_LABELS = 'docker_labels'
 KUBE_ANNOTATION_PREFIX = 'service-discovery.datadoghq.com'
+DOCKER_LABEL_PREFIX = 'com.datadoghq.sd'
 
 
 class KeyNotFound(Exception):
@@ -217,7 +218,7 @@ class AbstractConfigStore(object):
         return self._extract_template(identifier, prefix, kube_annotations)
 
     def _get_docker_config(self, identifier, docker_labels):
-        prefix = '{}/'.format(KUBE_ANNOTATION_PREFIX)
+        prefix = '{}.'.format(DOCKER_LABEL_PREFIX)
         return self._extract_template(identifier, prefix, docker_labels)
 
     def _extract_template(self, identifier, key_prefix, source_dict):

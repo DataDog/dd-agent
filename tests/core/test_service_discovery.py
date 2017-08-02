@@ -631,9 +631,9 @@ class TestServiceDiscovery(unittest.TestCase):
                 config_store.get_check_tpls(
                     image, auto_conf=True,
                     docker_labels=dict(zip(
-                        ['service-discovery.datadoghq.com/check_names',
-                         'service-discovery.datadoghq.com/init_configs',
-                         'service-discovery.datadoghq.com/instances'],
+                        ['com.datadoghq.sd.check_names',
+                         'com.datadoghq.sd.init_configs',
+                         'com.datadoghq.sd.instances'],
                         self.mock_raw_templates[image][0]))))
 
     @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
