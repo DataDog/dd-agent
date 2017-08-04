@@ -509,12 +509,11 @@ class WMISampler(object):
                     wmi_property.Name not in self._property_counter_types
                 )
 
+                # Can't index into "Qualifiers_" for keys that don't exist
+                # without getting an exception.
+                qualifiers = dict((q.Name, q.Value) for q in wmi_property.Qualifiers_)
+
                 if should_get_qualifier_type:
-
-                    # Can't index into "Qualifiers_" for keys that don't exist
-                    # without getting an exception.
-                    qualifiers = dict((q.Name, q.Value) for q in wmi_property.Qualifiers_)
-
                     # Some properties like "Name" and "Timestamp_Sys100NS" do
                     # not have a "CounterType" (since they're not a counter).
                     # Therefore, they're ignored.
@@ -540,10 +539,19 @@ class WMISampler(object):
                             )
                         )
 
+
                 try:
-                    item[wmi_property.Name] = float(wmi_property.Value)
+                    fval = float(wmi_property.Value)
+                    if "CIMTYPE" in qualifiers:
+                        if qualifiers["CIMTYPE"] == "uint32":
+                            val = wmi_property.Value
+                            if val < 0:
+                                fval = float(val & 0xFFFFFFFF)
+
+                    item[wmi_property.Name] = fval
                 except (TypeError, ValueError):
                     item[wmi_property.Name] = wmi_property.Value
+
 
             results.append(item)
         return results
