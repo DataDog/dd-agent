@@ -30,6 +30,9 @@ api_key:
 # Set the host's tags (optional)
 # tags: mytag, env:prod, role:database
 
+# Collect docker orchestrator name and version as agent tags
+# collect_orchestrator_tags: yes
+
 # Set timeout in seconds for outgoing requests to Datadog. (default: 20)
 # When a request timeout, it will be retried after some time.
 # It will only be deleted if the forwarder queue becomes too big. (30 MB by default)
@@ -122,6 +125,11 @@ gce_updated_hostname: yes
 # sd_backend_host: 127.0.0.1
 # sd_backend_port: 4001
 #
+# If you use etcd, you can set a username and password for auth
+#
+# sd_backend_username:
+# sd_backend_password:
+#
 # By default, the agent will look for the configuration templates under the
 # `/datadog/check_configs` key in the back-end. If you wish otherwise, uncomment this option
 # and modify its value.
@@ -177,6 +185,13 @@ gce_updated_hostname: yes
 # However, it comes with a performance overhead of ~10% in the dogstatsd
 # server. This will be taken care of properly in the new gen agent core.
 # utf8_decoding: false
+
+# The number of bytes allocated to the statsd socket receive buffer. By default,
+# this value is set to the value of `/proc/sys/net/core/rmem_default`. If you
+# need to increase the size of this buffer but keep the OS default value the
+# same, you can set dogstats's receive buffer size here. The maximum allowed
+# value is the value of `/proc/sys/net/core/rmem_max`.
+# statsd_so_rcvbuf:
 
 # ========================================================================== #
 # Service-specific configuration                                             #

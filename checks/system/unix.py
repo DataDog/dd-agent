@@ -221,6 +221,33 @@ class IO(Check):
             return False
 
 
+class FileHandles(Check):
+
+    def check(self, agentConfig):
+
+        if not Platform.is_linux():
+            return False
+
+        try:
+            proc_location = agentConfig.get('procfs_path', '/proc').rstrip('/')
+            proc_fh = "{}/sys/fs/file-nr".format(proc_location)
+            with open(proc_fh, 'r') as file_handle:
+                handle_contents = file_handle.read()
+        except Exception:
+            self.logger.exception("Cannot extract system file handles stats")
+            return False
+
+        handle_metrics = handle_contents.split()
+
+        # https://www.kernel.org/doc/Documentation/sysctl/fs.txt
+        allocated_fh = float(handle_metrics[0])
+        allocated_unused_fh = float(handle_metrics[1])
+        max_fh = float(handle_metrics[2])
+
+        fh_in_use = (allocated_fh - allocated_unused_fh) / max_fh
+
+        return {'system.fs.file_handles.in_use': float(fh_in_use)}
+
 class Load(Check):
 
     def check(self, agentConfig):
@@ -763,6 +790,8 @@ def main():
     io = IO(log)
     load = Load(log)
     mem = Memory(log)
+    fh = FileHandles(log)
+
     # proc = Processes(log)
     system = System(log)
 
@@ -779,6 +808,8 @@ def main():
         print(mem.check(config))
         print("--- System ---")
         print(system.check(config))
+        print("--- File Handles ---")
+        print(fh.check(config))
         print("\n\n\n")
         # print("--- Processes ---")
         # print(proc.check(config))

@@ -343,13 +343,14 @@ class Server(object):
     """
     A statsd udp server.
     """
-    def __init__(self, metrics_aggregator, host, port, forward_to_host=None, forward_to_port=None):
+    def __init__(self, metrics_aggregator, host, port, forward_to_host=None, forward_to_port=None, so_rcvbuf=None):
         self.sockaddr = None
         self.socket = None
         self.metrics_aggregator = metrics_aggregator
         self.host = host
         self.port = port
         self.buffer_size = 1024 * 8
+        self.so_rcvbuf = so_rcvbuf
 
         self.running = False
 
@@ -379,6 +380,10 @@ class Server(object):
             # Configure the socket so that it accepts connections from both
             # IPv4 and IPv6 networks in a portable manner.
             self.socket.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
+            # Set SO_RCVBUF on the socket if a specific value has been
+            # configured.
+            if self.so_rcvbuf is not None:
+                self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, int(self.so_rcvbuf))
         except Exception:
             log.info('unable to create IPv6 socket, falling back to IPv4.')
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -502,6 +507,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     forward_to_port = c.get('statsd_forward_port')
     event_chunk_size = c.get('event_chunk_size')
     recent_point_threshold = c.get('recent_point_threshold', None)
+    so_rcvbuf = c.get('statsd_so_rcvbuf', None)
     server_host = c['bind_host']
 
     target = c['dd_url']
@@ -537,7 +543,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     if non_local_traffic:
         server_host = '0.0.0.0'
 
-    server = Server(aggregator, server_host, port, forward_to_host=forward_to_host, forward_to_port=forward_to_port)
+    server = Server(aggregator, server_host, port, forward_to_host=forward_to_host, forward_to_port=forward_to_port, so_rcvbuf=so_rcvbuf)
 
     return reporter, server, c
 

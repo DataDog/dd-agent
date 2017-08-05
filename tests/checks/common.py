@@ -184,6 +184,28 @@ class AgentCheckTest(unittest.TestCase):
     def is_travis(self):
         return "TRAVIS" in os.environ
 
+
+    def wait_for_async(self, method, attribute, count, results_timeout):
+        """
+        Loop on `self.check.method` until `self.check.attribute >= count`.
+        Raise after
+        """
+
+        # Check the initial values to see if we already have results before waiting for the async
+        # instances to finish
+        initial_values = getattr(self, attribute)
+
+        i = 0
+        while i < results_timeout:
+            self.check._process_results()
+            if len(getattr(self.check, attribute)) + len(initial_values) >= count:
+                return getattr(self.check, method)() + initial_values
+            time.sleep(1.1)
+            i += 1
+        raise Exception("Didn't get the right count of service checks in time, {0}/{1} in {2}s: {3}"
+                        .format(len(getattr(self.check, attribute)), count, i,
+                                getattr(self.check, attribute)))
+
     def load_check(self, config, agent_config=None):
         agent_config = agent_config or self.DEFAULT_AGENT_CONFIG
         self.check = load_check(self.CHECK_NAME, config, agent_config)

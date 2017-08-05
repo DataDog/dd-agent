@@ -5,6 +5,8 @@
 # stdlib
 import logging
 import types
+import os
+import socket
 
 # 3rd party
 import requests
@@ -13,6 +15,36 @@ import requests
 from utils.proxy import get_proxy
 
 log = logging.getLogger(__name__)
+
+class Azure(object):
+    URL = "http://169.254.169.254/metadata/instance?api-version=2017-04-02"
+    TIMEOUT = 0.3 # second
+
+    @staticmethod
+    def _get_metadata(agentConfig):
+        if not agentConfig.get('collect_instance_metadata', True):
+            log.info("Instance metadata collection is disabled: not collecting Azure metadata.")
+            return {}
+
+        try:
+            r = requests.get(
+                Azure.URL,
+                timeout=Azure.TIMEOUT,
+                headers={'Metadata': 'true'}
+            )
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            log.debug("Collecting Azure Metadata failed %s", str(e))
+            return None
+
+    @staticmethod
+    def get_host_aliases(agentConfig):
+        try:
+            host_metadata = Azure._get_metadata(agentConfig)
+            return [host_metadata['compute']['vmId']]
+        except Exception:
+            return []
 
 class GCE(object):
     URL = "http://169.254.169.254/computeMetadata/v1/?recursive=true"
@@ -226,3 +258,30 @@ class EC2(object):
             return EC2.get_metadata(agentConfig).get("instance-id", None)
         except Exception:
             return None
+
+class CloudFoundry(object):
+    host_aliases = []
+
+    @staticmethod
+    def get_host_aliases(agentConfig):
+        if not CloudFoundry.is_cloud_foundry(agentConfig):
+            return CloudFoundry.host_aliases
+        if os.environ.get("DD_BOSH_ID"):
+            if os.environ.get("DD_BOSH_ID") not in CloudFoundry.host_aliases:
+                CloudFoundry.host_aliases.append(os.environ.get("DD_BOSH_ID"))
+        if agentConfig.get("bosh_id"):
+            if agentConfig.get("bosh_id") not in CloudFoundry.host_aliases:
+                CloudFoundry.host_aliases.append(agentConfig.get("bosh_id"))
+        if len(CloudFoundry.host_aliases) == 0:
+            # Only use this if the prior one fails
+            # The reliability of the socket hostname is not assured
+            CloudFoundry.host_aliases.append(socket.gethostname())
+        return CloudFoundry.host_aliases
+
+    @staticmethod
+    def is_cloud_foundry(agentConfig):
+        if agentConfig.get("cloud_foundry"):
+            return True
+        elif os.environ.get("CLOUD_FOUNDRY"):
+            return True
+        return False

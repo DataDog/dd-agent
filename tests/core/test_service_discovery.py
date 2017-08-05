@@ -39,7 +39,7 @@ class Response(object):
 
 def _get_container_inspect(c_id):
     """Return a mocked container inspect dict from self.container_inspects."""
-    for co, _, _, _, _ in TestServiceDiscovery.container_inspects:
+    for co, _, _, _, _, _ in TestServiceDiscovery.container_inspects:
         if co.get('Id') == c_id:
             return co
         return None
@@ -82,7 +82,8 @@ class TestServiceDiscovery(unittest.TestCase):
         u'Id': u'69ff25598b2314d1cdb7752cc3a659fb1c1352b32546af4f1454321550e842c0',
         u'Image': u'nginx',
         u'Name': u'/nginx',
-        u'NetworkSettings': {u'IPAddress': u'172.17.0.21', u'Ports': {u'443/tcp': None, u'80/tcp': None}}
+        u'NetworkSettings': {u'IPAddress': u'172.17.0.21', u'Ports': {u'443/tcp': None, u'80/tcp': None}},
+        u'State': {u'Pid': 1234}
     }
     docker_container_inspect_with_label = {
         u'Id': u'69ff25598b2314d1cdb7752cc3a659fb1c1352b32546af4f1454321550e842c0',
@@ -104,11 +105,11 @@ class TestServiceDiscovery(unittest.TestCase):
         u'Name': u'/nginx'
     }
     container_inspects = [
-        # (inspect_dict, expected_ip, tpl_var, expected_port, expected_ident)
-        (docker_container_inspect, '172.17.0.21', 'port', '443', 'nginx'),
-        (docker_container_inspect_with_label, '172.17.0.21', 'port', '443', 'custom-nginx'),
-        (kubernetes_container_inspect, None, 'port', '6379', 'foo'),  # arbitrarily defined in the mocked pod_list
-        (malformed_container_inspect, None, 'port', KeyError, 'foo')
+        # (inspect_dict, expected_ip, tpl_var, expected_port, expected_ident, expected_id, expected_pid)
+        (docker_container_inspect, '172.17.0.21', 'port', '443', 'nginx', '1234'),
+        (docker_container_inspect_with_label, '172.17.0.21', 'port', '443', 'custom-nginx', None),
+        (kubernetes_container_inspect, None, 'port', '6379', 'foo', None),  # arbitrarily defined in the mocked pod_list
+        (malformed_container_inspect, None, 'port', KeyError, 'foo', None)
     ]
 
     # templates with variables already extracted
@@ -116,13 +117,18 @@ class TestServiceDiscovery(unittest.TestCase):
         # image_name: ([(source, (check_name, init_tpl, instance_tpl, variables))], (expected_config_template))
         'image_0': (
             [('template', ('check_0', {}, {'host': '%%host%%'}, ['host']))],
-            ('template', ('check_0', {}, {'host': '127.0.0.1', 'tags': [u'docker_image:nginx', u'image_name:nginx']}))),
+            ('template', ('check_0', {}, [{'host': '127.0.0.1', 'tags': [u'docker_image:nginx', u'image_name:nginx']}]))),
         'image_1': (
             [('template', ('check_1', {}, {'port': '%%port%%'}, ['port']))],
-            ('template', ('check_1', {}, {'port': '1337', 'tags': [u'docker_image:nginx', u'image_name:nginx']}))),
+            ('template', ('check_1', {}, [{'port': '1337', 'tags': [u'docker_image:nginx', u'image_name:nginx']}]))),
         'image_2': (
             [('template', ('check_2', {}, {'host': '%%host%%', 'port': '%%port%%'}, ['host', 'port']))],
-            ('template', ('check_2', {}, {'host': '127.0.0.1', 'port': '1337', 'tags': [u'docker_image:nginx', u'image_name:nginx']}))),
+            ('template', ('check_2', {}, [{'host': '127.0.0.1', 'port': '1337', 'tags': [u'docker_image:nginx', u'image_name:nginx']}]))),
+        'image_3': (
+            [('template', ('check_3', {}, [{'host': '%%host%%', 'port': '%%port%%'}, {"foo": "%%host%%", "bar": "%%port%%"}], ['host', 'port', 'host', 'port']))],
+            ('template', ('check_3', {}, [
+                {'host': '127.0.0.1', 'port': '1337', 'tags': [u'docker_image:nginx', u'image_name:nginx']},
+                {'foo': '127.0.0.1', 'bar': '1337', 'tags': [u'docker_image:nginx', u'image_name:nginx']}]))),
     }
 
     # raw templates coming straight from the config store
@@ -137,6 +143,13 @@ class TestServiceDiscovery(unittest.TestCase):
         'image_2': (
             ('["check_2"]', '[{}]', '[{"host": "%%host%%", "port": "%%port%%"}]'),
             [('template', ('check_2', {}, {"host": "%%host%%", "port": "%%port%%"}))]),
+        'image_3': (
+            ('["check_3"]', '[{}]', '[[{"host": "%%host%%", "port": "%%port%%"},{"foo": "%%host%%", "bar": "%%port%%"}]]'),
+            [('template', ('check_3', {}, [{"host": "%%host%%", "port": "%%port%%"}, {"foo": "%%host%%", "bar": "%%port%%"}]))]),
+        # multi-checks environment
+        'image_4': (
+            ('["check_4a", "check_4b"]', '[{},{}]', '[[{"host": "%%host%%", "port": "%%port%%"}],[{"foo": "%%host%%", "bar": "%%port%%"}]]'),
+            [('template', ('check_4a', {}, [{"host": "%%host%%", "port": "%%port%%"}])), ('template', ('check_4b', {}, [{"foo": "%%host%%", "bar": "%%port%%"}]))]),
         'bad_image_0': ((['invalid template']), []),
         'bad_image_1': (('invalid template'), []),
         'bad_image_2': (None, []),
@@ -259,13 +272,23 @@ class TestServiceDiscovery(unittest.TestCase):
         os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
     def test_get_port(self, *args):
-        for c_ins, _, var_tpl, expected_ports, _ in self.container_inspects:
+        for c_ins, _, var_tpl, expected_ports, _, _ in self.container_inspects:
             state = _SDDockerBackendConfigFetchState(lambda _: c_ins)
             sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
             if isinstance(expected_ports, str):
                 self.assertEquals(sd_backend._get_port(state, 'container id', var_tpl), expected_ports)
             else:
                 self.assertRaises(expected_ports, sd_backend._get_port, state, 'c_id', var_tpl)
+            clear_singletons(self.auto_conf_agentConfig)
+
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
+    @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
+    def test_get_container_pid(self, *args):
+        for c_ins, _, var_tpl, _, _, expected_pid in self.container_inspects:
+            state = _SDDockerBackendConfigFetchState(lambda _: c_ins)
+            sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
+            self.assertEquals(sd_backend._get_container_pid(state, 'container id', var_tpl), expected_pid)
             clear_singletons(self.auto_conf_agentConfig)
 
     @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
@@ -411,6 +434,13 @@ class TestServiceDiscovery(unittest.TestCase):
                  ['host', 'port_1'], ['foo', 'bar:baz']),
                 ({'host': '%%host%%', 'port': '%%port_1%%', 'tags': ['env:test', 'foo', 'bar:baz']},
                  {'host': '127.0.0.1', 'port_1': '42'})
+            ),
+            (
+                ({'NetworkSettings': {'IPAddress': '127.0.0.1', 'Ports': {'42/tcp': None, '22/tcp': None}}},
+                 {'host': '%%host%%', 'port': '%%port_1%%', 'tags': {'env': 'test'}},
+                 ['host', 'port_1'], ['foo', 'bar:baz']),
+                ({'host': '%%host%%', 'port': '%%port_1%%', 'tags': ['env:test', 'foo', 'bar:baz']},
+                 {'host': '127.0.0.1', 'port_1': '42'})
             )
         ]
 
@@ -506,6 +536,7 @@ class TestServiceDiscovery(unittest.TestCase):
                     for key in instance_tpl.keys():
                         if isinstance(instance_tpl[key], list):
                             self.assertEquals(len(instance_tpl[key]), len(co[1][0].get(key)))
+
                             for elem in instance_tpl[key]:
                                 self.assertTrue(elem in co[1][0].get(key))
                         else:
@@ -558,7 +589,7 @@ class TestServiceDiscovery(unittest.TestCase):
     @mock.patch.object(AbstractConfigStore, 'client_read', side_effect=client_read)
     def test_get_check_tpls_kube(self, *args):
         """Test get_check_tpls for kubernetes annotations"""
-        valid_config = ['image_0', 'image_1', 'image_2']
+        valid_config = ['image_0', 'image_1', 'image_2', 'image_3', 'image_4']
         invalid_config = ['bad_image_0']
         config_store = get_config_store(self.auto_conf_agentConfig)
         for image in valid_config + invalid_config:
@@ -585,7 +616,7 @@ class TestServiceDiscovery(unittest.TestCase):
     def test_get_config_id(self, mock_get_auto_confd_path):
         """Test get_config_id"""
         with mock.patch('utils.dockerutil.DockerUtil.client', return_value=None):
-            for c_ins, _, _, _, expected_ident in self.container_inspects:
+            for c_ins, _, _, _, expected_ident, _ in self.container_inspects:
                 sd_backend = get_sd_backend(agentConfig=self.auto_conf_agentConfig)
                 self.assertEqual(
                     sd_backend.get_config_id(DockerUtil().image_name_extractor(c_ins), c_ins.get('Config', {}).get('Labels', {})),

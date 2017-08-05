@@ -395,7 +395,7 @@ class AgentCheck(object):
         proxies = self.proxies.copy()
         proxies['no'] = get_no_proxy_from_env()
 
-        return config_proxy_skip(proxies, uri, _is_affirmative(instance.get('skip_proxy', False)))
+        return config_proxy_skip(proxies, uri, _is_affirmative(instance.get('no_proxy', False)))
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -563,6 +563,8 @@ class AgentCheck(object):
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
+        self.warning("Deprecation notice: the `set` method of `AgentCheck` is deprecated and will be removed " +
+            "in the next major version of the Agent, please compute aggregates in your check and use `gauge` instead")
         self.aggregator.set(metric, value, tags, hostname, device_name)
 
     def event(self, event):

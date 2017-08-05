@@ -22,6 +22,7 @@ def get_os():
     else:
         return sys.platform
 
+
 class Platform(object):
     """
     Return information about the given platform.
@@ -93,7 +94,8 @@ class Platform(object):
 
     @staticmethod
     def is_k8s():
-        return 'KUBERNETES_PORT' in os.environ
+        from utils.dockerutil import DockerUtil
+        return DockerUtil().is_k8s()
 
     @staticmethod
     def is_rancher():
@@ -107,4 +109,10 @@ class Platform(object):
 
     @staticmethod
     def is_nomad():
-        return 'NOMAD_ALLOC_ID' in os.environ
+        from utils.orchestrator import NomadUtil
+        return NomadUtil.is_detected()
+
+    @staticmethod
+    def is_mesos():
+        from utils.orchestrator import MesosUtil
+        return MesosUtil.is_detected()

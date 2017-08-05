@@ -1,6 +1,103 @@
 Changes
 =======
 
+# 5.16.0 / 07-26-2017
+**Linux, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.15.0...5.16.0
+
+### Changes
+Please refer to the [Integrations Core Checks 5.16.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.16.0) for the list of changes on the core checks.
+Please refer to the [Process Agent](https://github.com/DataDog/datadog-process-agent/) for more information on this new binary.
+
+* [FEATURE][BETA] [process-agent] adding process-agent See [#3449][] and [omnibus-software-181](https://github.com/DataDog/omnibus-software/pull/181)
+
+# 5.15.0 / 07-18-2017
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.14.1...5.15.0
+
+### Changes
+Please refer to the [Integrations Core Checks 5.15.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.15.0) for the list of changes on the core checks.
+Please refer to the [Trace Agent 5.15.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.15.0) for the list of changes on the Trace Agent.
+
+* [FEATURE] [kube] Allow to run agent on the node [#3401][]
+* [FEATURE] [core] Adds fraction of file handles in use over system limit [#3395][]
+* [FEATURE] [PrometheusCheck] add ignore_metrics array [#3394][]
+* [FEATURE] pkg: Add process-agent to supervisor and flares [#3409][]
+* [FEATURE] Get real host aliases for Cloud Foundry [#3406][]
+* [FEATURE] [docker] add docker and orchestrator (ECS/Mesos/Nomad/Kubernetes/Swarm) version host tags. See [#3383][], [#3386][] and [#3403][]
+* [FEATURE] [Windows] add additional calculator types [#3378][]
+* [FEATURE] Mesos: extract marathon_app, chronos_job and chronos_job_owner tags. See [#3375][], [#3414][] and [#3417][]
+* [FEATURE] [kubernetes] add kubernetes container name to metric tags [#3368][]
+* [FEATURE] Add support for user/password authentication for the etcd autodiscovery store [#3357][]
+* [FEATURE] Add support for %%pid%% template variables [#3404][], thanks [@sophaskins][] and [@jnewland][]
+* [IMPROVEMENT] constant for container name label [#3405][], thanks [@sophaskins][]
+* [IMPROVEMENT] Add container name tag in auto discovery [#3421][], thanks [@subuk][]
+* [IMPROVEMENT] Disable kube_service tagging on four 403 errors from apiserver [#3413][]
+* [IMPROVEMENT] Update Mac restart command [#3390][]
+* [IMPROVEMENT] Try both 4001 and 2379 etcd ports in SD if not configured [#3351][]
+* [SANITY] Moves common wait_for_async network function out to the Agent [#3408][]
+* [SANITY] [util] Move `Timer` to its own `utils.timer` module [#3391][]
+* [SANITY] [checks] Deprecate `AgentCheck.set` [#3385][]
+* [SANITY] Remove manifest.in - no more use to us. [#3364][]
+
+# 5.14.1 / 06-15-2017
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.14.0...5.14.1
+
+### Changes
+Please refer to the [Integrations Core Checks 5.14.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.14.1) for the list of changes on the core checks.
+
+* [IMPROVEMENT] Kubernetes: Reduce apiserver request count for pod_service_mapper. See [#3387][] and [integrations-core-476](https://github.com/DataDog/integrations-core/pull/476)
+* [IMPROVEMENT] CentOS: Make sure we start the last and stop first. See [#3376][]
+* [IMPROVEMENT] Docker: Make TLS settings more intuitive. See [#3373][]
+* [BUGFIX] Autodiscovery: Fix multi-instance autodiscovery. See [#3341][]
+* [BUGFIX] Network checks: Fix typo in the network exception log. See [#3374][]
+
+# 5.14.0 / 06-05-2017
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.13.2...5.14.0
+
+### Dependency changes
+
+* `paramiko` `2.1.2` (previously `1.15.2`), see [omnibus-software-141](https://github.com/DataDog/omnibus-software/pull/141)
+* `pysnmp` `4.3.5` (previously `4.2.5`), see [omnibus-software-141](https://github.com/DataDog/omnibus-software/pull/141)
+
+### Changes
+Please refer to the [Integrations Core Checks 5.14.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.14.0) for the list of changes on the core checks.
+Please refer to the [Trace Agent 5.14.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.14.0) for the list of changes on the Trace Agent.
+
+* [IMPROVEMENT] Autodiscovery metrics have new tags when available:
+  * Docker image name and tag ([#3350][])
+  * ECS task name ([#3349][] and [#3358][])
+  * Nomad task, group and job names ([#3289][])
+  * Kubernetes service and creator (deployment/daemon_set/replica_set/job). See [#3300][] and [#3348][]
+* [IMPROVEMENT] New PrometheusCheck base class to enable simpler development of integrations pulling Prometheus format metrics. See [#3317][], [#3344][] and [#3359][], thanks [@aerostitch][]
+* [IMPROVEMENT] Autodiscovery: allow multiple instances per check. See [#3311][]
+* [IMPROVEMENT] AWS: bump `boto` version to `2.46.1`. See [#3307][] and [omnibus-software-137](https://github.com/DataDog/omnibus-software/pull/137)
+* [IMPROVEMENT] JMXFetch: Add support for `min_collection_interval`. See [jmxfetch-135](https://github.com/DataDog/jmxfetch/pull/135) and [jmxfetch-140](https://github.com/DataDog/jmxfetch/pull/140)
+* [IMPROVEMENT] JMXFetch packaging: build JMXFetch with omnibus and store the jar on S3 bucket. See [dd-agent-omnibus-100](https://github.com/DataDog/dd-agent-omnibus/pull/100) and [#3220][]
+* [IMPROVEMENT] Packaging: remove dependency on `pycrypto`. See [dd-agent-omnibus-175](https://github.com/DataDog/dd-agent-omnibus/pull/175)
+* [IMPROVEMENT] Packaging: bump libxml2 version to `2.9.4`. See [omnibus-software-142](https://github.com/DataDog/omnibus-software/pull/142)
+* [IMPROVEMENT] Utils, Proxy: add a utility function to deal with proxy configs and skipping. See [#3331][] and [#3356][]
+* [BUGFIX] Alpine: make supervisor socket consistent with default. See [#3335][], thanks [@jonchiu][]
+* [BUGFIX] Collector: fix misattribution of check instance warning. See [#3339][]
+* [BUGFIX] Core: respect `ssl_skip_validation` when checking API key. See [#3346][], thanks [@jeffwidman][]
+* [BUGFIX] GCE: Exclude `bosh_settings` from tags, as it frequently includes passwords. See [#3320][]
+* [BUGFIX] Packaging: remove `agent/checks` from `PYTHONPATH`. See [#3315][]
+* [BUGFIX] Packaging: Fix `==` bashism in package scripts. See [dd-agent-omnibus-174](https://github.com/DataDog/dd-agent-omnibus/pull/174)
+* [BUGFIX] Packaging: Fix dependency on windows DLLs on Windows 2008R2 by duplicating them into the embedded path. See [dd-agent-omnibus-169](https://github.com/DataDog/dd-agent-omnibus/pull/169)
+* [SANITY] Dogstatsd: Log hostname on initialization. See [#3332][]
+* [SANITY] JMXFetch: Add warnings of breaking change coming with agent 6. See [#3318][]
+* [SANITY] Packaging: Remove checks deps in `requirements.txt`. See [#3298][]
+
 # 5.13.2 / 05-11-2017
 **Linux, Windows, Docker and Source Install**
 
@@ -4106,6 +4203,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3208]: https://github.com/DataDog/dd-agent/issues/3208
 [#3210]: https://github.com/DataDog/dd-agent/issues/3210
 [#3218]: https://github.com/DataDog/dd-agent/issues/3218
+[#3220]: https://github.com/DataDog/dd-agent/issues/3220
 [#3224]: https://github.com/DataDog/dd-agent/issues/3224
 [#3240]: https://github.com/DataDog/dd-agent/issues/3240
 [#3243]: https://github.com/DataDog/dd-agent/issues/3243
@@ -4119,19 +4217,71 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3281]: https://github.com/DataDog/dd-agent/issues/3281
 [#3287]: https://github.com/DataDog/dd-agent/issues/3287
 [#3288]: https://github.com/DataDog/dd-agent/issues/3288
+[#3289]: https://github.com/DataDog/dd-agent/issues/3289
 [#3291]: https://github.com/DataDog/dd-agent/issues/3291
 [#3293]: https://github.com/DataDog/dd-agent/issues/3293
 [#3297]: https://github.com/DataDog/dd-agent/issues/3297
+[#3298]: https://github.com/DataDog/dd-agent/issues/3298
+[#3300]: https://github.com/DataDog/dd-agent/issues/3300
 [#3304]: https://github.com/DataDog/dd-agent/issues/3304
+[#3307]: https://github.com/DataDog/dd-agent/issues/3307
 [#3310]: https://github.com/DataDog/dd-agent/issues/3310
+[#3311]: https://github.com/DataDog/dd-agent/issues/3311
 [#3313]: https://github.com/DataDog/dd-agent/issues/3313
 [#3314]: https://github.com/DataDog/dd-agent/issues/3314
+[#3315]: https://github.com/DataDog/dd-agent/issues/3315
+[#3317]: https://github.com/DataDog/dd-agent/issues/3317
+[#3318]: https://github.com/DataDog/dd-agent/issues/3318
+[#3320]: https://github.com/DataDog/dd-agent/issues/3320
 [#3326]: https://github.com/DataDog/dd-agent/issues/3326
 [#3328]: https://github.com/DataDog/dd-agent/issues/3328
 [#3329]: https://github.com/DataDog/dd-agent/issues/3329
 [#3330]: https://github.com/DataDog/dd-agent/issues/3330
+[#3331]: https://github.com/DataDog/dd-agent/issues/3331
+[#3332]: https://github.com/DataDog/dd-agent/issues/3332
 [#3334]: https://github.com/DataDog/dd-agent/issues/3334
+[#3335]: https://github.com/DataDog/dd-agent/issues/3335
+[#3339]: https://github.com/DataDog/dd-agent/issues/3339
+[#3341]: https://github.com/DataDog/dd-agent/issues/3341
+[#3344]: https://github.com/DataDog/dd-agent/issues/3344
+[#3346]: https://github.com/DataDog/dd-agent/issues/3346
+[#3348]: https://github.com/DataDog/dd-agent/issues/3348
+[#3349]: https://github.com/DataDog/dd-agent/issues/3349
+[#3350]: https://github.com/DataDog/dd-agent/issues/3350
+[#3351]: https://github.com/DataDog/dd-agent/issues/3351
+[#3356]: https://github.com/DataDog/dd-agent/issues/3356
+[#3357]: https://github.com/DataDog/dd-agent/issues/3357
+[#3358]: https://github.com/DataDog/dd-agent/issues/3358
+[#3359]: https://github.com/DataDog/dd-agent/issues/3359
+[#3364]: https://github.com/DataDog/dd-agent/issues/3364
+[#3368]: https://github.com/DataDog/dd-agent/issues/3368
+[#3373]: https://github.com/DataDog/dd-agent/issues/3373
+[#3374]: https://github.com/DataDog/dd-agent/issues/3374
+[#3375]: https://github.com/DataDog/dd-agent/issues/3375
+[#3376]: https://github.com/DataDog/dd-agent/issues/3376
+[#3377]: https://github.com/DataDog/dd-agent/issues/3377
+[#3378]: https://github.com/DataDog/dd-agent/issues/3378
+[#3383]: https://github.com/DataDog/dd-agent/issues/3383
+[#3385]: https://github.com/DataDog/dd-agent/issues/3385
+[#3386]: https://github.com/DataDog/dd-agent/issues/3386
+[#3387]: https://github.com/DataDog/dd-agent/issues/3387
+[#3390]: https://github.com/DataDog/dd-agent/issues/3390
+[#3391]: https://github.com/DataDog/dd-agent/issues/3391
+[#3394]: https://github.com/DataDog/dd-agent/issues/3394
+[#3395]: https://github.com/DataDog/dd-agent/issues/3395
 [#3399]: https://github.com/DataDog/dd-agent/issues/3399
+[#3401]: https://github.com/DataDog/dd-agent/issues/3401
+[#3403]: https://github.com/DataDog/dd-agent/issues/3403
+[#3404]: https://github.com/DataDog/dd-agent/issues/3404
+[#3405]: https://github.com/DataDog/dd-agent/issues/3405
+[#3406]: https://github.com/DataDog/dd-agent/issues/3406
+[#3408]: https://github.com/DataDog/dd-agent/issues/3408
+[#3409]: https://github.com/DataDog/dd-agent/issues/3409
+[#3413]: https://github.com/DataDog/dd-agent/issues/3413
+[#3414]: https://github.com/DataDog/dd-agent/issues/3414
+[#3417]: https://github.com/DataDog/dd-agent/issues/3417
+[#3421]: https://github.com/DataDog/dd-agent/issues/3421
+[#3449]: https://github.com/DataDog/dd-agent/issues/3449
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -4151,6 +4301,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@Zenexer]: https://github.com/Zenexer
 [@a20012251]: https://github.com/a20012251
 [@adriandoolittle]: https://github.com/adriandoolittle
+[@aerostitch]: https://github.com/aerostitch
 [@ahamilton55]: https://github.com/ahamilton55
 [@alaz]: https://github.com/alaz
 [@alexef]: https://github.com/alexef
@@ -4234,6 +4385,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@joelvanvelden]: https://github.com/joelvanvelden
 [@joewilliams]: https://github.com/joewilliams
 [@jonaf]: https://github.com/jonaf
+[@jonchiu]: https://github.com/jonchiu
 [@joningle]: https://github.com/joningle
 [@joshk0]: https://github.com/joshk0
 [@jpittis]: https://github.com/jpittis
@@ -4305,11 +4457,13 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@sj26]: https://github.com/sj26
 [@skingry]: https://github.com/skingry
 [@slushpupie]: https://github.com/slushpupie
+[@sophaskins]: https://github.com/sophaskins
 [@squaresurf]: https://github.com/squaresurf
 [@ssbarnea]: https://github.com/ssbarnea
 [@steeve]: https://github.com/steeve
 [@stefan-mees]: https://github.com/stefan-mees
 [@stonith]: https://github.com/stonith
+[@subuk]: https://github.com/subuk
 [@takus]: https://github.com/takus
 [@tarvip]: https://github.com/tarvip
 [@tebriel]: https://github.com/tebriel

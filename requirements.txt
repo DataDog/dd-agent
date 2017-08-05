@@ -21,12 +21,12 @@ boto==2.46.1
 # utils/platform.py
 docker-py==1.10.6
 # utils/service_discovery/config_stores.py
-kazoo==2.2.1
+kazoo==2.4.0
 ntplib==0.3.3
 # utils/service_discovery/config_stores.py
 python-consul==0.4.7
 # utils/service_discovery/config_stores.py
-python-etcd==0.4.2
+python-etcd==0.4.5
 # the libyaml bindings are optional
 pyyaml==3.11
 # note: requests is also used in many checks

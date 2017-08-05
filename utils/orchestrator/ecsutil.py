@@ -3,47 +3,69 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 # stdlib
-import logging
+import re
+
+# 3rd
 import requests
-import socket
 
 # project
-from utils.dockerutil import DockerUtil
-from utils.platform import Platform
-from utils.singleton import Singleton
+from .baseutil import BaseUtil
 
-
-log = logging.getLogger(__name__)
-
-ECS_INTROSPECT_DEFAULT_PORT = 51678
+ECS_AGENT_DEFAULT_PORT = 51678
 ECS_AGENT_CONTAINER_NAME = 'ecs-agent'
+ECS_AGENT_METADATA_PATH = '/v1/metadata'
+ECS_AGENT_TASKS_PATH = '/v1/tasks'
 
-class ECSUtil:
-    __metaclass__ = Singleton
+AGENT_VERSION_EXP = re.compile(r'v([0-9.]+)')
+
+
+class ECSUtil(BaseUtil):
+    # FIXME: move the ecs detection logic from DockerUtil here?
+    @staticmethod
+    def is_detected():
+        from utils.dockerutil import DockerUtil
+        return DockerUtil().is_ecs()
 
     def __init__(self):
-        self.docker_util = DockerUtil()
-        self.ecs_agent_local = None
-
+        BaseUtil.__init__(self)
+        self.agent_url = self._detect_agent()
         self.ecs_tags = {}
         self._populate_ecs_tags()
 
-    def _get_ecs_address(self):
-        """Detect how to connect to the ecs-agent"""
+    @staticmethod
+    def ecs_agent_validation(r):
+        return ECS_AGENT_METADATA_PATH in r.json().get("AvailableCommands", [])
+
+    def _detect_agent(self):
+        """
+        The ECS agent runs on a container and listens to port 51678
+        We'll test the response on / for detection
+        """
+        urls = []
+
+        # Try to detect the ecs-agent container's IP (net=bridge)
         ecs_config = self.docker_util.inspect_container('ecs-agent')
         ip = ecs_config.get('NetworkSettings', {}).get('IPAddress')
-        ports = ecs_config.get('NetworkSettings', {}).get('Ports')
-        port = ports.keys()[0].split('/')[0] if ports else None
-        if not ip:
-            port = ECS_INTROSPECT_DEFAULT_PORT
-            if self._is_ecs_agent_local():
-                ip = "localhost"
-            elif Platform.is_containerized() and self.docker_gateway:
-                ip = self.docker_gateway
-            else:
-                raise Exception("Unable to determine ecs-agent IP address")
+        if ip:
+            ports = ecs_config.get('NetworkSettings', {}).get('Ports')
+            port = ports.keys()[0].split('/')[0] if ports else str(ECS_AGENT_DEFAULT_PORT)
+            urls.append("http://%s:%s/" % (ip, port))
 
-        return ip, port
+        # Try the default gateway (ecs-agent in net=host mode)
+        gw = self.docker_util.get_gateway()
+        if gw:
+            urls.append("http://%s:%d/" % (gw, ECS_AGENT_DEFAULT_PORT))
+
+        # Try localhost (both ecs-agent and dd-agent in host networking)
+        urls.append("http://localhost:%d/" % ECS_AGENT_DEFAULT_PORT)
+
+        url = self._try_urls(urls, validation_lambda=ECSUtil.ecs_agent_validation)
+        if url:
+            self.log.debug("Found ECS agent at " + url)
+        else:
+            self.log.debug("Could not find ECS agent at urls " + str(urls))
+
+        return url
 
     def _populate_ecs_tags(self, skip_known=False):
         """
@@ -51,14 +73,12 @@ class ECSUtil:
         If we just want to update new containers quickly (single task api call)
         (because we detected that a new task started for example)
         """
-        try:
-            ip, port = self._get_ecs_address()
-        except Exception as ex:
-            log.warning("Failed to connect to ecs-agent, skipping task tagging: %s" % ex)
+        if self.agent_url is None:
+            self.log.warning("ecs-agent not found, skipping task tagging")
             return
 
         try:
-            tasks = requests.get('http://%s:%s/v1/tasks' % (ip, port)).json()
+            tasks = requests.get(self.agent_url + ECS_AGENT_TASKS_PATH, timeout=1).json()
             for task in tasks.get('Tasks', []):
                 for container in task.get('Containers', []):
                     cid = container['DockerId']
@@ -69,73 +89,42 @@ class ECSUtil:
                     tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
                     self.ecs_tags[container['DockerId']] = tags
         except requests.exceptions.HTTPError as ex:
-            log.warning("Unable to collect ECS task names: %s" % ex)
+            self.log.warning("Unable to collect ECS task names: %s" % ex)
 
-    def _get_container_tags(self, cid):
-        """
-        This method triggers a fast fill of the tag cache (useful when a new task starts
-        and we want the new containers to be cached with a single api call) and returns
-        the tags (or an empty list) from the fresh cache.
-        """
+    def _get_cacheable_tags(self, cid, co=None):
         self._populate_ecs_tags(skip_known=True)
 
         if cid in self.ecs_tags:
             return self.ecs_tags[cid]
         else:
-            log.debug("Container %s doesn't seem to be an ECS task, skipping." % cid[:12])
+            self.log.debug("Container %s doesn't seem to be an ECS task, skipping." % cid[:12])
             self.ecs_tags[cid] = []
         return []
 
-    def _is_ecs_agent_local(self):
-        """Return True if we can reach the ecs-agent over localhost, False otherwise.
-        This is needed because if the ecs-agent is started with --net=host it won't have an IP address attached.
-        """
-        if self.ecs_agent_local is not None:
-            return self.ecs_agent_local
-
-        self.ecs_agent_local = False
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(5)
-        try:
-            result = sock.connect_ex(('localhost', ECS_INTROSPECT_DEFAULT_PORT))
-        except Exception as e:
-            log.debug("Unable to connect to ecs-agent. Exception: {0}".format(e))
-        else:
-            if result == 0:
-                self.ecs_agent_local = True
-            else:
-                log.debug("ecs-agent is not available locally, encountered error code: {0}".format(result))
-        sock.close()
-        return self.ecs_agent_local
-
-    def extract_container_tags(self, co):
-        """
-        Queries the ecs-agent to get ECS tags (task and task version) for a containers.
-        As this is expensive, it is cached in the self.ecs_tags dict.
-        The cache invalidation goes through invalidate_ecs_cache, called by the docker_daemon check
-
-        :param co: container dict returned by docker-py
-        :return: tags as list<string>, cached
-        """
-        co_id = co.get('Id', None)
-
-        if co_id is None:
-            log.warning("Invalid container object in extract_container_tags")
-            return []
-
-        if co_id in self.ecs_tags:
-            return self.ecs_tags[co_id]
-        else:
-            return self._get_container_tags(co_id)
-
+    # We extend the cache invalidation methods to handle the cid->task mapping cache
     def invalidate_cache(self, events):
-        """
-        Allows cache invalidation when containers die
-        :param events from self.get_events
-        """
+        BaseUtil.invalidate_cache(self, events)
         try:
             for ev in events:
                 if ev.get('status') == 'die' and ev.get('id') in self.ecs_tags:
                     del self.ecs_tags[ev.get('id')]
         except Exception as e:
-            log.warning("Error when invalidating ecs cache: " + str(e))
+            self.log.warning("Error when invalidating tag cache: " + str(e))
+
+    def reset_cache(self):
+        BaseUtil.reset_cache(self)
+        self.ecs_tags = {}
+
+    def get_host_tags(self):
+        tags = []
+        if self.agent_url:
+            try:
+                resp = requests.get(self.agent_url + ECS_AGENT_METADATA_PATH, timeout=1).json()
+                if "Version" in resp:
+                    match = AGENT_VERSION_EXP.search(resp.get("Version"))
+                    if match is not None and len(match.groups()) == 1:
+                        tags.append('ecs_version:%s' % match.group(1))
+            except Exception as e:
+                self.log.debug("Error getting ECS version: %s" % str(e))
+
+        return tags
