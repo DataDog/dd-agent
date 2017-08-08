@@ -22,6 +22,7 @@ import optparse
 import select
 import signal
 import socket
+import string
 import sys
 import threading
 from time import sleep, time
@@ -309,7 +310,7 @@ class Reporter(threading.Thread):
 
     def submit_http(self, url, data, headers):
         headers["DD-Dogstatsd-Version"] = get_version()
-        log.debug("Posting payload to %s" % url)
+        log.debug("Posting payload to %s" % string.split(url, "api_key=")[0])
         try:
             start_time = time()
             r = requests.post(url, data=data, timeout=5, headers=headers)
@@ -320,7 +321,7 @@ class Reporter(threading.Thread):
 
             status = r.status_code
             duration = round((time() - start_time) * 1000.0, 4)
-            log.debug("%s POST %s (%sms)" % (status, url, duration))
+            log.debug("%s POST %s (%sms)" % (status, string.split(url, "api_key=")[0], duration))
         except Exception:
             log.exception("Unable to post payload.")
             try:
