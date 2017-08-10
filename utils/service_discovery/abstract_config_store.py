@@ -279,9 +279,9 @@ class AbstractConfigStore(object):
 
         # then from docker labels
         if docker_labels:
-            kube_config = self._get_docker_config(identifier, docker_labels)
-            if kube_config is not None:
-                to_check.update(kube_config[0])
+            docker_config = self._get_docker_config(identifier, docker_labels)
+            if docker_config is not None:
+                to_check.update(docker_config[0])
         # lastly, try with legacy name for auto-conf
         to_check.update(self.template_cache.get_check_names(self._get_image_ident(identifier)))
 
@@ -300,16 +300,16 @@ class AbstractConfigStore(object):
             docker_labels = kwargs.get(DOCKER_LABELS)
             source = ""
 
-            kube_config = None
+            config = None
             if kube_annotations:
-                kube_config = self._get_kube_config(identifier, kube_annotations, kube_container_name)
+                config = self._get_kube_config(identifier, kube_annotations, kube_container_name)
                 source = CONFIG_FROM_KUBE
-            if kube_config is None and docker_labels is not None:
-                kube_config = self._get_docker_config(identifier, docker_labels)
+            if config is None and docker_labels is not None:
+                config = self._get_docker_config(identifier, docker_labels)
                 source = CONFIG_FROM_LABELS
 
-            if kube_config is not None:
-                check_names, init_config_tpls, instance_tpls = kube_config
+            if config is not None:
+                check_names, init_config_tpls, instance_tpls = config
                 return [(source, vs)
                         for vs in zip(check_names, init_config_tpls, instance_tpls)]
 
