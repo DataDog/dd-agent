@@ -33,7 +33,7 @@ KUBE_ANNOTATIONS = 'kube_annotations'
 KUBE_CONTAINER_NAME = 'kube_container_name'
 DOCKER_LABELS = 'docker_labels'
 KUBE_ANNOTATION_PREFIX = 'service-discovery.datadoghq.com'
-DOCKER_LABEL_PREFIX = 'com.datadoghq.sd'
+DOCKER_LABEL_PREFIX = 'com.datadoghq.ad'
 
 
 class KeyNotFound(Exception):
