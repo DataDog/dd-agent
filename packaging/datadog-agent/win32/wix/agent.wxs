@@ -43,31 +43,6 @@
             Timeout="1"
             RebootPrompt="no"/>
 
-        <Binary Id="FindReplace" SourceFile="$(var.WixRoot)\FindReplace.exe" />
-        <CustomAction
-            Id="ReplaceAPIKey"
-            BinaryKey="FindReplace"
-            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" APIKEYHERE [APIKEY]'
-            Execute="deferred"
-            Return="check"
-            Impersonate="no" />
-
-        <CustomAction
-            Id="ReplaceTags"
-            BinaryKey="FindReplace"
-            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" "# tags: mytag0, mytag1" "tags: [TAGS]"'
-            Execute="deferred"
-            Return="check"
-            Impersonate="no" />
-
-        <CustomAction
-            Id="ReplaceHostname"
-            BinaryKey="FindReplace"
-            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" "# hostname: mymachine.mydomain" "hostname: [HOSTNAME]"'
-            Execute="deferred"
-            Return="check"
-            Impersonate="no" />
-
         <CustomAction
             Id="LaunchApp"
             Directory="FILESDIR"
@@ -128,7 +103,35 @@
                         </Component>
                     </Directory>
         </DirectoryRef>
-
+        <DirectoryRef Id="INSTALLDIR">
+        <!-- Register variables that will be used by the agent at startup -->
+        <Component Id="RegisterConfVariables" Guid="e2423815-704d-4f29-af3b-9baf23ef03d6">
+            <RegistryKey Root="HKLM"
+                        Key="SOFTWARE\Datadog\Datadog Agent">
+            <RegistryValue Name="api_key"
+                            Type="string"
+                            Value="[APIKEY]"/>
+            <RegistryValue Name="tags"
+                            Type="string"
+                            Value="[TAGS]" />
+            <RegistryValue Name="hostname"
+                            Type="string"
+                            Value="[HOSTNAME]" />
+            <RegistryValue Name="proxy_host"
+                            Type="string"
+                            Value="[PROXY_HOST]" />
+            <RegistryValue Name="proxy_port"
+                            Type="string"
+                            Value="[PROXY_PORT]" />
+            <RegistryValue Name="proxy_user"
+                            Type="string"
+                            Value="[PROXY_USER]" />
+            <RegistryValue Name="proxy_password"
+                            Type="string"
+                            Value="[PROXY_PASSWORD]" />
+            </RegistryKey>
+        </Component>
+        </DirectoryRef>
         <Feature Id="MainApplication" Title="Main Application" Level="1">
             <ComponentRef Id="cacertificates.crt" />
             <ComponentRef Id="datadogcert.pem" />
@@ -142,6 +145,7 @@
             <ComponentGroupRef Id="files" />
             <ComponentRef Id="ApplicationShortcut" />
             <ComponentRef Id="logs" />
+            <ComponentRef Id="RegisterConfVariables" />
         </Feature>
 
         <UI>
@@ -158,9 +162,6 @@
 
         <InstallExecuteSequence>
             <RemoveExistingProducts Before="InstallInitialize" />
-            <Custom Action="ReplaceAPIKey" Before="StartServices" />
-            <Custom Action="ReplaceTags" Before="StartServices" />
-            <Custom Action="ReplaceHostname" Before="StartServices" />
             <Custom Action="WixCloseApplications"
                 After="InstallInitialize"><![CDATA[REMOVE="ALL" OR REINSTALL]]></Custom>
         </InstallExecuteSequence>
