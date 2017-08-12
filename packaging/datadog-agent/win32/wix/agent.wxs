@@ -48,6 +48,7 @@
             Directory="FILESDIR"
             ExeCommand="[SystemFolder]cmd.exe /C start agent-manager.exe" />
 
+        <WixVariable Id="WixUILicenseRtf" Value="$(var.InstallFiles)\license.rtf" />
         <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
             <Directory Id="INSTALLDIR" Name="Datadog Agent">
                 <Component Id="license.rtf" Guid="4B59F7AE-01AC-11E2-9AF6-28EC6088709B">
