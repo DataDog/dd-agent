@@ -39,7 +39,7 @@ cp -R ..\..\..\dist\gohai install_files\files\gohai
 cp -R install_files\guidata install_files\files
 
 # Copy the license file
-cp ..\..\..\LICENSE install_files\license.rtf
+cp ..\..\..\LICENSE.rtf install_files\license.rtf
 
 #Copy the Status template
 cp ..\..\..\win32\status.html install_files\files

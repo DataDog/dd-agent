@@ -22,6 +22,7 @@ from checks.collector import Collector
 from config import (
     get_confd_path,
     get_config,
+    get_config_path,
     get_system_stats,
     load_check_directory,
     PathNotFound,
@@ -36,6 +37,7 @@ import modules
 from utils.hostname import get_hostname
 from utils.jmx import JMXFiles
 from utils.profile import AgentProfiler
+from utils.windows_configuration import get_registry_conf, update_conf_file, remove_registry_conf
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +65,9 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             'profile': False
         }), []
         agentConfig = get_config(parse_args=False, options=opts)
+        if agentConfig['api_key'] == 'APIKEYHERE':
+            self._update_config_file(agentConfig)
+
         self.hostname = get_hostname(agentConfig)
 
         # Watchdog for Windows
@@ -84,6 +89,19 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             'dogstatsd': ProcessWatchDog("dogstatsd", DogstatsdProcess(config, self.hostname)),
             'jmxfetch': ProcessWatchDog("jmxfetch", JMXFetchProcess(config, self.hostname), 3),
         }
+
+    def _update_config_file(self, config):
+        log.debug('Querying registry to get missing config options')
+        registry_conf = get_registry_conf(config)
+        config.update(registry_conf)
+        if registry_conf:
+            log.info('Updating conf file options: %s', registry_conf.keys())
+            try:
+                update_conf_file(registry_conf, get_config_path())
+                log.info('update succeeded, deleting old values')
+                remove_registry_conf()
+            except Exception:
+                log.warning('Failed to update config file; registry configuration persisted')
 
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
