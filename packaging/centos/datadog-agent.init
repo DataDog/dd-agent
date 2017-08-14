@@ -45,6 +45,7 @@ DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro|trace-agent|process-agent"
 # Source function library.
 . /etc/rc.d/init.d/functions
 
+[ -r /etc/sysconfig/datadog-agent ] && . /etc/sysconfig/datadog-agent
 
 check_status() {
     # run checks to determine if the service is running or use generic status
@@ -138,6 +139,10 @@ start() {
         echo -n $'\n'"Invalid check configuration. Please run sudo /etc/init.d/datadog-agent configtest for more details."
         echo -n $'\n'"Resuming starting process."$'\n'
     fi
+
+    # NICELEVEL, if set, comes from /etc/default/datadog-agent.
+    # daemon will honor it, so we should export it.
+    export NICELEVEL
 
     # no need to test for status before daemon,
     # the daemon function does the right thing
