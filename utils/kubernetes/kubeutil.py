@@ -63,6 +63,23 @@ FACTORS = {
     'Ei': 1024*1024*1024*1024*1024*1024,
 }
 
+CONTAINER_LABELS = [
+    'container_name',  # kubernetes container name
+    'id',  # cgroup path
+    'image',
+    'name',  # docker container name
+    'namespace',  # kubernetes namespace
+    'pod_name'
+]
+
+CONTAINER_LABELS_TO_TAGS = {
+    'container_name': 'kube_container_name',
+    'namespace': 'kube_namespace',
+    'pod_name': 'pod_name',
+    'name': 'container_name',
+    'image': 'container_image',
+}
+
 
 def detect_is_k8s():
     """
@@ -594,9 +611,75 @@ class KubeUtil:
         log.warning("Cannot set both node_name: '%s' and node_ip: '%s' from PodList with %d items",
                     self._node_name, self._node_ip, len(pod_items))
 
+    def _is_container_metric(self, metric):
+        """
+        Return whether a metric is about a container or not.
+        It can be about pods, or even higher levels in the cgroup hierarchy
+        and we don't want to report on that.
+        """
+        for l in CONTAINER_LABELS:
+            if l == 'container_name':
+                for ml in metric.label:
+                    if ml.name == l:
+                        if ml.value == 'POD':
+                            return False
+            elif l not in [ml.name for ml in metric.label]:
+                return False
+        return True
+
+    def _is_pod_metric(self, metric):
+        """
+        Return whether a metric is about a pod or not.
+        It can be about pods, or even higher levels in the cgroup hierarchy
+        and we don't want to report on that.
+        """
+        for l in CONTAINER_LABELS:
+            if l == 'container_name':
+                for ml in metric.label:
+                    if ml.name == l:
+                        if ml.value == 'POD':
+                            return True
+        return False
+
+    def extract_image_tags(self, image_label):
+        """Get the image tags using docker_util"""
+        tags = []
+        # These extracters expect a container dict.
+        # We pass them one with the only info they need
+        dummy_container = {'Image': image_label}
+        docker_image = self.docker_util.image_name_extractor(dummy_container)
+        image_name_array = self.docker_util.image_tag_extractor(dummy_container, 0)
+        image_tag_array = self.docker_util.image_tag_extractor(dummy_container, 1)
+        if docker_image:
+            tags.append('container_image:%s' % docker_image)
+        if image_name_array and len(image_name_array) > 0:
+            tags.append('image_name:%s' % image_name_array[0])
+        if image_tag_array and len(image_tag_array) > 0:
+            tags.append('image_tag:%s' % image_tag_array[0])
+        return tags
+
+    def extract_metric_tags(self, labels):
+        """Build a tag list for a Prometheus metric"""
+        tags = []
+        pname, ns = None, None
+        for label in labels:
+            if label.name == 'image':
+                tags += self.extract_image_tags(label.value)
+            elif label.name == "pod_name":
+                pname = label.value
+            elif label.name == 'namespace':
+                ns = label.value
+            else:
+                if label.name in CONTAINER_LABELS_TO_TAGS:
+                    tags.append('{}:{}'.format(CONTAINER_LABELS_TO_TAGS[label.name], label.value))
+            if pname and ns:
+                tags += self.kube_pod_tags.get('{}/{}'.format(ns, pname), [])
+        return tags
+
     def extract_event_tags(self, event):
         """
         Return a list of tags extracted from an event object
+        TODO: tag with involvedObject tags as well?
         """
         tags = []
 
@@ -725,6 +808,30 @@ class KubeUtil:
         except Exception:
             log.warning('Could not parse creator tags for pod ' + pod_metadata.get('name'))
             return []
+
+    def get_namespaces(self, instance, ns_regex, default=['default']):
+        """
+        Computes the namespace set to check for events.
+        The namespace filtering is done here instead of KubeEventRetriever
+        to avoid interfering with service discovery.
+        And it's not cached because new namespaces may be created at any time.
+        """
+        k8s_namespaces = instance.get('namespaces', default)
+        if not isinstance(k8s_namespaces, list):
+            log.warning('Configuration key "namespaces" is not a list: fallback to the default value')
+            k8s_namespaces = default
+
+        if ns_regex:
+            namespaces_endpoint = '{}/namespaces'.format(self.kubernetes_api_url)
+            log.debug('Kubernetes API endpoint to query namespaces: %s' % namespaces_endpoint)
+
+            namespaces = self.retrieve_json_auth(namespaces_endpoint)
+            for namespace in namespaces.get('items', []):
+                name = namespace.get('metadata', {}).get('name', None)
+                if name and ns_regex.match(name):
+                    k8s_namespaces.append(name)
+
+        return set(k8s_namespaces)
 
     def process_events(self, event_array, podlist=None):
         """
