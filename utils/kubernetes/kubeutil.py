@@ -16,7 +16,7 @@ from utils.checkfiles import get_conf_path
 from utils.http import retrieve_json
 from utils.singleton import Singleton
 from utils.dockerutil import DockerUtil
-from utils.kubernetes import PodServiceMapper, KubeEventRetriever
+from utils.kubernetes import LeaderElector, KubeEventRetriever, PodServiceMapper
 
 import requests
 
@@ -107,6 +107,13 @@ class KubeUtil:
             self.kubernetes_api_root_url = 'https://%s:%s' % (master_host, master_port)
 
         self.kubernetes_api_url = '%s/api/v1' % self.kubernetes_api_root_url
+
+        # leader status triggers event collection
+        self.is_leader = False
+        self.leader_elector = None
+        if os.environ.get('DD_LEADER_CANDIDATE'):
+            self.leader_elector = LeaderElector(self)
+            self.leader_elector.try_acquire_or_refresh()
 
         # kubelet
         try:
@@ -221,7 +228,7 @@ class KubeUtil:
         node_filter = {'labelSelector': 'kubernetes.io/hostname=%s' % host}
         node = self.retrieve_json_auth(
             self.kubernetes_api_url + '/nodes?%s' % urlencode(node_filter)
-        )
+        ).json()
         if len(node['items']) != 1:
             log.error('Error while getting node hostname: expected 1 node, got %s.' % len(node['items']))
         else:
@@ -331,7 +338,7 @@ class KubeUtil:
         return requests.get(url, timeout=timeout, verify=verify,
             cert=cert, headers=headers, params={'verbose': verbose})
 
-    def retrieve_json_auth(self, url, timeout=10, verify=None, params=None):
+    def get_apiserver_auth_settings(self):
         """
         Kubernetes API requires authentication using a token available in
         every pod, or with a client X509 cert/key pair.
@@ -349,10 +356,32 @@ class KubeUtil:
         cert = self.tls_settings.get('apiserver_client_cert')
         bearer_token = self.tls_settings.get('bearer_token') if not cert else None
         headers = {'Authorization': 'Bearer {}'.format(bearer_token)} if bearer_token else None
+        headers['content-type'] = 'application/json'
+        return cert, headers, verify
 
-        r = requests.get(url, timeout=timeout, headers=headers, verify=verify, cert=cert, params=params)
-        r.raise_for_status()
-        return r.json()
+    def retrieve_json_auth(self, url, params=None, timeout=3):
+        cert, headers, verify = self.get_apiserver_auth_settings()
+        res = requests.get(url, timeout=timeout, headers=headers, verify=verify, cert=cert, params=params)
+        res.raise_for_status()
+        return res
+
+    def post_to_apiserver(self, url, data, timeout=3):
+        cert, headers, verify = self.get_apiserver_auth_settings()
+        res = requests.post(url, timeout=timeout, headers=headers, verify=verify, cert=cert, data=json.dumps(data))
+        res.raise_for_status()
+        return res
+
+    def put_to_apiserver(self, url, data, timeout=3):
+        cert, headers, verify = self.get_apiserver_auth_settings()
+        res = requests.put(url, timeout=timeout, headers=headers, verify=verify, cert=cert, data=json.dumps(data))
+        res.raise_for_status()
+        return res
+
+    def delete_to_apiserver(self, url, timeout=3):
+        cert, headers, verify = self.get_apiserver_auth_settings()
+        res = requests.delete(url, timeout=timeout, headers=headers, verify=verify, cert=cert)
+        res.raise_for_status()
+        return res
 
     def get_node_info(self):
         """
@@ -368,7 +397,7 @@ class KubeUtil:
         # API server version
         try:
             request_url = "%s/version" % self.kubernetes_api_root_url
-            master_info = self.retrieve_json_auth(request_url)
+            master_info = self.retrieve_json_auth(request_url).json()
             version = master_info.get("gitVersion")
             tags.append("kube_master_version:%s" % version[1:])
         except Exception as e:
@@ -382,7 +411,7 @@ class KubeUtil:
             if not node_name:
                 raise ValueError("node name missing or empty")
             request_url = "%s/nodes/%s" % (self.kubernetes_api_url, node_name)
-            node_info = self.retrieve_json_auth(request_url)
+            node_info = self.retrieve_json_auth(request_url).json()
             version = node_info.get("status").get("nodeInfo").get("kubeletVersion")
             tags.append("kubelet_version:%s" % version[1:])
         except Exception as e:
@@ -549,3 +578,7 @@ class KubeUtil:
         except Exception as e:
             log.warning("Error processing events %s: %s" % (str(event_array), e))
             return set()
+
+    def refresh_leader(self):
+        if self.leader_elector:
+            self.leader_elector.try_acquire_or_refresh()

@@ -69,8 +69,11 @@ class KubeEventRetriever:
     def get_event_array(self):
         """
         Fetch latest events from the apiserver for the namespaces and kinds set on init
-        and returns an array of event objects
+        and returns an array of event objects.
+        Also triggers leader election.
         """
+        # Leader election
+        self.kubeutil.refresh_leader()
 
         # Request throttling
         if self._request_interval:
@@ -82,7 +85,7 @@ class KubeEventRetriever:
         lastest_resversion = None
         filtered_events = []
 
-        events = self.kubeutil.retrieve_json_auth(self.request_url, params=self.request_params)
+        events = self.kubeutil.retrieve_json_auth(self.request_url, params=self.request_params).json()
 
         for event in events.get('items', []):
             resversion = int(event.get('metadata', {}).get('resourceVersion', None))
