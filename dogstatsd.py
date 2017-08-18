@@ -530,8 +530,8 @@ class Dogstatsd6(ProcessRunner):
 
         if dsd6_stats is not None and dsd6_agg_stats is not None:
             packet_count = dsd6_stats.get("ServiceCheckPackets", 0) + \
-                           dsd6_stats.get("EventPackets", 0) + \
-                           dsd6_stats.get("MetricPackets", 0)
+                dsd6_stats.get("EventPackets", 0) + \
+                dsd6_stats.get("MetricPackets", 0)
             flush_counts = dsd6_agg_stats.get("FlushCount", {})
 
             dsd6_status = DogstatsdStatus(
