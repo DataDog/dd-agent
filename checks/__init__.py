@@ -33,11 +33,8 @@ from config import AGENT_VERSION, _is_affirmative
 from util import get_next_id, yLoader
 from utils.hostname import get_hostname
 from utils.proxy import get_proxy
-from utils.platform import Platform
 from utils.profile import pretty_statistics
 from utils.proxy import get_no_proxy_from_env, config_proxy_skip
-if Platform.is_windows():
-    from utils.debug import run_check  # noqa - windows debug purpose
 
 log = logging.getLogger(__name__)
 
