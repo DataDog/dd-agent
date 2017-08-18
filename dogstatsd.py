@@ -529,17 +529,18 @@ class Dogstatsd6(ProcessRunner):
             return None
 
         if dsd6_stats is not None and dsd6_agg_stats is not None:
-            sc_pkt_cnt = dsd6_stats.get("ServiceCheckPackets", 0)
-            ev_pkt_cnt = dsd6_stats.get("EventPackets", 0)
-            m_pkt_cnt = dsd6_stats.get("MetricPackets", 0)
+            packet_count = dsd6_stats.get("ServiceCheckPackets", 0) + \
+                           dsd6_stats.get("EventPackets", 0) + \
+                           dsd6_stats.get("MetricPackets", 0)
+            flush_counts = dsd6_agg_stats.get("FlushCount", {})
 
             dsd6_status = DogstatsdStatus(
-                flush_count=dsd6_agg_stats.get('NumberOfFlush', -1),
-                packet_count=dsd6_stats.get('', -1),
-                packets_per_second=-1,  # unavailable
-                metric_count=m_pkt_cnt,
-                event_count=ev_pkt_cnt,
-                service_check_count=sc_pkt_cnt)
+                flush_count=dsd6_agg_stats.get('NumberOfFlush', 0),
+                packet_count=packet_count,
+                packets_per_second="N/A",  # unavailable
+                metric_count=flush_counts.get("Series", {}).get("LastFlush", 0),
+                event_count=flush_counts.get("Events", {}).get("LastFlush", 0),
+                service_check_count=flush_counts.get("ServiceChecks", {}).get("LastFlush", 0))
 
             return dsd6_status
 
