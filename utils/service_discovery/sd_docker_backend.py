@@ -306,16 +306,20 @@ class SDDockerBackend(AbstractSDBackend):
             namespace = pod_metadata.get('namespace')
             tags.append('kube_namespace:%s' % namespace)
 
-            # add creator tags
-            creator_tags = self.kubeutil.get_pod_creator_tags(pod_metadata)
-            tags.extend(creator_tags)
+            if not self.kubeutil:
+                log.warning("The agent can't connect to kubelet, creator and "
+                    "service tags will be missing for container %s." % c_id[:12])
+            else:
+                # add creator tags
+                creator_tags = self.kubeutil.get_pod_creator_tags(pod_metadata)
+                tags.extend(creator_tags)
 
-            # add services tags
-            if self.kubeutil.collect_service_tag:
-                services = self.kubeutil.match_services_for_pod(pod_metadata)
-                for s in services:
-                    if s is not None:
-                        tags.append('kube_service:%s' % s)
+                # add services tags
+                if self.kubeutil.collect_service_tag:
+                    services = self.kubeutil.match_services_for_pod(pod_metadata)
+                    for s in services:
+                        if s is not None:
+                            tags.append('kube_service:%s' % s)
 
         elif Platform.is_swarm():
             c_labels = c_inspect.get('Config', {}).get('Labels', {})
@@ -358,7 +362,7 @@ class SDDockerBackend(AbstractSDBackend):
             tags.append('pod_name:%s' % pod_metadata.get('name'))
 
             c_inspect = state.inspect_container(c_id)
-            c_name = c_inspect.get('Config', {}).get('Labels', {}).get(self.kubeutil.CONTAINER_NAME_LABEL)
+            c_name = c_inspect.get('Config', {}).get('Labels', {}).get(KubeUtil.CONTAINER_NAME_LABEL)
             if c_name:
                 tags.append('kube_container_name:%s' % c_name)
         return tags
