@@ -70,7 +70,7 @@ class TestFunctions(TestCase):
         gc.return_value['use_dogstatsd'] = True
         gc.return_value['statsd_so_rcvbuf'] = '1024'
 
-        init()
+        init5()
 
         s.assert_called_once()
         _, kwargs = s.call_args
