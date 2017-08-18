@@ -158,13 +158,6 @@ gce_updated_hostname: yes
 
 # If you don't want to enable the DogStatsd server, set this option to no
 # use_dogstatsd: yes
-#
-# Note: this is a beta feature
-# Enables dogstatsd6 on agent5. Will disable the default dogstatsd daemon.
-# dogstatsd6_enable: false
-#
-# Port from which to collect expvar statistics
-# dogstatsd6_stats_port: 5000
 
 #  Make sure your client is sending to the same port.
 # dogstatsd_port: 8125
