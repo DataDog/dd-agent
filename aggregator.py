@@ -399,6 +399,8 @@ class Aggregator(object):
     """
     # Types of metrics that allow strings
     ALLOW_STRINGS = ['s', ]
+    # Types that are not implemented and ignored
+    IGNORE_TYPES = ['d', ]
 
     def __init__(self, hostname, interval=1.0, expiry_seconds=300,
             formatter=None, recent_point_threshold=None,
@@ -472,6 +474,8 @@ class Aggregator(object):
 
             if metric_type in self.ALLOW_STRINGS:
                 value = raw_value
+            elif metric_type in self.IGNORE_TYPES:
+                continue
             else:
                 # Try to cast as an int first to avoid precision issues, then as a
                 # float.

@@ -41,8 +41,8 @@ from utils.windows_configuration import get_registry_conf, get_windows_sdk_check
 
 
 # CONSTANTS
-AGENT_VERSION = "5.15.0"
-JMX_VERSION = "0.14.0"
+AGENT_VERSION = "5.17.0"
+JMX_VERSION = "0.15.0"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
 MAC_CONFIG_PATH = '/opt/datadog-agent/etc'

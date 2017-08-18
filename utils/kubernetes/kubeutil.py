@@ -30,6 +30,7 @@ CREATOR_KIND_TO_TAG = {
     'DaemonSet': 'kube_daemon_set',
     'ReplicaSet': 'kube_replica_set',
     'ReplicationController': 'kube_replication_controller',
+    'StatefulSet': 'kube_stateful_set',
     'Deployment': 'kube_deployment',
     'Job': 'kube_job'
 }
@@ -103,7 +104,7 @@ class KubeUtil:
         else:
             master_host = os.environ.get('KUBERNETES_SERVICE_HOST') or self.DEFAULT_MASTER_NAME
             master_port = os.environ.get('KUBERNETES_SERVICE_PORT') or self.DEFAULT_MASTER_PORT
-            self.kubernetes_api_root_url = 'https://%s:%d' % (master_host, master_port)
+            self.kubernetes_api_root_url = 'https://%s:%s' % (master_host, master_port)
 
         self.kubernetes_api_url = '%s/api/v1' % self.kubernetes_api_root_url
 
@@ -123,6 +124,7 @@ class KubeUtil:
         self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
         self.kube_health_url = urljoin(self.kubelet_api_url, KubeUtil.KUBELET_HEALTH_PATH)
         self.kube_label_prefix = instance.get('label_to_tag_prefix', KubeUtil.DEFAULT_LABEL_PREFIX)
+        self.kube_node_labels = instance.get('node_labels_to_host_tags', {})
 
         # cadvisor
         self.cadvisor_port = instance.get('port', KubeUtil.DEFAULT_CADVISOR_PORT)
@@ -375,7 +377,7 @@ class KubeUtil:
             # if the parsing were to fail
             log.debug("Error getting Kube master version: %s" % str(e))
 
-        # Kubelet version
+        # Kubelet version & labels
         try:
             _, node_name = self.get_node_info()
             if not node_name:
@@ -384,6 +386,12 @@ class KubeUtil:
             node_info = self.retrieve_json_auth(request_url)
             version = node_info.get("status").get("nodeInfo").get("kubeletVersion")
             tags.append("kubelet_version:%s" % version[1:])
+
+            node_labels = node_info.get('metadata', {}).get('labels', {})
+            for l_name, t_name in self.kube_node_labels.iteritems():
+                if l_name in node_labels:
+                    tags.append('%s:%s' % (t_name, node_labels[l_name]))
+
         except Exception as e:
             log.debug("Error getting Kubelet version: %s" % str(e))
 
@@ -445,7 +453,7 @@ class KubeUtil:
         token_path = instance.get('bearer_token_path', cls.AUTH_TOKEN_PATH)
         try:
             with open(token_path) as f:
-                return f.read()
+                return f.read().strip()
         except IOError as e:
             log.error('Unable to read token from {}: {}'.format(token_path, e))
 

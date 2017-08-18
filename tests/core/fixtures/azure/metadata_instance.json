@@ -1,0 +1,39 @@
+{
+	"compute": {
+		"location": "westcentralus",
+		"name": "IMDSSample",
+		"offer": "UbuntuServer",
+		"osType": "Linux",
+		"platformFaultDomain": "0",
+		"platformUpdateDomain": "0",
+		"publisher": "Canonical",
+		"sku": "16.04.0-LTS",
+		"version": "16.04.201610200",
+		"vmId": "5d33a910-a7a0-4443-9f01-6a807801b29b",
+		"vmSize": "Standard_A1"
+	},
+	"network": {
+		"interface": [
+			{
+				"ipv4": {
+					"ipAddress": [
+						{
+							"privateIpAddress": "10.1.0.4",
+							"publicIpAddress": "X.X.X.X"
+						}
+					],
+					"subnet": [
+						{
+							"address": "10.1.0.0",
+							"prefix": "24"
+						}
+					]
+				},
+				"ipv6": {
+					"ipAddress": []
+				},
+				"macAddress": "000D3AF806EC"
+			}
+		]
+	}
+}

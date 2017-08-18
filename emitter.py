@@ -6,6 +6,7 @@
 from hashlib import md5
 import logging
 import re
+import string
 import zlib
 import unicodedata
 
@@ -74,7 +75,7 @@ def sanitize_payload(item, log, sanitize_func):
 
 def post_payload(url, message, agentConfig, log):
 
-    log.debug('http_emitter: attempting postback to ' + url)
+    log.debug('http_emitter: attempting postback to ' + string.split(url, "api_key=")[0])
 
     try:
         try:

@@ -20,11 +20,12 @@ import yaml
 # project
 from config import (
     DEFAULT_CHECK_FREQUENCY,
+    SD_PIPE_NAME,
     get_confd_path,
     get_config,
     get_jmx_pipe_path,
     PathNotFound,
-    _is_affirmative
+    _is_affirmative,
 )
 from daemon import ProcessRunner
 from util import yLoader
@@ -64,6 +65,8 @@ JMX_LIST_COMMANDS = {
     'list_not_matching_attributes': "List attributes that don't match any of your instances configuration",
     'list_limited_attributes': "List attributes that do match one of your instances configuration but that are not being collected because it would exceed the number of metrics that can be collected",
     JMX_COLLECT_COMMAND: "Start the collection of metrics based on your current configuration and display them in the console"}
+
+JMX_LAUNCH_FILE = 'jmx.launch'
 
 LINK_TO_DOC = "See http://docs.datadoghq.com/integrations/java/ for more information"
 
@@ -248,6 +251,8 @@ class JMXFetch(ProcessRunner):
                 pipe_path = get_jmx_pipe_path()
                 subprocess_args.insert(4, '--tmp_directory')
                 subprocess_args.insert(5, pipe_path)
+                subprocess_args.insert(4, '--sd_pipe')
+                subprocess_args.insert(5, SD_PIPE_NAME)
                 subprocess_args.insert(4, '--sd_enabled')
 
             if jmx_checks:
@@ -281,6 +286,16 @@ class JMXFetch(ProcessRunner):
         except Exception:
             log.info("unable to launch JMXFetch")
             raise
+
+    @staticmethod
+    def _get_jmx_launchtime():
+        fpath = os.path.join(get_jmx_pipe_path(), JMX_LAUNCH_FILE)
+        try:
+            _stat = os.stat(fpath)
+        except OSError as e:
+            raise e
+
+        return _stat.st_mtime
 
     @staticmethod
     def _is_jmx_check(check_config, check_name, checks_list):

@@ -63,6 +63,20 @@ class TestFunctions(TestCase):
         self.assertEqual(env.get('DD_API_KEY'), cfg['api_key'])
         self.assertEqual(env.get('DD_DOGSTATSD_STATS_PORT'), str(cfg['dogstatsd6_stats_port']))
 
+    @mock.patch('dogstatsd.get_config')
+    @mock.patch('dogstatsd.Server')
+    def test_init_with_so_rcvbuf(self, s, gc):
+        gc.return_value = defaultdict(str)
+        gc.return_value['use_dogstatsd'] = True
+        gc.return_value['statsd_so_rcvbuf'] = '1024'
+
+        init()
+
+        s.assert_called_once()
+        _, kwargs = s.call_args
+        self.assertEqual(kwargs['so_rcvbuf'], '1024')
+
+
 class TestServer(TestCase):
     def test_init(self):
         s = Server(None, 'localhost', '1234')
@@ -77,9 +91,12 @@ class TestServer(TestCase):
         s1.start()
         self.assertEqual(s1.socket.family, socket.AF_INET6)
 
-        s2 = Server(mock.MagicMock(), '127.0.0.1', '2345')
+        original_so_rcvbuf = s1.socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
+
+        s2 = Server(mock.MagicMock(), '127.0.0.1', '2345', so_rcvbuf=1023)
         s2.start()
         self.assertEqual(s2.socket.family, socket.AF_INET6)
+        self.assertNotEquals(original_so_rcvbuf, s2.socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF))
 
         s2 = Server(mock.MagicMock(), 'foo', '80')
         s2.start()

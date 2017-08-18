@@ -193,6 +193,13 @@ gce_updated_hostname: yes
 # server. This will be taken care of properly in the new gen agent core.
 # utf8_decoding: false
 
+# The number of bytes allocated to the statsd socket receive buffer. By default,
+# this value is set to the value of `/proc/sys/net/core/rmem_default`. If you
+# need to increase the size of this buffer but keep the OS default value the
+# same, you can set dogstats's receive buffer size here. The maximum allowed
+# value is the value of `/proc/sys/net/core/rmem_max`.
+# statsd_so_rcvbuf:
+
 # ========================================================================== #
 # Service-specific configuration                                             #
 # ========================================================================== #
