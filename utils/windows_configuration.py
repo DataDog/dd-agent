@@ -17,13 +17,29 @@ SDK_REG_PATH = WINDOWS_REG_PATH + '\\Integrations\\'
 
 log = logging.getLogger(__name__)
 
+config_attributes = ['api_key', 'tags', 'hostname', 'proxy_host', 'proxy_port', 'proxy_user', 'proxy_password']
+
+def remove_registry_conf():
+    try:
+        with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
+                             WINDOWS_REG_PATH, 0, _winreg.KEY_WRITE) as reg_key:
+            for attribute in config_attributes:
+                try:
+                    _winreg.DeleteValue(reg_key, attribute)
+                except Exception as e:
+                    log.error("Failed to delete value %s %s", attribute, str(e))
+                    # it's ok if it's not there.
+                    pass
+    except Exception:
+        # also OK if the whole tree isn't there
+        pass
 
 def get_registry_conf(agentConfig):
     registry_conf = {}
     try:
         with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
                              WINDOWS_REG_PATH) as reg_key:
-            for attribute in ['api_key', 'tags', 'hostname']:
+            for attribute in config_attributes:
                 option = _winreg.QueryValueEx(reg_key, attribute)[0]
                 if option != '':
                     registry_conf[attribute] = option
@@ -99,5 +115,6 @@ def update_conf_file(registry_conf, config_path):
         os.rename(temp_config_path, config_path)
     except OSError as e:
         log.exception('Unable to save new datadog.conf')
+        raise
     else:
         log.debug('Successfully saved the new datadog.conf')

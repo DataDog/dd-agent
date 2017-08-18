@@ -30,7 +30,7 @@ import win32service
 from config import get_config, get_config_path, get_confd_path
 from jmxfetch import JMXFetch
 from utils.jmx import JMXFiles
-from utils.windows_configuration import get_registry_conf, update_conf_file
+from utils.windows_configuration import get_registry_conf, update_conf_file, remove_registry_conf
 
 
 log = logging.getLogger('service')
@@ -134,7 +134,12 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         config.update(registry_conf)
         if registry_conf:
             log.info('Updating conf file options: %s', registry_conf.keys())
-            update_conf_file(registry_conf, get_config_path())
+            try:
+                update_conf_file(registry_conf, get_config_path())
+                log.info('update succeeded, deleting old values')
+                remove_registry_conf()
+            except Exception:
+                log.warning('Failed to update config file; registry configuration persisted')
 
     def SvcStop(self):
         # Stop all services.
