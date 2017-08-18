@@ -487,13 +487,17 @@ class SDDockerBackend(AbstractSDBackend):
 
         return templates
 
-    def _fill_tpl(self, state, c_id, instance_tpl, variables, tags=None):
+    def _fill_tpl(self, state, c_id, instance_tpl, variables, c_tags=None):
         """Add container tags to instance templates and build a
            dict from template variable names and their values."""
         var_values = {}
         c_image = state.inspect_container(c_id).get('Config', {}).get('Image', '')
 
-        # add default tags to the instance
+        # add only default c_tags to the instance to avoid duplicate tags from conf
+        if c_tags:
+            tags = c_tags[:] # shallow copy of the c_tags array
+        else:
+            tags = []
         if tags:
             tpl_tags = instance_tpl.get('tags', [])
             if isinstance(tpl_tags, dict):
