@@ -50,13 +50,15 @@ class TestFunctions(TestCase):
         self.assertEqual(args[1], '0.0.0.0')
 
     @mock.patch('dogstatsd.get_config')
-    def test_init6(self, gc):
+    @mock.patch('dogstatsd.get_config_path')
+    def test_init6(self, gcp, gc):
         cfg = defaultdict(str)
         cfg['api_key'] = "deadbeeffeebdaed"
         cfg['use_dogstatsd'] = True
         cfg['dogstatsd6_enable'] = True
         cfg['dogstatsd6_stats_port'] = 5050
         gc.return_value = cfg
+        gcp.return_value = os.path.abspath("datadog.conf")
 
         path, _, env = init6(gc)
         self.assertNotEqual(env, os.environ)
