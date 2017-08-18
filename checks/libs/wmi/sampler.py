@@ -560,7 +560,7 @@ class WMISampler(object):
                 try:
                     fval = float(wmi_property.Value)
                     if self._property_data_types is not None:
-                        if self._property_data_types[wmi_property.Name]:
+                        if wmi_property.Name in self._property_data_types:
                             if self._property_data_types[wmi_property.Name] == "uint32":
                                 val = wmi_property.Value
                                 if val < 0:
