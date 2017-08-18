@@ -42,6 +42,7 @@ from checks.check_status import DogstatsdStatus
 from checks.metric_types import MetricTypes
 from config import (
     get_config,
+    get_config_path,
     get_logging_config,
     get_version,
     _is_affirmative
@@ -651,6 +652,8 @@ def init6(config_path=None, args=None):
     if c.get('dogstatsd6_stats_port'):
         env['DD_DOGSTATSD_STATS_PORT'] = str(c['dogstatsd6_stats_port'])
     env['DD_LOG_LEVEL'] = c.get('log_level', 'info')
+    env['DD_CONF_PATH'] = os.path.join(
+        os.path.dirname(get_config_path(cfg_path=config_path)), "datadog.yaml")
     # metadata is sent by the collector, disable it in dogstatsd6 to avoid sending conflicting metadata
     env['DD_ENABLE_METADATA_COLLECTION'] = 'false'
 
