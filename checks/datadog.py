@@ -175,8 +175,7 @@ class Dogstream(object):
             self._events = []
 
             # Build our tail -f
-            if self._gen is None:
-                self._gen = TailFile(self.logger, self.log_path, self._line_parser).tail(line_by_line=False, move_end=move_end)
+            self._gen = TailFile(self.logger, self.log_path, self._line_parser).tail(line_by_line=False, move_end=move_end)
 
             # read until the end of file
             try:
