@@ -87,12 +87,34 @@ class LeaderElector:
             return False
 
     def _try_refresh(self):
-        # TODO: implement refresh
+        """Check the lock's state and trigger a lock, a refresh, or nothing."""
         try:
-            return False
+            cm = self._get_cm()
+            # If we're too slow it may have expired.
+            # In this case act like for an acquire
+            if not cm or self._is_lock_expired(cm):
+                return self._try_lock_cm()
+            elif not self._is_cm_mine(cm):
+                log.error("Tried refreshing the CM but it's not mine. Loosing leader election.")
+                return False
+            self._try_refresh_cm(cm)
         except Exception as ex:
             log.error("Failed to renew leader status: %s" % str(ex))
             return False
+
+    def _try_refresh_cm(self, cm):
+        """Builds the updated CM payload and tries to PUT it"""
+        update_pl = self._build_update_cm_payload(cm)
+        cm_url = '{}/{}'.format(
+            self.apiserver_url + CM_ENDPOINT.format(namespace=DEFAULT_NAMESPACE),
+            CM_NAME
+        )
+        try:
+            self.kubeutil.put_to_apiserver(cm_url, update_pl)
+        except Exception as ex:
+            log.error("Failed to update the ConfigMap lock. Error: %s" % str(ex))
+            return False
+        return True
 
     def _get_cm(self):
         """
@@ -177,7 +199,16 @@ class LeaderElector:
         return pl
 
     def _build_update_cm_payload(self, cm):
-        pl = {}
+        """
+        Starts with the ConfigMap we got, updates the ACQUIRE_TIME
+        and removes internal k8s fields
+        """
+        now = datetime.datetime.utcnow()
+        pl = cm
+        del pl['metadata']['resourceVersion']
+        del pl['metadata']['selfLink']
+        del pl['metadata']['uid']
+        pl['metadata']['annotations'][ACQUIRE_TIME_ANNOTATION] = datetime.datetime.strftime(now, "%Y-%m-%dT%H:%M:%S.%f")
         return pl
 
     def _is_cm_mine(self, cm):
