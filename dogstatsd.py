@@ -554,10 +554,15 @@ class Dogstatsd6(ProcessRunner):
 
     @classmethod
     def _get_dsd6_path(cls):
-        return os.path.realpath(os.path.join(
+        dsd6_path = os.path.realpath(os.path.join(
             os.path.abspath(__file__), "..", "..", "bin",
             cls.DSD6_BIN_NAME)
         )
+
+        if not os.path.isfile(dsd6_path):
+            return None
+
+        return dsd6_path
 
 
 def init5(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
