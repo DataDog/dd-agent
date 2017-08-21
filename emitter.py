@@ -30,6 +30,13 @@ control_chars = ''.join(map(unichr, range(0, 32) + range(127, 160)))
 control_char_re = re.compile('[%s]' % re.escape(control_chars))
 
 
+# Only enforced for the metrics API on our end, for now
+MAX_COMPRESSED_SIZE = 2 << 20  # 2MB, the backend should accept up to 3MB but let's be conservative here
+# maximum depth of recursive calls to payload splitting function, a bit arbitrary (we don't want too much
+# depth in the recursive calls, but we want to give up only when some metrics are clearly too large)
+MAX_SPLIT_DEPTH = 2
+
+
 def remove_control_chars(s, log):
     if isinstance(s, str):
         sanitized = control_char_re.sub('', s)
@@ -73,49 +80,134 @@ def sanitize_payload(item, log, sanitize_func):
 
     return item
 
-def post_payload(url, message, agentConfig, log):
 
+def post_payload(url, message, serialize_func, agentConfig, log):
     log.debug('http_emitter: attempting postback to ' + string.split(url, "api_key=")[0])
 
     try:
-        try:
-            payload = json.dumps(message)
-        except UnicodeDecodeError:
-            newmessage = sanitize_payload(message, log, remove_control_chars)
-            try:
-                payload = json.dumps(newmessage)
-            except UnicodeDecodeError:
-                log.info('Removing undecodable characters from payload')
-                newmessage = sanitize_payload(newmessage, log, remove_undecodable_chars)
-                payload = json.dumps(newmessage)
-    except UnicodeDecodeError as ude:
-        log.error('http_emitter: Unable to convert message to json %s', ude)
+        payloads = serialize_func(message, MAX_COMPRESSED_SIZE, 0, log)
+    except UnicodeDecodeError:
+        log.exception('http_emitter: Unable to convert message to json')
         # early return as we can't actually process the message
         return
-    except RuntimeError as rte:
-        log.error('http_emitter: runtime error dumping message to json %s', rte)
+    except RuntimeError:
+        log.exception('http_emitter: runtime error dumping message to json')
         # early return as we can't actually process the message
         return
-    except Exception as e:
-        log.error('http_emitter: unknown exception processing message %s', e)
-        return
-
-    zipped = zlib.compress(payload)
-
-    log.debug("payload_size=%d, compressed_size=%d, compression_ratio=%.3f"
-              % (len(payload), len(zipped), float(len(payload))/float(len(zipped))))
-
-    try:
-        headers = get_post_headers(agentConfig, zipped)
-        r = requests.post(url, data=zipped, timeout=5, headers=headers)
-
-        r.raise_for_status()
-
-        if r.status_code >= 200 and r.status_code < 205:
-            log.debug("Payload accepted")
-
     except Exception:
-        log.exception("Unable to post payload.")
+        log.exception('http_emitter: unknown exception processing message')
+        return
+
+    for payload in payloads:
+        try:
+            headers = get_post_headers(agentConfig, payload)
+            r = requests.post(url, data=payload, timeout=5, headers=headers)
+
+            r.raise_for_status()
+
+            if r.status_code >= 200 and r.status_code < 205:
+                log.debug("Payload accepted")
+
+        except Exception:
+            log.exception("Unable to post payload.")
+
+
+def serialize_payload(message, log):
+    payload = ""
+    try:
+        payload = json.dumps(message)
+    except UnicodeDecodeError:
+        newmessage = sanitize_payload(message, log, remove_control_chars)
+        try:
+            payload = json.dumps(newmessage)
+        except UnicodeDecodeError:
+            log.info('Removing undecodable characters from payload')
+            newmessage = sanitize_payload(newmessage, log, remove_undecodable_chars)
+            payload = json.dumps(newmessage)
+
+    return payload
+
+
+def serialize_and_compress_legacy_payload(legacy_payload, max_compressed_size, depth, log):
+    """
+    Serialize and compress the legacy payload
+    """
+    serialized_payload = serialize_payload(legacy_payload, log)
+    zipped = zlib.compress(serialized_payload)
+    log.debug("payload_size=%d, compressed_size=%d, compression_ratio=%.3f"
+              % (len(serialized_payload), len(zipped), float(len(serialized_payload))/float(len(zipped))))
+
+
+    compressed_payloads = [zipped]
+
+    if len(zipped) > max_compressed_size:
+        # let's just log a warning for now, splitting the legacy payload is tricky
+        log.warning("collector payload is above the limit of %dKB compressed", max_compressed_size/(1 << 10))
+
+    return compressed_payloads
+
+
+def serialize_and_compress_metrics_payload(metrics_payload, max_compressed_size, depth, log):
+    """
+    Serialize and compress the metrics payload
+    If the compressed payload is too big, we attempt to split it into smaller payloads and call this
+    function recursively on each smaller payload
+    """
+    compressed_payloads = []
+
+    serialized_payload = serialize_payload(metrics_payload, log)
+    zipped = zlib.compress(serialized_payload)
+    compression_ratio = float(len(serialized_payload))/float(len(zipped))
+    log.debug("payload_size=%d, compressed_size=%d, compression_ratio=%.3f"
+              % (len(serialized_payload), len(zipped), compression_ratio))
+
+    if len(zipped) < max_compressed_size:
+        compressed_payloads.append(zipped)
+    else:
+        series = metrics_payload["series"]
+
+        if depth > MAX_SPLIT_DEPTH:
+            log.error("Maximum depth of payload splitting reached, dropping the %d metrics in this chunk", len(series))
+            return compressed_payloads
+
+        # Try to account for the compression when estimating the number of chunks needed to get small-enough chunks
+        n_chunks = len(zipped)/max_compressed_size + 1 + int(compression_ratio/2)
+        log.debug("payload is too big (%d bytes), splitting it in %d chunks", len(zipped), n_chunks)
+
+        series_per_chunk = len(series)/n_chunks + 1
+
+        for i in range(n_chunks):
+            # Create each chunk and make them go through this function recursively ; increment the `depth` of the recursive call
+            compressed_payloads.extend(
+                serialize_and_compress_metrics_payload(
+                    {
+                        "series": series[i*series_per_chunk:(i+1)*series_per_chunk]
+                    },
+                    max_compressed_size,
+                    depth+1,
+                    log
+                )
+            )
+
+    return compressed_payloads
+
+
+def serialize_and_compress_checkruns_payload(checkruns_payload, max_compressed_size, depth, log):
+    """
+    Serialize and compress the checkruns payload
+    """
+    serialized_payload = serialize_payload(checkruns_payload, log)
+    zipped = zlib.compress(serialized_payload)
+    log.debug("payload_size=%d, compressed_size=%d, compression_ratio=%.3f"
+              % (len(serialized_payload), len(zipped), float(len(serialized_payload))/float(len(zipped))))
+
+    compressed_payloads = [zipped]
+
+    if len(zipped) > max_compressed_size:
+        # let's just log a warning for now, splitting the legacy payload is tricky
+        log.warning("checkruns payload is above the limit of %dKB compressed", max_compressed_size/(1 << 10))
+
+    return compressed_payloads
 
 
 def split_payload(legacy_payload):
@@ -154,6 +246,7 @@ def split_payload(legacy_payload):
 
     return legacy_payload, metrics_payload, checkruns_payload
 
+
 def http_emitter(message, log, agentConfig, endpoint):
     api_key = message.get('apiKey')
 
@@ -170,13 +263,13 @@ def http_emitter(message, log, agentConfig, endpoint):
     legacy_payload, metrics_payload, checkruns_payload = split_payload(message)
 
     # Post legacy payload
-    post_payload(legacy_url, legacy_payload, agentConfig, log)
+    post_payload(legacy_url, legacy_payload, serialize_and_compress_legacy_payload, agentConfig, log)
 
     # Post metrics payload
-    post_payload(metrics_endpoint, metrics_payload, agentConfig, log)
+    post_payload(metrics_endpoint, metrics_payload, serialize_and_compress_metrics_payload, agentConfig, log)
 
     # Post check runs payload
-    post_payload(checkruns_endpoint, checkruns_payload, agentConfig, log)
+    post_payload(checkruns_endpoint, checkruns_payload, serialize_and_compress_checkruns_payload, agentConfig, log)
 
 
 def get_post_headers(agentConfig, payload):
