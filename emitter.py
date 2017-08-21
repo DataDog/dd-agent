@@ -6,6 +6,7 @@
 from hashlib import md5
 import logging
 import re
+import string
 import zlib
 import unicodedata
 
@@ -81,7 +82,7 @@ def sanitize_payload(item, log, sanitize_func):
 
 
 def post_payload(url, message, serialize_func, agentConfig, log):
-    log.debug('http_emitter: attempting postback to ' + url)
+    log.debug('http_emitter: attempting postback to ' + string.split(url, "api_key=")[0])
 
     try:
         payloads = serialize_func(message, MAX_COMPRESSED_SIZE, 0, log)
@@ -191,6 +192,24 @@ def serialize_and_compress_metrics_payload(metrics_payload, max_compressed_size,
     return compressed_payloads
 
 
+def serialize_and_compress_checkruns_payload(checkruns_payload, max_compressed_size, depth, log):
+    """
+    Serialize and compress the checkruns payload
+    """
+    serialized_payload = serialize_payload(checkruns_payload, log)
+    zipped = zlib.compress(serialized_payload)
+    log.debug("payload_size=%d, compressed_size=%d, compression_ratio=%.3f"
+              % (len(serialized_payload), len(zipped), float(len(serialized_payload))/float(len(zipped))))
+
+    compressed_payloads = [zipped]
+
+    if len(zipped) > max_compressed_size:
+        # let's just log a warning for now, splitting the legacy payload is tricky
+        log.warning("checkruns payload is above the limit of %dKB compressed", max_compressed_size/(1 << 10))
+
+    return compressed_payloads
+
+
 def split_payload(legacy_payload):
     metrics_payload = {"series": []}
 
@@ -221,7 +240,11 @@ def split_payload(legacy_payload):
 
     del legacy_payload['metrics']
 
-    return legacy_payload, metrics_payload
+    checkruns_payload = legacy_payload["service_checks"]
+
+    del legacy_payload["service_checks"]
+
+    return legacy_payload, metrics_payload, checkruns_payload
 
 
 def http_emitter(message, log, agentConfig, endpoint):
@@ -235,14 +258,18 @@ def http_emitter(message, log, agentConfig, endpoint):
 
     legacy_url = "{0}/intake/{1}?api_key={2}".format(agentConfig['dd_url'], endpoint, api_key)
     metrics_endpoint = "{0}/api/v1/series?api_key={1}".format(agentConfig['dd_url'], api_key)
+    checkruns_endpoint = "{0}/api/v1/check_run?api_key={1}".format(agentConfig['dd_url'], api_key)
 
-    legacy_payload, metrics_payload = split_payload(message)
+    legacy_payload, metrics_payload, checkruns_payload = split_payload(message)
 
     # Post legacy payload
     post_payload(legacy_url, legacy_payload, serialize_and_compress_legacy_payload, agentConfig, log)
 
     # Post metrics payload
     post_payload(metrics_endpoint, metrics_payload, serialize_and_compress_metrics_payload, agentConfig, log)
+
+    # Post check runs payload
+    post_payload(checkruns_endpoint, checkruns_payload, serialize_and_compress_checkruns_payload, agentConfig, log)
 
 
 def get_post_headers(agentConfig, payload):

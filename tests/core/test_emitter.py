@@ -24,7 +24,7 @@ class TestEmitter(unittest.TestCase):
         with open(FIXTURE_PATH + '/legacy_payload.json') as f:
             legacy_payload = json.load(f)
 
-        legacy_payload_split, metrics_payload = split_payload(dict(legacy_payload))
+        legacy_payload_split, metrics_payload, checkruns_payload = split_payload(dict(legacy_payload))
         series = metrics_payload['series']
         legacy_payload_split['metrics'] = []
 
@@ -43,7 +43,13 @@ class TestEmitter(unittest.TestCase):
             formatted_sample = [s['metric'], s['points'][0][0], s['points'][0][1], attributes]
             legacy_payload_split['metrics'].append(formatted_sample)
 
+        del legacy_payload['service_checks']
         self.assertEqual(legacy_payload, legacy_payload_split)
+
+        with open(FIXTURE_PATH + '/sc_payload.json') as f:
+            expected_sc_payload = json.load(f)
+
+        self.assertEqual(checkruns_payload, expected_sc_payload)
 
     def test_remove_control_chars(self):
         messages = [

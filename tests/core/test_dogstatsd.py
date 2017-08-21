@@ -1,5 +1,6 @@
 # stdlib
 from unittest import TestCase
+import os
 import socket
 import threading
 import Queue
@@ -10,7 +11,11 @@ import mock
 
 # project
 from dogstatsd import mapto_v6, get_socket_address
-from dogstatsd import Server, init
+from dogstatsd import (
+    Server,
+    init5,
+    init6
+)
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
 
 
@@ -32,17 +37,46 @@ class TestFunctions(TestCase):
 
     @mock.patch('dogstatsd.get_config')
     @mock.patch('dogstatsd.Server')
-    def test_init(self, s, gc):
+    def test_init5(self, s, gc):
         gc.return_value = defaultdict(str)
         gc.return_value['non_local_traffic'] = True
         gc.return_value['use_dogstatsd'] = True
 
-        init()
+        init5()
 
         # if non_local_traffic was passed, use IPv4 wildcard
         s.assert_called_once()
         args, _ = s.call_args
         self.assertEqual(args[1], '0.0.0.0')
+
+    @mock.patch('dogstatsd.get_config')
+    @mock.patch('dogstatsd.get_config_path')
+    def test_init6(self, gcp, gc):
+        cfg = defaultdict(str)
+        cfg['api_key'] = "deadbeeffeebdaed"
+        cfg['use_dogstatsd'] = True
+        cfg['dogstatsd6_enable'] = True
+        cfg['dogstatsd6_stats_port'] = 5050
+        gc.return_value = cfg
+        gcp.return_value = os.path.abspath("datadog.conf")
+
+        path, _, env = init6(gc)
+        self.assertNotEqual(env, os.environ)
+        self.assertEqual(env.get('DD_API_KEY'), cfg['api_key'])
+        self.assertEqual(env.get('DD_DOGSTATSD_STATS_PORT'), str(cfg['dogstatsd6_stats_port']))
+
+    @mock.patch('dogstatsd.get_config')
+    @mock.patch('dogstatsd.Server')
+    def test_init_with_so_rcvbuf(self, s, gc):
+        gc.return_value = defaultdict(str)
+        gc.return_value['use_dogstatsd'] = True
+        gc.return_value['statsd_so_rcvbuf'] = '1024'
+
+        init5()
+
+        s.assert_called_once()
+        _, kwargs = s.call_args
+        self.assertEqual(kwargs['so_rcvbuf'], '1024')
 
 
 class TestServer(TestCase):
@@ -59,9 +93,12 @@ class TestServer(TestCase):
         s1.start()
         self.assertEqual(s1.socket.family, socket.AF_INET6)
 
-        s2 = Server(mock.MagicMock(), '127.0.0.1', '2345')
+        original_so_rcvbuf = s1.socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
+
+        s2 = Server(mock.MagicMock(), '127.0.0.1', '2345', so_rcvbuf=1023)
         s2.start()
         self.assertEqual(s2.socket.family, socket.AF_INET6)
+        self.assertNotEquals(original_so_rcvbuf, s2.socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF))
 
         s2 = Server(mock.MagicMock(), 'foo', '80')
         s2.start()

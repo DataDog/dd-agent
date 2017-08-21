@@ -36,6 +36,7 @@ import simplejson as json
 # DD imports
 from checks.check_status import CollectorStatus, DogstatsdStatus, ForwarderStatus
 from config import (
+    _is_affirmative,
     get_auto_confd_path,
     get_confd_path,
     get_config,
@@ -51,6 +52,11 @@ from utils.platform import Platform
 from utils.sdk import load_manifest
 from utils.configcheck import configcheck, sd_configcheck
 from utils.windows_configuration import get_sdk_integration_paths
+
+from utils.logger import DisableLoggerInit
+with DisableLoggerInit():  # ensure the dogstatsd6 logger isn't started
+    from dogstatsd import Dogstatsd6
+
 # Globals
 log = logging.getLogger(__name__)
 
@@ -266,6 +272,7 @@ class Flare(object):
         self._jmxfetch_log = config.get('jmxfetch_log_file')
         self._gometro_log = config.get('go-metro_log_file')
         self._trace_agent_log = config.get('trace-agent_log_file')
+        self._process_agent_log = config.get('process-agent_log_file')
 
     # Add logs to the tarfile
     def _add_logs_tar(self):
@@ -275,6 +282,7 @@ class Flare(object):
         self._add_log_file_tar(self._jmxfetch_log)
         self._add_log_file_tar(self._gometro_log)
         self._add_log_file_tar(self._trace_agent_log)
+        self._add_log_file_tar(self._process_agent_log)
         if not Platform.is_windows():
             self._add_log_file_tar(
                 "{0}/*supervisord.log".format(os.path.dirname(self._collector_log))
@@ -604,7 +612,13 @@ class Flare(object):
     # Print info of all agent components
     def _info_all(self):
         CollectorStatus.print_latest_status(verbose=True)
-        DogstatsdStatus.print_latest_status(verbose=True)
+        if not _is_affirmative(self._config.get('dogstatsd6_enable')):
+            DogstatsdStatus.print_latest_status(verbose=True)
+        else:
+            dsd6_status = Dogstatsd6._get_dsd6_stats(self._config)
+            if dsd6_status:
+                dsd6_status.render()
+
         ForwarderStatus.print_latest_status(verbose=True)
 
     # Call jmx_command with std streams redirection

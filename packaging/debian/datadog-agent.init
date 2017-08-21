@@ -31,11 +31,15 @@ COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
 SYSTEM_PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH
 
 # Captures processes in the supervisord group that are 'optional' i.e. not essential for the agent to run
-DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro|trace-agent"
+DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro|trace-agent|process-agent"
 
 if [ ! -x $AGENTPATH ]; then
     echo "$AGENTPATH not found. Exiting."
     exit 0
+fi
+
+if [ -r "/etc/default/${NAME}" ]; then
+    . "/etc/default/${NAME}"
 fi
 
 check_status() {
@@ -118,6 +122,11 @@ case "$1" in
         if [ ! -f $AGENTCONF ]; then
             echo "$AGENTCONF not found. Exiting."
             exit 3
+        fi
+
+        if [ "$DATADOG_ENABLED" == "no" ]; then
+            echo "Disabled via /etc/default/$NAME. Exiting."
+            exit 0
         fi
 
         check_status essential > /dev/null

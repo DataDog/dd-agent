@@ -41,7 +41,7 @@ from utils.windows_configuration import get_registry_conf, get_windows_sdk_check
 
 
 # CONSTANTS
-AGENT_VERSION = "5.15.0"
+AGENT_VERSION = "5.17.0"
 JMX_VERSION = "0.15.0"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
@@ -1251,6 +1251,7 @@ def get_logging_config(cfg_path=None):
         logging_config['jmxfetch_log_file'] = '/var/log/datadog/jmxfetch.log'
         logging_config['go-metro_log_file'] = '/var/log/datadog/go-metro.log'
         logging_config['trace-agent_log_file'] = '/var/log/datadog/trace-agent.log'
+        logging_config['process-agent_log_file'] = '/var/log/datadog/process-agent.log'
         logging_config['log_to_syslog'] = True
 
     config_path = get_config_path(cfg_path, os_name=system_os)

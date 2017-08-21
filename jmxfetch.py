@@ -8,13 +8,10 @@ if __name__ == '__main__':
     initialize_logging('jmxfetch')
 
 # stdlib
-from contextlib import nested
 import glob
 import logging
 import os
-import signal
 import sys
-import tempfile
 import time
 
 # 3p
@@ -27,14 +24,13 @@ from config import (
     get_confd_path,
     get_config,
     get_jmx_pipe_path,
-    get_logging_config,
     PathNotFound,
     _is_affirmative,
 )
+from daemon import ProcessRunner
 from util import yLoader
 from utils.jmx import JMX_FETCH_JAR_NAME, JMXFiles
 from utils.platform import Platform
-from utils.subprocess_output import subprocess
 
 log = logging.getLogger('jmxfetch')
 
@@ -70,6 +66,8 @@ JMX_LIST_COMMANDS = {
     'list_limited_attributes': "List attributes that do match one of your instances configuration but that are not being collected because it would exceed the number of metrics that can be collected",
     JMX_COLLECT_COMMAND: "Start the collection of metrics based on your current configuration and display them in the console"}
 
+JMX_LAUNCH_FILE = 'jmx.launch'
+
 LINK_TO_DOC = "See http://docs.datadoghq.com/integrations/java/ for more information"
 
 
@@ -77,41 +75,20 @@ class InvalidJMXConfiguration(Exception):
     pass
 
 
-class JMXFetch(object):
+class JMXFetch(ProcessRunner):
     """
     Start JMXFetch if any JMX check is configured
     """
-    def __init__(self, confd_path, agentConfig):
+    def __init__(self, confd_path, agent_config):
         self.confd_path = confd_path
-        self.agentConfig = agentConfig
-        self.logging_config = get_logging_config()
+        self.agent_config = agent_config
         self.check_frequency = DEFAULT_CHECK_FREQUENCY
-        self.service_discovery = _is_affirmative(self.agentConfig.get('sd_jmx_enable', False))
+        self.service_discovery = _is_affirmative(self.agent_config.get('sd_jmx_enable', False))
 
         self.jmx_process = None
         self.jmx_checks = None
+        super(JMXFetch, self).__init__()
 
-    def terminate(self):
-        self.jmx_process.terminate()
-
-    def _handle_sigterm(self, signum, frame):
-        # Terminate jmx process on SIGTERM signal
-        log.debug("Caught sigterm. Stopping subprocess.")
-        self.jmx_process.terminate()
-
-    def register_signal_handlers(self):
-        """
-        Enable SIGTERM and SIGINT handlers
-        """
-        try:
-            # Gracefully exit on sigterm
-            signal.signal(signal.SIGTERM, self._handle_sigterm)
-
-            # Handle Keyboard Interrupt
-            signal.signal(signal.SIGINT, self._handle_sigterm)
-
-        except ValueError:
-            log.exception("Unable to register signal handlers.")
 
     def configure(self, checks_list=None, clean_status_file=True):
         """
@@ -229,11 +206,11 @@ class JMXFetch(object):
 
     def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path, custom_jar_paths, redirect_std_streams):
         if reporter is None:
-            statsd_host = self.agentConfig.get('bind_host', 'localhost')
+            statsd_host = self.agent_config.get('bind_host', 'localhost')
             if statsd_host == "0.0.0.0":
                 # If statsd is bound to all interfaces, just use localhost for clients
                 statsd_host = "localhost"
-            statsd_port = self.agentConfig.get('dogstatsd_port', "8125")
+            statsd_port = self.agent_config.get('dogstatsd_port', "8125")
             reporter = "statsd:%s:%s" % (statsd_host, statsd_port)
 
         log.info("Starting jmxfetch:")
@@ -294,33 +271,7 @@ class JMXFetch(object):
                 subprocess_args.insert(1, opt)
 
             log.info("Running %s" % " ".join(subprocess_args))
-
-            # Launch JMXfetch subprocess manually, w/o get_subprocess_output(), since it's a special case
-            with nested(tempfile.TemporaryFile(), tempfile.TemporaryFile()) as (stdout_f, stderr_f):
-                jmx_process = subprocess.Popen(
-                    subprocess_args,
-                    close_fds=not redirect_std_streams,  # only set to True when the streams are not redirected, for WIN compatibility
-                    stdout=stdout_f if redirect_std_streams else None,
-                    stderr=stderr_f if redirect_std_streams else None
-                )
-                self.jmx_process = jmx_process
-
-                # Register SIGINT and SIGTERM signal handlers
-                self.register_signal_handlers()
-
-                # Wait for JMXFetch to return
-                jmx_process.wait()
-
-                if redirect_std_streams:
-                    # Write out the stdout and stderr of JMXFetch to sys.stdout and sys.stderr
-                    stderr_f.seek(0)
-                    err = stderr_f.read()
-                    stdout_f.seek(0)
-                    out = stdout_f.read()
-                    sys.stdout.write(out)
-                    sys.stderr.write(err)
-
-            return jmx_process.returncode
+            return self.execute(subprocess_args, redirect_std_streams)
 
         except OSError:
             java_path_msg = "Couldn't launch JMXTerm. Is Java in your PATH ?"
@@ -333,8 +284,18 @@ class JMXFetch(object):
             JMXFiles.write_status_file(invalid_checks)
             raise
         except Exception:
-            log.exception("Couldn't launch JMXFetch")
+            log.info("unable to launch JMXFetch")
             raise
+
+    @staticmethod
+    def _get_jmx_launchtime():
+        fpath = os.path.join(get_jmx_pipe_path(), JMX_LAUNCH_FILE)
+        try:
+            _stat = os.stat(fpath)
+        except OSError as e:
+            raise e
+
+        return _stat.st_mtime
 
     @staticmethod
     def _is_jmx_check(check_config, check_name, checks_list):
@@ -496,21 +457,21 @@ def get_jmx_checks(confd_path=None, auto_conf=False):
     return jmx_checks
 
 def init(config_path=None):
-    agentConfig = get_config(parse_args=False, cfg_path=config_path)
+    agent_config = get_config(parse_args=False, cfg_path=config_path)
     try:
         confd_path = get_confd_path()
     except PathNotFound as e:
         log.error("No conf.d folder found at '%s' or in the directory where"
                   "the Agent is currently deployed.\n" % e.args[0])
 
-    return confd_path, agentConfig
+    return confd_path, agent_config
 
 
 def main(config_path=None):
     """ JMXFetch main entry point """
-    confd_path, agentConfig = init(config_path)
+    confd_path, agent_config = init(config_path)
 
-    jmx = JMXFetch(confd_path, agentConfig)
+    jmx = JMXFetch(confd_path, agent_config)
     return jmx.run()
 
 if __name__ == '__main__':
