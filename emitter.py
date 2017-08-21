@@ -148,7 +148,11 @@ def split_payload(legacy_payload):
 
     del legacy_payload['metrics']
 
-    return legacy_payload, metrics_payload
+    checkruns_payload = legacy_payload["service_checks"]
+
+    del legacy_payload["service_checks"]
+
+    return legacy_payload, metrics_payload, checkruns_payload
 
 def http_emitter(message, log, agentConfig, endpoint):
     api_key = message.get('apiKey')
@@ -161,14 +165,18 @@ def http_emitter(message, log, agentConfig, endpoint):
 
     legacy_url = "{0}/intake/{1}?api_key={2}".format(agentConfig['dd_url'], endpoint, api_key)
     metrics_endpoint = "{0}/api/v1/series?api_key={1}".format(agentConfig['dd_url'], api_key)
+    checkruns_endpoint = "{0}/api/v1/check_run?api_key={1}".format(agentConfig['dd_url'], api_key)
 
-    legacy_payload, metrics_payload = split_payload(message)
+    legacy_payload, metrics_payload, checkruns_payload = split_payload(message)
 
     # Post legacy payload
     post_payload(legacy_url, legacy_payload, agentConfig, log)
 
     # Post metrics payload
     post_payload(metrics_endpoint, metrics_payload, agentConfig, log)
+
+    # Post check runs payload
+    post_payload(checkruns_endpoint, checkruns_payload, agentConfig, log)
 
 
 def get_post_headers(agentConfig, payload):
