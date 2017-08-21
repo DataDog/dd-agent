@@ -124,7 +124,7 @@ case "$1" in
             exit 3
         fi
 
-        if [ "$DATADOG_ENABLED" == "no" ]; then
+        if [ "$DATADOG_ENABLED" = "no" ]; then
             echo "Disabled via /etc/default/$NAME. Exiting."
             exit 0
         fi

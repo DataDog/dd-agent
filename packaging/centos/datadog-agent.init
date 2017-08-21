@@ -136,7 +136,7 @@ start() {
         exit 3
     fi
 
-    if [ "$DATADOG_ENABLED" == "no" ]; then
+    if [ "$DATADOG_ENABLED" = "no" ]; then
         echo "Disabled via $AGENTSYSCONFIG. Exiting."
         exit 0
     fi
