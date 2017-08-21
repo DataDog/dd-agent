@@ -1,11 +1,13 @@
+# std
 import datetime
 import logging
+from copy import deepcopy
 from urlparse import urljoin
+
 
 log = logging.getLogger('collector')
 
 HEALTH_ENDPOINT = '/healthz'
-DEFAULT_NAMESPACE = 'default'  # TODO: use agent's own ns
 CM_ENDPOINT = '/namespaces/{namespace}/configmaps'
 CM_NAME = 'datadog-leader-elector'
 CREATOR_ANNOTATION = 'creator'
@@ -37,6 +39,7 @@ class LeaderElector:
     def __init__(self, kubeutil):
         self.kubeutil = kubeutil
         self.apiserver_url = kubeutil.kubernetes_api_url
+        self.self_namespace = kubeutil.self_namespace
         self.last_acquire_time = None
         if not self._is_reachable():
             return
@@ -110,7 +113,7 @@ class LeaderElector:
         """
         try:
             cm_url = '{}/{}'.format(
-                self.apiserver_url + CM_ENDPOINT.format(namespace=DEFAULT_NAMESPACE),
+                self.apiserver_url + CM_ENDPOINT.format(namespace=self.self_namespace),
                 CM_NAME
             )
             cm = self.kubeutil.retrieve_json_auth(cm_url).json()
@@ -127,10 +130,10 @@ class LeaderElector:
             return cm
 
     def _is_lock_expired(self, cm):
-        acquired_time = cm['metadata'].get('annotations', {}).get(ACQUIRE_TIME_ANNOTATION)
+        acquired_time = cm.get('metadata', {}).get('annotations', {}).get(ACQUIRE_TIME_ANNOTATION)
 
         if not acquired_time:
-            log.warning("aquired-time wasn't set correctly for the leader lock. Assuming"
+            log.warning("acquired-time wasn't set correctly for the leader lock. Assuming"
                 " it's expired so we can reset it correctly.")
             return True
 
@@ -147,8 +150,8 @@ class LeaderElector:
             - post the new cm as a replacement. If the post failed,
               a concurrent agent won the race and we're not leader
         """
-        create_pl = self._build_create_cm_payload(cm)
-        cm_url = self.apiserver_url + CM_ENDPOINT.format(namespace=DEFAULT_NAMESPACE)
+        create_pl = self._build_create_cm_payload()
+        cm_url = self.apiserver_url + CM_ENDPOINT.format(namespace=self.self_namespace)
         if cm:
             try:
                 del_url = '{}/{}'.format(cm_url, cm['metadata']['name'])
@@ -177,7 +180,7 @@ class LeaderElector:
         """Builds the updated CM payload and tries to PUT it"""
         update_pl = self._build_update_cm_payload(cm)
         cm_url = '{}/{}'.format(
-            self.apiserver_url + CM_ENDPOINT.format(namespace=DEFAULT_NAMESPACE),
+            self.apiserver_url + CM_ENDPOINT.format(namespace=self.self_namespace),
             CM_NAME
         )
         try:
@@ -190,7 +193,7 @@ class LeaderElector:
         self.last_acquire_time = datetime.datetime.strptime(acquired_time, "%Y-%m-%dT%H:%M:%S.%f")
         return True
 
-    def _build_create_cm_payload(self, cm):
+    def _build_create_cm_payload(self):
         now = datetime.datetime.utcnow()
         pl = {
             'data': {},
@@ -200,7 +203,7 @@ class LeaderElector:
                     ACQUIRE_TIME_ANNOTATION: datetime.datetime.strftime(now, "%Y-%m-%dT%H:%M:%S.%f")
                 },
                 'name': CM_NAME,
-                'namespace': DEFAULT_NAMESPACE  # TODO: use agent namespace
+                'namespace': self.self_namespace  # TODO: use agent namespace
             }
         }
         return pl
@@ -211,7 +214,7 @@ class LeaderElector:
         and removes internal k8s fields
         """
         now = datetime.datetime.utcnow()
-        pl = cm
+        pl = deepcopy(cm)
         del pl['metadata']['resourceVersion']
         del pl['metadata']['selfLink']
         del pl['metadata']['uid']

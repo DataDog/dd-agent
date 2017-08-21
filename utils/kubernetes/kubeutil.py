@@ -23,6 +23,7 @@ import requests
 log = logging.getLogger('collector')
 
 KUBERNETES_CHECK_NAME = 'kubernetes'
+DEFAULT_NAMESPACE = 'default'
 
 DEFAULT_TLS_VERIFY = True
 
@@ -135,12 +136,19 @@ class KubeUtil:
         self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
         self.machine_info_url = urljoin(self.cadvisor_url, KubeUtil.MACHINE_INFO_PATH)
 
+        try:
+            self.self_namespace = self.get_self_namespace()
+        except Exception:
+            log.warning("Failed to get the agent pod namespace, defaulting to default.")
+            self.self_namespace = DEFAULT_NAMESPACE
+
         from config import _is_affirmative
         self.collect_service_tag = _is_affirmative(instance.get('collect_service_tags', KubeUtil.DEFAULT_COLLECT_SERVICE_TAG))
 
         # keep track of the latest k8s event we collected and posted
         # default value is 0 but TTL for k8s events is one hour anyways
         self.last_event_collection_ts = 0
+
 
     def _init_tls_settings(self, instance):
         """
@@ -216,6 +224,14 @@ class KubeUtil:
         self.perform_kubelet_query(test_url)
 
         return https_url
+
+    def get_self_namespace(self):
+        pods = self.retrieve_pods_list()
+        for pod in pods.get('items', []):
+            if pod.get('metadata', {}).get('name') == self.host_name:
+                return pod['metadata']['namespace']
+        log.warning("Couldn't find the agent pod and namespace, using the default.")
+        return DEFAULT_NAMESPACE
 
     def get_node_hostname(self, host):
         """
