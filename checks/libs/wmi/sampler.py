@@ -82,6 +82,9 @@ class WMISampler(object):
     # Type resolution state
     _property_counter_types = None
 
+    # cache whether data is unsigned or not
+    _property_data_types = None
+
     # Samples
     _current_sample = None
     _previous_sample = None
@@ -459,13 +462,16 @@ class WMISampler(object):
 
             # For the first query, cache the qualifiers to determine each
             # propertie's "CounterType"
-            includes_qualifiers = self.is_raw_perf_class and self._property_counter_types is None
+            includes_qualifiers = self.is_raw_perf_class and (
+                (self._property_counter_types is None or self._property_data_types is None))
             if includes_qualifiers:
-                self._property_counter_types = CaseInsensitiveDict()
+                if self._property_counter_types is None:
+                    self._property_counter_types = CaseInsensitiveDict()
+                if self._property_data_types is None:
+                    self._property_data_types = CaseInsensitiveDict()
                 query_flags |= flag_use_amended_qualifiers
 
             raw_results = self.get_connection().ExecQuery(wql, "WQL", query_flags)
-
             results = self._parse_results(raw_results, includes_qualifiers=includes_qualifiers)
 
         except pywintypes.com_error:
@@ -504,13 +510,14 @@ class WMISampler(object):
             for wmi_property in res.Properties_:
                 # IMPORTANT: To improve performance, only access the Qualifiers
                 # if the "CounterType" hasn't already been cached.
+
                 should_get_qualifier_type = (
                     includes_qualifiers and
-                    wmi_property.Name not in self._property_counter_types
+                    (wmi_property.Name not in self._property_counter_types or
+                     wmi_property.Name not in self._property_data_types)
                 )
 
                 if should_get_qualifier_type:
-
                     # Can't index into "Qualifiers_" for keys that don't exist
                     # without getting an exception.
                     qualifiers = dict((q.Name, q.Value) for q in wmi_property.Qualifiers_)
@@ -539,11 +546,30 @@ class WMISampler(object):
                                 property_names=wmi_property.Name,
                             )
                         )
+                    if "CIMTYPE" in qualifiers:
+                        self._property_data_types[wmi_property.Name] = qualifiers["CIMTYPE"]
+                        self.logger.debug(
+                            u"CIMTYPE for {class_name}.{property_name} is {CIMTYPE}"
+                            .format(
+                                class_name=self.class_name,
+                                property_name=wmi_property.Name,
+                                CIMTYPE=qualifiers["CIMTYPE"],
+                            )
+                        )
 
                 try:
-                    item[wmi_property.Name] = float(wmi_property.Value)
+                    fval = float(wmi_property.Value)
+                    if self._property_data_types is not None:
+                        if wmi_property.Name in self._property_data_types:
+                            if self._property_data_types[wmi_property.Name] == "uint32":
+                                val = wmi_property.Value
+                                if val < 0:
+                                    fval = float(val & 0xFFFFFFFF)
+
+                    item[wmi_property.Name] = fval
                 except (TypeError, ValueError):
                     item[wmi_property.Name] = wmi_property.Value
+
 
             results.append(item)
         return results

@@ -149,7 +149,8 @@ class SDDockerBackend(AbstractSDBackend):
             self.reload_check_configs = True
             return
 
-        identifier = inspect.get('Config', {}).get('Labels', {}).get(DATADOG_ID) or \
+        labels = inspect.get('Config', {}).get('Labels', {})
+        identifier = labels.get(DATADOG_ID) or \
             self.dockerutil.image_name_extractor(inspect)
 
         platform_kwargs = {}
@@ -159,7 +160,8 @@ class SDDockerBackend(AbstractSDBackend):
                 'kube_annotations': kube_metadata.get('annotations'),
                 'kube_container_name': state.get_kube_container_name(c_id),
             }
-
+        if labels:
+            platform_kwargs['docker_labels'] = labels
         return self.config_store.get_checks_to_refresh(identifier, **platform_kwargs)
 
     def _get_container_pid(self, state, cid, tpl_var):
@@ -304,16 +306,20 @@ class SDDockerBackend(AbstractSDBackend):
             namespace = pod_metadata.get('namespace')
             tags.append('kube_namespace:%s' % namespace)
 
-            # add creator tags
-            creator_tags = self.kubeutil.get_pod_creator_tags(pod_metadata)
-            tags.extend(creator_tags)
+            if not self.kubeutil:
+                log.warning("The agent can't connect to kubelet, creator and "
+                    "service tags will be missing for container %s." % c_id[:12])
+            else:
+                # add creator tags
+                creator_tags = self.kubeutil.get_pod_creator_tags(pod_metadata)
+                tags.extend(creator_tags)
 
-            # add services tags
-            if self.kubeutil.collect_service_tag:
-                services = self.kubeutil.match_services_for_pod(pod_metadata)
-                for s in services:
-                    if s is not None:
-                        tags.append('kube_service:%s' % s)
+                # add services tags
+                if self.kubeutil.collect_service_tag:
+                    services = self.kubeutil.match_services_for_pod(pod_metadata)
+                    for s in services:
+                        if s is not None:
+                            tags.append('kube_service:%s' % s)
 
         elif Platform.is_swarm():
             c_labels = c_inspect.get('Config', {}).get('Labels', {})
@@ -356,7 +362,7 @@ class SDDockerBackend(AbstractSDBackend):
             tags.append('pod_name:%s' % pod_metadata.get('name'))
 
             c_inspect = state.inspect_container(c_id)
-            c_name = c_inspect.get('Config', {}).get('Labels', {}).get(self.kubeutil.CONTAINER_NAME_LABEL)
+            c_name = c_inspect.get('Config', {}).get('Labels', {}).get(KubeUtil.CONTAINER_NAME_LABEL)
             if c_name:
                 tags.append('kube_container_name:%s' % c_name)
         return tags
@@ -374,7 +380,7 @@ class SDDockerBackend(AbstractSDBackend):
             try:
                 # value of the DATADOG_ID tag or the image name if the label is missing
                 identifier = self.get_config_id(image, labels)
-                check_configs = self._get_check_configs(state, cid, identifier) or []
+                check_configs = self._get_check_configs(state, cid, identifier, labels) or []
                 for conf in check_configs:
                     source, (check_name, init_config, instance) = conf
 
@@ -403,7 +409,7 @@ class SDDockerBackend(AbstractSDBackend):
         """Look for a DATADOG_ID label, return its value or the image name if missing"""
         return labels.get(DATADOG_ID) or image
 
-    def _get_check_configs(self, state, c_id, identifier):
+    def _get_check_configs(self, state, c_id, identifier, labels=None):
         """Retrieve configuration templates and fill them with data pulled from docker and tags."""
         platform_kwargs = {}
         if Platform.is_k8s():
@@ -412,6 +418,9 @@ class SDDockerBackend(AbstractSDBackend):
                 'kube_container_name': state.get_kube_container_name(c_id),
                 'kube_annotations': kube_metadata.get('annotations'),
             }
+        if labels:
+            platform_kwargs['docker_labels'] = labels
+
         config_templates = self._get_config_templates(identifier, **platform_kwargs)
         if not config_templates:
             return None

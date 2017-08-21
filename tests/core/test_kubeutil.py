@@ -49,6 +49,10 @@ class TestKubeUtilCreatorTags(KubeTestCase):
         self.assertEqual(['kube_replica_set:test-5432', 'kube_deployment:test'],
                          self.kube.get_pod_creator_tags(self._fake_pod("ReplicaSet", "test-5432")))
 
+    def test_with_statefulset(self):
+        self.assertEqual(['kube_stateful_set:test-5432'],
+                         self.kube.get_pod_creator_tags(self._fake_pod("StatefulSet", "test-5432")))
+
     def test_with_legacy_repcontroller(self):
         self.assertEqual(['kube_daemon_set:test', 'kube_replication_controller:test'],
                          self.kube.get_pod_creator_tags(self._fake_pod("DaemonSet", "test"), True))
