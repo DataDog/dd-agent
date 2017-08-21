@@ -58,13 +58,16 @@ JMX_CHECKS = [
     'kafka',
 ]
 JMX_COLLECT_COMMAND = 'collect'
+JMX_LIST_JVMS = 'list_jvms'
 JMX_LIST_COMMANDS = {
     'list_everything': 'List every attributes available that has a type supported by JMXFetch',
     'list_collected_attributes': 'List attributes that will actually be collected by your current instances configuration',
     'list_matching_attributes': 'List attributes that match at least one of your instances configuration',
     'list_not_matching_attributes': "List attributes that don't match any of your instances configuration",
     'list_limited_attributes': "List attributes that do match one of your instances configuration but that are not being collected because it would exceed the number of metrics that can be collected",
-    JMX_COLLECT_COMMAND: "Start the collection of metrics based on your current configuration and display them in the console"}
+    JMX_LIST_JVMS: "List available Java virtual machines on the system using the Attach API",
+    JMX_COLLECT_COMMAND: "Start the collection of metrics based on your current configuration and display them in the console"
+}
 
 JMX_LAUNCH_FILE = 'jmx.launch'
 
@@ -90,7 +93,7 @@ class JMXFetch(ProcessRunner):
         super(JMXFetch, self).__init__()
 
 
-    def configure(self, checks_list=None, clean_status_file=True):
+    def configure(self, command=None, checks_list=None, clean_status_file=True):
         """
         Instantiate JMXFetch parameters, clean potential previous run leftovers.
         """
@@ -98,8 +101,21 @@ class JMXFetch(ProcessRunner):
             JMXFiles.clean_status_file()
 
         self.jmx_checks, self.invalid_checks, self.java_bin_path, self.java_options, \
-            self.tools_jar_path, self.custom_jar_paths = \
+            tools_jar_path, self.custom_jar_paths, use_attach_api = \
             self.get_configuration(self.confd_path, checks_list=checks_list)
+
+        # Setup the JDK `tool.jar`
+        if command == JMX_LIST_JVMS:
+            if not tools_jar_path:
+                raise InvalidJMXConfiguration(
+                    u"Command `{}` requires access to the JDK `tools.jar` file. "
+                    u"See `tools_jar_path` parameter in JMX YAML configuration files.".format(
+                        JMX_LIST_JVMS
+                    )
+                )
+            use_attach_api = True
+
+        self.tools_jar_path = tools_jar_path if use_attach_api else None
 
     def should_run(self):
         """
@@ -116,6 +132,7 @@ class JMXFetch(ProcessRunner):
         sys.stdout and sys.stderr. Set to True to redirect these streams to python's sys.stdout
         and sys.stderr.
         """
+        command = command or JMX_COLLECT_COMMAND
 
         if checks_list or self.jmx_checks is None:
             # (Re)set/(re)configure JMXFetch parameters when `checks_list` is specified or
@@ -123,8 +140,6 @@ class JMXFetch(ProcessRunner):
             self.configure(checks_list)
 
         try:
-            command = command or JMX_COLLECT_COMMAND
-
             if len(self.invalid_checks) > 0:
                 try:
                     JMXFiles.write_status_file(self.invalid_checks)
@@ -176,6 +191,7 @@ class JMXFetch(ProcessRunner):
         tools_jar_path = None
         custom_jar_paths = []
         invalid_checks = {}
+        config_use_attach_api = False
 
         jmx_confd_checks = get_jmx_checks(confd_path, auto_conf=False)
 
@@ -184,8 +200,9 @@ class JMXFetch(ProcessRunner):
             check_name = check['check_name']
             filename = check['filename']
             try:
-                is_jmx, check_java_bin_path, check_java_options, check_tools_jar_path, check_custom_jar_paths = \
+                is_jmx, check_java_bin_path, check_java_options, check_tools_jar_path, check_custom_jar_paths, use_attach_api = \
                     cls._is_jmx_check(check_config, check_name, checks_list)
+                config_use_attach_api = config_use_attach_api or use_attach_api
                 if is_jmx:
                     jmx_checks.append(filename)
                     if java_bin_path is None and check_java_bin_path is not None:
@@ -202,7 +219,7 @@ class JMXFetch(ProcessRunner):
                 check_name = check_name.encode('ascii', 'ignore')
                 invalid_checks[check_name] = str(e)
 
-        return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path, custom_jar_paths)
+        return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path, custom_jar_paths, config_use_attach_api)
 
     def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path, custom_jar_paths, redirect_std_streams):
         if reporter is None:
@@ -303,7 +320,7 @@ class JMXFetch(ProcessRunner):
         java_bin_path = None
         java_options = None
         is_jmx = False
-        is_attach_api = False
+        use_attach_api = False
         tools_jar_path = init_config.get("tools_jar_path")
         custom_jar_paths = init_config.get("custom_jar_paths")
 
@@ -330,7 +347,7 @@ class JMXFetch(ProcessRunner):
                 host = inst.get('host', None)
                 port = inst.get('port', None)
                 conf = inst.get('conf', init_config.get('conf', None))
-                tools_jar_path = inst.get('tools_jar_path')
+                tools_jar_path = tools_jar_path or inst.get('tools_jar_path')
 
                 # Support for attach api using a process name regex
                 proc_regex = inst.get('process_name_regex')
@@ -339,7 +356,7 @@ class JMXFetch(ProcessRunner):
                 name = inst.get('name')
 
                 if proc_regex is not None:
-                    is_attach_api = True
+                    use_attach_api = True
                 elif jmx_url is not None:
                     if name is None:
                         raise InvalidJMXConfiguration("A name must be specified when using a jmx_url")
@@ -386,19 +403,14 @@ class JMXFetch(ProcessRunner):
                         if instance and instance.get('java_options'):
                             java_options = instance.get('java_options')
 
-            if is_attach_api:
-                if tools_jar_path is None:
-                    for instance in instances:
-                        if instance and instance.get("tools_jar_path"):
-                            tools_jar_path = instance.get("tools_jar_path")
-
-                if tools_jar_path is None:
-                    raise InvalidJMXConfiguration("You must specify the path to tools.jar"
-                                                  " in your JDK.")
-                elif not os.path.isfile(tools_jar_path):
-                    raise InvalidJMXConfiguration("Unable to find tools.jar at %s" % tools_jar_path)
-            else:
-                tools_jar_path = None
+            if use_attach_api and not tools_jar_path:
+                raise InvalidJMXConfiguration(
+                    u"You must specify the path to `tools.jar` in your JDK."
+                )
+            if tools_jar_path and not os.path.isfile(tools_jar_path):
+                raise InvalidJMXConfiguration(
+                    u"Unable to find `tools.jar` at %s" % tools_jar_path
+                )
 
             if custom_jar_paths:
                 if isinstance(custom_jar_paths, basestring):
@@ -407,9 +419,11 @@ class JMXFetch(ProcessRunner):
                     custom_jar_paths = [custom_jar_paths]
                 for custom_jar_path in custom_jar_paths:
                     if not os.path.isfile(custom_jar_path):
-                        raise InvalidJMXConfiguration("Unable to find custom jar at %s" % custom_jar_path)
+                        raise InvalidJMXConfiguration(
+                            "Unable to find custom jar at %s" % custom_jar_path
+                        )
 
-        return is_jmx, java_bin_path, java_options, tools_jar_path, custom_jar_paths
+        return is_jmx, java_bin_path, java_options, tools_jar_path, custom_jar_paths, use_attach_api
 
     def _get_path_to_jmxfetch(self):
         return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks",

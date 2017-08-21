@@ -46,7 +46,7 @@ def jmx_command(args, agent_config, redirect_std_streams=False):
         confd_directory = get_confd_path()
 
         jmx_process = JMXFetch(confd_directory, agent_config)
-        jmx_process.configure()
+        jmx_process.configure(jmx_command)
         should_run = jmx_process.should_run()
 
         if should_run:
