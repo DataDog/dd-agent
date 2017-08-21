@@ -70,10 +70,7 @@ class KubeEventRetriever:
         """
         Fetch latest events from the apiserver for the namespaces and kinds set on init
         and returns an array of event objects.
-        Also triggers leader election.
         """
-        # Leader election
-        self.kubeutil.refresh_leader()
 
         # Request throttling
         if self._request_interval:

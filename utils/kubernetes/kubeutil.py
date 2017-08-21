@@ -111,9 +111,6 @@ class KubeUtil:
         # leader status triggers event collection
         self.is_leader = False
         self.leader_elector = None
-        if os.environ.get('DD_LEADER_CANDIDATE'):
-            self.leader_elector = LeaderElector(self)
-            self.leader_elector.try_acquire_or_refresh()
 
         # kubelet
         try:
@@ -365,13 +362,13 @@ class KubeUtil:
         res.raise_for_status()
         return res
 
-    def post_to_apiserver(self, url, data, timeout=3):
+    def post_json_to_apiserver(self, url, data, timeout=3):
         cert, headers, verify = self.get_apiserver_auth_settings()
         res = requests.post(url, timeout=timeout, headers=headers, verify=verify, cert=cert, data=json.dumps(data))
         res.raise_for_status()
         return res
 
-    def put_to_apiserver(self, url, data, timeout=3):
+    def put_json_to_apiserver(self, url, data, timeout=3):
         cert, headers, verify = self.get_apiserver_auth_settings()
         res = requests.put(url, timeout=timeout, headers=headers, verify=verify, cert=cert, data=json.dumps(data))
         res.raise_for_status()
@@ -580,5 +577,6 @@ class KubeUtil:
             return set()
 
     def refresh_leader(self):
-        if self.leader_elector:
-            self.leader_elector.try_acquire_or_refresh()
+        if not self.leader_elector:
+            self.leader_elector = LeaderElector(self)
+        self.leader_elector.try_acquire_or_refresh()

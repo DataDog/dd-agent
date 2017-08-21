@@ -30,7 +30,8 @@ class LeaderElector:
     The leader needs to refresh its status by overriding the acquire-time label in the CM meta.
 
     This mechanism doesn't ensure uniqueness of the leader because of clock skew.
-    A clock sync between nodes in the cluster is highly recommended to minimize this issue.
+    A clock sync between nodes in the cluster is required to minimize this issue.
+    Setting up NTP is generally enough.
     """
 
     def __init__(self, kubeutil):
@@ -102,20 +103,6 @@ class LeaderElector:
             log.error("Failed to renew leader status: %s" % str(ex))
             return False
 
-    def _try_refresh_cm(self, cm):
-        """Builds the updated CM payload and tries to PUT it"""
-        update_pl = self._build_update_cm_payload(cm)
-        cm_url = '{}/{}'.format(
-            self.apiserver_url + CM_ENDPOINT.format(namespace=DEFAULT_NAMESPACE),
-            CM_NAME
-        )
-        try:
-            self.kubeutil.put_to_apiserver(cm_url, update_pl)
-        except Exception as ex:
-            log.error("Failed to update the ConfigMap lock. Error: %s" % str(ex))
-            return False
-        return True
-
     def _get_cm(self):
         """
         _get_cm returns the ConfigMap if it exists, None if it doesn't
@@ -172,7 +159,7 @@ class LeaderElector:
                     return False
 
         try:
-            self.kubeutil.post_to_apiserver(cm_url, create_pl)
+            self.kubeutil.post_json_to_apiserver(cm_url, create_pl)
         except Exception as ex:
             if ex.response.reason in ['AlreadyExists', 'Conflict']:
                 log.debug("ConfigMap lock '%s' already exists, another agent "
@@ -181,6 +168,20 @@ class LeaderElector:
             else:
                 log.error("Failed to post the ConfigMap lock. Error: %s" % str(ex))
                 return False
+        return True
+
+    def _try_refresh_cm(self, cm):
+        """Builds the updated CM payload and tries to PUT it"""
+        update_pl = self._build_update_cm_payload(cm)
+        cm_url = '{}/{}'.format(
+            self.apiserver_url + CM_ENDPOINT.format(namespace=DEFAULT_NAMESPACE),
+            CM_NAME
+        )
+        try:
+            self.kubeutil.put_json_to_apiserver(cm_url, update_pl)
+        except Exception as ex:
+            log.error("Failed to update the ConfigMap lock. Error: %s" % str(ex))
+            return False
         return True
 
     def _build_create_cm_payload(self, cm):
