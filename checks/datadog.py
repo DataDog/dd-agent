@@ -161,7 +161,7 @@ class Dogstream(object):
         self.parse_func = parse_func or self._default_line_parser
         self.parse_args = parse_args
 
-        self._gen = None
+        self._gen = TailFile(self.logger, self.log_path, self._line_parser)
         self._values = None
         self._freq = 15 # Will get updated on each check()
         self._error_count = 0L
@@ -175,11 +175,11 @@ class Dogstream(object):
             self._events = []
 
             # Build our tail -f
-            self._gen = TailFile(self.logger, self.log_path, self._line_parser).tail(line_by_line=False, move_end=move_end)
+            tail = self._gen.tail(line_by_line=False, move_end=move_end)
 
             # read until the end of file
             try:
-                self._gen.next()
+                tail.next()
                 self.logger.debug("Done dogstream check for file {0}".format(self.log_path))
                 self.logger.debug("Found {0} metric points".format(len(self._values)))
             except StopIteration as e:
