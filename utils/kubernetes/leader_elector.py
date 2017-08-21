@@ -8,8 +8,8 @@ HEALTH_ENDPOINT = '/healthz'
 DEFAULT_NAMESPACE = 'default'  # TODO: use agent's own ns
 CM_ENDPOINT = '/namespaces/{namespace}/configmaps'
 CM_NAME = 'datadog-leader-elector'
-CREATOR_LABEL = 'creator'
-ACQUIRE_TIME_LABEL = 'acquired_time'
+CREATOR_ANNOTATION = 'creator'
+ACQUIRE_TIME_ANNOTATION = 'acquired_time'
 # TODO: make lease duration configurable
 DEFAULT_LEASE_DURATION = 5 * 60  # seconds
 
@@ -59,22 +59,29 @@ class LeaderElector:
 
         if self.kubeutil.is_leader:
             if expiry_time and expiry_time - datetime.timedelta(seconds=30) <= datetime.datetime.utcnow():
+                log.debug("Trying to refresh leader status")
                 self.kubeutil.is_leader = self._try_refresh()
         else:
             if (not expiry_time) or (expiry_time <= datetime.datetime.utcnow()):
                 self.kubeutil.is_leader = self._try_acquire()
+                if self.kubeutil.is_leader:
+                    log.info("Leader status acquired, Kubernetes events will be collected")
 
     def _try_acquire(self):
         """
         _try_acquire tries to acquire the CM lock and return leader status
         i.e. whether it succeeded or failed.
+        note: if the CM already exists, is fresh, and the creator is the local node,
+        this agent is elected leader. It means agents were re-deployed quickly
+        and the expiry time is not up yet.
+        TODO: should we _try_refresh if _is_cm_mine(cm) ?
         """
         try:
             cm = self._get_cm()
             if not cm or self._is_lock_expired(cm):
                 return self._try_lock_cm(cm)
-            else:
-                return False
+            elif self._is_cm_mine(cm):
+                return True
         except Exception as ex:
             log.error("Failed to acquire leader status: %s" % str(ex))
             return False
@@ -93,26 +100,25 @@ class LeaderElector:
         and raises an exception if several CM with the reserved name exist
         """
         try:
-            cm_filter = 'labelSelector=NAME%%3D%s' % CM_NAME
-            cm_url = '{}?{}'.format(urljoin(self.apiserver_url, CM_ENDPOINT.format(namespace=DEFAULT_NAMESPACE)), cm_filter)
-            res = self.kubeutil.retrieve_json_auth(cm_url).json().get('items')
+            cm_url = '{}/{}'.format(
+                self.apiserver_url + CM_ENDPOINT.format(namespace=DEFAULT_NAMESPACE),
+                CM_NAME
+            )
+            cm = self.kubeutil.retrieve_json_auth(cm_url).json()
         except Exception as ex:
             if ex.response.status_code == 404:
                 return None
             log.error("Failed to get config map %s. Error: %s" % (CM_NAME, str(ex)))
             return
-        if len(res) == 0:
+        if not cm:
             return None
-        elif len(res) == 1:
-            cm = res[0]
-            acquired_time = cm['metadata'].get('labels', {}).get(ACQUIRE_TIME_LABEL)
+        else:
+            acquired_time = cm['metadata'].get('annotations', {}).get(ACQUIRE_TIME_ANNOTATION)
             self.last_acquire_time = datetime.datetime.strptime(acquired_time, "%Y-%m-%dT%H:%M:%S.%f")
             return cm
-        else:
-            raise Exception("Found more than one config map named %s. Failing leader election." % CM_NAME)
 
     def _is_lock_expired(self, cm):
-        acquired_time = cm['metadata'].get('labels', {}).get(ACQUIRE_TIME_LABEL)
+        acquired_time = cm['metadata'].get('annotations', {}).get(ACQUIRE_TIME_ANNOTATION)
 
         if not acquired_time:
             log.warning("aquired-time wasn't set correctly for the leader lock. Assuming"
@@ -146,7 +152,7 @@ class LeaderElector:
         try:
             self.kubeutil.post_to_apiserver(cm_url, create_pl)
         except Exception as ex:
-            if ex.response.reason == 'AlreadyExists':
+            if ex.response.reason in ['AlreadyExists', 'Conflict']:
                 log.debug("ConfigMap lock '%s' already exists, another agent "
                     "acquired it." % ex.response.json().get('details', {}).get('name', ''))
                 return False
@@ -160,9 +166,9 @@ class LeaderElector:
         pl = {
             'data': {},
             'metadata': {
-                'labels': {
-                    CREATOR_LABEL: self.kubeutil.host_name,
-                    ACQUIRE_TIME_LABEL: datetime.datetime.strftime(now, "%Y-%m-%dT%H:%M:%S.%f")
+                'annotations': {
+                    CREATOR_ANNOTATION: self.kubeutil.host_name,
+                    ACQUIRE_TIME_ANNOTATION: datetime.datetime.strftime(now, "%Y-%m-%dT%H:%M:%S.%f")
                 },
                 'name': CM_NAME,
                 'namespace': DEFAULT_NAMESPACE  # TODO: use agent namespace
@@ -173,3 +179,6 @@ class LeaderElector:
     def _build_update_cm_payload(self, cm):
         pl = {}
         return pl
+
+    def _is_cm_mine(self, cm):
+        return cm['metadata']['annotations'].get(CREATOR_ANNOTATION) == self.kubeutil.host_name
