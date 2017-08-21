@@ -5,7 +5,6 @@
 # std
 import glob
 import os
-import sys
 
 # project
 from config import (
@@ -31,13 +30,11 @@ def configcheck():
             print "%s is valid" % basename
     if all_valid:
         print "All yaml files passed. You can now run the Datadog agent."
-        sys.exit(0)
         return 0
     else:
         print("Fix the invalid yaml files above in order to start the Datadog agent. "
               "A useful external tool for yaml parsing can be found at "
               "http://yaml-online-parser.appspot.com/")
-        sys.exit(1)
         return 1
 
 
