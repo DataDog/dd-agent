@@ -602,8 +602,8 @@ def main():
                     check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:
-        configcheck()
         sd_configcheck(agentConfig)
+        return configcheck()
 
     elif 'jmx' == command:
         jmx_command(args[1:], agentConfig)
