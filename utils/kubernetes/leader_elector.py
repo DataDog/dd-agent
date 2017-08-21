@@ -94,11 +94,11 @@ class LeaderElector:
             # If we're too slow it may have expired.
             # In this case act like for an acquire
             if not cm or self._is_lock_expired(cm):
-                return self._try_lock_cm()
+                return self._try_lock_cm(cm)
             elif not self._is_cm_mine(cm):
                 log.error("Tried refreshing the CM but it's not mine. Loosing leader election.")
                 return False
-            self._try_refresh_cm(cm)
+            return self._try_refresh_cm(cm)
         except Exception as ex:
             log.error("Failed to renew leader status: %s" % str(ex))
             return False
@@ -168,6 +168,9 @@ class LeaderElector:
             else:
                 log.error("Failed to post the ConfigMap lock. Error: %s" % str(ex))
                 return False
+
+        acquired_time = create_pl['metadata']['annotations'][ACQUIRE_TIME_ANNOTATION]
+        self.last_acquire_time = datetime.datetime.strptime(acquired_time, "%Y-%m-%dT%H:%M:%S.%f")
         return True
 
     def _try_refresh_cm(self, cm):
@@ -182,6 +185,9 @@ class LeaderElector:
         except Exception as ex:
             log.error("Failed to update the ConfigMap lock. Error: %s" % str(ex))
             return False
+
+        acquired_time = update_pl['metadata']['annotations'][ACQUIRE_TIME_ANNOTATION]
+        self.last_acquire_time = datetime.datetime.strptime(acquired_time, "%Y-%m-%dT%H:%M:%S.%f")
         return True
 
     def _build_create_cm_payload(self, cm):
