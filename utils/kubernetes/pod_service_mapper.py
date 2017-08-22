@@ -37,7 +37,7 @@ class PodServiceMapper:
             return
 
         try:
-            reply = self.kube.retrieve_json_auth(self.kube.kubernetes_api_url + '/services')
+            reply = self.kube.retrieve_json_auth(self.kube.kubernetes_api_url + '/services').json()
             self._service_cache_selectors = defaultdict(dict)
             self._service_cache_names = {}
             for service in reply.get('items', []):

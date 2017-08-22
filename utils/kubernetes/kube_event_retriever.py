@@ -37,9 +37,8 @@ class KubeEventRetriever:
         self.last_resversion = -1
         self.set_namespaces(namespaces)
         self.set_kinds(kinds)
+        self.set_delay(delay)
 
-        # Request throttling to reduce apiserver traffic
-        self._request_interval = delay
         self._last_lookup_timestamp = -1
 
     def set_namespaces(self, namespaces):
@@ -66,10 +65,14 @@ class KubeEventRetriever:
         if isinstance(kinds, basestring):
             self.request_params['fieldSelector'] = 'involvedObject.kind=' + kinds
 
+    def set_delay(self, delay):
+        """Request throttling to reduce apiserver traffic"""
+        self._request_interval = delay
+
     def get_event_array(self):
         """
         Fetch latest events from the apiserver for the namespaces and kinds set on init
-        and returns an array of event objects
+        and returns an array of event objects.
         """
 
         # Request throttling
@@ -82,7 +85,7 @@ class KubeEventRetriever:
         lastest_resversion = None
         filtered_events = []
 
-        events = self.kubeutil.retrieve_json_auth(self.request_url, params=self.request_params)
+        events = self.kubeutil.retrieve_json_auth(self.request_url, params=self.request_params).json()
 
         for event in events.get('items', []):
             resversion = int(event.get('metadata', {}).get('resourceVersion', None))

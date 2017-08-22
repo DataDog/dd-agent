@@ -7,6 +7,7 @@ from mock import patch
 # project
 from utils.kubernetes import KubeEventRetriever
 from tests.core.test_kubeutil import KubeTestCase
+from .test_orchestrator import MockResponse
 
 
 class TestKubeEventRetriever(KubeTestCase):
@@ -26,7 +27,7 @@ class TestKubeEventRetriever(KubeTestCase):
         return {'items': items}
 
     def test_events_resversion_filtering(self):
-        jsons = self._load_json_array(
+        jsons = self._load_resp_array(
             ['service_cache_events1.json', 'service_cache_events2.json', 'service_cache_events2.json'])
         with patch.object(self.kube, 'retrieve_json_auth', side_effect=jsons):
             retr = KubeEventRetriever(self.kube)
@@ -43,7 +44,7 @@ class TestKubeEventRetriever(KubeTestCase):
 
     @patch('time.time')
     def test_events_delay(self, mock_time):
-        jsons = self._load_json_array(
+        jsons = self._load_resp_array(
             ['service_cache_events1.json', 'service_cache_events2.json'])
         with patch.object(self.kube, 'retrieve_json_auth', side_effect=jsons):
             retr = KubeEventRetriever(self.kube, delay=500)
@@ -66,21 +67,21 @@ class TestKubeEventRetriever(KubeTestCase):
             self.assertEquals(2709, retr.last_resversion)
 
     def test_namespace_serverside_filtering(self):
-        with patch.object(self.kube, 'retrieve_json_auth', return_value={}) as mock_method:
+        with patch.object(self.kube, 'retrieve_json_auth', return_value=MockResponse({}, 200)) as mock_method:
             retr = KubeEventRetriever(self.kube, namespaces=['testns'])
             retr.get_event_array()
         mock_method.assert_called_once_with('https://kubernetes:443/api/v1/namespaces/testns/events', params={})
 
     def test_namespace_clientside_filtering(self):
         val = self._build_events([('ns1', 'k1'), ('ns2', 'k1'), ('testns', 'k1')])
-        with patch.object(self.kube, 'retrieve_json_auth', return_value=val) as mock_method:
+        with patch.object(self.kube, 'retrieve_json_auth', return_value=MockResponse(val, 200)) as mock_method:
             retr = KubeEventRetriever(self.kube, namespaces=['testns', 'ns2'])
             events = retr.get_event_array()
             self.assertEquals(2, len(events))
         mock_method.assert_called_once_with('https://kubernetes:443/api/v1/events', params={})
 
     def test_kind_serverside_filtering(self):
-        with patch.object(self.kube, 'retrieve_json_auth', return_value={}) as mock_method:
+        with patch.object(self.kube, 'retrieve_json_auth', return_value=MockResponse({}, 200)) as mock_method:
             retr = KubeEventRetriever(self.kube, kinds=['k1'])
             retr.get_event_array()
         mock_method.assert_called_once_with('https://kubernetes:443/api/v1/events',
@@ -88,7 +89,7 @@ class TestKubeEventRetriever(KubeTestCase):
 
     def test_kind_clientside_filtering(self):
         val = self._build_events([('ns1', 'k1'), ('ns1', 'k1'), ('ns1', 'k2'), ('ns1', 'k3')])
-        with patch.object(self.kube, 'retrieve_json_auth', return_value=val) as mock_method:
+        with patch.object(self.kube, 'retrieve_json_auth', return_value=MockResponse(val, 200)) as mock_method:
             retr = KubeEventRetriever(self.kube, kinds=['k1', 'k2'])
             events = retr.get_event_array()
             self.assertEquals(3, len(events))
