@@ -37,9 +37,8 @@ class KubeEventRetriever:
         self.last_resversion = -1
         self.set_namespaces(namespaces)
         self.set_kinds(kinds)
+        self.set_delay(delay)
 
-        # Request throttling to reduce apiserver traffic
-        self._request_interval = delay
         self._last_lookup_timestamp = -1
 
     def set_namespaces(self, namespaces):
@@ -65,6 +64,10 @@ class KubeEventRetriever:
                 self.kind_filter = set(kinds)
         if isinstance(kinds, basestring):
             self.request_params['fieldSelector'] = 'involvedObject.kind=' + kinds
+
+    def set_delay(self, delay):
+        """Request throttling to reduce apiserver traffic"""
+        self._request_interval = delay
 
     def get_event_array(self):
         """
