@@ -963,12 +963,17 @@ def create_service_check(check_name, status, tags=None, timestamp=None,
     """
     if check_run_id is None:
         check_run_id = get_next_id('service_check')
-    return {
+    service_check = {
         'id': check_run_id,
         'check': check_name,
         'status': status,
-        'host_name': hostname,
-        'tags': tags,
         'timestamp': float(timestamp or time.time()),
-        'message': message
     }
+    if hostname is not None:
+        service_check['host_name'] = hostname
+    if tags is not None:
+        service_check['tags'] = tags
+    if message is not None:
+        service_check["message"] = message
+
+    return service_check
