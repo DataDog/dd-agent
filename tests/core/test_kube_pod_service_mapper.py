@@ -6,7 +6,6 @@ import requests
 from utils.kubernetes import PodServiceMapper
 from utils.kubernetes.pod_service_mapper import MAX_403_RETRIES
 from tests.core.test_kubeutil import KubeTestCase
-from .test_orchestrator import MockResponse
 
 ALL_HELLO_UID = "94813607-1aad-11e7-8b67-42010a840226"
 REDIS_HELLO_UID = "9474d98a-1aad-11e7-8b67-42010a840226"
@@ -35,8 +34,8 @@ class TestKubePodServiceMapper(KubeTestCase):
         self.assertEqual(0, len(mapper._pod_services_mapping))
 
     def test_service_cache_fill(self):
-        jsons = self._load_json_array(['service_cache_services2.json'])
-        with patch.object(self.kube, 'retrieve_json_auth', side_effect=MockResponse(jsons, 200)):
+        jsons = self._load_resp_array(['service_cache_services2.json'])
+        with patch.object(self.kube, 'retrieve_json_auth', side_effect=jsons):
             mapper = PodServiceMapper(self.kube)
             mapper._fill_services_cache()
         # Kubernetes service not imported because no selector
@@ -50,16 +49,16 @@ class TestKubePodServiceMapper(KubeTestCase):
         self.assertEqual('db', redis['tier'])
 
     def test_pod_to_service_no_match(self):
-        jsons = self._load_json_array(['service_cache_services2.json'])
-        with patch.object(self.kube, 'retrieve_json_auth', side_effect=MockResponse(jsons, 200)):
+        jsons = self._load_resp_array(['service_cache_services2.json'])
+        with patch.object(self.kube, 'retrieve_json_auth', side_effect=jsons):
             mapper = PodServiceMapper(self.kube)
             mapper._fill_services_cache()
             no_match = self._build_pod_metadata(0, {'app': 'unknown'})
             self.assertEqual(0, len(mapper.match_services_for_pod(no_match)))
 
     def test_pod_to_service_two_matches(self):
-        jsons = self._load_json_array(['service_cache_services2.json'])
-        with patch.object(self.kube, 'retrieve_json_auth', side_effect=MockResponse(jsons, 200)):
+        jsons = self._load_resp_array(['service_cache_services2.json'])
+        with patch.object(self.kube, 'retrieve_json_auth', side_effect=jsons):
             mapper = PodServiceMapper(self.kube)
             two_matches = self._build_pod_metadata(0, {'app': 'hello', 'tier': 'db'})
             self.assertEqual(sorted(['9474d98a-1aad-11e7-8b67-42010a840226',
@@ -69,8 +68,8 @@ class TestKubePodServiceMapper(KubeTestCase):
                              sorted(mapper.match_services_for_pod(two_matches, names=True)))
 
     def test_pod_to_service_cache(self):
-        jsons = self._load_json_array(['service_cache_services2.json'])
-        with patch.object(self.kube, 'retrieve_json_auth', side_effect=MockResponse(jsons, 200)):
+        jsons = self._load_resp_array(['service_cache_services2.json'])
+        with patch.object(self.kube, 'retrieve_json_auth', side_effect=jsons):
             mapper = PodServiceMapper(self.kube)
             two_matches = self._build_pod_metadata(0, {'app': 'hello', 'tier': 'db'})
             self.assertEqual(sorted(['redis-hello', 'all-hello']),
@@ -80,8 +79,9 @@ class TestKubePodServiceMapper(KubeTestCase):
                              sorted(mapper.match_services_for_pod({'uid': 0}, names=True)))
 
     def test_pods_for_service(self):
-        jsons = self._load_json_array(['service_cache_services2.json'])
-        with patch.object(self.kube, 'retrieve_json_auth', side_effect=MockResponse(jsons, 200)):
+        jsons = self._load_resp_array(['service_cache_services2.json'])
+        with patch.object(self.kube, 'retrieve_json_auth', side_effect=jsons):
+
             # Fill pod label cache
             mapper = PodServiceMapper(self.kube)
             mapper.match_services_for_pod(self._build_pod_metadata(0, {'app': 'hello', 'tier': 'db'}))
@@ -118,8 +118,8 @@ class TestKubePodServiceMapper(KubeTestCase):
             request_mock.assert_not_called()
 
     def _prepare_events_tests(self, jsonfiles):
-        jsons = self._load_json_array(jsonfiles)
-        with patch.object(self.kube, 'retrieve_json_auth', side_effect=MockResponse(jsons, 200)):
+        jsons = self._load_resp_array(jsonfiles)
+        with patch.object(self.kube, 'retrieve_json_auth', side_effect=jsons):
             mapper = PodServiceMapper(self.kube)
             # Fill pod label cache
             mapper.match_services_for_pod(self._build_pod_metadata(0, {'app': 'hello', 'tier': 'db'}))
@@ -162,8 +162,8 @@ class TestKubePodServiceMapper(KubeTestCase):
 
         event = {'involvedObject': {'kind': 'Service', 'uid': ALL_HELLO_UID},
                  'reason': 'CreatedLoadBalancer'}
-        jsons = self._load_json_array(['service_cache_services2.json'])
-        with patch.object(self.kube, 'retrieve_json_auth', side_effect=MockResponse(jsons, 200)):
+        jsons = self._load_resp_array(['service_cache_services2.json'])
+        with patch.object(self.kube, 'retrieve_json_auth', side_effect=jsons):
             # Three pods must be reloaded
             self.assertEqual(set([0, 1, 3]), mapper.process_events([event]))
             # all-hello service added to pod mapping

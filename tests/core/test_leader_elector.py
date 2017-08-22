@@ -45,10 +45,11 @@ class TestLeaderElector(KubeTestCase):
                 'resourceVersion': '5563782',
                 'creationTimestamp': '2017-08-21T17:37:32Z',
                 'annotations': {'acquired_time': datetime.datetime.strftime(now, "%Y-%m-%dT%H:%M:%S.%f"),
-                'creator': 'dd-agent-284pl'
+                                'creator': 'dd-agent-284pl'
+                                },
+                'selfLink': '/api/v1/namespaces/default/configmaps/datadog-leader-elector',
+                'uid': '697b957c-8697-11e7-b62f-42010af002d4'
             },
-            'selfLink': '/api/v1/namespaces/default/configmaps/datadog-leader-elector',
-            'uid': '697b957c-8697-11e7-b62f-42010af002d4'}
         }
         time.sleep(1)
         pl = elector._build_update_cm_payload(cm)
@@ -79,7 +80,7 @@ class TestLeaderElector(KubeTestCase):
         self.assertEqual(pl['metadata']['name'], cm['metadata']['name'])
         self.assertEqual(pl['metadata']['namespace'], cm['metadata']['namespace'])
         self.assertEqual(pl['metadata']['annotations'][CREATOR_ANNOTATION], cm['metadata']['annotations'][CREATOR_ANNOTATION])
-        self.assertTrue(pl['metadata']['annotations'][ACQUIRE_TIME_ANNOTATION] > cm['metadata']['annotations'][ACQUIRE_TIME_ANNOTATION])
+        self.assertTrue(pl['metadata']['annotations'][ACQUIRE_TIME_ANNOTATION] >= cm['metadata']['annotations'][ACQUIRE_TIME_ANNOTATION])
 
     def test_is_lock_expired(self):
         elector = LeaderElector(self.kube)
@@ -94,10 +95,11 @@ class TestLeaderElector(KubeTestCase):
                 'resourceVersion': '5563782',
                 'creationTimestamp': '2017-08-21T17:37:32Z',
                 'annotations': {'acquired_time': '2017-08-21T17:37:32.514660',
-                'creator': 'dd-agent-284pl'
-            },
-            'selfLink': '/api/v1/namespaces/default/configmaps/datadog-leader-elector',
-            'uid': '697b957c-8697-11e7-b62f-42010af002d4'}
+                                'creator': 'dd-agent-284pl'
+                                },
+                'selfLink': '/api/v1/namespaces/default/configmaps/datadog-leader-elector',
+                'uid': '697b957c-8697-11e7-b62f-42010af002d4'
+            }
         }
 
         self.assertTrue(elector._is_lock_expired(cm))
