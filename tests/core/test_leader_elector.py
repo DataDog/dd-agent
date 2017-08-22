@@ -6,16 +6,9 @@ import time
 import mock
 
 # project
-from utils.kubernetes import LeaderElector
 from tests.core.test_kubeutil import KubeTestCase
-
-
-HEALTH_ENDPOINT = '/healthz'
-DEFAULT_NAMESPACE = 'default'  # TODO: use agent's own ns
-CM_ENDPOINT = '/namespaces/{namespace}/configmaps'
-CM_NAME = 'datadog-leader-elector'
-CREATOR_ANNOTATION = 'creator'
-ACQUIRE_TIME_ANNOTATION = 'acquired_time'
+from utils.kubernetes.leader_elector import LeaderElector, \
+    ACQUIRE_TIME_ANNOTATION, CREATOR_ANNOTATION, CM_NAME
 
 
 class TestLeaderElector(KubeTestCase):
@@ -74,7 +67,7 @@ class TestLeaderElector(KubeTestCase):
             'data': {},
             'metadata': {
                 'name': CM_NAME,
-                'namespace': DEFAULT_NAMESPACE,
+                'namespace': 'default',
                 'annotations': {
                     CREATOR_ANNOTATION: 'foo',
                     ACQUIRE_TIME_ANNOTATION: datetime.datetime.strftime(now, "%Y-%m-%dT%H:%M:%S.%f")

@@ -112,6 +112,7 @@ class KubeUtil:
         # leader status triggers event collection
         self.is_leader = False
         self.leader_elector = None
+        self.leader_lease_duration = instance.get('lease_duration')
 
         # kubelet
         try:

@@ -12,7 +12,6 @@ CM_ENDPOINT = '/namespaces/{namespace}/configmaps'
 CM_NAME = 'datadog-leader-elector'
 CREATOR_ANNOTATION = 'creator'
 ACQUIRE_TIME_ANNOTATION = 'acquired_time'
-# TODO: make lease duration configurable
 DEFAULT_LEASE_DURATION = 5 * 60  # seconds
 
 class LeaderElector:
@@ -41,6 +40,7 @@ class LeaderElector:
         self.apiserver_url = kubeutil.kubernetes_api_url
         self.self_namespace = kubeutil.self_namespace
         self.last_acquire_time = None
+        self.lease_duration = kubeutil.leader_lease_duration or DEFAULT_LEASE_DURATION
         if not self._is_reachable():
             return
 
@@ -59,7 +59,7 @@ class LeaderElector:
         """
         expiry_time = None
         if self.last_acquire_time:
-            expiry_time = self.last_acquire_time + datetime.timedelta(seconds=DEFAULT_LEASE_DURATION)
+            expiry_time = self.last_acquire_time + datetime.timedelta(seconds=self.lease_duration)
 
         if self.kubeutil.is_leader:
             if expiry_time and expiry_time - datetime.timedelta(seconds=30) <= datetime.datetime.utcnow():
@@ -78,7 +78,6 @@ class LeaderElector:
         note: if the CM already exists, is fresh, and the creator is the local node,
         this agent is elected leader. It means agents were re-deployed quickly
         and the expiry time is not up yet.
-        TODO: should we _try_refresh if _is_cm_mine(cm) ?
         """
         try:
             cm = self._get_cm()
@@ -139,7 +138,7 @@ class LeaderElector:
 
         acquired_time = datetime.datetime.strptime(acquired_time, "%Y-%m-%dT%H:%M:%S.%f")
 
-        if acquired_time + datetime.timedelta(seconds=DEFAULT_LEASE_DURATION) <= datetime.datetime.utcnow():
+        if acquired_time + datetime.timedelta(seconds=self.lease_duration) <= datetime.datetime.utcnow():
             return True
         return False
 
@@ -203,7 +202,7 @@ class LeaderElector:
                     ACQUIRE_TIME_ANNOTATION: datetime.datetime.strftime(now, "%Y-%m-%dT%H:%M:%S.%f")
                 },
                 'name': CM_NAME,
-                'namespace': self.self_namespace  # TODO: use agent namespace
+                'namespace': self.self_namespace
             }
         }
         return pl
