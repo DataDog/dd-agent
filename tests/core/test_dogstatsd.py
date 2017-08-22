@@ -35,44 +35,40 @@ class TestFunctions(TestCase):
             self.assertEqual(get_socket_address('example.com', 80), ('::1', 80, 0, 0))
         self.assertIsNone(get_socket_address('foo', 80))
 
-    @mock.patch('dogstatsd.get_config')
     @mock.patch('dogstatsd.Server')
-    def test_init5(self, s, gc):
-        gc.return_value = defaultdict(str)
-        gc.return_value['non_local_traffic'] = True
-        gc.return_value['use_dogstatsd'] = True
+    def test_init5(self, s):
+        cfg = defaultdict(str)
+        cfg['non_local_traffic'] = True
+        cfg['use_dogstatsd'] = True
 
-        init5()
+        init5(cfg)
 
         # if non_local_traffic was passed, use IPv4 wildcard
         s.assert_called_once()
         args, _ = s.call_args
         self.assertEqual(args[1], '0.0.0.0')
 
-    @mock.patch('dogstatsd.get_config')
     @mock.patch('dogstatsd.get_config_path')
-    def test_init6(self, gcp, gc):
+    def test_init6(self, gcp):
         cfg = defaultdict(str)
         cfg['api_key'] = "deadbeeffeebdaed"
         cfg['use_dogstatsd'] = True
         cfg['dogstatsd6_enable'] = True
         cfg['dogstatsd6_stats_port'] = 5050
-        gc.return_value = cfg
         gcp.return_value = os.path.abspath("datadog.conf")
 
-        path, _, env = init6(gc)
+        _, env = init6(cfg)
         self.assertNotEqual(env, os.environ)
         self.assertEqual(env.get('DD_API_KEY'), cfg['api_key'])
         self.assertEqual(env.get('DD_DOGSTATSD_STATS_PORT'), str(cfg['dogstatsd6_stats_port']))
 
-    @mock.patch('dogstatsd.get_config')
     @mock.patch('dogstatsd.Server')
-    def test_init_with_so_rcvbuf(self, s, gc):
-        gc.return_value = defaultdict(str)
-        gc.return_value['use_dogstatsd'] = True
-        gc.return_value['statsd_so_rcvbuf'] = '1024'
+    def test_init_with_so_rcvbuf(self, s):
+        cfg = defaultdict(str)
+        cfg['use_dogstatsd'] = True
+        cfg['statsd_so_rcvbuf'] = '1024'
 
-        init5()
+        init5(cfg)
 
         s.assert_called_once()
         _, kwargs = s.call_args

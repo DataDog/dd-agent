@@ -506,6 +506,10 @@ class Dogstatsd6(ProcessRunner):
         super(Dogstatsd6, self).__init__()
 
     @classmethod
+    def enabled(cls, agent_config):
+        return _is_affirmative(agent_config.get('dogstatsd6_enable', False)) and cls._get_dsd6_path() is not None
+
+    @classmethod
     def info(self, cfg=None):
         logging.getLogger().setLevel(logging.ERROR)
         if cfg and not _is_affirmative(cfg.get('dogstatsd6_enable', False)):
@@ -565,12 +569,10 @@ class Dogstatsd6(ProcessRunner):
         return dsd6_path
 
 
-def init5(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
+def init5(agent_config=None, use_watchdog=False, use_forwarder=False, args=None):
     """Configure the server and the reporting thread.
     """
-    c = get_config(parse_args=False, cfg_path=config_path)
-
-    if (not c['use_dogstatsd'] and
+    if (not agent_config['use_dogstatsd'] and
             (args and args[0] in ['start', 'restart'] or not args)):
         log.info("Dogstatsd is disabled. Exiting")
         # We're exiting purposefully, so exit with zero (supervisor's expected
@@ -579,28 +581,23 @@ def init5(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         sleep(4)
         sys.exit(0)
 
-    if _is_affirmative(c.get('dogstatsd6_enable', False)):
-        log.info("Dogstatsd v6 is enabled - shutting down")
-        sleep(4)
-        sys.exit(0)
-
-    port = c['dogstatsd_port']
+    port = agent_config['dogstatsd_port']
     interval = DOGSTATSD_FLUSH_INTERVAL
-    api_key = c['api_key']
+    api_key = agent_config['api_key']
     aggregator_interval = DOGSTATSD_AGGREGATOR_BUCKET_SIZE
-    non_local_traffic = c['non_local_traffic']
-    forward_to_host = c.get('statsd_forward_host')
-    forward_to_port = c.get('statsd_forward_port')
-    event_chunk_size = c.get('event_chunk_size')
-    recent_point_threshold = c.get('recent_point_threshold', None)
-    so_rcvbuf = c.get('statsd_so_rcvbuf', None)
-    server_host = c['bind_host']
+    non_local_traffic = agent_config['non_local_traffic']
+    forward_to_host = agent_config.get('statsd_forward_host')
+    forward_to_port = agent_config.get('statsd_forward_port')
+    event_chunk_size = agent_config.get('event_chunk_size')
+    recent_point_threshold = agent_config.get('recent_point_threshold', None)
+    so_rcvbuf = agent_config.get('statsd_so_rcvbuf', None)
+    server_host = agent_config['bind_host']
 
-    target = c['dd_url']
+    target = agent_config['dd_url']
     if use_forwarder:
-        target = c['dogstatsd_target']
+        target = agent_config['dogstatsd_target']
 
-    hostname = get_hostname(c)
+    hostname = get_hostname(agent_config)
     log.debug("Using hostname \"%s\"", hostname)
 
     # Create the aggregator (which is the point of communication between the
@@ -611,10 +608,10 @@ def init5(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         hostname,
         aggregator_interval,
         recent_point_threshold=recent_point_threshold,
-        formatter=get_formatter(c),
-        histogram_aggregates=c.get('histogram_aggregates'),
-        histogram_percentiles=c.get('histogram_percentiles'),
-        utf8_decoding=c['utf8_decoding']
+        formatter=get_formatter(agent_config),
+        histogram_aggregates=agent_config.get('histogram_aggregates'),
+        histogram_percentiles=agent_config.get('histogram_percentiles'),
+        utf8_decoding=agent_config['utf8_decoding']
     )
 
     # Start the reporting thread.
@@ -631,13 +628,11 @@ def init5(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
 
     server = Server(aggregator, server_host, port, forward_to_host=forward_to_host, forward_to_port=forward_to_port, so_rcvbuf=so_rcvbuf)
 
-    return reporter, server, c
+    return reporter, server
 
 
-def init6(config_path=None, args=None):
-    c = get_config(parse_args=False, cfg_path=config_path)
-
-    if (not c['use_dogstatsd'] and
+def init6(agent_config=None, config_path=None, args=None):
+    if (not agent_config['use_dogstatsd'] and
             (args and args[0] in ['start', 'restart'] or not args)):
         log.info("Dogstatsd is disabled. Exiting")
         # We're exiting purposefully, so exit with zero (supervisor's expected
@@ -646,25 +641,20 @@ def init6(config_path=None, args=None):
         sleep(4)
         sys.exit(0)
 
-    if not _is_affirmative(c.get('dogstatsd6_enable', False)):
-        log.debug("Dogstatsd v6 is disabled")
-        return None, None, None
-
-
     env = copy.deepcopy(os.environ)
-    if c.get('api_key'):
-        env['DD_API_KEY'] = str(c['api_key'])
-    if c.get('dogstatsd_port'):
-        env['DD_DOGSTATSD_PORT'] = str(c['dogstatsd_port'])
-    if c.get('dd_url'):
-        env['DD_DD_URL'] = str(c['dd_url'])
-    if c.get('non_local_traffic'):
-        env['DD_DOGSTATSD_NON_LOCAL_TRAFFIC'] = str(c['non_local_traffic'])
-    if c.get('dogstatsd_socket'):
-        env['DD_DOGSTATSD_SOCKET'] = str(c['dogstatsd_socket'])
-    if c.get('dogstatsd6_stats_port'):
-        env['DD_DOGSTATSD_STATS_PORT'] = str(c['dogstatsd6_stats_port'])
-    env['DD_LOG_LEVEL'] = c.get('log_level', 'info')
+    if agent_config.get('api_key'):
+        env['DD_API_KEY'] = str(agent_config['api_key'])
+    if agent_config.get('dogstatsd_port'):
+        env['DD_DOGSTATSD_PORT'] = str(agent_config['dogstatsd_port'])
+    if agent_config.get('dd_url'):
+        env['DD_DD_URL'] = str(agent_config['dd_url'])
+    if agent_config.get('non_local_traffic'):
+        env['DD_DOGSTATSD_NON_LOCAL_TRAFFIC'] = str(agent_config['non_local_traffic'])
+    if agent_config.get('dogstatsd_socket'):
+        env['DD_DOGSTATSD_SOCKET'] = str(agent_config['dogstatsd_socket'])
+    if agent_config.get('dogstatsd6_stats_port'):
+        env['DD_DOGSTATSD_STATS_PORT'] = str(agent_config['dogstatsd6_stats_port'])
+    env['DD_LOG_LEVEL'] = agent_config.get('log_level', 'info')
     env['DD_CONF_PATH'] = os.path.join(
         os.path.dirname(get_config_path(cfg_path=config_path)), "datadog.yaml")
     # metadata is sent by the collector, disable it in dogstatsd6 to avoid sending conflicting metadata
@@ -675,7 +665,7 @@ def init6(config_path=None, args=None):
         env['DD_LOG_FILE'] = os.path.join(
             os.path.dirname(legacy_dogstatsd_log), '{}.log'.format(Dogstatsd6.DSD6_BIN_NAME))
 
-    return Dogstatsd6._get_dsd6_path(), c, env
+    return Dogstatsd6._get_dsd6_path(), env
 
 def main(config_path=None):
     """ The main entry point for the unix version of dogstatsd. """
@@ -691,21 +681,22 @@ def main(config_path=None):
                       dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
-    dsd6 = None
+    c = get_config(parse_args=False, cfg_path=config_path)
+    dsd6_enabled = Dogstatsd6.enabled(c)
     in_developer_mode = False
     if not args or args[0] in COMMANDS_START_DOGSTATSD:
-        dsd6_path, cnf, env = init6(config_path, args)
-        if dsd6_path:
-            dsd6 = Dogstatsd6(cnf)
+        if dsd6_enabled:
+            dsd6_path, env = init6(c, config_path, args)
+            dsd6 = Dogstatsd6(c)
         else:
-            reporter, server, cnf = init5(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder, args=args)
+            reporter, server = init5(c, use_watchdog=True, use_forwarder=opts.use_forwarder, args=args)
             daemon = Dogstatsd(PidFile(PID_NAME, PID_DIR).get_path(), server, reporter,
-                            cnf.get('autorestart', False))
-            in_developer_mode = cnf.get('developer_mode')
+                            c.get('autorestart', False))
+            in_developer_mode = c.get('developer_mode')
 
     # If no args were passed in, run the server in the foreground.
     if not args:
-        if dsd6:
+        if dsd6_enabled:
             logging.info("Launching Dogstatsd6 - logging to dogstatsd6.log")
             dsd6.execute([dsd6_path, 'start'], env=env)
         else:
@@ -714,7 +705,6 @@ def main(config_path=None):
 
     # Otherwise, we're process the deamon command.
     else:
-        c = get_config(parse_args=False, cfg_path=config_path)
         command = args[0]
 
         # TODO: actually kill the start/stop/restart/status command for 5.11
@@ -723,23 +713,23 @@ def main(config_path=None):
             return 1
 
         if command == 'start':
-            if not dsd6:
+            if not dsd6_enabled:
                 daemon.start()
         elif command == 'stop':
-            if not dsd6:
+            if not dsd6_enabled:
                 daemon.stop()
         elif command == 'restart':
-            if not dsd6:
+            if not dsd6_enabled:
                 daemon.restart()
         elif command == 'status':
-            if _is_affirmative(c.get('dogstatsd6_enable')):
+            if dsd6_enabled:
                 message = 'Status unavailable for dogstatsd6'
                 log.warning(message)
                 sys.stderr.write(message)
             else:
                 daemon.status()
         elif command == 'info':
-            if _is_affirmative(c.get('dogstatsd6_enable')):
+            if dsd6_enabled:
                 return Dogstatsd6.info(c)
             else:
                 return Dogstatsd.info(c)
