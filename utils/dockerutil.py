@@ -60,6 +60,10 @@ class DockerUtil:
         self.hostname = None
         self._default_gateway = None
 
+        # Keeps record of conffile lookup error, to disable log spam when
+        # the docker integration is not configured (dockerless host)
+        self._no_conf_file = False
+
         if 'init_config' in kwargs and 'instance' in kwargs:
             init_config = kwargs.get('init_config')
             instance = kwargs.get('instance')
@@ -91,7 +95,10 @@ class DockerUtil:
                     self._is_rancher = True
                     break
         except Exception as e:
-            log.warning("Error while detecting orchestrator: %s" % e)
+            if self._no_conf_file:
+                log.debug("Error while detecting orchestrator: %s" % e)
+            else:
+                log.warning("Error while detecting orchestrator: %s" % e)
             pass
 
         try:
@@ -127,6 +134,7 @@ class DockerUtil:
             conf_path = get_conf_path(CHECK_NAME)
         except IOError:
             log.debug("Couldn't find docker settings, trying with defaults.")
+            self._no_conf_file = True
             return init_config, {}
 
         if conf_path is not None and os.path.exists(conf_path):
