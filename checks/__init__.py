@@ -380,10 +380,7 @@ class AgentCheck(object):
         self.manifest_path = manifest_path
 
     def set_check_version(self, version=None, manifest=None):
-        _version = AGENT_VERSION
-
-        if version:
-            _version = version
+        _version = version or AGENT_VERSION
 
         if manifest is not None:
             _version = "{core}:{sdk}".format(core=AGENT_VERSION,
