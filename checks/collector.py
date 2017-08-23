@@ -475,7 +475,7 @@ class Collector(object):
             if not self.continue_running:
                 return
             check_status = CheckStatus(check_name, None, None, None, None,
-                                       check_version=info.get('version'),
+                                       check_version=info.get('version', 'unknown'),
                                        init_failed_error=info['error'],
                                        init_failed_traceback=info['traceback'])
             check_statuses.append(check_status)
