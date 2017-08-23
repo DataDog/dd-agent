@@ -6,7 +6,7 @@
 PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH
 
 if [ "$DATADOG_ENABLED" = "no" ]; then
-    echo "Disabled via $AGENTSYSCONFIG. Exiting."
+    echo "Disabled via DATADOG_ENABLED env var. Exiting."
     exit 0
 fi
 
