@@ -138,7 +138,7 @@ if [ $OS = "RedHat" ]; then
 elif [ $OS = "Debian" ]; then
     printf "\033[34m\n* Installing apt-transport-https\n\033[0m\n"
     $sudo_cmd apt-get update || printf "\033[31m'apt-get update' failed, the script will not install the latest version of apt-transport-https.\033[0m\n"
-    $sudo_cmd apt-get install -y apt-transport-https
+    $sudo_cmd apt-get install -y apt-transport-https dirmngr
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
     $sudo_cmd sh -c "echo 'deb https://apt.datadoghq.com/ stable main' > /etc/apt/sources.list.d/datadog.list"
     $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
