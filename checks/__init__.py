@@ -379,14 +379,17 @@ class AgentCheck(object):
     def set_manifest_path(self, manifest_path):
         self.manifest_path = manifest_path
 
-    def set_check_version(self, manifest=None):
-        version = AGENT_VERSION
+    def set_check_version(self, version=None, manifest=None):
+        _version = AGENT_VERSION
+
+        if version:
+            _version = version
 
         if manifest is not None:
-            version = "{core}:{sdk}".format(core=AGENT_VERSION,
+            _version = "{core}:{sdk}".format(core=AGENT_VERSION,
                                         sdk=manifest.get('version', 'unknown'))
 
-        self.check_version = version
+        self.check_version = _version
 
     def get_instance_proxy(self, instance, uri):
         proxies = self.proxies.copy()

@@ -973,7 +973,8 @@ def get_valid_check_class(check_name, check_path):
     return True, check_class, {}
 
 
-def _initialize_check(check_config, check_name, check_class, agentConfig, manifest_path):
+def _initialize_check(check_config, check_name, check_class, agentConfig,
+                      manifest_path, version_override=None):
     init_config = check_config.get('init_config') or {}
     instances = check_config['instances']
     try:
@@ -989,7 +990,11 @@ def _initialize_check(check_config, check_name, check_class, agentConfig, manife
 
         if manifest_path:
             check.set_manifest_path(manifest_path)
-        check.set_check_version(load_manifest(manifest_path))
+
+        if not version_override:
+            check.set_check_version(manifest=load_manifest(manifest_path))
+        else:
+            check.set_check_version(version=version_override)
     except Exception as e:
         log.exception('Unable to initialize check %s' % check_name)
         traceback_message = traceback.format_exc()
@@ -997,6 +1002,8 @@ def _initialize_check(check_config, check_name, check_class, agentConfig, manife
         if manifest is not None:
             check_version = '{core}:{vers}'.format(core=AGENT_VERSION,
                                                    vers=manifest.get('version', 'unknown'))
+        elif version_override:
+            check_version = version_override
         else:
             check_version = AGENT_VERSION
 
@@ -1066,8 +1073,13 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
                 log.warn("The SDK check (%s) was designed for a different agent core "
                          "or couldnt be validated - behavior is undefined" % check_name)
 
+        version_override = None
+        if not manifest_path and agentConfig['additional_checksd'] in check_path:
+            version_override = 'custom'  # custom check
+
+
         load_success, load_failure = _initialize_check(
-            check_config, check_name, check_class, agentConfig, manifest_path
+            check_config, check_name, check_class, agentConfig, manifest_path, version_override
         )
 
         _update_python_path(check_config)
