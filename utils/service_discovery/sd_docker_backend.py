@@ -89,12 +89,11 @@ class SDDockerBackend(AbstractSDBackend):
             self.config_store = get_config_store(agentConfig=agentConfig)
 
         self.dockerutil = DockerUtil(config_store=self.config_store)
-        self.docker_client = self.dockerutil.client
-        if Platform.is_k8s():
+        self.kubeutil = None
+        if self.dockerutil.client and Platform.is_k8s():
             try:
                 self.kubeutil = KubeUtil()
             except Exception as ex:
-                self.kubeutil = None
                 log.error("Couldn't instantiate the kubernetes client, "
                     "subsequent kubernetes calls will fail as well. Error: %s" % str(ex))
 
@@ -120,9 +119,17 @@ class SDDockerBackend(AbstractSDBackend):
                     pod_list = self.kubeutil.retrieve_pods_list().get('items', [])
                 except Exception as ex:
                     log.warning("Failed to retrieve pod list: %s" % str(ex))
-        return _SDDockerBackendConfigFetchState(self.docker_client.inspect_container, pod_list)
+        return _SDDockerBackendConfigFetchState(self.dockerutil.client.inspect_container, pod_list)
 
     def update_checks(self, changed_containers):
+        """
+        Takes a list of container IDs that changed recently
+        and marks their corresponding checks as
+        """
+        if not self.dockerutil.client:
+            log.warning("Docker client is not initialized, pausing auto discovery.")
+            return
+
         state = self._make_fetch_state()
 
         conf_reload_set = set()
@@ -370,11 +377,15 @@ class SDDockerBackend(AbstractSDBackend):
     def get_configs(self):
         """Get the config for all docker containers running on the host."""
         configs = {}
+        if not self.dockerutil.client:
+            log.warning("Docker client is not initialized, pausing auto discovery.")
+            return configs
+
         state = self._make_fetch_state()
         containers = [(
             self.dockerutil.image_name_extractor(container),
             container.get('Id'), container.get('Labels')
-        ) for container in self.docker_client.containers()]
+        ) for container in self.dockerutil.client.containers()]
 
         for image, cid, labels in containers:
             try:

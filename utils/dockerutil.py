@@ -41,6 +41,8 @@ DEFAULT_TIMEOUT = 5
 DEFAULT_VERSION = 'auto'
 CHECK_NAME = 'docker_daemon'
 CONFIG_RELOAD_STATUS = ['start', 'die', 'stop', 'kill']  # used to trigger service discovery
+INIT_RETRIES = 5
+RETRY_INTERVAL = 15  # seconds
 
 # only used if no exclude rule was defined
 DEFAULT_CONTAINER_EXCLUDE = ["docker_image:gcr.io/google_containers/pause.*", "image_name:openshift/origin-pod"]
@@ -70,6 +72,9 @@ class DockerUtil:
         else:
             init_config, instance = self.get_check_config()
         self.set_docker_settings(init_config, instance)
+        self.last_init_retry = None
+        self.left_init_retries = INIT_RETRIES
+        self._client = None
 
         # At first run we'll just collect the events from the latest 60 secs
         self._latest_event_collection_ts = int(time.time()) - 60
@@ -77,14 +82,64 @@ class DockerUtil:
         # Memory cache for sha256 to image name mapping
         self._image_sha_to_name_mapping = {}
 
-        # Try to detect if we are on Swarm
-        self.fetch_swarm_state()
-
-        # Try to detect if an orchestrator is running
+        # orchestrator detection
         self._is_ecs = False
         self._is_rancher = False
         self._is_k8s = False
 
+        # if we can't reach docker server there's no point in trying
+        if self.client:
+            self._init_orchestrators()
+
+        # Build include/exclude patterns for containers
+        self._include, self._exclude = instance.get('include', []), instance.get('exclude', [])
+        if not self._exclude:
+            # In Kubernetes, pause containers are not interesting to monitor.
+            # This part could be reused for other platforms where containers can be safely ignored.
+            if self.is_k8s():
+                self.filtering_enabled = True
+                self._exclude = DEFAULT_CONTAINER_EXCLUDE
+            else:
+                if self._include:
+                    log.warning("You must specify an exclude section to enable filtering")
+                self.filtering_enabled = False
+        else:
+            self.filtering_enabled = True
+
+        if self.filtering_enabled:
+            self.build_filters()
+
+    @property
+    def client(self):
+        if self._client:
+            return self._client
+
+        # tried too many times, failing permanently
+        if self.left_init_retries == 0:
+            raise Exception("Docker client initialization failed permanently. "
+                "Docker-related features will fail.")
+
+        now = time.time()
+        # first try, or last retry was long ago
+        if not self.last_init_retry or now > self.last_init_retry + RETRY_INTERVAL:
+            self.last_init_retry = now
+            self.left_init_retries -= 1
+            try:
+                self._client = Client(**self.settings)
+                self._client.ping()
+                return self._client
+            except Exception as ex:
+                log.error("Failed to initialize the docker client. Docker-related features "
+                    "will fail. Will retry %s time(s). Error: %s" % (self.left_init_retries, str(ex)))
+                self._client = None
+                return
+        # last retry was less than RETRY_INTERVAL ago
+        else:
+            return None
+
+    def _init_orchestrators(self):
+        # Try to detect if we are on Swarm
+        self.fetch_swarm_state()
         try:
             containers = self.client.containers()
             for co in containers:
@@ -106,24 +161,6 @@ class DockerUtil:
             self._is_k8s = detect_is_k8s()
         except Exception:
             self._is_k8s = False
-
-        # Build include/exclude patterns for containers
-        self._include, self._exclude = instance.get('include', []), instance.get('exclude', [])
-        if not self._exclude:
-            # In Kubernetes, pause containers are not interesting to monitor.
-            # This part could be reused for other platforms where containers can be safely ignored.
-            if self.is_k8s():
-                self.filtering_enabled = True
-                self._exclude = DEFAULT_CONTAINER_EXCLUDE
-            else:
-                if self._include:
-                    log.warning("You must specify an exclude section to enable filtering")
-                self.filtering_enabled = False
-        else:
-            self.filtering_enabled = True
-
-        if self.filtering_enabled:
-            self.build_filters()
 
     def get_check_config(self):
         """Read the config from docker_daemon.yaml"""
@@ -183,6 +220,10 @@ class DockerUtil:
     def get_events(self):
         self.events = []
         changed_container_ids = set()
+        if not self.client:
+            self.warning("Docker client is not initialized, events won't be collected.")
+            return self.events, changed_container_ids
+
         now = int(time.time())
 
         event_generator = self.client.events(since=self._latest_event_collection_ts,
@@ -251,6 +292,9 @@ class DockerUtil:
 
     def get_host_tags(self):
         tags = []
+        if not self.client:
+            log.warning("Docker client is not initialized, host tags will be missing.")
+            return tags
         version = self.client.version()
         if version and 'Version' in version:
             tags.append('docker_version:%s' % version['Version'])
@@ -261,10 +305,6 @@ class DockerUtil:
             tags.append('docker_swarm:active')
 
         return tags
-
-    @property
-    def client(self):
-        return Client(**self.settings)
 
     def set_docker_settings(self, init_config, instance):
         """Update docker settings"""
@@ -605,7 +645,6 @@ class DockerUtil:
         except KeyError as e:
             log.exception("Missing container key: %s", e)
             raise ValueError("Invalid container dict")
-
 
     def inspect_container(self, co_id):
         """
