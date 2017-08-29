@@ -41,8 +41,8 @@ DEFAULT_TIMEOUT = 5
 DEFAULT_VERSION = 'auto'
 CHECK_NAME = 'docker_daemon'
 CONFIG_RELOAD_STATUS = ['start', 'die', 'stop', 'kill']  # used to trigger service discovery
-INIT_RETRIES = 5
-RETRY_INTERVAL = 15  # seconds
+DEFAULT_INIT_RETRIES = 0
+DEFAULT_RETRY_INTERVAL = 20  # seconds
 
 # only used if no exclude rule was defined
 DEFAULT_CONTAINER_EXCLUDE = ["docker_image:gcr.io/google_containers/pause.*", "image_name:openshift/origin-pod"]
@@ -73,7 +73,8 @@ class DockerUtil:
             init_config, instance = self.get_check_config()
         self.set_docker_settings(init_config, instance)
         self.last_init_retry = None
-        self.left_init_retries = INIT_RETRIES
+        self.init_retry_interval = init_config.get('init_retry_interval', DEFAULT_RETRY_INTERVAL)
+        self.left_init_retries = init_config.get('init_retries', DEFAULT_INIT_RETRIES) + 1
         self._client = None
 
         # At first run we'll just collect the events from the latest 60 secs
@@ -120,22 +121,22 @@ class DockerUtil:
                 "Docker-related features will fail.")
 
         now = time.time()
-        # first try, or last retry was long ago
-        if not self.last_init_retry or now > self.last_init_retry + RETRY_INTERVAL:
-            self.last_init_retry = now
-            self.left_init_retries -= 1
-            try:
-                self._client = Client(**self.settings)
-                self._client.ping()
-                return self._client
-            except Exception as ex:
-                log.error("Failed to initialize the docker client. Docker-related features "
-                    "will fail. Will retry %s time(s). Error: %s" % (self.left_init_retries, str(ex)))
-                self._client = None
-                return
-        # last retry was less than RETRY_INTERVAL ago
-        else:
+
+        # last retry was less than retry_interval ago
+        if self.last_init_retry and now <= self.last_init_retry + self.init_retry_interval:
             return None
+        # else it's the first try, or last retry was long enough ago
+        self.last_init_retry = now
+        self.left_init_retries -= 1
+        try:
+            self._client = Client(**self.settings)
+            self._client.ping()
+            return self._client
+        except Exception as ex:
+            log.error("Failed to initialize the docker client. Docker-related features "
+                "will fail. Will retry %s time(s). Error: %s" % (self.left_init_retries, str(ex)))
+            self._client = None
+            return
 
     def _init_orchestrators(self):
         # Try to detect if we are on Swarm
