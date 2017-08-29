@@ -6,17 +6,18 @@
 from collections import defaultdict
 import logging
 import os
-from urlparse import urljoin
-from urllib import urlencode
 import simplejson as json
+import time
+from urllib import urlencode
+from urlparse import urljoin
 
 # project
 from util import check_yaml
 from utils.checkfiles import get_conf_path
-from utils.http import retrieve_json
-from utils.singleton import Singleton
 from utils.dockerutil import DockerUtil
+from utils.http import retrieve_json
 from utils.kubernetes import LeaderElector, KubeEventRetriever, PodServiceMapper
+from utils.singleton import Singleton
 
 import requests
 
@@ -35,6 +36,9 @@ CREATOR_KIND_TO_TAG = {
     'Deployment': 'kube_deployment',
     'Job': 'kube_job'
 }
+
+DEFAULT_INIT_RETRIES = 0
+DEFAULT_RETRY_INTERVAL = 20  # seconds
 
 
 def detect_is_k8s():
@@ -109,48 +113,32 @@ class KubeUtil:
 
         self.kubernetes_api_url = '%s/api/v1' % self.kubernetes_api_root_url
 
+        # Service mapping helper class
+        self._service_mapper = PodServiceMapper(self)
+        from config import _is_affirmative
+        self.collect_service_tag = _is_affirmative(instance.get('collect_service_tags', KubeUtil.DEFAULT_COLLECT_SERVICE_TAG))
+
+
         # leader status triggers event collection
         self.is_leader = False
         self.leader_elector = None
         self.leader_lease_duration = instance.get('lease_duration')
 
         # kubelet
-        try:
-            self.kubelet_api_url = self._locate_kubelet(instance)
-            if not self.kubelet_api_url:
-                raise Exception("Couldn't find a method to connect to kubelet.")
-        except Exception as ex:
-            log.error("Kubernetes check exiting, cannot run without access to kubelet.")
-            raise ex
+        # If kubelet_api_url is None, init_kubelet didn't succeed yet.
+        self.init_success = False
+        self.kubelet_api_url = None
+        self.init_retry_interval = instance.get('init_retry_interval', DEFAULT_RETRY_INTERVAL)
+        self.last_init_retry = None
+        self.left_init_retries = instance.get('init_retries', DEFAULT_INIT_RETRIES) + 1
+        self.init_kubelet(instance)
 
-        # Service mapping helper class
-        self._service_mapper = PodServiceMapper(self)
-
-        self.kubelet_host = self.kubelet_api_url.split(':')[1].lstrip('/')
-        self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
-        self.kube_health_url = urljoin(self.kubelet_api_url, KubeUtil.KUBELET_HEALTH_PATH)
         self.kube_label_prefix = instance.get('label_to_tag_prefix', KubeUtil.DEFAULT_LABEL_PREFIX)
         self.kube_node_labels = instance.get('node_labels_to_host_tags', {})
-
-        # cadvisor
-        self.cadvisor_port = instance.get('port', KubeUtil.DEFAULT_CADVISOR_PORT)
-        self.cadvisor_url = '%s://%s:%d' % (self.method, self.kubelet_host, self.cadvisor_port)
-        self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
-        self.machine_info_url = urljoin(self.cadvisor_url, KubeUtil.MACHINE_INFO_PATH)
-
-        try:
-            self.self_namespace = self.get_self_namespace()
-        except Exception:
-            log.warning("Failed to get the agent pod namespace, defaulting to default.")
-            self.self_namespace = DEFAULT_NAMESPACE
-
-        from config import _is_affirmative
-        self.collect_service_tag = _is_affirmative(instance.get('collect_service_tags', KubeUtil.DEFAULT_COLLECT_SERVICE_TAG))
 
         # keep track of the latest k8s event we collected and posted
         # default value is 0 but TTL for k8s events is one hour anyways
         self.last_event_collection_ts = 0
-
 
     def _init_tls_settings(self, instance):
         """
@@ -189,43 +177,90 @@ class KubeUtil:
 
         return tls_settings
 
+    def init_kubelet(self, instance):
+        """
+        Handles the retry logic around _locate_kubelet.
+        Once _locate_kubelet succeeds, initialize all kubelet-related
+        URLs and settings.
+        """
+        if self.left_init_retries == 0:
+            raise Exception("Kubernetes client initialization failed permanently. "
+                "Kubernetes-related features will fail.")
+
+        now = time.time()
+
+        # last retry was less than retry_interval ago
+        if self.last_init_retry and now <= self.last_init_retry + self.init_retry_interval:
+            return
+        # else it's the first try, or last retry was long enough ago
+        self.last_init_retry = now
+        self.left_init_retries -= 1
+
+        try:
+            self.kubelet_api_url = self._locate_kubelet(instance)
+        except Exception as ex:
+            log.error("Failed to initialize kubelet connection. Will retry %s time(s). Error: %s" % (self.left_init_retries, str(ex)))
+            return
+        if not self.kubelet_api_url:
+            log.error("Failed to initialize kubelet connection. Will retry %s time(s)." % self.left_init_retries)
+            return
+
+        self.init_success = True
+
+        self.kubelet_host = self.kubelet_api_url.split(':')[1].lstrip('/')
+        self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
+        self.kube_health_url = urljoin(self.kubelet_api_url, KubeUtil.KUBELET_HEALTH_PATH)
+
+        # namespace of the agent pod
+        try:
+            self.self_namespace = self.get_self_namespace()
+        except Exception:
+            log.warning("Failed to get the agent pod namespace, defaulting to default.")
+            self.self_namespace = DEFAULT_NAMESPACE
+
+        # cadvisor
+        self.cadvisor_port = instance.get('port', KubeUtil.DEFAULT_CADVISOR_PORT)
+        self.cadvisor_url = '%s://%s:%d' % (self.method, self.kubelet_host, self.cadvisor_port)
+        self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
+        self.machine_info_url = urljoin(self.cadvisor_url, KubeUtil.MACHINE_INFO_PATH)
+
     def _locate_kubelet(self, instance):
         """
         Kubelet may or may not accept un-authenticated http requests.
         If it doesn't we need to use its HTTPS API that may or may not
         require auth.
+        Returns the kubelet URL or raises.
         """
         host = os.environ.get('KUBERNETES_KUBELET_HOST') or instance.get("host")
         if not host:
             # if no hostname was provided, use the docker hostname if cert
             # validation is not required, the kubernetes hostname otherwise.
-            docker_hostname = self.docker_util.get_hostname(should_resolve=True)
+            host = self.docker_util.get_hostname(should_resolve=True)
             if self.tls_settings.get('kubelet_verify'):
                 try:
-                    k8s_hostname = self.get_node_hostname(docker_hostname)
-                    host = k8s_hostname or docker_hostname
-                except Exception as ex:
-                    log.error(str(ex))
-                    host = docker_hostname
-            else:
-                host = docker_hostname
+                    host = self.get_node_hostname(host)
+                except Exception:
+                    pass
+
+        # check if the no-auth endpoint is enabled
+        port = instance.get('kubelet_port', KubeUtil.DEFAULT_HTTP_KUBELET_PORT)
+        no_auth_url = 'http://%s:%s' % (host, port)
+        test_url = urljoin(no_auth_url, KubeUtil.KUBELET_HEALTH_PATH)
         try:
-            # check if the no-auth endpoint is enabled
-            port = instance.get('kubelet_port', KubeUtil.DEFAULT_HTTP_KUBELET_PORT)
-            no_auth_url = 'http://%s:%s' % (host, port)
-            test_url = urljoin(no_auth_url, KubeUtil.KUBELET_HEALTH_PATH)
             self.perform_kubelet_query(test_url)
             return no_auth_url
         except Exception:
             log.debug("Couldn't query kubelet over HTTP, assuming it's not in no_auth mode.")
 
         port = instance.get('kubelet_port', KubeUtil.DEFAULT_HTTPS_KUBELET_PORT)
-
         https_url = 'https://%s:%s' % (host, port)
         test_url = urljoin(https_url, KubeUtil.KUBELET_HEALTH_PATH)
-        self.perform_kubelet_query(test_url)
-
-        return https_url
+        try:
+            self.perform_kubelet_query(test_url)
+            return https_url
+        except Exception as ex:
+            log.warning("Couldn't query kubelet over HTTP, assuming it's not in no_auth mode.")
+            raise ex
 
     def get_self_namespace(self):
         pods = self.retrieve_pods_list()
@@ -258,6 +293,9 @@ class KubeUtil:
         Gets pods' labels as tags + creator and service tags.
         Returns a dict{namespace/podname: [tags]}
         """
+        if not self.init_success:
+            log.warning("Kubernetes client is not initialized, can't get pod tags.")
+            return {}
         pods = self.retrieve_pods_list()
         return self.extract_kube_pod_tags(pods, excluded_keys=excluded_keys)
 
@@ -421,6 +459,9 @@ class KubeUtil:
             log.debug("Error getting Kube master version: %s" % str(e))
 
         # Kubelet version & labels
+        if not self.init_success:
+            log.warning("Kubelet client failed to initialize, kubelet host tags will be missing for now.")
+            return tags
         try:
             _, node_name = self.get_node_info()
             if not node_name:

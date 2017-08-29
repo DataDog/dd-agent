@@ -90,7 +90,7 @@ class SDDockerBackend(AbstractSDBackend):
 
         self.dockerutil = DockerUtil(config_store=self.config_store)
         self.kubeutil = None
-        if self.dockerutil.client and Platform.is_k8s():
+        if Platform.is_k8s():
             try:
                 self.kubeutil = KubeUtil()
             except Exception as ex:
@@ -112,8 +112,8 @@ class SDDockerBackend(AbstractSDBackend):
     def _make_fetch_state(self):
         pod_list = []
         if Platform.is_k8s():
-            if not self.kubeutil:
-                log.error("kubelet client not created, cannot retrieve pod list.")
+            if not self.kubeutil or not self.kubeutil.init_success:
+                log.error("kubelet client not initialized, cannot retrieve pod list.")
             else:
                 try:
                     pod_list = self.kubeutil.retrieve_pods_list().get('items', [])
