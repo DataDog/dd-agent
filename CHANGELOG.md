@@ -5,7 +5,7 @@ Changes
 **Linux, Windows, Docker and Source Install**
 
 ### Details
-https://github.com/DataDog/dd-agent/compare/5.17.0...5.16.0
+https://github.com/DataDog/dd-agent/compare/5.16.0...5.17.0
 
 ### Dependency changes
 * `kafka-python` `1.3.4` (previously `1.3.3`), see [omnibus-software-155](https://github.com/DataDog/omnibus-software/pull/155)
