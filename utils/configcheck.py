@@ -6,6 +6,10 @@
 import glob
 import os
 
+#3p
+import re
+import simplejson as json
+
 # project
 from config import (
     check_yaml,
@@ -51,6 +55,34 @@ def sd_configcheck(agentConfig):
         print("\nLoading check configurations...\n\n")
         configs = load_check_directory(agentConfig, get_hostname(agentConfig))
         get_sd_configcheck(agentConfig, configs)
+
+def agent_container_inspect():
+    # Self inspection based on cgroups
+    # On all platforms, the container ID is the last part of the path.
+    REGEX_PATTERN = '(.*/)+([a-z0-9]{64})$'
+
+    dockerutil = DockerUtil()
+    cgroup_path = '/proc/self/cgroup'
+    container_id = None
+
+    with open(cgroup_path, 'r') as f:
+        for ind in f:
+            id_match = re.search(REGEX_PATTERN, ind)
+            if id_match:
+                container_id = id_match.group(2)
+                break
+    if container_id is None:
+        print("The container_id could not be found. Refer to the docker log of the container running the agent")
+        return 1
+    try:
+        inspect = dockerutil.inspect_container(container_id)
+        key_indices = [i for i, k in enumerate(inspect['Config']['Env']) if 'API_KEY' in k]
+        for ind in key_indices:
+            inspect['Config']['Env'][ind] = '%s=%s' % (inspect['Config']['Env'][ind].split('=', 1)[0], 'redacted')
+        print json.dumps(inspect, indent=4)
+        return 0
+    except Exception as e:
+        print "Could not inspect container: %s" % e
 
 
 def get_sd_configcheck(agentConfig, configs):
