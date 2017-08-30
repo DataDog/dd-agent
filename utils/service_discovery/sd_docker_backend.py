@@ -297,12 +297,16 @@ class SDDockerBackend(AbstractSDBackend):
         tags = self.dockerutil.extract_container_tags(c_inspect)
 
         if Platform.is_k8s():
+            if not self.kubeutil.init_success:
+                log.warning("kubelet client not initialized, kubernetes tags will be missing.")
+                return tags
+
             pod_metadata = state.get_kube_config(c_id, 'metadata')
 
             if pod_metadata is None:
                 log.warning("Failed to fetch pod metadata for container %s."
-                            " Kubernetes tags may be missing." % c_id[:12])
-                return []
+                            " Kubernetes tags will be missing." % c_id[:12])
+                return tags
 
             # get pod labels
             kube_labels = pod_metadata.get('labels', {})

@@ -81,17 +81,20 @@ class KubeUtil:
     NAMESPACE_LABEL = "io.kubernetes.pod.namespace"
     CONTAINER_NAME_LABEL = "io.kubernetes.container.name"
 
-    def __init__(self, instance=None):
+    def __init__(self, **kwargs):
         self.docker_util = DockerUtil()
-        if instance is None:
+        if 'init_config' in kwargs and 'instance' in kwargs:
+            init_config = kwargs.get('init_config')
+            instance = kwargs.get('instance')
+        else:
             try:
                 config_file_path = get_conf_path(KUBERNETES_CHECK_NAME)
                 check_config = check_yaml(config_file_path)
+                init_config = check_config['init_config']
                 instance = check_config['instances'][0]
             # kubernetes.yaml was not found
             except IOError as ex:
                 log.error(ex.message)
-
                 instance = {}
             except Exception:
                 log.error('Kubernetes configuration file is invalid. '
@@ -128,9 +131,9 @@ class KubeUtil:
         # If kubelet_api_url is None, init_kubelet didn't succeed yet.
         self.init_success = False
         self.kubelet_api_url = None
-        self.init_retry_interval = instance.get('init_retry_interval', DEFAULT_RETRY_INTERVAL)
+        self.init_retry_interval = init_config.get('init_retry_interval', DEFAULT_RETRY_INTERVAL)
         self.last_init_retry = None
-        self.left_init_retries = instance.get('init_retries', DEFAULT_INIT_RETRIES) + 1
+        self.left_init_retries = init_config.get('init_retries', DEFAULT_INIT_RETRIES) + 1
         self.init_kubelet(instance)
 
         self.kube_label_prefix = instance.get('label_to_tag_prefix', KubeUtil.DEFAULT_LABEL_PREFIX)
