@@ -84,14 +84,14 @@ class KubeUtil:
     def __init__(self, **kwargs):
         self.docker_util = DockerUtil()
         if 'init_config' in kwargs and 'instance' in kwargs:
-            init_config = kwargs.get('init_config')
-            instance = kwargs.get('instance')
+            init_config = kwargs.get('init_config', {})
+            instance = kwargs.get('instance', {})
         else:
             try:
                 config_file_path = get_conf_path(KUBERNETES_CHECK_NAME)
                 check_config = check_yaml(config_file_path)
-                init_config = check_config['init_config']
-                instance = check_config['instances'][0]
+                init_config = check_config['init_config'] or {}
+                instance = check_config['instances'][0] or {}
             # kubernetes.yaml was not found
             except IOError as ex:
                 log.error(ex.message)
@@ -645,6 +645,9 @@ class KubeUtil:
             return set()
 
     def refresh_leader(self):
+        if not self.init_success:
+            log.warning("Kubelet client is not initialized, leader election is disabled.")
+            return
         if not self.leader_elector:
             self.leader_elector = LeaderElector(self)
         self.leader_elector.try_acquire_or_refresh()

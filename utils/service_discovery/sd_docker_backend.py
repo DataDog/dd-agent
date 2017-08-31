@@ -182,7 +182,8 @@ class SDDockerBackend(AbstractSDBackend):
     def _get_host_address(self, state, c_id, tpl_var):
         """Extract the container IP from a docker inspect object, or the kubelet API."""
         c_inspect = state.inspect_container(c_id)
-        c_id, c_img = c_inspect.get('Id', ''), c_inspect.get('Config', {}).get('Image', '')
+        c_id = c_inspect.get('Id', '')
+        c_img = self.dockerutil.image_name_extractor(c_inspect)
 
         networks = c_inspect.get('NetworkSettings', {}).get('Networks') or {}
         ip_dict = {}
