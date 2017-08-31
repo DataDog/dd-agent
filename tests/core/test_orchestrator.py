@@ -7,6 +7,7 @@ import requests  # noqa: F401
 
 # project
 from utils.orchestrator import BaseUtil
+from utils.dockerutil import DockerUtil
 
 CO_ID = 1234
 
@@ -77,10 +78,11 @@ class TestBaseUtil(unittest.TestCase):
         dummy.reset_cache()
         self.assertFalse(CO_ID in dummy._container_tags_cache)
 
-    @mock.patch('docker.Client.inspect_container')
-    @mock.patch('docker.Client.__init__')
-    def test_auto_inspect(self, mock_init, mock_inspect):
-        mock_init.return_value = None
+    def test_auto_inspect(self):
+        du = DockerUtil()
+        du._client = mock.MagicMock()
+        mock_inspect = mock.MagicMock(name='inspect_container', return_value = {'RepoTags': ["redis:3.2"], 'RepoDigests': []})
+        du._client.inspect_container = mock_inspect
 
         dummy = self.NeedLabelsUtil()
         dummy.reset_cache()
@@ -88,10 +90,11 @@ class TestBaseUtil(unittest.TestCase):
         dummy.get_container_tags(cid=CO_ID)
         mock_inspect.assert_called_once()
 
-    @mock.patch('docker.Client.inspect_container')
-    @mock.patch('docker.Client.__init__')
-    def test_no_inspect_if_cached(self, mock_init, mock_inspect):
-        mock_init.return_value = None
+    def test_no_inspect_if_cached(self):
+        du = DockerUtil()
+        du._client = mock.MagicMock()
+        mock_inspect = mock.MagicMock(name='inspect_container', return_value = {'RepoTags': ["redis:3.2"], 'RepoDigests': []})
+        du._client.inspect_container = mock_inspect
 
         dummy = self.NeedLabelsUtil()
         dummy.reset_cache()
@@ -117,10 +120,11 @@ class TestBaseUtil(unittest.TestCase):
         dummy.get_container_tags(co=co)
         mock_inspect.assert_not_called()
 
-    @mock.patch('docker.Client.inspect_container')
-    @mock.patch('docker.Client.__init__')
-    def test_auto_env_inspect(self, mock_init, mock_inspect):
-        mock_init.return_value = None
+    def test_auto_env_inspect(self):
+        du = DockerUtil()
+        du._client = mock.MagicMock()
+        mock_inspect = mock.MagicMock(name='inspect_container', return_value = {'RepoTags': ["redis:3.2"], 'RepoDigests': []})
+        du._client.inspect_container = mock_inspect
 
         dummy = self.NeedEnvUtil()
         dummy.reset_cache()

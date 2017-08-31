@@ -95,11 +95,11 @@ class KubeUtil:
             # kubernetes.yaml was not found
             except IOError as ex:
                 log.error(ex.message)
-                instance = {}
+                init_config, instance = {}, {}
             except Exception:
                 log.error('Kubernetes configuration file is invalid. '
                           'Trying connecting to kubelet with default settings anyway...')
-                instance = {}
+                init_config, instance = {}, {}
 
         self.method = instance.get('method', KubeUtil.DEFAULT_METHOD)
         self._node_ip = self._node_name = None  # lazy evaluation
