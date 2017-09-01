@@ -330,6 +330,17 @@ def get_histogram_percentiles(configstr=None):
     return result
 
 
+def get_histogram_submit_methods(use_histogram=False, tags_to_strip=None):
+    from checks import AgentCheck
+    if use_histogram is False:
+        return {AgentCheck.gauge: AgentCheck.gauge,
+                AgentCheck.rate: AgentCheck.rate}
+    else:
+        tags = tags_to_strip.split(',')
+        return {AgentCheck.gauge: AgentCheck.generate_histogram_func(tags),
+                AgentCheck.rate: AgentCheck.generate_historate_func(tags)}
+
+
 def clean_dd_url(url):
     url = url.strip()
     if not url.startswith('http'):
@@ -362,7 +373,8 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
         'bind_host': get_default_bind_host(),
         'statsd_metric_namespace': None,
         'utf8_decoding': False,
-        'apm_enabled': False
+        'apm_enabled': False,
+        'docker_histo_striptags': 'container_name,pod_name,kube_replica_set,kube_replication_controller',
     }
 
     if Platform.is_mac():
@@ -500,6 +512,10 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
 
         if config.has_option('Main', 'histogram_percentiles'):
             agentConfig['histogram_percentiles'] = get_histogram_percentiles(config.get('Main', 'histogram_percentiles'))
+
+        # Container histogram tag stripping
+        if config.has_option("Main", "docker_histo_striptags"):
+            agentConfig['docker_histo_striptags'] = config.get("Main", "docker_histo_striptags")
 
         # Disable Watchdog (optionally)
         if config.has_option('Main', 'watchdog'):

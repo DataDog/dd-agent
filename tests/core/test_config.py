@@ -17,8 +17,10 @@ from config import (
     validate_sdk_check,
     _conf_path_to_check_name,
     _version_string_to_tuple,
-    ApiKeyInvalid
+    ApiKeyInvalid,
+    get_histogram_submit_methods
 )
+from checks import AgentCheck
 from util import windows_friendly_colon_split
 from utils.hostname import is_valid_hostname
 from utils.pidfile import PidFile
@@ -360,3 +362,31 @@ class TestManifestValidation(unittest.TestCase):
     def testVersionStringToTupleBadVersion(self, *args):
         with self.assertRaises(ValueError):
             _version_string_to_tuple('5.10.4a')
+
+
+class TestSubmitMethod(unittest.TestCase):
+    def testNoHistogram(self, *args):
+        methods = get_histogram_submit_methods(use_histogram=False)
+        self.assertEquals(2, len(methods))
+        self.assertEquals(AgentCheck.gauge, methods[AgentCheck.gauge])
+        self.assertEquals(AgentCheck.rate, methods[AgentCheck.rate])
+
+    @mock.patch('checks.AgentCheck.generate_histogram_func', return_value="histogram")
+    @mock.patch('checks.AgentCheck.generate_historate_func', return_value="historate")
+    def testNoHistogramOneTag(self, rate_mock, gram_mock):
+        methods = get_histogram_submit_methods(use_histogram=True, tags_to_strip='one_tag')
+        self.assertEquals(2, len(methods))
+        self.assertEquals("histogram", methods[AgentCheck.gauge])
+        self.assertEquals("historate", methods[AgentCheck.rate])
+        gram_mock.assert_called_once_with(["one_tag"])
+        rate_mock.assert_called_once_with(["one_tag"])
+
+    @mock.patch('checks.AgentCheck.generate_histogram_func', return_value="histogram")
+    @mock.patch('checks.AgentCheck.generate_historate_func', return_value="historate")
+    def testNoHistogramThreeTags(self, rate_mock, gram_mock):
+        methods = get_histogram_submit_methods(use_histogram=True, tags_to_strip='one_tag,two,three')
+        self.assertEquals(2, len(methods))
+        self.assertEquals("histogram", methods[AgentCheck.gauge])
+        self.assertEquals("historate", methods[AgentCheck.rate])
+        gram_mock.assert_called_once_with(["one_tag", "two", "three"])
+        rate_mock.assert_called_once_with(["one_tag", "two", "three"])
