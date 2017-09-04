@@ -48,28 +48,28 @@ class TestDockerUtil(unittest.TestCase):
         co = {'Image': 'redis:3.2'}
         self.assertEqual('redis:3.2', DockerUtil().image_name_extractor(co))
 
-    @mock.patch('docker.Client.inspect_image')
-    @mock.patch('docker.Client.__init__')
-    def test_image_name_from_image_repotags(self, mock_init, mock_image):
-        mock_image.return_value = {'RepoTags': ["redis:3.2"], 'RepoDigests': []}
-        mock_init.return_value = None
+    def test_image_name_from_image_repotags(self):
+        du = DockerUtil()
+        du._client = mock.MagicMock()
+        mock_img = mock.MagicMock(name='inspect_image', return_value = {'RepoTags': ["redis:3.2"], 'RepoDigests': []})
+        du._client.inspect_image = mock_img
         sha = 'sha256:e48e77eee11b6d9ac9fc35a23992b4158355a8ec3fd3725526eba3f467e4b6c9'
         co = {'Image': sha}
         self.assertEqual('redis:3.2', DockerUtil().image_name_extractor(co))
-        mock_image.assert_called_once_with(sha)
+        mock_img.assert_called_once_with(sha)
 
         # Make sure cache is used insead of call again inspect_image
         DockerUtil().image_name_extractor(co)
-        mock_image.assert_called_once()
+        mock_img.assert_called_once()
 
-    @mock.patch('docker.Client.inspect_image')
-    @mock.patch('docker.Client.__init__')
-    def test_image_name_from_image_repodigests(self, mock_init, mock_image):
-        mock_image.return_value = {'RepoTags': [],
-            'RepoDigests': ['alpine@sha256:4f2d8bbad359e3e6f23c0498e009aaa3e2f31996cbea7269b78f92ee43647811']}
-        mock_init.return_value = None
+    def test_image_name_from_image_repodigests(self):
+        du = DockerUtil()
+        du._client = mock.MagicMock()
+        du._client.inspect_image = mock.MagicMock(name='inspect_image', return_value = {'RepoTags': [],
+            'RepoDigests': ['alpine@sha256:4f2d8bbad359e3e6f23c0498e009aaa3e2f31996cbea7269b78f92ee43647811']})
+
         co = {'Image': 'sha256:e48e77eee11b6d9ac9fc35a23992b4158355a8ec3fd3725526eba3f467e4b6d9'}
-        self.assertEqual('alpine', DockerUtil().image_name_extractor(co))
+        self.assertEqual('alpine', du.image_name_extractor(co))
 
     def test_extract_container_tags(self):
         test_data = [
@@ -83,28 +83,31 @@ class TestDockerUtil(unittest.TestCase):
         for test in test_data:
             self.assertEqual(test[1], DockerUtil().extract_container_tags(test[0]))
 
-    @mock.patch('docker.Client.version')
-    @mock.patch('docker.Client.__init__')
-    def test_docker_host_tags_ok(self, mock_init, mock_version):
-        mock_version.return_value = {'Version': '1.13.1'}
-        mock_init.return_value = None
-        self.assertEqual(['docker_version:1.13.1'], DockerUtil().get_host_tags())
+    def test_docker_host_tags_ok(self):
+        mock_version = mock.MagicMock(name='version', return_value={'Version': '1.13.1'})
+        du = DockerUtil()
+        du._client = mock.MagicMock()
+        du._client.version = mock_version
+        du.swarm_node_state = 'inactive'
+        self.assertEqual(['docker_version:1.13.1'], du.get_host_tags())
         mock_version.assert_called_once()
 
-    @mock.patch('docker.Client.version')
-    @mock.patch('docker.Client.__init__')
-    def test_docker_host_tags_invalid_response(self, mock_init, mock_version):
-        mock_version.return_value = None
-        mock_init.return_value = None
+    def test_docker_host_tags_invalid_response(self):
+        mock_version = mock.MagicMock(name='version', return_value=None)
+        du = DockerUtil()
+        du._client = mock.MagicMock()
+        du._client.version = mock_version
+        du.swarm_node_state = 'inactive'
         self.assertEqual([], DockerUtil().get_host_tags())
         mock_version.assert_called_once()
 
-    @mock.patch('utils.dockerutil.DockerUtil.is_swarm')
-    @mock.patch('docker.Client.version')
-    @mock.patch('docker.Client.__init__')
-    def test_docker_host_tags_swarm_ok(self, mock_init, mock_version, mock_isswarm):
-        mock_isswarm.return_value = True
-        mock_version.return_value = {'Version': '1.13.1'}
-        mock_init.return_value = None
+    def test_docker_host_tags_swarm_ok(self):
+        du = DockerUtil()
+        mock_version = mock.MagicMock(name='version', return_value={'Version': '1.13.1'})
+        mock_isswarm = mock.MagicMock(name='is_swarm', return_value=True)
+        du._client = mock.MagicMock()
+        du._client.version = mock_version
+        du.is_swarm = mock_isswarm
+
         self.assertEqual(['docker_version:1.13.1', 'docker_swarm:active'], DockerUtil().get_host_tags())
         mock_version.assert_called_once()
