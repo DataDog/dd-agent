@@ -651,3 +651,15 @@ class KubeUtil:
         if not self.leader_elector:
             self.leader_elector = LeaderElector(self)
         self.leader_elector.try_acquire_or_refresh()
+
+    def image_name_resolver(self, image):
+        """
+        Wraps around the sibling dockerutil method and catches exceptions
+        """
+        if image is None:
+            return None
+        try:
+            return self.docker_util.image_name_resolver(image)
+        except Exception as e:
+            log.warning("Error resolving image name: %s", str(e))
+            return image
