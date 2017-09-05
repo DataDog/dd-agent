@@ -571,33 +571,33 @@ class DockerUtil:
         Result is cached for performance, no invalidation planned as image
         churn is low on typical hosts.
         """
-        if "Image" in co:
-            image = co.get('Image', '')
-            if image.startswith('sha256:'):
-                # Some orchestrators setup containers with image checksum instead of image name
-                try:
-                    if image in self._image_sha_to_name_mapping:
-                        return self._image_sha_to_name_mapping[image]
-                    else:
-                        image_spec = self.client.inspect_image(image)
-                        try:
-                            name = image_spec['RepoTags'][0]
-                            self._image_sha_to_name_mapping[image] = name
-                            return name
-                        except (LookupError, TypeError) as e:
-                            log.debug("Failed finding image name in RepoTag, trying RepoDigests: %s", e)
-                        try:
-                            name = image_spec['RepoDigests'][0]
-                            name = name.split('@')[0]   # Last resort, we get the name with no tag
-                            self._image_sha_to_name_mapping[image] = name
-                            return name
-                        except (LookupError, TypeError) as e:
-                            log.warning("Failed finding image name in RepoTag and RepoDigests: %s", e)
-                except Exception:
-                    log.exception("Exception getting docker image name")
-            else:
-                return image
-        return None
+        return self.image_name_resolver(co.get('Image', ''))
+
+    def image_name_resolver(self, image):
+        if image.startswith('sha256:'):
+            # Some orchestrators setup containers with image checksum instead of image name
+            try:
+                if image in self._image_sha_to_name_mapping:
+                    return self._image_sha_to_name_mapping[image]
+                else:
+                    image_spec = self.client.inspect_image(image)
+                    try:
+                        name = image_spec['RepoTags'][0]
+                        self._image_sha_to_name_mapping[image] = name
+                        return name
+                    except (LookupError, TypeError) as e:
+                        log.debug("Failed finding image name in RepoTag, trying RepoDigests: %s", e)
+                    try:
+                        name = image_spec['RepoDigests'][0]
+                        name = name.split('@')[0]   # Last resort, we get the name with no tag
+                        self._image_sha_to_name_mapping[image] = name
+                        return name
+                    except (LookupError, TypeError) as e:
+                        log.debug("Failed finding image name in RepoTag and RepoDigests: %s", e)
+            except Exception:
+                log.exception("Exception getting docker image name")
+        else:
+            return image
 
     @classmethod
     def container_name_extractor(cls, co):
