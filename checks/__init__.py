@@ -921,6 +921,8 @@ class AgentCheck(object):
 
     @staticmethod
     def read_config(instance, key, message=None, cast=None):
+        log.warning("Deprecation notice: the `read_config` method of `AgentCheck` is deprecated and will be removed " +
+            "in the next major version of the Agent")
         val = instance.get(key)
         if val is None:
             message = message or 'Must provide `%s` value in instance config' % key
