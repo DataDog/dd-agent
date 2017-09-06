@@ -125,7 +125,7 @@ class KubeUtil:
         # leader status triggers event collection
         self.is_leader = False
         self.leader_elector = None
-        self.leader_lease_duration = instance.get('lease_duration')
+        self.leader_lease_duration = instance.get('leader_lease_duration')
 
         # kubelet
         # If kubelet_api_url is None, init_kubelet didn't succeed yet.
