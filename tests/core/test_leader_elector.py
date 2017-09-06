@@ -14,7 +14,7 @@ from utils.kubernetes.leader_elector import LeaderElector, \
 class TestLeaderElector(KubeTestCase):
     def test_is_cm_mine(self):
         elector = LeaderElector(self.kube)
-        self.kube.host_name = 'foo'
+        self.kube._node_name = 'foo'
 
         error_cm = [
             ({}, KeyError),
@@ -32,7 +32,7 @@ class TestLeaderElector(KubeTestCase):
 
     def test_build_update_cm_payload(self):
         now = datetime.datetime.utcnow()
-        self.kube.host_name = 'foo'
+        self.kube._node_name = 'foo'
         elector = LeaderElector(self.kube)
 
         cm = {
@@ -61,7 +61,7 @@ class TestLeaderElector(KubeTestCase):
 
     def test_build_create_cm_payload(self):
         now = datetime.datetime.utcnow()
-        self.kube.host_name = 'foo'
+        self.kube._node_name = 'foo'
         elector = LeaderElector(self.kube)
 
         cm = {
