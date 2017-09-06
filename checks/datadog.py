@@ -186,6 +186,8 @@ class Dogstream(object):
             except StopIteration as e:
                 self.logger.exception(e)
                 self.logger.warn("Can't tail %s file" % self.log_path)
+                # reset generator to try again during the next check interval
+                self._gen = None
 
             check_output = self._aggregate(self._values)
             if self._events:
