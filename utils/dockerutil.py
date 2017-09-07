@@ -598,8 +598,8 @@ class DockerUtil:
                         return name
                     except (LookupError, TypeError) as e:
                         log.debug("Failed finding image name in RepoTag and RepoDigests: %s", e)
-            except Exception:
-                log.error("Exception getting docker image name")
+            except Exception as ex:
+                log.error("Exception getting docker image name: %s" % str(ex))
         else:
             return image
 
