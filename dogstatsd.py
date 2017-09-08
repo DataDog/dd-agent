@@ -293,12 +293,16 @@ class Reporter(threading.Thread):
                 log.exception("Error flushing metrics")
 
     def submit(self, metrics):
-        body, headers = serialize_metrics(metrics, self.hostname)
-        params = {}
-        if self.api_key:
-            params['api_key'] = self.api_key
-        url = '%s/api/v1/series?%s' % (self.api_host, urlencode(params))
-        self.submit_http(url, body, headers)
+        n_chunks = 5
+        chunk_size = len(metrics)/n_chunks + 1
+        log.debug("Splitting the metrics payload in %s chunks", n_chunks)
+        for chunk in chunks(metrics, chunk_size):
+            body, headers = serialize_metrics(chunk, self.hostname)
+            params = {}
+            if self.api_key:
+                params['api_key'] = self.api_key
+            url = '%s/api/v1/series?%s' % (self.api_host, urlencode(params))
+            self.submit_http(url, body, headers)
 
     def submit_events(self, events):
         headers = {'Content-Type':'application/json'}
