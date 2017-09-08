@@ -366,20 +366,25 @@ class AbstractConfigStore(object):
 
         return res
 
-    def _get_image_ident(self, ident):
+    def _get_image_ident(self, image_name):
         """Extract an identifier from the image"""
+        # See image_formats in test_service_discovery.py for supported formats
+
         # handle exceptionnal empty ident case (docker bug)
-        if not ident:
+        if not image_name:
             return ""
-        # handle the 'redis@sha256:...' format
-        if '@' in ident:
-            return ident.split('@')[0].split('/')[-1]
-        # if a custom image store is used there can be a port which adds a colon
-        elif ident.count(':') > 1:
-            return ident.split(':')[1].split('/')[-1]
-        # otherwise we just strip the tag and keep the image name
-        else:
-            return ident.split(':')[0].split('/')[-1]
+        ident = image_name
+        # remove the @sha256: suffix if present
+        if '@sha' in ident:
+            ident = ident.split('@sha')[0]
+        # remove image org / store prefix, we keep the last part after '/''
+        if '/' in ident:
+            ident = ident.split('/')[-1]
+        # remove the image tag after :
+        if ':' in ident:
+            ident = ident.split(':')[0]
+
+        return ident
 
     def crawl_config_template(self):
         """Return whether or not configuration templates have changed since the previous crawl"""
