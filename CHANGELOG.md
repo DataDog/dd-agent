@@ -1,6 +1,25 @@
 Changes
 =======
 
+# 5.17.1 / Unreleased
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.17.0...5.17.1
+
+### Changes
+Please refer to the [Integrations Core Checks 5.17.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.17.1) for the list of changes on the core checks.
+Please refer to the [Trace Agent 5.17.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.17.1) for the list of changes on the Trace Agent.
+Please refer to the [Process Agent 5.17.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.17.1) for more information on the Process Agent.
+
+* [IMPROVEMENT] AutoDiscovery: Make AutoDiscovery wait on docker/kubelet. See [#3497][]
+* [IMPROVEMENT] Docker: catch `docker.errors.NotFound` for nonexisting images. See [#3507][]
+* [BUGFIX] AutoDiscovery: Rework AutoDiscovery image name extractor to support new swarm format. See [#3511][]
+* [BUGFIX] Dogstreams: Retry reading files that could't be read on agent startup. See [#2815][], thanks [@jalaziz][]
+* [BUGFIX] Flare: Update api key regex to support more formats. See [#3509][]
+* [BUGFIX] Kubernetes: Add image_name_resolver to kubeutil wrapping dockerutil. See [#3505][]
+* [BUGFIX] Kubernetes: Fix leader election's lease parameter and node name. See [#3506][]
+
 # 5.17.0 / 08-28-2017
 **Linux, Windows, Docker and Source Install**
 
@@ -4097,6 +4116,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2809]: https://github.com/DataDog/dd-agent/issues/2809
 [#2812]: https://github.com/DataDog/dd-agent/issues/2812
 [#2813]: https://github.com/DataDog/dd-agent/issues/2813
+[#2815]: https://github.com/DataDog/dd-agent/issues/2815
 [#2820]: https://github.com/DataDog/dd-agent/issues/2820
 [#2823]: https://github.com/DataDog/dd-agent/issues/2823
 [#2825]: https://github.com/DataDog/dd-agent/issues/2825
@@ -4365,6 +4385,12 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3488]: https://github.com/DataDog/dd-agent/issues/3488
 [#3489]: https://github.com/DataDog/dd-agent/issues/3489
 [#3492]: https://github.com/DataDog/dd-agent/issues/3492
+[#3497]: https://github.com/DataDog/dd-agent/issues/3497
+[#3505]: https://github.com/DataDog/dd-agent/issues/3505
+[#3506]: https://github.com/DataDog/dd-agent/issues/3506
+[#3507]: https://github.com/DataDog/dd-agent/issues/3507
+[#3509]: https://github.com/DataDog/dd-agent/issues/3509
+[#3511]: https://github.com/DataDog/dd-agent/issues/3511
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -4455,6 +4481,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@imlucas]: https://github.com/imlucas
 [@ipolishchuk]: https://github.com/ipolishchuk
 [@ive]: https://github.com/ive
+[@jalaziz]: https://github.com/jalaziz
 [@jamesandariese]: https://github.com/jamesandariese
 [@jamescrowley]: https://github.com/jamescrowley
 [@janeczku]: https://github.com/janeczku
