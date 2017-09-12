@@ -52,6 +52,7 @@ def get_uuid():
 
 
 def headers(agentConfig, **kwargs):
+    log.warning("`util.headers` will be deprecated in Agent version 6. Please use `from utils.headers import headers`")
     # Build the request headers
     res = {
         'User-Agent': 'Datadog Agent/%s' % agentConfig['version'],
