@@ -12,9 +12,9 @@ Please refer to the [Integrations Core Checks 5.17.1 tag](https://github.com/Dat
 Please refer to the [Trace Agent 5.17.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.17.1) for the list of changes on the Trace Agent.
 Please refer to the [Process Agent 5.17.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.17.1) for more information on the Process Agent.
 
-* [IMPROVEMENT] AutoDiscovery: Make AutoDiscovery wait on docker/kubelet. See [#3497][]
+* [IMPROVEMENT] Autodiscovery: Make Autodiscovery wait on docker/kubelet. See [#3497][]
 * [IMPROVEMENT] Docker: catch `docker.errors.NotFound` for nonexisting images. See [#3507][]
-* [BUGFIX] AutoDiscovery: Rework AutoDiscovery image name extractor to support new swarm format. See [#3511][]
+* [BUGFIX] Autodiscovery: Rework Autodiscovery image name extractor to support new swarm format. See [#3511][]
 * [BUGFIX] Dogstreams: Retry reading files that could't be read on agent startup. See [#2815][], thanks [@jalaziz][]
 * [BUGFIX] Flare: Update api key regex to support more formats. See [#3509][]
 * [BUGFIX] Kubernetes: Add image_name_resolver to kubeutil wrapping dockerutil. See [#3505][]
@@ -35,7 +35,7 @@ Please refer to the [Integrations Core Checks 5.17.0 tag](https://github.com/Dat
 Please refer to the [Trace Agent 5.17.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.17.0) for the list of changes on the Trace Agent.
 Please refer to the [Process Agent 5.17.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.17.0) for more information on the Process Agent.
 
-* [FEATURE] AutoDiscovery: Allow autoconf templates in docker labels. See [#3451][]
+* [FEATURE] Autodiscovery: Allow autoconf templates in docker labels. See [#3451][]
 * [FEATURE] JMXFetch: Add `list_jvms` command on `dd-agent`. See [#2962][]
 * [IMPROVEMENT] Azure: Use VM ID as a host alias. See [#3402][]
 * [IMPROVEMENT] Collector: Split check runs from main agent payload. See [#3446][]
@@ -53,8 +53,8 @@ Please refer to the [Process Agent 5.17.0 tag](https://github.com/DataDog/datado
 * [IMPROVEMENT] Prometheus: Allow metric type overrides in `PrometheusCheck` class. See [#3463][]
 * [IMPROVEMENT] Windows packaging: Allow configuration of proxy on the installer CLI. See [#3470][] and [dd-agent-omnibus-192](https://github.com/DataDog/dd-agent-omnibus/issues/192)
 * [IMPROVEMENT] Windows system checks: Use `win32pdh` instead of WMI. See [#3294][]
-* [BUGFIX] AutoDiscovery: Fix instance-level tags when multi instances are configured. See [#3478][]
-* [BUGFIX] AutoDiscovery: Re-pipe configurations after JMXFetch restart. See [#3415][]
+* [BUGFIX] Autodiscovery: Fix instance-level tags when multi instances are configured. See [#3478][]
+* [BUGFIX] Autodiscovery: Re-pipe configurations after JMXFetch restart. See [#3415][]
 * [BUGFIX] Collector: Only add service check fields if non-null. See [#3487][]
 * [BUGFIX] Core: Make `configcheck` command exit with meaningful exit code. See [#3481][]
 * [BUGFIX] Core: Make test on stored PID more accurate on Windows. See [#3468][]
@@ -64,7 +64,7 @@ Please refer to the [Process Agent 5.17.0 tag](https://github.com/DataDog/datado
 * [BUGFIX] JMXFetch: Fix Agent crash when JMXFetch pipe is broken. See [#3461][]
 * [BUGFIX] Packaging: On CentOS, fix duplicate and unwanted service restarts at the end of installs. See [dd-agent-omnibus-194](https://github.com/DataDog/dd-agent-omnibus/issues/194)
 * [BUGFIX] WMI: Convert UINT32 WMI type to positive integer instead of negative integer. See [#3467][]
-* [SANITY] AutoDiscovery: Avoid calling kubeutil if it's not initialized. See [#3479][]
+* [SANITY] Autodiscovery: Avoid calling kubeutil if it's not initialized. See [#3479][]
 * [SANITY] Collector: Downgrade docker warning message to debug on dockerless hosts. See [#3485][]
 * [SANITY] Collector: Remove deprecated `run_check` method on Windows. See [#3448][]
 * [SANITY] Dogstatsd: Parse distribution metrics and ignore them. See [#3458][]
