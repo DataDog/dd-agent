@@ -63,23 +63,6 @@ FACTORS = {
     'Ei': 1024*1024*1024*1024*1024*1024,
 }
 
-CONTAINER_LABELS = [
-    'container_name',  # kubernetes container name
-    'id',  # cgroup path
-    'image',
-    'name',  # docker container name
-    'namespace',  # kubernetes namespace
-    'pod_name'
-]
-
-CONTAINER_LABELS_TO_TAGS = {
-    'container_name': 'kube_container_name',
-    'namespace': 'kube_namespace',
-    'pod_name': 'pod_name',
-    'name': 'container_name',
-    'image': 'container_image',
-}
-
 
 def detect_is_k8s():
     """
@@ -228,7 +211,7 @@ class KubeUtil:
         """
         if self.left_init_retries == 0:
             raise Exception("Kubernetes client initialization failed permanently. "
-                "Kubernetes-related features will fail.")
+                            "Kubernetes-related features will fail.")
 
         now = time.time()
 
@@ -242,7 +225,8 @@ class KubeUtil:
         try:
             self.kubelet_api_url = self._locate_kubelet(instance)
         except Exception as ex:
-            log.error("Failed to initialize kubelet connection. Will retry %s time(s). Error: %s" % (self.left_init_retries, str(ex)))
+            log.error("Failed to initialize kubelet connection. Will retry "
+                      "%s time(s). Error: %s" % (self.left_init_retries, str(ex)))
             return
         if not self.kubelet_api_url:
             log.error("Failed to initialize kubelet connection. Will retry %s time(s)." % self.left_init_retries)
@@ -253,6 +237,7 @@ class KubeUtil:
         self.kubelet_host = self.kubelet_api_url.split(':')[1].lstrip('/')
         self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
         self.kube_health_url = urljoin(self.kubelet_api_url, KubeUtil.KUBELET_HEALTH_PATH)
+        self.machine_info_url = urljoin(self.kubelet_api_url, KubeUtil.MACHINE_INFO_PATH)
 
         # namespace of the agent pod
         try:
@@ -265,7 +250,6 @@ class KubeUtil:
         self.cadvisor_port = instance.get('port', KubeUtil.DEFAULT_CADVISOR_PORT)
         self.cadvisor_url = '%s://%s:%d' % (self.method, self.kubelet_host, self.cadvisor_port)
         self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
-        self.machine_info_url = urljoin(self.cadvisor_url, KubeUtil.MACHINE_INFO_PATH)
 
     def _locate_kubelet(self, instance):
         """
@@ -356,6 +340,16 @@ class KubeUtil:
         to the configuration option label_to_tag_prefix
         Returns a dict{namespace/podname: [tags]}
         """
+        def _clean_pod_labels(labels):
+            for k in labels.keys():
+                if 'template-generation' in k:
+                    del labels[k]
+                if 'hash' in k:
+                    del labels[k]
+                if 'k8s-app' in k:
+                    del labels[k]
+            return labels
+
         excluded_keys = excluded_keys or []
         kube_tags = defaultdict(list)
         pod_items = pods_list.get("items") or []
@@ -364,7 +358,7 @@ class KubeUtil:
             metadata = pod.get("metadata", {})
             name = metadata.get("name")
             namespace = metadata.get("namespace")
-            labels = metadata.get("labels", {})
+            labels = _clean_pod_labels(metadata.get("labels", {}))
             if name and namespace:
                 key = "%s/%s" % (namespace, name)
 
@@ -407,7 +401,7 @@ class KubeUtil:
         try:
             _, node_name = self.get_node_info()
             request_url = "%s/nodes/%s" % (self.kubernetes_api_url, node_name)
-            node_status = self.retrieve_json_auth(request_url)['status']
+            node_status = self.retrieve_json_auth(request_url).json()['status']
             machine_info['pods'] = node_status.get('capacity', {}).get('pods')
             machine_info['allocatable'] = node_status.get('allocatable', {})
         except Exception as ex:
@@ -465,7 +459,7 @@ class KubeUtil:
             headers = {'Authorization': 'Bearer {}'.format(self.tls_settings.get('bearer_token'))}
 
         return requests.get(url, timeout=timeout, verify=verify,
-            cert=cert, headers=headers, params={'verbose': verbose})
+                            cert=cert, headers=headers, params={'verbose': verbose})
 
     def get_apiserver_auth_settings(self):
         """
@@ -611,36 +605,6 @@ class KubeUtil:
         log.warning("Cannot set both node_name: '%s' and node_ip: '%s' from PodList with %d items",
                     self._node_name, self._node_ip, len(pod_items))
 
-    def _is_container_metric(self, metric):
-        """
-        Return whether a metric is about a container or not.
-        It can be about pods, or even higher levels in the cgroup hierarchy
-        and we don't want to report on that.
-        """
-        for l in CONTAINER_LABELS:
-            if l == 'container_name':
-                for ml in metric.label:
-                    if ml.name == l:
-                        if ml.value == 'POD':
-                            return False
-            elif l not in [ml.name for ml in metric.label]:
-                return False
-        return True
-
-    def _is_pod_metric(self, metric):
-        """
-        Return whether a metric is about a pod or not.
-        It can be about pods, or even higher levels in the cgroup hierarchy
-        and we don't want to report on that.
-        """
-        for l in CONTAINER_LABELS:
-            if l == 'container_name':
-                for ml in metric.label:
-                    if ml.name == l:
-                        if ml.value == 'POD':
-                            return True
-        return False
-
     def extract_image_tags(self, image_label):
         """Get the image tags using docker_util"""
         tags = []
@@ -656,24 +620,6 @@ class KubeUtil:
             tags.append('image_name:%s' % image_name_array[0])
         if image_tag_array and len(image_tag_array) > 0:
             tags.append('image_tag:%s' % image_tag_array[0])
-        return tags
-
-    def extract_metric_tags(self, labels):
-        """Build a tag list for a Prometheus metric"""
-        tags = []
-        pname, ns = None, None
-        for label in labels:
-            if label.name == 'image':
-                tags += self.extract_image_tags(label.value)
-            elif label.name == "pod_name":
-                pname = label.value
-            elif label.name == 'namespace':
-                ns = label.value
-            else:
-                if label.name in CONTAINER_LABELS_TO_TAGS:
-                    tags.append('{}:{}'.format(CONTAINER_LABELS_TO_TAGS[label.name], label.value))
-            if pname and ns:
-                tags += self.kube_pod_tags.get('{}/{}'.format(ns, pname), [])
         return tags
 
     def extract_event_tags(self, event):
@@ -737,7 +683,6 @@ class KubeUtil:
         Pass refresh=True if you want to bypass the cached cid->services mapping (after a service change)
         """
         s = self._service_mapper.match_services_for_pod(pod_metadata, refresh, names=True)
-        #log.warning("Matches for %s: %s" % (pod_metadata.get('name'), str(s)))
         return s
 
     def get_event_retriever(self, namespaces=None, kinds=None, delay=None):
@@ -779,7 +724,9 @@ class KubeUtil:
         This allows for consitency across code path
         """
         try:
-            created_by = json.loads(pod_metadata['annotations']['kubernetes.io/created-by'])
+            created_by = json.loads(pod_metadata['annotations'].get('kubernetes.io/created-by', '{}'))
+            if not created_by:  # internal components (kube-proxy)
+                return (None, None)
             creator_kind = created_by.get('reference', {}).get('kind')
             creator_name = created_by.get('reference', {}).get('name')
             return (creator_kind, creator_name)
@@ -825,7 +772,7 @@ class KubeUtil:
             namespaces_endpoint = '{}/namespaces'.format(self.kubernetes_api_url)
             log.debug('Kubernetes API endpoint to query namespaces: %s' % namespaces_endpoint)
 
-            namespaces = self.retrieve_json_auth(namespaces_endpoint)
+            namespaces = self.retrieve_json_auth(namespaces_endpoint).json()
             for namespace in namespaces.get('items', []):
                 name = namespace.get('metadata', {}).get('name', None)
                 if name and ns_regex.match(name):
