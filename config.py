@@ -26,7 +26,8 @@ from urlparse import urlparse
 import simplejson as json
 
 # project
-from util import check_yaml, config_to_yaml
+from util import config_to_yaml
+from utils.check_yaml import check_yaml
 from utils.platform import Platform, get_os
 from utils.proxy import get_proxy
 from utils.sdk import load_manifest

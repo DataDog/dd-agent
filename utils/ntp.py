@@ -8,7 +8,7 @@ import random
 
 # project
 from config import get_confd_path
-from util import check_yaml
+from utils.check_yaml import check_yaml
 from utils.singleton import Singleton
 
 

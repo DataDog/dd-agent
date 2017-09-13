@@ -12,7 +12,7 @@ from urllib import urlencode
 from urlparse import urljoin
 
 # project
-from util import check_yaml
+from utils.check_yaml import check_yaml
 from utils.checkfiles import get_conf_path
 from utils.dockerutil import DockerUtil
 from utils.http import retrieve_json
