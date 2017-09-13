@@ -5,7 +5,7 @@ import os
 from urlparse import urljoin
 
 # project
-from util import check_yaml
+from utils.check_yaml import check_yaml
 
 log = logging.getLogger(__name__)
 

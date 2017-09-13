@@ -12,10 +12,10 @@ import simplejson as json
 
 # project
 from config import (
-    check_yaml,
     load_check_directory,
     get_confd_path
 )
+from utils.check_yaml import check_yaml
 from utils.hostname import get_hostname
 from utils.dockerutil import DockerUtil
 from utils.service_discovery.config_stores import get_config_store, SD_CONFIG_BACKENDS, TRACE_CONFIG

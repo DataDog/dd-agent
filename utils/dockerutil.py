@@ -166,7 +166,7 @@ class DockerUtil:
 
     def get_check_config(self):
         """Read the config from docker_daemon.yaml"""
-        from util import check_yaml
+        from utils.check_yaml import check_yaml
         from utils.checkfiles import get_conf_path
         init_config, instances = {}, []
         try:
