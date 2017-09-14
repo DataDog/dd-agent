@@ -36,6 +36,11 @@ from utils.proxy import get_proxy
 from utils.profile import pretty_statistics
 from utils.proxy import get_no_proxy_from_env, config_proxy_skip
 
+# provided for backward compatibility.  wmi_check.py renamed to winwmi_check.py
+# to prevent collision with the actual wmi check; provide the redirect for
+# any agent check that uses the base library
+from checks import winwmi_check as wmi_check
+
 log = logging.getLogger(__name__)
 
 # Default methods run when collecting info about the agent in developer mode
