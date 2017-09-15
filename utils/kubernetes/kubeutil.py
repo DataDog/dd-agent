@@ -238,12 +238,16 @@ class KubeUtil:
         if not host:
             # if no hostname was provided, use the docker hostname if cert
             # validation is not required, the kubernetes hostname otherwise.
-            host = self.docker_util.get_hostname(should_resolve=True)
+            docker_hostname = self.docker_util.get_hostname(should_resolve=True)
             if self.tls_settings.get('kubelet_verify'):
                 try:
-                    host = self.get_node_hostname(host)
-                except Exception:
-                    pass
+                    k8s_hostname = self.get_node_hostname(docker_hostname)
+                    host = k8s_hostname or docker_hostname
+                except Exception as ex:
+                    log.error(str(ex))
+                    host = docker_hostname
+            else:
+                host = docker_hostname
 
         # check if the no-auth endpoint is enabled
         port = instance.get('kubelet_port', KubeUtil.DEFAULT_HTTP_KUBELET_PORT)
