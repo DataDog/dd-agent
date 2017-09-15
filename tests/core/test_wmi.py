@@ -526,7 +526,7 @@ class TestUnitWMISampler(TestCommonWMI):
 
         from checks.libs.wmi import sampler
         from datetime import datetime
-        from checks.wmi_check import from_time
+        from checks.winwmi_check import from_time
         format_filter = sampler.WMISampler._format_filter
 
         filters = []
