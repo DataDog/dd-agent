@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 5.17.2 / Unreleased
+# 5.17.2 / 09-18-2017
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -16,7 +16,7 @@ Please refer to the [Process Agent 5.17.2 tag](https://github.com/DataDog/datado
 
 ### Changes
 
-* [REGRESSION] Kubernetes: partially revert _locate_kubelet from [#3497][]. See [#3523][]
+* [REGRESSION] Kubernetes: partially revert `_locate_kubelet` from [#3497][]. See [#3523][]
 
 # 5.17.1 / 09-12-2017
 **Linux, Windows, Docker and Source Install**
