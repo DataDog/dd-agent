@@ -34,6 +34,6 @@ pyyaml==3.11
 requests==2.11.1
 # note: simplejson is used in many checks to inteface APIs
 simplejson==3.6.5
-supervisor==3.3.0
+supervisor==3.3.3
 tornado==3.2.2
 uptime==3.0.1
