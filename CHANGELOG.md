@@ -1,6 +1,23 @@
 Changes
 =======
 
+# 5.17.2 / Unreleased
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.17.1...5.17.2
+
+### Changes
+Please refer to the [Integrations Core Checks 5.17.2 tag](https://github.com/DataDog/integrations-core/releases/tag/5.17.2) for the list of changes on the core checks.
+Please refer to the [Process Agent 5.17.2 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.17.2) for more information on the Process Agent.
+
+### Dependency changes
+* `supervisor` `3.3.3` (previously `3.3.0`), see [omnibus-software-165](https://github.com/DataDog/omnibus-software/pull/165)
+
+### Changes
+
+* [REGRESSION] Kubernetes: partially revert _locate_kubelet from [#3497][]. See [#3523][]
+
 # 5.17.1 / 09-12-2017
 **Linux, Windows, Docker and Source Install**
 
@@ -4391,6 +4408,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3507]: https://github.com/DataDog/dd-agent/issues/3507
 [#3509]: https://github.com/DataDog/dd-agent/issues/3509
 [#3511]: https://github.com/DataDog/dd-agent/issues/3511
+[#3523]: https://github.com/DataDog/dd-agent/issues/3523
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
