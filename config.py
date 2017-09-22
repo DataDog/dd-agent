@@ -238,6 +238,11 @@ def get_config_path(cfg_path=None, os_name=None):
     if cfg_path is not None and os.path.exists(cfg_path):
         return cfg_path
 
+    env_path_override = os.environ.get('DD_CONF_PATH')
+
+    if env_path_override is not None and os.path.exists(env_path_override):
+        return env_path_override
+
     # Check if there's a config stored in the current agent directory
     try:
         path = os.path.realpath(__file__)
