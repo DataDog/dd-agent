@@ -8,7 +8,7 @@ go_gc_duration_seconds{quantile="1"} 0.0025860830000000003
 go_gc_duration_seconds_sum 1.154763349
 go_gc_duration_seconds_count 2351
 # HELP go_goroutines Number of goroutines that currently exist.
-# TYPE go_goroutines gauge
+# remove typing from this metric
 go_goroutines 33
 # HELP go_memstats_alloc_bytes Number of bytes allocated and still in use.
 # TYPE go_memstats_alloc_bytes gauge
