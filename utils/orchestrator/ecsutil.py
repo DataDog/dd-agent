@@ -86,7 +86,9 @@ class ECSUtil(BaseUtil):
                     if skip_known and cid in self.ecs_tags:
                         continue
 
-                    tags = ['task_name:%s' % task['Family'], 'task_version:%s' % task['Version']]
+                    tags = ['task_arn:%s' % task['Arn'],
+                            'task_name:%s' % task['Family'],
+                            'task_version:%s' % task['Version']]
                     self.ecs_tags[container['DockerId']] = tags
         except requests.exceptions.HTTPError as ex:
             self.log.warning("Unable to collect ECS task names: %s" % ex)

@@ -23,11 +23,16 @@ class TestECSUtil(unittest.TestCase):
         util.agent_url = 'http://dummy'
 
         mock_get.reset_mock()
-        mock_get.return_value = MockResponse({"Tasks": [{"Family": "dd-agent-latest", "Version": "12",
-                                                         "Containers": [{"DockerId": CO_ID}]}]}, 200)
+        mock_get.return_value = MockResponse(
+            {"Tasks": [{"Arn": "arn:aws:ecs:us-east-1:123456789012:task/11111111-2222-3333-4444-123456789012",
+                        "Family": "dd-agent-latest", "Version": "12",
+                        "Containers": [{"DockerId": CO_ID}]}]}, 200)
 
         tags = util._get_cacheable_tags(CO_ID)
-        self.assertEqual(['task_name:dd-agent-latest', 'task_version:12'], tags)
+        self.assertEqual([
+            'task_arn:arn:aws:ecs:us-east-1:123456789012:task/11111111-2222-3333-4444-123456789012',
+            'task_name:dd-agent-latest',
+            'task_version:12'], tags)
         mock_get.assert_called_once_with('http://dummy/v1/tasks', timeout=1)
 
     @mock.patch('requests.get')
