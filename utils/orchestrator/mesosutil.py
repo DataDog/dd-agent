@@ -30,6 +30,8 @@ class MesosUtil(BaseUtil):
     def _get_cacheable_tags(self, cid, co=None):
         tags = []
         envvars = co.get('Config', {}).get('Env', {})
+        if not envvars:
+            return tags
 
         for var in envvars:
             if var.startswith(MARATHON_APP_ID):

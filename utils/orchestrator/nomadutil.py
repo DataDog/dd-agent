@@ -24,6 +24,9 @@ class NomadUtil(BaseUtil):
     def _get_cacheable_tags(self, cid, co=None):
         tags = []
         envvars = co.get('Config', {}).get('Env', {})
+        if not envvars:
+            return tags
+
         for var in envvars:
             if var.startswith(NOMAD_TASK_NAME):
                 tags.append('nomad_task:%s' % var[len(NOMAD_TASK_NAME) + 1:])
