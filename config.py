@@ -374,7 +374,7 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
         'statsd_metric_namespace': None,
         'utf8_decoding': False,
         'apm_enabled': False,
-        'docker_histo_striptags': 'container_name,pod_name,kube_replica_set,kube_replication_controller',
+        'docker_histo_striptags': 'container_name,pod_name,kube_replica_set,kube_replication_controller,kube_pod-template-hash,kube_pod-template-generation',
     }
 
     if Platform.is_mac():
