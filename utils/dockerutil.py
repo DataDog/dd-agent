@@ -575,7 +575,7 @@ class DockerUtil:
         return self.image_name_resolver(co.get('Image', ''))
 
     def image_name_resolver(self, image):
-        if image.startswith('sha256:'):
+        if image.startswith('sha256:') or '@sha256:' in image:
             # Some orchestrators setup containers with image checksum instead of image name
             try:
                 if image in self._image_sha_to_name_mapping:
