@@ -20,6 +20,7 @@ import os
 import signal
 import sys
 import time
+import traceback
 import xmlrpclib
 
 # For pickle & PID files, see issue 293
@@ -260,134 +261,396 @@ class Agent(Daemon):
         )
         emitters = self._get_emitters()
 
-        # Initialize service discovery
-        if self._agentConfig.get('service_discovery'):
-            self.sd_backend = get_sd_backend(self._agentConfig)
-
-        if self.sd_backend and _is_affirmative(self._agentConfig.get('sd_jmx_enable', False)):
-            pipe_path = get_jmx_pipe_path()
-            if Platform.is_windows():
-                pipe_name = pipe_path.format(pipename=SD_PIPE_NAME)
-            else:
-                pipe_name = os.path.join(pipe_path, SD_PIPE_NAME)
-
-            if os.access(pipe_path, os.W_OK):
-                if not os.path.exists(pipe_name):
-                    os.mkfifo(pipe_name)
-                self.sd_pipe = os.open(pipe_name, os.O_RDWR) # RW to avoid blocking (will only W)
-
-                # Initialize Supervisor proxy
-                self.supervisor_proxy = self._get_supervisor_socket(self._agentConfig)
-            else:
-                log.debug('Unable to create pipe in temporary directory. JMX service discovery disabled.')
-
-        # Load the checks.d checks
-        self._checksd = load_check_directory(self._agentConfig, hostname)
-
-        # Load JMX configs if available
-        if self._jmx_service_discovery_enabled:
-            self.sd_pipe_jmx_configs(hostname)
-
-        # Initialize the Collector
-        self.collector = Collector(self._agentConfig, emitters, systemStats, hostname)
-
-        # In developer mode, the number of runs to be included in a single collector profile
         try:
-            self.collector_profile_interval = int(
-                self._agentConfig.get('collector_profile_interval', DEFAULT_COLLECTOR_PROFILE_INTERVAL))
-        except ValueError:
-            log.warn('collector_profile_interval is invalid. '
-                     'Using default value instead (%s).' % DEFAULT_COLLECTOR_PROFILE_INTERVAL)
-            self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
+            # Initialize service discovery
+            if self._agentConfig.get('service_discovery'):
+                self.sd_backend = get_sd_backend(self._agentConfig)
 
-        # Configure the watchdog.
-        self.check_frequency = int(self._agentConfig['check_freq'])
-        watchdog = self._get_watchdog(self.check_frequency)
-
-        # Initialize the auto-restarter
-        self.restart_interval = int(self._agentConfig.get('restart_interval', RESTART_INTERVAL))
-        self.agent_start = time.time()
-
-        self.allow_profiling = self._agentConfig.get('allow_profiling', True)
-
-        profiled = False
-        collector_profiled_runs = 0
-
-        # Run the main loop.
-        while self.run_forever:
-            # Setup profiling if necessary
-            if self.allow_profiling and self.in_developer_mode and not profiled:
-                try:
-                    profiler = AgentProfiler()
-                    profiler.enable_profiling()
-                    profiled = True
-                except Exception as e:
-                    log.warn("Cannot enable profiler: %s" % str(e))
-
-            if self.reload_configs_flag:
-                if isinstance(self.reload_configs_flag, set):
-                    self.reload_configs(checks_to_reload=self.reload_configs_flag)
+            if self.sd_backend and _is_affirmative(self._agentConfig.get('sd_jmx_enable', False)):
+                pipe_path = get_jmx_pipe_path()
+                if Platform.is_windows():
+                    pipe_name = pipe_path.format(pipename=SD_PIPE_NAME)
                 else:
-                    self.reload_configs()
+                    pipe_name = os.path.join(pipe_path, SD_PIPE_NAME)
 
-            # JMXFetch restarts should prompt re-piping *all* JMX configs
-            if self._jmx_service_discovery_enabled and \
-                    (not self.reload_configs_flag or isinstance(self.reload_configs_flag, set)):
-                try:
-                    jmx_launch = JMXFetch._get_jmx_launchtime()
-                    if self.last_jmx_piped and self.last_jmx_piped < jmx_launch:
-                        self.sd_pipe_jmx_configs(hostname)
-                except Exception as e:
-                    log.debug("could not stat JMX lunch file: %s", e)
+                if os.access(pipe_path, os.W_OK):
+                    if not os.path.exists(pipe_name):
+                        os.mkfifo(pipe_name)
+                    self.sd_pipe = os.open(pipe_name, os.O_RDWR) # RW to avoid blocking (will only W)
 
-            # Do the work. Pass `configs_reloaded` to let the collector know if it needs to
-            # look for the AgentMetrics check and pop it out.
-            self.collector.run(checksd=self._checksd,
-                               start_event=self.start_event,
-                               configs_reloaded=True if self.reload_configs_flag else False)
+                    # Initialize Supervisor proxy
+                    self.supervisor_proxy = self._get_supervisor_socket(self._agentConfig)
+                else:
+                    log.debug('Unable to create pipe in temporary directory. JMX service discovery disabled.')
 
-            self.reload_configs_flag = False
+            # Load the checks.d checks
+            self._checksd = load_check_directory(self._agentConfig, hostname)
 
-            # Look for change in the config template store.
-            # The self.sd_backend.reload_check_configs flag is set
-            # to True if a config reload is needed.
-            if self._agentConfig.get('service_discovery') and self.sd_backend and \
-               not self.sd_backend.reload_check_configs:
-                try:
-                    self.sd_backend.reload_check_configs = get_config_store(
-                        self._agentConfig).crawl_config_template()
-                except Exception as e:
-                    log.warn('Something went wrong while looking for config template changes: %s' % str(e))
+            # Load JMX configs if available
+            if self._jmx_service_discovery_enabled:
+                self.sd_pipe_jmx_configs(hostname)
 
-            # Check if we should run service discovery
-            # The `reload_check_configs` flag can be set through the docker_daemon check or
-            # using ConfigStore.crawl_config_template
-            if self._agentConfig.get('service_discovery') and self.sd_backend and \
-               self.sd_backend.reload_check_configs:
-                self.reload_configs_flag = self.sd_backend.reload_check_configs
-                self.sd_backend.reload_check_configs = False
+            # Initialize the Collector
+            self.collector = Collector(self._agentConfig, emitters, systemStats, hostname)
 
-            if profiled:
-                if collector_profiled_runs >= self.collector_profile_interval:
+            # In developer mode, the number of runs to be included in a single collector profile
+            try:
+                self.collector_profile_interval = int(
+                    self._agentConfig.get('collector_profile_interval', DEFAULT_COLLECTOR_PROFILE_INTERVAL))
+            except ValueError:
+                log.warn('collector_profile_interval is invalid. '
+                        'Using default value instead (%s).' % DEFAULT_COLLECTOR_PROFILE_INTERVAL)
+                self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
+
+            # Configure the watchdog.
+            self.check_frequency = int(self._agentConfig['check_freq'])
+            watchdog = self._get_watchdog(self.check_frequency)
+
+            # Initialize the auto-restarter
+            self.restart_interval = int(self._agentConfig.get('restart_interval', RESTART_INTERVAL))
+            self.agent_start = time.time()
+
+            self.allow_profiling = self._agentConfig.get('allow_profiling', True)
+
+            profiled = False
+            collector_profiled_runs = 0
+
+            # Run the main loop.
+            while self.run_forever:
+                # Setup profiling if necessary
+                if self.allow_profiling and self.in_developer_mode and not profiled:
                     try:
-                        profiler.disable_profiling()
-                        profiled = False
-                        collector_profiled_runs = 0
+                        profiler = AgentProfiler()
+                        profiler.enable_profiling()
+                        profiled = True
                     except Exception as e:
-                        log.warn("Cannot disable profiler: %s" % str(e))
+                        log.warn("Cannot enable profiler: %s" % str(e))
 
-            # Check if we should restart.
-            if self.autorestart and self._should_restart():
-                self._do_restart()
+                if self.reload_configs_flag:
+                    if isinstance(self.reload_configs_flag, set):
+                        self.reload_configs(checks_to_reload=self.reload_configs_flag)
+                    else:
+                        self.reload_configs()
 
-            # Only plan for next loop if we will continue, otherwise exit quickly.
-            if self.run_forever:
-                if watchdog:
-                    watchdog.reset()
+                # JMXFetch restarts should prompt re-piping *all* JMX configs
+                if self._jmx_service_discovery_enabled and \
+                        (not self.reload_configs_flag or isinstance(self.reload_configs_flag, set)):
+                    try:
+                        jmx_launch = JMXFetch._get_jmx_launchtime()
+                        if self.last_jmx_piped and self.last_jmx_piped < jmx_launch:
+                            self.sd_pipe_jmx_configs(hostname)
+                    except Exception as e:
+                        log.debug("could not stat JMX lunch file: %s", e)
+
+                # Do the work. Pass `configs_reloaded` to let the collector know if it needs to
+                # look for the AgentMetrics check and pop it out.
+                self.collector.run(checksd=self._checksd,
+                                start_event=self.start_event,
+                                configs_reloaded=True if self.reload_configs_flag else False)
+
+                self.reload_configs_flag = False
+
+                # Look for change in the config template store.
+                # The self.sd_backend.reload_check_configs flag is set
+                # to True if a config reload is needed.
+                if self._agentConfig.get('service_discovery') and self.sd_backend and \
+                not self.sd_backend.reload_check_configs:
+                    try:
+                        self.sd_backend.reload_check_configs = get_config_store(
+                            self._agentConfig).crawl_config_template()
+                    except Exception as e:
+                        log.warn('Something went wrong while looking for config template changes: %s' % str(e))
+
+                # Check if we should run service discovery
+                # The `reload_check_configs` flag can be set through the docker_daemon check or
+                # using ConfigStore.crawl_config_template
+                if self._agentConfig.get('service_discovery') and self.sd_backend and \
+                self.sd_backend.reload_check_configs:
+                    self.reload_configs_flag = self.sd_backend.reload_check_configs
+                    self.sd_backend.reload_check_configs = False
+
                 if profiled:
-                    collector_profiled_runs += 1
-                log.debug("Sleeping for {0} seconds".format(self.check_frequency))
-                time.sleep(self.check_frequency)
+                    if collector_profiled_runs >= self.collector_profile_interval:
+                        try:
+                            profiler.disable_profiling()
+                            profiled = False
+                            collector_profiled_runs = 0
+                        except Exception as e:
+                            log.warn("Cannot disable profiler: %s" % str(e))
+
+                # Check if we should restart.
+                if self.autorestart and self._should_restart():
+                    self._do_restart()
+
+                # Only plan for next loop if we will continue, otherwise exit quickly.
+                if self.run_forever:
+                    if watchdog:
+                        watchdog.reset()
+                    if profiled:
+                        collector_profiled_runs += 1
+                    log.debug("Sleeping for {0} seconds".format(self.check_frequency))
+                    time.sleep(self.check_frequency)
+    # Initialize service discovery
+            if self._agentConfig.get('service_discovery'):
+                self.sd_backend = get_sd_backend(self._agentConfig)
+
+            if self.sd_backend and _is_affirmative(self._agentConfig.get('sd_jmx_enable', False)):
+                pipe_path = get_jmx_pipe_path()
+                if Platform.is_windows():
+                    pipe_name = pipe_path.format(pipename=SD_PIPE_NAME)
+                else:
+                    pipe_name = os.path.join(pipe_path, SD_PIPE_NAME)
+
+                if os.access(pipe_path, os.W_OK):
+                    if not os.path.exists(pipe_name):
+                        os.mkfifo(pipe_name)
+                    self.sd_pipe = os.open(pipe_name, os.O_RDWR) # RW to avoid blocking (will only W)
+
+                    # Initialize Supervisor proxy
+                    self.supervisor_proxy = self._get_supervisor_socket(self._agentConfig)
+                else:
+                    log.debug('Unable to create pipe in temporary directory. JMX service discovery disabled.')
+
+            # Load the checks.d checks
+            self._checksd = load_check_directory(self._agentConfig, hostname)
+
+            # Load JMX configs if available
+            if self._jmx_service_discovery_enabled:
+                self.sd_pipe_jmx_configs(hostname)
+
+            # Initialize the Collector
+            self.collector = Collector(self._agentConfig, emitters, systemStats, hostname)
+
+            # In developer mode, the number of runs to be included in a single collector profile
+            try:
+                self.collector_profile_interval = int(
+                    self._agentConfig.get('collector_profile_interval', DEFAULT_COLLECTOR_PROFILE_INTERVAL))
+            except ValueError:
+                log.warn('collector_profile_interval is invalid. '
+                        'Using default value instead (%s).' % DEFAULT_COLLECTOR_PROFILE_INTERVAL)
+                self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
+
+            # Configure the watchdog.
+            self.check_frequency = int(self._agentConfig['check_freq'])
+            watchdog = self._get_watchdog(self.check_frequency)
+
+            # Initialize the auto-restarter
+            self.restart_interval = int(self._agentConfig.get('restart_interval', RESTART_INTERVAL))
+            self.agent_start = time.time()
+
+            self.allow_profiling = self._agentConfig.get('allow_profiling', True)
+
+            profiled = False
+            collector_profiled_runs = 0
+
+            # Run the main loop.
+            while self.run_forever:
+                # Setup profiling if necessary
+                if self.allow_profiling and self.in_developer_mode and not profiled:
+                    try:
+                        profiler = AgentProfiler()
+                        profiler.enable_profiling()
+                        profiled = True
+                    except Exception as e:
+                        log.warn("Cannot enable profiler: %s" % str(e))
+
+                if self.reload_configs_flag:
+                    if isinstance(self.reload_configs_flag, set):
+                        self.reload_configs(checks_to_reload=self.reload_configs_flag)
+                    else:
+                        self.reload_configs()
+
+                # JMXFetch restarts should prompt re-piping *all* JMX configs
+                if self._jmx_service_discovery_enabled and \
+                        (not self.reload_configs_flag or isinstance(self.reload_configs_flag, set)):
+                    try:
+                        jmx_launch = JMXFetch._get_jmx_launchtime()
+                        if self.last_jmx_piped and self.last_jmx_piped < jmx_launch:
+                            self.sd_pipe_jmx_configs(hostname)
+                    except Exception as e:
+                        log.debug("could not stat JMX lunch file: %s", e)
+
+                # Do the work. Pass `configs_reloaded` to let the collector know if it needs to
+                # look for the AgentMetrics check and pop it out.
+                self.collector.run(checksd=self._checksd,
+                                start_event=self.start_event,
+                                configs_reloaded=True if self.reload_configs_flag else False)
+
+                self.reload_configs_flag = False
+
+                # Look for change in the config template store.
+                # The self.sd_backend.reload_check_configs flag is set
+                # to True if a config reload is needed.
+                if self._agentConfig.get('service_discovery') and self.sd_backend and \
+                not self.sd_backend.reload_check_configs:
+                    try:
+                        self.sd_backend.reload_check_configs = get_config_store(
+                            self._agentConfig).crawl_config_template()
+                    except Exception as e:
+                        log.warn('Something went wrong while looking for config template changes: %s' % str(e))
+
+                # Check if we should run service discovery
+                # The `reload_check_configs` flag can be set through the docker_daemon check or
+                # using ConfigStore.crawl_config_template
+                if self._agentConfig.get('service_discovery') and self.sd_backend and \
+                self.sd_backend.reload_check_configs:
+                    self.reload_configs_flag = self.sd_backend.reload_check_configs
+                    self.sd_backend.reload_check_configs = False
+
+                if profiled:
+                    if collector_profiled_runs >= self.collector_profile_interval:
+                        try:
+                            profiler.disable_profiling()
+                            profiled = False
+                            collector_profiled_runs = 0
+                        except Exception as e:
+                            log.warn("Cannot disable profiler: %s" % str(e))
+
+                # Check if we should restart.
+                if self.autorestart and self._should_restart():
+                    self._do_restart()
+
+                # Only plan for next loop if we will continue, otherwise exit quickly.
+                if self.run_forever:
+                    if watchdog:
+                        watchdog.reset()
+                    if profiled:
+                        collector_profiled_runs += 1
+                    log.debug("Sleeping for {0} seconds".format(self.check_frequency))
+                    time.sleep(self.check_frequency)
+    # Initialize service discovery
+            if self._agentConfig.get('service_discovery'):
+                self.sd_backend = get_sd_backend(self._agentConfig)
+
+            if self.sd_backend and _is_affirmative(self._agentConfig.get('sd_jmx_enable', False)):
+                pipe_path = get_jmx_pipe_path()
+                if Platform.is_windows():
+                    pipe_name = pipe_path.format(pipename=SD_PIPE_NAME)
+                else:
+                    pipe_name = os.path.join(pipe_path, SD_PIPE_NAME)
+
+                if os.access(pipe_path, os.W_OK):
+                    if not os.path.exists(pipe_name):
+                        os.mkfifo(pipe_name)
+                    self.sd_pipe = os.open(pipe_name, os.O_RDWR) # RW to avoid blocking (will only W)
+
+                    # Initialize Supervisor proxy
+                    self.supervisor_proxy = self._get_supervisor_socket(self._agentConfig)
+                else:
+                    log.debug('Unable to create pipe in temporary directory. JMX service discovery disabled.')
+
+            # Load the checks.d checks
+            self._checksd = load_check_directory(self._agentConfig, hostname)
+
+            # Load JMX configs if available
+            if self._jmx_service_discovery_enabled:
+                self.sd_pipe_jmx_configs(hostname)
+
+            # Initialize the Collector
+            self.collector = Collector(self._agentConfig, emitters, systemStats, hostname)
+
+            # In developer mode, the number of runs to be included in a single collector profile
+            try:
+                self.collector_profile_interval = int(
+                    self._agentConfig.get('collector_profile_interval', DEFAULT_COLLECTOR_PROFILE_INTERVAL))
+            except ValueError:
+                log.warn('collector_profile_interval is invalid. '
+                        'Using default value instead (%s).' % DEFAULT_COLLECTOR_PROFILE_INTERVAL)
+                self.collector_profile_interval = DEFAULT_COLLECTOR_PROFILE_INTERVAL
+
+            # Configure the watchdog.
+            self.check_frequency = int(self._agentConfig['check_freq'])
+            watchdog = self._get_watchdog(self.check_frequency)
+
+            # Initialize the auto-restarter
+            self.restart_interval = int(self._agentConfig.get('restart_interval', RESTART_INTERVAL))
+            self.agent_start = time.time()
+
+            self.allow_profiling = self._agentConfig.get('allow_profiling', True)
+
+            profiled = False
+            collector_profiled_runs = 0
+
+            # Run the main loop.
+            while self.run_forever:
+                # Setup profiling if necessary
+                if self.allow_profiling and self.in_developer_mode and not profiled:
+                    try:
+                        profiler = AgentProfiler()
+                        profiler.enable_profiling()
+                        profiled = True
+                    except Exception as e:
+                        log.warn("Cannot enable profiler: %s" % str(e))
+
+                if self.reload_configs_flag:
+                    if isinstance(self.reload_configs_flag, set):
+                        self.reload_configs(checks_to_reload=self.reload_configs_flag)
+                    else:
+                        self.reload_configs()
+
+                # JMXFetch restarts should prompt re-piping *all* JMX configs
+                if self._jmx_service_discovery_enabled and \
+                        (not self.reload_configs_flag or isinstance(self.reload_configs_flag, set)):
+                    try:
+                        jmx_launch = JMXFetch._get_jmx_launchtime()
+                        if self.last_jmx_piped and self.last_jmx_piped < jmx_launch:
+                            self.sd_pipe_jmx_configs(hostname)
+                    except Exception as e:
+                        log.debug("could not stat JMX lunch file: %s", e)
+
+                # Do the work. Pass `configs_reloaded` to let the collector know if it needs to
+                # look for the AgentMetrics check and pop it out.
+                self.collector.run(checksd=self._checksd,
+                                start_event=self.start_event,
+                                configs_reloaded=True if self.reload_configs_flag else False)
+
+                self.reload_configs_flag = False
+
+                # Look for change in the config template store.
+                # The self.sd_backend.reload_check_configs flag is set
+                # to True if a config reload is needed.
+                if self._agentConfig.get('service_discovery') and self.sd_backend and \
+                not self.sd_backend.reload_check_configs:
+                    try:
+                        self.sd_backend.reload_check_configs = get_config_store(
+                            self._agentConfig).crawl_config_template()
+                    except Exception as e:
+                        log.warn('Something went wrong while looking for config template changes: %s' % str(e))
+
+                # Check if we should run service discovery
+                # The `reload_check_configs` flag can be set through the docker_daemon check or
+                # using ConfigStore.crawl_config_template
+                if self._agentConfig.get('service_discovery') and self.sd_backend and \
+                self.sd_backend.reload_check_configs:
+                    self.reload_configs_flag = self.sd_backend.reload_check_configs
+                    self.sd_backend.reload_check_configs = False
+
+                if profiled:
+                    if collector_profiled_runs >= self.collector_profile_interval:
+                        try:
+                            profiler.disable_profiling()
+                            profiled = False
+                            collector_profiled_runs = 0
+                        except Exception as e:
+                            log.warn("Cannot disable profiler: %s" % str(e))
+
+                # Check if we should restart.
+                if self.autorestart and self._should_restart():
+                    self._do_restart()
+
+                # Only plan for next loop if we will continue, otherwise exit quickly.
+                if self.run_forever:
+                    if watchdog:
+                        watchdog.reset()
+                    if profiled:
+                        collector_profiled_runs += 1
+                    log.debug("Sleeping for {0} seconds".format(self.check_frequency))
+                    time.sleep(self.check_frequency)
+
+        except Exception as e:
+            log.error("Collector unhandled exception: %s" % str(e))
+            log.error(traceback.format_exc)
+            pass
 
         # Now clean-up.
         try:
