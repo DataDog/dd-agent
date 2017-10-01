@@ -72,22 +72,22 @@ class Flare(object):
     CredentialPattern = namedtuple('CredentialPattern', ['pattern', 'replacement', 'label'])
     CHECK_CREDENTIALS = [
         CredentialPattern(
-            re.compile('( *(\w|_)*pass(word)?:).+'),
+            re.compile('( *"?(\w|_)*pass(word)?"?:).+'),
             r'\1 ********',
             'password'
         ),
         CredentialPattern(
-            re.compile('( *(\w|_)*token:).+'),
+            re.compile('( *"?(\w|_)*token"?:).+'),
             r'\1 ********',
             'access token'
         ),
         CredentialPattern(
-            re.compile('(.*\ [A-Za-z0-9]+)\:\/\/([A-Za-z0-9_]+)\:(.+)\@'),
+            re.compile('(.*\ "?[A-Za-z0-9]+)\:\/\/([A-Za-z0-9_]+)\:(.+)\@'),
             r'\1://\2:********@',
             'password in a uri'
         ),
         CredentialPattern(
-            re.compile('^(\s*community_string:) *.+$'),
+            re.compile('(\s*"?community_string"?:).+'),
             r'\1 ********',
             'SNMP community string'
         ),
@@ -518,7 +518,8 @@ class Flare(object):
             temp_file.write(">>>> STDERR <<<<\n")
             temp_file.write(err.getvalue())
             err.close()
-        self._add_file_tar(temp_path, name, log_permissions=False)
+        temp_path2, log = self._strip_credentials(temp_path, self.CHECK_CREDENTIALS)
+        self._add_file_tar(temp_path2, name, log_permissions=False)
         os.remove(temp_path)
 
     # Capture the output of a command (from both std streams and loggers) and the

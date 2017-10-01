@@ -90,7 +90,8 @@ def get_sd_configcheck(agentConfig, configs):
         Also print containers detected by the agent and templates from the config store."""
     print("\nSource of the configuration objects built by the agent:\n")
     for check_name, config in configs.iteritems():
-        print('Check "%s":\n  source --> %s\n  config --> %s\n' % (check_name, config[0], config[1]))
+        print('Check "%s":\n  source --> %s\n  config --> %s\n' %
+              (check_name, config[0], json.dumps(config[1], indent=2)))
 
     try:
         print_containers()
@@ -131,8 +132,8 @@ def print_templates(agentConfig):
             print(
                 "- Identifier %s:\n\tcheck names: %s\n\tinit_configs: %s\n\tinstances: %s" % (
                     ident,
-                    tpl.get('check_names'),
-                    tpl.get('init_configs'),
-                    tpl.get('instances'),
+                    json.dumps(json.loads(tpl.get('check_names')), indent=2),
+                    json.dumps(json.loads(tpl.get('init_configs')), indent=2),
+                    json.dumps(json.loads(tpl.get('instances')), indent=2),
                 )
             )
