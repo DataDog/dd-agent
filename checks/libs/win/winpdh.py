@@ -4,9 +4,14 @@ import win32pdh
 DATA_POINT_INTERVAL = 0.10
 
 class WinPDHCounter(object):
+    # store the dictionary of pdh counter names
+    pdh_counter_dict = {}
+
     def __init__(self, class_name, instance_name, log):
-        self._class_name = class_name
-        self._instance_name = instance_name
+        self._get_counter_dictionary()
+        self._class_name = win32pdh.LookupPerfNameByIndex(None, int(WinPDHCounter.pdh_counter_dict[class_name]))
+        self._instance_name = win32pdh.LookupPerfNameByIndex(None, int(WinPDHCounter.pdh_counter_dict[instance_name]))
+
         self._is_single_instance = False
         self.hq = win32pdh.OpenQuery()
         self.logger = log
@@ -66,3 +71,22 @@ class WinPDHCounter(object):
                 except Exception as e:
                     raise e
         return ret
+
+    def _get_counter_dictionary(self):
+        if WinPDHCounter.pdh_counter_dict:
+            # already populated
+            return
+
+        try:
+            val, t = _winreg.QueryValueEx(_winreg.HKEY_PERFORMANCE_DATA, "Counter 009")
+        except Exception as e:
+            print "Exception %s" % str(e)
+            raise
+
+        # create a table of the keys to the counter index, because we want to look up
+        # by counter index.
+        idx = 0
+        idx_max = len(val)
+        while idx < idx_max:
+            WinPDHCounter.pdh_counter_dict[val[idx+1]] = val[idx]
+            idx += 2
