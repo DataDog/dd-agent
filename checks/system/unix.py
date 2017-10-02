@@ -407,6 +407,7 @@ class Memory(Check):
 
                 if memData['physTotal'] > 0:
                     memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
+                    memData['physPctFree'] = float(memData['physFree']) / float(memData['physTotal'])
             except Exception:
                 self.logger.exception('Cannot compute stats from %s', proc_meminfo)
 
