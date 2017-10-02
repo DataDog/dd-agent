@@ -3,7 +3,7 @@ import win32pdh
 import _winreg
 
 DATA_POINT_INTERVAL = 0.10
-
+SINGLE_INSTANCE_KEY = "__single_instance"
 class WinPDHCounter(object):
     # store the dictionary of pdh counter names
     pdh_counter_dict = {}
@@ -21,23 +21,29 @@ class WinPDHCounter(object):
         if len(instances) > 0:
             for inst in instances:
                 path = win32pdh.MakeCounterPath((None, self._class_name, inst, None, 0, self._instance_name))
-                self.counterdict[inst] = win32pdh.AddCounter(self.hq, path)
                 try:
-                    self.logger.debug("Path: %s\n" % str(path))
+                    self.counterdict[inst] = win32pdh.AddCounter(self.hq, path)
+                except:
+                    self.logger.fatal("Failed to create counter.  No instances of %s\%s" % (
+                        self._class_name, self._instance_name))
+                try:
+                    self.logger.debug("Path: %s\n" % unicode(path))
                 except:
                     # some unicode characters are not translatable here.  Don't fail just
                     # because we couldn't log
+                    self.logger.debug("Failed to log path")
                     pass
         else:
             path = win32pdh.MakeCounterPath((None, self._class_name, None, None, 0, self._instance_name))
             try:
-                self.logger.debug("Path: %s\n" % str(path))
+                self.logger.debug("Path: %s\n" % unicode(path))
             except:
                 # some unicode characters are not translatable here.  Don't fail just
                 # because we couldn't log
+                self.logger.debug("Failed to log path")
                 pass
             try:
-                self.counterdict["__single_instance"] = win32pdh.AddCounter(self.hq, path)
+                self.counterdict[SINGLE_INSTANCE_KEY] = win32pdh.AddCounter(self.hq, path)
             except:
                 self.logger.fatal("Failed to create counter.  No instances of %s\%s" % (
                     self._class_name, self._instance_name))
@@ -57,14 +63,13 @@ class WinPDHCounter(object):
                 self._class_name, self._instance_name))
 
         vals = self.get_all_values()
-        return vals["__single_instance"]
+        return vals[SINGLE_INSTANCE_KEY]
 
     def get_all_values(self):
         ret = {}
 
         # self will retrieve the list of all object names in the class (i.e. all the network interface
         # names in the class "network interface"
-        counters, instances = win32pdh.EnumObjectItems(None, None, self._class_name, win32pdh.PERF_DETAIL_WIZARD)
         win32pdh.CollectQueryData(self.hq)
         for inst, counter_handle in self.counterdict.iteritems():
             try:
