@@ -1,11 +1,47 @@
 Changes
 =======
 
+# 5.17.2 / 09-18-2017
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.17.1...5.17.2
+
+### Changes
+Please refer to the [Integrations Core Checks 5.17.2 tag](https://github.com/DataDog/integrations-core/releases/tag/5.17.2) for the list of changes on the core checks.
+Please refer to the [Process Agent 5.17.2 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.17.2) for more information on the Process Agent.
+
+### Dependency changes
+* `supervisor` `3.3.3` (previously `3.3.0`), see [omnibus-software-165](https://github.com/DataDog/omnibus-software/pull/165)
+
+### Changes
+
+* [REGRESSION] Kubernetes: partially revert `_locate_kubelet` from [#3497][]. See [#3523][]
+
+# 5.17.1 / 09-12-2017
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.17.0...5.17.1
+
+### Changes
+Please refer to the [Integrations Core Checks 5.17.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.17.1) for the list of changes on the core checks.
+Please refer to the [Trace Agent 5.17.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.17.1) for the list of changes on the Trace Agent.
+Please refer to the [Process Agent 5.17.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.17.1) for more information on the Process Agent.
+
+* [IMPROVEMENT] Autodiscovery: Make Autodiscovery wait on docker/kubelet. See [#3497][]
+* [IMPROVEMENT] Docker: catch `docker.errors.NotFound` for nonexisting images. See [#3507][]
+* [BUGFIX] Autodiscovery: Rework Autodiscovery image name extractor to support new swarm format. See [#3511][]
+* [BUGFIX] Dogstreams: Retry reading files that could't be read on agent startup. See [#2815][], thanks [@jalaziz][]
+* [BUGFIX] Flare: Update api key regex to support more formats. See [#3509][]
+* [BUGFIX] Kubernetes: Add image_name_resolver to kubeutil wrapping dockerutil. See [#3505][]
+* [BUGFIX] Kubernetes: Fix leader election's lease parameter and node name. See [#3506][]
+
 # 5.17.0 / 08-28-2017
 **Linux, Windows, Docker and Source Install**
 
 ### Details
-https://github.com/DataDog/dd-agent/compare/5.17.0...5.16.0
+https://github.com/DataDog/dd-agent/compare/5.16.0...5.17.0
 
 ### Dependency changes
 * `kafka-python` `1.3.4` (previously `1.3.3`), see [omnibus-software-155](https://github.com/DataDog/omnibus-software/pull/155)
@@ -16,7 +52,7 @@ Please refer to the [Integrations Core Checks 5.17.0 tag](https://github.com/Dat
 Please refer to the [Trace Agent 5.17.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.17.0) for the list of changes on the Trace Agent.
 Please refer to the [Process Agent 5.17.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.17.0) for more information on the Process Agent.
 
-* [FEATURE] AutoDiscovery: Allow autoconf templates in docker labels. See [#3451][]
+* [FEATURE] Autodiscovery: Allow autoconf templates in docker labels. See [#3451][]
 * [FEATURE] JMXFetch: Add `list_jvms` command on `dd-agent`. See [#2962][]
 * [IMPROVEMENT] Azure: Use VM ID as a host alias. See [#3402][]
 * [IMPROVEMENT] Collector: Split check runs from main agent payload. See [#3446][]
@@ -34,8 +70,8 @@ Please refer to the [Process Agent 5.17.0 tag](https://github.com/DataDog/datado
 * [IMPROVEMENT] Prometheus: Allow metric type overrides in `PrometheusCheck` class. See [#3463][]
 * [IMPROVEMENT] Windows packaging: Allow configuration of proxy on the installer CLI. See [#3470][] and [dd-agent-omnibus-192](https://github.com/DataDog/dd-agent-omnibus/issues/192)
 * [IMPROVEMENT] Windows system checks: Use `win32pdh` instead of WMI. See [#3294][]
-* [BUGFIX] AutoDiscovery: Fix instance-level tags when multi instances are configured. See [#3478][]
-* [BUGFIX] AutoDiscovery: Re-pipe configurations after JMXFetch restart. See [#3415][]
+* [BUGFIX] Autodiscovery: Fix instance-level tags when multi instances are configured. See [#3478][]
+* [BUGFIX] Autodiscovery: Re-pipe configurations after JMXFetch restart. See [#3415][]
 * [BUGFIX] Collector: Only add service check fields if non-null. See [#3487][]
 * [BUGFIX] Core: Make `configcheck` command exit with meaningful exit code. See [#3481][]
 * [BUGFIX] Core: Make test on stored PID more accurate on Windows. See [#3468][]
@@ -45,7 +81,7 @@ Please refer to the [Process Agent 5.17.0 tag](https://github.com/DataDog/datado
 * [BUGFIX] JMXFetch: Fix Agent crash when JMXFetch pipe is broken. See [#3461][]
 * [BUGFIX] Packaging: On CentOS, fix duplicate and unwanted service restarts at the end of installs. See [dd-agent-omnibus-194](https://github.com/DataDog/dd-agent-omnibus/issues/194)
 * [BUGFIX] WMI: Convert UINT32 WMI type to positive integer instead of negative integer. See [#3467][]
-* [SANITY] AutoDiscovery: Avoid calling kubeutil if it's not initialized. See [#3479][]
+* [SANITY] Autodiscovery: Avoid calling kubeutil if it's not initialized. See [#3479][]
 * [SANITY] Collector: Downgrade docker warning message to debug on dockerless hosts. See [#3485][]
 * [SANITY] Collector: Remove deprecated `run_check` method on Windows. See [#3448][]
 * [SANITY] Dogstatsd: Parse distribution metrics and ignore them. See [#3458][]
@@ -4097,6 +4133,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#2809]: https://github.com/DataDog/dd-agent/issues/2809
 [#2812]: https://github.com/DataDog/dd-agent/issues/2812
 [#2813]: https://github.com/DataDog/dd-agent/issues/2813
+[#2815]: https://github.com/DataDog/dd-agent/issues/2815
 [#2820]: https://github.com/DataDog/dd-agent/issues/2820
 [#2823]: https://github.com/DataDog/dd-agent/issues/2823
 [#2825]: https://github.com/DataDog/dd-agent/issues/2825
@@ -4365,6 +4402,13 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3488]: https://github.com/DataDog/dd-agent/issues/3488
 [#3489]: https://github.com/DataDog/dd-agent/issues/3489
 [#3492]: https://github.com/DataDog/dd-agent/issues/3492
+[#3497]: https://github.com/DataDog/dd-agent/issues/3497
+[#3505]: https://github.com/DataDog/dd-agent/issues/3505
+[#3506]: https://github.com/DataDog/dd-agent/issues/3506
+[#3507]: https://github.com/DataDog/dd-agent/issues/3507
+[#3509]: https://github.com/DataDog/dd-agent/issues/3509
+[#3511]: https://github.com/DataDog/dd-agent/issues/3511
+[#3523]: https://github.com/DataDog/dd-agent/issues/3523
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -4455,6 +4499,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@imlucas]: https://github.com/imlucas
 [@ipolishchuk]: https://github.com/ipolishchuk
 [@ive]: https://github.com/ive
+[@jalaziz]: https://github.com/jalaziz
 [@jamesandariese]: https://github.com/jamesandariese
 [@jamescrowley]: https://github.com/jamescrowley
 [@janeczku]: https://github.com/janeczku

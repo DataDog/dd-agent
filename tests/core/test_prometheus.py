@@ -60,6 +60,16 @@ class TestPrometheusProcessor(unittest.TestCase):
         messages = list(self.check.parse_metric_family(self.bin_data, self.protobuf_content_type))
         self.assertEqual(len(messages), 61)
         self.assertEqual(messages[-1].name, 'process_virtual_memory_bytes')
+        # check type overriding is working
+        # original type:
+        self.assertEqual(messages[1].name, 'go_goroutines')
+        self.assertEqual(messages[1].type, 1) # gauge
+        # override the type:
+        self.check.type_overrides = {"go_goroutines": "summary"}
+        messages = list(self.check.parse_metric_family(self.bin_data, self.protobuf_content_type))
+        self.assertEqual(len(messages), 61)
+        self.assertEqual(messages[1].name, 'go_goroutines')
+        self.assertEqual(messages[1].type, 2) # summary
 
     def test_parse_metric_family_text(self):
         ''' Test the high level method for loading metrics from text format '''
@@ -67,7 +77,13 @@ class TestPrometheusProcessor(unittest.TestCase):
         f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'metrics.txt')
         with open(f_name, 'r') as f:
             _text_data = f.read()
-            self.assertEqual(len(_text_data), 14488)
+            self.assertEqual(len(_text_data), 14494)
+        messages = list(self.check.parse_metric_family(_text_data, 'text/plain; version=0.0.4'))
+        # total metrics are 41 but one is typeless and we expect it not to be
+        # parsed...
+        self.assertEqual(len(messages), 40)
+        # ...unless the check ovverrides the type manually
+        self.check.type_overrides = {"go_goroutines": "gauge"}
         messages = list(self.check.parse_metric_family(_text_data, 'text/plain; version=0.0.4'))
         self.assertEqual(len(messages), 41)
         # Tests correct parsing of counters

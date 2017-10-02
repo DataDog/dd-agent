@@ -50,7 +50,7 @@ from utils.hostname import get_hostname
 from utils.jmx import jmx_command, JMXFiles
 from utils.platform import Platform
 from utils.sdk import load_manifest
-from utils.configcheck import configcheck, sd_configcheck
+from utils.configcheck import configcheck, sd_configcheck, agent_container_inspect
 from utils.windows_configuration import get_sdk_integration_paths
 
 from utils.logger import DisableLoggerInit
@@ -94,11 +94,11 @@ class Flare(object):
     ]
     MAIN_CREDENTIALS = [
         CredentialPattern(
-            re.compile('^\s*api_key:( *\w+(\w{5}) ?,?)+$'),
+            re.compile('^\s*api_key\s*[=, :]( *\w+(\w{5}) ?,?)+$'),
             lambda matchobj:  'api_key: ' + ', '.join(map(
                 lambda key: '*' * 26 + key[-5:],
                 map(lambda x: x.strip(),
-                    matchobj.string.split(':')[1].split(',')
+                    matchobj.string.split("api_key")[1].split(',')
                     )
             )),
             'api_key'
@@ -177,6 +177,10 @@ class Flare(object):
         self._permissions_file.close()
         self._add_file_tar(self._permissions_file.name, 'permissions.log',
                            log_permissions=False)
+
+        # Only add docker inspect if dockerized agent
+        if Platform.is_containerized():
+            self._add_command_output_tar('docker_inspect.log', agent_container_inspect)
 
     # Set the proxy settings, if they exist
     def set_proxy(self, options):

@@ -89,12 +89,11 @@ class SDDockerBackend(AbstractSDBackend):
             self.config_store = get_config_store(agentConfig=agentConfig)
 
         self.dockerutil = DockerUtil(config_store=self.config_store)
-        self.docker_client = self.dockerutil.client
+        self.kubeutil = None
         if Platform.is_k8s():
             try:
                 self.kubeutil = KubeUtil()
             except Exception as ex:
-                self.kubeutil = None
                 log.error("Couldn't instantiate the kubernetes client, "
                     "subsequent kubernetes calls will fail as well. Error: %s" % str(ex))
 
@@ -113,16 +112,24 @@ class SDDockerBackend(AbstractSDBackend):
     def _make_fetch_state(self):
         pod_list = []
         if Platform.is_k8s():
-            if not self.kubeutil:
-                log.error("kubelet client not created, cannot retrieve pod list.")
+            if not self.kubeutil or not self.kubeutil.init_success:
+                log.error("kubelet client not initialized, cannot retrieve pod list.")
             else:
                 try:
                     pod_list = self.kubeutil.retrieve_pods_list().get('items', [])
                 except Exception as ex:
                     log.warning("Failed to retrieve pod list: %s" % str(ex))
-        return _SDDockerBackendConfigFetchState(self.docker_client.inspect_container, pod_list)
+        return _SDDockerBackendConfigFetchState(self.dockerutil.client.inspect_container, pod_list)
 
     def update_checks(self, changed_containers):
+        """
+        Takes a list of container IDs that changed recently
+        and marks their corresponding checks as
+        """
+        if not self.dockerutil.client:
+            log.warning("Docker client is not initialized, pausing auto discovery.")
+            return
+
         state = self._make_fetch_state()
 
         conf_reload_set = set()
@@ -175,7 +182,8 @@ class SDDockerBackend(AbstractSDBackend):
     def _get_host_address(self, state, c_id, tpl_var):
         """Extract the container IP from a docker inspect object, or the kubelet API."""
         c_inspect = state.inspect_container(c_id)
-        c_id, c_img = c_inspect.get('Id', ''), c_inspect.get('Config', {}).get('Image', '')
+        c_id = c_inspect.get('Id', '')
+        c_img = self.dockerutil.image_name_extractor(c_inspect)
 
         networks = c_inspect.get('NetworkSettings', {}).get('Networks') or {}
         ip_dict = {}
@@ -290,12 +298,16 @@ class SDDockerBackend(AbstractSDBackend):
         tags = self.dockerutil.extract_container_tags(c_inspect)
 
         if Platform.is_k8s():
+            if not self.kubeutil.init_success:
+                log.warning("kubelet client not initialized, kubernetes tags will be missing.")
+                return tags
+
             pod_metadata = state.get_kube_config(c_id, 'metadata')
 
             if pod_metadata is None:
                 log.warning("Failed to fetch pod metadata for container %s."
-                            " Kubernetes tags may be missing." % c_id[:12])
-                return []
+                            " Kubernetes tags will be missing." % c_id[:12])
+                return tags
 
             # get pod labels
             kube_labels = pod_metadata.get('labels', {})
@@ -370,11 +382,15 @@ class SDDockerBackend(AbstractSDBackend):
     def get_configs(self):
         """Get the config for all docker containers running on the host."""
         configs = {}
+        if not self.dockerutil.client:
+            log.warning("Docker client is not initialized, pausing auto discovery.")
+            return configs
+
         state = self._make_fetch_state()
         containers = [(
             self.dockerutil.image_name_extractor(container),
             container.get('Id'), container.get('Labels')
-        ) for container in self.docker_client.containers()]
+        ) for container in self.dockerutil.client.containers()]
 
         for image, cid, labels in containers:
             try:

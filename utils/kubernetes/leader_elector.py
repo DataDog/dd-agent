@@ -198,7 +198,7 @@ class LeaderElector:
             'data': {},
             'metadata': {
                 'annotations': {
-                    CREATOR_ANNOTATION: self.kubeutil.host_name,
+                    CREATOR_ANNOTATION: self.kubeutil.get_node_info()[1],  # node name
                     ACQUIRE_TIME_ANNOTATION: datetime.datetime.strftime(now, "%Y-%m-%dT%H:%M:%S.%f")
                 },
                 'name': CM_NAME,
@@ -221,4 +221,4 @@ class LeaderElector:
         return pl
 
     def _is_cm_mine(self, cm):
-        return cm['metadata']['annotations'].get(CREATOR_ANNOTATION) == self.kubeutil.host_name
+        return cm['metadata']['annotations'].get(CREATOR_ANNOTATION) == self.kubeutil.get_node_info()[1]

@@ -36,6 +36,7 @@ from utils.proxy import get_proxy
 from utils.profile import pretty_statistics
 from utils.proxy import get_no_proxy_from_env, config_proxy_skip
 
+
 log = logging.getLogger(__name__)
 
 # Default methods run when collecting info about the agent in developer mode
@@ -921,6 +922,8 @@ class AgentCheck(object):
 
     @staticmethod
     def read_config(instance, key, message=None, cast=None):
+        log.warning("Deprecation notice: the `read_config` method of `AgentCheck` is deprecated and will be removed " +
+            "in the next major version of the Agent")
         val = instance.get(key)
         if val is None:
             message = message or 'Must provide `%s` value in instance config' % key

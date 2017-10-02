@@ -1,5 +1,6 @@
 import time
 import win32pdh
+import _winreg
 
 DATA_POINT_INTERVAL = 0.10
 
@@ -21,13 +22,23 @@ class WinPDHCounter(object):
             for inst in instances:
                 path = win32pdh.MakeCounterPath((None, self._class_name, inst, None, 0, self._instance_name))
                 self.counterdict[inst] = win32pdh.AddCounter(self.hq, path)
-                self.logger.debug("Path: %s" % str(path))
+                try:
+                    self.logger.debug("Path: %s\n" % str(path))
+                except:
+                    # some unicode characters are not translatable here.  Don't fail just
+                    # because we couldn't log
+                    pass
         else:
             path = win32pdh.MakeCounterPath((None, self._class_name, None, None, 0, self._instance_name))
-            self.logger.debug("Path: %s\n" % str(path))
+            try:
+                self.logger.debug("Path: %s\n" % str(path))
+            except:
+                # some unicode characters are not translatable here.  Don't fail just
+                # because we couldn't log
+                pass
             try:
                 self.counterdict["__single_instance"] = win32pdh.AddCounter(self.hq, path)
-            except Exception as e:
+            except:
                 self.logger.fatal("Failed to create counter.  No instances of %s\%s" % (
                     self._class_name, self._instance_name))
                 raise
@@ -79,14 +90,28 @@ class WinPDHCounter(object):
 
         try:
             val, t = _winreg.QueryValueEx(_winreg.HKEY_PERFORMANCE_DATA, "Counter 009")
-        except Exception as e:
-            print "Exception %s" % str(e)
+        except:
             raise
 
+        # val is an array of strings.  The underlying win32 API returns a list of strings
+        # which is the counter name, counter index, counter name, counter index (in windows,
+        # a multi-string value)
+        #
+        # the python implementation translates the multi-string value into an array of strings.
+        # the array of strings then becomes
+        # array[0] = counter_index_1
+        # array[1] = counter_name_1
+        # array[2] = counter_index_2
+        # array[3] = counter_name_2
+        #
+        # see https://support.microsoft.com/en-us/help/287159/using-pdh-apis-correctly-in-a-localized-language
+        # for more detail
+
         # create a table of the keys to the counter index, because we want to look up
-        # by counter index.
+        # by counter name.
         idx = 0
         idx_max = len(val)
         while idx < idx_max:
+            # counter index is idx + 1, counter name is ids
             WinPDHCounter.pdh_counter_dict[val[idx+1]] = val[idx]
             idx += 2
