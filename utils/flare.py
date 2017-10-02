@@ -71,6 +71,12 @@ class Flare(object):
 
     CredentialPattern = namedtuple('CredentialPattern', ['pattern', 'replacement', 'label'])
     CHECK_CREDENTIALS = [
+        # We will parse either a yaml file, or a json.dumps of a config. For the latter, we
+        # need to account for the quote signs printed by the dump.
+        # For example, we can either get:
+        #   password: foo    # if we parse the yaml file
+        # or
+        #   "password": "foo"   # if we parse the json.dumps
         CredentialPattern(
             re.compile('( *"?(\w|_)*pass(word)?"?:).+'),
             r'\1 ********',
