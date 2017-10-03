@@ -60,12 +60,14 @@ from utils.net import inet_pton
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
 from utils.pidfile import PidFile
 from utils.watchdog import Watchdog
+from utils.logger import RedactedLogRecord
 
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")
 requests_log.setLevel(logging.WARN)
 requests_log.propagate = True
 
+logging.LogRecord = RedactedLogRecord
 log = logging.getLogger('dogstatsd')
 
 PID_NAME = "dogstatsd"
@@ -334,8 +336,8 @@ class Reporter(threading.Thread):
             status = r.status_code
             duration = round((time() - start_time) * 1000.0, 4)
             log.debug("%s POST %s (%sms)" % (status, string.split(url, "api_key=")[0], duration))
-        except Exception:
-            log.exception("Unable to post payload.")
+        except Exception as e:
+            log.error("Unable to post payload: %s" % e.message)
             try:
                 log.error("Received status code: {0}".format(r.status_code))
             except Exception:

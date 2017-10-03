@@ -108,8 +108,8 @@ def post_payload(url, message, serialize_func, agentConfig, log):
             if r.status_code >= 200 and r.status_code < 205:
                 log.debug("Payload accepted")
 
-        except Exception:
-            log.exception("Unable to post payload.")
+        except Exception as e:
+            log.error("Unable to post payload: %s" % e.message)
 
 
 def serialize_payload(message, log):
