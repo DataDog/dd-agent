@@ -36,13 +36,14 @@ import checks.system.win32 as w32
 import modules
 from util import get_uuid
 from utils.cloud_metadata import GCE, EC2, CloudFoundry, Azure
-from utils.logger import log_exceptions
+from utils.logger import log_exceptions, RedactedLogRecord
 from utils.jmx import JMXFiles
 from utils.platform import Platform, get_os
 from utils.subprocess_output import get_subprocess_output
 from utils.timer import Timer
 from utils.orchestrator import MetadataCollector
 
+logging.LogRecord = RedactedLogRecord
 log = logging.getLogger(__name__)
 
 
