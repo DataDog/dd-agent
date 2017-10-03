@@ -245,18 +245,14 @@ class TestServiceDiscovery(unittest.TestCase):
             ({'NetworkSettings': {}}, 'host', None),
             ({'NetworkSettings': {'IPAddress': ''}}, 'host', None),
 
-            ({'NetworkSettings': {'IPAddress': '127.0.0.1'}}, 'host', '127.0.0.1'),
-            ({'NetworkSettings': {'IPAddress': '127.0.0.1', 'Networks': {}}}, 'host', '127.0.0.1'),
+            ({'NetworkSettings': {'Networks': {'bridge': {'IPAddress': '127.0.0.1'}}}}, 'host', '127.0.0.1'),
             ({'NetworkSettings': {
-                'IPAddress': '127.0.0.1',
                 'Networks': {'bridge': {'IPAddress': '127.0.0.1'}}}},
              'host', '127.0.0.1'),
             ({'NetworkSettings': {
-                'IPAddress': '',
                 'Networks': {'bridge': {'IPAddress': '127.0.0.1'}}}},
              'host_bridge', '127.0.0.1'),
             ({'NetworkSettings': {
-                'IPAddress': '127.0.0.1',
                 'Networks': {
                     'bridge': {'IPAddress': '172.17.0.2'},
                     'foo': {'IPAddress': '192.168.0.2'}}}},
@@ -405,10 +401,6 @@ class TestServiceDiscovery(unittest.TestCase):
             # ((inspect, instance_tpl, variables, tags), (expected_instance_tpl, expected_var_values))
             (({}, {'host': 'localhost'}, [], None), ({'host': 'localhost'}, {})),
             (
-                ({'NetworkSettings': {'IPAddress': ''}}, {'host': 'localhost'}, [], None),
-                ({'host': 'localhost'}, {})
-            ),
-            (
                 ({'NetworkSettings': {'Networks': {}}}, {'host': 'localhost'}, [], None),
                 ({'host': 'localhost'}, {})
             ),
@@ -417,18 +409,7 @@ class TestServiceDiscovery(unittest.TestCase):
                 ({'host': 'localhost'}, {})
             ),
             (
-                ({'NetworkSettings': {'IPAddress': '127.0.0.1'}},
-                 {'host': '%%host%%', 'port': 1337}, ['host'], ['foo', 'bar:baz']),
-                ({'host': '%%host%%', 'port': 1337, 'tags': ['foo', 'bar:baz']}, {'host': '127.0.0.1'}),
-            ),
-            (
-                ({'NetworkSettings': {'IPAddress': '127.0.0.1', 'Networks': {}}},
-                 {'host': '%%host%%', 'port': 1337}, ['host'], ['foo', 'bar:baz']),
-                ({'host': '%%host%%', 'port': 1337, 'tags': ['foo', 'bar:baz']}, {'host': '127.0.0.1'}),
-            ),
-            (
                 ({'NetworkSettings': {
-                    'IPAddress': '127.0.0.1',
                     'Networks': {'bridge': {'IPAddress': '172.17.0.2'}}}
                   },
                  {'host': '%%host%%', 'port': 1337}, ['host'], ['foo', 'bar:baz']),
@@ -436,7 +417,6 @@ class TestServiceDiscovery(unittest.TestCase):
             ),
             (
                 ({'NetworkSettings': {
-                    'IPAddress': '',
                     'Networks': {
                         'bridge': {'IPAddress': '172.17.0.2'},
                         'foo': {'IPAddress': '192.168.0.2'}
@@ -448,7 +428,6 @@ class TestServiceDiscovery(unittest.TestCase):
             ),
             (
                 ({'NetworkSettings': {
-                    'IPAddress': '',
                     'Networks': {
                         'bridge': {'IPAddress': '172.17.0.2'},
                         'foo': {'IPAddress': '192.168.0.2'}
@@ -459,14 +438,14 @@ class TestServiceDiscovery(unittest.TestCase):
                  {'host_foo': '192.168.0.2'}),
             ),
             (
-                ({'NetworkSettings': {'IPAddress': '127.0.0.1', 'Ports': {'42/tcp': None, '22/tcp': None}}},
+                ({'NetworkSettings': {'Networks': {'bridge': {'IPAddress': '127.0.0.1'}}, 'Ports': {'42/tcp': None, '22/tcp': None}}},
                  {'host': '%%host%%', 'port': '%%port_1%%', 'tags': ['env:test']},
                  ['host', 'port_1'], ['foo', 'bar:baz']),
                 ({'host': '%%host%%', 'port': '%%port_1%%', 'tags': ['env:test', 'foo', 'bar:baz']},
                  {'host': '127.0.0.1', 'port_1': '42'})
             ),
             (
-                ({'NetworkSettings': {'IPAddress': '127.0.0.1', 'Ports': {'42/tcp': None, '22/tcp': None}}},
+                ({'NetworkSettings': {'Networks': {'bridge': {'IPAddress': '127.0.0.1'}}, 'Ports': {'42/tcp': None, '22/tcp': None}}},
                  {'host': '%%host%%', 'port': '%%port_1%%', 'tags': {'env': 'test'}},
                  ['host', 'port_1'], ['foo', 'bar:baz']),
                 ({'host': '%%host%%', 'port': '%%port_1%%', 'tags': ['env:test', 'foo', 'bar:baz']},
@@ -481,7 +460,6 @@ class TestServiceDiscovery(unittest.TestCase):
             # specify bridge but there is also a default IPAddress (networks should be preferred)
             (
                 ({'NetworkSettings': {
-                    'IPAddress': '127.0.0.1',
                     'Networks': {'bridge': {'IPAddress': '172.17.0.2'}}}},
                  {'host': '%%host_bridge%%', 'port': 1337}, ['host_bridge'], ['foo', 'bar:baz']),
                 ({'host': '%%host_bridge%%', 'port': 1337, 'tags': ['foo', 'bar:baz']},
@@ -490,7 +468,6 @@ class TestServiceDiscovery(unittest.TestCase):
             # specify index but there is a default IPAddress (there's a specifier, even if it's wrong, walking networks should be preferred)
             (
                 ({'NetworkSettings': {
-                    'IPAddress': '127.0.0.1',
                     'Networks': {'bridge': {'IPAddress': '172.17.0.2'}}}},
                  {'host': '%%host_0%%', 'port': 1337}, ['host_0'], ['foo', 'bar:baz']),
                 ({'host': '%%host_0%%', 'port': 1337, 'tags': ['foo', 'bar:baz']}, {'host_0': '172.17.0.2'}),
@@ -505,7 +482,7 @@ class TestServiceDiscovery(unittest.TestCase):
             ),
             # missing index for port
             (
-                ({'NetworkSettings': {'IPAddress': '127.0.0.1', 'Ports': {'42/tcp': None, '22/tcp': None}}},
+                ({'NetworkSettings': {'Networks': {'bridge': {'IPAddress': '127.0.0.1'}}, 'Ports': {'42/tcp': None, '22/tcp': None}}},
                  {'host': '%%host%%', 'port': '%%port_2%%', 'tags': ['env:test']},
                  ['host', 'port_2'], ['foo', 'bar:baz']),
                 ({'host': '%%host%%', 'port': '%%port_2%%', 'tags': ['env:test', 'foo', 'bar:baz']},

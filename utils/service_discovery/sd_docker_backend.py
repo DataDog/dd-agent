@@ -195,13 +195,6 @@ class SDDockerBackend(AbstractSDBackend):
         if ip_addr:
             return ip_addr
 
-        # try to get the bridge (default) IP address
-        log.debug("No IP address was found in container %s (%s) "
-            "networks, trying with the IPAddress field" % (c_id[:12], c_img))
-        ip_addr = c_inspect.get('NetworkSettings', {}).get('IPAddress')
-        if ip_addr:
-            return ip_addr
-
         if Platform.is_k8s():
             # kubernetes case
             log.debug("Couldn't find the IP address for container %s (%s), "
