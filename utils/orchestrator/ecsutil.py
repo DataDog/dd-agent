@@ -45,7 +45,7 @@ class ECSUtil(BaseUtil):
 
         # Try to detect the ecs-agent container's IP (net=bridge)
         ecs_config = self.docker_util.inspect_container('ecs-agent')
-        ip = ecs_config.get('NetworkSettings', {}).get('IPAddress')
+        ip = ecs_config.get('NetworkSettings', {}).get('Networks', {}).get('bridge', {}).get('IPAddress')
         if ip:
             ports = ecs_config.get('NetworkSettings', {}).get('Ports')
             port = ports.keys()[0].split('/')[0] if ports else str(ECS_AGENT_DEFAULT_PORT)

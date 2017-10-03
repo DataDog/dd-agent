@@ -39,7 +39,7 @@ class TestECSUtil(unittest.TestCase):
         mock_init.return_value = None
         mock_gw.return_value = "10.0.2.2"
 
-        mock_inspect.return_value = {'NetworkSettings': {'IPAddress': '10.0.0.42',
+        mock_inspect.return_value = {'NetworkSettings': {'Networks': {'bridge': {'IPAddress': '10.0.0.42'}},
                                                          'Ports': {'1234/tcp': '1234/tcp'}}}
 
         probe_calls = [mock.call('http://10.0.0.42:1234/', timeout=1),
