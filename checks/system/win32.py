@@ -14,12 +14,9 @@ except ImportError:
 
 # datadog
 try:
-    from checks.libs.win.winpdh import WinPDHSingleCounter, WinPDHMultiCounter
+    from checks.libs.win.winpdh import WinPDHCounter
 except ImportError:
-    def WinPDHSingleCounter(*args, **kwargs):
-        return
-
-    def WinPDHMultiCounter(*args, **kwargs):
+    def WinPDHCounter(*args, **kwargs):
         return
 
 # Device WMI drive types
@@ -40,8 +37,8 @@ class Processes(Check):
 
         self.gauge('system.proc.queue_length')
         self.gauge('system.proc.count')
-        self.numprocs = WinPDHSingleCounter('System', 'Processes')
-        self.pql = WinPDHSingleCounter('System', 'Processor Queue Length')
+        self.numprocs = WinPDHCounter('System', 'Processes', logger)
+        self.pql = WinPDHCounter('System', 'Processor Queue Length', logger)
 
     def check(self, agentConfig):
         processor_queue_length = self.pql.get_single_value()
@@ -85,10 +82,10 @@ class Memory(Check):
         self.gauge('system.mem.pagefile.free')
         self.gauge('system.mem.pagefile.pct_free')
 
-        self.cache_bytes_counter = WinPDHSingleCounter('Memory', 'Cache Bytes')
-        self.committed_bytes_counter = WinPDHSingleCounter('Memory', 'Committed Bytes')
-        self.pool_paged_bytes_counter = WinPDHSingleCounter('Memory', 'Pool Paged Bytes')
-        self.pool_non_paged_bytes_counter = WinPDHSingleCounter('Memory', 'Pool Nonpaged Bytes')
+        self.cache_bytes_counter = WinPDHCounter('Memory', 'Cache Bytes', logger)
+        self.committed_bytes_counter = WinPDHCounter('Memory', 'Committed Bytes', logger)
+        self.pool_paged_bytes_counter = WinPDHCounter('Memory', 'Pool Paged Bytes', logger)
+        self.pool_non_paged_bytes_counter = WinPDHCounter('Memory', 'Pool Nonpaged Bytes', logger)
 
     def check(self, agentConfig):
         total = 0
@@ -168,11 +165,11 @@ class IO(Check):
         self.gauge('system.io.r_s')
         self.gauge('system.io.avg_q_sz')
 
-        self.dwbpscounter = WinPDHMultiCounter('LogicalDisk', 'Disk Write Bytes/sec')
-        self.dwpscounter = WinPDHMultiCounter('LogicalDisk', 'Disk Writes/sec')
-        self.drbpscounter = WinPDHMultiCounter('LogicalDisk', 'Disk Read Bytes/sec')
-        self.drpscounter = WinPDHMultiCounter('LogicalDisk', 'Disk Reads/sec')
-        self.qszcounter = WinPDHMultiCounter('LogicalDisk', 'Current Disk Queue Length')
+        self.dwbpscounter = WinPDHCounter('LogicalDisk', 'Disk Write Bytes/sec', logger)
+        self.dwpscounter = WinPDHCounter('LogicalDisk', 'Disk Writes/sec', logger)
+        self.drbpscounter = WinPDHCounter('LogicalDisk', 'Disk Read Bytes/sec', logger)
+        self.drpscounter = WinPDHCounter('LogicalDisk', 'Disk Reads/sec', logger)
+        self.qszcounter = WinPDHCounter('LogicalDisk', 'Current Disk Queue Length', logger)
 
     def check(self, agentConfig):
         dwbps = self.dwbpscounter.get_all_values()
