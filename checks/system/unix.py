@@ -232,7 +232,7 @@ class FileHandles(Check):
             proc_location = agentConfig.get('procfs_path', '/proc').rstrip('/')
             proc_fh = "{}/sys/fs/file-nr".format(proc_location)
             with open(proc_fh, 'r') as file_handle:
-                handle_contents = file_handle.read()
+                handle_contents = file_handle.readline()
         except Exception:
             self.logger.exception("Cannot extract system file handles stats")
             return False
