@@ -1,6 +1,36 @@
 Changes
 =======
 
+# 5.18.0 / 10-10-2017
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.17.0...5.18.0
+
+### Dependency Changes
+
+* Python (Linux only) `2.7.14` (previously `2.7.13`). See [omnibus-software-169](https://github.com/DataDog/omnibus-software/pull/169)
+* CAcerts updated to latest certificate bundle. See [omnibus-software-167](https://github.com/DataDog/omnibus-software/pull/167)
+* JMXFetch updated to `0.17.0` (previously `0.16.0`). See [omnibus-software-166](https://github.com/DataDog/omnibus-software/pull/166), [#3527][]
+* Nfsiostat added `2.1.1`. See [omnibus-software-162](https://github.com/DataDog/omnibus-software/pull/162), [dd-agent-omnibus-196](https://github.com/DataDog/dd-agent-omnibus/pull/196)
+
+### Changes
+Please refer to the [Integrations Core Checks 5.18.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.18.0) for the list of changes on the core checks.
+Please refer to the [Trace Agent 5.18.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.18.0) for the list of changes on the Trace Agent.
+Please refer to the [Process Agent 5.18.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.18.0) for more information on the Process Agent.
+
+* [FEATURE] JMXFetch: add canonical rate. See [#3494][], [jmxfetch-156](https://github.com/DataDog/jmxfetch/pull/154) (Thanks [@arrawatia][])
+* [IMPROVEMENT] Core: adding docker inspect to flare. See [#3536][]
+* [IMPROVEMENT] Windows: enhanced PDH counter support. See [#3536][]
+* [BUGFIX] Windows: fix PDH counter i18n issues. See [#3536][]
+* [BUGFIX] Kubernetes: fix image lookup. See [#3532][]
+* [BUGFIX] Mesos: do not crash if `ENV` in `CONF` is none. See [#3528][]
+* [SANITY] WMI: renamed library from wmi_check to winwmi_check. See [#3521][]
+* [SECURITY] Core: Redact sensistive information in config dumps. See [#3534][]
+* [SECURITY] Core: fix potential leak of API key into collector/dogstatsd logs. See [#3537][]
+* [DEPRECATE] deprecate `read_config`. See [#3508][]
+* [DEPRECATE] Docker: remove access to deprecated top-level `NetworkSettings`. See [#3538][]
+
 # 5.17.2 / 09-18-2017
 **Linux, Windows, Docker and Source Install**
 
@@ -4402,13 +4432,23 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3488]: https://github.com/DataDog/dd-agent/issues/3488
 [#3489]: https://github.com/DataDog/dd-agent/issues/3489
 [#3492]: https://github.com/DataDog/dd-agent/issues/3492
+[#3494]: https://github.com/DataDog/dd-agent/issues/3494
 [#3497]: https://github.com/DataDog/dd-agent/issues/3497
 [#3505]: https://github.com/DataDog/dd-agent/issues/3505
 [#3506]: https://github.com/DataDog/dd-agent/issues/3506
 [#3507]: https://github.com/DataDog/dd-agent/issues/3507
+[#3508]: https://github.com/DataDog/dd-agent/issues/3508
 [#3509]: https://github.com/DataDog/dd-agent/issues/3509
 [#3511]: https://github.com/DataDog/dd-agent/issues/3511
+[#3521]: https://github.com/DataDog/dd-agent/issues/3521
 [#3523]: https://github.com/DataDog/dd-agent/issues/3523
+[#3527]: https://github.com/DataDog/dd-agent/issues/3527
+[#3528]: https://github.com/DataDog/dd-agent/issues/3528
+[#3532]: https://github.com/DataDog/dd-agent/issues/3532
+[#3534]: https://github.com/DataDog/dd-agent/issues/3534
+[#3536]: https://github.com/DataDog/dd-agent/issues/3536
+[#3537]: https://github.com/DataDog/dd-agent/issues/3537
+[#3538]: https://github.com/DataDog/dd-agent/issues/3538
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -4438,6 +4478,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@aoking]: https://github.com/aoking
 [@arohner]: https://github.com/arohner
 [@arosenhagen]: https://github.com/arosenhagen
+[@arrawatia]: https://github.com/arrawatia
 [@arthurnn]: https://github.com/arthurnn
 [@arzarif]: https://github.com/arzarif
 [@asiebert]: https://github.com/asiebert
