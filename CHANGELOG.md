@@ -22,6 +22,7 @@ Please refer to the [Process Agent 5.18.0 tag](https://github.com/DataDog/datado
 * [FEATURE] JMXFetch: add canonical rate. See [#3494][], [jmxfetch-156](https://github.com/DataDog/jmxfetch/pull/154) (Thanks [@arrawatia][])
 * [IMPROVEMENT] Core: adding docker inspect to flare. See [#3536][]
 * [IMPROVEMENT] Windows: enhanced PDH counter support. See [#3536][]
+* [BUGFIX] RHEL/CentOS7[systemd]: enable datadog-agent service on post-install. See [dd-agent-omnibus-201](https://github.com/DataDog/omnibus-software/pull/201)
 * [BUGFIX] Windows: fix PDH counter i18n issues. See [#3536][]
 * [BUGFIX] Kubernetes: fix image lookup. See [#3532][]
 * [BUGFIX] Mesos: do not crash if `ENV` in `CONF` is none. See [#3528][]
