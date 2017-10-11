@@ -29,3 +29,7 @@ Lint/RescueWithoutErrorClass:
 
 BlockLength:
   Max: 110
+
+Style/EndOfLine:
+  Enabled: false
+
