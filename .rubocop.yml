@@ -24,5 +24,8 @@ Style/Documentation:
 Style/SingleLineBlockParams:
   Enabled: false
 
+Lint/RescueWithoutErrorClass:
+  Enabled: false
+
 BlockLength:
   Max: 110
