@@ -111,4 +111,3 @@ namespace :ci do
 end
 
 task default: ['lint', 'ci:run']
-
