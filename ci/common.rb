@@ -246,7 +246,7 @@ namespace :ci do
       travis_flavor = flavor.scope.path[3..-1]
 
       can_skip, checks = can_skip?
-      can_skip &&= !%w(default core_integration checks_mock).include?(travis_flavor)
+      can_skip &&= !%w[default core_integration checks_mock].include?(travis_flavor)
 
       puts "Travis flavor: #{travis_flavor}"
       puts "Detected modified checks: #{checks.join(' | ')}"
@@ -257,7 +257,7 @@ namespace :ci do
       end
       exception = nil
       begin
-        tasks = %w(before_install install before_script script)
+        tasks = %w[before_install install before_script script]
         tasks << 'before_cache' unless ENV['CI'].nil?
         tasks.each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
