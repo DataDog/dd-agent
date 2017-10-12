@@ -510,7 +510,7 @@ else
     log_suffix="_log_file"
     for prog in collector forwarder dogstatsd jmxfetch; do
         if ! grep "^[[:space:]]*$prog$log_suffix" "$dd_conf_file"; then
-            $SED_CMD -i -e "/^api_key:/a\\$prog$log_suffix: $DD_HOME/logs/$prog.log" "$dd_conf_file"
+            $SED_CMD -i -e "/^api_key:/a\\$prog$log_suffix: $DD_HOME/logs/$prog.log" $dd_conf_file
         fi
     done
 fi
