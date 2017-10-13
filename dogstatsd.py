@@ -205,14 +205,14 @@ class Reporter(threading.Thread):
     """
 
     def __init__(self, interval, metrics_aggregator, api_host, api_key=None,
-                 use_watchdog=False, event_chunk_size=None):
+                 use_watchdog=False, event_chunk_size=None, hostname=None):
         threading.Thread.__init__(self)
         self.interval = int(interval)
         self.finished = threading.Event()
         self.metrics_aggregator = metrics_aggregator
         self.flush_count = 0
         self.log_count = 0
-        self.hostname = get_hostname()
+        self.hostname = hostname or get_hostname()
 
         self.watchdog = None
         if use_watchdog:
@@ -617,7 +617,7 @@ def init5(agent_config=None, use_watchdog=False, use_forwarder=False, args=None)
     )
 
     # Start the reporting thread.
-    reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, event_chunk_size)
+    reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, event_chunk_size, hostname)
 
     # NOTICE: when `non_local_traffic` is passed we need to bind to any interface on the box. The forwarder uses
     # Tornado which takes care of sockets creation (more than one socket can be used at once depending on the
