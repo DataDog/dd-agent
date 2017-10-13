@@ -93,7 +93,7 @@ class Check(object):
         """Turn a metric into a well-formed metric name
         prefix.b.c
         """
-        name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", metric)
+        name = re.sub(r"[,\@\+\*\-/()\[\]{}\s]", "_", metric)
         # Eliminate multiple _
         name = re.sub(r"__+", "_", name)
         # Don't start/end with _
