@@ -36,6 +36,13 @@ class TestConfig(unittest.TestCase):
         """
         return get_config(cfg_path=os.path.join(self.CONFIG_FOLDER, name), parse_args=parse_args)
 
+    def test_invalid_api_key(self):
+        """
+        The agent will exit if it finds an obviously invalid api key
+        """
+        with self.assertRaises(SystemExit):
+            self.get_config('invalid.conf')
+
     def testWhiteSpaceConfig(self):
         """Leading whitespace confuse ConfigParser
         """
