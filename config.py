@@ -387,18 +387,24 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
             agentConfig['developer_mode'] = True
 
         # Core config
-        #ap
+        # API keys
         if not config.has_option('Main', 'api_key'):
             log.warning(u"No API key was found. Aborting.")
             sys.exit(2)
 
+        api_keys = map(lambda el: el.strip(), config.get('Main', 'api_key').split(','))
+        for k in api_keys:
+            # Basic sanity check
+            if len(k) != 32:
+                log.warning(u"API key is invalid. Aborting.")
+                sys.exit(2)
+
+        # Endpoints
         if not config.has_option('Main', 'dd_url'):
             log.warning(u"No dd_url was found. Aborting.")
             sys.exit(2)
 
-        # Endpoints
         dd_urls = map(clean_dd_url, config.get('Main', 'dd_url').split(','))
-        api_keys = map(lambda el: el.strip(), config.get('Main', 'api_key').split(','))
 
         # For collector and dogstatsd
         agentConfig['dd_url'] = dd_urls[0]
