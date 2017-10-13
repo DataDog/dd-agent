@@ -1,6 +1,18 @@
 Changes
 =======
 
+# 5.18.1 / 10-13-2017
+**Linux, Docker and Source Install**
+
+### Details
+This release includes bugfixes for the `trace-agent` and `process-agent` only - please check
+their respective changelogs for more details.
+https://github.com/DataDog/dd-agent/compare/5.18.0...5.18.1
+
+### Changes
+Please refer to the [Trace Agent 5.18.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.18.1) for the list of changes on the Trace Agent.
+Please refer to the [Process Agent 5.18.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.18.1) for more information on the Process Agent.
+
 # 5.18.0 / 10-10-2017
 **Linux, Windows, Docker and Source Install**
 
