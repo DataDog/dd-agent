@@ -40,6 +40,7 @@ class TestFunctions(TestCase):
         cfg = defaultdict(str)
         cfg['non_local_traffic'] = True
         cfg['use_dogstatsd'] = True
+        cfg['api_key'] = "0123456789abcdefghijklmnopqrstuv"
 
         init5(cfg)
 
@@ -51,7 +52,7 @@ class TestFunctions(TestCase):
     @mock.patch('dogstatsd.get_config_path')
     def test_init6(self, gcp):
         cfg = defaultdict(str)
-        cfg['api_key'] = "deadbeeffeebdaed"
+        cfg['api_key'] = "0123456789abcdefghijklmnopqrstuv"
         cfg['use_dogstatsd'] = True
         cfg['dogstatsd6_enable'] = True
         cfg['dogstatsd6_stats_port'] = 5050
@@ -67,6 +68,7 @@ class TestFunctions(TestCase):
         cfg = defaultdict(str)
         cfg['use_dogstatsd'] = True
         cfg['statsd_so_rcvbuf'] = '1024'
+        cfg['api_key'] = "0123456789abcdefghijklmnopqrstuv"
 
         init5(cfg)
 

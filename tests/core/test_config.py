@@ -36,13 +36,20 @@ class TestConfig(unittest.TestCase):
         """
         return get_config(cfg_path=os.path.join(self.CONFIG_FOLDER, name), parse_args=parse_args)
 
+    def test_invalid_api_key(self):
+        """
+        The agent will exit if it finds an obviously invalid api key
+        """
+        with self.assertRaises(SystemExit):
+            self.get_config('invalid.conf')
+
     def testWhiteSpaceConfig(self):
         """Leading whitespace confuse ConfigParser
         """
         agentConfig = self.get_config('bad.conf')
 
         self.assertEquals(agentConfig["dd_url"], "https://app.datadoghq.com")
-        self.assertEquals(agentConfig["api_key"], "1234")
+        self.assertEquals(agentConfig["api_key"], "0123456789abcdefghijklmnopqrstuv")
         self.assertEquals(agentConfig["nagios_log"], "/var/log/nagios3/nagios.log")
         self.assertEquals(agentConfig["graphite_listen_port"], 17126)
         self.assertTrue("statsd_metric_namespace" in agentConfig)
@@ -50,17 +57,17 @@ class TestConfig(unittest.TestCase):
     def test_one_endpoint(self):
         agent_config = self.get_config('one_endpoint.conf')
         self.assertEquals(agent_config["dd_url"], "https://app.datadoghq.com")
-        self.assertEquals(agent_config["api_key"], "1234")
-        endpoints = {'https://app.datadoghq.com': ['1234']}
+        self.assertEquals(agent_config["api_key"], "0123456789abcdefghijklmnopqrstuv")
+        endpoints = {'https://app.datadoghq.com': ['0123456789abcdefghijklmnopqrstuv']}
         self.assertEquals(agent_config['endpoints'], endpoints)
 
     def test_multiple_endpoints(self):
         agent_config = self.get_config('multiple_endpoints.conf')
         self.assertEquals(agent_config["dd_url"], "https://app.datadoghq.com")
-        self.assertEquals(agent_config["api_key"], "1234")
+        self.assertEquals(agent_config["api_key"], "0123456789abcdefghijklmnopqrstuv")
         endpoints = {
-            'https://app.datadoghq.com': ['1234'],
-            'https://app.example.com': ['5678', '901']
+            'https://app.datadoghq.com': ['0123456789abcdefghijklmnopqrstuv'],
+            'https://app.example.com': ['123456789abcdefghijklmnopqrstuv0', '23456789abcdefghijklmnopqrstuv01']
         }
         self.assertEquals(agent_config['endpoints'], endpoints)
         with self.assertRaises(AssertionError):
@@ -69,9 +76,9 @@ class TestConfig(unittest.TestCase):
     def test_multiple_apikeys(self):
         agent_config = self.get_config('multiple_apikeys.conf')
         self.assertEquals(agent_config["dd_url"], "https://app.datadoghq.com")
-        self.assertEquals(agent_config["api_key"], "1234")
+        self.assertEquals(agent_config["api_key"], "0123456789abcdefghijklmnopqrstuv")
         endpoints = {
-            'https://app.datadoghq.com': ['1234', '5678', '901']
+            'https://app.datadoghq.com': ['0123456789abcdefghijklmnopqrstuv', '123456789abcdefghijklmnopqrstuv0', '23456789abcdefghijklmnopqrstuv01']
         }
         self.assertEquals(agent_config['endpoints'], endpoints)
 
