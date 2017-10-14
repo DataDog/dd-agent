@@ -687,7 +687,7 @@ def main(config_path=None):
         c = get_config(parse_args=False, cfg_path=config_path)
     except:
         return 2
-    
+
     dsd6_enabled = Dogstatsd6.enabled(c)
     in_developer_mode = False
     if not args or args[0] in COMMANDS_START_DOGSTATSD:

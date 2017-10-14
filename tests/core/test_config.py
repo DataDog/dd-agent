@@ -16,7 +16,8 @@ from config import (
     load_check_directory,
     validate_sdk_check,
     _conf_path_to_check_name,
-    _version_string_to_tuple
+    _version_string_to_tuple,
+    ApiKeyInvalid
 )
 from util import windows_friendly_colon_split
 from utils.hostname import is_valid_hostname
@@ -38,9 +39,9 @@ class TestConfig(unittest.TestCase):
 
     def test_invalid_api_key(self):
         """
-        The agent will exit if it finds an obviously invalid api key
+        The agent will raise an exception on an obviously invalid api key
         """
-        with self.assertRaises(SystemExit):
+        with self.assertRaises(ApiKeyInvalid):
             self.get_config('invalid.conf')
 
     def testWhiteSpaceConfig(self):

@@ -341,7 +341,7 @@ def remove_empty(string_array):
     return filter(lambda x: x, string_array)
 
 
-def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=True):
+def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=True, allow_invalid_api_key=False):
     if parse_args:
         options, _ = get_parsed_args()
 
@@ -393,14 +393,14 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
 
         # Core config
         # API keys
-        if not config.has_option('Main', 'api_key'):
+        if not config.has_option('Main', 'api_key') and not allow_invalid_api_key:
             log.warning(u"No API key was found. Aborting.")
             raise ApiKeyNotFound("No API key was found.")
 
         api_keys = map(lambda el: el.strip(), config.get('Main', 'api_key').split(','))
         for k in api_keys:
             # Basic sanity check
-            if len(k) != 32:
+            if len(k) != 32 and not allow_invalid_api_key:
                 log.warning(u"API key is invalid. Aborting.")
                 raise ApiKeyInvalid("API Key invalid")
 

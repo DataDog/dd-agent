@@ -27,7 +27,7 @@ import servicemanager
 import win32service
 
 # project
-from config import get_config, get_config_path, get_confd_path, ApiKeyInvalid, ApiKeyNotFound
+from config import get_config, get_config_path, get_confd_path
 from jmxfetch import JMXFetch
 from utils.jmx import JMXFiles
 from utils.windows_configuration import get_registry_conf, update_conf_file, remove_registry_conf
@@ -52,16 +52,11 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         AgentSvc.devnull = open(os.devnull, 'w')
 
         try:
-            config = get_config(parse_args=False, can_query_registry=False)
-        except (ApiKeyInvalid, ApiKeyNotFound) as e:
-            # try updating the config, give it one last try
-            log.warning("Invalid configuration {}, attempting to update config".format(str(e)))
-            try:
+            config = get_config(parse_args=False, can_query_registry=False, allow_invalid_api_key=True)
+            if config['api_key'] == 'APIKEYHERE':
                 self._update_config_file(config)
-                config = get_config(parse_args=False, can_query_registry=False)
-            except (ApiKeyInvalid, ApiKeyNotFound) as e:
-                log.error("Configuration still invalid after update, exiting {}".format(str(e)))
-                sys.exit(2)
+        except Exception as e:
+            log.warning("Failed to get_config {}".format(str(e)))
 
         # Let's have an uptime counter
         self.start_ts = None
@@ -137,7 +132,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         return jmxfetch.should_run()
 
     def _update_config_file(self, config):
-        log.info('Querying registry to get missing config options')
+        log.debug('Querying registry to get missing config options')
         registry_conf = get_registry_conf(config)
         config.update(registry_conf)
         if registry_conf:
@@ -148,8 +143,6 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                 remove_registry_conf()
             except Exception:
                 log.warning('Failed to update config file; registry configuration persisted')
-        else:
-            log.info("no registry conf")
 
     def SvcStop(self):
         # Stop all services.
