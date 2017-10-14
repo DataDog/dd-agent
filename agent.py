@@ -251,7 +251,11 @@ class Agent(Daemon):
 
         # Intialize the collector.
         if not config:
-            config = get_config(parse_args=True)
+            try:
+                config = get_config(parse_args=True)
+            except:
+                log.warning("Failed to load configuration")
+                sys.exit(2)
 
         self._agentConfig = self._set_agent_config_hostname(config)
         hostname = get_hostname(self._agentConfig)

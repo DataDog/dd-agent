@@ -683,7 +683,11 @@ def main(config_path=None):
                       dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
-    c = get_config(parse_args=False, cfg_path=config_path)
+    try:
+        c = get_config(parse_args=False, cfg_path=config_path)
+    except:
+        return 2
+    
     dsd6_enabled = Dogstatsd6.enabled(c)
     in_developer_mode = False
     if not args or args[0] in COMMANDS_START_DOGSTATSD:
