@@ -51,9 +51,12 @@ class AgentSvc(win32serviceutil.ServiceFramework):
 
         AgentSvc.devnull = open(os.devnull, 'w')
 
-        config = get_config(parse_args=False, can_query_registry=False)
-        if config['api_key'] == 'APIKEYHERE':
-            self._update_config_file(config)
+        try:
+            config = get_config(parse_args=False, can_query_registry=False, allow_invalid_api_key=True)
+            if config['api_key'] == 'APIKEYHERE':
+                self._update_config_file(config)
+        except Exception as e:
+            log.warning("Failed to get_config {}".format(str(e)))
 
         # Let's have an uptime counter
         self.start_ts = None
