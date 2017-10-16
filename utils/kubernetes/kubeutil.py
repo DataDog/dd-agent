@@ -526,6 +526,10 @@ class KubeUtil:
             tags.append('node_name:%s' % event['source']['host'])
         if 'kind' in event.get('involvedObject', {}):
             tags.append('object_type:%s' % event['involvedObject'].get('kind', '').lower())
+        if 'name' in event.get('involvedObject', {}):
+            tags.append('object_name:%s' % event['involvedObject'].get('name','').lower())
+        if 'component' in event.get('source', {}):
+            tags.append('source_component:%s' % event['source'].get('component','').lower())
 
         return tags
 
