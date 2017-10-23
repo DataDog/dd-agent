@@ -16,17 +16,17 @@ class TestKubeEventRetriever(KubeTestCase):
         """
         Returns an eventlist from specs in the form [(namespace, kind)]
         """
-        resVersion = 0
+        lastTimestamp = 0
         items = []
         for ns, kind in specs:
-            resVersion += 1
             i = {}
-            i['metadata'] = {'resourceVersion': resVersion, 'namespace': ns}
+            i['lastTimestamp'] = "2017-04-06T09:44:17Z"
+            i['metadata'] = {'resourceVersion': lastTimestamp, 'namespace': ns}
             i['involvedObject'] = {'kind': kind, 'namespace': ns}
             items.append(i)
         return {'items': items}
 
-    def test_events_resversion_filtering(self):
+    def test_events_lasttimestamp_filtering(self):
         jsons = self._load_resp_array(
             ['service_cache_events1.json', 'service_cache_events2.json', 'service_cache_events2.json'])
         with patch.object(self.kube, 'retrieve_json_auth', side_effect=jsons):
@@ -34,13 +34,13 @@ class TestKubeEventRetriever(KubeTestCase):
 
             events = retr.get_event_array()
             self.assertEquals(3, len(events))
-            self.assertEquals(2707, retr.last_resversion)
+            self.assertEquals(1491471904, retr.lastTimestamp)
             events = retr.get_event_array()
             self.assertEquals(2, len(events))   # 5 events total
-            self.assertEquals(2709, retr.last_resversion)
+            self.assertEquals(1491471953, retr.lastTimestamp)
             events = retr.get_event_array()
             self.assertEquals(0, len(events))   # No new event
-            self.assertEquals(2709, retr.last_resversion)
+            self.assertEquals(1491471953, retr.lastTimestamp)
 
     @patch('time.time')
     def test_events_delay(self, mock_time):
@@ -52,19 +52,19 @@ class TestKubeEventRetriever(KubeTestCase):
             mock_time.return_value = 10000
             events = retr.get_event_array()
             self.assertEquals(3, len(events))
-            self.assertEquals(2707, retr.last_resversion)
+            self.assertEquals(1491471904, retr.lastTimestamp)
 
             # Must skip request
             mock_time.return_value = 10400
             events = retr.get_event_array()
             self.assertEquals(0, len(events))
-            self.assertEquals(2707, retr.last_resversion)
+            self.assertEquals(1491471904, retr.lastTimestamp)
 
             # Must retrieve events
             mock_time.return_value = 10600
             events = retr.get_event_array()
             self.assertEquals(2, len(events))
-            self.assertEquals(2709, retr.last_resversion)
+            self.assertEquals(1491471953, retr.lastTimestamp)
 
     def test_namespace_serverside_filtering(self):
         with patch.object(self.kube, 'retrieve_json_auth', return_value=MockResponse({}, 200)) as mock_method:
