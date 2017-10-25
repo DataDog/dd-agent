@@ -1,70 +1,124 @@
-# Always prefer setuptools over distutils
-from setuptools import setup, find_packages
-# To use a consistent encoding
-from codecs import open
-from os import path
+# (C) Datadog, Inc. 2010-2016
+# All rights reserved
+# Licensed under Simplified BSD License (see LICENSE)
 
-here = path.abspath(path.dirname(__file__))
+# stdlib
+from datetime import date
+import os
+import sys
 
-# Get the long description from the README file
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
+# 3p
+from setuptools import setup
+
+# project
+from config import get_version
+
+# Extra arguments to pass to the setup function
+extra_args = {}
+
+# Prereqs of the build. Won't get installed when deploying the egg.
+setup_requires = []
+
+# Prereqs of the install. Will install when deploying the egg.
+install_requires = []
+
+# Modified on mac
+app_name = 'datadog-agent'
+# plist (used only on mac)
+plist = None
+
+if sys.platform == 'win32':
+    # noqa for flake8, these imports are probably here to force packaging of these modules
+    import py2exe  # noqa
+
+    # windows-specific deps
+    install_requires.append('pywin32==217')
+
+    # Modules to force-include in the exe
+    include_modules = [
+        # 3p
+        'psutil',
+        'servicemanager',
+        'subprocess',
+        'win32api',
+        'win32event',
+        'win32service',
+        'win32serviceutil',
+        'wmi',
+    ]
+
+    class Target(object):
+        def __init__(self, **kw):
+            self.__dict__.update(kw)
+            self.version = get_version()
+            self.company_name = 'Datadog, Inc.'
+            self.copyright = 'Copyright {} Datadog, Inc.'.format(date.today().year)
+            self.cmdline_style = 'pywin32'
+
+    agent_svc = Target(name='Datadog Agent', modules='win32.service', dest_base='ddagent')
+    sys.path.append("C:\\omnibus-ruby\\src\\vc_redist")
+
+    extra_args = {
+        'options': {
+            'py2exe': {
+                'includes': ','.join(include_modules),
+                'optimize': 0,
+                'compressed': True,
+                'bundle_files': 3,
+                'excludes': ['numpy'],
+                'dll_excludes': ["IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll", "crypt32.dll"],
+                'ascii': False,
+            },
+        },
+        'console': ['win32\shell.py'],
+        'service': [agent_svc],
+        'windows': [{'script': 'win32\gui.py',
+                     'dest_base': "agent-manager",
+                     'uac_info': "requireAdministrator", # The manager needs to be administrator to stop/start the service
+                     'icon_resources': [(1, r"packaging\datadog-agent\win32\install_files\dd_agent_win_256.ico")],
+                     }],
+        'data_files': [],
+    }
+
+elif sys.platform == 'darwin':
+    app_name = 'Datadog Agent'
+
+    from plistlib import Plist
+    plist = Plist.fromFile(os.path.dirname(os.path.realpath(__file__)) + '/packaging/Info.plist')
+    plist.update(dict(
+        CFBundleGetInfoString="{0}, Copyright (c) 2009-{1}, Datadog Inc.".format(
+            get_version(), date.today().year),
+        CFBundleVersion=get_version()
+    ))
+
+    extra_args = {
+        'app': ['gui.py'],
+        'data_files': [
+            'images',
+            'status.html',
+        ],
+        'options': {
+            'py2app': {
+                'optimize': 0,
+                'iconfile': 'packaging/Agent.icns',
+                'plist': plist
+            }
+        }
+    }
+
 
 setup(
-    name='datadog_agent_tk',
-    # Version should always match one from an agent release
-    version='5.15.0',
-    description='The Datadog Agent Toolkit',
-    long_description=long_description,
-    keywords='datadog agent check toolkit',
-
-    # The project's main homepage.
-    url='https://github.com/DataDog/dd-agent',
-
-    # Author details
-    author='Datadog',
-    author_email='packages@datadoghq.com',
-
-    # License
-    license='MIT',
-
-    # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
-    classifiers=[
-        'Development Status :: 5 - Production/Stable',
-        'Intended Audience :: Developers',
-        'Topic :: System :: Monitoring',
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
-    ],
-
-
-    # Include all we need from the agent to run tests and
-    # execute checks in a dedicated virtualenv.
-    packages=find_packages(exclude=[
-        "tests.checks.fixtures*",
-        "tests.checks.mock*",
-        "tests.core*",
-        "dogstream",
-    ]),
-
-    # These are plain python modules, not packages, we need
-    # to list them manually to include in the wheel.
-    py_modules=[
-        "config",
-        "util",
-        "tests.checks.common",
-        "aggregator"
-    ],
-
-    # This is more than we would need but this is a POC, so...
-    install_requires=[
-        'requests==2.11.1',
-        'pyyaml==3.11',
-        'simplejson==3.6.5',
-        'docker-py==1.10.6',
-        'python-etcd==0.4.5',
-        'python-consul==0.4.7',
-        'kazoo==2.2.1',
-    ],
+    name=app_name,
+    version=get_version(),
+    description="DevOps' best friend",
+    author='DataDog',
+    author_email='dev@datadoghq.com',
+    url='http://www.datadoghq.com',
+    install_requires=install_requires,
+    setup_requires=setup_requires,
+    packages=[],
+    include_package_data=True,
+    test_suite='nose.collector',
+    zip_safe=False,
+    **extra_args
 )
