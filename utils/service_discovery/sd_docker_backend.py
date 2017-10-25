@@ -95,7 +95,7 @@ class SDDockerBackend(AbstractSDBackend):
                 self.kubeutil = KubeUtil()
             except Exception as ex:
                 log.error("Couldn't instantiate the kubernetes client, "
-                    "subsequent kubernetes calls will fail as well. Error: %s" % str(ex))
+                          "subsequent kubernetes calls will fail as well. Error: %s" % str(ex))
 
         self.metadata_collector = MetadataCollector()
 
@@ -152,7 +152,7 @@ class SDDockerBackend(AbstractSDBackend):
         # because the pod was deleted and its template could have been in the annotations.
         if not inspect or \
                 (not inspect.get('State', {}).get('Running')
-                    and Platform.is_k8s() and not self.agentConfig.get('sd_config_backend')):
+                 and Platform.is_k8s() and not self.agentConfig.get('sd_config_backend')):
             self.reload_check_configs = True
             return
 
@@ -206,7 +206,7 @@ class SDDockerBackend(AbstractSDBackend):
         if Platform.is_rancher():
             # try to get the rancher IP address
             log.debug("No IP address was found in container %s (%s) "
-                "trying with the Rancher label" % (c_id[:12], c_img))
+                      "trying with the Rancher label" % (c_id[:12], c_img))
 
             ip_addr = c_inspect.get('Config', {}).get('Labels', {}).get(RANCHER_CONTAINER_IP)
             if ip_addr:
@@ -225,43 +225,37 @@ class SDDockerBackend(AbstractSDBackend):
         if len(tpl_parts) < 2:
             log.debug("No key was passed for template variable %s." % tpl_var)
             return self._get_fallback_ip(ip_dict)
-        else:
-            res = ip_dict.get(tpl_parts[-1])
-            if res is None:
-                log.warning("The key passed for template variable %s was not found." % tpl_var)
-                return self._get_fallback_ip(ip_dict)
-            else:
-                return res
+
+        res = ip_dict.get(tpl_parts[-1])
+        if res is None:
+            log.warning("The key passed for template variable %s was not found." % tpl_var)
+            return self._get_fallback_ip(ip_dict)
+        return res
 
     def _get_fallback_ip(self, ip_dict):
         """try to pick the bridge key, falls back to the value of the last key"""
         if 'bridge' in ip_dict:
             log.debug("Using the bridge network.")
             return ip_dict['bridge']
-        else:
-            last_key = sorted(ip_dict.iterkeys())[-1]
-            log.debug("Trying with the last (sorted) network: '%s'." % last_key)
-            return ip_dict[last_key]
+
+        last_key = sorted(ip_dict.iterkeys())[-1]
+        log.debug("Trying with the last (sorted) network: '%s'." % last_key)
+        return ip_dict[last_key]
 
     def _get_port(self, state, c_id, tpl_var):
         """Extract a port from a container_inspect or the k8s API given a template variable."""
         container_inspect = state.inspect_container(c_id)
-
+        ports = []
         try:
-            ports = map(lambda x: x.split('/')[0], container_inspect['NetworkSettings']['Ports'].keys())
-            if len(ports) == 0: # There might be a key Port in NetworkSettings but no ports so we raise IndexError to check in ExposedPorts
+            ports = [x.split('/')[0] for x in container_inspect['NetworkSettings']['Ports'].keys()]
+            if len(ports) == 0:
                 raise IndexError
         except (IndexError, KeyError, AttributeError):
-            # try to get ports from the docker API. Works if the image has an EXPOSE instruction
-            ports = map(lambda x: x.split('/')[0], container_inspect['Config'].get('ExposedPorts', {}).keys())
-
-            # if it failed, try with the kubernetes API
-            if not ports and Platform.is_k8s():
-                log.debug("Didn't find the port for container %s (%s), trying the kubernetes way." %
-                          (c_id[:12], container_inspect.get('Config', {}).get('Image', '')))
+            if Platform.is_k8s():
                 spec = state.get_kube_container_spec(c_id)
                 if spec:
                     ports = [str(x.get('containerPort')) for x in spec.get('ports', [])]
+
         ports = sorted(ports, key=int)
         return self._extract_port_from_list(ports, tpl_var)
 
@@ -313,7 +307,7 @@ class SDDockerBackend(AbstractSDBackend):
 
             if not self.kubeutil:
                 log.warning("The agent can't connect to kubelet, creator and "
-                    "service tags will be missing for container %s." % c_id[:12])
+                            "service tags will be missing for container %s." % c_id[:12])
             else:
                 # add creator tags
                 creator_tags = self.kubeutil.get_pod_creator_tags(pod_metadata)
@@ -457,8 +451,8 @@ class SDDockerBackend(AbstractSDBackend):
                     if not result_init_config:
                         result_init_config = init_config
                     elif result_init_config != init_config:
-                        self.log.warning("Different versions of `init_config` found for "
-                            "check {}. Keeping the first one found.".format('check_name'))
+                        log.warning("Different versions of `init_config` found for "
+                                    "check {}. Keeping the first one found.".format('check_name'))
             check_configs.append((source, (check_name, result_init_config, result_instances)))
 
         return check_configs
@@ -467,10 +461,7 @@ class SDDockerBackend(AbstractSDBackend):
         """Extract config templates for an identifier from a K/V store and returns it as a dict object."""
         config_backend = self.agentConfig.get('sd_config_backend')
         templates = []
-        if config_backend is None:
-            auto_conf = True
-        else:
-            auto_conf = False
+        auto_conf = bool(config_backend)
 
         # format [(source, ('ident', {init_tpl}, {instance_tpl}))]
         raw_tpls = self.config_store.get_check_tpls(identifier, auto_conf=auto_conf, **platform_kwargs)
@@ -485,7 +476,7 @@ class SDDockerBackend(AbstractSDBackend):
                 # build a list of all variables to replace in the template
                 variables = self.PLACEHOLDER_REGEX.findall(str(init_config_tpl)) + \
                     self.PLACEHOLDER_REGEX.findall(str(instance_tpl))
-                variables = map(lambda x: x.strip('%'), variables)
+                variables = [var.strip('%') for var in variables]
                 if not isinstance(init_config_tpl, dict):
                     init_config_tpl = json.loads(init_config_tpl or '{}')
                 if not isinstance(instance_tpl, dict) and not isinstance(instance_tpl, list):
