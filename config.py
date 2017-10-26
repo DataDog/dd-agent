@@ -838,24 +838,38 @@ def get_ssl_certificate(osname, filename):
     log.info("Certificate file NOT found at %s" % str(path))
     return None
 
+def _get_check_module(check_name, check_path, from_site=False):
+    error = None
+    traceback_message = None
+    if from_site:
+        try:
+            check_module = import_module("datadog.{}.{}".format(check_name, check_name))
+        except ImportError as e:
+            error = e
+            log.exception('Unable to import check module %s from site-packages' % check_name)
+    else:
+        try:
+            check_module = imp.load_source('checksd_%s' % check_name, check_path)
+        except Exception as e:
+            error = e
+            traceback_message = traceback.format_exc()
+            # There is a configuration file for that check but the module can't be imported
+            log.exception('Unable to import check module %s.py from checks.d' % check_name)
 
-def _get_check_class(check_name, check_path):
+    if error:
+        return None, {'error': error, 'traceback': traceback_message}
+
+    return check_module, None
+
+
+def _get_check_class(check_name, check_path, from_site=False):
     '''Return the corresponding check class for a check name if available.'''
     from checks import AgentCheck
     check_class = None
 
-    try:
-        # see whether the check was installed as a wheel package...
-        check_module = import_module("datadog.{}.{}".format(check_name, check_name))
-    except ImportError:
-        # ...if not, let's go with plain old check import
-        try:
-            check_module = imp.load_source('checksd_%s' % check_name, check_path)
-        except Exception as e:
-            traceback_message = traceback.format_exc()
-            # There is a configuration file for that check but the module can't be imported
-            log.exception('Unable to import check module %s.py from checks.d' % check_name)
-            return {'error': e, 'traceback': traceback_message}
+    check_module, err = _get_check_module(check_name, check_path, from_site)
+    if err:
+        return err
 
     # We make sure that there is an AgentCheck class defined
     check_class = None
@@ -983,8 +997,8 @@ def _load_file_config(config_path, check_name, agentConfig):
     return True, check_config, {}
 
 
-def get_valid_check_class(check_name, check_path):
-    check_class = _get_check_class(check_name, check_path)
+def get_valid_check_class(check_name, check_path, from_site=False):
+    check_class = _get_check_class(check_name, check_path, from_site)
 
     if not check_class:
         log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
@@ -1082,18 +1096,18 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
     for check_path_builder in checks_places:
         check_path, manifest_path = check_path_builder(check_name)
 
-        wheel_search = bool(not check_path and not manifest_path)
+        is_wheel = bool(not check_path and not manifest_path)
         # The windows SDK function will return None,
         # so the loop should also continue if there is no path.
-        if not (check_path and os.path.exists(check_path)) and not wheel_search:
+        if not (check_path and os.path.exists(check_path)) and not is_wheel:
             continue
 
-        check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path)
+        check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path, from_site=is_wheel)
         if not check_is_valid:
             continue
 
-        if manifest_path or wheel_search:
-            if wheel_search:
+        if manifest_path or is_wheel:
+            if is_wheel:
                 manifest_path = os.path.join(
                     os.path.dirname(inspect.getfile(check_class)),
                     'manifest.json'
@@ -1115,7 +1129,10 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
 
         _update_python_path(check_config)
 
-        log.debug('Loaded %s' % check_path)
+        if is_wheel:
+            log.debug('Loaded %s' % check_name)
+        else:
+            log.debug('Loaded %s' % check_path)
         break  # we successfully initialized this check
 
     return load_success, load_failure
