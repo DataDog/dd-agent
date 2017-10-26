@@ -846,7 +846,7 @@ def _get_check_class(check_name, check_path):
 
     try:
         # see whether the check was installed as a wheel package...
-        check_module = import_module("check.{}".format(check_name))
+        check_module = import_module("datadog.{}.{}".format(check_name, check_name))
     except ImportError:
         # ...if not, let's go with plain old check import
         try:
@@ -945,6 +945,7 @@ def get_checks_places(osname, agentConfig):
         log.error(e.args[0])
         sys.exit(3)
 
+    # custom checks
     places = [lambda name: (os.path.join(agentConfig['additional_checksd'], '%s.py' % name), None)]
 
     try:
@@ -957,6 +958,10 @@ def get_checks_places(osname, agentConfig):
     except PathNotFound:
         log.debug('No sdk integrations path found')
 
+    # wheel integrations
+    places.append(lambda name: (None, None))
+
+    # agent-bundled integrations
     places.append(lambda name: (os.path.join(checksd_path, '%s.py' % name), None))
     return places
 
@@ -1076,16 +1081,24 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
     load_success, load_failure = {}, {}
     for check_path_builder in checks_places:
         check_path, manifest_path = check_path_builder(check_name)
+
+        wheel_search = bool(not check_path and not manifest_path)
         # The windows SDK function will return None,
         # so the loop should also continue if there is no path.
-        if not (check_path and os.path.exists(check_path)):
+        if not (check_path and os.path.exists(check_path)) and not wheel_search:
             continue
 
         check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path)
         if not check_is_valid:
             continue
 
-        if manifest_path:
+        if manifest_path or wheel_search:
+            if wheel_search:
+                manifest_path = os.path.join(
+                    os.path.dirname(inspect.getfile(check_class)),
+                    'manifest.json'
+                )
+
             validated = validate_sdk_check(manifest_path)
             if not validated:
                 log.warn("The SDK check (%s) was designed for a different agent core "
