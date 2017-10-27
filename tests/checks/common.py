@@ -27,14 +27,10 @@ from utils.platform import get_os
 
 log = logging.getLogger('tests')
 
-def _is_sdk():
-    # for the POC scope, let's assume it's always SDK time
-    return True
-
 def _load_sdk_module(name):
     try:
         # see whether the check was installed as a wheel package
-        return import_module("check.{}".format(name))
+        return import_module("datadog.{}".format(name))
     except ImportError:
         sdk_path = get_sdk_integrations_path(get_os())
         module_path = os.path.join(sdk_path, name)
@@ -56,14 +52,7 @@ def _load_sdk_module(name):
         return module
 
 def get_check_class(name):
-    if not _is_sdk():
-        checksd_path = get_checksd_path(get_os())
-        if checksd_path not in sys.path:
-            sys.path.append(checksd_path)
-
-        check_module = __import__(name)
-    else:
-        check_module = _load_sdk_module(name)
+    check_module = _load_sdk_module(name)
 
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
@@ -83,14 +72,7 @@ def load_class(check_name, class_name):
     """
     Retrieve a class with the given name within the given check module.
     """
-    check_module_name = check_name
-    if not _is_sdk():
-        checksd_path = get_checksd_path(get_os())
-        if checksd_path not in sys.path:
-            sys.path.append(checksd_path)
-        check_module = __import__(check_module_name)
-    else:
-        check_module = _load_sdk_module(check_name)
+    check_module = _load_sdk_module(check_name)
 
     classes = inspect.getmembers(check_module, inspect.isclass)
     for name, clsmember in classes:
@@ -101,14 +83,7 @@ def load_class(check_name, class_name):
 
 
 def load_check(name, config, agentConfig):
-    if not _is_sdk():
-        checksd_path = agentConfig.get('additional_checksd', get_checksd_path(get_os()))
-
-        # find (in checksd_path) and load the check module
-        fd, filename, desc = imp.find_module(name, [checksd_path])
-        check_module = imp.load_module(name, fd, filename, desc)
-    else:
-        check_module = _load_sdk_module(name) # parent module
+    check_module = _load_sdk_module(name) # parent module
 
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
