@@ -255,6 +255,8 @@ class SDDockerBackend(AbstractSDBackend):
                 spec = state.get_kube_container_spec(c_id)
                 if spec:
                     ports = [str(x.get('containerPort')) for x in spec.get('ports', [])]
+            else:
+                ports = [p.split('/')[0] for p in container_inspect['Config'].get('ExposedPorts', {}).keys()]
 
         ports = sorted(ports, key=int)
         return self._extract_port_from_list(ports, tpl_var)
