@@ -50,7 +50,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         win32serviceutil.ServiceFramework.__init__(self, args)
 
         AgentSvc.devnull = open(os.devnull, 'w')
-        self.config = None
+        self.config = {}
 
         try:
             self.config = get_config(parse_args=False, can_query_registry=False, allow_invalid_api_key=True)
@@ -178,7 +178,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             proc.start()
 
         # check to see if apm is enabled.
-        if self.config["apm_enabled"]:
+        if self.config.get('apm_enabled'):
             try:
                 win32serviceutil.StartService("datadog-trace-agent")
             except Exception as e:
