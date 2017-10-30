@@ -50,11 +50,12 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         win32serviceutil.ServiceFramework.__init__(self, args)
 
         AgentSvc.devnull = open(os.devnull, 'w')
+        self.config = {}
 
         try:
-            config = get_config(parse_args=False, can_query_registry=False, allow_invalid_api_key=True)
-            if config['api_key'] == 'APIKEYHERE':
-                self._update_config_file(config)
+            self.config = get_config(parse_args=False, can_query_registry=False, allow_invalid_api_key=True)
+            if self.config['api_key'] == 'APIKEYHERE':
+                self._update_config_file(self.config)
         except Exception as e:
             log.warning("Failed to get_config {}".format(str(e)))
 
@@ -86,14 +87,14 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                 "dogstatsd",
                 [embedded_python, "dogstatsd.py", "--use-local-forwarder"],
                 agent_env,
-                enabled=config.get("use_dogstatsd", True)
+                enabled=self.config.get("use_dogstatsd", True)
             ),
             'jmxfetch': JMXFetchProcess(
                 "jmxfetch",
                 [embedded_python, "jmxfetch.py"],
                 agent_env,
                 max_restarts=self._MAX_JMXFETCH_RESTARTS,
-                enabled=self._is_jmxfetch_enabled(config)
+                enabled=self._is_jmxfetch_enabled(self.config)
             ),
         }
 
@@ -175,6 +176,13 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         # Start all services.
         for proc in self.procs.values():
             proc.start()
+
+        # check to see if apm is enabled.
+        if self.config.get('apm_enabled'):
+            try:
+                win32serviceutil.StartService("datadog-trace-agent")
+            except Exception as e:
+                log.error("Unable to start AMP service %s" % str(e))
 
         # Loop to keep the service running since all DD services are
         # running in separate processes

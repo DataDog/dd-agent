@@ -361,7 +361,8 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
         'additional_checksd': '/etc/dd-agent/checks.d/',
         'bind_host': get_default_bind_host(),
         'statsd_metric_namespace': None,
-        'utf8_decoding': False
+        'utf8_decoding': False,
+        'apm_enabled': False
     }
 
     if Platform.is_mac():
@@ -607,6 +608,11 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
         agentConfig["gce_updated_hostname"] = False
         if config.has_option("Main", "gce_updated_hostname"):
             agentConfig["gce_updated_hostname"] = _is_affirmative(config.get("Main", "gce_updated_hostname"))
+
+        # APM config
+        agentConfig["apm_enabled"] = False
+        if config.has_option("Main", "apm_enabled"):
+            agentConfig["apm_enabled"] = _is_affirmative(config.get("Main", "apm_enabled"))
 
     except ConfigParser.NoSectionError as e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
