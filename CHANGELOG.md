@@ -1,6 +1,17 @@
 Changes
 =======
 
+# 5.18.2 / 10-31-2017
+**Linux, Docker and Source Install**
+
+### Details
+This release includes bugfixes for `process-agent` only - please check
+their respective changelogs for more details.
+https://github.com/DataDog/dd-agent/compare/5.18.1...5.18.2
+
+### Changes
+Please refer to the [Process Agent 5.18.2 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.18.2) for more information on the Process Agent.
+
 # 5.18.1 / 10-13-2017
 **Linux, Docker and Source Install**
 
