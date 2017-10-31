@@ -480,7 +480,7 @@ class KubeUtil:
             meta['kubelet_version'] = version[1:]
         except Exception as ex:
             log.debug("Error getting Kubelet version: %s" % str(ex))
-            
+
         return meta
 
 
@@ -496,7 +496,7 @@ class KubeUtil:
             _, node_name = self.get_node_info()
             if not node_name:
                 raise ValueError("node name missing or empty")
-            
+
             request_url = "%s/nodes/%s" % (self.kubernetes_api_url, node_name)
             node_info = self.retrieve_json_auth(request_url).json()
             node_labels = node_info.get('metadata', {}).get('labels', {})
@@ -548,6 +548,10 @@ class KubeUtil:
             tags.append('node_name:%s' % event['source']['host'])
         if 'kind' in event.get('involvedObject', {}):
             tags.append('object_type:%s' % event['involvedObject'].get('kind', '').lower())
+        if 'name' in event.get('involvedObject', {}):
+            tags.append('object_name:%s' % event['involvedObject'].get('name','').lower())
+        if 'component' in event.get('source', {}):
+            tags.append('source_component:%s' % event['source'].get('component','').lower())
 
         return tags
 
