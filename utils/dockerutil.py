@@ -292,21 +292,26 @@ class DockerUtil:
 
         return self._default_gateway
 
-    def get_host_tags(self):
-        tags = []
+    def get_host_metadata(self):
+        """
+        Returns swarm state and docker version for the local host
+        """
+        meta = {}
         if not self.client:
-            log.warning("Docker client is not initialized, host tags will be missing.")
-            return tags
+            log.warning("Docker client is not initialized, host metadata will be missing.")
+            return meta
         version = self.client.version()
         if version and 'Version' in version:
-            tags.append('docker_version:%s' % version['Version'])
+            meta['docker_version'] = version['Version']
         else:
             log.debug("Could not determine Docker version")
 
         if self.is_swarm():
-            tags.append('docker_swarm:active')
+            meta['docker_swarm'] = 'active'
+        else:
+            meta['docker_swarm'] = 'inactive'
 
-        return tags
+        return meta
 
     def set_docker_settings(self, init_config, instance):
         """Update docker settings"""

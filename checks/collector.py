@@ -650,6 +650,12 @@ class Collector(object):
             payload['systemStats'] = get_system_stats(
                 proc_path=self.agentConfig.get('procfs_path', '/proc').rstrip('/')
             )
+
+            if self.agentConfig['collect_orchestrator_tags']:
+                host_container_metadata = MetadataCollector().get_host_metadata()
+                if host_container_metadata:
+                    payload['container-meta'] = host_container_metadata
+
             payload['meta'] = self._get_hostname_metadata()
 
             self.hostname_metadata_cache = payload['meta']

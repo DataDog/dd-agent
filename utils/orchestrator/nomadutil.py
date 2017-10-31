@@ -77,18 +77,18 @@ class NomadUtil(BaseUtil):
 
         return nomad_url
 
-    def get_host_tags(self):
-        tags = []
+    def get_host_metadata(self):
+        meta = {}
         if self.agent_url:
             try:
                 resp = requests.get(self.agent_url, timeout=1).json().get('config', {})
                 if "Version" in resp:
-                    tags.append('nomad_version:%s' % resp.get("Version"))
+                    meta['nomad_version'] = resp.get("Version")
                 if "Region" in resp:
-                    tags.append('nomad_region:%s' % resp.get("Region"))
+                    meta['nomad_region'] = resp.get("Region")
                 if "Datacenter" in resp:
-                    tags.append('nomad_datacenter:%s' % resp.get("Datacenter"))
-            except Exception as e:
-                self.log.debug("Error getting Nomad version: %s" % str(e))
+                    meta['nomad_datacenter'] = resp.get("Datacenter")
+            except Exception as ex:
+                self.log.debug("Error getting Nomad version: %s" % str(ex))
 
-        return tags
+        return meta
