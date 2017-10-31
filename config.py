@@ -843,7 +843,7 @@ def _get_check_module(check_name, check_path, from_site=False):
     traceback_message = None
     if from_site:
         try:
-            check_module = import_module("datadog.{}.{}".format(check_name, check_name))
+            check_module = import_module("datadog.{}".format(check_name))
         except ImportError as e:
             error = e
             log.exception('Unable to import check module %s from site-packages' % check_name)
@@ -1102,8 +1102,12 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
         if not (check_path and os.path.exists(check_path)) and not is_wheel:
             continue
 
+        prev_failures = bool(load_failure)
         check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path, from_site=is_wheel)
         if not check_is_valid:
+            load_error = load_failure.get(check_name, {}).get('error')
+            if is_wheel and not prev_failures and isinstance(load_error, ImportError):
+                load_failure = {}
             continue
 
         if manifest_path or is_wheel:

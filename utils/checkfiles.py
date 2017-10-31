@@ -39,7 +39,7 @@ def get_check_class(agentConfig, check_name):
     checks_places = get_checks_places(osname, agentConfig)
     for check_path_builder in checks_places:
         check_path, _ = check_path_builder(check_name)
-        if not os.path.exists(check_path):
+        if not check_path or not os.path.exists(check_path):
             continue
 
         check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path)
