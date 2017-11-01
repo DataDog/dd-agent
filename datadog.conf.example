@@ -60,7 +60,7 @@ api_key:
 # In developer mode, disable profiling altogether, but still collect fine-grained agent metrics
 # allow_profiling: False
 
-# use unique hostname for GCE hosts, see http://dtdg.co/1eAynZk
+# use unique hostname for GCE hosts, see http://dtdg.co/2h3Bjpd
 # when not specified, default: no
 gce_updated_hostname: yes
 
