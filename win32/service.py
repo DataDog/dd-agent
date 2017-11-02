@@ -43,6 +43,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "DatadogAgent"
     _svc_display_name_ = "Datadog Agent"
     _svc_description_ = "Sends metrics to Datadog"
+    _svc_deps_ = ["datadog-trace-agent"]
     _MAX_JMXFETCH_RESTARTS = 3
     devnull = None
 
