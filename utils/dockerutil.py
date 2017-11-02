@@ -524,7 +524,7 @@ class DockerUtil:
         docker_image = self.image_name_extractor(co)
         image_name_array = self.image_tag_extractor(co, 0)
         image_tag_array = self.image_tag_extractor(co, 1)
-        labels_as_tags = self.label_extractor(co, labels_as_tags)
+        label_tags = self.label_extractor(co, labels_as_tags)
 
         if docker_image:
             tags.append('docker_image:%s' % docker_image)
@@ -532,8 +532,8 @@ class DockerUtil:
             tags.append('image_name:%s' % image_name_array[0])
         if image_tag_array and len(image_tag_array) > 0:
             tags.append('image_tag:%s' % image_tag_array[0])
-        if labels_as_tags:
-            tags += labels_as_tags
+        if label_tags:
+            tags += label_tags
         return tags
 
     def image_tag_extractor(self, entity, key):
