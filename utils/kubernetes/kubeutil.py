@@ -40,6 +40,9 @@ CREATOR_KIND_TO_TAG = {
 DEFAULT_INIT_RETRIES = 0
 DEFAULT_RETRY_INTERVAL = 20  # seconds
 
+# Taken from https://github.com/kow3ns/kubernetes/blob/96067e6d7b24a05a6a68a0d94db622957448b5ab/staging/src/k8s.io/apimachinery/pkg/util/rand/rand.go#L76
+ALLOWED_ENCODESTRING_ALPHANUMS = "bcdfghjklmnpqrstvwxz2456789"
+
 
 def detect_is_k8s():
     """
@@ -374,9 +377,21 @@ class KubeUtil:
         https://github.com/kubernetes/kubernetes/blob/release-1.6/pkg/controller/deployment/sync.go#L299
         But it might change in a future k8s version. The other way to match RS and deployments is
         to parse and cache /apis/extensions/v1beta1/replicasets, mirroring PodServiceMapper
+        In 1.8, the hash generation logic changed: https://github.com/kubernetes/kubernetes/pull/51538/files
+
+        As we are matching both patterns without checking the apiserver version, we might have
+        some false positives. For agent6, we plan on doing this pod->replicaset->deployment matching
+        in the cluster agent, with replicaset data from the apiserver. This will address that risk.
         """
         end = rs_name.rfind("-")
         if end > 0 and rs_name[end + 1:].isdigit():
+            # k8s before 1.8
+            return rs_name[0:end]
+        if end > 0 and len(rs_name[end + 1:]) == 10:
+            # k8s 1.8+ maybe? Check contents
+            for char in rs_name[end + 1:]:
+                if char not in ALLOWED_ENCODESTRING_ALPHANUMS:
+                    return None
             return rs_name[0:end]
         else:
             return None
