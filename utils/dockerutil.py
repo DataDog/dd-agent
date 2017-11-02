@@ -611,6 +611,8 @@ class DockerUtil:
         """Returns a list of tags based on a container and a label name list"""
         tags = []
         labels = ctr.get('Config', {}).get('Labels', {})
+        if not labels:
+            return tags
         for lbl_name, lbl_val in labels.iteritems():
             if lbl_name in lbl_to_tags:
                 tags.append('{}:{}'.format(lbl_name, lbl_val))
