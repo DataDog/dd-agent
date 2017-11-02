@@ -513,16 +513,18 @@ class DockerUtil:
 
         raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
-    def extract_container_tags(self, co):
+    def extract_container_tags(self, co, labels_as_tags):
         """
         Retrives docker_image, image_name and image_tag tags as a list for a
         container. If the container or image is invalid, will gracefully
-        return an empty list
+        return an empty list.
+        Also extract container labels on demand.
         """
         tags = []
         docker_image = self.image_name_extractor(co)
         image_name_array = self.image_tag_extractor(co, 0)
         image_tag_array = self.image_tag_extractor(co, 1)
+        labels_as_tags = self.label_extractor(co, labels_as_tags)
 
         if docker_image:
             tags.append('docker_image:%s' % docker_image)
@@ -530,6 +532,8 @@ class DockerUtil:
             tags.append('image_name:%s' % image_name_array[0])
         if image_tag_array and len(image_tag_array) > 0:
             tags.append('image_tag:%s' % image_tag_array[0])
+        if labels_as_tags:
+            tags += labels_as_tags
         return tags
 
     def image_tag_extractor(self, entity, key):
@@ -602,6 +606,15 @@ class DockerUtil:
                 log.error("Exception getting docker image name: %s" % str(ex))
         else:
             return image
+
+    def label_extractor(self, ctr, lbl_to_tags):
+        """Returns a list of tags based on a container and a label name list"""
+        tags = []
+        labels = ctr.get('Config', {}).get('Labels', {})
+        for lbl_name, lbl_val in labels.iteritems():
+            if lbl_name in lbl_to_tags:
+                tags.append('{}:{}'.format(lbl_name, lbl_val))
+        return tags
 
     @classmethod
     def container_name_extractor(cls, co):
