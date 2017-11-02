@@ -717,11 +717,12 @@ def check_yaml_syntax(content):
 def service_manager(action):
     try:
         if action == 'stop':
-            win32serviceutil.StopService(DATADOG_SERVICE)
+            win32serviceutil.StopServiceWithDeps(DATADOG_SERVICE)
         elif action == 'start':
             win32serviceutil.StartService(DATADOG_SERVICE)
         elif action == 'restart':
-            win32serviceutil.RestartService(DATADOG_SERVICE)
+            win32serviceutil.StopServiceWithDeps(DATADOG_SERVICE)
+            win32serviceutil.StartService(DATADOG_SERVICE)
     except Exception as e:
         warning_popup("Couldn't %s service: \n %s" % (action, str(e)))
 
