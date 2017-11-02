@@ -38,10 +38,10 @@ class BaseUtil:
 
         # Tags cache as a dict {co_id: [tags]}
         self._container_tags_cache = {}
-    
+
     def _get_cacheable_tags(self, cid, co):
         raise NotImplementedError()
-    
+
     def get_host_tags(self):
         return []
 
