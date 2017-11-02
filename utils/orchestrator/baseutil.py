@@ -22,8 +22,8 @@ class BaseUtil:
       - _get_transient_tags: tags can change and won't be cached (TODO)
       - invalidate_cache: custom cache invalidation logic
       - is_detected (staticmethod)
-      - get_host_tags: list of tags that are applied to the host in Datadog
-      - get_host_metadata: dict of container-related host metadata (typically node labels)
+      - get_host_tags: list of tags that are applied to the host in Datadog (typically node labels)
+      - get_host_metadata: dict of container-related host metadata
     """
     __metaclass__ = Singleton
 
