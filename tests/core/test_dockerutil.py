@@ -72,7 +72,7 @@ class TestDockerUtil(unittest.TestCase):
         self.assertEqual('alpine', du.image_name_extractor(co))
 
     def test_extract_container_tags(self):
-        test_data = [
+        no_label_test_data = [
             # Nominal case
             [{'Image': 'redis:3.2'}, ['docker_image:redis:3.2', 'image_name:redis', 'image_tag:3.2']],
             # No tag
@@ -80,8 +80,64 @@ class TestDockerUtil(unittest.TestCase):
             # No image
             [{}, []],
         ]
-        for test in test_data:
-            self.assertEqual(test[1], DockerUtil().extract_container_tags(test[0]))
+        labeled_test_data = [
+            # No labels
+            (
+                # ctr inspect
+                {
+                    'Image': 'redis:3.2',
+                    'Config': {
+                        'Labels': {}
+                    }
+                },
+                # labels as tags
+                [],
+                # expected result
+                ['docker_image:redis:3.2', 'image_name:redis', 'image_tag:3.2']
+            ),
+            # Un-monitored labels
+            (
+                {
+                    'Image': 'redis:3.2',
+                    'Config': {
+                        'Labels': {
+                            'foo': 'bar'
+                        }
+                    }
+                },
+                [],
+                ['docker_image:redis:3.2', 'image_name:redis', 'image_tag:3.2']
+            ),
+            # no labels, with labels_as_tags list
+            (
+                {
+                    'Image': 'redis:3.2',
+                    'Config': {
+                        'Labels': {}
+                    }
+                },
+                ['foo'],
+                ['docker_image:redis:3.2', 'image_name:redis', 'image_tag:3.2']
+            ),
+            # labels and labels_as_tags list
+            (
+                {
+                    'Image': 'redis:3.2',
+                    'Config': {
+                        'Labels': {'foo': 'bar', 'f00': 'b4r'}
+                    }
+                },
+                ['foo'],
+                ['docker_image:redis:3.2', 'image_name:redis', 'image_tag:3.2', 'foo:bar']
+            ),
+
+        ]
+        for test in no_label_test_data:
+            self.assertEqual(test[1], DockerUtil().extract_container_tags(test[0], []))
+
+        for test in labeled_test_data:
+            self.assertEqual(test[2], DockerUtil().extract_container_tags(test[0], test[1]))
+
 
     def test_docker_host_tags_ok(self):
         mock_version = mock.MagicMock(name='version', return_value={'Version': '1.13.1'})
