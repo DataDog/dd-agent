@@ -108,7 +108,7 @@ gce_updated_hostname: yes
 
 # ========================================================================== #
 # Service Discovery                                                          #
-# See http://docs.datadoghq.com/guides/servicediscovery/ for details #
+# See https://docs.datadoghq.com/guides/autodiscovery/ for details #
 # ========================================================================== #
 #
 # Service discovery allows the agent to look for running services
@@ -140,6 +140,17 @@ gce_updated_hostname: yes
 #
 # Enable JMX checks for service discovery
 # sd_jmx_enable: no
+#
+# Docker labels as tags
+# We can extract docker labels and add them as tags to all metrics reported by service discovery.
+# All you have to do is supply a comma-separated list of label names to extract from containers when found.
+# Note: these tags won't be applied to docker metrics, only service discovery metrics.
+# For applying labels to docker metrics, refer to https://github.com/DataDog/integrations-core/blob/bfdb3b0cf34ca6b6c92cc0e467a4f343e7f96ff2/docker_daemon/conf.yaml.example#L187-L190
+#
+# docker_labels_as_tags: label_name
+#
+# Example:
+# docker_labels_as_tags: com.docker.compose.service, com.docker.compose.project
 #
 # ========================================================================== #
 # Other                                                                      #

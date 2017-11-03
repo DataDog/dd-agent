@@ -107,6 +107,13 @@ class SDDockerBackend(AbstractSDBackend):
             'tags': self._get_additional_tags,
         }
 
+        # docker labels we'll add as tags to all instances SD configures
+        self.docker_labels_as_tags = agentConfig.get('docker_labels_as_tags', '')
+        if self.docker_labels_as_tags:
+            self.docker_labels_as_tags = [label.strip() for label in self.docker_labels_as_tags.split(',')]
+        else:
+            self.docker_labels_as_tags = []
+
         AbstractSDBackend.__init__(self, agentConfig)
 
     def _make_fetch_state(self):
@@ -288,7 +295,7 @@ class SDDockerBackend(AbstractSDBackend):
     def get_tags(self, state, c_id):
         """Extract useful tags from docker or platform APIs. These are collected by default."""
         c_inspect = state.inspect_container(c_id)
-        tags = self.dockerutil.extract_container_tags(c_inspect)
+        tags = self.dockerutil.extract_container_tags(c_inspect, self.docker_labels_as_tags)
 
         if Platform.is_k8s():
             if not self.kubeutil.init_success:
