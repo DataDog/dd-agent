@@ -13,7 +13,7 @@ from utils.singleton import Singleton
 
 class BaseUtil:
     """
-    Base class for orchestrator utils. Only handles container tags for now.
+    Base class for orchestrator utils. Handles container tags and host metadata.
     Users should go through the orchestrator.Tagger class to simplify the code
 
     Children classes can implement:
@@ -22,6 +22,8 @@ class BaseUtil:
       - _get_transient_tags: tags can change and won't be cached (TODO)
       - invalidate_cache: custom cache invalidation logic
       - is_detected (staticmethod)
+      - get_host_tags: list of tags that are applied to the host in Datadog (typically node labels)
+      - get_host_metadata: dict of container-related host metadata
     """
     __metaclass__ = Singleton
 
@@ -36,6 +38,15 @@ class BaseUtil:
 
         # Tags cache as a dict {co_id: [tags]}
         self._container_tags_cache = {}
+
+    def _get_cacheable_tags(self, cid, co):
+        raise NotImplementedError()
+
+    def get_host_tags(self):
+        return []
+
+    def get_host_metadata(self):
+        return {}
 
     def get_container_tags(self, cid=None, co=None):
         """

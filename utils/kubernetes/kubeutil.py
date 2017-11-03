@@ -466,24 +466,25 @@ class KubeUtil:
             self._fetch_host_data()
         return self._node_ip, self._node_name
 
-    def get_node_hosttags(self):
-        tags = []
+    def get_node_metadata(self):
+        """Returns host metadata about the local k8s node"""
+        meta = {}
 
         # API server version
         try:
             request_url = "%s/version" % self.kubernetes_api_root_url
             master_info = self.retrieve_json_auth(request_url).json()
             version = master_info.get("gitVersion")
-            tags.append("kube_master_version:%s" % version[1:])
-        except Exception as e:
+            meta['kube_master_version'] = version[1:]
+        except Exception as ex:
             # Intentional use of non-safe lookups to get the exception in the debug logs
             # if the parsing were to fail
-            log.debug("Error getting Kube master version: %s" % str(e))
+            log.debug("Error getting Kube master version: %s" % str(ex))
 
         # Kubelet version & labels
         if not self.init_success:
             log.warning("Kubelet client failed to initialize, kubelet host tags will be missing for now.")
-            return tags
+            return meta
         try:
             _, node_name = self.get_node_info()
             if not node_name:
@@ -491,15 +492,36 @@ class KubeUtil:
             request_url = "%s/nodes/%s" % (self.kubernetes_api_url, node_name)
             node_info = self.retrieve_json_auth(request_url).json()
             version = node_info.get("status").get("nodeInfo").get("kubeletVersion")
-            tags.append("kubelet_version:%s" % version[1:])
+            meta['kubelet_version'] = version[1:]
+        except Exception as ex:
+            log.debug("Error getting Kubelet version: %s" % str(ex))
 
+        return meta
+
+
+    def get_node_hosttags(self):
+        """
+        Returns node labels as tags. Tag name is transformed as defined
+        in node_labels_to_host_tags in the kubernetes check configuration.
+        Note: queries the API server for node info. Configure RBAC accordingly.
+        """
+        tags = []
+
+        try:
+            _, node_name = self.get_node_info()
+            if not node_name:
+                raise ValueError("node name missing or empty")
+
+            request_url = "%s/nodes/%s" % (self.kubernetes_api_url, node_name)
+            node_info = self.retrieve_json_auth(request_url).json()
             node_labels = node_info.get('metadata', {}).get('labels', {})
+
             for l_name, t_name in self.kube_node_labels.iteritems():
                 if l_name in node_labels:
                     tags.append('%s:%s' % (t_name, node_labels[l_name]))
 
-        except Exception as e:
-            log.debug("Error getting Kubelet version: %s" % str(e))
+        except Exception as ex:
+            log.debug("Error getting node labels: %s" % str(ex))
 
         return tags
 
