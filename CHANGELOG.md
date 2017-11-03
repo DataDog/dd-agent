@@ -5,24 +5,29 @@ Changes
 **Linux, Windows, Docker and Source Install**
 
 _Windows released on 11-03-2017_
+
 _Linux, Docker and Source Install not released yet_
 
 ### Details
 
 This release includes:
 
-* the `trace-agent` on Windows, as a Beta feature, and related changes on the Windows service management.
+* the `trace-agent` on Windows, as a Beta feature, and related changes on the Windows service management
 * features and bugfixes for the `trace-agent` and `process-agent` on Linux, Docker and Source Install - please check
-their respective changelogs for more details.
+their respective changelogs for more details
+* changes on Autodiscovery & container support
 
 https://github.com/DataDog/dd-agent/compare/5.18.1...5.19.0
 
 ### Changes
 Please refer to the [Trace Agent 5.19.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.19.0) for the list of changes on the Trace Agent.
+
 Please refer to the [Process Agent 5.19.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.19.0) for more information on the Process Agent.
 
+* [FEATURE] Autodiscovery: Add docker labels as tags in autodiscovery. See [#3564][]
 * [FEATURE] Windows: Enable the apm service based on the configuration file. See [#3554][]
 * [FEATURE] Windows: Include the trace agent as part of the Datadog Agent. See [dd-agent-omnibus-203](https://github.com/DataDog/dd-agent-omnibus/pull/203) & [dd-agent-omnibus-204](https://github.com/DataDog/dd-agent-omnibus/pull/204)
+* [IMPROVEMENT] Switch most of container host tags to host metadata. See [#3557][]
 * [IMPROVEMENT] Windows: Tighten permissions on `datadog.conf` to only be readable by admins and local system. See [dd-agent-omnibus-202](https://github.com/DataDog/dd-agent-omnibus/pull/202)
 
 # 5.18.1 / 10-13-2017
@@ -4487,6 +4492,8 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3537]: https://github.com/DataDog/dd-agent/issues/3537
 [#3538]: https://github.com/DataDog/dd-agent/issues/3538
 [#3554]: https://github.com/DataDog/dd-agent/issues/3554
+[#3557]: https://github.com/DataDog/dd-agent/issues/3557
+[#3564]: https://github.com/DataDog/dd-agent/issues/3564
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
