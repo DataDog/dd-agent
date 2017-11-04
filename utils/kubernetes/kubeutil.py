@@ -107,6 +107,7 @@ class KubeUtil:
         self.method = instance.get('method', KubeUtil.DEFAULT_METHOD)
         self._node_ip = self._node_name = None  # lazy evaluation
         self.host_name = os.environ.get('HOSTNAME')
+        self.pod_name = os.environ.get('KUBERNETES_POD_NAME') or self.host_name
         self.tls_settings = self._init_tls_settings(instance)
 
         # apiserver
@@ -275,7 +276,7 @@ class KubeUtil:
     def get_self_namespace(self):
         pods = self.retrieve_pods_list()
         for pod in pods.get('items', []):
-            if pod.get('metadata', {}).get('name') == self.host_name:
+            if pod.get('metadata', {}).get('name') == self.pod_name:
                 return pod['metadata']['namespace']
         log.warning("Couldn't find the agent pod and namespace, using the default.")
         return DEFAULT_NAMESPACE
@@ -541,7 +542,7 @@ class KubeUtil:
         for pod in pod_items:
             metadata = pod.get("metadata", {})
             name = metadata.get("name")
-            if name == self.host_name:
+            if name == self.pod_name:
                 status = pod.get('status', {})
                 spec = pod.get('spec', {})
                 # if not found, use an empty string - we use None as "not initialized"
