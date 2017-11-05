@@ -614,9 +614,9 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
         if config.has_option("Main", "apm_enabled"):
             agentConfig["apm_enabled"] = _is_affirmative(config.get("Main", "apm_enabled"))
 
-        agentConfig["disable_gohai"] = False
+        agentConfig["enable_gohai"] = True
         if config.has_option("Main", "disable_gohai"):
-            agentConfig["disable_gohai"] = _is_affirmative(config.get("Main", "disable_gohai"))
+            agentConfig["enable_gohai"] = _is_affirmative(config.get("Main", "disable_gohai"))
 
     except ConfigParser.NoSectionError as e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
