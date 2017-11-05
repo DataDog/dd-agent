@@ -27,6 +27,9 @@ api_key:
 # Enable the trace agent.
 # apm_enabled: false
 
+# Disable gohai metadata collection
+# disable_gohai: false
+
 # Set the host's tags (optional)
 # tags: mytag, env:prod, role:database
 
