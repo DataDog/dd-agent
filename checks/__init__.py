@@ -870,6 +870,9 @@ class AgentCheck(object):
             check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
         return check, config.get('instances', [])
 
+    def normalize_device_name(self, device_name):
+        return re.sub(r"[,\@\+\*\-\()\[\]{}\s]", "_", device_name)
+
     def normalize(self, metric, prefix=None, fix_case=False):
         """
         Turn a metric into a well-formed metric name
