@@ -806,7 +806,7 @@ class Collector(object):
 
     def _run_gohai(self, options):
         # Gohai is disabled on Mac for now
-        if Platform.is_mac():
+        if Platform.is_mac() or not self.agentConfig.get('enable_gohai'):
             return None
         output = None
         try:
