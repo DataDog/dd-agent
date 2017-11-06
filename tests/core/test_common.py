@@ -119,7 +119,9 @@ class TestCore(unittest.TestCase):
 
         self.assertEqual(self.ac.normalize("PauseTotalNs", "prefix", fix_case = True), "prefix.pause_total_ns")
         self.assertEqual(self.ac.normalize("Metric.wordThatShouldBeSeparated", "prefix", fix_case = True), "prefix.metric.word_that_should_be_separated")
+        self.assertEqual(self.ac.normalize_device_name("//device@name"), "//device_name")
 
+        
     def test_service_check(self):
         check_name = 'test.service_check'
         status = AgentCheck.CRITICAL
