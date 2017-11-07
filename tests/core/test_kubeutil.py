@@ -34,6 +34,14 @@ class KubeTestCase(unittest.TestCase):
         json_array = cls._load_json_array(names)
         return map(lambda x: MockResponse(x, 200), json_array)
 
+class TestKubeUtilInit(KubeTestCase):
+    @patch.dict(os.environ, {'KUBERNETES_POD_NAME': 'test'})
+    def test_pod_name(self):
+        with patch.object(KubeUtil, '_locate_kubelet', return_value='http://localhost:10255'):
+            kube = KubeUtil()
+            kube.__init__()
+            self.assertEqual('test', kube.pod_name)
+
 class TestKubeUtilDeploymentTag(KubeTestCase):
     def test_deployment_name_nominal(self):
         self.assertEqual('frontend', self.kube.get_deployment_for_replicaset('frontend-2891696001'))
