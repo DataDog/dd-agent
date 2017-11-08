@@ -6,7 +6,7 @@ Changes
 
 _Windows released on 11-03-2017_
 
-_Linux, Docker and Source Install not released yet_
+_Linux, Docker and Source Install released on 11-08-2017_
 
 ### Details
 
@@ -16,10 +16,13 @@ This release includes:
 * features and bugfixes for the `trace-agent` and `process-agent` on Linux, Docker and Source Install - please check
 their respective changelogs for more details
 * changes on Autodiscovery & container support
+* bugfixes on some core checks
 
 https://github.com/DataDog/dd-agent/compare/5.18.1...5.19.0
 
 ### Changes
+Please refer to the [Integrations Core Checks 5.19.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.19.0) for the list of changes on the core checks.
+
 Please refer to the [Trace Agent 5.19.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.19.0) for the list of changes on the Trace Agent.
 
 Please refer to the [Process Agent 5.19.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.19.0) for more information on the Process Agent.
