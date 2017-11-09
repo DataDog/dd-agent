@@ -78,5 +78,5 @@ how to use it on our [Guide to Agent Checks](http://docs.datadoghq.com/guides/ag
 # Contributors
 
 ```bash
-git log --all | gawk '/Author/ {print}' | sort | uniq
+git log --all | grep 'Author' | sort -u
 ```
