@@ -735,7 +735,7 @@ def restartServiceWithDeps(serviceName):
                     for restart_dep in stopped_deps:
                         try:
                             win32serviceutil.StartService(restart_dep)
-                        except:
+                        except Exception:
                             # this is best effort, just continue restarting
                             pass
                     raise
@@ -746,16 +746,16 @@ def restartServiceWithDeps(serviceName):
         hs = win32service.OpenService(hscm, serviceName, win32service.SERVICE_ALL_ACCESS)
         try:
             win32serviceutil.__StopServiceWithTimeout(hs)
-        except:
+        except Exception:
             # if this fails to stop, then restart the dependent services we
             # already stopped.
             for restart_dep in stopped_deps:
                 try:
                     win32serviceutil.StartService(restart_dep)
-                except:
+                except Exception:
                     # this is best effort, just continue restarting
                     pass
-                raise
+            raise
         finally:
             win32service.CloseServiceHandle(hs)
     finally:
