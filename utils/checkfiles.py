@@ -103,7 +103,7 @@ def get_auto_conf_images(full_tpl=False):
                 log.error("Unable to load the auto-config, yaml file.\n%s" % str(e))
                 auto_conf = {}
             # extract the supported image list
-            images = auto_conf.get('docker_images', [])
+            images = auto_conf.get('ad_identifiers', auto_conf.get('docker_images', []))
             for image in images:
                 if full_tpl:
                     init_tpl = auto_conf.get('init_config') or {}
