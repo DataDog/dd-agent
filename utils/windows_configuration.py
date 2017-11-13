@@ -44,7 +44,12 @@ def get_registry_conf(agentConfig):
                 if option != '':
                     registry_conf[attribute] = option
     except (ImportError, WindowsError) as e:
-        log.error('Unable to get config keys from Registry: %s', e)
+        # don't log this as an error.  Since the keys are deleted after
+        # they're used, they're almost certain to not be there.
+        # however, log as `info` so it will show by default after install
+        # (i.e. before user has had a chance to change the config file)
+        # so it can be seen if necessary
+        log.info('Unable to get config keys from Registry (this is probably OK): %s', e)
 
     return registry_conf
 
@@ -87,7 +92,9 @@ def get_sdk_integration_paths():
                 except WindowsError as e:
                     log.error('Unable to get keys from Registry for %s: %s', integration_name, e)
     except WindowsError as e:
-        log.error('Unable to get config keys from Registry: %s', e)
+        # don't log this as an error.  Unless someone has installed a standalone
+        # integration, this key won't be present.
+        log.debug('Unable to get config keys from Registry: %s', e)
 
     return integrations
 
