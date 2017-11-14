@@ -1,10 +1,5 @@
 sudo: false
 
-branches:
-  only:
-    - master
-    - /^\d+\.\d+\.x$/ # release forked patches branch
-
 language: python
 python:
   - "2.7"
@@ -29,14 +24,6 @@ env:
     - DD_CASHER_DIR=/tmp/casher
   matrix:
     - TRAVIS_FLAVOR=default
-    - TRAVIS_FLAVOR=checks_mock
-
-matrix:
-  include:
-    - python: 2.7
-      sudo: required
-      services: docker
-      env: TRAVIS_FLAVOR=core_integration
 
 # Override travis defaults with empty jobs
 before_install:
@@ -51,7 +38,10 @@ script:
   # Needed if no cache exists
   - mkdir -p $INTEGRATIONS_DIR
   - ls -al $INTEGRATIONS_DIR
-  - bundle exec rake ci:run
+  - pip install -r requirements.txt
+  - mv datadog.conf.example datadog.conf
+  - "echo 'api_key: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' >> datadog.conf"
+  - nosetests -v tests/core/test_dogstatsd.py:TestServer.test_connection_v4
   - ls -al $INTEGRATIONS_DIR
 
 

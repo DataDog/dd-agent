@@ -103,14 +103,15 @@ class TestServer(TestCase):
         self.assertFalse(s2.running)
 
     def _get_socket(self, addr, port):
-        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        sock.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
+        sock = socket.socket()
+        # sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        # sock.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
         sock.bind((addr, port))
         return sock
 
     def test_connection_v4(self):
         # start the server with a v4 mapped address
-        sock = self._get_socket('::ffff:127.0.0.1', 12345)
+        sock = self._get_socket('127.0.0.1', 12345)
         results = Queue.Queue()
 
         def listen():
