@@ -267,10 +267,37 @@ class PrometheusCheck(AgentCheck):
         """
         content_type, data = self.poll(endpoint)
         tags = []
+        self.pre_processed = {}
         if instance is not None:
             tags = instance.get('tags', [])
+        if self.enable_pre_processing:
+            for metric in self.parse_metric_family(data, content_type):
+                self.pre_process_metric(metric, send_histograms_buckets=send_histograms_buckets, custom_tags=tags, instance=instance)
+
         for metric in self.parse_metric_family(data, content_type):
             self.process_metric(metric, send_histograms_buckets=send_histograms_buckets, custom_tags=tags, instance=instance)
+
+    def pre_process_metric(self, message, send_histograms_buckets=True, custom_tags=None, **kwargs):
+        """
+        Handle a prometheus metric message according to the following flow:
+            - search self.meta_metrics_mapper for a prometheus.metric <--> datadog.metric mapping
+            - if not in self.meta_metrics_mapper check method named meta_ + metric_name
+            - add the processed metric in pre_processed
+
+        `send_histograms_buckets` is used to specify if yes or no you want to send the buckets as tagged values when dealing with histograms.
+        """
+        # pre_processed is used to process meta_metrics_mapper first.
+
+        meta_metric_name = 'meta_' + message.name
+        try:
+            if message.name in self.meta_metrics_mapper:
+                self.pre_processed[message.name] = self.meta_metrics_mapper[message.name]
+                self._submit_metric(self.meta_metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
+            elif message.name:
+                getattr(self, meta_metric_name)(message, **kwargs)
+
+        except AttributeError as err:
+            self.log.debug("Unable to handle meta_metric: {} - error: {}".format(message.name, err))
 
     def process_metric(self, message, send_histograms_buckets=True, custom_tags=None, **kwargs):
         """
@@ -284,11 +311,9 @@ class PrometheusCheck(AgentCheck):
         try:
             if message.name in self.ignore_metrics:
                 return  # Ignore the metric
-            if message.name in self.meta_metrics_mapper:
-                self._submit_metric(self.meta_metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
-            if message.name in self.metrics_mapper:
+            if message.name in self.metrics_mapper and self.metrics_mapper[message.name] not in self.pre_processed.values():
                 self._submit_metric(self.metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
-            elif message.name not in self.meta_metrics_mapper:
+            elif message.name:
                 getattr(self, message.name)(message, **kwargs)
         except AttributeError as err:
             self.log.debug("Unable to handle metric: {} - error: {}".format(message.name, err))
