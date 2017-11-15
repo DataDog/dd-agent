@@ -56,6 +56,13 @@ class PrometheusCheck(AgentCheck):
         # skipped without a 'Unable to handle metric' debug line in the logs
         self.ignore_metrics = []
 
+        # After kube-state 1.1.0, new metrics were added that overlap with the current ones.
+        # They often contain the same information in the gauge but the new value is in the tags
+        # i.e. kube_pod_container_status_waiting_reason is similar to kube_pod_container_status_waiting
+        # we want to comply with all kube-state versions and be backward compatible.
+        # If it exists, the new metadata is added as a tag to the old metrics name.
+        self.meta_metrics_mapper = {}
+
         # If the `labels_mapper` dictionnary is provided, the metrics labels names
         # in the `labels_mapper` will use the corresponding value as tag name
         # when sending the gauges.
@@ -277,9 +284,11 @@ class PrometheusCheck(AgentCheck):
         try:
             if message.name in self.ignore_metrics:
                 return  # Ignore the metric
+            if message.name in self.meta_metrics_mapper:
+                self._submit_metric(self.meta_metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
             if message.name in self.metrics_mapper:
                 self._submit_metric(self.metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
-            else:
+            elif message.name not in self.meta_metrics_mapper:
                 getattr(self, message.name)(message, **kwargs)
         except AttributeError as err:
             self.log.debug("Unable to handle metric: {} - error: {}".format(message.name, err))
