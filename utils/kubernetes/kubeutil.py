@@ -388,7 +388,7 @@ class KubeUtil:
         if end > 0 and rs_name[end + 1:].isdigit():
             # k8s before 1.8
             return rs_name[0:end]
-        if end > 0 and len(rs_name[end + 1:]) == 10:
+        if end > 0 and len(rs_name[end + 1:]) > 2:
             # k8s 1.8+ maybe? Check contents
             for char in rs_name[end + 1:]:
                 if char not in ALLOWED_ENCODESTRING_ALPHANUMS:
