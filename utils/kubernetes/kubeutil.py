@@ -380,9 +380,13 @@ class KubeUtil:
         to parse and cache /apis/extensions/v1beta1/replicasets, mirroring PodServiceMapper
         In 1.8, the hash generation logic changed: https://github.com/kubernetes/kubernetes/pull/51538/files
 
-        As we are matching both patterns without checking the apiserver version, we might have
-        some false positives. For agent6, we plan on doing this pod->replicaset->deployment matching
-        in the cluster agent, with replicaset data from the apiserver. This will address that risk.
+        As none of these naming schemes have guaranteed suffix lenghts, we have to be pretty permissive
+        in what kind of suffix we match. That can lead to false positives, although their impact would
+        be limited (erroneous kube_deployment tag, but the kube_replica_set tag will be present).
+        For example, the hardcoded replicaset name prefix-34 or prefix-cfd will match.
+
+        For agent6, we plan on doing this pod->replicaset->deployment matching in the cluster agent, with
+        replicaset data from the apiserver. This will address that risk.
         """
         end = rs_name.rfind("-")
         if end > 0 and rs_name[end + 1:].isdigit():
