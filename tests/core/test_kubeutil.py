@@ -51,13 +51,17 @@ class TestKubeUtilDeploymentTag(KubeTestCase):
         self.assertIsNone(self.kube.get_deployment_for_replicaset('frontend2891696001'))
         self.assertIsNone(self.kube.get_deployment_for_replicaset('-frontend2891696001'))
         self.assertIsNone(self.kube.get_deployment_for_replicaset('manually-created'))
-        # New 1.8+ names are a 10 runes (consonants + numbers) suffix
-        self.assertIsNone(self.kube.get_deployment_for_replicaset('frontend-56c89cfff'))
-        self.assertIsNone(self.kube.get_deployment_for_replicaset('frontend-56c89cfff77'))
+        # New 1.8+ names are consonants + numbers suffix, undetermined lenght. Let's take 2 as the cutoff lenght
+        self.assertIsNone(self.kube.get_deployment_for_replicaset('frontend-5f'))
+        # Vowels are not allowed in 1.8+ format
         self.assertIsNone(self.kube.get_deployment_for_replicaset('frontend-56a89cfff7'))
 
     def test_deployment_name_k8s_1_8(self):
         self.assertEqual('frontend', self.kube.get_deployment_for_replicaset('frontend-56c89cfff7'))
+        self.assertEqual('frontend', self.kube.get_deployment_for_replicaset('frontend-56c'))
+        self.assertEqual('frontend', self.kube.get_deployment_for_replicaset('frontend-56c89cff'))
+        self.assertEqual('frontend', self.kube.get_deployment_for_replicaset('frontend-56c89cfff7c2'))
+
         self.assertEqual('front-end', self.kube.get_deployment_for_replicaset('front-end-768dd754b7'))
 
 class TestKubeUtilCreatorTags(KubeTestCase):
