@@ -262,7 +262,7 @@ error_trap() {
             [Yy]* );
             print_console "Please enter your email address so Datadog Support can be sure to follow up!";
             read email;
-            print_console "Email Address: " email; report; break;;
+            print_console "Email Address: " $email; report; break;;
             [Nn]* ) report_manual; break;;
             * ) print_console "Please answer yes or no.";;
         esac
