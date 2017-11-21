@@ -1,6 +1,42 @@
 Changes
 =======
 
+Changes
+=======
+
+# 5.20.0 / 11-21-2017
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.19.0...5.20.0
+
+### Changes
+Please refer to the [Integrations Core Checks 5.20.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.20.0) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 5.20.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.20.0) for the list of changes on the Trace Agent.
+
+Please refer to the [Process Agent 5.20.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.20.0) for more information on the Process Agent.
+
+* [BUGFIX] Audo Configuration: Fix AD port parsing. See [#3553][]
+* [BUGFIX] Core: Fixes normalization of metric names, removing `@`. See [#3529][]
+* [BUGFIX] Core: Only start trace agent on windows if its enabld. See [#3554][]
+* [BUGFIX] Kubernetes: fix tagging on k8s 1.8+ clusters. See [#3563][], [#3586][]
+* [BUGFIX] System Checks: Fixes grabbing of file handles. See [#3539][] (Thanks [@matlockx][])
+* [BUGFIX] Audo Configuration: Fix enabling condition. See [#3589][]
+* [IMPROVEMENT] Core: Won't start is API Key is too short. See [#3546][]
+* [IMPROVEMENT] Core: Won't start agent on windows if API Key invalid. See [#3547][]
+* [IMPROVEMENT] Kubernetes: Adds more tags to events. See [#3548][]
+* [IMPROVEMENT] Core: Decrease log noise at startup. See [#3547][]
+* [IMPROVEMENT] Kubernetes: Filter kubernetes events based on timestamp. See [#3549][]
+* [IMPROVEMENT] Audo Configuration: Adds docker labels as tags. See [#3564][]
+* [IMPROVEMENT] Containers: Move most container tags to metadata. See [#3557][]
+* [IMPROVEMENT] Kubernetes: Allow overriding the pod name. See [#3571][] (Thanks [@darnaut][])
+* [IMPROVEMENT] Windows: Remove check for pidfile. See [#3574][]
+* [IMPROVEMENT] Windows: Change restart to start/stop with deps. See [#3565][]
+* [FEATURE] Windows: Add a PDH base check. See [#3581][]
+
+
 # 5.19.0 / 11-03-2017
 **Linux, Windows, Docker and Source Install**
 
@@ -4489,14 +4525,28 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3523]: https://github.com/DataDog/dd-agent/issues/3523
 [#3527]: https://github.com/DataDog/dd-agent/issues/3527
 [#3528]: https://github.com/DataDog/dd-agent/issues/3528
+[#3529]: https://github.com/DataDog/dd-agent/issues/3529
 [#3532]: https://github.com/DataDog/dd-agent/issues/3532
 [#3534]: https://github.com/DataDog/dd-agent/issues/3534
 [#3536]: https://github.com/DataDog/dd-agent/issues/3536
 [#3537]: https://github.com/DataDog/dd-agent/issues/3537
 [#3538]: https://github.com/DataDog/dd-agent/issues/3538
+[#3539]: https://github.com/DataDog/dd-agent/issues/3539
+[#3546]: https://github.com/DataDog/dd-agent/issues/3546
+[#3547]: https://github.com/DataDog/dd-agent/issues/3547
+[#3548]: https://github.com/DataDog/dd-agent/issues/3548
+[#3549]: https://github.com/DataDog/dd-agent/issues/3549
+[#3553]: https://github.com/DataDog/dd-agent/issues/3553
 [#3554]: https://github.com/DataDog/dd-agent/issues/3554
 [#3557]: https://github.com/DataDog/dd-agent/issues/3557
+[#3563]: https://github.com/DataDog/dd-agent/issues/3563
 [#3564]: https://github.com/DataDog/dd-agent/issues/3564
+[#3565]: https://github.com/DataDog/dd-agent/issues/3565
+[#3571]: https://github.com/DataDog/dd-agent/issues/3571
+[#3574]: https://github.com/DataDog/dd-agent/issues/3574
+[#3581]: https://github.com/DataDog/dd-agent/issues/3581
+[#3586]: https://github.com/DataDog/dd-agent/issues/3586
+[#3589]: https://github.com/DataDog/dd-agent/issues/3589
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -4551,6 +4601,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@clokep]: https://github.com/clokep
 [@cryptspirit]: https://github.com/cryptspirit
 [@cslee00]: https://github.com/cslee00
+[@darnaut]: https://github.com/darnaut
 [@datadoghq]: https://github.com/datadoghq
 [@dblackdblack]: https://github.com/dblackdblack
 [@dcrosta]: https://github.com/dcrosta
@@ -4620,6 +4671,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@lowl4tency]: https://github.com/lowl4tency
 [@markine]: https://github.com/markine
 [@mastrolinux]: https://github.com/mastrolinux
+[@matlockx]: https://github.com/matlockx
 [@mattrobenolt]: https://github.com/mattrobenolt
 [@mausch]: https://github.com/mausch
 [@mberner-ch]: https://github.com/mberner-ch
