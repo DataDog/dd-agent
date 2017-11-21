@@ -213,7 +213,7 @@ class DatadogConf(EditorFile):
 
     @property
     def api_key(self):
-        config = get_config(parse_args=False, cfg_path=self.file_path)
+        config = get_config(parse_args=False, cfg_path=self.file_path, allow_invalid_api_key=True)
         api_key = config.get('api_key', None)
         if not api_key or api_key == 'APIKEYHERE':
             return None
