@@ -470,7 +470,7 @@ class SDDockerBackend(AbstractSDBackend):
         """Extract config templates for an identifier from a K/V store and returns it as a dict object."""
         config_backend = self.agentConfig.get('sd_config_backend')
         templates = []
-        auto_conf = bool(config_backend)
+        auto_conf = not bool(config_backend)
 
         # format [(source, ('ident', {init_tpl}, {instance_tpl}))]
         raw_tpls = self.config_store.get_check_tpls(identifier, auto_conf=auto_conf, **platform_kwargs)
