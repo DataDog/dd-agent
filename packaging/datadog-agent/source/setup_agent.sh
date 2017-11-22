@@ -259,7 +259,7 @@ error_trap() {
         print_console "Do you want to send a failure report to Datadog (Content of the report is in $LOGFILE)? (y/n)"
         read yn
         case $yn in
-            [Yy]* );
+            [Yy]* )
             print_console "Please enter your email address so Datadog Support can be sure to follow up!";
             read email;
             print_console "Email Address: " $email; report; break;;
