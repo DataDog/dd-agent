@@ -24,7 +24,7 @@ Please refer to the [Process Agent 5.20.0 tag](https://github.com/DataDog/datado
 * [BUGFIX] Kubernetes: fix tagging on k8s 1.8+ clusters. See [#3563][], [#3586][]
 * [BUGFIX] System Checks: Fixes grabbing of file handles. See [#3539][] (Thanks [@matlockx][])
 * [BUGFIX] Audo Configuration: Fix enabling condition. See [#3589][]
-* [IMPROVEMENT] Core: Won't start is API Key is too short. See [#3546][]
+* [IMPROVEMENT] Core: Won't start if API Key is too short. See [#3546][]
 * [IMPROVEMENT] Core: Won't start agent on windows if API Key invalid. See [#3547][]
 * [IMPROVEMENT] Kubernetes: Adds more tags to events. See [#3548][]
 * [IMPROVEMENT] Core: Decrease log noise at startup. See [#3547][]
