@@ -49,6 +49,8 @@ namespace :ci do
       if ENV['SKIP_LINT']
         puts 'Skipping lint'.yellow
       else
+        sh %(ifconfig)
+        sh %(python -c 'import socket; socket.socket(socket.AF_INET6, socket.SOCK_DGRAM).sendto("msg6", ("::1", 12345))')
         sh %(echo "PWD IS")
         sh %(pwd)
         sh %(flake8)
