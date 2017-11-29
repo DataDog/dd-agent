@@ -41,7 +41,7 @@ class WinPDHCounter(object):
                         class_name, instance_name
                     ))
                     return
-                if not instance_name in instances:
+                if instance_name not in instances:
                     self.logger.error("%s is not a counter instance in %s" % (
                         instance_name, class_name
                     ))
