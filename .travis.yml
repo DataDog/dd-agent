@@ -35,6 +35,7 @@ matrix:
   include:
     - python: 2.7
       sudo: required
+      dist: trusty
       services: docker
       env: TRAVIS_FLAVOR=core_integration
 
