@@ -9,8 +9,7 @@ from utils.containers import hash_mutable
 try:
     from checks.libs.win.winpdh import WinPDHCounter
 except ImportError:
-    class WinPDHCounter(*args, **kwargs):
-        return
+    from checks.libs.win.winpdh_stub import WinPDHCounter
 
 class PDHBaseCheck(AgentCheck):
     """
