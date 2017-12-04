@@ -95,6 +95,9 @@ gce_updated_hostname: yes
 # between curl client and simple http client (default: simple http client)
 # use_curl_http_client: no
 
+# Select whether the Tornado HTTP Client used in the Forwarder should use IPv6, if available (default: yes)
+# allow_ipv6: yes
+
 # The loopback address the Forwarder and Dogstatsd will bind.
 # Optional, it is mainly used when running the agent on Openshift
 # bind_host: localhost
