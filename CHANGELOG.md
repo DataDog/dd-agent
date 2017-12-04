@@ -4,6 +4,23 @@ Changes
 Changes
 =======
 
+# 5.20.1 / 11-29-2017
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.20.0...5.20.1
+
+### Changes
+Please refer to the [Integrations Core Checks 5.20.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.20.1) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 5.20.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.20.0) for the list of changes on the Trace Agent.
+
+Please refer to the [Process Agent 5.20.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.20.1) for more information on the Process Agent.
+
+
+* [BUGFIX] Windows: fixing flakes, stubbing WinPDHCounter [#3596][]
+
 # 5.20.0 / 11-21-2017
 
 **Linux, Windows, Docker and Source Install**
@@ -4547,6 +4564,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3581]: https://github.com/DataDog/dd-agent/issues/3581
 [#3586]: https://github.com/DataDog/dd-agent/issues/3586
 [#3589]: https://github.com/DataDog/dd-agent/issues/3589
+[#3596]: https://github.com/DataDog/dd-agent/issues/3596
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
