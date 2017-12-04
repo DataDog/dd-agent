@@ -226,7 +226,7 @@ class AgentTransaction(Transaction):
             'body': self._data,
             'headers': self._headers,
             'validate_cert': not self._application.skip_ssl_validation,
-            'allow_ipv6': True,
+            'allow_ipv6': self._application._agentConfig.get('allow_ipv6'),
             'request_timeout': self._request_timeout,
         }
 

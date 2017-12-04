@@ -577,6 +577,11 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
             # Default to False as there are some issues with the curl client and ELB
             agentConfig["use_curl_http_client"] = False
 
+        if config.has_option("Main", "allow_ipv6"):
+            agentConfig["allow_ipv6"] = _is_affirmative(config.get("Main", "allow_ipv6"))
+        else:
+            agentConfig["allow_ipv6"] = True
+
         if config.has_section('WMI'):
             agentConfig['WMI'] = {}
             for key, value in config.items('WMI'):
