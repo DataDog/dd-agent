@@ -326,6 +326,52 @@ class TestServiceDiscovery(unittest.TestCase):
 
     @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
         os.path.dirname(__file__), 'fixtures/auto_conf/'))
+    @mock.patch('utils.http.requests.get')
+    @mock.patch('utils.dockerutil.DockerUtil.is_k8s', return_value=True)
+    def test_get_kube_tags(self, *args):
+        inspect = {
+            'Id': 'eae3f1f47eea2527be52b5380f8bfa6db34764bcc05da7506dbcf42f92a40a0e',
+            'Image': 'sha256:c3eb149853f0ec3390629c547c0ed75c020d91db8511927d7d13deb456de1997',
+            'Name': '/k8s_redis_redis-3073568142-z7gxl_default_c50800e9-dbf7-11e7-807b-06809d17eee8_0',
+            'Config': {
+                "Labels": {
+                    "io.kubernetes.container.name": "redis",
+                    "io.kubernetes.docker.type": "container",
+                    "io.kubernetes.pod.name": "redis-3073568142-z7gxl",
+                    "io.kubernetes.pod.namespace": "default",
+                    "io.kubernetes.sandbox.id": "f8ca7c0144ecab47fd13713b93eb1d2cc1ac143726d66027fd5d83b4e583be29"
+                },
+            },
+            'NetworkSettings': {'IPAddress': '', 'Ports': None}
+        }
+        kube_pods = [{
+            "metadata": {
+                "name": "redis-3073568142-z7gxl",
+                "generateName": "redis-3073568142-",
+                "namespace": "default",
+                "uid": "c50800e9-dbf7-11e7-807b-06809d17eee8",
+                "labels": {
+                    "pod-template-hash": "3073568142",
+                    "run": "redis"
+                }
+            },
+            "status": {"containerStatuses": [
+                {"name": "redis",
+                 "image": "redis:latest",
+                 "imageID": "docker-pullable://redis@sha256:de4e675f62e4f3f71f43e98ae46a67dba92459ff950de4428d13289b69328f96",
+                 "containerID": "docker://eae3f1f47eea2527be52b5380f8bfa6db34764bcc05da7506dbcf42f92a40a0e"}
+            ]}}]
+        clear_singletons(self.auto_conf_agentConfig)
+        state = _SDDockerBackendConfigFetchState(lambda _: inspect, kube_pods)
+        docker = SDDockerBackend(self.auto_conf_agentConfig)
+        tags = docker.get_tags(state, inspect["Id"])
+        self.assertIn('kube_container_name:redis', tags)
+        self.assertIn('kube_namespace:default', tags)
+        self.assertIn('run:redis', tags)
+        self.assertIn('pod-template-hash:3073568142', tags)
+
+    @mock.patch('config.get_auto_confd_path', return_value=os.path.join(
+        os.path.dirname(__file__), 'fixtures/auto_conf/'))
     @mock.patch('utils.dockerutil.DockerUtil.client', return_value=None)
     @mock.patch.object(ConsulStore, 'get_client', return_value=None)
     @mock.patch.object(EtcdStore, 'get_client', return_value=None)
