@@ -623,6 +623,14 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
         if config.has_option("Main", "enable_gohai"):
             agentConfig["enable_gohai"] = _is_affirmative(config.get("Main", "enable_gohai"))
 
+        agentConfig["openstack_use_uuid"] = False
+        if config.has_option("Main", "openstack_use_uuid"):
+            agentConfig["openstack_use_uuid"] = _is_affirmative(config.get("Main", "openstack_use_uuid"))
+
+        agentConfig["openstack_use_metadata_tags"] = True
+        if config.has_option("Main", "openstack_use_metadata_tags"):
+            agentConfig["openstack_use_metadata_tags"] = _is_affirmative(config.get("Main", "openstack_use_metadata_tags"))
+
     except ConfigParser.NoSectionError as e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
