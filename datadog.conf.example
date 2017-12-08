@@ -12,6 +12,9 @@ dd_url: https://app.datadoghq.com
 # See http://stackoverflow.com/questions/8156073/curl-violate-rfc-2616-10-3-2-and-switch-from-post-to-get
 # proxy_forbid_method_switch: no
 
+# If you want to have the Agent skip any system level proxy, set this flag to true:
+# skip_proxy: true
+
 # If you run the agent behind haproxy, you might want to enable this
 # skip_ssl_validation: no
 
