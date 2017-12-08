@@ -55,7 +55,11 @@ def get_proxy(agentConfig):
         return proxy_settings
 
     # If no proxy configuration was specified in datadog.conf
+    # and skip_proxy isn't set then
     # We try to read it from the system settings
+    if agentConfig.get('skip_proxy", None):
+        return proxy_settings
+
     try:
         proxy = getproxies().get('https')
         if proxy is not None:
