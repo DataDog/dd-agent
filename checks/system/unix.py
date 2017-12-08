@@ -244,9 +244,16 @@ class FileHandles(Check):
         allocated_unused_fh = float(handle_metrics[1])
         max_fh = float(handle_metrics[2])
 
-        fh_in_use = (allocated_fh - allocated_unused_fh) / max_fh
+        num_used = allocated_fh - allocated_unused_fh
+        fh_in_use = num_used / max_fh
 
-        return {'system.fs.file_handles.in_use': float(fh_in_use)}
+        return {
+            'system.fs.file_handles.allocated': allocated_fh,
+            'system.fs.file_handles.allocated_unused': allocated_unused_fh,
+            'system.fs.file_handles.in_use': fh_in_use,
+            'system.fs.file_handles.used': num_used,
+            'system.fs.file_handles.max': max_fh,
+        }
 
 class Load(Check):
 
