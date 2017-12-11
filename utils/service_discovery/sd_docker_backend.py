@@ -314,6 +314,11 @@ class SDDockerBackend(AbstractSDBackend):
             namespace = pod_metadata.get('namespace')
             tags.append('kube_namespace:%s' % namespace)
 
+            # get kubernetes container name
+            kube_container_name = state.get_kube_container_name(c_id)
+            if kube_container_name:
+                tags.append('kube_container_name:%s' % kube_container_name)
+
             if not self.kubeutil:
                 log.warning("The agent can't connect to kubelet, creator and "
                             "service tags will be missing for container %s." % c_id[:12])
