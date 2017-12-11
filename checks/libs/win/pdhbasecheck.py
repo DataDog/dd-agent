@@ -37,6 +37,7 @@ class PDHBaseCheck(AgentCheck):
                     self._tags[key] = list(tags) if tags else []
                 remote_machine = None
                 host = instance.get('host')
+                self._metrics[key] = []
                 if host is not None and host != ".":
                     try:
                         remote_machine = host
@@ -51,10 +52,12 @@ class PDHBaseCheck(AgentCheck):
 
                     except Exception as e:
                         self.log.error("Failed to make remote connection %s" % str(e))
+                        return
+
                 # list of the metrics.  Each entry is itself an entry,
                 # which is the pdh name, datadog metric name, type, and the
                 # pdh counter object
-                self._metrics[key] = []
+                
                 for counterset, inst_name, counter_name, dd_name, mtype in counter_list:
                     m = getattr(self, mtype.lower())
                     obj = WinPDHCounter(counterset, counter_name, self.log, inst_name, machine_name = remote_machine)
