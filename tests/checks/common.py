@@ -34,7 +34,7 @@ def _is_sdk():
 def _load_sdk_module(name):
     try:
         # see whether the check was installed as a wheel package
-        return import_module("datadog.{}".format(name))
+        return import_module("datadog_checks.{}".format(name))
     except ImportError:
         sdk_path = get_sdk_integrations_path(get_os())
         module_path = os.path.join(sdk_path, name)

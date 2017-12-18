@@ -843,7 +843,7 @@ def _get_check_module(check_name, check_path, from_site=False):
     traceback_message = None
     if from_site:
         try:
-            check_module = import_module("datadog.{}".format(check_name))
+            check_module = import_module("datadog_checks.{}".format(check_name))
         except ImportError as e:
             error = e
             log.exception('Unable to import check module %s from site-packages' % check_name)
