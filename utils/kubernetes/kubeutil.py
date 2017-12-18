@@ -552,7 +552,24 @@ class KubeUtil:
                 # if not found, use an empty string - we use None as "not initialized"
                 self._node_ip = status.get('hostIP', '')
                 self._node_name = spec.get('nodeName', '')
-                break
+                return
+
+        # At this point the agent isn't inside the podList.
+        # Take the first Pod with a status:
+        # all running pods have the adapted '.spec.nodeName'
+        # static pods doesn't have the '.status.hostIP'
+        for pod in pod_items:
+            node_name = pod.get('spec', {}).get('nodeName', '')
+            if not self._node_name and node_name:
+                self._node_name = node_name
+
+            # hostIP is not fill on static Pods
+            host_ip = pod.get('status', {}).get('hostIP', '')
+            if not self._node_ip and host_ip:
+                self._node_ip = host_ip
+
+            if self._node_name and self._node_ip:
+                return
 
     def extract_event_tags(self, event):
         """
