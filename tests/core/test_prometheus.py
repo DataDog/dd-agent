@@ -212,7 +212,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.assertEqual(len(messages), 61)
         self.assertEqual(messages[-1].name, 'process_virtual_memory_bytes')
 
-    def test_submit_metric_gauge_with_labels(self):
+    def test_submit_gauge_with_labels(self):
         ''' submitting metrics that contain labels should result in tags on the gauge call '''
         _l1 = self.ref_gauge.metric[0].label.add()
         _l1.name = 'my_1st_label'
@@ -220,7 +220,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         _l2 = self.ref_gauge.metric[0].label.add()
         _l2.name = 'my_2nd_label'
         _l2.value = 'my_2nd_label_value'
-        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge)
+        self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                 ['my_1st_label:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
 
@@ -232,21 +232,21 @@ class TestPrometheusProcessor(unittest.TestCase):
         _l2.name = 'my_2nd_label'
         _l2.value = 'my_2nd_label_value'
         tags = ['test']
-        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
+        self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         # Call a second time to check that the labels were not added once more to the tags list and
         # avoid regression on https://github.com/DataDog/dd-agent/pull/3359
-        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
+        self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                 ['test', 'my_1st_label:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
 
-    def test_submit_metric_gauge_with_custom_tags(self):
+    def test_submit_gauge_with_custom_tags(self):
         ''' Providing custom tags should add them as is on the gauge call '''
         tags = ['env:dev', 'app:my_pretty_app']
-        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
+        self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                 ['env:dev', 'app:my_pretty_app'])
 
-    def test_submit_metric_gauge_with_labels_mapper(self):
+    def test_submit_gauge_with_labels_mapper(self):
         '''
         Submitting metrics that contain labels mappers should result in tags
         on the gauge call with transformed tag names
@@ -259,11 +259,11 @@ class TestPrometheusProcessor(unittest.TestCase):
         _l2.value = 'my_2nd_label_value'
         self.check.labels_mapper = {'my_1st_label': 'transformed_1st', 'non_existent': 'should_not_matter', 'env': 'dont_touch_custom_tags'}
         tags = ['env:dev', 'app:my_pretty_app']
-        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
+        self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                 ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
 
-    def test_submit_metric_gauge_with_exclude_labels(self):
+    def test_submit_gauge_with_exclude_labels(self):
         '''
         Submitting metrics when filtering with exclude_labels should end up with
         a filtered tags list
@@ -277,21 +277,21 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.labels_mapper = {'my_1st_label': 'transformed_1st', 'non_existent': 'should_not_matter', 'env': 'dont_touch_custom_tags'}
         tags = ['env:dev', 'app:my_pretty_app']
         self.check.exclude_labels = ['my_2nd_label', 'whatever_else', 'env'] # custom tags are not filtered out
-        self.check._submit_metric(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
+        self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                 ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value'])
 
-    def test_submit_metric_counter(self):
+    def test_submit_counter(self):
         _counter = metrics_pb2.MetricFamily()
         _counter.name = 'my_counter'
         _counter.help = 'Random counter'
         _counter.type = 0 # COUNTER
         _met = _counter.metric.add()
         _met.counter.value = 42
-        self.check._submit_metric('custom.counter', _counter)
+        self.check._submit('custom.counter', _counter)
         self.check.gauge.assert_called_with('prometheus.custom.counter', 42, [])
 
-    def test_submit_metrics_summary(self):
+    def test_submits_summary(self):
         _sum = metrics_pb2.MetricFamily()
         _sum.name = 'my_summary'
         _sum.help = 'Random summary'
@@ -305,7 +305,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         _q2 = _met.summary.quantile.add()
         _q2.quantile = 4
         _q2.value = 5
-        self.check._submit_metric('custom.summary', _sum)
+        self.check._submit('custom.summary', _sum)
         self.check.gauge.assert_has_calls([
             call('prometheus.custom.summary.count', 42, []),
             call('prometheus.custom.summary.sum', 3.14, []),
@@ -313,7 +313,7 @@ class TestPrometheusProcessor(unittest.TestCase):
             call('prometheus.custom.summary.quantile', 5, ['quantile:4'])
         ])
 
-    def test_submit_metric_histogram(self):
+    def test_submit_histogram(self):
         _histo = metrics_pb2.MetricFamily()
         _histo.name = 'my_histogram'
         _histo.help = 'Random histogram'
@@ -327,7 +327,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         _b2 = _met.histogram.bucket.add()
         _b2.upper_bound = 18.2
         _b2.cumulative_count = 666
-        self.check._submit_metric('custom.histogram', _histo)
+        self.check._submit('custom.histogram', _histo)
         self.check.gauge.assert_has_calls([
             call('prometheus.custom.histogram.count', 42, []),
             call('prometheus.custom.histogram.sum', 3.14, []),

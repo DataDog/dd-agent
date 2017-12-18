@@ -11,7 +11,7 @@ set -u
 # SCRIPT KNOBS
 #######################################################################
 # Update for new releases, will pull this tag in the repo
-DEFAULT_AGENT_VERSION="5.19.0"
+DEFAULT_AGENT_VERSION="5.20.2"
 # Pin pip version, in the past there was some buggy releases and get-pip.py
 # always pulls the latest version
 PIP_VERSION="6.1.1"
@@ -259,7 +259,10 @@ error_trap() {
         print_console "Do you want to send a failure report to Datadog (Content of the report is in $LOGFILE)? (y/n)"
         read yn
         case $yn in
-            [Yy]* ) report; break;;
+            [Yy]* )
+            print_console "Please enter your email address so Datadog Support can be sure to follow up!";
+            read email;
+            print_console "Email Address: " $email; report; break;;
             [Nn]* ) report_manual; break;;
             * ) print_console "Please answer yes or no.";;
         esac

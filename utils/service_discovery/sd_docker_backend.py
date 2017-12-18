@@ -314,6 +314,11 @@ class SDDockerBackend(AbstractSDBackend):
             namespace = pod_metadata.get('namespace')
             tags.append('kube_namespace:%s' % namespace)
 
+            # get kubernetes container name
+            kube_container_name = state.get_kube_container_name(c_id)
+            if kube_container_name:
+                tags.append('kube_container_name:%s' % kube_container_name)
+
             if not self.kubeutil:
                 log.warning("The agent can't connect to kubelet, creator and "
                             "service tags will be missing for container %s." % c_id[:12])
@@ -470,7 +475,7 @@ class SDDockerBackend(AbstractSDBackend):
         """Extract config templates for an identifier from a K/V store and returns it as a dict object."""
         config_backend = self.agentConfig.get('sd_config_backend')
         templates = []
-        auto_conf = bool(config_backend)
+        auto_conf = not bool(config_backend)
 
         # format [(source, ('ident', {init_tpl}, {instance_tpl}))]
         raw_tpls = self.config_store.get_check_tpls(identifier, auto_conf=auto_conf, **platform_kwargs)

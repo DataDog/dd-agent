@@ -32,7 +32,8 @@ services:
 install:
   # Use the 64-bit ruby so that all the Powershell classes are accessible when running shell commands from ruby
   - set PATH=C:\Ruby22-x64\bin;%PATH%
-  - gem install bundler --quiet --no-ri --no-rdoc
+  # If bundler is already install '--conservative' will avoid upgrading gems who already meet the version requirement (and avoid conflicts)
+  - gem install bundler --conservative --quiet --no-ri --no-rdoc
   - bundle install
   - bundle package
   - if not exist %PIP_CACHE% mkdir %PIP_CACHE%

@@ -41,7 +41,7 @@ from utils.windows_configuration import get_registry_conf, get_windows_sdk_check
 
 
 # CONSTANTS
-AGENT_VERSION = "5.20.0"
+AGENT_VERSION = "5.21.0"
 JMX_VERSION = "0.17.0"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
@@ -577,6 +577,11 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
             # Default to False as there are some issues with the curl client and ELB
             agentConfig["use_curl_http_client"] = False
 
+        if config.has_option("Main", "allow_ipv6"):
+            agentConfig["allow_ipv6"] = _is_affirmative(config.get("Main", "allow_ipv6"))
+        else:
+            agentConfig["allow_ipv6"] = True
+
         if config.has_section('WMI'):
             agentConfig['WMI'] = {}
             for key, value in config.items('WMI'):
@@ -617,6 +622,14 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
         agentConfig["enable_gohai"] = True
         if config.has_option("Main", "enable_gohai"):
             agentConfig["enable_gohai"] = _is_affirmative(config.get("Main", "enable_gohai"))
+
+        agentConfig["openstack_use_uuid"] = False
+        if config.has_option("Main", "openstack_use_uuid"):
+            agentConfig["openstack_use_uuid"] = _is_affirmative(config.get("Main", "openstack_use_uuid"))
+
+        agentConfig["openstack_use_metadata_tags"] = True
+        if config.has_option("Main", "openstack_use_metadata_tags"):
+            agentConfig["openstack_use_metadata_tags"] = _is_affirmative(config.get("Main", "openstack_use_metadata_tags"))
 
     except ConfigParser.NoSectionError as e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
