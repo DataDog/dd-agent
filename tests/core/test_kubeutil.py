@@ -196,12 +196,12 @@ class TestKubeGetNodeInfo(KubeTestCase):
                         "namespace": "default",
                     },
                     "spec": {
-                        "nodeName": "cluster-pool-2-66d4cbf5-z9d1",
+                        "nodeName": "ip-172-31-66-124.eu-east-1.compute.internal",
                     },
                     "status": {
                         "phase": "Running",
-                        "hostIP": "10.132.0.22",
-                        "podIP": "10.20.5.12",
+                        "hostIP": "172.31.66.124",
+                        "podIP": "100.112.119.9",
                     }
                 },
                 # apiserver Pod -> datadog agent
