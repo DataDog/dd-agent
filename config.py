@@ -862,6 +862,16 @@ def _get_check_module(check_name, check_path, from_site=False):
     return check_module, None
 
 
+def _get_wheel_version(check_name):
+    check_module, err = _get_check_module(check_name, None, True)
+    if err:
+        return err
+
+    if hasattr(check_module, "__version__"):
+        return check_module.__version__
+
+    return None
+
 def _get_check_class(check_name, check_path, from_site=False):
     '''Return the corresponding check class for a check name if available.'''
     from checks import AgentCheck
@@ -1096,7 +1106,7 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
     for check_path_builder in checks_places:
         check_path, manifest_path = check_path_builder(check_name)
 
-        is_wheel = bool(not check_path and not manifest_path)
+        is_wheel = not check_path and not manifest_path
         # The windows SDK function will return None,
         # so the loop should also continue if there is no path.
         if not (check_path and os.path.exists(check_path)) and not is_wheel:
@@ -1110,20 +1120,20 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
                 load_failure = {}
             continue
 
-        if manifest_path or is_wheel:
-            if is_wheel:
-                manifest_path = os.path.join(
-                    os.path.dirname(inspect.getfile(check_class)),
-                    'manifest.json'
-                )
-
+        if manifest_path:
             validated = validate_sdk_check(manifest_path)
             if not validated:
                 log.warn("The SDK check (%s) was designed for a different agent core "
                          "or couldnt be validated - behavior is undefined" % check_name)
 
         version_override = None
-        if not manifest_path and agentConfig['additional_checksd'] in check_path:
+        if is_wheel:
+            wheel_version = _get_wheel_version(check_name)
+            if wheel_version is None or isinstance(wheel_version, dict):
+                version_override = 'Unknown Wheel'
+            else:
+                version_override = wheel_version
+        elif not manifest_path and agentConfig['additional_checksd'] in check_path:
             version_override = 'custom'  # custom check
 
 
