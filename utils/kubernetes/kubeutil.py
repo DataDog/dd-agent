@@ -543,16 +543,24 @@ class KubeUtil:
             log.warning("Unable to retrieve pod list %s. Not fetching host data", str(e))
             return
 
+        # Take the first Pod with a status:
+        # all running pods have the adapted '.spec.nodeName'
+        # static pods doesn't have the '.status.hostIP'
         for pod in pod_items:
-            metadata = pod.get("metadata", {})
-            name = metadata.get("name")
-            if name == self.pod_name:
-                status = pod.get('status', {})
-                spec = pod.get('spec', {})
-                # if not found, use an empty string - we use None as "not initialized"
-                self._node_ip = status.get('hostIP', '')
-                self._node_name = spec.get('nodeName', '')
-                break
+            node_name = pod.get('spec', {}).get('nodeName', '')
+            if not self._node_name and node_name:
+                self._node_name = node_name
+
+            # hostIP is not fill on static Pods
+            host_ip = pod.get('status', {}).get('hostIP', '')
+            if not self._node_ip and host_ip:
+                self._node_ip = host_ip
+
+            if self._node_name and self._node_ip:
+                return
+
+        log.warning("Cannot set both node_name: '%s' and node_ip: '%s' from PodList with %d items",
+                    self._node_name, self._node_ip, len(pod_items))
 
     def extract_event_tags(self, event):
         """
