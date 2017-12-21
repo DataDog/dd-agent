@@ -349,7 +349,7 @@ class TestPrometheusProcessor(unittest.TestCase):
 
 class TestPrometheusTextParsing(unittest.TestCase):
     """
-    The docstrings of each test_* method is a string representation of the expected MetricFamily
+    The docstrings of each test_* method is a string representation of the expected MetricFamily (if present)
     """
     def setUp(self):
         self.check = PrometheusCheck('prometheus_check', {}, {}, {})
@@ -428,77 +428,6 @@ class TestPrometheusTextParsing(unittest.TestCase):
         self.assertNotEqual(expected_etcd_metric, current_metric)
 
     def test_parse_one_histograms_with_label(self):
-        """
-        name: "etcd_disk_wal_fsync_duration_seconds"
-        help: "The latency distributions of fsync called by wal."
-        type: HISTOGRAM
-        metric {
-          histogram {
-            sample_count: 4
-            sample_sum: 0.026131671
-            bucket {
-              cumulative_count: 2
-              upper_bound: 0.001
-            }
-            bucket {
-              cumulative_count: 2
-              upper_bound: 0.002
-            }
-            bucket {
-              cumulative_count: 2
-              upper_bound: 0.004
-            }
-            bucket {
-              cumulative_count: 2
-              upper_bound: 0.008
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 0.016
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 0.032
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 0.064
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 0.128
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 0.256
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 0.512
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 1.024
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 2.048
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 4.096
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 8.192
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: inf
-            }
-          }
-        }
-        """
         text_data = \
             '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n' \
             '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n' \
@@ -695,77 +624,6 @@ class TestPrometheusTextParsing(unittest.TestCase):
         self.assertEqual(expected_etcd_metric, current_metric)
 
     def test_parse_two_histograms_with_label(self):
-        """
-        name: "etcd_disk_wal_fsync_duration_seconds"
-        help: "The latency distributions of fsync called by wal."
-        type: HISTOGRAM
-        metric {
-          histogram {
-            sample_count: 4
-            sample_sum: 0.026131671
-            bucket {
-              cumulative_count: 2
-              upper_bound: 0.001
-            }
-            bucket {
-              cumulative_count: 2
-              upper_bound: 0.002
-            }
-            bucket {
-              cumulative_count: 2
-              upper_bound: 0.004
-            }
-            bucket {
-              cumulative_count: 2
-              upper_bound: 0.008
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 0.016
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 0.032
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 0.064
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 0.128
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 0.256
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 0.512
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 1.024
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 2.048
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 4.096
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: 8.192
-            }
-            bucket {
-              cumulative_count: 4
-              upper_bound: inf
-            }
-          }
-        }
-        """
         text_data = \
             '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n' \
             '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n' \

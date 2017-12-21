@@ -162,12 +162,13 @@ class PrometheusCheck(AgentCheck):
         :return: value of the metric_name matched by the labels
         """
         metric_name = '{}_{}'.format(_m, metric_suffix)
-        expected_labels = set([(k, v) for k, v in _metric["labels"].iteritems() if k != "le" and k != "handler"])
+        unwanted_labels = ["le", "quantile"]  # are specifics keys for prometheus itself
+        expected_labels = set([(k, v) for k, v in _metric["labels"].iteritems() if k not in unwanted_labels])
         for elt in messages[metric_name]:
-            current_labels = set([(k, v) for k, v in elt["labels"].iteritems() if k != "le" and k != "handler"])
+            current_labels = set([(k, v) for k, v in elt["labels"].iteritems() if k not in unwanted_labels])
             # As we have two hashable objects we can compare them without any side effects
             if current_labels == expected_labels:
-                return elt["value"]
+                return float(elt["value"])
 
         raise AttributeError("cannot find expected labels for metric %s with suffix %s" % (metric_name, metric_suffix))
 
@@ -210,9 +211,9 @@ class PrometheusCheck(AgentCheck):
                 _g.gauge.value = float(_metric['value'])
             elif obj_map[_m] == 'summary':
                 if '{}_count'.format(_m) in messages:
-                    _g.summary.sample_count = long(float(messages['{}_count'.format(_m)][0]['value']))
+                    _g.summary.sample_count = long(self.get_metric_value_by_labels(messages, _metric, _m, 'count'))
                 if '{}_sum'.format(_m) in messages:
-                    _g.summary.sample_sum = float(messages['{}_sum'.format(_m)][0]['value'])
+                    _g.summary.sample_sum = self.get_metric_value_by_labels(messages, _metric, _m, 'sum')
             # TODO: see what can be done with the untyped metrics
             elif obj_map[_m] == 'histogram':
                 if '{}_count'.format(_m) in messages:
