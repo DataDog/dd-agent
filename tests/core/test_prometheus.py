@@ -136,10 +136,10 @@ class TestPrometheusProcessor(unittest.TestCase):
             {'ct': 1359194, 'sum': 199427281.0, 'lbl': {'system': 'auth'},
              'buckets': {0.0: 0, 512.0: 1359194, 1024.0: 1359194,
                          1500.0: 1359194, 2048.0: 1359194, float('+Inf'): 1359194}},
-            {'ct': 1359194, 'sum': 199427281.0, 'lbl': {'system': 'recursive'},
+            {'ct': 520924, 'sum': 41527128.0, 'lbl': {'system': 'recursive'},
              'buckets': {0.0: 0, 512.0: 520924, 1024.0: 520924, 1500.0: 520924,
                          2048.0: 520924, float('+Inf'): 520924}},
-            {'ct': 1359194, 'sum': 199427281.0, 'lbl': {'system': 'reverse'},
+            {'ct': 67648, 'sum': 6075182.0, 'lbl': {'system': 'reverse'},
              'buckets': {0.0: 0, 512.0: 67648, 1024.0: 67648, 1500.0: 67648,
                          2048.0: 67648, float('+Inf'): 67648}},
         ]
@@ -348,6 +348,9 @@ class TestPrometheusProcessor(unittest.TestCase):
 
 
 class TestPrometheusTextParsing(unittest.TestCase):
+    """
+    The docstrings of each test_* method is a string representation of the expected MetricFamily
+    """
     def setUp(self):
         self.check = PrometheusCheck('prometheus_check', {}, {}, {})
 
@@ -423,6 +426,142 @@ class TestPrometheusTextParsing(unittest.TestCase):
         expected_etcd_metric.metric.pop()
         expected_etcd_metric.metric.add().counter.value = 18714
         self.assertNotEqual(expected_etcd_metric, current_metric)
+
+    def test_parse_one_histograms_with_label(self):
+        """
+        name: "etcd_disk_wal_fsync_duration_seconds"
+        help: "The latency distributions of fsync called by wal."
+        type: HISTOGRAM
+        metric {
+          histogram {
+            sample_count: 4
+            sample_sum: 0.026131671
+            bucket {
+              cumulative_count: 2
+              upper_bound: 0.001
+            }
+            bucket {
+              cumulative_count: 2
+              upper_bound: 0.002
+            }
+            bucket {
+              cumulative_count: 2
+              upper_bound: 0.004
+            }
+            bucket {
+              cumulative_count: 2
+              upper_bound: 0.008
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.016
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.032
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.064
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.128
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.256
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.512
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 1.024
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 2.048
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 4.096
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 8.192
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: inf
+            }
+          }
+        }
+        """
+        text_data = \
+            '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n' \
+            '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.001"} 2\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.002"} 2\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.004"} 2\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.008"} 2\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.016"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.032"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.064"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.128"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.256"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.512"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="1.024"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="2.048"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="4.096"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="8.192"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="+Inf"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_sum{app="vault"} 0.026131671\n' \
+            'etcd_disk_wal_fsync_duration_seconds_count{app="vault"} 4\n'
+
+        expected_etcd_vault_metric = metrics_pb2.MetricFamily()
+        expected_etcd_vault_metric.help = "The latency distributions of fsync called by wal."
+        expected_etcd_vault_metric.name = "etcd_disk_wal_fsync_duration_seconds"
+        expected_etcd_vault_metric.type = 4
+
+        histogram_metric = expected_etcd_vault_metric.metric.add()
+
+        # Label for app vault
+        summary_label = histogram_metric.label.add()
+        summary_label.name, summary_label.value = "app", "vault"
+
+        for upper_bound, cumulative_count in [
+            (0.001, 2),
+            (0.002, 2),
+            (0.004, 2),
+            (0.008, 2),
+            (0.016, 4),
+            (0.032, 4),
+            (0.064, 4),
+            (0.128, 4),
+            (0.256, 4),
+            (0.512, 4),
+            (1.024, 4),
+            (2.048, 4),
+            (4.096, 4),
+            (8.192, 4),
+            (float('inf'), 4),
+        ]:
+            bucket = histogram_metric.histogram.bucket.add()
+            bucket.upper_bound = upper_bound
+            bucket.cumulative_count = cumulative_count
+
+        # Root histogram sample
+        histogram_metric.histogram.sample_count = 4
+        histogram_metric.histogram.sample_sum = 0.026131671
+
+        # Iter on the generator to get all metrics
+        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+
+        self.assertEqual(1, len(metrics))
+        current_metric = metrics[0]
+        self.assertEqual(expected_etcd_vault_metric, current_metric)
 
     def test_parse_one_histogram(self):
         """
@@ -547,6 +686,197 @@ class TestPrometheusTextParsing(unittest.TestCase):
         # Root histogram sample
         histogram_metric.histogram.sample_count = 4
         histogram_metric.histogram.sample_sum = 0.026131671
+
+        # Iter on the generator to get all metrics
+        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+
+        self.assertEqual(1, len(metrics))
+        current_metric = metrics[0]
+        self.assertEqual(expected_etcd_metric, current_metric)
+
+    def test_parse_two_histograms_with_label(self):
+        """
+        name: "etcd_disk_wal_fsync_duration_seconds"
+        help: "The latency distributions of fsync called by wal."
+        type: HISTOGRAM
+        metric {
+          histogram {
+            sample_count: 4
+            sample_sum: 0.026131671
+            bucket {
+              cumulative_count: 2
+              upper_bound: 0.001
+            }
+            bucket {
+              cumulative_count: 2
+              upper_bound: 0.002
+            }
+            bucket {
+              cumulative_count: 2
+              upper_bound: 0.004
+            }
+            bucket {
+              cumulative_count: 2
+              upper_bound: 0.008
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.016
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.032
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.064
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.128
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.256
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.512
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 1.024
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 2.048
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 4.096
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 8.192
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: inf
+            }
+          }
+        }
+        """
+        text_data = \
+            '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n' \
+            '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.001"} 2\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.002"} 2\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.004"} 2\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.008"} 2\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.016"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.032"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.064"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.128"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.256"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.512"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="1.024"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="2.048"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="4.096"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="8.192"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="+Inf"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_sum{kind="fs",app="vault"} 0.026131671\n' \
+            'etcd_disk_wal_fsync_duration_seconds_count{kind="fs",app="vault"} 4\n' \
+            \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.001"} 718\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.002"} 740\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.004"} 743\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.008"} 748\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.016"} 751\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.032"} 751\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.064"} 751\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.128"} 751\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.256"} 751\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.512"} 751\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="1.024"} 751\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="2.048"} 751\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="4.096"} 751\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="8.192"} 751\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="+Inf"} 751\n' \
+            'etcd_disk_wal_fsync_duration_seconds_sum{kind="fs",app="kubernetes"} 0.3097010759999998\n' \
+            'etcd_disk_wal_fsync_duration_seconds_count{kind="fs",app="kubernetes"} 751\n'
+ 
+        expected_etcd_metric = metrics_pb2.MetricFamily()
+        expected_etcd_metric.help = "The latency distributions of fsync called by wal."
+        expected_etcd_metric.name = "etcd_disk_wal_fsync_duration_seconds"
+        expected_etcd_metric.type = 4
+
+        # Vault
+        histogram_metric = expected_etcd_metric.metric.add()
+
+        # Label for app vault
+        summary_label = histogram_metric.label.add()
+        summary_label.name, summary_label.value = "kind", "fs"
+        summary_label = histogram_metric.label.add()
+        summary_label.name, summary_label.value = "app", "vault"
+
+        for upper_bound, cumulative_count in [
+            (0.001, 2),
+            (0.002, 2),
+            (0.004, 2),
+            (0.008, 2),
+            (0.016, 4),
+            (0.032, 4),
+            (0.064, 4),
+            (0.128, 4),
+            (0.256, 4),
+            (0.512, 4),
+            (1.024, 4),
+            (2.048, 4),
+            (4.096, 4),
+            (8.192, 4),
+            (float('inf'), 4),
+        ]:
+            bucket = histogram_metric.histogram.bucket.add()
+            bucket.upper_bound = upper_bound
+            bucket.cumulative_count = cumulative_count
+
+        # Root histogram sample
+        histogram_metric.histogram.sample_count = 4
+        histogram_metric.histogram.sample_sum = 0.026131671
+
+        # Kubernetes
+        histogram_metric = expected_etcd_metric.metric.add()
+
+        # Label for app kubernetes
+        summary_label = histogram_metric.label.add()
+        summary_label.name, summary_label.value = "kind", "fs"
+        summary_label = histogram_metric.label.add()
+        summary_label.name, summary_label.value = "app", "kubernetes"
+
+        for upper_bound, cumulative_count in [
+            (0.001, 718),
+            (0.002, 740),
+            (0.004, 743),
+            (0.008, 748),
+            (0.016, 751),
+            (0.032, 751),
+            (0.064, 751),
+            (0.128, 751),
+            (0.256, 751),
+            (0.512, 751),
+            (1.024, 751),
+            (2.048, 751),
+            (4.096, 751),
+            (8.192, 751),
+            (float('inf'), 751),
+        ]:
+            bucket = histogram_metric.histogram.bucket.add()
+            bucket.upper_bound = upper_bound
+            bucket.cumulative_count = cumulative_count
+
+        # Root histogram sample
+        histogram_metric.histogram.sample_count = 751
+        histogram_metric.histogram.sample_sum = 0.3097010759999998
 
         # Iter on the generator to get all metrics
         metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
