@@ -8,6 +8,9 @@ from google.protobuf.internal.decoder import _DecodeVarint32  # pylint: disable=
 from checks import AgentCheck
 from utils.prometheus import metrics_pb2
 
+from prometheus_client.parser import text_string_to_metric_families
+
+
 # Prometheus check is a mother class providing a structure and some helpers
 # to collect metrics, events and service checks exposed via Prometheus.
 #
@@ -29,6 +32,7 @@ class PrometheusFormat:
     PROTOBUF = "PROTOBUF"
     TEXT = "TEXT"
 
+
 class PrometheusCheck(AgentCheck):
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
@@ -45,7 +49,7 @@ class PrometheusCheck(AgentCheck):
         # child check class.
         self.NAMESPACE = ''
 
-        # `metrics_mapper` is a dictionnary where the keys are the metrics to capture
+        # `metrics_mapper` is a dictionary where the keys are the metrics to capture
         # and the values are the corresponding metrics names to have in datadog.
         # Note: it is empty in the mother class but will need to be
         # overloaded/hardcoded in the final check not to be counted as custom metric.
@@ -120,21 +124,30 @@ class PrometheusCheck(AgentCheck):
                 yield message
         elif 'text/plain' in content_type:
             messages = {}  # map with the name of the element (before the labels) and the list of occurrences with labels and values
-            obj_map = {}   # map of the types of each metrics
+            obj_map = {}  # map of the types of each metrics
             obj_help = {}  # help for the metrics
-            for line in buf.splitlines():
-                self._extract_metrics_from_string(line, messages, obj_map, obj_help)
+            for metric in text_string_to_metric_families(buf):
+                metric_name = "%s_bucket" % metric.name if metric.type == "histogram" else metric.name
+                metric_type = self.type_overrides.get(metric_name, metric.type)
+                if metric_type == "untyped" or metric_type not in self.METRIC_TYPES:
+                    continue
 
-            # Add type overrides:
-            for m_name, m_type in self.type_overrides.iteritems():
-                if m_type in self.METRIC_TYPES:
-                    obj_map[m_name] = m_type
-                else:
-                    self.log.debug("type override %s for %s is not a valid type name" % (m_type,m_name))
+                messages[metric_name] = []
+                for sample in metric.samples:
+                    if (sample[0].endswith("_sum") or sample[0].endswith("_count")) and \
+                            metric_type in ["histogram", "summary"]:
+                        try:
+                            messages[sample[0]].append({"labels": sample[1], 'value': sample[2]})
+                        except KeyError:
+                            messages[sample[0]] = [{"labels": sample[1], 'value': sample[2]}]
+                    else:
+                        messages[metric_name].append({"labels": sample[1], 'value': sample[2]})
 
+                obj_map[metric.name] = metric_type
+                obj_help[metric.name] = metric.documentation
 
             for _m in obj_map:
-                if _m in messages or (obj_map[_m] == 'histogram' and '{}_bucket'.format(_m) in messages):
+                if _m in messages or (obj_map[_m] == 'histogram' and ('{}_bucket'.format(_m) in messages)):
                     yield self._extract_metric_from_map(_m, messages, obj_map, obj_help)
         else:
             raise self.UnknownFormatError('Unsupported content-type provided: {}'.format(content_type))
@@ -214,42 +227,6 @@ class PrometheusCheck(AgentCheck):
                         _l.value = _metric['labels'][lbl]
         return _obj
 
-    def _extract_metrics_from_string(self, line, messages, obj_map, obj_help):
-        """
-        Extracts the metrics from a line of metric and update the given
-        dictionnaries (we take advantage of the reference of the dictionary here)
-        """
-        if line.startswith('# TYPE'):
-            metric = line.split(' ')
-            if len(metric) == 4:
-                obj_map[metric[2]] = metric[3]  # line = # TYPE metric_name metric_type
-        elif line.startswith('# HELP'):
-            _h = line.split(' ', 3)
-            if len(_h) == 4:
-                obj_help[_h[2]] = _h[3]  # line = # HELP metric_name Help message...
-        elif not line.startswith('#'):
-            _match = self.metrics_pattern.match(line)
-            if _match is not None:
-                _g = _match.groups()
-                _msg = []
-                _lbls = self._extract_labels_from_string(_g[1])
-                if _g[0] in messages:
-                    _msg = messages[_g[0]]
-                _msg.append({'labels': _lbls, 'value': _g[2]})
-                messages[_g[0]] = _msg
-
-    def _extract_labels_from_string(self,labels):
-        """
-        Extracts the labels from a string that looks like:
-        {label_name_1="value 1", label_name_2="value 2"}
-        """
-        lbls = {}
-        labels = labels.lstrip('{').rstrip('}')
-        _lbls = self.lbl_pattern.findall(labels)
-        for _lbl in _lbls:
-            lbls[_lbl[0]] = _lbl[1]
-        return lbls
-
     def process(self, endpoint, send_histograms_buckets=True, instance=None):
         """
         Polls the data from prometheus and pushes them as gauges
@@ -284,7 +261,7 @@ class PrometheusCheck(AgentCheck):
         except AttributeError as err:
             self.log.debug("Unable to handle metric: {} - error: {}".format(message.name, err))
 
-    def poll(self, endpoint, pFormat=PrometheusFormat.PROTOBUF, headers={}):
+    def poll(self, endpoint, pFormat=PrometheusFormat.PROTOBUF, headers=None):
         """
         Polls the metrics from the prometheus metrics endpoint provided.
         Defaults to the protobuf format, but can use the formats specified by
@@ -293,6 +270,8 @@ class PrometheusCheck(AgentCheck):
 
         Returns the content-type of the response and the content of the reponse itself.
         """
+        if headers is None:
+            headers = {}
         if 'accept-encoding' not in headers:
             headers['accept-encoding'] = 'gzip'
         if pFormat == PrometheusFormat.PROTOBUF:
