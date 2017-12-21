@@ -345,3 +345,285 @@ class TestPrometheusProcessor(unittest.TestCase):
             call('prometheus.custom.histogram.count', 33, ['upper_bound:12.7']),
             call('prometheus.custom.histogram.count', 666, ['upper_bound:18.2'])
         ])
+
+
+class TestPrometheusTextParsing(unittest.TestCase):
+    def setUp(self):
+        self.check = PrometheusCheck('prometheus_check', {}, {}, {})
+
+    def test_parse_one_gauge(self):
+        """
+        name: "etcd_server_has_leader"
+        help: "Whether or not a leader exists. 1 is existence, 0 is not."
+        type: GAUGE
+        metric {
+          gauge {
+            value: 1.0
+          }
+        }
+        """
+        text_data = \
+            "# HELP etcd_server_has_leader Whether or not a leader exists. 1 is existence, 0 is not.\n" \
+            "# TYPE etcd_server_has_leader gauge\n" \
+            "etcd_server_has_leader 1\n"
+
+        expected_etcd_metric = metrics_pb2.MetricFamily()
+        expected_etcd_metric.help = "Whether or not a leader exists. 1 is existence, 0 is not."
+        expected_etcd_metric.name = "etcd_server_has_leader"
+        expected_etcd_metric.type = 1
+        expected_etcd_metric.metric.add().gauge.value = 1
+
+        # Iter on the generator to get all metrics
+        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+
+        self.assertEqual(1, len(metrics))
+        current_metric = metrics[0]
+        self.assertEqual(expected_etcd_metric, current_metric)
+
+        # Remove the old metric and add a new one with a different value
+        expected_etcd_metric.metric.pop()
+        expected_etcd_metric.metric.add().gauge.value = 0
+        self.assertNotEqual(expected_etcd_metric, current_metric)
+
+        # Re-add the expected value but as different type: it should works
+        expected_etcd_metric.metric.pop()
+        expected_etcd_metric.metric.add().gauge.value = 1.0
+        self.assertEqual(expected_etcd_metric, current_metric)
+
+    def test_parse_one_counter(self):
+        """
+        name: "go_memstats_mallocs_total"
+        help: "Total number of mallocs."
+        type: COUNTER
+        metric {
+          counter {
+            value: 18713.0
+          }
+        }
+        """
+        text_data = \
+            "# HELP go_memstats_mallocs_total Total number of mallocs.\n" \
+            "# TYPE go_memstats_mallocs_total counter\n" \
+            "go_memstats_mallocs_total 18713\n"
+
+        expected_etcd_metric = metrics_pb2.MetricFamily()
+        expected_etcd_metric.help = "Total number of mallocs."
+        expected_etcd_metric.name = "go_memstats_mallocs_total"
+        expected_etcd_metric.type = 0
+        expected_etcd_metric.metric.add().counter.value = 18713
+
+        # Iter on the generator to get all metrics
+        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+
+        self.assertEqual(1, len(metrics))
+        current_metric = metrics[0]
+        self.assertEqual(expected_etcd_metric, current_metric)
+
+        # Remove the old metric and add a new one with a different value
+        expected_etcd_metric.metric.pop()
+        expected_etcd_metric.metric.add().counter.value = 18714
+        self.assertNotEqual(expected_etcd_metric, current_metric)
+
+    def test_parse_one_histogram(self):
+        """
+        name: "etcd_disk_wal_fsync_duration_seconds"
+        help: "The latency distributions of fsync called by wal."
+        type: HISTOGRAM
+        metric {
+          histogram {
+            sample_count: 4
+            sample_sum: 0.026131671
+            bucket {
+              cumulative_count: 2
+              upper_bound: 0.001
+            }
+            bucket {
+              cumulative_count: 2
+              upper_bound: 0.002
+            }
+            bucket {
+              cumulative_count: 2
+              upper_bound: 0.004
+            }
+            bucket {
+              cumulative_count: 2
+              upper_bound: 0.008
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.016
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.032
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.064
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.128
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.256
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 0.512
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 1.024
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 2.048
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 4.096
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: 8.192
+            }
+            bucket {
+              cumulative_count: 4
+              upper_bound: inf
+            }
+          }
+        }
+        """
+        text_data = \
+            '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n' \
+            '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.001"} 2\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.002"} 2\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.004"} 2\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.008"} 2\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.016"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.032"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.064"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.128"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.256"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.512"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="1.024"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="2.048"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="4.096"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="8.192"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf"} 4\n' \
+            'etcd_disk_wal_fsync_duration_seconds_sum 0.026131671\n' \
+            'etcd_disk_wal_fsync_duration_seconds_count 4\n'
+
+        expected_etcd_metric = metrics_pb2.MetricFamily()
+        expected_etcd_metric.help = "The latency distributions of fsync called by wal."
+        expected_etcd_metric.name = "etcd_disk_wal_fsync_duration_seconds"
+        expected_etcd_metric.type = 4
+
+        histogram_metric = expected_etcd_metric.metric.add()
+        for upper_bound, cumulative_count in [
+            (0.001, 2),
+            (0.002, 2),
+            (0.004, 2),
+            (0.008, 2),
+            (0.016, 4),
+            (0.032, 4),
+            (0.064, 4),
+            (0.128, 4),
+            (0.256, 4),
+            (0.512, 4),
+            (1.024, 4),
+            (2.048, 4),
+            (4.096, 4),
+            (8.192, 4),
+            (float('inf'), 4),
+        ]:
+            bucket = histogram_metric.histogram.bucket.add()
+            bucket.upper_bound = upper_bound
+            bucket.cumulative_count = cumulative_count
+
+        # Root histogram sample
+        histogram_metric.histogram.sample_count = 4
+        histogram_metric.histogram.sample_sum = 0.026131671
+
+        # Iter on the generator to get all metrics
+        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+
+        self.assertEqual(1, len(metrics))
+        current_metric = metrics[0]
+        self.assertEqual(expected_etcd_metric, current_metric)
+
+    def test_parse_one_summary(self):
+        """
+        name: "http_response_size_bytes"
+        help: "The HTTP response sizes in bytes."
+        type: SUMMARY
+        metric {
+          label {
+            name: "handler"
+            value: "prometheus"
+          }
+          summary {
+            sample_count: 5
+            sample_sum: 120512.0
+            quantile {
+              quantile: 0.5
+              value: 24547.0
+            }
+            quantile {
+              quantile: 0.9
+              value: 25763.0
+            }
+            quantile {
+              quantile: 0.99
+              value: 25763.0
+            }
+          }
+        }
+        """
+        text_data = \
+            '# HELP http_response_size_bytes The HTTP response sizes in bytes.\n' \
+            '# TYPE http_response_size_bytes summary\n' \
+            'http_response_size_bytes{handler="prometheus",quantile="0.5"} 24547\n' \
+            'http_response_size_bytes{handler="prometheus",quantile="0.9"} 25763\n' \
+            'http_response_size_bytes{handler="prometheus",quantile="0.99"} 25763\n' \
+            'http_response_size_bytes_sum{handler="prometheus"} 120512\n' \
+            'http_response_size_bytes_count{handler="prometheus"} 5\n'
+
+        expected_etcd_metric = metrics_pb2.MetricFamily()
+        expected_etcd_metric.help = "The HTTP response sizes in bytes."
+        expected_etcd_metric.name = "http_response_size_bytes"
+        expected_etcd_metric.type = 2
+
+        summary_metric = expected_etcd_metric.metric.add()
+
+        # Label for prometheus handler
+        summary_label = summary_metric.label.add()
+        summary_label.name, summary_label.value = "handler", "prometheus"
+
+        # Root summary sample
+        summary_metric.summary.sample_count = 5
+        summary_metric.summary.sample_sum = 120512
+
+        # Create quantiles 0.5, 0.9, 0.99
+        quantile_05 = summary_metric.summary.quantile.add()
+        quantile_05.quantile = 0.5
+        quantile_05.value = 24547
+
+        quantile_09 = summary_metric.summary.quantile.add()
+        quantile_09.quantile = 0.9
+        quantile_09.value = 25763
+
+        quantile_099 = summary_metric.summary.quantile.add()
+        quantile_099.quantile = 0.99
+        quantile_099.value = 25763
+
+        # Iter on the generator to get all metrics
+        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+
+        self.assertEqual(1, len(metrics))
+
+        current_metric = metrics[0]
+        self.assertEqual(expected_etcd_metric, current_metric)
