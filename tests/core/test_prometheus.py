@@ -3,9 +3,10 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 import logging
-from mock import MagicMock, patch, call
-import unittest
 import os
+import unittest
+
+from mock import MagicMock, patch, call
 
 from checks.prometheus_check import PrometheusCheck
 from utils.prometheus import parse_metric_family, metrics_pb2
@@ -21,6 +22,7 @@ class TestPrometheusFuncs(unittest.TestCase):
             self.assertEqual(len(messages), 61)
             self.assertEqual(messages[-1].name, 'process_virtual_memory_bytes')
 
+
 class TestPrometheusProcessor(unittest.TestCase):
 
     def setUp(self):
@@ -35,7 +37,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.ref_gauge = metrics_pb2.MetricFamily()
         self.ref_gauge.name = 'process_virtual_memory_bytes'
         self.ref_gauge.help = 'Virtual memory size in bytes.'
-        self.ref_gauge.type = 1 # GAUGE
+        self.ref_gauge.type = 1  # GAUGE
         _m = self.ref_gauge.metric.add()
         _m.gauge.value = 39211008.0
         # Loading test binary data
@@ -63,13 +65,13 @@ class TestPrometheusProcessor(unittest.TestCase):
         # check type overriding is working
         # original type:
         self.assertEqual(messages[1].name, 'go_goroutines')
-        self.assertEqual(messages[1].type, 1) # gauge
+        self.assertEqual(messages[1].type, 1)  # gauge
         # override the type:
         self.check.type_overrides = {"go_goroutines": "summary"}
         messages = list(self.check.parse_metric_family(self.bin_data, self.protobuf_content_type))
         self.assertEqual(len(messages), 61)
         self.assertEqual(messages[1].name, 'go_goroutines')
-        self.assertEqual(messages[1].type, 2) # summary
+        self.assertEqual(messages[1].type, 2)  # summary
 
     def test_parse_metric_family_text(self):
         ''' Test the high level method for loading metrics from text format '''
@@ -90,7 +92,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         _counter = metrics_pb2.MetricFamily()
         _counter.name = 'skydns_skydns_dns_cachemiss_count_total'
         _counter.help = 'Counter of DNS requests that result in a cache miss.'
-        _counter.type = 0 # COUNTER
+        _counter.type = 0  # COUNTER
         _c = _counter.metric.add()
         _c.counter.value = 1359194.0
         _lc = _c.label.add()
@@ -101,14 +103,14 @@ class TestPrometheusProcessor(unittest.TestCase):
         _gauge = metrics_pb2.MetricFamily()
         _gauge.name = 'go_memstats_heap_alloc_bytes'
         _gauge.help = 'Number of heap bytes allocated and still in use.'
-        _gauge.type = 1 # GAUGE
+        _gauge.type = 1  # GAUGE
         _gauge.metric.add().gauge.value = 6396288.0
         self.assertIn(_gauge, messages)
         # Tests correct parsing of summaries
         _summary = metrics_pb2.MetricFamily()
         _summary.name = 'http_response_size_bytes'
         _summary.help = 'The HTTP response sizes in bytes.'
-        _summary.type = 2 # SUMMARY
+        _summary.type = 2  # SUMMARY
         _sm = _summary.metric.add()
         _lsm = _sm.label.add()
         _lsm.name = 'handler'
@@ -129,17 +131,17 @@ class TestPrometheusProcessor(unittest.TestCase):
         _histo = metrics_pb2.MetricFamily()
         _histo.name = 'skydns_skydns_dns_response_size_bytes'
         _histo.help = 'Size of the returns response in bytes.'
-        _histo.type = 4 # HISTOGRAM
+        _histo.type = 4  # HISTOGRAM
         _sample_data = [
-            {'ct':1359194,'sum':199427281.0, 'lbl': {'system':'auth'},
-                'buckets':{0.0: 0, 512.0:1359194, 1024.0:1359194,
-                    1500.0:1359194, 2048.0:1359194, float('+Inf'):1359194}},
-            {'ct':1359194,'sum':199427281.0, 'lbl': {'system':'recursive'},
-                'buckets':{0.0: 0, 512.0:520924, 1024.0:520924, 1500.0:520924,
-                    2048.0:520924, float('+Inf'):520924}},
-            {'ct':1359194,'sum':199427281.0, 'lbl': {'system':'reverse'},
-                'buckets':{0.0: 0, 512.0:67648, 1024.0:67648, 1500.0:67648,
-                    2048.0:67648, float('+Inf'):67648}},
+            {'ct': 1359194, 'sum': 199427281.0, 'lbl': {'system': 'auth'},
+             'buckets': {0.0: 0, 512.0: 1359194, 1024.0: 1359194,
+                         1500.0: 1359194, 2048.0: 1359194, float('+Inf'): 1359194}},
+            {'ct': 1359194, 'sum': 199427281.0, 'lbl': {'system': 'recursive'},
+             'buckets': {0.0: 0, 512.0: 520924, 1024.0: 520924, 1500.0: 520924,
+                         2048.0: 520924, float('+Inf'): 520924}},
+            {'ct': 1359194, 'sum': 199427281.0, 'lbl': {'system': 'reverse'},
+             'buckets': {0.0: 0, 512.0: 67648, 1024.0: 67648, 1500.0: 67648,
+                         2048.0: 67648, float('+Inf'): 67648}},
         ]
         for _data in _sample_data:
             _h = _histo.metric.add()
@@ -165,7 +167,8 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.process_metric = MagicMock()
         self.check.process(endpoint, instance=None)
         self.check.poll.assert_called_with(endpoint)
-        self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=[], instance=None, send_histograms_buckets=True)
+        self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=[], instance=None,
+                                                     send_histograms_buckets=True)
 
     def test_process_send_histograms_buckets(self):
         """ Cheks that the send_histograms_buckets parameter is passed along """
@@ -174,7 +177,8 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.process_metric = MagicMock()
         self.check.process(endpoint, send_histograms_buckets=False, instance=None)
         self.check.poll.assert_called_with(endpoint)
-        self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=[], instance=None, send_histograms_buckets=False)
+        self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=[], instance=None,
+                                                     send_histograms_buckets=False)
 
     def test_process_instance_with_tags(self):
         """ Checks that an instances with tags passes them as custom tag """
@@ -184,7 +188,8 @@ class TestPrometheusProcessor(unittest.TestCase):
         instance = {'endpoint': 'IgnoreMe', 'tags': ['tag1:tagValue1', 'tag2:tagValue2']}
         self.check.process(endpoint, instance=instance)
         self.check.poll.assert_called_with(endpoint)
-        self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=['tag1:tagValue1', 'tag2:tagValue2'], instance=instance, send_histograms_buckets=True)
+        self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=['tag1:tagValue1', 'tag2:tagValue2'],
+                                                     instance=instance, send_histograms_buckets=True)
 
     def test_process_metric_gauge(self):
         ''' Gauge ref submission '''
@@ -196,17 +201,19 @@ class TestPrometheusProcessor(unittest.TestCase):
         filtered_gauge = metrics_pb2.MetricFamily()
         filtered_gauge.name = "process_start_time_seconds"
         filtered_gauge.help = "Start time of the process since unix epoch in seconds."
-        filtered_gauge.type = 1 # GAUGE
+        filtered_gauge.type = 1  # GAUGE
         _m = filtered_gauge.metric.add()
         _m.gauge.value = 39211008.0
         self.check.process_metric(filtered_gauge)
-        self.check.log.debug.assert_called_with("Unable to handle metric: process_start_time_seconds - error: 'PrometheusCheck' object has no attribute 'process_start_time_seconds'")
+        self.check.log.debug.assert_called_with(
+            "Unable to handle metric: process_start_time_seconds - error: 'PrometheusCheck' object has no attribute 'process_start_time_seconds'")
         self.check.gauge.assert_not_called()
 
     @patch('requests.get')
     def test_poll_protobuf(self, mock_get):
         ''' Tests poll using the protobuf format '''
-        mock_get.return_value = MagicMock(status_code=200, content=self.bin_data, headers={'Content-Type': self.protobuf_content_type})
+        mock_get.return_value = MagicMock(status_code=200, content=self.bin_data,
+                                          headers={'Content-Type': self.protobuf_content_type})
         ct, data = self.check.poll("http://fake.endpoint:10055/metrics")
         messages = list(self.check.parse_metric_family(data, ct))
         self.assertEqual(len(messages), 61)
@@ -222,7 +229,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         _l2.value = 'my_2nd_label_value'
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
-                ['my_1st_label:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
+                                            ['my_1st_label:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
 
     def test_labels_not_added_as_tag_once_for_each_metric(self):
         _l1 = self.ref_gauge.metric[0].label.add()
@@ -237,14 +244,15 @@ class TestPrometheusProcessor(unittest.TestCase):
         # avoid regression on https://github.com/DataDog/dd-agent/pull/3359
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
-                ['test', 'my_1st_label:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
+                                            ['test', 'my_1st_label:my_1st_label_value',
+                                             'my_2nd_label:my_2nd_label_value'])
 
     def test_submit_gauge_with_custom_tags(self):
         ''' Providing custom tags should add them as is on the gauge call '''
         tags = ['env:dev', 'app:my_pretty_app']
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
-                ['env:dev', 'app:my_pretty_app'])
+                                            ['env:dev', 'app:my_pretty_app'])
 
     def test_submit_gauge_with_labels_mapper(self):
         '''
@@ -257,11 +265,13 @@ class TestPrometheusProcessor(unittest.TestCase):
         _l2 = self.ref_gauge.metric[0].label.add()
         _l2.name = 'my_2nd_label'
         _l2.value = 'my_2nd_label_value'
-        self.check.labels_mapper = {'my_1st_label': 'transformed_1st', 'non_existent': 'should_not_matter', 'env': 'dont_touch_custom_tags'}
+        self.check.labels_mapper = {'my_1st_label': 'transformed_1st', 'non_existent': 'should_not_matter',
+                                    'env': 'dont_touch_custom_tags'}
         tags = ['env:dev', 'app:my_pretty_app']
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
-                ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
+                                            ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value',
+                                             'my_2nd_label:my_2nd_label_value'])
 
     def test_submit_gauge_with_exclude_labels(self):
         '''
@@ -274,18 +284,19 @@ class TestPrometheusProcessor(unittest.TestCase):
         _l2 = self.ref_gauge.metric[0].label.add()
         _l2.name = 'my_2nd_label'
         _l2.value = 'my_2nd_label_value'
-        self.check.labels_mapper = {'my_1st_label': 'transformed_1st', 'non_existent': 'should_not_matter', 'env': 'dont_touch_custom_tags'}
+        self.check.labels_mapper = {'my_1st_label': 'transformed_1st', 'non_existent': 'should_not_matter',
+                                    'env': 'dont_touch_custom_tags'}
         tags = ['env:dev', 'app:my_pretty_app']
-        self.check.exclude_labels = ['my_2nd_label', 'whatever_else', 'env'] # custom tags are not filtered out
+        self.check.exclude_labels = ['my_2nd_label', 'whatever_else', 'env']  # custom tags are not filtered out
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
-                ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value'])
+                                            ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value'])
 
     def test_submit_counter(self):
         _counter = metrics_pb2.MetricFamily()
         _counter.name = 'my_counter'
         _counter.help = 'Random counter'
-        _counter.type = 0 # COUNTER
+        _counter.type = 0  # COUNTER
         _met = _counter.metric.add()
         _met.counter.value = 42
         self.check._submit('custom.counter', _counter)
@@ -295,7 +306,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         _sum = metrics_pb2.MetricFamily()
         _sum.name = 'my_summary'
         _sum.help = 'Random summary'
-        _sum.type = 2 # SUMMARY
+        _sum.type = 2  # SUMMARY
         _met = _sum.metric.add()
         _met.summary.sample_count = 42
         _met.summary.sample_sum = 3.14
@@ -317,7 +328,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         _histo = metrics_pb2.MetricFamily()
         _histo.name = 'my_histogram'
         _histo.help = 'Random histogram'
-        _histo.type = 4 # HISTOGRAM
+        _histo.type = 4  # HISTOGRAM
         _met = _histo.metric.add()
         _met.histogram.sample_count = 42
         _met.histogram.sample_sum = 3.14
