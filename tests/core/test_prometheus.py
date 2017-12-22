@@ -662,7 +662,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
             'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="+Inf"} 751\n' \
             'etcd_disk_wal_fsync_duration_seconds_sum{kind="fs",app="kubernetes"} 0.3097010759999998\n' \
             'etcd_disk_wal_fsync_duration_seconds_count{kind="fs",app="kubernetes"} 751\n'
- 
+
         expected_etcd_metric = metrics_pb2.MetricFamily()
         expected_etcd_metric.help = "The latency distributions of fsync called by wal."
         expected_etcd_metric.name = "etcd_disk_wal_fsync_duration_seconds"
@@ -807,6 +807,89 @@ class TestPrometheusTextParsing(unittest.TestCase):
         quantile_099 = summary_metric.summary.quantile.add()
         quantile_099.quantile = 0.99
         quantile_099.value = 25763
+
+        # Iter on the generator to get all metrics
+        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+
+        self.assertEqual(1, len(metrics))
+
+        current_metric = metrics[0]
+        self.assertEqual(expected_etcd_metric, current_metric)
+
+    def test_parse_two_summaries_with_labels(self):
+        text_data = \
+            '# HELP http_response_size_bytes The HTTP response sizes in bytes.\n' \
+            '# TYPE http_response_size_bytes summary\n' \
+            'http_response_size_bytes{from="internet",handler="prometheus",quantile="0.5"} 24547\n' \
+            'http_response_size_bytes{from="internet",handler="prometheus",quantile="0.9"} 25763\n' \
+            'http_response_size_bytes{from="internet",handler="prometheus",quantile="0.99"} 25763\n' \
+            'http_response_size_bytes_sum{from="internet",handler="prometheus"} 120512\n' \
+            'http_response_size_bytes_count{from="internet",handler="prometheus"} 5\n' \
+             \
+            'http_response_size_bytes{from="cluster",handler="prometheus",quantile="0.5"} 24615\n' \
+            'http_response_size_bytes{from="cluster",handler="prometheus",quantile="0.9"} 24627\n' \
+            'http_response_size_bytes{from="cluster",handler="prometheus",quantile="0.99"} 24627\n' \
+            'http_response_size_bytes_sum{from="cluster",handler="prometheus"} 94913\n' \
+            'http_response_size_bytes_count{from="cluster",handler="prometheus"} 4\n'
+
+        expected_etcd_metric = metrics_pb2.MetricFamily()
+        expected_etcd_metric.help = "The HTTP response sizes in bytes."
+        expected_etcd_metric.name = "http_response_size_bytes"
+        expected_etcd_metric.type = 2
+
+        # Metric from internet #
+        summary_metric_from_internet = expected_etcd_metric.metric.add()
+
+        # Label for prometheus handler
+        summary_label = summary_metric_from_internet.label.add()
+        summary_label.name, summary_label.value = "handler", "prometheus"
+
+        summary_label = summary_metric_from_internet.label.add()
+        summary_label.name, summary_label.value = "from", "internet"
+
+        # Root summary sample
+        summary_metric_from_internet.summary.sample_count = 5
+        summary_metric_from_internet.summary.sample_sum = 120512
+
+        # Create quantiles 0.5, 0.9, 0.99
+        quantile_05 = summary_metric_from_internet.summary.quantile.add()
+        quantile_05.quantile = 0.5
+        quantile_05.value = 24547
+
+        quantile_09 = summary_metric_from_internet.summary.quantile.add()
+        quantile_09.quantile = 0.9
+        quantile_09.value = 25763
+
+        quantile_099 = summary_metric_from_internet.summary.quantile.add()
+        quantile_099.quantile = 0.99
+        quantile_099.value = 25763
+
+        # Metric from cluster #
+        summary_metric_from_cluster = expected_etcd_metric.metric.add()
+
+        # Label for prometheus handler
+        summary_label = summary_metric_from_cluster.label.add()
+        summary_label.name, summary_label.value = "handler", "prometheus"
+
+        summary_label = summary_metric_from_cluster.label.add()
+        summary_label.name, summary_label.value = "from", "cluster"
+
+        # Root summary sample
+        summary_metric_from_cluster.summary.sample_count = 4
+        summary_metric_from_cluster.summary.sample_sum = 94913
+
+        # Create quantiles 0.5, 0.9, 0.99
+        quantile_05 = summary_metric_from_cluster.summary.quantile.add()
+        quantile_05.quantile = 0.5
+        quantile_05.value = 24615
+
+        quantile_09 = summary_metric_from_cluster.summary.quantile.add()
+        quantile_09.quantile = 0.9
+        quantile_09.value = 24627
+
+        quantile_099 = summary_metric_from_cluster.summary.quantile.add()
+        quantile_099.quantile = 0.99
+        quantile_099.value = 24627
 
         # Iter on the generator to get all metrics
         metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
