@@ -815,3 +815,51 @@ class TestPrometheusTextParsing(unittest.TestCase):
 
         current_metric = metrics[0]
         self.assertEqual(expected_etcd_metric, current_metric)
+
+    def test_parse_one_summary_with_none_values(self):
+        text_data = \
+            '# HELP http_response_size_bytes The HTTP response sizes in bytes.\n' \
+            '# TYPE http_response_size_bytes summary\n' \
+            'http_response_size_bytes{handler="prometheus",quantile="0.5"} NaN\n' \
+            'http_response_size_bytes{handler="prometheus",quantile="0.9"} NaN\n' \
+            'http_response_size_bytes{handler="prometheus",quantile="0.99"} NaN\n' \
+            'http_response_size_bytes_sum{handler="prometheus"} 0\n' \
+            'http_response_size_bytes_count{handler="prometheus"} 0\n'
+
+        expected_etcd_metric = metrics_pb2.MetricFamily()
+        expected_etcd_metric.help = "The HTTP response sizes in bytes."
+        expected_etcd_metric.name = "http_response_size_bytes"
+        expected_etcd_metric.type = 2
+
+        summary_metric = expected_etcd_metric.metric.add()
+
+        # Label for prometheus handler
+        summary_label = summary_metric.label.add()
+        summary_label.name, summary_label.value = "handler", "prometheus"
+
+        # Root summary sample
+        summary_metric.summary.sample_count = 0
+        summary_metric.summary.sample_sum = 0.
+
+        # Create quantiles 0.5, 0.9, 0.99
+        quantile_05 = summary_metric.summary.quantile.add()
+        quantile_05.quantile = 0.5
+        quantile_05.value = float('nan')
+
+        quantile_09 = summary_metric.summary.quantile.add()
+        quantile_09.quantile = 0.9
+        quantile_09.value = float('nan')
+
+        quantile_099 = summary_metric.summary.quantile.add()
+        quantile_099.quantile = 0.99
+        quantile_099.value = float('nan')
+
+        # Iter on the generator to get all metrics
+        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+
+        self.assertEqual(1, len(metrics))
+
+        current_metric = metrics[0]
+        # As the NaN value isn't supported when we are calling assertEqual
+        # we need to compare the object representation instead of the object itself
+        self.assertEqual(expected_etcd_metric.__repr__(), current_metric.__repr__())
