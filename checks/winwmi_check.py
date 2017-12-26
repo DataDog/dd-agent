@@ -178,6 +178,10 @@ class WinWMICheck(AgentCheck):
                     continue
 
             for wmi_property, wmi_value in wmi_obj.iteritems():
+                # skips any property not in arguments since SWbemServices.ExecQuery will return key prop properties
+                # https://msdn.microsoft.com/en-us/library/aa393866(v=vs.85).aspx
+                if wmi_property not in (map(str.lower,wmi_sampler.property_names)):
+                    continue
                 # Tag with `tag_by` parameter
                 if wmi_property == tag_by:
                     tag_value = str(wmi_value).lower()
