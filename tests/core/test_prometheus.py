@@ -300,17 +300,17 @@ class TestPrometheusProcessor(unittest.TestCase):
         _met.summary.sample_count = 42
         _met.summary.sample_sum = 3.14
         _q1 = _met.summary.quantile.add()
-        _q1.quantile = 10
+        _q1.quantile = 10.0
         _q1.value = 3
         _q2 = _met.summary.quantile.add()
-        _q2.quantile = 4
+        _q2.quantile = 4.0
         _q2.value = 5
         self.check._submit('custom.summary', _sum)
         self.check.gauge.assert_has_calls([
             call('prometheus.custom.summary.count', 42, []),
             call('prometheus.custom.summary.sum', 3.14, []),
-            call('prometheus.custom.summary.quantile', 3, ['quantile:10']),
-            call('prometheus.custom.summary.quantile', 5, ['quantile:4'])
+            call('prometheus.custom.summary.quantile', 3, ['quantile:10.0']),
+            call('prometheus.custom.summary.quantile', 5, ['quantile:4.0'])
         ])
 
     def test_submit_histogram(self):
