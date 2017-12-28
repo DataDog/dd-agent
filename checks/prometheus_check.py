@@ -4,11 +4,12 @@
 
 import re
 import requests
+from collections import defaultdict
 from google.protobuf.internal.decoder import _DecodeVarint32  # pylint: disable=E0611,E0401
 from checks import AgentCheck
 from utils.prometheus import metrics_pb2
 
-from prometheus_client.parser import text_string_to_metric_families
+from prometheus_client.parser import text_fd_to_metric_families
 
 
 # Prometheus check is a mother class providing a structure and some helpers
@@ -34,6 +35,8 @@ class PrometheusFormat:
 
 
 class PrometheusCheck(AgentCheck):
+    unwanted_labels = ["le", "quantile"]  # are specifics keys for prometheus itself
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         # message.type is the index in this array
@@ -91,7 +94,7 @@ class PrometheusCheck(AgentCheck):
         def __init__(self, arg):
             self.args = arg
 
-    def parse_metric_family(self, buf, content_type):
+    def parse_metric_family(self, iter_content, content_type):
         """
         Gets the output data from a prometheus endpoint response along with its
         Content-type header and parses it into Prometheus classes (see [0])
@@ -105,6 +108,9 @@ class PrometheusCheck(AgentCheck):
         """
         if 'application/vnd.google.protobuf' in content_type:
             n = 0
+            buf = bytes()
+            for i in iter_content:
+                buf += i
             while n < len(buf):
                 msg_len, new_pos = _DecodeVarint32(buf, n)
                 n = new_pos
@@ -122,24 +128,21 @@ class PrometheusCheck(AgentCheck):
                     else:
                         self.log.debug("type override %s for %s is not a valid type name" % (new_type, message.name))
                 yield message
+
         elif 'text/plain' in content_type:
-            messages = {}  # map with the name of the element (before the labels) and the list of occurrences with labels and values
+            messages = defaultdict(list)  # map with the name of the element (before the labels) and the list of occurrences with labels and values
             obj_map = {}  # map of the types of each metrics
             obj_help = {}  # help for the metrics
-            for metric in text_string_to_metric_families(buf):
+            for metric in text_fd_to_metric_families(iter_content):
                 metric_name = "%s_bucket" % metric.name if metric.type == "histogram" else metric.name
                 metric_type = self.type_overrides.get(metric_name, metric.type)
                 if metric_type == "untyped" or metric_type not in self.METRIC_TYPES:
                     continue
 
-                messages[metric_name] = []
                 for sample in metric.samples:
                     if (sample[0].endswith("_sum") or sample[0].endswith("_count")) and \
                             metric_type in ["histogram", "summary"]:
-                        try:
-                            messages[sample[0]].append({"labels": sample[1], 'value': sample[2]})
-                        except KeyError:
-                            messages[sample[0]] = [{"labels": sample[1], 'value': sample[2]}]
+                        messages[sample[0]].append({"labels": sample[1], 'value': sample[2]})
                     else:
                         messages[metric_name].append({"labels": sample[1], 'value': sample[2]})
 
@@ -162,10 +165,11 @@ class PrometheusCheck(AgentCheck):
         :return: value of the metric_name matched by the labels
         """
         metric_name = '{}_{}'.format(_m, metric_suffix)
-        unwanted_labels = ["le", "quantile"]  # are specifics keys for prometheus itself
-        expected_labels = set([(k, v) for k, v in _metric["labels"].iteritems() if k not in unwanted_labels])
+        expected_labels = set([(k, v) for k, v in _metric["labels"].iteritems()
+                               if k not in PrometheusCheck.unwanted_labels])
         for elt in messages[metric_name]:
-            current_labels = set([(k, v) for k, v in elt["labels"].iteritems() if k not in unwanted_labels])
+            current_labels = set([(k, v) for k, v in elt["labels"].iteritems()
+                                  if k not in PrometheusCheck.unwanted_labels])
             # As we have two hashable objects we can compare them without any side effects
             if current_labels == expected_labels:
                 return float(elt["value"])
@@ -255,11 +259,11 @@ class PrometheusCheck(AgentCheck):
         Note that if the instance has a 'tags' attribute, it will be pushed
         automatically as additionnal custom tags and added to the metrics
         """
-        content_type, data = self.poll(endpoint)
+        content_type, iter_content = self.poll(endpoint)
         tags = []
         if instance is not None:
             tags = instance.get('tags', [])
-        for metric in self.parse_metric_family(data, content_type):
+        for metric in self.parse_metric_family(iter_content, content_type):
             self.process_metric(metric, send_histograms_buckets=send_histograms_buckets, custom_tags=tags, instance=instance)
 
     def process_metric(self, message, send_histograms_buckets=True, custom_tags=None, **kwargs):
@@ -288,7 +292,7 @@ class PrometheusCheck(AgentCheck):
         the PrometheusFormat class.
         Custom headers can be added to the default headers.
 
-        Returns the content-type of the response and the content of the reponse itself.
+        Returns the content-type and a generator on content itself
         """
         if headers is None:
             headers = {}
@@ -299,7 +303,7 @@ class PrometheusCheck(AgentCheck):
 
         req = requests.get(endpoint, headers=headers)
         req.raise_for_status()
-        return req.headers['Content-Type'], req.content
+        return req.headers['Content-Type'], req.iter_content(chunk_size=1024 * 10)  # chunk_size default is 1
 
     def _submit(self, metric_name, message, send_histograms_buckets=True, custom_tags=None):
         """

@@ -1,7 +1,7 @@
 # (C) Datadog, Inc. 2016
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
-
+import StringIO
 import logging
 import os
 import unittest
@@ -80,13 +80,13 @@ class TestPrometheusProcessor(unittest.TestCase):
         with open(f_name, 'r') as f:
             _text_data = f.read()
             self.assertEqual(len(_text_data), 14494)
-        messages = list(self.check.parse_metric_family(_text_data, 'text/plain; version=0.0.4'))
+        messages = list(self.check.parse_metric_family(StringIO.StringIO(_text_data), 'text/plain; version=0.0.4'))
         # total metrics are 41 but one is typeless and we expect it not to be
         # parsed...
         self.assertEqual(len(messages), 40)
         # ...unless the check ovverrides the type manually
         self.check.type_overrides = {"go_goroutines": "gauge"}
-        messages = list(self.check.parse_metric_family(_text_data, 'text/plain; version=0.0.4'))
+        messages = list(self.check.parse_metric_family(StringIO.StringIO(_text_data), 'text/plain; version=0.0.4'))
         self.assertEqual(len(messages), 41)
         # Tests correct parsing of counters
         _counter = metrics_pb2.MetricFamily()
@@ -212,7 +212,7 @@ class TestPrometheusProcessor(unittest.TestCase):
     @patch('requests.get')
     def test_poll_protobuf(self, mock_get):
         ''' Tests poll using the protobuf format '''
-        mock_get.return_value = MagicMock(status_code=200, content=self.bin_data,
+        mock_get.return_value = MagicMock(status_code=200, iter_content=lambda **kwargs: iter(self.bin_data),
                                           headers={'Content-Type': self.protobuf_content_type})
         ct, data = self.check.poll("http://fake.endpoint:10055/metrics")
         messages = list(self.check.parse_metric_family(data, ct))
@@ -365,10 +365,10 @@ class TestPrometheusTextParsing(unittest.TestCase):
           }
         }
         """
-        text_data = \
-            "# HELP etcd_server_has_leader Whether or not a leader exists. 1 is existence, 0 is not.\n" \
-            "# TYPE etcd_server_has_leader gauge\n" \
-            "etcd_server_has_leader 1\n"
+        text_data = StringIO.StringIO(
+            "# HELP etcd_server_has_leader Whether or not a leader exists. 1 is existence, 0 is not.\n"
+            "# TYPE etcd_server_has_leader gauge\n"
+            "etcd_server_has_leader 1\n")
 
         expected_etcd_metric = metrics_pb2.MetricFamily()
         expected_etcd_metric.help = "Whether or not a leader exists. 1 is existence, 0 is not."
@@ -404,10 +404,10 @@ class TestPrometheusTextParsing(unittest.TestCase):
           }
         }
         """
-        text_data = \
-            "# HELP go_memstats_mallocs_total Total number of mallocs.\n" \
-            "# TYPE go_memstats_mallocs_total counter\n" \
-            "go_memstats_mallocs_total 18713\n"
+        text_data = StringIO.StringIO(
+            "# HELP go_memstats_mallocs_total Total number of mallocs.\n"
+            "# TYPE go_memstats_mallocs_total counter\n"
+            "go_memstats_mallocs_total 18713\n")
 
         expected_etcd_metric = metrics_pb2.MetricFamily()
         expected_etcd_metric.help = "Total number of mallocs."
@@ -428,26 +428,26 @@ class TestPrometheusTextParsing(unittest.TestCase):
         self.assertNotEqual(expected_etcd_metric, current_metric)
 
     def test_parse_one_histograms_with_label(self):
-        text_data = \
-            '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n' \
-            '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.001"} 2\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.002"} 2\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.004"} 2\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.008"} 2\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.016"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.032"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.064"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.128"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.256"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.512"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="1.024"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="2.048"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="4.096"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="8.192"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="+Inf"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_sum{app="vault"} 0.026131671\n' \
-            'etcd_disk_wal_fsync_duration_seconds_count{app="vault"} 4\n'
+        text_data = StringIO.StringIO(
+            '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n' 
+            '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n' 
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.001"} 2\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.002"} 2\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.004"} 2\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.008"} 2\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.016"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.032"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.064"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.128"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.256"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.512"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="1.024"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="2.048"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="4.096"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="8.192"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="+Inf"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_sum{app="vault"} 0.026131671\n'
+            'etcd_disk_wal_fsync_duration_seconds_count{app="vault"} 4\n')
 
         expected_etcd_vault_metric = metrics_pb2.MetricFamily()
         expected_etcd_vault_metric.help = "The latency distributions of fsync called by wal."
@@ -564,26 +564,26 @@ class TestPrometheusTextParsing(unittest.TestCase):
           }
         }
         """
-        text_data = \
-            '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n' \
-            '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.001"} 2\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.002"} 2\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.004"} 2\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.008"} 2\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.016"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.032"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.064"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.128"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.256"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.512"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="1.024"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="2.048"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="4.096"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="8.192"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_sum 0.026131671\n' \
-            'etcd_disk_wal_fsync_duration_seconds_count 4\n'
+        text_data = StringIO.StringIO(
+            '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n'
+            '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.001"} 2\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.002"} 2\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.004"} 2\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.008"} 2\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.016"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.032"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.064"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.128"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.256"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.512"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="1.024"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="2.048"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="4.096"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="8.192"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{le="+Inf"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_sum 0.026131671\n'
+            'etcd_disk_wal_fsync_duration_seconds_count 4\n')
 
         expected_etcd_metric = metrics_pb2.MetricFamily()
         expected_etcd_metric.help = "The latency distributions of fsync called by wal."
@@ -624,44 +624,44 @@ class TestPrometheusTextParsing(unittest.TestCase):
         self.assertEqual(expected_etcd_metric, current_metric)
 
     def test_parse_two_histograms_with_label(self):
-        text_data = \
-            '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n' \
-            '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.001"} 2\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.002"} 2\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.004"} 2\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.008"} 2\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.016"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.032"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.064"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.128"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.256"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.512"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="1.024"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="2.048"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="4.096"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="8.192"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="+Inf"} 4\n' \
-            'etcd_disk_wal_fsync_duration_seconds_sum{kind="fs",app="vault"} 0.026131671\n' \
-            'etcd_disk_wal_fsync_duration_seconds_count{kind="fs",app="vault"} 4\n' \
-            \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.001"} 718\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.002"} 740\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.004"} 743\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.008"} 748\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.016"} 751\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.032"} 751\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.064"} 751\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.128"} 751\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.256"} 751\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.512"} 751\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="1.024"} 751\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="2.048"} 751\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="4.096"} 751\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="8.192"} 751\n' \
-            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="+Inf"} 751\n' \
-            'etcd_disk_wal_fsync_duration_seconds_sum{kind="fs",app="kubernetes"} 0.3097010759999998\n' \
-            'etcd_disk_wal_fsync_duration_seconds_count{kind="fs",app="kubernetes"} 751\n'
+        text_data = StringIO.StringIO(
+            '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n'
+            '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.001"} 2\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.002"} 2\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.004"} 2\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.008"} 2\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.016"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.032"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.064"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.128"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.256"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.512"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="1.024"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="2.048"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="4.096"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="8.192"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="+Inf"} 4\n'
+            'etcd_disk_wal_fsync_duration_seconds_sum{kind="fs",app="vault"} 0.026131671\n'
+            'etcd_disk_wal_fsync_duration_seconds_count{kind="fs",app="vault"} 4\n'
+            
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.001"} 718\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.002"} 740\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.004"} 743\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.008"} 748\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.016"} 751\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.032"} 751\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.064"} 751\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.128"} 751\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.256"} 751\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.512"} 751\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="1.024"} 751\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="2.048"} 751\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="4.096"} 751\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="8.192"} 751\n'
+            'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="+Inf"} 751\n'
+            'etcd_disk_wal_fsync_duration_seconds_sum{kind="fs",app="kubernetes"} 0.3097010759999998\n'
+            'etcd_disk_wal_fsync_duration_seconds_count{kind="fs",app="kubernetes"} 751\n')
 
         expected_etcd_metric = metrics_pb2.MetricFamily()
         expected_etcd_metric.help = "The latency distributions of fsync called by wal."
@@ -771,14 +771,14 @@ class TestPrometheusTextParsing(unittest.TestCase):
           }
         }
         """
-        text_data = \
-            '# HELP http_response_size_bytes The HTTP response sizes in bytes.\n' \
-            '# TYPE http_response_size_bytes summary\n' \
-            'http_response_size_bytes{handler="prometheus",quantile="0.5"} 24547\n' \
-            'http_response_size_bytes{handler="prometheus",quantile="0.9"} 25763\n' \
-            'http_response_size_bytes{handler="prometheus",quantile="0.99"} 25763\n' \
-            'http_response_size_bytes_sum{handler="prometheus"} 120512\n' \
-            'http_response_size_bytes_count{handler="prometheus"} 5\n'
+        text_data = StringIO.StringIO(
+            '# HELP http_response_size_bytes The HTTP response sizes in bytes.\n'
+            '# TYPE http_response_size_bytes summary\n'
+            'http_response_size_bytes{handler="prometheus",quantile="0.5"} 24547\n'
+            'http_response_size_bytes{handler="prometheus",quantile="0.9"} 25763\n'
+            'http_response_size_bytes{handler="prometheus",quantile="0.99"} 25763\n'
+            'http_response_size_bytes_sum{handler="prometheus"} 120512\n'
+            'http_response_size_bytes_count{handler="prometheus"} 5\n')
 
         expected_etcd_metric = metrics_pb2.MetricFamily()
         expected_etcd_metric.help = "The HTTP response sizes in bytes."
@@ -817,20 +817,20 @@ class TestPrometheusTextParsing(unittest.TestCase):
         self.assertEqual(expected_etcd_metric, current_metric)
 
     def test_parse_two_summaries_with_labels(self):
-        text_data = \
-            '# HELP http_response_size_bytes The HTTP response sizes in bytes.\n' \
-            '# TYPE http_response_size_bytes summary\n' \
-            'http_response_size_bytes{from="internet",handler="prometheus",quantile="0.5"} 24547\n' \
-            'http_response_size_bytes{from="internet",handler="prometheus",quantile="0.9"} 25763\n' \
-            'http_response_size_bytes{from="internet",handler="prometheus",quantile="0.99"} 25763\n' \
-            'http_response_size_bytes_sum{from="internet",handler="prometheus"} 120512\n' \
-            'http_response_size_bytes_count{from="internet",handler="prometheus"} 5\n' \
-             \
-            'http_response_size_bytes{from="cluster",handler="prometheus",quantile="0.5"} 24615\n' \
-            'http_response_size_bytes{from="cluster",handler="prometheus",quantile="0.9"} 24627\n' \
-            'http_response_size_bytes{from="cluster",handler="prometheus",quantile="0.99"} 24627\n' \
-            'http_response_size_bytes_sum{from="cluster",handler="prometheus"} 94913\n' \
-            'http_response_size_bytes_count{from="cluster",handler="prometheus"} 4\n'
+        text_data = StringIO.StringIO(
+            '# HELP http_response_size_bytes The HTTP response sizes in bytes.\n'
+            '# TYPE http_response_size_bytes summary\n'
+            'http_response_size_bytes{from="internet",handler="prometheus",quantile="0.5"} 24547\n'
+            'http_response_size_bytes{from="internet",handler="prometheus",quantile="0.9"} 25763\n'
+            'http_response_size_bytes{from="internet",handler="prometheus",quantile="0.99"} 25763\n'
+            'http_response_size_bytes_sum{from="internet",handler="prometheus"} 120512\n'
+            'http_response_size_bytes_count{from="internet",handler="prometheus"} 5\n'
+            
+            'http_response_size_bytes{from="cluster",handler="prometheus",quantile="0.5"} 24615\n'
+            'http_response_size_bytes{from="cluster",handler="prometheus",quantile="0.9"} 24627\n'
+            'http_response_size_bytes{from="cluster",handler="prometheus",quantile="0.99"} 24627\n'
+            'http_response_size_bytes_sum{from="cluster",handler="prometheus"} 94913\n'
+            'http_response_size_bytes_count{from="cluster",handler="prometheus"} 4\n')
 
         expected_etcd_metric = metrics_pb2.MetricFamily()
         expected_etcd_metric.help = "The HTTP response sizes in bytes."
@@ -900,14 +900,14 @@ class TestPrometheusTextParsing(unittest.TestCase):
         self.assertEqual(expected_etcd_metric, current_metric)
 
     def test_parse_one_summary_with_none_values(self):
-        text_data = \
-            '# HELP http_response_size_bytes The HTTP response sizes in bytes.\n' \
-            '# TYPE http_response_size_bytes summary\n' \
-            'http_response_size_bytes{handler="prometheus",quantile="0.5"} NaN\n' \
-            'http_response_size_bytes{handler="prometheus",quantile="0.9"} NaN\n' \
-            'http_response_size_bytes{handler="prometheus",quantile="0.99"} NaN\n' \
-            'http_response_size_bytes_sum{handler="prometheus"} 0\n' \
-            'http_response_size_bytes_count{handler="prometheus"} 0\n'
+        text_data = StringIO.StringIO(
+            '# HELP http_response_size_bytes The HTTP response sizes in bytes.\n'
+            '# TYPE http_response_size_bytes summary\n'
+            'http_response_size_bytes{handler="prometheus",quantile="0.5"} NaN\n'
+            'http_response_size_bytes{handler="prometheus",quantile="0.9"} NaN\n'
+            'http_response_size_bytes{handler="prometheus",quantile="0.99"} NaN\n'
+            'http_response_size_bytes_sum{handler="prometheus"} 0\n'
+            'http_response_size_bytes_count{handler="prometheus"} 0\n')
 
         expected_etcd_metric = metrics_pb2.MetricFamily()
         expected_etcd_metric.help = "The HTTP response sizes in bytes."
