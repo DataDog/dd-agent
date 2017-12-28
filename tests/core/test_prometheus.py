@@ -429,8 +429,8 @@ class TestPrometheusTextParsing(unittest.TestCase):
 
     def test_parse_one_histograms_with_label(self):
         text_data = StringIO.StringIO(
-            '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n' 
-            '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n' 
+            '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n'
+            '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n'
             'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.001"} 2\n'
             'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.002"} 2\n'
             'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.004"} 2\n'
@@ -644,7 +644,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
             'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="+Inf"} 4\n'
             'etcd_disk_wal_fsync_duration_seconds_sum{kind="fs",app="vault"} 0.026131671\n'
             'etcd_disk_wal_fsync_duration_seconds_count{kind="fs",app="vault"} 4\n'
-            
+
             'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.001"} 718\n'
             'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.002"} 740\n'
             'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="kubernetes",le="0.004"} 743\n'
@@ -825,7 +825,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
             'http_response_size_bytes{from="internet",handler="prometheus",quantile="0.99"} 25763\n'
             'http_response_size_bytes_sum{from="internet",handler="prometheus"} 120512\n'
             'http_response_size_bytes_count{from="internet",handler="prometheus"} 5\n'
-            
+
             'http_response_size_bytes{from="cluster",handler="prometheus",quantile="0.5"} 24615\n'
             'http_response_size_bytes{from="cluster",handler="prometheus",quantile="0.9"} 24627\n'
             'http_response_size_bytes{from="cluster",handler="prometheus",quantile="0.99"} 24627\n'
