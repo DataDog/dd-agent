@@ -34,6 +34,10 @@ class PrometheusFormat:
     TEXT = "TEXT"
 
 
+class UnknownFormatError(TypeError):
+    pass
+
+
 class PrometheusCheck(AgentCheck):
     unwanted_labels = ["le", "quantile"]  # are specifics keys for prometheus itself
 
@@ -90,11 +94,7 @@ class PrometheusCheck(AgentCheck):
         """ Example method"""
         pass
 
-    class UnknownFormatError(Exception):
-        def __init__(self, arg):
-            self.args = arg
-
-    def parse_metric_family(self, iter_content, content_type):
+    def parse_metric_family(self, response):
         """
         Gets the output data from a prometheus endpoint response along with its
         Content-type header and parses it into Prometheus classes (see [0])
@@ -106,11 +106,9 @@ class PrometheusCheck(AgentCheck):
         [0] https://github.com/prometheus/client_model/blob/086fe7ca28bde6cec2acd5223423c1475a362858/metrics.proto#L76-%20%20L81
         [1] https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/AbstractMessageLite#writeDelimitedTo(java.io.OutputStream)
         """
-        if 'application/vnd.google.protobuf' in content_type:
+        if 'application/vnd.google.protobuf' in response.headers['Content-Type']:
             n = 0
-            buf = bytes()
-            for i in iter_content:
-                buf += i
+            buf = response.content
             while n < len(buf):
                 msg_len, new_pos = _DecodeVarint32(buf, n)
                 n = new_pos
@@ -129,11 +127,13 @@ class PrometheusCheck(AgentCheck):
                         self.log.debug("type override %s for %s is not a valid type name" % (new_type, message.name))
                 yield message
 
-        elif 'text/plain' in content_type:
-            messages = defaultdict(list)  # map with the name of the element (before the labels) and the list of occurrences with labels and values
+        elif 'text/plain' in response.headers['Content-Type']:
+            messages = defaultdict(list)  # map with the name of the element (before the labels)
+            # and the list of occurrences with labels and values
+
             obj_map = {}  # map of the types of each metrics
             obj_help = {}  # help for the metrics
-            for metric in text_fd_to_metric_families(iter_content):
+            for metric in text_fd_to_metric_families(response.iter_lines(chunk_size=1024*10)):
                 metric_name = "%s_bucket" % metric.name if metric.type == "histogram" else metric.name
                 metric_type = self.type_overrides.get(metric_name, metric.type)
                 if metric_type == "untyped" or metric_type not in self.METRIC_TYPES:
@@ -153,7 +153,8 @@ class PrometheusCheck(AgentCheck):
                 if _m in messages or (obj_map[_m] == 'histogram' and ('{}_bucket'.format(_m) in messages)):
                     yield self._extract_metric_from_map(_m, messages, obj_map, obj_help)
         else:
-            raise self.UnknownFormatError('Unsupported content-type provided: {}'.format(content_type))
+            raise UnknownFormatError('Unsupported content-type provided: {}'.format(
+                response.headers['Content-Type']))
 
     @staticmethod
     def get_metric_value_by_labels(messages, _metric, _m, metric_suffix):
@@ -259,12 +260,15 @@ class PrometheusCheck(AgentCheck):
         Note that if the instance has a 'tags' attribute, it will be pushed
         automatically as additionnal custom tags and added to the metrics
         """
-        content_type, iter_content = self.poll(endpoint)
-        tags = []
-        if instance is not None:
-            tags = instance.get('tags', [])
-        for metric in self.parse_metric_family(iter_content, content_type):
-            self.process_metric(metric, send_histograms_buckets=send_histograms_buckets, custom_tags=tags, instance=instance)
+        response = self.poll(endpoint)
+        try:
+            tags = []
+            if instance is not None:
+                tags = instance.get('tags', [])
+            for metric in self.parse_metric_family(response):
+                self.process_metric(metric, send_histograms_buckets=send_histograms_buckets, custom_tags=tags, instance=instance)
+        finally:
+            response.close()
 
     def process_metric(self, message, send_histograms_buckets=True, custom_tags=None, **kwargs):
         """
@@ -299,11 +303,17 @@ class PrometheusCheck(AgentCheck):
         if 'accept-encoding' not in headers:
             headers['accept-encoding'] = 'gzip'
         if pFormat == PrometheusFormat.PROTOBUF:
-            headers['accept'] = 'application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=delimited'
+            headers['accept'] = 'application/vnd.google.protobuf; ' \
+                                'proto=io.prometheus.client.MetricFamily; ' \
+                                'encoding=delimited'
 
-        req = requests.get(endpoint, headers=headers)
-        req.raise_for_status()
-        return req.headers['Content-Type'], req.iter_content(chunk_size=1024 * 10)  # chunk_size default is 1
+        response = requests.get(endpoint, headers=headers)
+        try:
+            response.raise_for_status()
+            return response
+        except requests.HTTPError:
+            response.close()
+            raise
 
     def _submit(self, metric_name, message, send_histograms_buckets=True, custom_tags=None):
         """

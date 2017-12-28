@@ -1,15 +1,27 @@
 # (C) Datadog, Inc. 2016
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
-import StringIO
 import logging
 import os
 import unittest
 
 from mock import MagicMock, patch, call
 
-from checks.prometheus_check import PrometheusCheck
+from checks.prometheus_check import PrometheusCheck, UnknownFormatError
 from utils.prometheus import parse_metric_family, metrics_pb2
+
+
+class MockResponse:
+    def __init__(self, content, content_type):
+        self.content = content
+        self.headers = {'Content-Type': content_type}
+
+    def iter_lines(self, **kwargs):
+        for elt in self.content.split("\n"):
+            yield elt
+
+    def close(self):
+        pass
 
 
 class TestPrometheusFuncs(unittest.TestCase):
@@ -59,7 +71,8 @@ class TestPrometheusProcessor(unittest.TestCase):
             self.check.check(None)
 
     def test_parse_metric_family_protobuf(self):
-        messages = list(self.check.parse_metric_family(self.bin_data, self.protobuf_content_type))
+        response = MockResponse(self.bin_data, self.protobuf_content_type)
+        messages = list(self.check.parse_metric_family(response))
         self.assertEqual(len(messages), 61)
         self.assertEqual(messages[-1].name, 'process_virtual_memory_bytes')
         # check type overriding is working
@@ -68,7 +81,8 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.assertEqual(messages[1].type, 1)  # gauge
         # override the type:
         self.check.type_overrides = {"go_goroutines": "summary"}
-        messages = list(self.check.parse_metric_family(self.bin_data, self.protobuf_content_type))
+        response = MockResponse(self.bin_data, self.protobuf_content_type)
+        messages = list(self.check.parse_metric_family(response))
         self.assertEqual(len(messages), 61)
         self.assertEqual(messages[1].name, 'go_goroutines')
         self.assertEqual(messages[1].type, 2)  # summary
@@ -80,13 +94,16 @@ class TestPrometheusProcessor(unittest.TestCase):
         with open(f_name, 'r') as f:
             _text_data = f.read()
             self.assertEqual(len(_text_data), 14494)
-        messages = list(self.check.parse_metric_family(StringIO.StringIO(_text_data), 'text/plain; version=0.0.4'))
+
+        response = MockResponse(_text_data, 'text/plain; version=0.0.4')
+        messages = list(self.check.parse_metric_family(response))
         # total metrics are 41 but one is typeless and we expect it not to be
         # parsed...
         self.assertEqual(len(messages), 40)
         # ...unless the check ovverrides the type manually
         self.check.type_overrides = {"go_goroutines": "gauge"}
-        messages = list(self.check.parse_metric_family(StringIO.StringIO(_text_data), 'text/plain; version=0.0.4'))
+        response = MockResponse(_text_data, 'text/plain; version=0.0.4')
+        messages = list(self.check.parse_metric_family(response))
         self.assertEqual(len(messages), 41)
         # Tests correct parsing of counters
         _counter = metrics_pb2.MetricFamily()
@@ -158,12 +175,13 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.assertIn(_histo, messages)
 
     def test_parse_metric_family_unsupported(self):
-        with self.assertRaises(PrometheusCheck.UnknownFormatError):
-            list(self.check.parse_metric_family(self.bin_data, 'application/json'))
+        with self.assertRaises(UnknownFormatError):
+            response = MockResponse(self.bin_data, 'application/json')
+            list(self.check.parse_metric_family(response))
 
     def test_process(self):
         endpoint = "http://fake.endpoint:10055/metrics"
-        self.check.poll = MagicMock(return_value=[self.protobuf_content_type, self.bin_data])
+        self.check.poll = MagicMock(return_value=MockResponse(self.bin_data, self.protobuf_content_type))
         self.check.process_metric = MagicMock()
         self.check.process(endpoint, instance=None)
         self.check.poll.assert_called_with(endpoint)
@@ -173,7 +191,8 @@ class TestPrometheusProcessor(unittest.TestCase):
     def test_process_send_histograms_buckets(self):
         """ Cheks that the send_histograms_buckets parameter is passed along """
         endpoint = "http://fake.endpoint:10055/metrics"
-        self.check.poll = MagicMock(return_value=[self.protobuf_content_type, self.bin_data])
+        self.check.poll = MagicMock(
+            return_value=MockResponse(self.bin_data, self.protobuf_content_type))
         self.check.process_metric = MagicMock()
         self.check.process(endpoint, send_histograms_buckets=False, instance=None)
         self.check.poll.assert_called_with(endpoint)
@@ -183,7 +202,8 @@ class TestPrometheusProcessor(unittest.TestCase):
     def test_process_instance_with_tags(self):
         """ Checks that an instances with tags passes them as custom tag """
         endpoint = "http://fake.endpoint:10055/metrics"
-        self.check.poll = MagicMock(return_value=[self.protobuf_content_type, self.bin_data])
+        self.check.poll = MagicMock(
+            return_value=MockResponse(self.bin_data, self.protobuf_content_type))
         self.check.process_metric = MagicMock()
         instance = {'endpoint': 'IgnoreMe', 'tags': ['tag1:tagValue1', 'tag2:tagValue2']}
         self.check.process(endpoint, instance=instance)
@@ -212,10 +232,12 @@ class TestPrometheusProcessor(unittest.TestCase):
     @patch('requests.get')
     def test_poll_protobuf(self, mock_get):
         ''' Tests poll using the protobuf format '''
-        mock_get.return_value = MagicMock(status_code=200, iter_content=lambda **kwargs: iter(self.bin_data),
-                                          headers={'Content-Type': self.protobuf_content_type})
-        ct, data = self.check.poll("http://fake.endpoint:10055/metrics")
-        messages = list(self.check.parse_metric_family(data, ct))
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            content=self.bin_data,
+            headers={'Content-Type': self.protobuf_content_type})
+        response = self.check.poll("http://fake.endpoint:10055/metrics")
+        messages = list(self.check.parse_metric_family(response))
         self.assertEqual(len(messages), 61)
         self.assertEqual(messages[-1].name, 'process_virtual_memory_bytes')
 
@@ -365,7 +387,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
           }
         }
         """
-        text_data = StringIO.StringIO(
+        text_data = (
             "# HELP etcd_server_has_leader Whether or not a leader exists. 1 is existence, 0 is not.\n"
             "# TYPE etcd_server_has_leader gauge\n"
             "etcd_server_has_leader 1\n")
@@ -377,7 +399,8 @@ class TestPrometheusTextParsing(unittest.TestCase):
         expected_etcd_metric.metric.add().gauge.value = 1
 
         # Iter on the generator to get all metrics
-        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+        response = MockResponse(text_data, 'text/plain; version=0.0.4')
+        metrics = [k for k in self.check.parse_metric_family(response)]
 
         self.assertEqual(1, len(metrics))
         current_metric = metrics[0]
@@ -404,7 +427,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
           }
         }
         """
-        text_data = StringIO.StringIO(
+        text_data = (
             "# HELP go_memstats_mallocs_total Total number of mallocs.\n"
             "# TYPE go_memstats_mallocs_total counter\n"
             "go_memstats_mallocs_total 18713\n")
@@ -416,7 +439,8 @@ class TestPrometheusTextParsing(unittest.TestCase):
         expected_etcd_metric.metric.add().counter.value = 18713
 
         # Iter on the generator to get all metrics
-        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+        response = MockResponse(text_data, 'text/plain; version=0.0.4')
+        metrics = [k for k in self.check.parse_metric_family(response)]
 
         self.assertEqual(1, len(metrics))
         current_metric = metrics[0]
@@ -428,7 +452,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
         self.assertNotEqual(expected_etcd_metric, current_metric)
 
     def test_parse_one_histograms_with_label(self):
-        text_data = StringIO.StringIO(
+        text_data = (
             '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n'
             '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n'
             'etcd_disk_wal_fsync_duration_seconds_bucket{app="vault",le="0.001"} 2\n'
@@ -486,7 +510,8 @@ class TestPrometheusTextParsing(unittest.TestCase):
         histogram_metric.histogram.sample_sum = 0.026131671
 
         # Iter on the generator to get all metrics
-        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+        response = MockResponse(text_data, 'text/plain; version=0.0.4')
+        metrics = [k for k in self.check.parse_metric_family(response)]
 
         self.assertEqual(1, len(metrics))
         current_metric = metrics[0]
@@ -564,7 +589,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
           }
         }
         """
-        text_data = StringIO.StringIO(
+        text_data = (
             '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n'
             '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n'
             'etcd_disk_wal_fsync_duration_seconds_bucket{le="0.001"} 2\n'
@@ -617,14 +642,15 @@ class TestPrometheusTextParsing(unittest.TestCase):
         histogram_metric.histogram.sample_sum = 0.026131671
 
         # Iter on the generator to get all metrics
-        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+        response = MockResponse(text_data, 'text/plain; version=0.0.4')
+        metrics = [k for k in self.check.parse_metric_family(response)]
 
         self.assertEqual(1, len(metrics))
         current_metric = metrics[0]
         self.assertEqual(expected_etcd_metric, current_metric)
 
     def test_parse_two_histograms_with_label(self):
-        text_data = StringIO.StringIO(
+        text_data = (
             '# HELP etcd_disk_wal_fsync_duration_seconds The latency distributions of fsync called by wal.\n'
             '# TYPE etcd_disk_wal_fsync_duration_seconds histogram\n'
             'etcd_disk_wal_fsync_duration_seconds_bucket{kind="fs",app="vault",le="0.001"} 2\n'
@@ -737,7 +763,8 @@ class TestPrometheusTextParsing(unittest.TestCase):
         histogram_metric.histogram.sample_sum = 0.3097010759999998
 
         # Iter on the generator to get all metrics
-        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+        response = MockResponse(text_data, 'text/plain; version=0.0.4')
+        metrics = [k for k in self.check.parse_metric_family(response)]
 
         self.assertEqual(1, len(metrics))
         current_metric = metrics[0]
@@ -771,7 +798,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
           }
         }
         """
-        text_data = StringIO.StringIO(
+        text_data = (
             '# HELP http_response_size_bytes The HTTP response sizes in bytes.\n'
             '# TYPE http_response_size_bytes summary\n'
             'http_response_size_bytes{handler="prometheus",quantile="0.5"} 24547\n'
@@ -809,7 +836,8 @@ class TestPrometheusTextParsing(unittest.TestCase):
         quantile_099.value = 25763
 
         # Iter on the generator to get all metrics
-        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+        response = MockResponse(text_data, 'text/plain; version=0.0.4')
+        metrics = [k for k in self.check.parse_metric_family(response)]
 
         self.assertEqual(1, len(metrics))
 
@@ -817,7 +845,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
         self.assertEqual(expected_etcd_metric, current_metric)
 
     def test_parse_two_summaries_with_labels(self):
-        text_data = StringIO.StringIO(
+        text_data = (
             '# HELP http_response_size_bytes The HTTP response sizes in bytes.\n'
             '# TYPE http_response_size_bytes summary\n'
             'http_response_size_bytes{from="internet",handler="prometheus",quantile="0.5"} 24547\n'
@@ -892,7 +920,8 @@ class TestPrometheusTextParsing(unittest.TestCase):
         quantile_099.value = 24627
 
         # Iter on the generator to get all metrics
-        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+        response = MockResponse(text_data, 'text/plain; version=0.0.4')
+        metrics = [k for k in self.check.parse_metric_family(response)]
 
         self.assertEqual(1, len(metrics))
 
@@ -900,7 +929,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
         self.assertEqual(expected_etcd_metric, current_metric)
 
     def test_parse_one_summary_with_none_values(self):
-        text_data = StringIO.StringIO(
+        text_data = (
             '# HELP http_response_size_bytes The HTTP response sizes in bytes.\n'
             '# TYPE http_response_size_bytes summary\n'
             'http_response_size_bytes{handler="prometheus",quantile="0.5"} NaN\n'
@@ -938,7 +967,8 @@ class TestPrometheusTextParsing(unittest.TestCase):
         quantile_099.value = float('nan')
 
         # Iter on the generator to get all metrics
-        metrics = [k for k in self.check.parse_metric_family(text_data, 'text/plain; version=0.0.4')]
+        response = MockResponse(text_data, 'text/plain; version=0.0.4')
+        metrics = [k for k in self.check.parse_metric_family(response)]
 
         self.assertEqual(1, len(metrics))
 
