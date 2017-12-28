@@ -84,6 +84,10 @@ class PrometheusCheck(AgentCheck):
         # overloaded/hardcoded in the final check not to be counted as custom metric.
         self.type_overrides = {}
 
+        # Some metrics are retrieved from differents hosts and often
+        # a label can hold this information, this transfer it to the hostname
+        self.label_to_hostname = None
+
     def check(self, instance):
         """
         check should take care of getting the url and other params
@@ -232,7 +236,7 @@ class PrometheusCheck(AgentCheck):
             # last_metric = len(_obj.metric) - 1
             # if last_metric >= 0:
             for lbl in _metric['labels']:
-                # In the string format, the quantiles are in the lablels
+                # In the string format, the quantiles are in the labels
                 if lbl == 'quantile':
                     # _q = _obj.metric[last_metric].summary.quantile.add()
                     _q = _g.summary.quantile.add()
@@ -327,7 +331,7 @@ class PrometheusCheck(AgentCheck):
             response.close()
             raise
 
-    def _submit(self, metric_name, message, send_histograms_buckets=True, custom_tags=None):
+    def _submit(self, metric_name, message, send_histograms_buckets=True, custom_tags=None, hostname=None):
         """
         For each metric in the message, report it as a gauge with all labels as tags
         except if a labels dict is passed, in which case keys are label names we'll extract
@@ -342,18 +346,22 @@ class PrometheusCheck(AgentCheck):
         """
         if message.type < len(self.METRIC_TYPES):
             for metric in message.metric:
+                if hostname == None and self.label_to_hostname != None:
+                    for label in metric.label:
+                        if label.name == self.label_to_hostname:
+                            hostname = label.value
                 if message.type == 4:
-                    self._submit_gauges_from_histogram(metric_name, metric, send_histograms_buckets, custom_tags)
+                    self._submit_gauges_from_histogram(metric_name, metric, send_histograms_buckets, custom_tags, hostname)
                 elif message.type == 2:
-                    self._submit_gauges_from_summary(metric_name, metric, custom_tags)
+                    self._submit_gauges_from_summary(metric_name, metric, custom_tags, hostname)
                 else:
                     val = getattr(metric, self.METRIC_TYPES[message.type]).value
-                    self._submit_gauge(metric_name, val, metric, custom_tags)
+                    self._submit_gauge(metric_name, val, metric, custom_tags, hostname)
 
         else:
             self.log.error("Metric type {} unsupported for metric {}.".format(message.type, message.name))
 
-    def _submit_gauge(self, metric_name, val, metric, custom_tags=None):
+    def _submit_gauge(self, metric_name, val, metric, custom_tags=None, hostname=None):
         """
         Submit a metric as a gauge, additional tags provided will be added to
         the ones from the label provided via the metrics object.
@@ -370,9 +378,9 @@ class PrometheusCheck(AgentCheck):
                 if self.labels_mapper is not None and label.name in self.labels_mapper:
                     tag_name = self.labels_mapper[label.name]
                 _tags.append('{}:{}'.format(tag_name, label.value))
-        self.gauge('{}.{}'.format(self.NAMESPACE, metric_name), val, _tags)
+        self.gauge('{}.{}'.format(self.NAMESPACE, metric_name), val, _tags, hostname=hostname)
 
-    def _submit_gauges_from_summary(self, name, metric, custom_tags=None):
+    def _submit_gauges_from_summary(self, name, metric, custom_tags=None, hostname=None):
         """
         Extracts metrics from a prometheus summary metric and sends them as gauges
         """
@@ -386,9 +394,9 @@ class PrometheusCheck(AgentCheck):
         for quantile in getattr(metric, self.METRIC_TYPES[2]).quantile:
             val = quantile.value
             limit = quantile.quantile
-            self._submit_gauge("{}.quantile".format(name), val, metric, custom_tags=custom_tags+["quantile:{}".format(limit)])
+            self._submit_gauge("{}.quantile".format(name), val, metric, custom_tags=custom_tags+["quantile:{}".format(limit)], hostname=hostname)
 
-    def _submit_gauges_from_histogram(self, name, metric, send_histograms_buckets=True, custom_tags=None):
+    def _submit_gauges_from_histogram(self, name, metric, send_histograms_buckets=True, custom_tags=None, hostname=None):
         """
         Extracts metrics from a prometheus histogram and sends them as gauges
         """
@@ -403,4 +411,4 @@ class PrometheusCheck(AgentCheck):
             for bucket in getattr(metric, self.METRIC_TYPES[4]).bucket:
                 val = bucket.cumulative_count
                 limit = bucket.upper_bound
-                self._submit_gauge("{}.count".format(name), val, metric, custom_tags=custom_tags+["upper_bound:{}".format(limit)])
+                self._submit_gauge("{}.count".format(name), val, metric, custom_tags=custom_tags+["upper_bound:{}".format(limit)], hostname=hostname)

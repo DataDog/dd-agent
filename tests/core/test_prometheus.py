@@ -218,7 +218,7 @@ class TestPrometheusProcessor(unittest.TestCase):
     def test_process_metric_gauge(self):
         ''' Gauge ref submission '''
         self.check.process_metric(self.ref_gauge)
-        self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0, [])
+        self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0, [], hostname=None)
 
     def test_process_metric_filtered(self):
         ''' Metric absent from the metrics_mapper '''
@@ -268,7 +268,37 @@ class TestPrometheusProcessor(unittest.TestCase):
         _l2.value = 'my_2nd_label_value'
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
-                                            ['my_1st_label:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
+                                            ['my_1st_label:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'],
+                                            hostname=None)
+
+    def test_submit_gauge_with_labels_and_hostname_override(self):
+        ''' submitting metrics that contain labels should result in tags on the gauge call '''
+        _l1 = self.ref_gauge.metric[0].label.add()
+        _l1.name = 'my_1st_label'
+        _l1.value = 'my_1st_label_value'
+        _l2 = self.ref_gauge.metric[0].label.add()
+        _l2.name = 'node'
+        _l2.value = 'foo'
+        self.check.label_to_hostname = 'node'
+        self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge)
+        self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
+                                            ['my_1st_label:my_1st_label_value', 'node:foo'],
+                                            hostname="foo")
+
+    def test_submit_gauge_with_labels_and_hostname_already_overridden(self):
+        ''' submitting metrics that contain labels should result in tags on the gauge call '''
+        _l1 = self.ref_gauge.metric[0].label.add()
+        _l1.name = 'my_1st_label'
+        _l1.value = 'my_1st_label_value'
+        _l2 = self.ref_gauge.metric[0].label.add()
+        _l2.name = 'node'
+        _l2.value = 'foo'
+        self.check.label_to_hostname = 'node'
+        self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, hostname="bar")
+        self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
+                                            ['my_1st_label:my_1st_label_value', 'node:foo'],
+                                            hostname="bar")
+
 
     def test_labels_not_added_as_tag_once_for_each_metric(self):
         _l1 = self.ref_gauge.metric[0].label.add()
@@ -284,14 +314,14 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                                             ['test', 'my_1st_label:my_1st_label_value',
-                                             'my_2nd_label:my_2nd_label_value'])
+                                             'my_2nd_label:my_2nd_label_value'], hostname=None)
 
     def test_submit_gauge_with_custom_tags(self):
         ''' Providing custom tags should add them as is on the gauge call '''
         tags = ['env:dev', 'app:my_pretty_app']
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
-                                            ['env:dev', 'app:my_pretty_app'])
+                                            ['env:dev', 'app:my_pretty_app'], hostname=None)
 
     def test_submit_gauge_with_labels_mapper(self):
         '''
@@ -310,7 +340,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                                             ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value',
-                                             'my_2nd_label:my_2nd_label_value'])
+                                             'my_2nd_label:my_2nd_label_value'], hostname=None)
 
     def test_submit_gauge_with_exclude_labels(self):
         '''
@@ -329,7 +359,8 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.exclude_labels = ['my_2nd_label', 'whatever_else', 'env']  # custom tags are not filtered out
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
-                                            ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value'])
+                                            ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value'],
+                                            hostname=None)
 
     def test_submit_counter(self):
         _counter = metrics_pb2.MetricFamily()
@@ -339,7 +370,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         _met = _counter.metric.add()
         _met.counter.value = 42
         self.check._submit('custom.counter', _counter)
-        self.check.gauge.assert_called_with('prometheus.custom.counter', 42, [])
+        self.check.gauge.assert_called_with('prometheus.custom.counter', 42, [], hostname=None)
 
     def test_submits_summary(self):
         _sum = metrics_pb2.MetricFamily()
@@ -357,10 +388,10 @@ class TestPrometheusProcessor(unittest.TestCase):
         _q2.value = 5
         self.check._submit('custom.summary', _sum)
         self.check.gauge.assert_has_calls([
-            call('prometheus.custom.summary.count', 42, []),
-            call('prometheus.custom.summary.sum', 3.14, []),
-            call('prometheus.custom.summary.quantile', 3, ['quantile:10.0']),
-            call('prometheus.custom.summary.quantile', 5, ['quantile:4.0'])
+            call('prometheus.custom.summary.count', 42, [], hostname=None),
+            call('prometheus.custom.summary.sum', 3.14, [], hostname=None),
+            call('prometheus.custom.summary.quantile', 3, ['quantile:10.0'], hostname=None),
+            call('prometheus.custom.summary.quantile', 5, ['quantile:4.0'], hostname=None)
         ])
 
     def test_submit_histogram(self):
@@ -379,10 +410,10 @@ class TestPrometheusProcessor(unittest.TestCase):
         _b2.cumulative_count = 666
         self.check._submit('custom.histogram', _histo)
         self.check.gauge.assert_has_calls([
-            call('prometheus.custom.histogram.count', 42, []),
-            call('prometheus.custom.histogram.sum', 3.14, []),
-            call('prometheus.custom.histogram.count', 33, ['upper_bound:12.7']),
-            call('prometheus.custom.histogram.count', 666, ['upper_bound:18.2'])
+            call('prometheus.custom.histogram.count', 42, [], hostname=None),
+            call('prometheus.custom.histogram.sum', 3.14, [], hostname=None),
+            call('prometheus.custom.histogram.count', 33, ['upper_bound:12.7'], hostname=None),
+            call('prometheus.custom.histogram.count', 666, ['upper_bound:18.2'], hostname=None)
         ])
 
 
