@@ -217,6 +217,7 @@ class TestPrometheusProcessor(unittest.TestCase):
 
     def test_process_metric_gauge(self):
         ''' Gauge ref submission '''
+        self.check._dry_run = False
         self.check.process_metric(self.ref_gauge)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0, [], hostname=None)
 
@@ -228,6 +229,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         filtered_gauge.type = 1  # GAUGE
         _m = filtered_gauge.metric.add()
         _m.gauge.value = 39211008.0
+        self.check._dry_run = False
         self.check.process_metric(filtered_gauge)
         self.check.log.debug.assert_called_with(
             "Unable to handle metric: process_start_time_seconds - error: 'PrometheusCheck' object has no attribute 'process_start_time_seconds'")
@@ -1032,8 +1034,10 @@ class TestPrometheusTextParsing(unittest.TestCase):
         f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
         with open(f_name, 'r') as f:
             text_data = f.read()
-        mock_get.return_value = MagicMock(status_code=200, content=text_data,
-                                          headers={'Content-Type': 'text/plain'})
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
         self.check.NAMESPACE = 'ksm'
         self.check.label_joins = {
             'kube_pod_info': {
@@ -1090,8 +1094,10 @@ class TestPrometheusTextParsing(unittest.TestCase):
         f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
         with open(f_name, 'r') as f:
             text_data = f.read()
-        mock_get.return_value = MagicMock(status_code=200, content=text_data,
-                                        headers={'Content-Type': 'text/plain'})
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
         self.check.NAMESPACE = 'ksm'
         self.check.label_joins = {
             'kube_pod_info': {
@@ -1112,8 +1118,10 @@ class TestPrometheusTextParsing(unittest.TestCase):
         ], any_order=True)
         self.assertEqual(15, len(self.check._label_mapping['pod']))
         text_data = text_data.replace('dd-agent-62bgh', 'dd-agent-1337')
-        mock_get.return_value = MagicMock(status_code=200, content=text_data,
-                                        headers={'Content-Type': 'text/plain'})
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
         self.check.process("http://fake.endpoint:10055/metrics")
         self.assertTrue('dd-agent-1337' in self.check._label_mapping['pod'])
         self.assertFalse('dd-agent-62bgh' in self.check._label_mapping['pod'])
