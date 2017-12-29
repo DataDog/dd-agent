@@ -869,7 +869,8 @@ def _get_check_module(check_name, check_path, from_site=False):
             check_module = import_module("datadog_checks.{}".format(check_name))
         except ImportError as e:
             error = e
-            log.exception('Unable to import check module %s from site-packages' % check_name)
+            # Log at debug level since this code path is expected if the check is not installed as a wheel
+            log.debug('Unable to import check module %s from site-packages: %s', check_name, e)
     else:
         try:
             check_module = imp.load_source('checksd_%s' % check_name, check_path)
