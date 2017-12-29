@@ -59,6 +59,13 @@ class TestPrometheusProcessor(unittest.TestCase):
             self.bin_data = f.read()
             self.assertEqual(len(self.bin_data), 51855)
 
+        self.text_data = None
+        # Loading test text data
+        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'metrics.txt')
+        with open(f_name, 'rb') as f:
+            self.text_data = f.read()
+            self.assertEqual(len(self.text_data), 14494)
+
     def tearDown(self):
         # Cleanup
         self.check = None
@@ -89,20 +96,14 @@ class TestPrometheusProcessor(unittest.TestCase):
 
     def test_parse_metric_family_text(self):
         ''' Test the high level method for loading metrics from text format '''
-        _text_data = None
-        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'metrics.txt')
-        with open(f_name, 'r') as f:
-            _text_data = f.read()
-            self.assertEqual(len(_text_data), 14494)
-
-        response = MockResponse(_text_data, 'text/plain; version=0.0.4')
+        response = MockResponse(self.text_data, 'text/plain; version=0.0.4')
         messages = list(self.check.parse_metric_family(response))
         # total metrics are 41 but one is typeless and we expect it not to be
         # parsed...
         self.assertEqual(len(messages), 40)
         # ...unless the check ovverrides the type manually
         self.check.type_overrides = {"go_goroutines": "gauge"}
-        response = MockResponse(_text_data, 'text/plain; version=0.0.4')
+        response = MockResponse(self.text_data, 'text/plain; version=0.0.4')
         messages = list(self.check.parse_metric_family(response))
         self.assertEqual(len(messages), 41)
         # Tests correct parsing of counters
@@ -240,6 +241,19 @@ class TestPrometheusProcessor(unittest.TestCase):
         messages = list(self.check.parse_metric_family(response))
         self.assertEqual(len(messages), 61)
         self.assertEqual(messages[-1].name, 'process_virtual_memory_bytes')
+
+    @patch('requests.get')
+    def test_poll_text_plain(self, mock_get):
+        """Tests poll using the text format"""
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: self.text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
+        response = self.check.poll("http://fake.endpoint:10055/metrics")
+        messages = list(self.check.parse_metric_family(response))
+        messages.sort(key=lambda x: x.name)
+        self.assertEqual(len(messages), 40)
+        self.assertEqual(messages[-1].name, 'skydns_skydns_dns_response_size_bytes')
 
     def test_submit_gauge_with_labels(self):
         ''' submitting metrics that contain labels should result in tags on the gauge call '''
