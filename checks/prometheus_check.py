@@ -307,7 +307,7 @@ class PrometheusCheck(AgentCheck):
                                 'proto=io.prometheus.client.MetricFamily; ' \
                                 'encoding=delimited'
 
-        response = requests.get(endpoint, headers=headers)
+        response = requests.get(endpoint, headers=headers, stream=True)
         try:
             response.raise_for_status()
             return response
