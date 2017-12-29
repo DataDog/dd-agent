@@ -320,7 +320,7 @@ class PrometheusCheck(AgentCheck):
             # Set dry run off
             self._dry_run = False
             # Garbage collect unused mapping and reset active labels
-            for metric, mapping in self._label_mapping.items():
+            for metric, mapping in self._label_mapping.iteritems():
                 for key, val in mapping.items():
                     if key not in self._active_label_mapping[metric]:
                         del self._label_mapping[metric][key]

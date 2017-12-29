@@ -1024,3 +1024,97 @@ class TestPrometheusTextParsing(unittest.TestCase):
         # As the NaN value isn't supported when we are calling assertEqual
         # we need to compare the object representation instead of the object itself
         self.assertEqual(expected_etcd_metric.__repr__(), current_metric.__repr__())
+
+    @patch('requests.get')
+    def test_label_joins(self, mock_get):
+        ''' Tests label join on text format '''
+        text_data = None
+        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
+        with open(f_name, 'r') as f:
+            text_data = f.read()
+        mock_get.return_value = MagicMock(status_code=200, content=text_data,
+                                          headers={'Content-Type': 'text/plain'})
+        self.check.NAMESPACE = 'ksm'
+        self.check.label_joins = {
+            'kube_pod_info': {
+                'label_to_match': 'pod',
+                'labels_to_get': ['node', 'pod_ip']
+            },
+            'kube_deployment_labels': {
+                'label_to_match': 'deployment',
+                'labels_to_get': ['label_addonmanager_kubernetes_io_mode', 'label_k8s_app', 'label_kubernetes_io_cluster_service']
+            }
+        }
+
+        self.check.metrics_mapper = {'kube_pod_status_ready': 'pod.ready',
+                                     'kube_pod_status_scheduled': 'pod.scheduled',
+                                     'kube_deployment_status_replicas': 'deploy.replicas.available'}
+
+        self.check.gauge = MagicMock()
+        # dry run to build mapping
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # run with submit
+        self.check.process("http://fake.endpoint:10055/metrics")
+
+        # check a bunch of metrics
+        self.check.gauge.assert_has_calls([
+            call('ksm.pod.ready', 1.0, ['pod:event-exporter-v0.1.7-958884745-qgnbw', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.32.3.14'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.132.0.7'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.132.0.14'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:heapster-v1.4.3-2027615481-lmjm5', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.32.5.7'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:kube-dns-3092422022-lvrmx', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.32.3.10'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:kube-dns-3092422022-x0tjx', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.32.3.9'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:kube-dns-autoscaler-97162954-mf6d3', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.32.5.6'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.132.0.7'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:ungaged-panther-kube-state-metrics-3918010230-64xwc', 'namespace:default', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.32.5.45'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:event-exporter-v0.1.7-958884745-qgnbw', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.32.3.14'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.132.0.7'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.132.0.14'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:heapster-v1.4.3-2027615481-lmjm5', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.32.5.7'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:kube-dns-3092422022-lvrmx', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.32.3.10'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:kube-dns-3092422022-x0tjx', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.32.3.9'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:kube-system', 'deployment:event-exporter-v0.1.7', 'label_k8s_app:event-exporter', 'label_addonmanager_kubernetes_io_mode:Reconcile', 'label_kubernetes_io_cluster_service:true'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:kube-system', 'deployment:heapster-v1.4.3', 'label_k8s_app:heapster', 'label_addonmanager_kubernetes_io_mode:Reconcile', 'label_kubernetes_io_cluster_service:true'], hostname=None),
+            call('ksm.deploy.replicas.available', 2.0, ['namespace:kube-system', 'deployment:kube-dns', 'label_kubernetes_io_cluster_service:true', 'label_addonmanager_kubernetes_io_mode:Reconcile', 'label_k8s_app:kube-dns'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:kube-system', 'deployment:kube-dns-autoscaler', 'label_kubernetes_io_cluster_service:true', 'label_addonmanager_kubernetes_io_mode:Reconcile', 'label_k8s_app:kube-dns-autoscaler'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:kube-system', 'deployment:kubernetes-dashboard', 'label_kubernetes_io_cluster_service:true', 'label_addonmanager_kubernetes_io_mode:Reconcile', 'label_k8s_app:kubernetes-dashboard'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:kube-system', 'deployment:l7-default-backend', 'label_k8s_app:glbc', 'label_addonmanager_kubernetes_io_mode:Reconcile', 'label_kubernetes_io_cluster_service:true'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:kube-system', 'deployment:tiller-deploy'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:default', 'deployment:ungaged-panther-kube-state-metrics'], hostname=None)
+        ], any_order=True)
+
+    @patch('requests.get')
+    def test_label_joins_gc(self, mock_get):
+        ''' Tests label join GC on text format '''
+        text_data = None
+        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
+        with open(f_name, 'r') as f:
+            text_data = f.read()
+        mock_get.return_value = MagicMock(status_code=200, content=text_data,
+                                        headers={'Content-Type': 'text/plain'})
+        self.check.NAMESPACE = 'ksm'
+        self.check.label_joins = {
+            'kube_pod_info': {
+                'label_to_match': 'pod',
+                'labels_to_get': ['node', 'pod_ip']
+            }
+        }
+        self.check.metrics_mapper = {'kube_pod_status_ready': 'pod.ready'}
+        self.check.gauge = MagicMock()
+        # dry run to build mapping
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # run with submit
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # check a bunch of metrics
+        self.check.gauge.assert_has_calls([
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.132.0.7'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.132.0.14'], hostname=None),
+        ], any_order=True)
+        self.assertEqual(15, len(self.check._label_mapping['pod']))
+        text_data = text_data.replace('dd-agent-62bgh', 'dd-agent-1337')
+        mock_get.return_value = MagicMock(status_code=200, content=text_data,
+                                        headers={'Content-Type': 'text/plain'})
+        self.check.process("http://fake.endpoint:10055/metrics")
+        self.assertTrue('dd-agent-1337' in self.check._label_mapping['pod'])
+        self.assertFalse('dd-agent-62bgh' in self.check._label_mapping['pod'])
+        self.assertEqual(15, len(self.check._label_mapping['pod']))
