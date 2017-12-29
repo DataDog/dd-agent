@@ -63,6 +63,39 @@ class PrometheusCheck(AgentCheck):
         # overloaded/hardcoded in the final check not to be counted as custom metric.
         self.metrics_mapper = {}
 
+        # `label_joins` holds the configuration for extracting labels from
+        # a target metric to all metric matching the label, example:
+        # self.label_joins = {
+        #     'kube_pod_info': {
+        #         'label_to_match': 'pod',
+        #         'labels_to_get': ['node', 'host_ip']
+        #     }
+        # }
+        self.label_joins = {}
+
+        # `_label_mapping` holds the additionals label info to add for a specific
+        # label value, example:
+        # self._label_mapping = {
+        #     'pod': {
+        #         'dd-agent-9s1l1': [("node","yolo"),("host_ip","yey")]
+        #     }
+        # }
+        self._label_mapping = {}
+
+        # `_active_label_mapping` holds a dictionnary of label values found during the run
+        # to cleanup the label_mapping of unused values, example:
+        # self._active_label_mapping = {
+        #     'pod': {
+        #         'dd-agent-9s1l1': True
+        #     }
+        # }
+        self._active_label_mapping = {}
+
+        # `_watched_labels` holds the list of label to watch for enrichment
+        self._watched_labels = set()
+
+        self._dry_run = True
+
         # Some metrics are ignored because they are duplicates or introduce a
         # very high cardinality. Metrics included in this list will be silently
         # skipped without a 'Unable to handle metric' debug line in the logs
@@ -270,11 +303,28 @@ class PrometheusCheck(AgentCheck):
         """
         response = self.poll(endpoint)
         try:
+            # no dry run if no label joins
+            if len(self.label_joins) == 0:
+                self._dry_run = False
+            elif len(self._watched_labels) == 0:
+                # build the _watched_labels set
+                for metric, val in self.label_joins.items():
+                    self._watched_labels.add(val['label_to_match'])
+
             tags = []
             if instance is not None:
                 tags = instance.get('tags', [])
             for metric in self.parse_metric_family(response):
                 self.process_metric(metric, send_histograms_buckets=send_histograms_buckets, custom_tags=tags, instance=instance)
+
+            # Set dry run off
+            self._dry_run = False
+            # Garbage collect unused mapping and reset active labels
+            for metric, mapping in self._label_mapping.items():
+                for key, val in mapping.items():
+                    if key not in self._active_label_mapping[metric]:
+                        del self._label_mapping[metric][key]
+            self._active_label_mapping = {}
         finally:
             response.close()
 
@@ -288,12 +338,44 @@ class PrometheusCheck(AgentCheck):
         `send_histograms_buckets` is used to specify if yes or no you want to send the buckets as tagged values when dealing with histograms.
         """
         try:
+            # If targeted metric, store labels
+            if message.name in self.label_joins:
+                matching_label = self.label_joins[message.name]['label_to_match']
+                for metric in message.metric:
+                    labels_list = []
+                    for label in metric.label:
+                        if label.name == matching_label:
+                            matching_value = label.value
+                        elif label.name in self.label_joins[message.name]['labels_to_get']:
+                            labels_list.append((label.name, label.value))
+                    if matching_label in self._label_mapping:
+                        self._label_mapping[matching_label][matching_value] = labels_list
+                    else:
+                        self._label_mapping[matching_label] = {matching_value : labels_list}
+
             if message.name in self.ignore_metrics:
                 return  # Ignore the metric
-            if message.name in self.metrics_mapper:
-                self._submit(self.metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
-            else:
-                getattr(self, message.name)(message, **kwargs)
+
+            # Filter metric to see if we can enrich with joined labels
+            if len(self.label_joins) > 0:
+                for metric in message.metric:
+                    for label in metric.label:
+                        if label.name in self._watched_labels:
+                            # Set this label value as active
+                            if label.name not in self._active_label_mapping:
+                                self._active_label_mapping[label.name] = {}
+                            self._active_label_mapping[label.name][label.value] = True
+                            # If mapping found add corresponding labels
+                            if label.name in self._label_mapping and label.value in self._label_mapping[label.name]:
+                                for label_tuple in self._label_mapping[label.name][label.value]:
+                                    extra_label = metric.label.add()
+                                    extra_label.name, extra_label.value = label_tuple[0], label_tuple[1]
+
+            if not self._dry_run:
+                if message.name in self.metrics_mapper:
+                    self._submit(self.metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
+                else:
+                    getattr(self, message.name)(message, **kwargs)
         except AttributeError as err:
             self.log.debug("Unable to handle metric: {} - error: {}".format(message.name, err))
 
