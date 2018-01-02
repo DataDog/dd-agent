@@ -39,7 +39,8 @@ class UnknownFormatError(TypeError):
 
 
 class PrometheusCheck(AgentCheck):
-    unwanted_labels = ["le", "quantile"]  # are specifics keys for prometheus itself
+    UNWANTED_LABELS = ["le", "quantile"]  # are specifics keys for prometheus itself
+    REQUESTS_CHUNK_SIZE = 1024 * 10  # use 10kb as chunk size when using the Stream feature in requests.get
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
@@ -96,15 +97,18 @@ class PrometheusCheck(AgentCheck):
 
     def parse_metric_family(self, response):
         """
-        Gets the output data from a prometheus endpoint response along with its
-        Content-type header and parses it into Prometheus classes (see [0])
+        Parse the MetricFamily from a valid requests.Response object to provide a MetricFamily object (see [0])
 
-        Parse the binary buffer in input, searching for Prometheus messages
-        of type MetricFamily [0] delimited by a varint32 [1] when the
-        content-type is a `application/vnd.google.protobuf`.
+        The text format uses iter_lines() generator.
+
+        The protobuf format directly parse the response.content property searching for Prometheus messages of type
+        MetricFamily [0] delimited by a varint32 [1] when the content-type is a `application/vnd.google.protobuf`.
 
         [0] https://github.com/prometheus/client_model/blob/086fe7ca28bde6cec2acd5223423c1475a362858/metrics.proto#L76-%20%20L81
         [1] https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/AbstractMessageLite#writeDelimitedTo(java.io.OutputStream)
+
+        :param response: requests.Response
+        :return: metrics_pb2.MetricFamily()
         """
         if 'application/vnd.google.protobuf' in response.headers['Content-Type']:
             n = 0
@@ -133,7 +137,7 @@ class PrometheusCheck(AgentCheck):
 
             obj_map = {}  # map of the types of each metrics
             obj_help = {}  # help for the metrics
-            for metric in text_fd_to_metric_families(response.iter_lines(chunk_size=1024*10)):
+            for metric in text_fd_to_metric_families(response.iter_lines(chunk_size=self.REQUESTS_CHUNK_SIZE)):
                 metric_name = "%s_bucket" % metric.name if metric.type == "histogram" else metric.name
                 metric_type = self.type_overrides.get(metric_name, metric.type)
                 if metric_type == "untyped" or metric_type not in self.METRIC_TYPES:
@@ -167,10 +171,10 @@ class PrometheusCheck(AgentCheck):
         """
         metric_name = '{}_{}'.format(_m, metric_suffix)
         expected_labels = set([(k, v) for k, v in _metric["labels"].iteritems()
-                               if k not in PrometheusCheck.unwanted_labels])
+                               if k not in PrometheusCheck.UNWANTED_LABELS])
         for elt in messages[metric_name]:
             current_labels = set([(k, v) for k, v in elt["labels"].iteritems()
-                                  if k not in PrometheusCheck.unwanted_labels])
+                                  if k not in PrometheusCheck.UNWANTED_LABELS])
             # As we have two hashable objects we can compare them without any side effects
             if current_labels == expected_labels:
                 return float(elt["value"])
@@ -296,7 +300,15 @@ class PrometheusCheck(AgentCheck):
         the PrometheusFormat class.
         Custom headers can be added to the default headers.
 
-        Returns the content-type and a generator on content itself
+        Returns a valid requests.Response, raise requests.HTTPError if the status code of the requests.Response
+        isn't valid - see response.raise_for_status()
+
+        The caller needs to close the requests.Response
+
+        :param endpoint: string url endpoint
+        :param pFormat: the preferred format defined in PrometheusFormat
+        :param headers: extra headers
+        :return: requests.Response
         """
         if headers is None:
             headers = {}
