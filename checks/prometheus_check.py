@@ -2,7 +2,6 @@
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
-import re
 import requests
 from collections import defaultdict
 from google.protobuf.internal.decoder import _DecodeVarint32  # pylint: disable=E0611,E0401
@@ -24,7 +23,8 @@ from prometheus_client.parser import text_fd_to_metric_families
 #   - overriding self.NAMESPACE
 #   - overriding self.metrics_mapper
 #     AND/OR
-#   - create method named after the prometheus metric they will handle (see self.prometheus_metric_name)
+#   - create method named after the prometheus metric with the signature prometheus_metric_name(self, message, **kwargs)
+#     it will be called in `process_metric`
 #
 
 # Used to specify if you want to use the protobuf format or the text format when
@@ -47,11 +47,6 @@ class PrometheusCheck(AgentCheck):
         # message.type is the index in this array
         # see: https://github.com/prometheus/client_model/blob/master/ruby/lib/prometheus/client/model/metrics.pb.rb
         self.METRIC_TYPES = ['counter', 'gauge', 'summary', 'untyped', 'histogram']
-
-        # patterns used for metrics and labels extraction form the prometheus
-        # text format. Do not overwrite those
-        self.metrics_pattern = re.compile(r'^(\w+)(.*)\s+([0-9.+eE,]+)$')
-        self.lbl_pattern = re.compile(r'(\w+)="(.*?)"')
 
         # `NAMESPACE` is the prefix metrics will have. Need to be hardcoded in the
         # child check class.
@@ -127,10 +122,6 @@ class PrometheusCheck(AgentCheck):
         from the instance and using the utils to process messages and submit metrics.
         """
         raise NotImplementedError()
-
-    def prometheus_metric_name(self, message, **kwargs):
-        """ Example method"""
-        pass
 
     def parse_metric_family(self, response):
         """
@@ -433,14 +424,16 @@ class PrometheusCheck(AgentCheck):
                 if hostname == None and self.label_to_hostname != None:
                     for label in metric.label:
                         if label.name == self.label_to_hostname:
-                            hostname = label.value
+                            custom_hostname = label.value
+                else:
+                    custom_hostname = hostname
                 if message.type == 4:
-                    self._submit_gauges_from_histogram(metric_name, metric, send_histograms_buckets, custom_tags, hostname)
+                    self._submit_gauges_from_histogram(metric_name, metric, send_histograms_buckets, custom_tags, custom_hostname)
                 elif message.type == 2:
-                    self._submit_gauges_from_summary(metric_name, metric, custom_tags, hostname)
+                    self._submit_gauges_from_summary(metric_name, metric, custom_tags, custom_hostname)
                 else:
                     val = getattr(metric, self.METRIC_TYPES[message.type]).value
-                    self._submit_gauge(metric_name, val, metric, custom_tags, hostname)
+                    self._submit_gauge(metric_name, val, metric, custom_tags, custom_hostname)
 
         else:
             self.log.error("Metric type {} unsupported for metric {}.".format(message.type, message.name))

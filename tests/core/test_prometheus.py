@@ -1216,3 +1216,34 @@ class TestPrometheusTextParsing(unittest.TestCase):
             call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true'], hostname=None),
             call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true'], hostname=None),
         ], any_order=True)
+
+    @patch('requests.get')
+    def test_label_join_with_hostname(self, mock_get):
+        ''' Tests label join and hostname override on a metric '''
+        text_data = None
+        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
+        with open(f_name, 'r') as f:
+            text_data = f.read()
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
+        self.check.NAMESPACE = 'ksm'
+        self.check.label_joins = {
+            'kube_pod_info': {
+                'label_to_match': 'pod',
+                'labels_to_get': ['node']
+            }
+        }
+        self.check.label_to_hostname = 'node'
+        self.check.metrics_mapper = {'kube_pod_status_ready': 'pod.ready'}
+        self.check.gauge = MagicMock()
+        # dry run to build mapping
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # run with submit
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # check a bunch of metrics
+        self.check.gauge.assert_has_calls([
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch'], hostname='gke-foobar-test-kube-default-pool-9b4ff111-0kch'),
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z'], hostname='gke-foobar-test-kube-default-pool-9b4ff111-j75z'),
+        ], any_order=True)
