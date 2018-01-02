@@ -47,6 +47,8 @@ fi
 
 if [ -n "$DD_API_KEY" ]; then
     apikey=$DD_API_KEY
+elif [ $1 ]; then
+    apikey=$1
 fi
 
 if [ -n "$DD_INSTALL_ONLY" ]; then
