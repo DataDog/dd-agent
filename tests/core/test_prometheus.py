@@ -76,7 +76,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.ref_gauge = None
 
     def test_check(self):
-        ''' Should not be implemented as it is the mother class '''
+        """ Should not be implemented as it is the mother class """
         with self.assertRaises(NotImplementedError):
             self.check.check(None)
 
@@ -98,7 +98,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.assertEqual(messages[1].type, 2)  # summary
 
     def test_parse_metric_family_text(self):
-        ''' Test the high level method for loading metrics from text format '''
+        """ Test the high level method for loading metrics from text format """
         response = MockResponse(self.text_data, 'text/plain; version=0.0.4')
         messages = list(self.check.parse_metric_family(response))
         # total metrics are 41 but one is typeless and we expect it not to be
@@ -216,13 +216,13 @@ class TestPrometheusProcessor(unittest.TestCase):
                                                      instance=instance, send_histograms_buckets=True)
 
     def test_process_metric_gauge(self):
-        ''' Gauge ref submission '''
+        """ Gauge ref submission """
         self.check._dry_run = False
         self.check.process_metric(self.ref_gauge)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0, [], hostname=None)
 
     def test_process_metric_filtered(self):
-        ''' Metric absent from the metrics_mapper '''
+        """ Metric absent from the metrics_mapper """
         filtered_gauge = metrics_pb2.MetricFamily()
         filtered_gauge.name = "process_start_time_seconds"
         filtered_gauge.help = "Start time of the process since unix epoch in seconds."
@@ -237,7 +237,7 @@ class TestPrometheusProcessor(unittest.TestCase):
 
     @patch('requests.get')
     def test_poll_protobuf(self, mock_get):
-        ''' Tests poll using the protobuf format '''
+        """ Tests poll using the protobuf format """
         mock_get.return_value = MagicMock(
             status_code=200,
             content=self.bin_data,
@@ -261,7 +261,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.assertEqual(messages[-1].name, 'skydns_skydns_dns_response_size_bytes')
 
     def test_submit_gauge_with_labels(self):
-        ''' submitting metrics that contain labels should result in tags on the gauge call '''
+        """ submitting metrics that contain labels should result in tags on the gauge call """
         _l1 = self.ref_gauge.metric[0].label.add()
         _l1.name = 'my_1st_label'
         _l1.value = 'my_1st_label_value'
@@ -274,7 +274,7 @@ class TestPrometheusProcessor(unittest.TestCase):
                                             hostname=None)
 
     def test_submit_gauge_with_labels_and_hostname_override(self):
-        ''' submitting metrics that contain labels should result in tags on the gauge call '''
+        """ submitting metrics that contain labels should result in tags on the gauge call """
         _l1 = self.ref_gauge.metric[0].label.add()
         _l1.name = 'my_1st_label'
         _l1.value = 'my_1st_label_value'
@@ -288,7 +288,7 @@ class TestPrometheusProcessor(unittest.TestCase):
                                             hostname="foo")
 
     def test_submit_gauge_with_labels_and_hostname_already_overridden(self):
-        ''' submitting metrics that contain labels should result in tags on the gauge call '''
+        """ submitting metrics that contain labels should result in tags on the gauge call """
         _l1 = self.ref_gauge.metric[0].label.add()
         _l1.name = 'my_1st_label'
         _l1.value = 'my_1st_label_value'
@@ -319,17 +319,17 @@ class TestPrometheusProcessor(unittest.TestCase):
                                              'my_2nd_label:my_2nd_label_value'], hostname=None)
 
     def test_submit_gauge_with_custom_tags(self):
-        ''' Providing custom tags should add them as is on the gauge call '''
+        """ Providing custom tags should add them as is on the gauge call """
         tags = ['env:dev', 'app:my_pretty_app']
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                                             ['env:dev', 'app:my_pretty_app'], hostname=None)
 
     def test_submit_gauge_with_labels_mapper(self):
-        '''
+        """
         Submitting metrics that contain labels mappers should result in tags
         on the gauge call with transformed tag names
-        '''
+        """
         _l1 = self.ref_gauge.metric[0].label.add()
         _l1.name = 'my_1st_label'
         _l1.value = 'my_1st_label_value'
@@ -345,10 +345,10 @@ class TestPrometheusProcessor(unittest.TestCase):
                                              'my_2nd_label:my_2nd_label_value'], hostname=None)
 
     def test_submit_gauge_with_exclude_labels(self):
-        '''
+        """
         Submitting metrics when filtering with exclude_labels should end up with
         a filtered tags list
-        '''
+        """
         _l1 = self.ref_gauge.metric[0].label.add()
         _l1.name = 'my_1st_label'
         _l1.value = 'my_1st_label_value'
@@ -1029,7 +1029,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
 
     @patch('requests.get')
     def test_label_joins(self, mock_get):
-        ''' Tests label join on text format '''
+        """ Tests label join on text format """
         text_data = None
         f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
         with open(f_name, 'r') as f:
@@ -1089,7 +1089,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
 
     @patch('requests.get')
     def test_label_joins_gc(self, mock_get):
-        ''' Tests label join GC on text format '''
+        """ Tests label join GC on text format """
         text_data = None
         f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
         with open(f_name, 'r') as f:
@@ -1129,7 +1129,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
 
     @patch('requests.get')
     def test_label_joins_missconfigured(self, mock_get):
-        ''' Tests label join missconfigured label is ignored '''
+        """ Tests label join missconfigured label is ignored """
         text_data = None
         f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
         with open(f_name, 'r') as f:
@@ -1159,7 +1159,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
 
     @patch('requests.get')
     def test_label_join_not_existing(self, mock_get):
-        ''' Tests label join on non existing matching label is ignored '''
+        """ Tests label join on non existing matching label is ignored """
         text_data = None
         f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
         with open(f_name, 'r') as f:
@@ -1189,7 +1189,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
 
     @patch('requests.get')
     def test_label_join_metric_not_existing(self, mock_get):
-        ''' Tests label join on non existing metric is ignored '''
+        """ Tests label join on non existing metric is ignored """
         text_data = None
         f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
         with open(f_name, 'r') as f:
@@ -1219,7 +1219,7 @@ class TestPrometheusTextParsing(unittest.TestCase):
 
     @patch('requests.get')
     def test_label_join_with_hostname(self, mock_get):
-        ''' Tests label join and hostname override on a metric '''
+        """ Tests label join and hostname override on a metric """
         text_data = None
         f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
         with open(f_name, 'r') as f:
