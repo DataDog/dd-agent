@@ -519,6 +519,18 @@ class Collector(object):
                                         self.continue_running)
         self.emit_duration = timer.step()
 
+        if self._is_first_run():
+            # This is not the exact payload sent to the backend as minor post
+            # processing is done, but this will give us a good idea of what is sent
+            # to the backend.
+            data = payload.payload # deep copy and merge of meta and metric data
+            data['apiKey'] = '*************************' + data.get('apiKey', '')[-5:]
+            # removing unused keys for the metadata payload
+            del data['metrics']
+            del data['events']
+            del data['service_checks']
+            log.debug("Metadata payload: %s", json.dumps(data))
+
         # Persist the status of the collection run.
         try:
             CollectorStatus(check_statuses, emitter_statuses,
