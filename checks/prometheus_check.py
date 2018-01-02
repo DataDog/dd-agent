@@ -77,7 +77,7 @@ class PrometheusCheck(AgentCheck):
         # }
         self._label_mapping = {}
 
-        # `_active_label_mapping` holds a dictionnary of label values found during the run
+        # `_active_label_mapping` holds a dictionary of label values found during the run
         # to cleanup the label_mapping of unused values, example:
         # self._active_label_mapping = {
         #     'pod': {
@@ -96,7 +96,7 @@ class PrometheusCheck(AgentCheck):
         # skipped without a 'Unable to handle metric' debug line in the logs
         self.ignore_metrics = []
 
-        # If the `labels_mapper` dictionnary is provided, the metrics labels names
+        # If the `labels_mapper` dictionary is provided, the metrics labels names
         # in the `labels_mapper` will use the corresponding value as tag name
         # when sending the gauges.
         self.labels_mapper = {}
@@ -105,7 +105,7 @@ class PrometheusCheck(AgentCheck):
         # will just not be added as tags when submitting the metric.
         self.exclude_labels = []
 
-        # `type_overrides` is a dictionnary where the keys are prometheus metric names
+        # `type_overrides` is a dictionary where the keys are prometheus metric names
         # and the values are a metric type (name as string) to use instead of the one
         # listed in the payload. It can be used to force a type on untyped metrics.
         # Note: it is empty in the mother class but will need to be
@@ -295,11 +295,11 @@ class PrometheusCheck(AgentCheck):
         response = self.poll(endpoint)
         try:
             # no dry run if no label joins
-            if len(self.label_joins) == 0:
+            if not self.label_joins:
                 self._dry_run = False
-            elif len(self._watched_labels) == 0:
+            elif not self._watched_labels:
                 # build the _watched_labels set
-                for metric, val in self.label_joins.items():
+                for metric, val in self.label_joins.iteritems():
                     self._watched_labels.add(val['label_to_match'])
 
             tags = []
@@ -311,7 +311,7 @@ class PrometheusCheck(AgentCheck):
             # Set dry run off
             self._dry_run = False
             # Garbage collect unused mapping and reset active labels
-            for metric, mapping in self._label_mapping.iteritems():
+            for metric, mapping in self._label_mapping.items():
                 for key, val in mapping.items():
                     if key not in self._active_label_mapping[metric]:
                         del self._label_mapping[metric][key]
@@ -340,16 +340,17 @@ class PrometheusCheck(AgentCheck):
                             matching_value = label.value
                         elif label.name in self.label_joins[message.name]['labels_to_get']:
                             labels_list.append((label.name, label.value))
-                    if matching_label in self._label_mapping:
+                    try:
                         self._label_mapping[matching_label][matching_value] = labels_list
-                    elif matching_value is not None:
-                        self._label_mapping[matching_label] = {matching_value : labels_list}
+                    except KeyError:
+                        if matching_value is not None:
+                            self._label_mapping[matching_label] = {matching_value: labels_list}
 
             if message.name in self.ignore_metrics:
                 return  # Ignore the metric
 
             # Filter metric to see if we can enrich with joined labels
-            if len(self.label_joins) > 0:
+            if self.label_joins:
                 for metric in message.metric:
                     for label in metric.label:
                         if label.name in self._watched_labels:
@@ -358,15 +359,17 @@ class PrometheusCheck(AgentCheck):
                                 self._active_label_mapping[label.name] = {}
                             self._active_label_mapping[label.name][label.value] = True
                             # If mapping found add corresponding labels
-                            if label.name in self._label_mapping and label.value in self._label_mapping[label.name]:
+                            try:
                                 for label_tuple in self._label_mapping[label.name][label.value]:
                                     extra_label = metric.label.add()
                                     extra_label.name, extra_label.value = label_tuple[0], label_tuple[1]
+                            except KeyError:
+                                pass
 
             if not self._dry_run:
-                if message.name in self.metrics_mapper:
+                try:
                     self._submit(self.metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
-                else:
+                except KeyError:
                     getattr(self, message.name)(message, **kwargs)
         except AttributeError as err:
             self.log.debug("Unable to handle metric: {} - error: {}".format(message.name, err))
@@ -425,6 +428,7 @@ class PrometheusCheck(AgentCheck):
                     for label in metric.label:
                         if label.name == self.label_to_hostname:
                             custom_hostname = label.value
+                            break
                 else:
                     custom_hostname = hostname
                 if message.type == 4:
