@@ -63,7 +63,7 @@ class PrometheusCheck(AgentCheck):
         # overloaded/hardcoded in the final check not to be counted as custom metric.
         self.metrics_mapper = {}
 
-        # `label_joins` holds the configuration for extracting labels from
+        # `label_joins` holds the configuration for extracting 1:1 labels from
         # a target metric to all metric matching the label, example:
         # self.label_joins = {
         #     'kube_pod_info': {
@@ -343,6 +343,7 @@ class PrometheusCheck(AgentCheck):
                 matching_label = self.label_joins[message.name]['label_to_match']
                 for metric in message.metric:
                     labels_list = []
+                    matching_value = None
                     for label in metric.label:
                         if label.name == matching_label:
                             matching_value = label.value
@@ -350,7 +351,7 @@ class PrometheusCheck(AgentCheck):
                             labels_list.append((label.name, label.value))
                     if matching_label in self._label_mapping:
                         self._label_mapping[matching_label][matching_value] = labels_list
-                    else:
+                    elif matching_value is not None:
                         self._label_mapping[matching_label] = {matching_value : labels_list}
 
             if message.name in self.ignore_metrics:
@@ -428,6 +429,7 @@ class PrometheusCheck(AgentCheck):
         """
         if message.type < len(self.METRIC_TYPES):
             for metric in message.metric:
+                # if hostname is not specified, look at label_to_hostname setting
                 if hostname == None and self.label_to_hostname != None:
                     for label in metric.label:
                         if label.name == self.label_to_hostname:
