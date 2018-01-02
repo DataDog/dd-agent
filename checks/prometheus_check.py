@@ -363,7 +363,7 @@ class PrometheusCheck(AgentCheck):
                             try:
                                 for label_tuple in self._label_mapping[label.name][label.value]:
                                     extra_label = metric.label.add()
-                                    extra_label.name, extra_label.value = label_tuple[0], label_tuple[1]
+                                    extra_label.name, extra_label.value = label_tuple
                             except KeyError:
                                 pass
 
