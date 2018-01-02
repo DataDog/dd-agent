@@ -573,14 +573,17 @@ class DockerUtil:
 
         return None
 
-    def image_name_extractor(self, co):
+    def image_name_extractor(self, co, short=False):
         """
         Returns the image name for a container, either directly from the
         container's Image property or by inspecting the image entity if
         the reference is its sha256 sum and not its name.
         Result is cached for performance, no invalidation planned as image
         churn is low on typical hosts.
+        If short is true, the repository is stripped from the result
         """
+        if short:
+            return self.image_name_resolver(co.get('Image', '')).split('/')[-1]
         return self.image_name_resolver(co.get('Image', ''))
 
     def image_name_resolver(self, image):
