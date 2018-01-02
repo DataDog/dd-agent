@@ -357,6 +357,7 @@ class PrometheusCheck(AgentCheck):
                             # Set this label value as active
                             if label.name not in self._active_label_mapping:
                                 self._active_label_mapping[label.name] = {}
+
                             self._active_label_mapping[label.name][label.value] = True
                             # If mapping found add corresponding labels
                             try:
@@ -424,7 +425,7 @@ class PrometheusCheck(AgentCheck):
         if message.type < len(self.METRIC_TYPES):
             for metric in message.metric:
                 # if hostname is not specified, look at label_to_hostname setting
-                if hostname == None and self.label_to_hostname != None:
+                if hostname is None and self.label_to_hostname is not None:
                     for label in metric.label:
                         if label.name == self.label_to_hostname:
                             custom_hostname = label.value
