@@ -357,7 +357,6 @@ class PrometheusCheck(AgentCheck):
                         # Set this label value as active
                         if label.name not in self._active_label_mapping:
                             self._active_label_mapping[label.name] = {}
-
                         self._active_label_mapping[label.name][label.value] = True
                         # If mapping found add corresponding labels
                         try:
@@ -425,15 +424,7 @@ class PrometheusCheck(AgentCheck):
         """
         if message.type < len(self.METRIC_TYPES):
             for metric in message.metric:
-                # if hostname is not specified, look at label_to_hostname setting
-                if hostname is None and self.label_to_hostname is not None:
-                    custom_hostname = hostname
-                    for label in metric.label:
-                        if label.name == self.label_to_hostname:
-                            custom_hostname = label.value
-                            break
-                else:
-                    custom_hostname = hostname
+                custom_hostname = self._get_hostname(hostname, metric)
                 if message.type == 4:
                     self._submit_gauges_from_histogram(metric_name, metric, send_histograms_buckets, custom_tags, custom_hostname)
                 elif message.type == 2:
@@ -444,6 +435,17 @@ class PrometheusCheck(AgentCheck):
 
         else:
             self.log.error("Metric type {} unsupported for metric {}.".format(message.type, message.name))
+
+    def _get_hostname(self, hostname, metric):
+        """
+        If hostname is None, look at label_to_hostname setting
+        """
+        if hostname is None and self.label_to_hostname is not None:
+            for label in metric.label:
+                if label.name == self.label_to_hostname:
+                    return label.value
+
+        return hostname
 
     def _submit_gauge(self, metric_name, val, metric, custom_tags=None, hostname=None):
         """
