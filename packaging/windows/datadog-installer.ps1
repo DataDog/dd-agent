@@ -38,7 +38,7 @@ process{
 
 Write-Output "Getting versions JSON"
 $InstallerJsonUrl ="https://s3.amazonaws.com/ddagent-windows-stable/installers.json"
-$Req = Invoke-WebRequest -Uri $InstallerJsonUrl
+$Req = Invoke-WebRequest -Uri $InstallerJsonUrl -UseBasicParsing
 
 Write-Output "Calculating latest version"
 $VersionsObject = $Req.Content | ConvertFrom-Json
@@ -53,7 +53,7 @@ $LatestVersion = $Versions | Sort-Object -Descending | Select -First 1
 Write-Output "Collecting Datadog Version $($LatestVersion.ToString())"
 $TargetMSI = $VersionsObject.$($LatestVersion.toString()).amd64
 
-Invoke-WebRequest -Uri $TargetMSI -OutFile $MSI
+Invoke-WebRequest -Uri $TargetMSI -OutFile $MSI -UseBasicParsing
 
 If ( $Tags ){
     $Expression = "msiexec /qn /i `"$MSI`" APIKEY=`"$APIKEY`" HOSTNAME=`"$HOSTNAME`" TAGS=`"$($TAGS -join ",")`""
