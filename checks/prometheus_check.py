@@ -328,45 +328,46 @@ class PrometheusCheck(AgentCheck):
 
         `send_histograms_buckets` is used to specify if yes or no you want to send the buckets as tagged values when dealing with histograms.
         """
+
+        # If targeted metric, store labels
+        if message.name in self.label_joins:
+            matching_label = self.label_joins[message.name]['label_to_match']
+            for metric in message.metric:
+                labels_list = []
+                matching_value = None
+                for label in metric.label:
+                    if label.name == matching_label:
+                        matching_value = label.value
+                    elif label.name in self.label_joins[message.name]['labels_to_get']:
+                        labels_list.append((label.name, label.value))
+                try:
+                    self._label_mapping[matching_label][matching_value] = labels_list
+                except KeyError:
+                    if matching_value is not None:
+                        self._label_mapping[matching_label] = {matching_value: labels_list}
+
+        if message.name in self.ignore_metrics:
+            return  # Ignore the metric
+
+        # Filter metric to see if we can enrich with joined labels
+        if self.label_joins:
+            for metric in message.metric:
+                for label in metric.label:
+                    if label.name in self._watched_labels:
+                        # Set this label value as active
+                        if label.name not in self._active_label_mapping:
+                            self._active_label_mapping[label.name] = {}
+
+                        self._active_label_mapping[label.name][label.value] = True
+                        # If mapping found add corresponding labels
+                        try:
+                            for label_tuple in self._label_mapping[label.name][label.value]:
+                                extra_label = metric.label.add()
+                                extra_label.name, extra_label.value = label_tuple
+                        except KeyError:
+                            pass
+
         try:
-            # If targeted metric, store labels
-            if message.name in self.label_joins:
-                matching_label = self.label_joins[message.name]['label_to_match']
-                for metric in message.metric:
-                    labels_list = []
-                    matching_value = None
-                    for label in metric.label:
-                        if label.name == matching_label:
-                            matching_value = label.value
-                        elif label.name in self.label_joins[message.name]['labels_to_get']:
-                            labels_list.append((label.name, label.value))
-                    try:
-                        self._label_mapping[matching_label][matching_value] = labels_list
-                    except KeyError:
-                        if matching_value is not None:
-                            self._label_mapping[matching_label] = {matching_value: labels_list}
-
-            if message.name in self.ignore_metrics:
-                return  # Ignore the metric
-
-            # Filter metric to see if we can enrich with joined labels
-            if self.label_joins:
-                for metric in message.metric:
-                    for label in metric.label:
-                        if label.name in self._watched_labels:
-                            # Set this label value as active
-                            if label.name not in self._active_label_mapping:
-                                self._active_label_mapping[label.name] = {}
-
-                            self._active_label_mapping[label.name][label.value] = True
-                            # If mapping found add corresponding labels
-                            try:
-                                for label_tuple in self._label_mapping[label.name][label.value]:
-                                    extra_label = metric.label.add()
-                                    extra_label.name, extra_label.value = label_tuple
-                            except KeyError:
-                                pass
-
             if not self._dry_run:
                 try:
                     self._submit(self.metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
@@ -426,6 +427,7 @@ class PrometheusCheck(AgentCheck):
             for metric in message.metric:
                 # if hostname is not specified, look at label_to_hostname setting
                 if hostname is None and self.label_to_hostname is not None:
+                    custom_hostname = hostname
                     for label in metric.label:
                         if label.name == self.label_to_hostname:
                             custom_hostname = label.value
