@@ -30,6 +30,9 @@ api_key:
 # Enable gohai metadata collection
 # enable_gohai: true
 
+# Enable the process agent
+# process_agent_enabled: false
+
 # Set the host's tags (optional)
 # tags: mytag, env:prod, role:database
 
