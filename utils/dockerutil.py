@@ -582,9 +582,10 @@ class DockerUtil:
         churn is low on typical hosts.
         If short is true, the repository is stripped from the result
         """
+        image = self.image_name_resolver(co.get('Image', ''))
         if short:
-            return self.image_name_resolver(co.get('Image', '')).split('/')[-1]
-        return self.image_name_resolver(co.get('Image', ''))
+            return image.split('/')[-1]
+        return image
 
     def image_name_resolver(self, image):
         if image.startswith('sha256:') or '@sha256:' in image:
