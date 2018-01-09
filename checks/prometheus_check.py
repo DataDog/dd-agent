@@ -2,7 +2,6 @@
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
-import re
 import requests
 from collections import defaultdict
 from google.protobuf.internal.decoder import _DecodeVarint32  # pylint: disable=E0611,E0401
@@ -24,7 +23,8 @@ from prometheus_client.parser import text_fd_to_metric_families
 #   - overriding self.NAMESPACE
 #   - overriding self.metrics_mapper
 #     AND/OR
-#   - create method named after the prometheus metric they will handle (see self.prometheus_metric_name)
+#   - create method named after the prometheus metric with the signature prometheus_metric_name(self, message, **kwargs)
+#     it will be called in `process_metric`
 #
 
 # Used to specify if you want to use the protobuf format or the text format when
@@ -48,11 +48,6 @@ class PrometheusCheck(AgentCheck):
         # see: https://github.com/prometheus/client_model/blob/master/ruby/lib/prometheus/client/model/metrics.pb.rb
         self.METRIC_TYPES = ['counter', 'gauge', 'summary', 'untyped', 'histogram']
 
-        # patterns used for metrics and labels extraction form the prometheus
-        # text format. Do not overwrite those
-        self.metrics_pattern = re.compile(r'^(\w+)(.*)\s+([0-9.+eE,]+)$')
-        self.lbl_pattern = re.compile(r'(\w+)="(.*?)"')
-
         # `NAMESPACE` is the prefix metrics will have. Need to be hardcoded in the
         # child check class.
         self.NAMESPACE = ''
@@ -63,12 +58,45 @@ class PrometheusCheck(AgentCheck):
         # overloaded/hardcoded in the final check not to be counted as custom metric.
         self.metrics_mapper = {}
 
+        # `label_joins` holds the configuration for extracting 1:1 labels from
+        # a target metric to all metric matching the label, example:
+        # self.label_joins = {
+        #     'kube_pod_info': {
+        #         'label_to_match': 'pod',
+        #         'labels_to_get': ['node', 'host_ip']
+        #     }
+        # }
+        self.label_joins = {}
+
+        # `_label_mapping` holds the additionals label info to add for a specific
+        # label value, example:
+        # self._label_mapping = {
+        #     'pod': {
+        #         'dd-agent-9s1l1': [("node","yolo"),("host_ip","yey")]
+        #     }
+        # }
+        self._label_mapping = {}
+
+        # `_active_label_mapping` holds a dictionary of label values found during the run
+        # to cleanup the label_mapping of unused values, example:
+        # self._active_label_mapping = {
+        #     'pod': {
+        #         'dd-agent-9s1l1': True
+        #     }
+        # }
+        self._active_label_mapping = {}
+
+        # `_watched_labels` holds the list of label to watch for enrichment
+        self._watched_labels = set()
+
+        self._dry_run = True
+
         # Some metrics are ignored because they are duplicates or introduce a
         # very high cardinality. Metrics included in this list will be silently
         # skipped without a 'Unable to handle metric' debug line in the logs
         self.ignore_metrics = []
 
-        # If the `labels_mapper` dictionnary is provided, the metrics labels names
+        # If the `labels_mapper` dictionary is provided, the metrics labels names
         # in the `labels_mapper` will use the corresponding value as tag name
         # when sending the gauges.
         self.labels_mapper = {}
@@ -77,12 +105,16 @@ class PrometheusCheck(AgentCheck):
         # will just not be added as tags when submitting the metric.
         self.exclude_labels = []
 
-        # `type_overrides` is a dictionnary where the keys are prometheus metric names
+        # `type_overrides` is a dictionary where the keys are prometheus metric names
         # and the values are a metric type (name as string) to use instead of the one
         # listed in the payload. It can be used to force a type on untyped metrics.
         # Note: it is empty in the mother class but will need to be
         # overloaded/hardcoded in the final check not to be counted as custom metric.
         self.type_overrides = {}
+
+        # Some metrics are retrieved from differents hosts and often
+        # a label can hold this information, this transfer it to the hostname
+        self.label_to_hostname = None
 
     def check(self, instance):
         """
@@ -90,10 +122,6 @@ class PrometheusCheck(AgentCheck):
         from the instance and using the utils to process messages and submit metrics.
         """
         raise NotImplementedError()
-
-    def prometheus_metric_name(self, message, **kwargs):
-        """ Example method"""
-        pass
 
     def parse_metric_family(self, response):
         """
@@ -232,7 +260,7 @@ class PrometheusCheck(AgentCheck):
             # last_metric = len(_obj.metric) - 1
             # if last_metric >= 0:
             for lbl in _metric['labels']:
-                # In the string format, the quantiles are in the lablels
+                # In the string format, the quantiles are in the labels
                 if lbl == 'quantile':
                     # _q = _obj.metric[last_metric].summary.quantile.add()
                     _q = _g.summary.quantile.add()
@@ -266,11 +294,28 @@ class PrometheusCheck(AgentCheck):
         """
         response = self.poll(endpoint)
         try:
+            # no dry run if no label joins
+            if not self.label_joins:
+                self._dry_run = False
+            elif not self._watched_labels:
+                # build the _watched_labels set
+                for metric, val in self.label_joins.iteritems():
+                    self._watched_labels.add(val['label_to_match'])
+
             tags = []
             if instance is not None:
                 tags = instance.get('tags', [])
             for metric in self.parse_metric_family(response):
                 self.process_metric(metric, send_histograms_buckets=send_histograms_buckets, custom_tags=tags, instance=instance)
+
+            # Set dry run off
+            self._dry_run = False
+            # Garbage collect unused mapping and reset active labels
+            for metric, mapping in self._label_mapping.items():
+                for key, val in mapping.items():
+                    if key not in self._active_label_mapping[metric]:
+                        del self._label_mapping[metric][key]
+            self._active_label_mapping = {}
         finally:
             response.close()
 
@@ -283,13 +328,50 @@ class PrometheusCheck(AgentCheck):
 
         `send_histograms_buckets` is used to specify if yes or no you want to send the buckets as tagged values when dealing with histograms.
         """
+
+        # If targeted metric, store labels
+        if message.name in self.label_joins:
+            matching_label = self.label_joins[message.name]['label_to_match']
+            for metric in message.metric:
+                labels_list = []
+                matching_value = None
+                for label in metric.label:
+                    if label.name == matching_label:
+                        matching_value = label.value
+                    elif label.name in self.label_joins[message.name]['labels_to_get']:
+                        labels_list.append((label.name, label.value))
+                try:
+                    self._label_mapping[matching_label][matching_value] = labels_list
+                except KeyError:
+                    if matching_value is not None:
+                        self._label_mapping[matching_label] = {matching_value: labels_list}
+
+        if message.name in self.ignore_metrics:
+            return  # Ignore the metric
+
+        # Filter metric to see if we can enrich with joined labels
+        if self.label_joins:
+            for metric in message.metric:
+                for label in metric.label:
+                    if label.name in self._watched_labels:
+                        # Set this label value as active
+                        if label.name not in self._active_label_mapping:
+                            self._active_label_mapping[label.name] = {}
+                        self._active_label_mapping[label.name][label.value] = True
+                        # If mapping found add corresponding labels
+                        try:
+                            for label_tuple in self._label_mapping[label.name][label.value]:
+                                extra_label = metric.label.add()
+                                extra_label.name, extra_label.value = label_tuple
+                        except KeyError:
+                            pass
+
         try:
-            if message.name in self.ignore_metrics:
-                return  # Ignore the metric
-            if message.name in self.metrics_mapper:
-                self._submit(self.metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
-            else:
-                getattr(self, message.name)(message, **kwargs)
+            if not self._dry_run:
+                try:
+                    self._submit(self.metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
+                except KeyError:
+                    getattr(self, message.name)(message, **kwargs)
         except AttributeError as err:
             self.log.debug("Unable to handle metric: {} - error: {}".format(message.name, err))
 
@@ -327,7 +409,7 @@ class PrometheusCheck(AgentCheck):
             response.close()
             raise
 
-    def _submit(self, metric_name, message, send_histograms_buckets=True, custom_tags=None):
+    def _submit(self, metric_name, message, send_histograms_buckets=True, custom_tags=None, hostname=None):
         """
         For each metric in the message, report it as a gauge with all labels as tags
         except if a labels dict is passed, in which case keys are label names we'll extract
@@ -342,18 +424,30 @@ class PrometheusCheck(AgentCheck):
         """
         if message.type < len(self.METRIC_TYPES):
             for metric in message.metric:
+                custom_hostname = self._get_hostname(hostname, metric)
                 if message.type == 4:
-                    self._submit_gauges_from_histogram(metric_name, metric, send_histograms_buckets, custom_tags)
+                    self._submit_gauges_from_histogram(metric_name, metric, send_histograms_buckets, custom_tags, custom_hostname)
                 elif message.type == 2:
-                    self._submit_gauges_from_summary(metric_name, metric, custom_tags)
+                    self._submit_gauges_from_summary(metric_name, metric, custom_tags, custom_hostname)
                 else:
                     val = getattr(metric, self.METRIC_TYPES[message.type]).value
-                    self._submit_gauge(metric_name, val, metric, custom_tags)
+                    self._submit_gauge(metric_name, val, metric, custom_tags, custom_hostname)
 
         else:
             self.log.error("Metric type {} unsupported for metric {}.".format(message.type, message.name))
 
-    def _submit_gauge(self, metric_name, val, metric, custom_tags=None):
+    def _get_hostname(self, hostname, metric):
+        """
+        If hostname is None, look at label_to_hostname setting
+        """
+        if hostname is None and self.label_to_hostname is not None:
+            for label in metric.label:
+                if label.name == self.label_to_hostname:
+                    return label.value
+
+        return hostname
+
+    def _submit_gauge(self, metric_name, val, metric, custom_tags=None, hostname=None):
         """
         Submit a metric as a gauge, additional tags provided will be added to
         the ones from the label provided via the metrics object.
@@ -370,9 +464,9 @@ class PrometheusCheck(AgentCheck):
                 if self.labels_mapper is not None and label.name in self.labels_mapper:
                     tag_name = self.labels_mapper[label.name]
                 _tags.append('{}:{}'.format(tag_name, label.value))
-        self.gauge('{}.{}'.format(self.NAMESPACE, metric_name), val, _tags)
+        self.gauge('{}.{}'.format(self.NAMESPACE, metric_name), val, _tags, hostname=hostname)
 
-    def _submit_gauges_from_summary(self, name, metric, custom_tags=None):
+    def _submit_gauges_from_summary(self, name, metric, custom_tags=None, hostname=None):
         """
         Extracts metrics from a prometheus summary metric and sends them as gauges
         """
@@ -386,9 +480,9 @@ class PrometheusCheck(AgentCheck):
         for quantile in getattr(metric, self.METRIC_TYPES[2]).quantile:
             val = quantile.value
             limit = quantile.quantile
-            self._submit_gauge("{}.quantile".format(name), val, metric, custom_tags=custom_tags+["quantile:{}".format(limit)])
+            self._submit_gauge("{}.quantile".format(name), val, metric, custom_tags=custom_tags+["quantile:{}".format(limit)], hostname=hostname)
 
-    def _submit_gauges_from_histogram(self, name, metric, send_histograms_buckets=True, custom_tags=None):
+    def _submit_gauges_from_histogram(self, name, metric, send_histograms_buckets=True, custom_tags=None, hostname=None):
         """
         Extracts metrics from a prometheus histogram and sends them as gauges
         """
@@ -403,4 +497,4 @@ class PrometheusCheck(AgentCheck):
             for bucket in getattr(metric, self.METRIC_TYPES[4]).bucket:
                 val = bucket.cumulative_count
                 limit = bucket.upper_bound
-                self._submit_gauge("{}.count".format(name), val, metric, custom_tags=custom_tags+["upper_bound:{}".format(limit)])
+                self._submit_gauge("{}.count".format(name), val, metric, custom_tags=custom_tags+["upper_bound:{}".format(limit)], hostname=hostname)

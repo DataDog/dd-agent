@@ -76,7 +76,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.ref_gauge = None
 
     def test_check(self):
-        ''' Should not be implemented as it is the mother class '''
+        """ Should not be implemented as it is the mother class """
         with self.assertRaises(NotImplementedError):
             self.check.check(None)
 
@@ -98,7 +98,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.assertEqual(messages[1].type, 2)  # summary
 
     def test_parse_metric_family_text(self):
-        ''' Test the high level method for loading metrics from text format '''
+        """ Test the high level method for loading metrics from text format """
         response = MockResponse(self.text_data, 'text/plain; version=0.0.4')
         messages = list(self.check.parse_metric_family(response))
         # total metrics are 41 but one is typeless and we expect it not to be
@@ -216,18 +216,20 @@ class TestPrometheusProcessor(unittest.TestCase):
                                                      instance=instance, send_histograms_buckets=True)
 
     def test_process_metric_gauge(self):
-        ''' Gauge ref submission '''
+        """ Gauge ref submission """
+        self.check._dry_run = False
         self.check.process_metric(self.ref_gauge)
-        self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0, [])
+        self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0, [], hostname=None)
 
     def test_process_metric_filtered(self):
-        ''' Metric absent from the metrics_mapper '''
+        """ Metric absent from the metrics_mapper """
         filtered_gauge = metrics_pb2.MetricFamily()
         filtered_gauge.name = "process_start_time_seconds"
         filtered_gauge.help = "Start time of the process since unix epoch in seconds."
         filtered_gauge.type = 1  # GAUGE
         _m = filtered_gauge.metric.add()
         _m.gauge.value = 39211008.0
+        self.check._dry_run = False
         self.check.process_metric(filtered_gauge)
         self.check.log.debug.assert_called_with(
             "Unable to handle metric: process_start_time_seconds - error: 'PrometheusCheck' object has no attribute 'process_start_time_seconds'")
@@ -235,7 +237,7 @@ class TestPrometheusProcessor(unittest.TestCase):
 
     @patch('requests.get')
     def test_poll_protobuf(self, mock_get):
-        ''' Tests poll using the protobuf format '''
+        """ Tests poll using the protobuf format """
         mock_get.return_value = MagicMock(
             status_code=200,
             content=self.bin_data,
@@ -259,7 +261,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.assertEqual(messages[-1].name, 'skydns_skydns_dns_response_size_bytes')
 
     def test_submit_gauge_with_labels(self):
-        ''' submitting metrics that contain labels should result in tags on the gauge call '''
+        """ submitting metrics that contain labels should result in tags on the gauge call """
         _l1 = self.ref_gauge.metric[0].label.add()
         _l1.name = 'my_1st_label'
         _l1.value = 'my_1st_label_value'
@@ -268,7 +270,37 @@ class TestPrometheusProcessor(unittest.TestCase):
         _l2.value = 'my_2nd_label_value'
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
-                                            ['my_1st_label:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'])
+                                            ['my_1st_label:my_1st_label_value', 'my_2nd_label:my_2nd_label_value'],
+                                            hostname=None)
+
+    def test_submit_gauge_with_labels_and_hostname_override(self):
+        """ submitting metrics that contain labels should result in tags on the gauge call """
+        _l1 = self.ref_gauge.metric[0].label.add()
+        _l1.name = 'my_1st_label'
+        _l1.value = 'my_1st_label_value'
+        _l2 = self.ref_gauge.metric[0].label.add()
+        _l2.name = 'node'
+        _l2.value = 'foo'
+        self.check.label_to_hostname = 'node'
+        self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge)
+        self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
+                                            ['my_1st_label:my_1st_label_value', 'node:foo'],
+                                            hostname="foo")
+
+    def test_submit_gauge_with_labels_and_hostname_already_overridden(self):
+        """ submitting metrics that contain labels should result in tags on the gauge call """
+        _l1 = self.ref_gauge.metric[0].label.add()
+        _l1.name = 'my_1st_label'
+        _l1.value = 'my_1st_label_value'
+        _l2 = self.ref_gauge.metric[0].label.add()
+        _l2.name = 'node'
+        _l2.value = 'foo'
+        self.check.label_to_hostname = 'node'
+        self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, hostname="bar")
+        self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
+                                            ['my_1st_label:my_1st_label_value', 'node:foo'],
+                                            hostname="bar")
+
 
     def test_labels_not_added_as_tag_once_for_each_metric(self):
         _l1 = self.ref_gauge.metric[0].label.add()
@@ -284,20 +316,20 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                                             ['test', 'my_1st_label:my_1st_label_value',
-                                             'my_2nd_label:my_2nd_label_value'])
+                                             'my_2nd_label:my_2nd_label_value'], hostname=None)
 
     def test_submit_gauge_with_custom_tags(self):
-        ''' Providing custom tags should add them as is on the gauge call '''
+        """ Providing custom tags should add them as is on the gauge call """
         tags = ['env:dev', 'app:my_pretty_app']
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
-                                            ['env:dev', 'app:my_pretty_app'])
+                                            ['env:dev', 'app:my_pretty_app'], hostname=None)
 
     def test_submit_gauge_with_labels_mapper(self):
-        '''
+        """
         Submitting metrics that contain labels mappers should result in tags
         on the gauge call with transformed tag names
-        '''
+        """
         _l1 = self.ref_gauge.metric[0].label.add()
         _l1.name = 'my_1st_label'
         _l1.value = 'my_1st_label_value'
@@ -310,13 +342,13 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
                                             ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value',
-                                             'my_2nd_label:my_2nd_label_value'])
+                                             'my_2nd_label:my_2nd_label_value'], hostname=None)
 
     def test_submit_gauge_with_exclude_labels(self):
-        '''
+        """
         Submitting metrics when filtering with exclude_labels should end up with
         a filtered tags list
-        '''
+        """
         _l1 = self.ref_gauge.metric[0].label.add()
         _l1.name = 'my_1st_label'
         _l1.value = 'my_1st_label_value'
@@ -329,7 +361,8 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.exclude_labels = ['my_2nd_label', 'whatever_else', 'env']  # custom tags are not filtered out
         self.check._submit(self.check.metrics_mapper[self.ref_gauge.name], self.ref_gauge, custom_tags=tags)
         self.check.gauge.assert_called_with('prometheus.process.vm.bytes', 39211008.0,
-                                            ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value'])
+                                            ['env:dev', 'app:my_pretty_app', 'transformed_1st:my_1st_label_value'],
+                                            hostname=None)
 
     def test_submit_counter(self):
         _counter = metrics_pb2.MetricFamily()
@@ -339,7 +372,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         _met = _counter.metric.add()
         _met.counter.value = 42
         self.check._submit('custom.counter', _counter)
-        self.check.gauge.assert_called_with('prometheus.custom.counter', 42, [])
+        self.check.gauge.assert_called_with('prometheus.custom.counter', 42, [], hostname=None)
 
     def test_submits_summary(self):
         _sum = metrics_pb2.MetricFamily()
@@ -357,10 +390,10 @@ class TestPrometheusProcessor(unittest.TestCase):
         _q2.value = 5
         self.check._submit('custom.summary', _sum)
         self.check.gauge.assert_has_calls([
-            call('prometheus.custom.summary.count', 42, []),
-            call('prometheus.custom.summary.sum', 3.14, []),
-            call('prometheus.custom.summary.quantile', 3, ['quantile:10.0']),
-            call('prometheus.custom.summary.quantile', 5, ['quantile:4.0'])
+            call('prometheus.custom.summary.count', 42, [], hostname=None),
+            call('prometheus.custom.summary.sum', 3.14, [], hostname=None),
+            call('prometheus.custom.summary.quantile', 3, ['quantile:10.0'], hostname=None),
+            call('prometheus.custom.summary.quantile', 5, ['quantile:4.0'], hostname=None)
         ])
 
     def test_submit_histogram(self):
@@ -379,10 +412,10 @@ class TestPrometheusProcessor(unittest.TestCase):
         _b2.cumulative_count = 666
         self.check._submit('custom.histogram', _histo)
         self.check.gauge.assert_has_calls([
-            call('prometheus.custom.histogram.count', 42, []),
-            call('prometheus.custom.histogram.sum', 3.14, []),
-            call('prometheus.custom.histogram.count', 33, ['upper_bound:12.7']),
-            call('prometheus.custom.histogram.count', 666, ['upper_bound:18.2'])
+            call('prometheus.custom.histogram.count', 42, [], hostname=None),
+            call('prometheus.custom.histogram.sum', 3.14, [], hostname=None),
+            call('prometheus.custom.histogram.count', 33, ['upper_bound:12.7'], hostname=None),
+            call('prometheus.custom.histogram.count', 666, ['upper_bound:18.2'], hostname=None)
         ])
 
 
@@ -993,3 +1026,224 @@ class TestPrometheusTextParsing(unittest.TestCase):
         # As the NaN value isn't supported when we are calling assertEqual
         # we need to compare the object representation instead of the object itself
         self.assertEqual(expected_etcd_metric.__repr__(), current_metric.__repr__())
+
+    @patch('requests.get')
+    def test_label_joins(self, mock_get):
+        """ Tests label join on text format """
+        text_data = None
+        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
+        with open(f_name, 'r') as f:
+            text_data = f.read()
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
+        self.check.NAMESPACE = 'ksm'
+        self.check.label_joins = {
+            'kube_pod_info': {
+                'label_to_match': 'pod',
+                'labels_to_get': ['node', 'pod_ip']
+            },
+            'kube_deployment_labels': {
+                'label_to_match': 'deployment',
+                'labels_to_get': ['label_addonmanager_kubernetes_io_mode', 'label_k8s_app', 'label_kubernetes_io_cluster_service']
+            }
+        }
+
+        self.check.metrics_mapper = {'kube_pod_status_ready': 'pod.ready',
+                                     'kube_pod_status_scheduled': 'pod.scheduled',
+                                     'kube_deployment_status_replicas': 'deploy.replicas.available'}
+
+        self.check.gauge = MagicMock()
+        # dry run to build mapping
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # run with submit
+        self.check.process("http://fake.endpoint:10055/metrics")
+
+        # check a bunch of metrics
+        self.check.gauge.assert_has_calls([
+            call('ksm.pod.ready', 1.0, ['pod:event-exporter-v0.1.7-958884745-qgnbw', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.32.3.14'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.132.0.7'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.132.0.14'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:heapster-v1.4.3-2027615481-lmjm5', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.32.5.7'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:kube-dns-3092422022-lvrmx', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.32.3.10'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:kube-dns-3092422022-x0tjx', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.32.3.9'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:kube-dns-autoscaler-97162954-mf6d3', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.32.5.6'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.132.0.7'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:ungaged-panther-kube-state-metrics-3918010230-64xwc', 'namespace:default', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.32.5.45'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:event-exporter-v0.1.7-958884745-qgnbw', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.32.3.14'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.132.0.7'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.132.0.14'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:heapster-v1.4.3-2027615481-lmjm5', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.32.5.7'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:kube-dns-3092422022-lvrmx', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.32.3.10'], hostname=None),
+            call('ksm.pod.scheduled', 1.0, ['pod:kube-dns-3092422022-x0tjx', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.32.3.9'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:kube-system', 'deployment:event-exporter-v0.1.7', 'label_k8s_app:event-exporter', 'label_addonmanager_kubernetes_io_mode:Reconcile', 'label_kubernetes_io_cluster_service:true'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:kube-system', 'deployment:heapster-v1.4.3', 'label_k8s_app:heapster', 'label_addonmanager_kubernetes_io_mode:Reconcile', 'label_kubernetes_io_cluster_service:true'], hostname=None),
+            call('ksm.deploy.replicas.available', 2.0, ['namespace:kube-system', 'deployment:kube-dns', 'label_kubernetes_io_cluster_service:true', 'label_addonmanager_kubernetes_io_mode:Reconcile', 'label_k8s_app:kube-dns'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:kube-system', 'deployment:kube-dns-autoscaler', 'label_kubernetes_io_cluster_service:true', 'label_addonmanager_kubernetes_io_mode:Reconcile', 'label_k8s_app:kube-dns-autoscaler'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:kube-system', 'deployment:kubernetes-dashboard', 'label_kubernetes_io_cluster_service:true', 'label_addonmanager_kubernetes_io_mode:Reconcile', 'label_k8s_app:kubernetes-dashboard'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:kube-system', 'deployment:l7-default-backend', 'label_k8s_app:glbc', 'label_addonmanager_kubernetes_io_mode:Reconcile', 'label_kubernetes_io_cluster_service:true'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:kube-system', 'deployment:tiller-deploy'], hostname=None),
+            call('ksm.deploy.replicas.available', 1.0, ['namespace:default', 'deployment:ungaged-panther-kube-state-metrics'], hostname=None)
+        ], any_order=True)
+
+    @patch('requests.get')
+    def test_label_joins_gc(self, mock_get):
+        """ Tests label join GC on text format """
+        text_data = None
+        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
+        with open(f_name, 'r') as f:
+            text_data = f.read()
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
+        self.check.NAMESPACE = 'ksm'
+        self.check.label_joins = {
+            'kube_pod_info': {
+                'label_to_match': 'pod',
+                'labels_to_get': ['node', 'pod_ip']
+            }
+        }
+        self.check.metrics_mapper = {'kube_pod_status_ready': 'pod.ready'}
+        self.check.gauge = MagicMock()
+        # dry run to build mapping
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # run with submit
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # check a bunch of metrics
+        self.check.gauge.assert_has_calls([
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch', 'pod_ip:11.132.0.7'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z', 'pod_ip:11.132.0.14'], hostname=None),
+        ], any_order=True)
+        self.assertEqual(15, len(self.check._label_mapping['pod']))
+        text_data = text_data.replace('dd-agent-62bgh', 'dd-agent-1337')
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
+        self.check.process("http://fake.endpoint:10055/metrics")
+        self.assertTrue('dd-agent-1337' in self.check._label_mapping['pod'])
+        self.assertFalse('dd-agent-62bgh' in self.check._label_mapping['pod'])
+        self.assertEqual(15, len(self.check._label_mapping['pod']))
+
+    @patch('requests.get')
+    def test_label_joins_missconfigured(self, mock_get):
+        """ Tests label join missconfigured label is ignored """
+        text_data = None
+        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
+        with open(f_name, 'r') as f:
+            text_data = f.read()
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
+        self.check.NAMESPACE = 'ksm'
+        self.check.label_joins = {
+            'kube_pod_info': {
+                'label_to_match': 'pod',
+                'labels_to_get': ['node', 'not_existing']
+            }
+        }
+        self.check.metrics_mapper = {'kube_pod_status_ready': 'pod.ready'}
+        self.check.gauge = MagicMock()
+        # dry run to build mapping
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # run with submit
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # check a bunch of metrics
+        self.check.gauge.assert_has_calls([
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z'], hostname=None),
+        ], any_order=True)
+
+    @patch('requests.get')
+    def test_label_join_not_existing(self, mock_get):
+        """ Tests label join on non existing matching label is ignored """
+        text_data = None
+        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
+        with open(f_name, 'r') as f:
+            text_data = f.read()
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
+        self.check.NAMESPACE = 'ksm'
+        self.check.label_joins = {
+            'kube_pod_info': {
+                'label_to_match': 'not_existing',
+                'labels_to_get': ['node', 'pod_ip']
+            }
+        }
+        self.check.metrics_mapper = {'kube_pod_status_ready': 'pod.ready'}
+        self.check.gauge = MagicMock()
+        # dry run to build mapping
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # run with submit
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # check a bunch of metrics
+        self.check.gauge.assert_has_calls([
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true'], hostname=None),
+        ], any_order=True)
+
+    @patch('requests.get')
+    def test_label_join_metric_not_existing(self, mock_get):
+        """ Tests label join on non existing metric is ignored """
+        text_data = None
+        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
+        with open(f_name, 'r') as f:
+            text_data = f.read()
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
+        self.check.NAMESPACE = 'ksm'
+        self.check.label_joins = {
+            'not_existing': {
+                'label_to_match': 'pod',
+                'labels_to_get': ['node', 'pod_ip']
+            }
+        }
+        self.check.metrics_mapper = {'kube_pod_status_ready': 'pod.ready'}
+        self.check.gauge = MagicMock()
+        # dry run to build mapping
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # run with submit
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # check a bunch of metrics
+        self.check.gauge.assert_has_calls([
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true'], hostname=None),
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true'], hostname=None),
+        ], any_order=True)
+
+    @patch('requests.get')
+    def test_label_join_with_hostname(self, mock_get):
+        """ Tests label join and hostname override on a metric """
+        text_data = None
+        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
+        with open(f_name, 'r') as f:
+            text_data = f.read()
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
+        self.check.NAMESPACE = 'ksm'
+        self.check.label_joins = {
+            'kube_pod_info': {
+                'label_to_match': 'pod',
+                'labels_to_get': ['node']
+            }
+        }
+        self.check.label_to_hostname = 'node'
+        self.check.metrics_mapper = {'kube_pod_status_ready': 'pod.ready'}
+        self.check.gauge = MagicMock()
+        # dry run to build mapping
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # run with submit
+        self.check.process("http://fake.endpoint:10055/metrics")
+        # check a bunch of metrics
+        self.check.gauge.assert_has_calls([
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch'], hostname='gke-foobar-test-kube-default-pool-9b4ff111-0kch'),
+            call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z'], hostname='gke-foobar-test-kube-default-pool-9b4ff111-j75z'),
+        ], any_order=True)
