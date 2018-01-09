@@ -37,3 +37,4 @@ simplejson==3.6.5
 supervisor==3.3.3
 tornado==3.2.2
 uptime==3.0.1
+prometheus-client==0.1.0
