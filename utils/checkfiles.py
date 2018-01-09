@@ -38,11 +38,13 @@ def get_check_class(agentConfig, check_name):
     osname = get_os()
     checks_places = get_checks_places(osname, agentConfig)
     for check_path_builder in checks_places:
-        check_path, _ = check_path_builder(check_name)
-        if not check_path or not os.path.exists(check_path):
+        check_path, manifest_path = check_path_builder(check_name)
+        is_wheel = not check_path and not manifest_path
+
+        if not (check_path and os.path.exists(check_path)) and not is_wheel:
             continue
 
-        check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path)
+        check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path, from_site=is_wheel)
         if check_is_valid:
             return check_class
 
