@@ -1,8 +1,30 @@
 Changes
 =======
 
-Changes
-=======
+# 5.21.0 / Unreleased 
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.20.2...5.21.0
+
+### Changes
+Please refer to the [Integrations Core Checks 5.21.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.21.0) for the list of changes on the core checks.
+
+Please refer to the [Process Agent 5.21.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.21.0) for more information on the Process Agent.
+
+* [BUGFIX] Configuration: Use : instead of = in APM config. See #3599 (Thanks @brianwolfe)
+* [IMPROVEMENT] Log metadata payload as debug to be added to flares. See #3625 
+* [IMPROVEMENT] Don't spam logs with exceptions when checks aren't wheels. See #3620
+* [IMPROVEMENT] bump protobuf to 3.5.1. See #3619
+* [IMPROVEMENT] Aggregator: ignore all dist metrics (metric type starting with 'd'). See #3611
+* [IMPROVEMENT] Auto-Discovery: add kube container name in service discovery containers. See #3609
+* [IMPROVEMENT] Windows: change restart to stop/start with deps. See #3565
+* [FEATURE] Allow running checks packaged as wheels. See #3555
+* [FEATURE] Filehandles: include allocated, allocated but unused, used, and max filehandler metrics. See #3608 (Thanks @kennydo)
+* [FEATURE] Adds an option to disable IPv6. See #3603
+* [FEATURE] Windows: update pdh library to support generic pdh based checks. See #3581
+* [FEATURE] Collect OpenStack metadata and tags community. See #3411 (Thanks @mtougeron)
 
 # 5.20.2 / 12-06-2017
 
