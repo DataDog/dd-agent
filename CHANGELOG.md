@@ -1,8 +1,19 @@
 Changes
 =======
 
-Changes
-=======
+# 5.20.2 / UNRELEASED
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.20.1...5.20.2
+
+* http check: now, if a custom "url" tag is defined it will override the default computed "url" tag. If you already define a custom url tag, although unlikely, this could alter the behavior of monitors. See [#301](https://github.com/DataDog/integrations-core/pull/301)
+
+### Changes
+Please refer to the [Integrations Core Checks 5.20.2 tag](https://github.com/DataDog/integrations-core/releases/tag/5.20.2) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 5.20.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.20.0) for the list of changes on the Trace Agent.
+
+Please refer to the [Process Agent 5.20.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.20.1) for more information on the Process Agent.
 
 # 5.20.2 / 12-06-2017
 
