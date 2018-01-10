@@ -1,0 +1,861 @@
+# HELP kube_daemonset_created Unix creation timestamp
+# TYPE kube_daemonset_created gauge
+kube_daemonset_created{daemonset="dd-agent",namespace="default"} 1.513767115e+09
+kube_daemonset_created{daemonset="fluentd-gcp-v2.0.9",namespace="kube-system"} 1.509669949e+09
+# HELP kube_daemonset_metadata_generation Sequence number representing a specific generation of the desired state.
+# TYPE kube_daemonset_metadata_generation gauge
+kube_daemonset_metadata_generation{daemonset="dd-agent",namespace="default"} 1
+kube_daemonset_metadata_generation{daemonset="fluentd-gcp-v2.0.9",namespace="kube-system"} 1
+# HELP kube_daemonset_status_current_number_scheduled The number of nodes running at least one daemon pod and are supposed to.
+# TYPE kube_daemonset_status_current_number_scheduled gauge
+kube_daemonset_status_current_number_scheduled{daemonset="dd-agent",namespace="default"} 2
+kube_daemonset_status_current_number_scheduled{daemonset="fluentd-gcp-v2.0.9",namespace="kube-system"} 2
+# HELP kube_daemonset_status_desired_number_scheduled The number of nodes that should be running the daemon pod.
+# TYPE kube_daemonset_status_desired_number_scheduled gauge
+kube_daemonset_status_desired_number_scheduled{daemonset="dd-agent",namespace="default"} 2
+kube_daemonset_status_desired_number_scheduled{daemonset="fluentd-gcp-v2.0.9",namespace="kube-system"} 2
+# HELP kube_daemonset_status_number_misscheduled The number of nodes running a daemon pod but are not supposed to.
+# TYPE kube_daemonset_status_number_misscheduled gauge
+kube_daemonset_status_number_misscheduled{daemonset="dd-agent",namespace="default"} 0
+kube_daemonset_status_number_misscheduled{daemonset="fluentd-gcp-v2.0.9",namespace="kube-system"} 0
+# HELP kube_daemonset_status_number_ready The number of nodes that should be running the daemon pod and have one or more of the daemon pod running and ready.
+# TYPE kube_daemonset_status_number_ready gauge
+kube_daemonset_status_number_ready{daemonset="dd-agent",namespace="default"} 2
+kube_daemonset_status_number_ready{daemonset="fluentd-gcp-v2.0.9",namespace="kube-system"} 2
+# HELP kube_deployment_created Unix creation timestamp
+# TYPE kube_deployment_created gauge
+kube_deployment_created{deployment="event-exporter-v0.1.7",namespace="kube-system"} 1.509669948e+09
+kube_deployment_created{deployment="heapster-v1.4.3",namespace="kube-system"} 1.509669918e+09
+kube_deployment_created{deployment="kube-dns",namespace="kube-system"} 1.50730155e+09
+kube_deployment_created{deployment="kube-dns-autoscaler",namespace="kube-system"} 1.507301551e+09
+kube_deployment_created{deployment="kubernetes-dashboard",namespace="kube-system"} 1.507301545e+09
+kube_deployment_created{deployment="l7-default-backend",namespace="kube-system"} 1.50730152e+09
+kube_deployment_created{deployment="tiller-deploy",namespace="kube-system"} 1.513767429e+09
+kube_deployment_created{deployment="ungaged-panther-kube-state-metrics",namespace="default"} 1.51376746e+09
+# HELP kube_deployment_labels Kubernetes labels converted to Prometheus labels.
+# TYPE kube_deployment_labels gauge
+kube_deployment_labels{deployment="tiller-deploy",label_app="helm",label_name="tiller",namespace="kube-system"} 1
+kube_deployment_labels{deployment="kube-dns",label_addonmanager_kubernetes_io_mode="Reconcile",label_k8s_app="kube-dns",label_kubernetes_io_cluster_service="true",namespace="kube-system"} 1
+kube_deployment_labels{deployment="kube-dns-autoscaler",label_addonmanager_kubernetes_io_mode="Reconcile",label_k8s_app="kube-dns-autoscaler",label_kubernetes_io_cluster_service="true",namespace="kube-system"} 1
+kube_deployment_labels{deployment="kubernetes-dashboard",label_addonmanager_kubernetes_io_mode="Reconcile",label_k8s_app="kubernetes-dashboard",label_kubernetes_io_cluster_service="true",namespace="kube-system"} 1
+kube_deployment_labels{deployment="event-exporter-v0.1.7",label_addonmanager_kubernetes_io_mode="Reconcile",label_k8s_app="event-exporter",label_kubernetes_io_cluster_service="true",label_version="v0.1.7",namespace="kube-system"} 1
+kube_deployment_labels{deployment="heapster-v1.4.3",label_addonmanager_kubernetes_io_mode="Reconcile",label_k8s_app="heapster",label_kubernetes_io_cluster_service="true",label_version="v1.4.3",namespace="kube-system"} 1
+kube_deployment_labels{deployment="l7-default-backend",label_addonmanager_kubernetes_io_mode="Reconcile",label_k8s_app="glbc",label_kubernetes_io_cluster_service="true",label_kubernetes_io_name="GLBC",namespace="kube-system"} 1
+kube_deployment_labels{deployment="ungaged-panther-kube-state-metrics",label_app="kube-state-metrics",label_chart="kube-state-metrics-0.5.0",label_heritage="Tiller",label_release="ungaged-panther",namespace="default"} 1
+# HELP kube_deployment_metadata_generation Sequence number representing a specific generation of the desired state.
+# TYPE kube_deployment_metadata_generation gauge
+kube_deployment_metadata_generation{deployment="event-exporter-v0.1.7",namespace="kube-system"} 1
+kube_deployment_metadata_generation{deployment="heapster-v1.4.3",namespace="kube-system"} 3
+kube_deployment_metadata_generation{deployment="kube-dns",namespace="kube-system"} 2
+kube_deployment_metadata_generation{deployment="kube-dns-autoscaler",namespace="kube-system"} 1
+kube_deployment_metadata_generation{deployment="kubernetes-dashboard",namespace="kube-system"} 1
+kube_deployment_metadata_generation{deployment="l7-default-backend",namespace="kube-system"} 1
+kube_deployment_metadata_generation{deployment="tiller-deploy",namespace="kube-system"} 1
+kube_deployment_metadata_generation{deployment="ungaged-panther-kube-state-metrics",namespace="default"} 1
+# HELP kube_deployment_spec_paused Whether the deployment is paused and will not be processed by the deployment controller.
+# TYPE kube_deployment_spec_paused gauge
+kube_deployment_spec_paused{deployment="event-exporter-v0.1.7",namespace="kube-system"} 0
+kube_deployment_spec_paused{deployment="heapster-v1.4.3",namespace="kube-system"} 0
+kube_deployment_spec_paused{deployment="kube-dns",namespace="kube-system"} 0
+kube_deployment_spec_paused{deployment="kube-dns-autoscaler",namespace="kube-system"} 0
+kube_deployment_spec_paused{deployment="kubernetes-dashboard",namespace="kube-system"} 0
+kube_deployment_spec_paused{deployment="l7-default-backend",namespace="kube-system"} 0
+kube_deployment_spec_paused{deployment="tiller-deploy",namespace="kube-system"} 0
+kube_deployment_spec_paused{deployment="ungaged-panther-kube-state-metrics",namespace="default"} 0
+# HELP kube_deployment_spec_replicas Number of desired pods for a deployment.
+# TYPE kube_deployment_spec_replicas gauge
+kube_deployment_spec_replicas{deployment="event-exporter-v0.1.7",namespace="kube-system"} 1
+kube_deployment_spec_replicas{deployment="heapster-v1.4.3",namespace="kube-system"} 1
+kube_deployment_spec_replicas{deployment="kube-dns",namespace="kube-system"} 2
+kube_deployment_spec_replicas{deployment="kube-dns-autoscaler",namespace="kube-system"} 1
+kube_deployment_spec_replicas{deployment="kubernetes-dashboard",namespace="kube-system"} 1
+kube_deployment_spec_replicas{deployment="l7-default-backend",namespace="kube-system"} 1
+kube_deployment_spec_replicas{deployment="tiller-deploy",namespace="kube-system"} 1
+kube_deployment_spec_replicas{deployment="ungaged-panther-kube-state-metrics",namespace="default"} 1
+# HELP kube_deployment_spec_strategy_rollingupdate_max_unavailable Maximum number of unavailable replicas during a rolling update of a deployment.
+# TYPE kube_deployment_spec_strategy_rollingupdate_max_unavailable gauge
+kube_deployment_spec_strategy_rollingupdate_max_unavailable{deployment="event-exporter-v0.1.7",namespace="kube-system"} 1
+kube_deployment_spec_strategy_rollingupdate_max_unavailable{deployment="heapster-v1.4.3",namespace="kube-system"} 1
+kube_deployment_spec_strategy_rollingupdate_max_unavailable{deployment="kube-dns",namespace="kube-system"} 0
+kube_deployment_spec_strategy_rollingupdate_max_unavailable{deployment="kube-dns-autoscaler",namespace="kube-system"} 1
+kube_deployment_spec_strategy_rollingupdate_max_unavailable{deployment="kubernetes-dashboard",namespace="kube-system"} 1
+kube_deployment_spec_strategy_rollingupdate_max_unavailable{deployment="l7-default-backend",namespace="kube-system"} 1
+kube_deployment_spec_strategy_rollingupdate_max_unavailable{deployment="tiller-deploy",namespace="kube-system"} 1
+kube_deployment_spec_strategy_rollingupdate_max_unavailable{deployment="ungaged-panther-kube-state-metrics",namespace="default"} 1
+# HELP kube_deployment_status_observed_generation The generation observed by the deployment controller.
+# TYPE kube_deployment_status_observed_generation gauge
+kube_deployment_status_observed_generation{deployment="event-exporter-v0.1.7",namespace="kube-system"} 1
+kube_deployment_status_observed_generation{deployment="heapster-v1.4.3",namespace="kube-system"} 3
+kube_deployment_status_observed_generation{deployment="kube-dns",namespace="kube-system"} 2
+kube_deployment_status_observed_generation{deployment="kube-dns-autoscaler",namespace="kube-system"} 1
+kube_deployment_status_observed_generation{deployment="kubernetes-dashboard",namespace="kube-system"} 1
+kube_deployment_status_observed_generation{deployment="l7-default-backend",namespace="kube-system"} 1
+kube_deployment_status_observed_generation{deployment="tiller-deploy",namespace="kube-system"} 1
+kube_deployment_status_observed_generation{deployment="ungaged-panther-kube-state-metrics",namespace="default"} 1
+# HELP kube_deployment_status_replicas The number of replicas per deployment.
+# TYPE kube_deployment_status_replicas gauge
+kube_deployment_status_replicas{deployment="event-exporter-v0.1.7",namespace="kube-system"} 1
+kube_deployment_status_replicas{deployment="heapster-v1.4.3",namespace="kube-system"} 1
+kube_deployment_status_replicas{deployment="kube-dns",namespace="kube-system"} 2
+kube_deployment_status_replicas{deployment="kube-dns-autoscaler",namespace="kube-system"} 1
+kube_deployment_status_replicas{deployment="kubernetes-dashboard",namespace="kube-system"} 1
+kube_deployment_status_replicas{deployment="l7-default-backend",namespace="kube-system"} 1
+kube_deployment_status_replicas{deployment="tiller-deploy",namespace="kube-system"} 1
+kube_deployment_status_replicas{deployment="ungaged-panther-kube-state-metrics",namespace="default"} 1
+# HELP kube_deployment_status_replicas_available The number of available replicas per deployment.
+# TYPE kube_deployment_status_replicas_available gauge
+kube_deployment_status_replicas_available{deployment="event-exporter-v0.1.7",namespace="kube-system"} 1
+kube_deployment_status_replicas_available{deployment="heapster-v1.4.3",namespace="kube-system"} 1
+kube_deployment_status_replicas_available{deployment="kube-dns",namespace="kube-system"} 2
+kube_deployment_status_replicas_available{deployment="kube-dns-autoscaler",namespace="kube-system"} 1
+kube_deployment_status_replicas_available{deployment="kubernetes-dashboard",namespace="kube-system"} 1
+kube_deployment_status_replicas_available{deployment="l7-default-backend",namespace="kube-system"} 1
+kube_deployment_status_replicas_available{deployment="tiller-deploy",namespace="kube-system"} 1
+kube_deployment_status_replicas_available{deployment="ungaged-panther-kube-state-metrics",namespace="default"} 1
+# HELP kube_deployment_status_replicas_unavailable The number of unavailable replicas per deployment.
+# TYPE kube_deployment_status_replicas_unavailable gauge
+kube_deployment_status_replicas_unavailable{deployment="event-exporter-v0.1.7",namespace="kube-system"} 0
+kube_deployment_status_replicas_unavailable{deployment="heapster-v1.4.3",namespace="kube-system"} 0
+kube_deployment_status_replicas_unavailable{deployment="kube-dns",namespace="kube-system"} 0
+kube_deployment_status_replicas_unavailable{deployment="kube-dns-autoscaler",namespace="kube-system"} 0
+kube_deployment_status_replicas_unavailable{deployment="kubernetes-dashboard",namespace="kube-system"} 0
+kube_deployment_status_replicas_unavailable{deployment="l7-default-backend",namespace="kube-system"} 0
+kube_deployment_status_replicas_unavailable{deployment="tiller-deploy",namespace="kube-system"} 0
+kube_deployment_status_replicas_unavailable{deployment="ungaged-panther-kube-state-metrics",namespace="default"} 0
+# HELP kube_deployment_status_replicas_updated The number of updated replicas per deployment.
+# TYPE kube_deployment_status_replicas_updated gauge
+kube_deployment_status_replicas_updated{deployment="event-exporter-v0.1.7",namespace="kube-system"} 1
+kube_deployment_status_replicas_updated{deployment="heapster-v1.4.3",namespace="kube-system"} 1
+kube_deployment_status_replicas_updated{deployment="kube-dns",namespace="kube-system"} 2
+kube_deployment_status_replicas_updated{deployment="kube-dns-autoscaler",namespace="kube-system"} 1
+kube_deployment_status_replicas_updated{deployment="kubernetes-dashboard",namespace="kube-system"} 1
+kube_deployment_status_replicas_updated{deployment="l7-default-backend",namespace="kube-system"} 1
+kube_deployment_status_replicas_updated{deployment="tiller-deploy",namespace="kube-system"} 1
+kube_deployment_status_replicas_updated{deployment="ungaged-panther-kube-state-metrics",namespace="default"} 1
+# HELP kube_limitrange Information about limit range.
+# TYPE kube_limitrange gauge
+kube_limitrange{constraint="defaultRequest",limitrange="limits",namespace="default",resource="cpu",type="Container"} 0.1
+# HELP kube_limitrange_created Unix creation timestamp
+# TYPE kube_limitrange_created gauge
+kube_limitrange_created{limitrange="limits",namespace="default"} 1.507301518e+09
+# HELP kube_node_created Unix creation timestamp
+# TYPE kube_node_created gauge
+kube_node_created{node="gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1.510068955e+09
+kube_node_created{node="gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1.51006934e+09
+# HELP kube_node_labels Kubernetes labels converted to Prometheus labels.
+# TYPE kube_node_labels gauge
+kube_node_labels{label_beta_kubernetes_io_arch="amd64",label_beta_kubernetes_io_fluentd_ds_ready="true",label_beta_kubernetes_io_instance_type="n1-standard-1",label_beta_kubernetes_io_os="linux",label_cloud_google_com_gke_nodepool="default-pool",label_failure_domain_beta_kubernetes_io_region="europe-west1",label_failure_domain_beta_kubernetes_io_zone="europe-west1-b",label_kubernetes_io_hostname="gke-foobar-test-kube-default-pool-9b4ff111-0kch",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1
+kube_node_labels{label_beta_kubernetes_io_arch="amd64",label_beta_kubernetes_io_fluentd_ds_ready="true",label_beta_kubernetes_io_instance_type="n1-standard-1",label_beta_kubernetes_io_os="linux",label_cloud_google_com_gke_nodepool="default-pool",label_failure_domain_beta_kubernetes_io_region="europe-west1",label_failure_domain_beta_kubernetes_io_zone="europe-west1-b",label_kubernetes_io_hostname="gke-foobar-test-kube-default-pool-9b4ff111-j75z",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1
+# HELP kube_node_spec_unschedulable Whether a node can schedule new pods.
+# TYPE kube_node_spec_unschedulable gauge
+kube_node_spec_unschedulable{node="gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0
+kube_node_spec_unschedulable{node="gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0
+# HELP kube_node_status_allocatable_cpu_cores The CPU resources of a node that are available for scheduling.
+# TYPE kube_node_status_allocatable_cpu_cores gauge
+kube_node_status_allocatable_cpu_cores{node="gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0.94
+kube_node_status_allocatable_cpu_cores{node="gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0.94
+# HELP kube_node_status_allocatable_memory_bytes The memory resources of a node that are available for scheduling.
+# TYPE kube_node_status_allocatable_memory_bytes gauge
+kube_node_status_allocatable_memory_bytes{node="gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 2.774040576e+09
+kube_node_status_allocatable_memory_bytes{node="gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 2.774040576e+09
+# HELP kube_node_status_allocatable_pods The pod resources of a node that are available for scheduling.
+# TYPE kube_node_status_allocatable_pods gauge
+kube_node_status_allocatable_pods{node="gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 110
+kube_node_status_allocatable_pods{node="gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 110
+# HELP kube_node_status_capacity_cpu_cores The total CPU resources of the node.
+# TYPE kube_node_status_capacity_cpu_cores gauge
+kube_node_status_capacity_cpu_cores{node="gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1
+kube_node_status_capacity_cpu_cores{node="gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1
+# HELP kube_node_status_capacity_memory_bytes The total memory resources of the node.
+# TYPE kube_node_status_capacity_memory_bytes gauge
+kube_node_status_capacity_memory_bytes{node="gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 3.885531136e+09
+kube_node_status_capacity_memory_bytes{node="gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 3.885531136e+09
+# HELP kube_node_status_capacity_pods The total pod resources of the node.
+# TYPE kube_node_status_capacity_pods gauge
+kube_node_status_capacity_pods{node="gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 110
+kube_node_status_capacity_pods{node="gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 110
+# HELP kube_node_status_condition The condition of a cluster node.
+# TYPE kube_node_status_condition gauge
+kube_node_status_condition{condition="DiskPressure",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="false"} 1
+kube_node_status_condition{condition="DiskPressure",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="true"} 0
+kube_node_status_condition{condition="DiskPressure",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="unknown"} 0
+kube_node_status_condition{condition="DiskPressure",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="false"} 1
+kube_node_status_condition{condition="DiskPressure",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="true"} 0
+kube_node_status_condition{condition="DiskPressure",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="unknown"} 0
+kube_node_status_condition{condition="KernelDeadlock",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="false"} 1
+kube_node_status_condition{condition="KernelDeadlock",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="true"} 0
+kube_node_status_condition{condition="KernelDeadlock",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="unknown"} 0
+kube_node_status_condition{condition="KernelDeadlock",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="false"} 1
+kube_node_status_condition{condition="KernelDeadlock",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="true"} 0
+kube_node_status_condition{condition="KernelDeadlock",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="unknown"} 0
+kube_node_status_condition{condition="MemoryPressure",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="false"} 1
+kube_node_status_condition{condition="MemoryPressure",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="true"} 0
+kube_node_status_condition{condition="MemoryPressure",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="unknown"} 0
+kube_node_status_condition{condition="MemoryPressure",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="false"} 1
+kube_node_status_condition{condition="MemoryPressure",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="true"} 0
+kube_node_status_condition{condition="MemoryPressure",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="unknown"} 0
+kube_node_status_condition{condition="NetworkUnavailable",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="false"} 1
+kube_node_status_condition{condition="NetworkUnavailable",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="true"} 0
+kube_node_status_condition{condition="NetworkUnavailable",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="unknown"} 0
+kube_node_status_condition{condition="NetworkUnavailable",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="false"} 1
+kube_node_status_condition{condition="NetworkUnavailable",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="true"} 0
+kube_node_status_condition{condition="NetworkUnavailable",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="unknown"} 0
+kube_node_status_condition{condition="OutOfDisk",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="false"} 1
+kube_node_status_condition{condition="OutOfDisk",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="true"} 0
+kube_node_status_condition{condition="OutOfDisk",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="unknown"} 0
+kube_node_status_condition{condition="OutOfDisk",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="false"} 1
+kube_node_status_condition{condition="OutOfDisk",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="true"} 0
+kube_node_status_condition{condition="OutOfDisk",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="unknown"} 0
+kube_node_status_condition{condition="Ready",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="false"} 0
+kube_node_status_condition{condition="Ready",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="true"} 1
+kube_node_status_condition{condition="Ready",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",status="unknown"} 0
+kube_node_status_condition{condition="Ready",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="false"} 0
+kube_node_status_condition{condition="Ready",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="true"} 1
+kube_node_status_condition{condition="Ready",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",status="unknown"} 0
+# HELP kube_persistentvolumeclaim_info Information about persistent volume claim.
+# TYPE kube_persistentvolumeclaim_info gauge
+kube_persistentvolumeclaim_info{namespace="default",persistentvolumeclaim="www-web-0",storageclass="standard"} 1
+kube_persistentvolumeclaim_info{namespace="default",persistentvolumeclaim="www-web-1",storageclass="standard"} 1
+# HELP kube_persistentvolumeclaim_resource_requests_storage_bytes The capacity of storage requested by the persistent volume claim.
+# TYPE kube_persistentvolumeclaim_resource_requests_storage_bytes gauge
+kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace="default",persistentvolumeclaim="www-web-0"} 1.073741824e+09
+kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace="default",persistentvolumeclaim="www-web-1"} 1.073741824e+09
+# HELP kube_persistentvolumeclaim_status_phase The phase the persistent volume claim is currently in.
+# TYPE kube_persistentvolumeclaim_status_phase gauge
+kube_persistentvolumeclaim_status_phase{namespace="default",persistentvolumeclaim="www-web-0",phase="Bound"} 1
+kube_persistentvolumeclaim_status_phase{namespace="default",persistentvolumeclaim="www-web-0",phase="Lost"} 0
+kube_persistentvolumeclaim_status_phase{namespace="default",persistentvolumeclaim="www-web-0",phase="Pending"} 0
+kube_persistentvolumeclaim_status_phase{namespace="default",persistentvolumeclaim="www-web-1",phase="Bound"} 1
+kube_persistentvolumeclaim_status_phase{namespace="default",persistentvolumeclaim="www-web-1",phase="Lost"} 0
+kube_persistentvolumeclaim_status_phase{namespace="default",persistentvolumeclaim="www-web-1",phase="Pending"} 0
+# HELP kube_pod_container_info Information about a container in a pod.
+# TYPE kube_pod_container_info gauge
+kube_pod_container_info{container="autoscaler",container_id="docker://9e8fe714a4fd8e4f5ee417bfd7bdee10484dec917e2fd15e95a42c5673353b0f",image="eu.gcr.io/google_containers/cluster-proportional-autoscaler-amd64:1.1.2-r2",image_id="docker-pullable://eu.gcr.io/google_containers/cluster-proportional-autoscaler-amd64@sha256:003f98d9f411ddfa6ff6d539196355e03ddd69fa4ed38c7ffb8fec6f729afe2d",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 1
+kube_pod_container_info{container="dd-agent",container_id="docker://7968dcaefe0b8e2e70582c4cc00e650678e6e66102a3cd5df901d81c30db5134",image="datadog/docker-dd-agent:latest-alpine",image_id="docker-pullable://datadog/docker-dd-agent@sha256:31139997ebe892e57063e31fc7dbf9953f7f8626c1e62c28ea0c541054c64d02",namespace="default",pod="dd-agent-62bgh"} 1
+kube_pod_container_info{container="dd-agent",container_id="docker://ca43d6f85c64a658a75dff3f84532a2c9911bb6155919b2e537f6cbb614cc06c",image="datadog/docker-dd-agent:latest-alpine",image_id="docker-pullable://datadog/docker-dd-agent@sha256:31139997ebe892e57063e31fc7dbf9953f7f8626c1e62c28ea0c541054c64d02",namespace="default",pod="dd-agent-9s1l1"} 1
+kube_pod_container_info{container="default-http-backend",container_id="docker://cb8119bc73902210c02aadae84712c365c76825b5702d633c01fbbdca4eaf14e",image="eu.gcr.io/google_containers/defaultbackend:1.3",image_id="docker-pullable://eu.gcr.io/google_containers/defaultbackend@sha256:fb91f9395ddf44df1ca3adf68b25dcbc269e5d08ba14a40de9abdedafacf93d4",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 1
+kube_pod_container_info{container="dnsmasq",container_id="docker://2e211a7655f7df5d9815d87c91366c3eb845c39f1c82c4348fae61547416d86c",image="eu.gcr.io/google_containers/k8s-dns-dnsmasq-nanny-amd64:1.14.5",image_id="docker-pullable://eu.gcr.io/google_containers/k8s-dns-dnsmasq-nanny-amd64@sha256:46b933bb70270c8a02fa6b6f87d440f6f1fce1a5a2a719e164f83f7b109f7544",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_container_info{container="dnsmasq",container_id="docker://d7b971d9a8a99a62fcd9b40be291a03b83af90544e53b15403dbb20a5efc3a5c",image="eu.gcr.io/google_containers/k8s-dns-dnsmasq-nanny-amd64:1.14.5",image_id="docker-pullable://eu.gcr.io/google_containers/k8s-dns-dnsmasq-nanny-amd64@sha256:46b933bb70270c8a02fa6b6f87d440f6f1fce1a5a2a719e164f83f7b109f7544",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_container_info{container="event-exporter",container_id="docker://650a889219ba6418046d1b251ef38451c8365166b9a3b410f8b47b14bfdc8b11",image="gcr.io/google-containers/event-exporter:v0.1.7",image_id="docker-pullable://gcr.io/google-containers/event-exporter@sha256:0c86fa393401fe57843be1aa3180cd7fd339ef06fa18234ae5b139a85cfa55ec",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_container_info{container="fluentd-gcp",container_id="docker://3dd2ffa1d109d46dded1bfffd879695e1a973c40beb1b139a5e05e7032fddf7d",image="gcr.io/google-containers/fluentd-gcp:2.0.9",image_id="docker-pullable://gcr.io/google-containers/fluentd-gcp@sha256:31a2043cc4dc93208c843cc44d1325f7ebf0d18a863bec738fe62b56965dbf62",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_container_info{container="fluentd-gcp",container_id="docker://6338c10cf4ddae220ebfc621b0f4f579656ee7f5d1bbbc5e3f79c840611da85c",image="gcr.io/google-containers/fluentd-gcp:2.0.9",image_id="docker-pullable://gcr.io/google-containers/fluentd-gcp@sha256:31a2043cc4dc93208c843cc44d1325f7ebf0d18a863bec738fe62b56965dbf62",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 1
+kube_pod_container_info{container="heapster",container_id="docker://e71fdc363e3d9c3eeda7a462bdbed367826a362a2893b13d632d6ae2dd107b34",image="eu.gcr.io/google_containers/heapster-amd64:v1.4.3",image_id="docker-pullable://eu.gcr.io/google_containers/heapster-amd64@sha256:8e04183590f937c274fb95c1397ea0c6b919645c765862e2cc9cb80f097a8fb4",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_container_info{container="heapster-nanny",container_id="docker://52b6a69c1afce35a9923c5df94c1351f9577be6edd3d3f15e04243a07de1bd2e",image="eu.gcr.io/google_containers/addon-resizer:1.7",image_id="docker-pullable://eu.gcr.io/google_containers/addon-resizer@sha256:dcec9a5c2e20b8df19f3e9eeb87d9054a9e94e71479b935d5cfdbede9ce15895",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_container_info{container="kube-proxy",container_id="docker://17366565e74a517c5d9aae4c956f31470533c4e78c4c784727c0266f00f3323b",image="gcr.io/google_containers/kube-proxy:v1.7.8",image_id="docker://sha256:4cbf983db4fa04956c3db87ce82491013d280b2b65a75892b075655a17a1aaf3",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1
+kube_pod_container_info{container="kube-proxy",container_id="docker://54bc66d4e9f43742bfa5ee119d797e05613124294e4377528079df72ba1c0f3c",image="gcr.io/google_containers/kube-proxy:v1.7.8",image_id="docker://sha256:4cbf983db4fa04956c3db87ce82491013d280b2b65a75892b075655a17a1aaf3",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1
+kube_pod_container_info{container="kube-state-metrics",container_id="docker://e711152e68fb8e5ba5b22dae74b45d5c949be8cf1f3c0b42502cd37fb805bd4c",image="gcr.io/google_containers/kube-state-metrics:v1.1.0",image_id="docker-pullable://gcr.io/google_containers/kube-state-metrics@sha256:53416b3d560a1b821b7e302460a387fef887ce72206c3ccbf82fd9e2d1f71fd9",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 1
+kube_pod_container_info{container="kubedns",container_id="docker://974aa153756e07578f50691ed795db1867640c7caea4210257c557797d43882b",image="eu.gcr.io/google_containers/k8s-dns-kube-dns-amd64:1.14.5",image_id="docker-pullable://eu.gcr.io/google_containers/k8s-dns-kube-dns-amd64@sha256:1a3fc069de481ae690188f6f1ba4664b5cc7760af37120f70c86505c79eea61d",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_container_info{container="kubedns",container_id="docker://9ae61221f3d08922dcc0c58fd9505e56d0b8361ed9a21b5f051737489d44c254",image="eu.gcr.io/google_containers/k8s-dns-kube-dns-amd64:1.14.5",image_id="docker-pullable://eu.gcr.io/google_containers/k8s-dns-kube-dns-amd64@sha256:1a3fc069de481ae690188f6f1ba4664b5cc7760af37120f70c86505c79eea61d",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_container_info{container="kubernetes-dashboard",container_id="docker://2360a0eecbc28752da8439bdb256ff01489f103f26c82475a53c9ab94a757154",image="eu.gcr.io/google_containers/kubernetes-dashboard-amd64:v1.6.1",image_id="docker-pullable://eu.gcr.io/google_containers/kubernetes-dashboard-amd64@sha256:b537ce8988510607e95b8d40ac9824523b1f9029e6f9f90e9fccc663c355cf5d",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 1
+kube_pod_container_info{container="prom-to-sd",container_id="docker://b203024111d4ee578291936548a1e5229bbda36a14ff6b238458bd4c578d4b77",image="gcr.io/google-containers/prometheus-to-sd:v0.2.1",image_id="docker-pullable://gcr.io/google-containers/prometheus-to-sd@sha256:272e4ddfb3468c4c9ba245a716a74a7f2fb731cffeaf3583dbb4091565b1dfd6",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_container_info{container="prometheus-to-sd-exporter",container_id="docker://0e23a1d01d9e375590ba901081cedc66343b39ece1d22e6899955152b7640749",image="gcr.io/google-containers/prometheus-to-sd:v0.1.3",image_id="docker-pullable://gcr.io/google-containers/prometheus-to-sd@sha256:c6aaa681e77e55aa7f7017ca55265accde313f8e2e5484ee1d0a4d89ff741c48",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 1
+kube_pod_container_info{container="prometheus-to-sd-exporter",container_id="docker://70162f7dfd8b4b2749f93075da7e102fbe683a52c0d84803dcf4a78ff558584d",image="gcr.io/google-containers/prometheus-to-sd:v0.2.1",image_id="docker-pullable://gcr.io/google-containers/prometheus-to-sd@sha256:272e4ddfb3468c4c9ba245a716a74a7f2fb731cffeaf3583dbb4091565b1dfd6",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_container_info{container="prometheus-to-sd-exporter",container_id="docker://f1ecb22cea263c08f2ea9ce0d4ee5e3775c96e4a176b3b4d0e5c836caf9e0246",image="gcr.io/google-containers/prometheus-to-sd:v0.1.3",image_id="docker-pullable://gcr.io/google-containers/prometheus-to-sd@sha256:c6aaa681e77e55aa7f7017ca55265accde313f8e2e5484ee1d0a4d89ff741c48",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_container_info{container="sidecar",container_id="docker://4834887c883b6e551bedbd68f6b82e5cbaee9fb3067960450aba51845458c52e",image="eu.gcr.io/google_containers/k8s-dns-sidecar-amd64:1.14.5",image_id="docker-pullable://eu.gcr.io/google_containers/k8s-dns-sidecar-amd64@sha256:9aab42bf6a2a068b797fe7d91a5d8d915b10dbbc3d6f2b10492848debfba6044",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_container_info{container="sidecar",container_id="docker://a2e58fd1e743ef78d661c00839d4b850787fd47a6581d60bc47948efbc08341d",image="eu.gcr.io/google_containers/k8s-dns-sidecar-amd64:1.14.5",image_id="docker-pullable://eu.gcr.io/google_containers/k8s-dns-sidecar-amd64@sha256:9aab42bf6a2a068b797fe7d91a5d8d915b10dbbc3d6f2b10492848debfba6044",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_container_info{container="tiller",container_id="docker://13253d1c47f586494fef1556fe24bc4f1410048a3cb64e7a488b7fb81ab9a00b",image="gcr.io/kubernetes-helm/tiller:v2.7.2",image_id="docker-pullable://gcr.io/kubernetes-helm/tiller@sha256:df7f227fa722afc4931c912c1cad2c47856ec94f4d052ccceebcb16dd483dad8",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 1
+# HELP kube_pod_container_resource_limits_cpu_cores The limit on cpu cores to be used by a container.
+# TYPE kube_pod_container_resource_limits_cpu_cores gauge
+kube_pod_container_resource_limits_cpu_cores{container="default-http-backend",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="l7-default-backend-1798834265-dfdt8"} 0.01
+kube_pod_container_resource_limits_cpu_cores{container="heapster",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="heapster-v1.4.3-2027615481-lmjm5"} 0.088
+kube_pod_container_resource_limits_cpu_cores{container="heapster-nanny",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="heapster-v1.4.3-2027615481-lmjm5"} 0.05
+kube_pod_container_resource_limits_cpu_cores{container="kubernetes-dashboard",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kubernetes-dashboard-1914926742-61h7z"} 0.1
+# HELP kube_pod_container_resource_limits_memory_bytes The limit on memory to be used by a container in bytes.
+# TYPE kube_pod_container_resource_limits_memory_bytes gauge
+kube_pod_container_resource_limits_memory_bytes{container="dd-agent",namespace="default",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="dd-agent-62bgh"} 5.36870912e+08
+kube_pod_container_resource_limits_memory_bytes{container="dd-agent",namespace="default",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="dd-agent-9s1l1"} 5.36870912e+08
+kube_pod_container_resource_limits_memory_bytes{container="default-http-backend",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="l7-default-backend-1798834265-dfdt8"} 2.097152e+07
+kube_pod_container_resource_limits_memory_bytes{container="fluentd-gcp",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="fluentd-gcp-v2.0.9-6dj58"} 3.145728e+08
+kube_pod_container_resource_limits_memory_bytes{container="fluentd-gcp",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="fluentd-gcp-v2.0.9-z348z"} 3.145728e+08
+kube_pod_container_resource_limits_memory_bytes{container="heapster",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="heapster-v1.4.3-2027615481-lmjm5"} 2.13909504e+08
+kube_pod_container_resource_limits_memory_bytes{container="heapster-nanny",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="heapster-v1.4.3-2027615481-lmjm5"} 9.498624e+07
+kube_pod_container_resource_limits_memory_bytes{container="kubedns",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-lvrmx"} 1.7825792e+08
+kube_pod_container_resource_limits_memory_bytes{container="kubedns",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-x0tjx"} 1.7825792e+08
+kube_pod_container_resource_limits_memory_bytes{container="kubernetes-dashboard",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kubernetes-dashboard-1914926742-61h7z"} 3.145728e+08
+# HELP kube_pod_container_resource_requests_cpu_cores The number of requested cpu cores by a container.
+# TYPE kube_pod_container_resource_requests_cpu_cores gauge
+kube_pod_container_resource_requests_cpu_cores{container="autoscaler",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="kube-dns-autoscaler-97162954-mf6d3"} 0.02
+kube_pod_container_resource_requests_cpu_cores{container="dd-agent",namespace="default",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="dd-agent-62bgh"} 0.1
+kube_pod_container_resource_requests_cpu_cores{container="dd-agent",namespace="default",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="dd-agent-9s1l1"} 0.1
+kube_pod_container_resource_requests_cpu_cores{container="default-http-backend",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="l7-default-backend-1798834265-dfdt8"} 0.01
+kube_pod_container_resource_requests_cpu_cores{container="dnsmasq",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-lvrmx"} 0.15
+kube_pod_container_resource_requests_cpu_cores{container="dnsmasq",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-x0tjx"} 0.15
+kube_pod_container_resource_requests_cpu_cores{container="fluentd-gcp",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="fluentd-gcp-v2.0.9-6dj58"} 0.1
+kube_pod_container_resource_requests_cpu_cores{container="fluentd-gcp",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="fluentd-gcp-v2.0.9-z348z"} 0.1
+kube_pod_container_resource_requests_cpu_cores{container="heapster",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="heapster-v1.4.3-2027615481-lmjm5"} 0.088
+kube_pod_container_resource_requests_cpu_cores{container="heapster-nanny",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="heapster-v1.4.3-2027615481-lmjm5"} 0.05
+kube_pod_container_resource_requests_cpu_cores{container="kube-proxy",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0.1
+kube_pod_container_resource_requests_cpu_cores{container="kube-proxy",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0.1
+kube_pod_container_resource_requests_cpu_cores{container="kube-state-metrics",namespace="default",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 0.1
+kube_pod_container_resource_requests_cpu_cores{container="kubedns",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-lvrmx"} 0.1
+kube_pod_container_resource_requests_cpu_cores{container="kubedns",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-x0tjx"} 0.1
+kube_pod_container_resource_requests_cpu_cores{container="kubernetes-dashboard",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kubernetes-dashboard-1914926742-61h7z"} 0.1
+kube_pod_container_resource_requests_cpu_cores{container="sidecar",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-lvrmx"} 0.01
+kube_pod_container_resource_requests_cpu_cores{container="sidecar",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-x0tjx"} 0.01
+# HELP kube_pod_container_resource_requests_memory_bytes The number of requested memory bytes  by a container.
+# TYPE kube_pod_container_resource_requests_memory_bytes gauge
+kube_pod_container_resource_requests_memory_bytes{container="autoscaler",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="kube-dns-autoscaler-97162954-mf6d3"} 1.048576e+07
+kube_pod_container_resource_requests_memory_bytes{container="dd-agent",namespace="default",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="dd-agent-62bgh"} 5.36870912e+08
+kube_pod_container_resource_requests_memory_bytes{container="dd-agent",namespace="default",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="dd-agent-9s1l1"} 5.36870912e+08
+kube_pod_container_resource_requests_memory_bytes{container="default-http-backend",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="l7-default-backend-1798834265-dfdt8"} 2.097152e+07
+kube_pod_container_resource_requests_memory_bytes{container="dnsmasq",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-lvrmx"} 2.097152e+07
+kube_pod_container_resource_requests_memory_bytes{container="dnsmasq",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-x0tjx"} 2.097152e+07
+kube_pod_container_resource_requests_memory_bytes{container="fluentd-gcp",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="fluentd-gcp-v2.0.9-6dj58"} 2.097152e+08
+kube_pod_container_resource_requests_memory_bytes{container="fluentd-gcp",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="fluentd-gcp-v2.0.9-z348z"} 2.097152e+08
+kube_pod_container_resource_requests_memory_bytes{container="heapster",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="heapster-v1.4.3-2027615481-lmjm5"} 2.13909504e+08
+kube_pod_container_resource_requests_memory_bytes{container="heapster-nanny",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="heapster-v1.4.3-2027615481-lmjm5"} 9.498624e+07
+kube_pod_container_resource_requests_memory_bytes{container="kubedns",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-lvrmx"} 7.340032e+07
+kube_pod_container_resource_requests_memory_bytes{container="kubedns",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-x0tjx"} 7.340032e+07
+kube_pod_container_resource_requests_memory_bytes{container="kubernetes-dashboard",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kubernetes-dashboard-1914926742-61h7z"} 1.048576e+08
+kube_pod_container_resource_requests_memory_bytes{container="sidecar",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-lvrmx"} 2.097152e+07
+kube_pod_container_resource_requests_memory_bytes{container="sidecar",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-x0tjx"} 2.097152e+07
+# HELP kube_pod_container_status_ready Describes whether the containers readiness check succeeded.
+# TYPE kube_pod_container_status_ready gauge
+kube_pod_container_status_ready{container="autoscaler",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 1
+kube_pod_container_status_ready{container="dd-agent",namespace="default",pod="dd-agent-62bgh"} 1
+kube_pod_container_status_ready{container="dd-agent",namespace="default",pod="dd-agent-9s1l1"} 1
+kube_pod_container_status_ready{container="default-http-backend",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 1
+kube_pod_container_status_ready{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_container_status_ready{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_container_status_ready{container="event-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_container_status_ready{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_container_status_ready{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 1
+kube_pod_container_status_ready{container="heapster",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_container_status_ready{container="heapster-nanny",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_container_status_ready{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1
+kube_pod_container_status_ready{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1
+kube_pod_container_status_ready{container="kube-state-metrics",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 1
+kube_pod_container_status_ready{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_container_status_ready{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_container_status_ready{container="kubernetes-dashboard",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 1
+kube_pod_container_status_ready{container="prom-to-sd",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_container_status_ready{container="prometheus-to-sd-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_container_status_ready{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_container_status_ready{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 1
+kube_pod_container_status_ready{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_container_status_ready{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_container_status_ready{container="tiller",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 1
+# HELP kube_pod_container_status_restarts The number of container restarts per container.
+# TYPE kube_pod_container_status_restarts counter
+kube_pod_container_status_restarts{container="autoscaler",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 0
+kube_pod_container_status_restarts{container="dd-agent",namespace="default",pod="dd-agent-62bgh"} 0
+kube_pod_container_status_restarts{container="dd-agent",namespace="default",pod="dd-agent-9s1l1"} 0
+kube_pod_container_status_restarts{container="default-http-backend",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 0
+kube_pod_container_status_restarts{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_container_status_restarts{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_container_status_restarts{container="event-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_container_status_restarts{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_container_status_restarts{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_container_status_restarts{container="heapster",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_container_status_restarts{container="heapster-nanny",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_container_status_restarts{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1
+kube_pod_container_status_restarts{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0
+kube_pod_container_status_restarts{container="kube-state-metrics",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 0
+kube_pod_container_status_restarts{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_container_status_restarts{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_container_status_restarts{container="kubernetes-dashboard",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 1
+kube_pod_container_status_restarts{container="prom-to-sd",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_container_status_restarts{container="prometheus-to-sd-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_container_status_restarts{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_container_status_restarts{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_container_status_restarts{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_container_status_restarts{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_container_status_restarts{container="tiller",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 0
+# HELP kube_pod_container_status_running Describes whether the container is currently in running state.
+# TYPE kube_pod_container_status_running gauge
+kube_pod_container_status_running{container="autoscaler",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 1
+kube_pod_container_status_running{container="dd-agent",namespace="default",pod="dd-agent-62bgh"} 1
+kube_pod_container_status_running{container="dd-agent",namespace="default",pod="dd-agent-9s1l1"} 1
+kube_pod_container_status_running{container="default-http-backend",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 1
+kube_pod_container_status_running{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_container_status_running{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_container_status_running{container="event-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_container_status_running{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_container_status_running{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 1
+kube_pod_container_status_running{container="heapster",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_container_status_running{container="heapster-nanny",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_container_status_running{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1
+kube_pod_container_status_running{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1
+kube_pod_container_status_running{container="kube-state-metrics",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 1
+kube_pod_container_status_running{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_container_status_running{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_container_status_running{container="kubernetes-dashboard",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 1
+kube_pod_container_status_running{container="prom-to-sd",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_container_status_running{container="prometheus-to-sd-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_container_status_running{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_container_status_running{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 1
+kube_pod_container_status_running{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_container_status_running{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_container_status_running{container="tiller",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 1
+# HELP kube_pod_container_status_terminated Describes whether the container is currently in terminated state.
+# TYPE kube_pod_container_status_terminated gauge
+kube_pod_container_status_terminated{container="autoscaler",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 0
+kube_pod_container_status_terminated{container="dd-agent",namespace="default",pod="dd-agent-62bgh"} 0
+kube_pod_container_status_terminated{container="dd-agent",namespace="default",pod="dd-agent-9s1l1"} 0
+kube_pod_container_status_terminated{container="default-http-backend",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 0
+kube_pod_container_status_terminated{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_container_status_terminated{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_container_status_terminated{container="event-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 0
+kube_pod_container_status_terminated{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 0
+kube_pod_container_status_terminated{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_container_status_terminated{container="heapster",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_container_status_terminated{container="heapster-nanny",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_container_status_terminated{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0
+kube_pod_container_status_terminated{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0
+kube_pod_container_status_terminated{container="kube-state-metrics",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 0
+kube_pod_container_status_terminated{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_container_status_terminated{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_container_status_terminated{container="kubernetes-dashboard",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 0
+kube_pod_container_status_terminated{container="prom-to-sd",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_container_status_terminated{container="prometheus-to-sd-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 0
+kube_pod_container_status_terminated{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 0
+kube_pod_container_status_terminated{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_container_status_terminated{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_container_status_terminated{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_container_status_terminated{container="tiller",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 0
+# HELP kube_pod_container_status_waiting Describes whether the container is currently in waiting state.
+# TYPE kube_pod_container_status_waiting gauge
+kube_pod_container_status_waiting{container="autoscaler",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 0
+kube_pod_container_status_waiting{container="dd-agent",namespace="default",pod="dd-agent-62bgh"} 0
+kube_pod_container_status_waiting{container="dd-agent",namespace="default",pod="dd-agent-9s1l1"} 0
+kube_pod_container_status_waiting{container="default-http-backend",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 0
+kube_pod_container_status_waiting{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_container_status_waiting{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_container_status_waiting{container="event-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 0
+kube_pod_container_status_waiting{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 0
+kube_pod_container_status_waiting{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_container_status_waiting{container="heapster",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_container_status_waiting{container="heapster-nanny",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_container_status_waiting{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0
+kube_pod_container_status_waiting{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0
+kube_pod_container_status_waiting{container="kube-state-metrics",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 0
+kube_pod_container_status_waiting{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_container_status_waiting{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_container_status_waiting{container="kubernetes-dashboard",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 0
+kube_pod_container_status_waiting{container="prom-to-sd",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_container_status_waiting{container="prometheus-to-sd-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 0
+kube_pod_container_status_waiting{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 0
+kube_pod_container_status_waiting{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_container_status_waiting{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_container_status_waiting{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_container_status_waiting{container="tiller",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 0
+# HELP kube_pod_container_status_waiting_reason Describes the reason the container is currently in waiting state.
+# TYPE kube_pod_container_status_waiting_reason gauge
+kube_pod_container_status_waiting_reason{container="autoscaler",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="autoscaler",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="dd-agent",namespace="default",pod="dd-agent-62bgh",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="dd-agent",namespace="default",pod="dd-agent-62bgh",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="dd-agent",namespace="default",pod="dd-agent-9s1l1",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="dd-agent",namespace="default",pod="dd-agent-9s1l1",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="default-http-backend",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="default-http-backend",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-lvrmx",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-lvrmx",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-x0tjx",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="dnsmasq",namespace="kube-system",pod="kube-dns-3092422022-x0tjx",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="event-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="event-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="fluentd-gcp",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="heapster",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="heapster",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="heapster-nanny",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="heapster-nanny",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="kube-proxy",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="kube-state-metrics",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="kube-state-metrics",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-lvrmx",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-lvrmx",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-x0tjx",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="kubedns",namespace="kube-system",pod="kube-dns-3092422022-x0tjx",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="kubernetes-dashboard",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="kubernetes-dashboard",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="prom-to-sd",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="prom-to-sd",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="prometheus-to-sd-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="prometheus-to-sd-exporter",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="prometheus-to-sd-exporter",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-lvrmx",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-lvrmx",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-x0tjx",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="sidecar",namespace="kube-system",pod="kube-dns-3092422022-x0tjx",reason="ErrImagePull"} 0
+kube_pod_container_status_waiting_reason{container="tiller",namespace="kube-system",pod="tiller-deploy-352283156-31q6h",reason="ContainerCreating"} 0
+kube_pod_container_status_waiting_reason{container="tiller",namespace="kube-system",pod="tiller-deploy-352283156-31q6h",reason="ErrImagePull"} 0
+# HELP kube_pod_created Unix creation timestamp
+# TYPE kube_pod_created gauge
+kube_pod_created{namespace="default",pod="dd-agent-62bgh"} 1.513767115e+09
+kube_pod_created{namespace="default",pod="dd-agent-9s1l1"} 1.513767115e+09
+kube_pod_created{namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 1.51376746e+09
+kube_pod_created{namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1.510068978e+09
+kube_pod_created{namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1.510067451e+09
+kube_pod_created{namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 1.509719921e+09
+kube_pod_created{namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1.510069966e+09
+kube_pod_created{namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1.510068978e+09
+kube_pod_created{namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1.510068978e+09
+kube_pod_created{namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 1.510069966e+09
+kube_pod_created{namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1.510068962e+09
+kube_pod_created{namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1.510069354e+09
+kube_pod_created{namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 1.510068978e+09
+kube_pod_created{namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 1.510069966e+09
+kube_pod_created{namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 1.513767429e+09
+# HELP kube_pod_info Information about pod.
+# TYPE kube_pod_info gauge
+kube_pod_info{created_by_kind="<none>",created_by_name="<none>",host_ip="11.132.0.14",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod_ip="11.132.0.14"} 1
+kube_pod_info{created_by_kind="<none>",created_by_name="<none>",host_ip="11.132.0.7",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod_ip="11.132.0.7"} 1
+kube_pod_info{created_by_kind="DaemonSet",created_by_name="dd-agent",host_ip="11.132.0.14",namespace="default",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="dd-agent-9s1l1",pod_ip="11.32.5.43"} 1
+kube_pod_info{created_by_kind="DaemonSet",created_by_name="dd-agent",host_ip="11.132.0.7",namespace="default",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="dd-agent-62bgh",pod_ip="11.32.3.20"} 1
+kube_pod_info{created_by_kind="DaemonSet",created_by_name="fluentd-gcp-v2.0.9",host_ip="11.132.0.14",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="fluentd-gcp-v2.0.9-z348z",pod_ip="11.132.0.14"} 1
+kube_pod_info{created_by_kind="DaemonSet",created_by_name="fluentd-gcp-v2.0.9",host_ip="11.132.0.7",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="fluentd-gcp-v2.0.9-6dj58",pod_ip="11.132.0.7"} 1
+kube_pod_info{created_by_kind="ReplicaSet",created_by_name="event-exporter-v0.1.7-958884745",host_ip="11.132.0.7",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="event-exporter-v0.1.7-958884745-qgnbw",pod_ip="11.32.3.14"} 1
+kube_pod_info{created_by_kind="ReplicaSet",created_by_name="heapster-v1.4.3-2027615481",host_ip="11.132.0.14",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="heapster-v1.4.3-2027615481-lmjm5",pod_ip="11.32.5.7"} 1
+kube_pod_info{created_by_kind="ReplicaSet",created_by_name="kube-dns-3092422022",host_ip="11.132.0.7",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-lvrmx",pod_ip="11.32.3.10"} 1
+kube_pod_info{created_by_kind="ReplicaSet",created_by_name="kube-dns-3092422022",host_ip="11.132.0.7",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kube-dns-3092422022-x0tjx",pod_ip="11.32.3.9"} 1
+kube_pod_info{created_by_kind="ReplicaSet",created_by_name="kube-dns-autoscaler-97162954",host_ip="11.132.0.14",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="kube-dns-autoscaler-97162954-mf6d3",pod_ip="11.32.5.6"} 1
+kube_pod_info{created_by_kind="ReplicaSet",created_by_name="kubernetes-dashboard-1914926742",host_ip="11.132.0.7",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-0kch",pod="kubernetes-dashboard-1914926742-61h7z",pod_ip="11.32.3.11"} 1
+kube_pod_info{created_by_kind="ReplicaSet",created_by_name="l7-default-backend-1798834265",host_ip="11.132.0.14",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="l7-default-backend-1798834265-dfdt8",pod_ip="11.32.5.9"} 1
+kube_pod_info{created_by_kind="ReplicaSet",created_by_name="tiller-deploy-352283156",host_ip="11.132.0.14",namespace="kube-system",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="tiller-deploy-352283156-31q6h",pod_ip="11.32.5.44"} 1
+kube_pod_info{created_by_kind="ReplicaSet",created_by_name="ungaged-panther-kube-state-metrics-3918010230",host_ip="11.132.0.14",namespace="default",node="gke-foobar-test-kube-default-pool-9b4ff111-j75z",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc",pod_ip="11.32.5.45"} 1
+# HELP kube_pod_labels Kubernetes labels converted to Prometheus labels.
+# TYPE kube_pod_labels gauge
+kube_pod_labels{label_k8s_app="kube-dns",label_pod_template_hash="3092422022",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_labels{label_k8s_app="kube-dns",label_pod_template_hash="3092422022",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_labels{label_k8s_app="kube-dns-autoscaler",label_pod_template_hash="97162954",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 1
+kube_pod_labels{label_component="kube-proxy",label_tier="node",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1
+kube_pod_labels{label_component="kube-proxy",label_tier="node",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1
+kube_pod_labels{label_k8s_app="kubernetes-dashboard",label_pod_template_hash="1914926742",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 1
+kube_pod_labels{label_app="dd-agent",label_controller_revision_hash="454334833",label_pod_template_generation="1",namespace="default",pod="dd-agent-62bgh"} 1
+kube_pod_labels{label_app="dd-agent",label_controller_revision_hash="454334833",label_pod_template_generation="1",namespace="default",pod="dd-agent-9s1l1"} 1
+kube_pod_labels{label_k8s_app="event-exporter",label_pod_template_hash="958884745",label_version="v0.1.7",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_labels{label_k8s_app="glbc",label_name="glbc",label_pod_template_hash="1798834265",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 1
+kube_pod_labels{label_k8s_app="heapster",label_pod_template_hash="2027615481",label_version="v1.4.3",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_labels{label_app="helm",label_name="tiller",label_pod_template_hash="352283156",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 1
+kube_pod_labels{label_app="kube-state-metrics",label_pod_template_hash="3918010230",label_release="ungaged-panther",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 1
+kube_pod_labels{label_controller_revision_hash="3483772856",label_k8s_app="fluentd-gcp",label_kubernetes_io_cluster_service="true",label_pod_template_generation="1",label_version="v2.0.9",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_labels{label_controller_revision_hash="3483772856",label_k8s_app="fluentd-gcp",label_kubernetes_io_cluster_service="true",label_pod_template_generation="1",label_version="v2.0.9",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 1
+# HELP kube_pod_owner Information about the Pod's owner.
+# TYPE kube_pod_owner gauge
+kube_pod_owner{namespace="default",owner_is_controller="true",owner_kind="DaemonSet",owner_name="dd-agent",pod="dd-agent-62bgh"} 1
+kube_pod_owner{namespace="default",owner_is_controller="true",owner_kind="DaemonSet",owner_name="dd-agent",pod="dd-agent-9s1l1"} 1
+kube_pod_owner{namespace="default",owner_is_controller="true",owner_kind="ReplicaSet",owner_name="ungaged-panther-kube-state-metrics-3918010230",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 1
+kube_pod_owner{namespace="kube-system",owner_is_controller="<none>",owner_kind="<none>",owner_name="<none>",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1
+kube_pod_owner{namespace="kube-system",owner_is_controller="<none>",owner_kind="<none>",owner_name="<none>",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1
+kube_pod_owner{namespace="kube-system",owner_is_controller="true",owner_kind="DaemonSet",owner_name="fluentd-gcp-v2.0.9",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_owner{namespace="kube-system",owner_is_controller="true",owner_kind="DaemonSet",owner_name="fluentd-gcp-v2.0.9",pod="fluentd-gcp-v2.0.9-z348z"} 1
+kube_pod_owner{namespace="kube-system",owner_is_controller="true",owner_kind="ReplicaSet",owner_name="event-exporter-v0.1.7-958884745",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_owner{namespace="kube-system",owner_is_controller="true",owner_kind="ReplicaSet",owner_name="heapster-v1.4.3-2027615481",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_owner{namespace="kube-system",owner_is_controller="true",owner_kind="ReplicaSet",owner_name="kube-dns-3092422022",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_owner{namespace="kube-system",owner_is_controller="true",owner_kind="ReplicaSet",owner_name="kube-dns-3092422022",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_owner{namespace="kube-system",owner_is_controller="true",owner_kind="ReplicaSet",owner_name="kube-dns-autoscaler-97162954",pod="kube-dns-autoscaler-97162954-mf6d3"} 1
+kube_pod_owner{namespace="kube-system",owner_is_controller="true",owner_kind="ReplicaSet",owner_name="kubernetes-dashboard-1914926742",pod="kubernetes-dashboard-1914926742-61h7z"} 1
+kube_pod_owner{namespace="kube-system",owner_is_controller="true",owner_kind="ReplicaSet",owner_name="l7-default-backend-1798834265",pod="l7-default-backend-1798834265-dfdt8"} 1
+kube_pod_owner{namespace="kube-system",owner_is_controller="true",owner_kind="ReplicaSet",owner_name="tiller-deploy-352283156",pod="tiller-deploy-352283156-31q6h"} 1
+# HELP kube_pod_start_time Start time in unix timestamp for a pod.
+# TYPE kube_pod_start_time gauge
+kube_pod_start_time{namespace="default",pod="dd-agent-62bgh"} 1.513767115e+09
+kube_pod_start_time{namespace="default",pod="dd-agent-9s1l1"} 1.513767115e+09
+kube_pod_start_time{namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 1.51376746e+09
+kube_pod_start_time{namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1.510068978e+09
+kube_pod_start_time{namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1.510067456e+09
+kube_pod_start_time{namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 1.509719921e+09
+kube_pod_start_time{namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1.510069966e+09
+kube_pod_start_time{namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1.510068978e+09
+kube_pod_start_time{namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1.510068978e+09
+kube_pod_start_time{namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 1.510069966e+09
+kube_pod_start_time{namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1.510067456e+09
+kube_pod_start_time{namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1.507301558e+09
+kube_pod_start_time{namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 1.510068978e+09
+kube_pod_start_time{namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 1.510069966e+09
+kube_pod_start_time{namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 1.513767429e+09
+# HELP kube_pod_status_phase The pods current phase.
+# TYPE kube_pod_status_phase gauge
+kube_pod_status_phase{namespace="default",phase="Failed",pod="dd-agent-62bgh"} 0
+kube_pod_status_phase{namespace="default",phase="Failed",pod="dd-agent-9s1l1"} 0
+kube_pod_status_phase{namespace="default",phase="Failed",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 0
+kube_pod_status_phase{namespace="default",phase="Pending",pod="dd-agent-62bgh"} 0
+kube_pod_status_phase{namespace="default",phase="Pending",pod="dd-agent-9s1l1"} 0
+kube_pod_status_phase{namespace="default",phase="Pending",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 0
+kube_pod_status_phase{namespace="default",phase="Running",pod="dd-agent-62bgh"} 1
+kube_pod_status_phase{namespace="default",phase="Running",pod="dd-agent-9s1l1"} 1
+kube_pod_status_phase{namespace="default",phase="Running",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 1
+kube_pod_status_phase{namespace="default",phase="Succeeded",pod="dd-agent-62bgh"} 0
+kube_pod_status_phase{namespace="default",phase="Succeeded",pod="dd-agent-9s1l1"} 0
+kube_pod_status_phase{namespace="default",phase="Succeeded",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 0
+kube_pod_status_phase{namespace="default",phase="Unknown",pod="dd-agent-62bgh"} 0
+kube_pod_status_phase{namespace="default",phase="Unknown",pod="dd-agent-9s1l1"} 0
+kube_pod_status_phase{namespace="default",phase="Unknown",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Failed",pod="event-exporter-v0.1.7-958884745-qgnbw"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Failed",pod="fluentd-gcp-v2.0.9-6dj58"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Failed",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Failed",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Failed",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Failed",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Failed",pod="kube-dns-autoscaler-97162954-mf6d3"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Failed",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Failed",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Failed",pod="kubernetes-dashboard-1914926742-61h7z"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Failed",pod="l7-default-backend-1798834265-dfdt8"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Failed",pod="tiller-deploy-352283156-31q6h"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Pending",pod="event-exporter-v0.1.7-958884745-qgnbw"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Pending",pod="fluentd-gcp-v2.0.9-6dj58"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Pending",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Pending",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Pending",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Pending",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Pending",pod="kube-dns-autoscaler-97162954-mf6d3"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Pending",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Pending",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Pending",pod="kubernetes-dashboard-1914926742-61h7z"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Pending",pod="l7-default-backend-1798834265-dfdt8"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Pending",pod="tiller-deploy-352283156-31q6h"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Running",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_status_phase{namespace="kube-system",phase="Running",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_status_phase{namespace="kube-system",phase="Running",pod="fluentd-gcp-v2.0.9-z348z"} 1
+kube_pod_status_phase{namespace="kube-system",phase="Running",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_status_phase{namespace="kube-system",phase="Running",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_status_phase{namespace="kube-system",phase="Running",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_status_phase{namespace="kube-system",phase="Running",pod="kube-dns-autoscaler-97162954-mf6d3"} 1
+kube_pod_status_phase{namespace="kube-system",phase="Running",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1
+kube_pod_status_phase{namespace="kube-system",phase="Running",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1
+kube_pod_status_phase{namespace="kube-system",phase="Running",pod="kubernetes-dashboard-1914926742-61h7z"} 1
+kube_pod_status_phase{namespace="kube-system",phase="Running",pod="l7-default-backend-1798834265-dfdt8"} 1
+kube_pod_status_phase{namespace="kube-system",phase="Running",pod="tiller-deploy-352283156-31q6h"} 1
+kube_pod_status_phase{namespace="kube-system",phase="Succeeded",pod="event-exporter-v0.1.7-958884745-qgnbw"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Succeeded",pod="fluentd-gcp-v2.0.9-6dj58"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Succeeded",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Succeeded",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Succeeded",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Succeeded",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Succeeded",pod="kube-dns-autoscaler-97162954-mf6d3"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Succeeded",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Succeeded",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Succeeded",pod="kubernetes-dashboard-1914926742-61h7z"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Succeeded",pod="l7-default-backend-1798834265-dfdt8"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Succeeded",pod="tiller-deploy-352283156-31q6h"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Unknown",pod="event-exporter-v0.1.7-958884745-qgnbw"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Unknown",pod="fluentd-gcp-v2.0.9-6dj58"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Unknown",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Unknown",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Unknown",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Unknown",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Unknown",pod="kube-dns-autoscaler-97162954-mf6d3"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Unknown",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Unknown",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Unknown",pod="kubernetes-dashboard-1914926742-61h7z"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Unknown",pod="l7-default-backend-1798834265-dfdt8"} 0
+kube_pod_status_phase{namespace="kube-system",phase="Unknown",pod="tiller-deploy-352283156-31q6h"} 0
+# HELP kube_pod_status_ready Describes whether the pod is ready to serve requests.
+# TYPE kube_pod_status_ready gauge
+kube_pod_status_ready{condition="false",namespace="default",pod="dd-agent-62bgh"} 0
+kube_pod_status_ready{condition="false",namespace="default",pod="dd-agent-9s1l1"} 0
+kube_pod_status_ready{condition="false",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 0
+kube_pod_status_ready{condition="false",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 0
+kube_pod_status_ready{condition="false",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 0
+kube_pod_status_ready{condition="false",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_status_ready{condition="false",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_status_ready{condition="false",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_status_ready{condition="false",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_status_ready{condition="false",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 0
+kube_pod_status_ready{condition="false",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0
+kube_pod_status_ready{condition="false",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0
+kube_pod_status_ready{condition="false",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 0
+kube_pod_status_ready{condition="false",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 0
+kube_pod_status_ready{condition="false",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 0
+kube_pod_status_ready{condition="true",namespace="default",pod="dd-agent-62bgh"} 1
+kube_pod_status_ready{condition="true",namespace="default",pod="dd-agent-9s1l1"} 1
+kube_pod_status_ready{condition="true",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 1
+kube_pod_status_ready{condition="true",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_status_ready{condition="true",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_status_ready{condition="true",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 1
+kube_pod_status_ready{condition="true",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_status_ready{condition="true",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_status_ready{condition="true",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_status_ready{condition="true",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 1
+kube_pod_status_ready{condition="true",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1
+kube_pod_status_ready{condition="true",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1
+kube_pod_status_ready{condition="true",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 1
+kube_pod_status_ready{condition="true",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 1
+kube_pod_status_ready{condition="true",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 1
+kube_pod_status_ready{condition="unknown",namespace="default",pod="dd-agent-62bgh"} 0
+kube_pod_status_ready{condition="unknown",namespace="default",pod="dd-agent-9s1l1"} 0
+kube_pod_status_ready{condition="unknown",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 0
+kube_pod_status_ready{condition="unknown",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 0
+kube_pod_status_ready{condition="unknown",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 0
+kube_pod_status_ready{condition="unknown",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_status_ready{condition="unknown",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_status_ready{condition="unknown",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_status_ready{condition="unknown",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_status_ready{condition="unknown",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 0
+kube_pod_status_ready{condition="unknown",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0
+kube_pod_status_ready{condition="unknown",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0
+kube_pod_status_ready{condition="unknown",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 0
+kube_pod_status_ready{condition="unknown",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 0
+kube_pod_status_ready{condition="unknown",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 0
+# HELP kube_pod_status_scheduled Describes the status of the scheduling process for the pod.
+# TYPE kube_pod_status_scheduled gauge
+kube_pod_status_scheduled{condition="false",namespace="default",pod="dd-agent-62bgh"} 0
+kube_pod_status_scheduled{condition="false",namespace="default",pod="dd-agent-9s1l1"} 0
+kube_pod_status_scheduled{condition="false",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 0
+kube_pod_status_scheduled{condition="false",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 0
+kube_pod_status_scheduled{condition="false",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 0
+kube_pod_status_scheduled{condition="false",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_status_scheduled{condition="false",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_status_scheduled{condition="false",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_status_scheduled{condition="false",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_status_scheduled{condition="false",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 0
+kube_pod_status_scheduled{condition="false",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0
+kube_pod_status_scheduled{condition="false",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0
+kube_pod_status_scheduled{condition="false",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 0
+kube_pod_status_scheduled{condition="false",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 0
+kube_pod_status_scheduled{condition="false",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 0
+kube_pod_status_scheduled{condition="true",namespace="default",pod="dd-agent-62bgh"} 1
+kube_pod_status_scheduled{condition="true",namespace="default",pod="dd-agent-9s1l1"} 1
+kube_pod_status_scheduled{condition="true",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 1
+kube_pod_status_scheduled{condition="true",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 1
+kube_pod_status_scheduled{condition="true",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 1
+kube_pod_status_scheduled{condition="true",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 1
+kube_pod_status_scheduled{condition="true",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 1
+kube_pod_status_scheduled{condition="true",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 1
+kube_pod_status_scheduled{condition="true",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 1
+kube_pod_status_scheduled{condition="true",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 1
+kube_pod_status_scheduled{condition="true",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 1
+kube_pod_status_scheduled{condition="true",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 1
+kube_pod_status_scheduled{condition="true",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 1
+kube_pod_status_scheduled{condition="true",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 1
+kube_pod_status_scheduled{condition="true",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 1
+kube_pod_status_scheduled{condition="unknown",namespace="default",pod="dd-agent-62bgh"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="default",pod="dd-agent-9s1l1"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="default",pod="ungaged-panther-kube-state-metrics-3918010230-64xwc"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="kube-system",pod="event-exporter-v0.1.7-958884745-qgnbw"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="kube-system",pod="fluentd-gcp-v2.0.9-6dj58"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="kube-system",pod="fluentd-gcp-v2.0.9-z348z"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="kube-system",pod="heapster-v1.4.3-2027615481-lmjm5"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="kube-system",pod="kube-dns-3092422022-lvrmx"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="kube-system",pod="kube-dns-3092422022-x0tjx"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="kube-system",pod="kube-dns-autoscaler-97162954-mf6d3"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-0kch"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="kube-system",pod="kube-proxy-gke-foobar-test-kube-default-pool-9b4ff111-j75z"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="kube-system",pod="kubernetes-dashboard-1914926742-61h7z"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="kube-system",pod="l7-default-backend-1798834265-dfdt8"} 0
+kube_pod_status_scheduled{condition="unknown",namespace="kube-system",pod="tiller-deploy-352283156-31q6h"} 0
+# HELP kube_replicaset_created Unix creation timestamp
+# TYPE kube_replicaset_created gauge
+kube_replicaset_created{namespace="default",replicaset="ungaged-panther-kube-state-metrics-3918010230"} 1.51376746e+09
+kube_replicaset_created{namespace="kube-system",replicaset="event-exporter-v0.1.7-958884745"} 1.509669959e+09
+kube_replicaset_created{namespace="kube-system",replicaset="heapster-v1.4.3-1216113979"} 1.509669918e+09
+kube_replicaset_created{namespace="kube-system",replicaset="heapster-v1.4.3-1279439856"} 1.509669959e+09
+kube_replicaset_created{namespace="kube-system",replicaset="heapster-v1.4.3-2027615481"} 1.509670012e+09
+kube_replicaset_created{namespace="kube-system",replicaset="kube-dns-3092422022"} 1.507301559e+09
+kube_replicaset_created{namespace="kube-system",replicaset="kube-dns-autoscaler-97162954"} 1.507301559e+09
+kube_replicaset_created{namespace="kube-system",replicaset="kubernetes-dashboard-1914926742"} 1.507301559e+09
+kube_replicaset_created{namespace="kube-system",replicaset="l7-default-backend-1798834265"} 1.50730152e+09
+kube_replicaset_created{namespace="kube-system",replicaset="tiller-deploy-352283156"} 1.513767429e+09
+# HELP kube_replicaset_metadata_generation Sequence number representing a specific generation of the desired state.
+# TYPE kube_replicaset_metadata_generation gauge
+kube_replicaset_metadata_generation{namespace="default",replicaset="ungaged-panther-kube-state-metrics-3918010230"} 1
+kube_replicaset_metadata_generation{namespace="kube-system",replicaset="event-exporter-v0.1.7-958884745"} 1
+kube_replicaset_metadata_generation{namespace="kube-system",replicaset="heapster-v1.4.3-1216113979"} 2
+kube_replicaset_metadata_generation{namespace="kube-system",replicaset="heapster-v1.4.3-1279439856"} 2
+kube_replicaset_metadata_generation{namespace="kube-system",replicaset="heapster-v1.4.3-2027615481"} 1
+kube_replicaset_metadata_generation{namespace="kube-system",replicaset="kube-dns-3092422022"} 2
+kube_replicaset_metadata_generation{namespace="kube-system",replicaset="kube-dns-autoscaler-97162954"} 1
+kube_replicaset_metadata_generation{namespace="kube-system",replicaset="kubernetes-dashboard-1914926742"} 1
+kube_replicaset_metadata_generation{namespace="kube-system",replicaset="l7-default-backend-1798834265"} 1
+kube_replicaset_metadata_generation{namespace="kube-system",replicaset="tiller-deploy-352283156"} 1
+# HELP kube_replicaset_spec_replicas Number of desired pods for a ReplicaSet.
+# TYPE kube_replicaset_spec_replicas gauge
+kube_replicaset_spec_replicas{namespace="default",replicaset="ungaged-panther-kube-state-metrics-3918010230"} 1
+kube_replicaset_spec_replicas{namespace="kube-system",replicaset="event-exporter-v0.1.7-958884745"} 1
+kube_replicaset_spec_replicas{namespace="kube-system",replicaset="heapster-v1.4.3-1216113979"} 0
+kube_replicaset_spec_replicas{namespace="kube-system",replicaset="heapster-v1.4.3-1279439856"} 0
+kube_replicaset_spec_replicas{namespace="kube-system",replicaset="heapster-v1.4.3-2027615481"} 1
+kube_replicaset_spec_replicas{namespace="kube-system",replicaset="kube-dns-3092422022"} 2
+kube_replicaset_spec_replicas{namespace="kube-system",replicaset="kube-dns-autoscaler-97162954"} 1
+kube_replicaset_spec_replicas{namespace="kube-system",replicaset="kubernetes-dashboard-1914926742"} 1
+kube_replicaset_spec_replicas{namespace="kube-system",replicaset="l7-default-backend-1798834265"} 1
+kube_replicaset_spec_replicas{namespace="kube-system",replicaset="tiller-deploy-352283156"} 1
+# HELP kube_replicaset_status_fully_labeled_replicas The number of fully labeled replicas per ReplicaSet.
+# TYPE kube_replicaset_status_fully_labeled_replicas gauge
+kube_replicaset_status_fully_labeled_replicas{namespace="default",replicaset="ungaged-panther-kube-state-metrics-3918010230"} 1
+kube_replicaset_status_fully_labeled_replicas{namespace="kube-system",replicaset="event-exporter-v0.1.7-958884745"} 1
+kube_replicaset_status_fully_labeled_replicas{namespace="kube-system",replicaset="heapster-v1.4.3-1216113979"} 0
+kube_replicaset_status_fully_labeled_replicas{namespace="kube-system",replicaset="heapster-v1.4.3-1279439856"} 0
+kube_replicaset_status_fully_labeled_replicas{namespace="kube-system",replicaset="heapster-v1.4.3-2027615481"} 1
+kube_replicaset_status_fully_labeled_replicas{namespace="kube-system",replicaset="kube-dns-3092422022"} 2
+kube_replicaset_status_fully_labeled_replicas{namespace="kube-system",replicaset="kube-dns-autoscaler-97162954"} 1
+kube_replicaset_status_fully_labeled_replicas{namespace="kube-system",replicaset="kubernetes-dashboard-1914926742"} 1
+kube_replicaset_status_fully_labeled_replicas{namespace="kube-system",replicaset="l7-default-backend-1798834265"} 1
+kube_replicaset_status_fully_labeled_replicas{namespace="kube-system",replicaset="tiller-deploy-352283156"} 1
+# HELP kube_replicaset_status_observed_generation The generation observed by the ReplicaSet controller.
+# TYPE kube_replicaset_status_observed_generation gauge
+kube_replicaset_status_observed_generation{namespace="default",replicaset="ungaged-panther-kube-state-metrics-3918010230"} 1
+kube_replicaset_status_observed_generation{namespace="kube-system",replicaset="event-exporter-v0.1.7-958884745"} 1
+kube_replicaset_status_observed_generation{namespace="kube-system",replicaset="heapster-v1.4.3-1216113979"} 2
+kube_replicaset_status_observed_generation{namespace="kube-system",replicaset="heapster-v1.4.3-1279439856"} 2
+kube_replicaset_status_observed_generation{namespace="kube-system",replicaset="heapster-v1.4.3-2027615481"} 1
+kube_replicaset_status_observed_generation{namespace="kube-system",replicaset="kube-dns-3092422022"} 2
+kube_replicaset_status_observed_generation{namespace="kube-system",replicaset="kube-dns-autoscaler-97162954"} 1
+kube_replicaset_status_observed_generation{namespace="kube-system",replicaset="kubernetes-dashboard-1914926742"} 1
+kube_replicaset_status_observed_generation{namespace="kube-system",replicaset="l7-default-backend-1798834265"} 1
+kube_replicaset_status_observed_generation{namespace="kube-system",replicaset="tiller-deploy-352283156"} 1
+# HELP kube_replicaset_status_ready_replicas The number of ready replicas per ReplicaSet.
+# TYPE kube_replicaset_status_ready_replicas gauge
+kube_replicaset_status_ready_replicas{namespace="default",replicaset="ungaged-panther-kube-state-metrics-3918010230"} 1
+kube_replicaset_status_ready_replicas{namespace="kube-system",replicaset="event-exporter-v0.1.7-958884745"} 1
+kube_replicaset_status_ready_replicas{namespace="kube-system",replicaset="heapster-v1.4.3-1216113979"} 0
+kube_replicaset_status_ready_replicas{namespace="kube-system",replicaset="heapster-v1.4.3-1279439856"} 0
+kube_replicaset_status_ready_replicas{namespace="kube-system",replicaset="heapster-v1.4.3-2027615481"} 1
+kube_replicaset_status_ready_replicas{namespace="kube-system",replicaset="kube-dns-3092422022"} 2
+kube_replicaset_status_ready_replicas{namespace="kube-system",replicaset="kube-dns-autoscaler-97162954"} 1
+kube_replicaset_status_ready_replicas{namespace="kube-system",replicaset="kubernetes-dashboard-1914926742"} 1
+kube_replicaset_status_ready_replicas{namespace="kube-system",replicaset="l7-default-backend-1798834265"} 1
+kube_replicaset_status_ready_replicas{namespace="kube-system",replicaset="tiller-deploy-352283156"} 1
+# HELP kube_replicaset_status_replicas The number of replicas per ReplicaSet.
+# TYPE kube_replicaset_status_replicas gauge
+kube_replicaset_status_replicas{namespace="default",replicaset="ungaged-panther-kube-state-metrics-3918010230"} 1
+kube_replicaset_status_replicas{namespace="kube-system",replicaset="event-exporter-v0.1.7-958884745"} 1
+kube_replicaset_status_replicas{namespace="kube-system",replicaset="heapster-v1.4.3-1216113979"} 0
+kube_replicaset_status_replicas{namespace="kube-system",replicaset="heapster-v1.4.3-1279439856"} 0
+kube_replicaset_status_replicas{namespace="kube-system",replicaset="heapster-v1.4.3-2027615481"} 1
+kube_replicaset_status_replicas{namespace="kube-system",replicaset="kube-dns-3092422022"} 2
+kube_replicaset_status_replicas{namespace="kube-system",replicaset="kube-dns-autoscaler-97162954"} 1
+kube_replicaset_status_replicas{namespace="kube-system",replicaset="kubernetes-dashboard-1914926742"} 1
+kube_replicaset_status_replicas{namespace="kube-system",replicaset="l7-default-backend-1798834265"} 1
+kube_replicaset_status_replicas{namespace="kube-system",replicaset="tiller-deploy-352283156"} 1
+# HELP kube_service_created Unix creation timestamp
+# TYPE kube_service_created gauge
+kube_service_created{namespace="default",service="kubernetes"} 1.507301496e+09
+kube_service_created{namespace="default",service="ungaged-panther-kube-state-metrics"} 1.51376746e+09
+kube_service_created{namespace="kube-system",service="default-http-backend"} 1.507301521e+09
+kube_service_created{namespace="kube-system",service="heapster"} 1.507301615e+09
+kube_service_created{namespace="kube-system",service="kube-dns"} 1.50730155e+09
+kube_service_created{namespace="kube-system",service="kube-state-metrics"} 1.513767157e+09
+kube_service_created{namespace="kube-system",service="kubernetes-dashboard"} 1.507301549e+09
+kube_service_created{namespace="kube-system",service="tiller-deploy"} 1.513767429e+09
+# HELP kube_service_info Information about service.
+# TYPE kube_service_info gauge
+kube_service_info{namespace="default",service="kubernetes"} 1
+kube_service_info{namespace="default",service="ungaged-panther-kube-state-metrics"} 1
+kube_service_info{namespace="kube-system",service="default-http-backend"} 1
+kube_service_info{namespace="kube-system",service="heapster"} 1
+kube_service_info{namespace="kube-system",service="kube-dns"} 1
+kube_service_info{namespace="kube-system",service="kube-state-metrics"} 1
+kube_service_info{namespace="kube-system",service="kubernetes-dashboard"} 1
+kube_service_info{namespace="kube-system",service="tiller-deploy"} 1
+# HELP kube_service_labels Kubernetes labels converted to Prometheus labels.
+# TYPE kube_service_labels gauge
+kube_service_labels{label_k8s_app="kube-state-metrics",namespace="kube-system",service="kube-state-metrics"} 1
+kube_service_labels{label_component="apiserver",label_provider="kubernetes",namespace="default",service="kubernetes"} 1
+kube_service_labels{label_app="helm",label_name="tiller",namespace="kube-system",service="tiller-deploy"} 1
+kube_service_labels{label_addonmanager_kubernetes_io_mode="Reconcile",label_k8s_app="kubernetes-dashboard",label_kubernetes_io_cluster_service="true",namespace="kube-system",service="kubernetes-dashboard"} 1
+kube_service_labels{label_addonmanager_kubernetes_io_mode="Reconcile",label_kubernetes_io_cluster_service="true",label_kubernetes_io_name="Heapster",namespace="kube-system",service="heapster"} 1
+kube_service_labels{label_addonmanager_kubernetes_io_mode="Reconcile",label_k8s_app="glbc",label_kubernetes_io_cluster_service="true",label_kubernetes_io_name="GLBCDefaultBackend",namespace="kube-system",service="default-http-backend"} 1
+kube_service_labels{label_addonmanager_kubernetes_io_mode="Reconcile",label_k8s_app="kube-dns",label_kubernetes_io_cluster_service="true",label_kubernetes_io_name="KubeDNS",namespace="kube-system",service="kube-dns"} 1
+kube_service_labels{label_app="kube-state-metrics",label_chart="kube-state-metrics-0.5.0",label_heritage="Tiller",label_release="ungaged-panther",namespace="default",service="ungaged-panther-kube-state-metrics"} 1
