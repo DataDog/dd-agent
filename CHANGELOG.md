@@ -13,18 +13,18 @@ Please refer to the [Integrations Core Checks 5.21.0 tag](https://github.com/Dat
 
 Please refer to the [Process Agent 5.21.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.21.0) for more information on the Process Agent.
 
-* [BUGFIX] Configuration: Use : instead of = in APM config. See #3599 (Thanks @brianwolfe)
-* [IMPROVEMENT] Log metadata payload as debug to be added to flares. See #3625 
-* [IMPROVEMENT] Don't spam logs with exceptions when checks aren't wheels. See #3620
-* [IMPROVEMENT] bump protobuf to 3.5.1. See #3619
-* [IMPROVEMENT] Aggregator: ignore all dist metrics (metric type starting with 'd'). See #3611
-* [IMPROVEMENT] Auto-Discovery: add kube container name in service discovery containers. See #3609
-* [IMPROVEMENT] Windows: change restart to stop/start with deps. See #3565
-* [FEATURE] Allow running checks packaged as wheels. See #3555
-* [FEATURE] Filehandles: include allocated, allocated but unused, used, and max filehandler metrics. See #3608 (Thanks @kennydo)
-* [FEATURE] Adds an option to disable IPv6. See #3603
-* [FEATURE] Windows: update pdh library to support generic pdh based checks. See #3581
-* [FEATURE] Collect OpenStack metadata and tags community. See #3411 (Thanks @mtougeron)
+* [BUGFIX] Configuration: Use : instead of = in APM config. See [#3599][] (Thanks [@brianwolfe][])
+* [IMPROVEMENT] Log metadata payload as debug to be added to flares. See [#3625][] 
+* [IMPROVEMENT] Don't spam logs with exceptions when checks aren't wheels. See [#3620][]
+* [IMPROVEMENT] bump protobuf to 3.5.1. See [#3619][]
+* [IMPROVEMENT] Aggregator: ignore all dist metrics (metric type starting with 'd'). See [#3611][]
+* [IMPROVEMENT] Auto-Discovery: add kube container name in service discovery containers. See [#3609][]
+* [IMPROVEMENT] Windows: change restart to stop/start with deps. See [#3565][]
+* [FEATURE] Allow running checks packaged as wheels. See [#3555][]
+* [FEATURE] Filehandles: include allocated, allocated but unused, used, and max filehandler metrics. See [#3608][] (Thanks [@kennydo][])
+* [FEATURE] Adds an option to disable IPv6. See [#3603][]
+* [FEATURE] Windows: update pdh library to support generic pdh based checks. See [#3581][]
+* [FEATURE] Collect OpenStack metadata and tags community. See [#3411][] (Thanks [@mtougeron][])
 
 # 5.20.2 / 12-06-2017
 
@@ -4531,6 +4531,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3406]: https://github.com/DataDog/dd-agent/issues/3406
 [#3408]: https://github.com/DataDog/dd-agent/issues/3408
 [#3409]: https://github.com/DataDog/dd-agent/issues/3409
+[#3411]: https://github.com/DataDog/dd-agent/issues/3411
 [#3413]: https://github.com/DataDog/dd-agent/issues/3413
 [#3414]: https://github.com/DataDog/dd-agent/issues/3414
 [#3415]: https://github.com/DataDog/dd-agent/issues/3415
@@ -4589,6 +4590,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3549]: https://github.com/DataDog/dd-agent/issues/3549
 [#3553]: https://github.com/DataDog/dd-agent/issues/3553
 [#3554]: https://github.com/DataDog/dd-agent/issues/3554
+[#3555]: https://github.com/DataDog/dd-agent/issues/3555
 [#3557]: https://github.com/DataDog/dd-agent/issues/3557
 [#3563]: https://github.com/DataDog/dd-agent/issues/3563
 [#3564]: https://github.com/DataDog/dd-agent/issues/3564
@@ -4599,6 +4601,14 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3586]: https://github.com/DataDog/dd-agent/issues/3586
 [#3589]: https://github.com/DataDog/dd-agent/issues/3589
 [#3596]: https://github.com/DataDog/dd-agent/issues/3596
+[#3599]: https://github.com/DataDog/dd-agent/issues/3599
+[#3603]: https://github.com/DataDog/dd-agent/issues/3603
+[#3608]: https://github.com/DataDog/dd-agent/issues/3608
+[#3609]: https://github.com/DataDog/dd-agent/issues/3609
+[#3611]: https://github.com/DataDog/dd-agent/issues/3611
+[#3619]: https://github.com/DataDog/dd-agent/issues/3619
+[#3620]: https://github.com/DataDog/dd-agent/issues/3620
+[#3625]: https://github.com/DataDog/dd-agent/issues/3625
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -4641,6 +4651,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@bpuzon]: https://github.com/bpuzon
 [@bradhe]: https://github.com/bradhe
 [@brettlangdon]: https://github.com/brettlangdon
+[@brianwolfe]: https://github.com/brianwolfe
 [@brothhaar]: https://github.com/brothhaar
 [@c960657]: https://github.com/c960657
 [@cberry777]: https://github.com/cberry777
@@ -4715,6 +4726,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@jslatts]: https://github.com/jslatts
 [@jstotzs]: https://github.com/jstotzs
 [@jzoldak]: https://github.com/jzoldak
+[@kennydo]: https://github.com/kennydo
 [@kzw]: https://github.com/kzw
 [@lattwood]: https://github.com/lattwood
 [@leifwalsh]: https://github.com/leifwalsh
