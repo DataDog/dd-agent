@@ -3,7 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 from checks import CheckException
-from checks.prometheus_check import PrometheusCheck, PrometheusFormat
+from checks.prometheus_check import PrometheusCheck
 from checks import AgentCheck
 
 # GenericPrometheusCheck is a class that helps instanciating PrometheusCheck only
@@ -27,9 +27,12 @@ class GenericPrometheusCheck(AgentCheck):
             endpoint = instance.get("prometheus_url", None)
             if endpoint is None:
                 raise CheckException("Unable to find prometheus URL in config file.")
+            namespace = instance.get("namespace", None)
+            if namespace is None:
+                raise CheckException("You have to define a namespace for each prometheus check")
             # Instanciate check
             check = PrometheusCheck(name, init_config, agentConfig, instance)
-            check.NAMESPACE = instance.get("namespace", "")
+            check.NAMESPACE = namespace
             # metrics are preprocessed if no mapping
             metrics_mapper = {}
             for metric in instance.get("metrics", []):
@@ -42,6 +45,7 @@ class GenericPrometheusCheck(AgentCheck):
             check.label_joins = instance.get("label_joins", {})
             check.exclude_labels = instance.get("exclude_labels", [])
             check.label_to_hostname = instance.get("label_to_hostname", None)
+            check.health_service_check = instance.get("health_service_check", True)
             # use the parent aggregator
             check.aggregator = self.aggregator
             self.check_map[instance["prometheus_url"]] = check

@@ -33,9 +33,11 @@ class TestGenericPrometheusCheck(unittest.TestCase):
         )
         self.assertDictEqual(
             check1.label_joins,
-            {'target_metric': {
-                'label_to_match': 'matched_label',
-                'labels_to_get': ['extra_label_1', 'extra_label_2']
+            {
+                'target_metric':
+                {
+                    'label_to_match': 'matched_label',
+                    'labels_to_get': ['extra_label_1', 'extra_label_2']
                 }
             }
         )
@@ -45,6 +47,7 @@ class TestGenericPrometheusCheck(unittest.TestCase):
     @patch('requests.get')
     def test_multiple_checks(self, mock_get):
         registry1 = CollectorRegistry()
+        # pylint: disable=E1123,E1120
         g = Gauge('processor', 'processor usage', registry=registry1)
         g.set(4.2)
         data1 = generate_latest(registry1)
@@ -90,6 +93,7 @@ class TestGenericPrometheusCheck(unittest.TestCase):
     @patch('requests.get')
     def test_advanced_conf_check(self, mock_get):
         registry = CollectorRegistry()
+        # pylint: disable=E1123,E1120
         g1 = Gauge('processor', 'processor usage', ['matched_label', 'node', 'flavor'], registry=registry)
         g1.labels(matched_label="foobar", node="localhost", flavor="test").set(99.9)
         g2 = Gauge('memory', 'memory usage', ['matched_label', 'node', 'timestamp'], registry=registry)

@@ -116,6 +116,9 @@ class PrometheusCheck(AgentCheck):
         # a label can hold this information, this transfers it to the hostname
         self.label_to_hostname = None
 
+        # Add a "health" service check for the prometheus endpoint
+        self.health_service_check = False
+
     def check(self, instance):
         """
         check should take care of getting the url and other params
@@ -401,13 +404,33 @@ class PrometheusCheck(AgentCheck):
             headers['accept'] = 'application/vnd.google.protobuf; ' \
                                 'proto=io.prometheus.client.MetricFamily; ' \
                                 'encoding=delimited'
-
-        response = requests.get(endpoint, headers=headers, stream=True)
+        try:
+            response = requests.get(endpoint, headers=headers, stream=True, timeout=1)
+        except (requests.ConnectionError, requests.Timeout):
+            if self.health_service_check:
+                self.service_check(
+                    "{}{}".format(self.NAMESPACE, ".prometheus.health"),
+                    self.CRITICAL,
+                    tags=["endpoint:" + endpoint]
+                )
+            raise
         try:
             response.raise_for_status()
+            if self.health_service_check:
+                self.service_check(
+                    "{}{}".format(self.NAMESPACE, ".prometheus.health"),
+                    self.OK,
+                    tags=["endpoint:" + endpoint]
+                )
             return response
         except requests.HTTPError:
             response.close()
+            if self.health_service_check:
+                self.service_check(
+                    "{}{}".format(self.NAMESPACE, ".prometheus.health"),
+                    self.CRITICAL,
+                    tags=["endpoint:" + endpoint]
+                )
             raise
 
     def _submit(self, metric_name, message, send_histograms_buckets=True, custom_tags=None, hostname=None):
