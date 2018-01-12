@@ -1334,6 +1334,12 @@ def get_logging_config(cfg_path=None):
         'log_to_syslog': False,
         'syslog_host': None,
         'syslog_port': None,
+        'log_rotate_timed': False,
+        'log_rotate_timed_when': 'midnight',
+        'log_rotate_timed_interval': None,
+        'log_rotate_timed_utc': True,
+        'log_rotate_size': LOGGING_MAX_BYTES,
+        'log_rotate_backup_count': 1,
     }
     if system_os == 'windows':
         logging_config['collector_log_file'] = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'collector.log')
@@ -1408,6 +1414,44 @@ def get_logging_config(cfg_path=None):
     else:
         logging_config['disable_file_logging'] = False
 
+
+    # Supported time intervals. https://docs.python.org/2/library/logging.handlers.html#timedrotatingfilehandler
+    interval_types = tuple(['h', 'd', 'midnight'] + ['w'+str(w) for w in range(7)])
+
+    if config.has_option('Main', 'log_rotate_size'):
+        size = int(config.get('Main', 'log_rotate_size')) * 1024 * 1024
+        try:
+            logging_config['log_rotate_size'] = size
+        except Exception:
+            logging_config['log_rotate_size'] = LOGGING_MAX_BYTES
+
+    if config.has_option('Main', 'log_rotate_timed'):
+        logging_config['log_rotate_timed'] = config.get('Main', 'log_rotate_timed').lower() in ['yes', 'true', 1]
+
+    if config.has_option('Main', 'log_rotate_timed_when'):
+        when = config.get('Main', 'log_rotate_timed_when').lower()
+        if when in interval_types:
+            logging_config['log_rotate_timed_when'] = when
+        else:
+            logging_config['log_rotate_timed_when'] = 'midnight'
+
+    if config.has_option('Main', 'log_rotate_timed_interval'):
+        interval = config.get('Main', 'log_rotate_timed_interval').strip()
+        try:
+            logging_config['log_rotate_timed_interval'] = int(interval)
+        except Exception:
+            logging_config['log_rotate_timed_interval'] = logging_config['log_rotate_timed_interval']
+
+    if config.has_option('Main', 'log_rotate_timed_utc'):
+        logging_config['log_rotate_timed_utc'] = config.get('Main', 'log_rotate_timed_utc')
+
+    if config.has_option('Main', 'log_rotate_backup_count'):
+        interval = config.get('Main', 'log_rotate_backup_count').strip()
+        try:
+            logging_config['log_rotate_backup_count'] = int(interval)
+        except Exception:
+            logging_config['log_rotate_backup_count'] = 1
+
     return logging_config
 
 
@@ -1425,7 +1469,15 @@ def initialize_logging(logger_name):
             # make sure the log directory is writeable
             # NOTE: the entire directory needs to be writable so that rotation works
             if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
-                file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=LOGGING_MAX_BYTES, backupCount=1)
+                if logging_config['log_rotate_timed']:
+                    # Log rotation based on time intervals
+                    sys.stdout.write("LogRotation every '%s' %s\n" % (logging_config['log_rotate_timed_interval'],logging_config['log_rotate_timed_when']))
+                    file_handler = logging.handlers.TimedRotatingFileHandler(log_file, when=logging_config['log_rotate_timed_when'] ,interval=logging_config['log_rotate_timed_interval'], backupCount=logging_config['log_rotate_backup_count'])
+                else: 
+                    # DEFAULT - Log rotation based on size
+                    sys.stdout.write("LogRotation every '%s' MB\n" % logging_config['log_rotate_size']/1024/1024)
+                    file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=logging_config['log_rotate_size'], backupCount=logging_config['log_rotate_backup_count'])
+                
                 formatter = logging.Formatter(get_log_format(logger_name), get_log_date_format())
                 file_handler.setFormatter(formatter)
 

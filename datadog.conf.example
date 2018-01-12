@@ -294,6 +294,20 @@ gce_updated_hostname: yes
 # syslog_host:
 # syslog_port:
 
+# By default, logs rotate every 10 MB.
+#
+# log_rotate_size: 10
+
+# Enables log rotation at certain timed intervals instead of file size.
+#
+# log_rotate_timed: False
+# log_rotate_timed_when: 'midnight'
+# log_rotate_timed_interval: None
+# log_rotate_timed_utc: True
+
+# How many rotated logs to keep?
+# log_rotate_backup_count': 1
+
 
 # ========================================================================== #
 # Tracing
