@@ -11,7 +11,7 @@ from utils.prometheus import metrics_pb2
 from prometheus_client.parser import text_fd_to_metric_families
 
 
-# Prometheus check is a mother class providing a structure and some helpers
+# Prometheus check is a parent class providing a structure and some helpers
 # to collect metrics, events and service checks exposed via Prometheus.
 #
 # It must be noted that if the check implementing this class is not officially
@@ -54,7 +54,7 @@ class PrometheusCheck(AgentCheck):
 
         # `metrics_mapper` is a dictionary where the keys are the metrics to capture
         # and the values are the corresponding metrics names to have in datadog.
-        # Note: it is empty in the mother class but will need to be
+        # Note: it is empty in the parent class but will need to be
         # overloaded/hardcoded in the final check not to be counted as custom metric.
         self.metrics_mapper = {}
 
@@ -108,7 +108,7 @@ class PrometheusCheck(AgentCheck):
         # `type_overrides` is a dictionary where the keys are prometheus metric names
         # and the values are a metric type (name as string) to use instead of the one
         # listed in the payload. It can be used to force a type on untyped metrics.
-        # Note: it is empty in the mother class but will need to be
+        # Note: it is empty in the parent class but will need to be
         # overloaded/hardcoded in the final check not to be counted as custom metric.
         self.type_overrides = {}
 
