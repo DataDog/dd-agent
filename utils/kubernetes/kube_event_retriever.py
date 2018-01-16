@@ -1,5 +1,6 @@
 import logging
 import time
+import calendar
 
 log = logging.getLogger('collector')
 
@@ -34,7 +35,7 @@ class KubeEventRetriever:
         :param delay: minimum time (in seconds) between two apiserver requests, return [] in the meantime
         """
         self.kubeutil = kubeutil_object
-        self.last_resversion = -1
+        self.lastTimestamp = 709662600
         self.set_namespaces(namespaces)
         self.set_kinds(kinds)
         self.set_delay(delay)
@@ -82,15 +83,16 @@ class KubeEventRetriever:
             else:
                 self._last_lookup_timestamp = time.time()
 
-        lastest_resversion = None
+        latest_timestamp = None
         filtered_events = []
 
         events = self.kubeutil.retrieve_json_auth(self.request_url, params=self.request_params).json()
 
         for event in events.get('items', []):
-            resversion = int(event.get('metadata', {}).get('resourceVersion', None))
-            if resversion > self.last_resversion:
-                lastest_resversion = max(lastest_resversion, resversion)
+            l_timestamp = calendar.timegm(time.strptime(event.get('lastTimestamp'), '%Y-%m-%dT%H:%M:%SZ'))
+
+            if l_timestamp > self.lastTimestamp:
+                latest_timestamp = max(latest_timestamp, l_timestamp)
 
                 if self.namespace_filter is not None:
                     ns = event.get('involvedObject', {}).get('namespace', 'default')
@@ -104,6 +106,5 @@ class KubeEventRetriever:
 
                 filtered_events.append(event)
 
-        self.last_resversion = max(self.last_resversion, lastest_resversion)
-
+        self.lastTimestamp = max(self.lastTimestamp, latest_timestamp)
         return filtered_events

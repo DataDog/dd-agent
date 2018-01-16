@@ -1,6 +1,143 @@
 Changes
 =======
 
+# 5.21.0 / 01-10-2017
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.20.2...5.21.0
+
+### Changes
+Please refer to the [Integrations Core Checks 5.21.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.21.0) for the list of changes on the core checks.
+
+Please refer to the [Process Agent 5.21.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.21.0) for more information on the Process Agent.
+
+* [BUGFIX] Configuration: Use : instead of = in APM config. See [#3599][] (Thanks [@brianwolfe][])
+* [BUGFIX] PDH: Return with metric list empty if can't connect to host. See [#3612][] 
+* [IMPROVEMENT] Source install: Add host tagging to install_agent.sh. See [#3551][] (Thanks [@iancward][]) 
+* [IMPROVEMENT] Kubernetes: get nodeName and nodeIP even if the agent isn't inside a Pod. See [#3614][] 
+* [IMPROVEMENT] Docker: add flag to image_name_extractor to return short image name. See [#3622][] 
+* [IMPROVEMENT] WMI: Skip properties in WMI query results if not in arguments. See [#3618][] 
+* [IMPROVEMENT] Log metadata payload as debug to be added to flares. See [#3625][] 
+* [IMPROVEMENT] Don't spam logs with exceptions when checks aren't wheels. See [#3620][]
+* [IMPROVEMENT] bump protobuf to 3.5.1. See [#3619][]
+* [IMPROVEMENT] Aggregator: ignore all dist metrics (metric type starting with 'd'). See [#3611][]
+* [IMPROVEMENT] Auto-Discovery: add kube container name in service discovery containers. See [#3609][]
+* [IMPROVEMENT] Windows: change restart to stop/start with deps. See [#3565][]
+* [FEATURE] Allow running checks packaged as wheels. See [#3555][]
+* [FEATURE] Filehandles: include allocated, allocated but unused, used, and max filehandler metrics. See [#3608][] (Thanks [@kennydo][])
+* [FEATURE] Adds an option to disable IPv6. See [#3603][]
+* [FEATURE] Windows: update pdh library to support generic pdh based checks. See [#3581][]
+* [FEATURE] Windows: update base libraries for PDH based checks. See [#3607][]
+* [FEATURE] Collect OpenStack metadata and tags community. See [#3411][] (Thanks [@mtougeron][])
+
+# 5.20.2 / 12-06-2017
+
+**Linux, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.20.1...5.20.2
+
+### Changes
+Please refer to the [Integrations Core Checks 5.20.2 tag](https://github.com/DataDog/integrations-core/releases/tag/5.20.2) for the list of changes on the core checks.
+
+Please refer to the [Process Agent 5.20.2 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.20.2) for more information on the Process Agent.
+
+# 5.20.1 / 11-29-2017
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.20.0...5.20.1
+
+### Changes
+Please refer to the [Integrations Core Checks 5.20.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.20.1) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 5.20.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.20.0) for the list of changes on the Trace Agent.
+
+Please refer to the [Process Agent 5.20.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.20.1) for more information on the Process Agent.
+
+
+* [BUGFIX] Windows: fixing flakes, stubbing WinPDHCounter [#3596][]
+
+# 5.20.0 / 11-21-2017
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.19.0...5.20.0
+
+### Changes
+Please refer to the [Integrations Core Checks 5.20.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.20.0) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 5.20.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.20.0) for the list of changes on the Trace Agent.
+
+Please refer to the [Process Agent 5.20.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.20.0) for more information on the Process Agent.
+
+* [BUGFIX] Audo Configuration: Fix AD port parsing. See [#3553][]
+* [BUGFIX] Core: Fixes normalization of metric names, removing `@`. See [#3529][]
+* [BUGFIX] Core: Only start trace agent on windows if its enabld. See [#3554][]
+* [BUGFIX] Kubernetes: fix tagging on k8s 1.8+ clusters. See [#3563][], [#3586][]
+* [BUGFIX] System Checks: Fixes grabbing of file handles. See [#3539][] (Thanks [@matlockx][])
+* [BUGFIX] Audo Configuration: Fix enabling condition. See [#3589][]
+* [IMPROVEMENT] Core: Won't start if API Key is too short. See [#3546][]
+* [IMPROVEMENT] Core: Won't start agent on windows if API Key invalid. See [#3547][]
+* [IMPROVEMENT] Kubernetes: Adds more tags to events. See [#3548][]
+* [IMPROVEMENT] Core: Decrease log noise at startup. See [#3547][]
+* [IMPROVEMENT] Kubernetes: Filter kubernetes events based on timestamp. See [#3549][]
+* [IMPROVEMENT] Audo Configuration: Adds docker labels as tags. See [#3564][]
+* [IMPROVEMENT] Containers: Move most container tags to metadata. See [#3557][]
+* [IMPROVEMENT] Kubernetes: Allow overriding the pod name. See [#3571][] (Thanks [@darnaut][])
+* [IMPROVEMENT] Windows: Remove check for pidfile. See [#3574][]
+* [IMPROVEMENT] Windows: Change restart to start/stop with deps. See [#3565][]
+* [FEATURE] Windows: Add a PDH base check. See [#3581][]
+
+
+# 5.19.0 / 11-03-2017
+**Linux, Windows, Docker and Source Install**
+
+_Windows released on 11-03-2017_
+
+_Linux, Docker and Source Install released on 11-08-2017_
+
+### Details
+
+This release includes:
+
+* the `trace-agent` on Windows, as a Beta feature, and related changes on the Windows service management
+* features and bugfixes for the `trace-agent` and `process-agent` on Linux, Docker and Source Install - please check
+their respective changelogs for more details
+* changes on Autodiscovery & container support
+* bugfixes on some core checks
+
+https://github.com/DataDog/dd-agent/compare/5.18.1...5.19.0
+
+### Changes
+Please refer to the [Integrations Core Checks 5.19.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.19.0) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 5.19.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.19.0) for the list of changes on the Trace Agent.
+
+Please refer to the [Process Agent 5.19.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.19.0) for more information on the Process Agent.
+
+* [FEATURE] Autodiscovery: Add docker labels as tags in autodiscovery. See [#3564][]
+* [FEATURE] Windows: Enable the apm service based on the configuration file. See [#3554][]
+* [FEATURE] Windows: Include the trace agent as part of the Datadog Agent. See [dd-agent-omnibus-203](https://github.com/DataDog/dd-agent-omnibus/pull/203) & [dd-agent-omnibus-204](https://github.com/DataDog/dd-agent-omnibus/pull/204)
+* [IMPROVEMENT] Switch most of container host tags to host metadata. See [#3557][]
+* [IMPROVEMENT] Windows: Tighten permissions on `datadog.conf` to only be readable by admins and local system. See [dd-agent-omnibus-202](https://github.com/DataDog/dd-agent-omnibus/pull/202)
+
+# 5.18.1 / 10-13-2017
+**Linux, Docker and Source Install**
+
+### Details
+This release includes bugfixes for the `trace-agent` and `process-agent` only - please check
+their respective changelogs for more details.
+https://github.com/DataDog/dd-agent/compare/5.18.0...5.18.1
+
+### Changes
+Please refer to the [Trace Agent 5.18.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.18.1) for the list of changes on the Trace Agent.
+Please refer to the [Process Agent 5.18.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.18.1) for more information on the Process Agent.
+
 # 5.18.0 / 10-10-2017
 **Linux, Windows, Docker and Source Install**
 
@@ -4400,6 +4537,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3406]: https://github.com/DataDog/dd-agent/issues/3406
 [#3408]: https://github.com/DataDog/dd-agent/issues/3408
 [#3409]: https://github.com/DataDog/dd-agent/issues/3409
+[#3411]: https://github.com/DataDog/dd-agent/issues/3411
 [#3413]: https://github.com/DataDog/dd-agent/issues/3413
 [#3414]: https://github.com/DataDog/dd-agent/issues/3414
 [#3415]: https://github.com/DataDog/dd-agent/issues/3415
@@ -4445,11 +4583,44 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3523]: https://github.com/DataDog/dd-agent/issues/3523
 [#3527]: https://github.com/DataDog/dd-agent/issues/3527
 [#3528]: https://github.com/DataDog/dd-agent/issues/3528
+[#3529]: https://github.com/DataDog/dd-agent/issues/3529
 [#3532]: https://github.com/DataDog/dd-agent/issues/3532
 [#3534]: https://github.com/DataDog/dd-agent/issues/3534
 [#3536]: https://github.com/DataDog/dd-agent/issues/3536
 [#3537]: https://github.com/DataDog/dd-agent/issues/3537
 [#3538]: https://github.com/DataDog/dd-agent/issues/3538
+[#3539]: https://github.com/DataDog/dd-agent/issues/3539
+[#3546]: https://github.com/DataDog/dd-agent/issues/3546
+[#3547]: https://github.com/DataDog/dd-agent/issues/3547
+[#3548]: https://github.com/DataDog/dd-agent/issues/3548
+[#3549]: https://github.com/DataDog/dd-agent/issues/3549
+[#3551]: https://github.com/DataDog/dd-agent/issues/3551
+[#3553]: https://github.com/DataDog/dd-agent/issues/3553
+[#3554]: https://github.com/DataDog/dd-agent/issues/3554
+[#3555]: https://github.com/DataDog/dd-agent/issues/3555
+[#3557]: https://github.com/DataDog/dd-agent/issues/3557
+[#3563]: https://github.com/DataDog/dd-agent/issues/3563
+[#3564]: https://github.com/DataDog/dd-agent/issues/3564
+[#3565]: https://github.com/DataDog/dd-agent/issues/3565
+[#3571]: https://github.com/DataDog/dd-agent/issues/3571
+[#3574]: https://github.com/DataDog/dd-agent/issues/3574
+[#3581]: https://github.com/DataDog/dd-agent/issues/3581
+[#3586]: https://github.com/DataDog/dd-agent/issues/3586
+[#3589]: https://github.com/DataDog/dd-agent/issues/3589
+[#3596]: https://github.com/DataDog/dd-agent/issues/3596
+[#3599]: https://github.com/DataDog/dd-agent/issues/3599
+[#3603]: https://github.com/DataDog/dd-agent/issues/3603
+[#3607]: https://github.com/DataDog/dd-agent/issues/3607
+[#3608]: https://github.com/DataDog/dd-agent/issues/3608
+[#3609]: https://github.com/DataDog/dd-agent/issues/3609
+[#3611]: https://github.com/DataDog/dd-agent/issues/3611
+[#3612]: https://github.com/DataDog/dd-agent/issues/3612
+[#3614]: https://github.com/DataDog/dd-agent/issues/3614
+[#3618]: https://github.com/DataDog/dd-agent/issues/3618
+[#3619]: https://github.com/DataDog/dd-agent/issues/3619
+[#3620]: https://github.com/DataDog/dd-agent/issues/3620
+[#3622]: https://github.com/DataDog/dd-agent/issues/3622
+[#3625]: https://github.com/DataDog/dd-agent/issues/3625
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -4492,6 +4663,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@bpuzon]: https://github.com/bpuzon
 [@bradhe]: https://github.com/bradhe
 [@brettlangdon]: https://github.com/brettlangdon
+[@brianwolfe]: https://github.com/brianwolfe
 [@brothhaar]: https://github.com/brothhaar
 [@c960657]: https://github.com/c960657
 [@cberry777]: https://github.com/cberry777
@@ -4504,6 +4676,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@clokep]: https://github.com/clokep
 [@cryptspirit]: https://github.com/cryptspirit
 [@cslee00]: https://github.com/cslee00
+[@darnaut]: https://github.com/darnaut
 [@datadoghq]: https://github.com/datadoghq
 [@dblackdblack]: https://github.com/dblackdblack
 [@dcrosta]: https://github.com/dcrosta
@@ -4565,6 +4738,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@jslatts]: https://github.com/jslatts
 [@jstotzs]: https://github.com/jstotzs
 [@jzoldak]: https://github.com/jzoldak
+[@kennydo]: https://github.com/kennydo
 [@kzw]: https://github.com/kzw
 [@lattwood]: https://github.com/lattwood
 [@leifwalsh]: https://github.com/leifwalsh
@@ -4573,6 +4747,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@lowl4tency]: https://github.com/lowl4tency
 [@markine]: https://github.com/markine
 [@mastrolinux]: https://github.com/mastrolinux
+[@matlockx]: https://github.com/matlockx
 [@mattrobenolt]: https://github.com/mattrobenolt
 [@mausch]: https://github.com/mausch
 [@mberner-ch]: https://github.com/mberner-ch

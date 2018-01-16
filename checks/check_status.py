@@ -131,15 +131,15 @@ def validate_api_key(config):
             timeout=3, verify=(not config.get('skip_ssl_validation', False)))
 
         if r.status_code == 403:
-            return "API Key is invalid"
+            return "[ERROR] API Key is invalid"
 
         r.raise_for_status()
 
     except requests.RequestException:
-        return "Unable to validate API Key. Please try again later"
+        return "[ERROR] Unable to validate API Key. Please try again later"
     except Exception:
         log.exception("Unable to validate API Key")
-        return "Unable to validate API Key (unexpected error). Please try again later"
+        return "[ERROR] Unable to validate API Key (unexpected error). Please try again later"
 
     return "API Key is valid"
 

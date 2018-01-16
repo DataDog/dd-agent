@@ -98,22 +98,22 @@ class MesosUtil(BaseUtil):
     def is_detected():
         return MESOS_TASK_ID in os.environ
 
-    def get_host_tags(self):
-        tags = []
+    def get_host_metadata(self):
+        meta = {}
         if self.mesos_agent_url:
             try:
                 resp = requests.get(self.mesos_agent_url, timeout=1).json()
                 if "version" in resp:
-                    tags.append('mesos_version:%s' % resp.get("version"))
-            except Exception as e:
-                self.log.debug("Error getting Mesos version: %s" % str(e))
+                    meta['mesos_version'] = resp.get("version")
+            except Exception as ex:
+                self.log.debug("Error getting Mesos version: %s" % str(ex))
 
         if self.dcos_agent_url:
             try:
                 resp = requests.get(self.dcos_agent_url, timeout=1).json()
                 if "dcos_version" in resp:
-                    tags.append('dcos_version:%s' % resp.get("dcos_version"))
-            except Exception as e:
-                self.log.debug("Error getting DCOS version: %s" % str(e))
+                    meta['dcos_version'] = resp.get("dcos_version")
+            except Exception as ex:
+                self.log.debug("Error getting DCOS version: %s" % str(ex))
 
-        return tags
+        return meta

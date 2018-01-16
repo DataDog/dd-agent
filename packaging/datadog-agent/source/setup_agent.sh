@@ -11,7 +11,7 @@ set -u
 # SCRIPT KNOBS
 #######################################################################
 # Update for new releases, will pull this tag in the repo
-DEFAULT_AGENT_VERSION="5.18.0"
+DEFAULT_AGENT_VERSION="5.21.0"
 # Pin pip version, in the past there was some buggy releases and get-pip.py
 # always pulls the latest version
 PIP_VERSION="6.1.1"
@@ -259,7 +259,10 @@ error_trap() {
         print_console "Do you want to send a failure report to Datadog (Content of the report is in $LOGFILE)? (y/n)"
         read yn
         case $yn in
-            [Yy]* ) report; break;;
+            [Yy]* )
+            print_console "Please enter your email address so Datadog Support can be sure to follow up!";
+            read email;
+            print_console "Email Address: " $email; report; break;;
             [Nn]* ) report_manual; break;;
             * ) print_console "Please answer yes or no.";;
         esac
@@ -510,7 +513,9 @@ else
     log_suffix="_log_file"
     for prog in collector forwarder dogstatsd jmxfetch; do
         if ! grep "^[[:space:]]*$prog$log_suffix" "$dd_conf_file"; then
-            echo "$prog$log_suffix: $DD_HOME/logs/$prog.log" >> "$dd_conf_file"
+            $SED_CMD -i -e "/^api_key/a\\
+$prog$log_suffix: $DD_HOME/logs/$prog.log
+" $dd_conf_file
         fi
     done
 fi

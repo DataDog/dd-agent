@@ -519,6 +519,18 @@ class Collector(object):
                                         self.continue_running)
         self.emit_duration = timer.step()
 
+        if self._is_first_run():
+            # This is not the exact payload sent to the backend as minor post
+            # processing is done, but this will give us a good idea of what is sent
+            # to the backend.
+            data = payload.payload # deep copy and merge of meta and metric data
+            data['apiKey'] = '*************************' + data.get('apiKey', '')[-5:]
+            # removing unused keys for the metadata payload
+            del data['metrics']
+            del data['events']
+            del data['service_checks']
+            log.debug("Metadata payload: %s", json.dumps(data))
+
         # Persist the status of the collection run.
         try:
             CollectorStatus(check_statuses, emitter_statuses,
@@ -650,6 +662,12 @@ class Collector(object):
             payload['systemStats'] = get_system_stats(
                 proc_path=self.agentConfig.get('procfs_path', '/proc').rstrip('/')
             )
+
+            if self.agentConfig['collect_orchestrator_tags']:
+                host_container_metadata = MetadataCollector().get_host_metadata()
+                if host_container_metadata:
+                    payload['container-meta'] = host_container_metadata
+
             payload['meta'] = self._get_hostname_metadata()
 
             self.hostname_metadata_cache = payload['meta']
@@ -800,7 +818,7 @@ class Collector(object):
 
     def _run_gohai(self, options):
         # Gohai is disabled on Mac for now
-        if Platform.is_mac():
+        if Platform.is_mac() or not self.agentConfig.get('enable_gohai'):
             return None
         output = None
         try:

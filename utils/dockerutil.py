@@ -292,21 +292,26 @@ class DockerUtil:
 
         return self._default_gateway
 
-    def get_host_tags(self):
-        tags = []
+    def get_host_metadata(self):
+        """
+        Returns swarm state and docker version for the local host
+        """
+        meta = {}
         if not self.client:
-            log.warning("Docker client is not initialized, host tags will be missing.")
-            return tags
+            log.warning("Docker client is not initialized, host metadata will be missing.")
+            return meta
         version = self.client.version()
         if version and 'Version' in version:
-            tags.append('docker_version:%s' % version['Version'])
+            meta['docker_version'] = version['Version']
         else:
             log.debug("Could not determine Docker version")
 
         if self.is_swarm():
-            tags.append('docker_swarm:active')
+            meta['docker_swarm'] = 'active'
+        else:
+            meta['docker_swarm'] = 'inactive'
 
-        return tags
+        return meta
 
     def set_docker_settings(self, init_config, instance):
         """Update docker settings"""
@@ -513,16 +518,18 @@ class DockerUtil:
 
         raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
-    def extract_container_tags(self, co):
+    def extract_container_tags(self, co, labels_as_tags):
         """
         Retrives docker_image, image_name and image_tag tags as a list for a
         container. If the container or image is invalid, will gracefully
-        return an empty list
+        return an empty list.
+        Also extract container labels on demand.
         """
         tags = []
         docker_image = self.image_name_extractor(co)
         image_name_array = self.image_tag_extractor(co, 0)
         image_tag_array = self.image_tag_extractor(co, 1)
+        label_tags = self.label_extractor(co, labels_as_tags)
 
         if docker_image:
             tags.append('docker_image:%s' % docker_image)
@@ -530,6 +537,8 @@ class DockerUtil:
             tags.append('image_name:%s' % image_name_array[0])
         if image_tag_array and len(image_tag_array) > 0:
             tags.append('image_tag:%s' % image_tag_array[0])
+        if label_tags:
+            tags += label_tags
         return tags
 
     def image_tag_extractor(self, entity, key):
@@ -564,15 +573,19 @@ class DockerUtil:
 
         return None
 
-    def image_name_extractor(self, co):
+    def image_name_extractor(self, co, short=False):
         """
         Returns the image name for a container, either directly from the
         container's Image property or by inspecting the image entity if
         the reference is its sha256 sum and not its name.
         Result is cached for performance, no invalidation planned as image
         churn is low on typical hosts.
+        If short is true, the repository is stripped from the result
         """
-        return self.image_name_resolver(co.get('Image', ''))
+        image = self.image_name_resolver(co.get('Image', ''))
+        if short:
+            return image.split('/')[-1]
+        return image
 
     def image_name_resolver(self, image):
         if image.startswith('sha256:') or '@sha256:' in image:
@@ -602,6 +615,17 @@ class DockerUtil:
                 log.error("Exception getting docker image name: %s" % str(ex))
         else:
             return image
+
+    def label_extractor(self, ctr, lbl_to_tags):
+        """Returns a list of tags based on a container and a label name list"""
+        tags = []
+        labels = ctr.get('Config', {}).get('Labels', {})
+        if not labels:
+            return tags
+        for lbl_name, lbl_val in labels.iteritems():
+            if lbl_name in lbl_to_tags:
+                tags.append('{}:{}'.format(lbl_name, lbl_val))
+        return tags
 
     @classmethod
     def container_name_extractor(cls, co):

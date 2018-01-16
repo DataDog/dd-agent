@@ -94,7 +94,7 @@ class Check(object):
         """Turn a metric into a well-formed metric name
         prefix.b.c
         """
-        name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", metric)
+        name = re.sub(r"[,\@\+\*\-/()\[\]{}\s]", "_", metric)
         # Eliminate multiple _
         name = re.sub(r"__+", "_", name)
         # Don't start/end with _
@@ -870,6 +870,9 @@ class AgentCheck(object):
             check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
         return check, config.get('instances', [])
 
+    def normalize_device_name(self, device_name):
+        return re.sub(r"[,\@\+\*\-\()\[\]{}\s]", "_", device_name)
+
     def normalize(self, metric, prefix=None, fix_case=False):
         """
         Turn a metric into a well-formed metric name
@@ -890,7 +893,7 @@ class AgentCheck(object):
             if prefix is not None:
                 prefix = self.convert_to_underscore_separated(prefix)
         else:
-            name = re.sub(r"[,\+\*\-/()\[\]{}\s]", "_", metric_name)
+            name = re.sub(r"[,\@\+\*\-/()\[\]{}\s]", "_", metric_name)
         # Eliminate multiple _
         name = re.sub(r"__+", "_", name)
         # Don't start/end with _

@@ -72,7 +72,7 @@ class TestDockerUtil(unittest.TestCase):
         self.assertEqual('alpine', du.image_name_extractor(co))
 
     def test_extract_container_tags(self):
-        test_data = [
+        no_label_test_data = [
             # Nominal case
             [{'Image': 'redis:3.2'}, ['docker_image:redis:3.2', 'image_name:redis', 'image_tag:3.2']],
             # No tag
@@ -80,28 +80,84 @@ class TestDockerUtil(unittest.TestCase):
             # No image
             [{}, []],
         ]
-        for test in test_data:
-            self.assertEqual(test[1], DockerUtil().extract_container_tags(test[0]))
+        labeled_test_data = [
+            # No labels
+            (
+                # ctr inspect
+                {
+                    'Image': 'redis:3.2',
+                    'Config': {
+                        'Labels': {}
+                    }
+                },
+                # labels as tags
+                [],
+                # expected result
+                ['docker_image:redis:3.2', 'image_name:redis', 'image_tag:3.2']
+            ),
+            # Un-monitored labels
+            (
+                {
+                    'Image': 'redis:3.2',
+                    'Config': {
+                        'Labels': {
+                            'foo': 'bar'
+                        }
+                    }
+                },
+                [],
+                ['docker_image:redis:3.2', 'image_name:redis', 'image_tag:3.2']
+            ),
+            # no labels, with labels_as_tags list
+            (
+                {
+                    'Image': 'redis:3.2',
+                    'Config': {
+                        'Labels': {}
+                    }
+                },
+                ['foo'],
+                ['docker_image:redis:3.2', 'image_name:redis', 'image_tag:3.2']
+            ),
+            # labels and labels_as_tags list
+            (
+                {
+                    'Image': 'redis:3.2',
+                    'Config': {
+                        'Labels': {'foo': 'bar', 'f00': 'b4r'}
+                    }
+                },
+                ['foo'],
+                ['docker_image:redis:3.2', 'image_name:redis', 'image_tag:3.2', 'foo:bar']
+            ),
 
-    def test_docker_host_tags_ok(self):
+        ]
+        for test in no_label_test_data:
+            self.assertEqual(test[1], DockerUtil().extract_container_tags(test[0], []))
+
+        for test in labeled_test_data:
+            self.assertEqual(test[2], DockerUtil().extract_container_tags(test[0], test[1]))
+
+
+    def test_docker_host_metadata_ok(self):
         mock_version = mock.MagicMock(name='version', return_value={'Version': '1.13.1'})
         du = DockerUtil()
         du._client = mock.MagicMock()
         du._client.version = mock_version
         du.swarm_node_state = 'inactive'
-        self.assertEqual(['docker_version:1.13.1'], du.get_host_tags())
+        self.assertEqual({'docker_version': '1.13.1', 'docker_swarm': 'inactive'}, du.get_host_metadata())
         mock_version.assert_called_once()
 
-    def test_docker_host_tags_invalid_response(self):
+    def test_docker_host_metadata_invalid_response(self):
         mock_version = mock.MagicMock(name='version', return_value=None)
         du = DockerUtil()
         du._client = mock.MagicMock()
         du._client.version = mock_version
         du.swarm_node_state = 'inactive'
-        self.assertEqual([], DockerUtil().get_host_tags())
+        self.assertEqual({'docker_swarm': 'inactive'}, DockerUtil().get_host_metadata())
         mock_version.assert_called_once()
 
-    def test_docker_host_tags_swarm_ok(self):
+    def test_docker_host_metadata_swarm_ok(self):
         du = DockerUtil()
         mock_version = mock.MagicMock(name='version', return_value={'Version': '1.13.1'})
         mock_isswarm = mock.MagicMock(name='is_swarm', return_value=True)
@@ -109,5 +165,5 @@ class TestDockerUtil(unittest.TestCase):
         du._client.version = mock_version
         du.is_swarm = mock_isswarm
 
-        self.assertEqual(['docker_version:1.13.1', 'docker_swarm:active'], DockerUtil().get_host_tags())
+        self.assertEqual({'docker_version': '1.13.1', 'docker_swarm': 'active'}, DockerUtil().get_host_metadata())
         mock_version.assert_called_once()

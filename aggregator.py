@@ -474,7 +474,7 @@ class Aggregator(object):
 
             if metric_type in self.ALLOW_STRINGS:
                 value = raw_value
-            elif metric_type in self.IGNORE_TYPES:
+            elif len(metric_type) > 0 and metric_type[0] in self.IGNORE_TYPES:
                 continue
             else:
                 # Try to cast as an int first to avoid precision issues, then as a

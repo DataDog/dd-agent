@@ -27,6 +27,12 @@ api_key:
 # Enable the trace agent.
 # apm_enabled: false
 
+# Enable gohai metadata collection
+# enable_gohai: true
+
+# Enable the process agent
+# process_agent_enabled: false
+
 # Set the host's tags (optional)
 # tags: mytag, env:prod, role:database
 
@@ -60,9 +66,16 @@ api_key:
 # In developer mode, disable profiling altogether, but still collect fine-grained agent metrics
 # allow_profiling: False
 
-# use unique hostname for GCE hosts, see http://dtdg.co/1eAynZk
+# use unique hostname for GCE hosts, see http://dtdg.co/2h3Bjpd
 # when not specified, default: no
 gce_updated_hostname: yes
+
+# when using OpenStack, use the instance's "uuid"
+# the OpenStack instance-id can be recycled but the uuid is not
+# openstack_use_uuid: no
+
+# when using OpenStack, use the instance's metadata as tags
+# openstack_use_metadata_tags: yes
 
 # Set the threshold for accepting points to allow anything
 # within recent_point_threshold seconds (default: 30)
@@ -92,6 +105,9 @@ gce_updated_hostname: yes
 # between curl client and simple http client (default: simple http client)
 # use_curl_http_client: no
 
+# Select whether the Tornado HTTP Client used in the Forwarder should use IPv6, if available (default: yes)
+# allow_ipv6: yes
+
 # The loopback address the Forwarder and Dogstatsd will bind.
 # Optional, it is mainly used when running the agent on Openshift
 # bind_host: localhost
@@ -108,7 +124,7 @@ gce_updated_hostname: yes
 
 # ========================================================================== #
 # Service Discovery                                                          #
-# See http://docs.datadoghq.com/guides/servicediscovery/ for details #
+# See https://docs.datadoghq.com/guides/autodiscovery/ for details #
 # ========================================================================== #
 #
 # Service discovery allows the agent to look for running services
@@ -140,6 +156,17 @@ gce_updated_hostname: yes
 #
 # Enable JMX checks for service discovery
 # sd_jmx_enable: no
+#
+# Docker labels as tags
+# We can extract docker labels and add them as tags to all metrics reported by service discovery.
+# All you have to do is supply a comma-separated list of label names to extract from containers when found.
+# Note: these tags won't be applied to docker metrics, only service discovery metrics.
+# For applying labels to docker metrics, refer to https://github.com/DataDog/integrations-core/blob/bfdb3b0cf34ca6b6c92cc0e467a4f343e7f96ff2/docker_daemon/conf.yaml.example#L187-L190
+#
+# docker_labels_as_tags: label_name
+#
+# Example:
+# docker_labels_as_tags: com.docker.compose.service, com.docker.compose.project
 #
 # ========================================================================== #
 # Other                                                                      #
@@ -275,24 +302,25 @@ gce_updated_hostname: yes
 # Tracing
 # ========================================================================== #
 
-[trace.sampler]
+# [trace.sampler]
 # Extra global sample rate to apply on all the traces
 # This sample rate is combined to the sample rate from the sampler logic, still promoting interesting traces
 # From 1 (no extra rate) to 0 (don't sample at all)
-extra_sample_rate=1
+# extra_sample_rate: 1
 
 # Maximum number of traces per second to sample.
 # The limit is applied over an average over a few minutes ; much bigger spikes are possible.
 # Set to 0 to disable the limit.
-max_traces_per_second=10
+# max_traces_per_second: 10
 
-[trace.receiver]
+# [trace.receiver]
 # the port that the Receiver should listen on
-receiver_port=8126
+# receiver_port: 8126
 # how many unique client connections to allow during one 30 second lease period
-connection_limit=2000
+# connection_limit: 2000
 
-[trace.ignore]
+# [trace.ignore]
 # a blacklist of regular expressions can be provided to disable certain traces based on their resource name
-# all entries must be surrounded by double quotes and separated by comas
-resource="GET|POST /healthcheck","GET /V1"
+# all entries must be surrounded by double quotes and separated by commas
+# Example: "(GET|POST) /healthcheck","GET /V1"
+# resource: ""
