@@ -6,6 +6,7 @@ import os
 import unittest
 
 from mock import MagicMock, patch, call
+import requests
 
 from checks.prometheus_check import PrometheusCheck, UnknownFormatError
 from utils.prometheus import parse_metric_family, metrics_pb2
@@ -190,7 +191,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.process(endpoint, instance=None)
         self.check.poll.assert_called_with(endpoint)
         self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=[], instance=None,
-                                                     send_histograms_buckets=True)
+                                                     send_histograms_buckets=True, ignore_unmapped=False)
 
     def test_process_send_histograms_buckets(self):
         """ Cheks that the send_histograms_buckets parameter is passed along """
@@ -201,7 +202,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.process(endpoint, send_histograms_buckets=False, instance=None)
         self.check.poll.assert_called_with(endpoint)
         self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=[], instance=None,
-                                                     send_histograms_buckets=False)
+                                                     send_histograms_buckets=False, ignore_unmapped=False)
 
     def test_process_instance_with_tags(self):
         """ Checks that an instances with tags passes them as custom tag """
@@ -213,7 +214,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.process(endpoint, instance=instance)
         self.check.poll.assert_called_with(endpoint)
         self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=['tag1:tagValue1', 'tag2:tagValue2'],
-                                                     instance=instance, send_histograms_buckets=True)
+                                                     instance=instance, send_histograms_buckets=True, ignore_unmapped=False)
 
     def test_process_metric_gauge(self):
         """ Gauge ref submission """
@@ -1247,3 +1248,37 @@ class TestPrometheusTextParsing(unittest.TestCase):
             call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-6dj58', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-0kch'], hostname='gke-foobar-test-kube-default-pool-9b4ff111-0kch'),
             call('ksm.pod.ready', 1.0, ['pod:fluentd-gcp-v2.0.9-z348z', 'namespace:kube-system', 'condition:true', 'node:gke-foobar-test-kube-default-pool-9b4ff111-j75z'], hostname='gke-foobar-test-kube-default-pool-9b4ff111-j75z'),
         ], any_order=True)
+
+    @patch('requests.get')
+    def test_health_service_check_ok(self, mock_get):
+        """ Tests endpoint health service check OK """
+        text_data = None
+        f_name = os.path.join(os.path.dirname(__file__), 'fixtures', 'prometheus', 'ksm.txt')
+        with open(f_name, 'r') as f:
+            text_data = f.read()
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            iter_lines=lambda **kwargs: text_data.split("\n"),
+            headers={'Content-Type': "text/plain"})
+        self.check.NAMESPACE = 'ksm'
+        self.check.health_service_check = True
+        self.check.service_check = MagicMock()
+        self.check.process("http://fake.endpoint:10055/metrics")
+        self.check.service_check.assert_called_with(
+            "ksm.prometheus.health",
+            PrometheusCheck.OK,
+            tags=["endpoint:http://fake.endpoint:10055/metrics"]
+        )
+
+    def test_health_service_check_failing(self):
+        """ Tests endpoint health service check failing """
+        self.check.NAMESPACE = 'ksm'
+        self.check.health_service_check = True
+        self.check.service_check = MagicMock()
+        with self.assertRaises(requests.ConnectionError):
+            self.check.process("http://fake.endpoint:10055/metrics")
+        self.check.service_check.assert_called_with(
+            "ksm.prometheus.health",
+            PrometheusCheck.CRITICAL,
+            tags=["endpoint:http://fake.endpoint:10055/metrics"]
+        )

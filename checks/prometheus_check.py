@@ -113,8 +113,11 @@ class PrometheusCheck(AgentCheck):
         self.type_overrides = {}
 
         # Some metrics are retrieved from differents hosts and often
-        # a label can hold this information, this transfer it to the hostname
+        # a label can hold this information, this transfers it to the hostname
         self.label_to_hostname = None
+
+        # Add a "health" service check for the prometheus endpoint
+        self.health_service_check = False
 
     def check(self, instance):
         """
@@ -284,7 +287,7 @@ class PrometheusCheck(AgentCheck):
                         _l.value = _metric['labels'][lbl]
         return _obj
 
-    def process(self, endpoint, send_histograms_buckets=True, instance=None):
+    def process(self, endpoint, send_histograms_buckets=True, instance=None, ignore_unmapped=False):
         """
         Polls the data from prometheus and pushes them as gauges
         `endpoint` is the metrics endpoint to use to poll metrics from Prometheus
@@ -306,7 +309,7 @@ class PrometheusCheck(AgentCheck):
             if instance is not None:
                 tags = instance.get('tags', [])
             for metric in self.parse_metric_family(response):
-                self.process_metric(metric, send_histograms_buckets=send_histograms_buckets, custom_tags=tags, instance=instance)
+                self.process_metric(metric, send_histograms_buckets=send_histograms_buckets, custom_tags=tags, instance=instance, ignore_unmapped=ignore_unmapped)
 
             # Set dry run off
             self._dry_run = False
@@ -319,7 +322,7 @@ class PrometheusCheck(AgentCheck):
         finally:
             response.close()
 
-    def process_metric(self, message, send_histograms_buckets=True, custom_tags=None, **kwargs):
+    def process_metric(self, message, send_histograms_buckets=True, custom_tags=None, ignore_unmapped=False, **kwargs):
         """
         Handle a prometheus metric message according to the following flow:
             - search self.metrics_mapper for a prometheus.metric <--> datadog.metric mapping
@@ -371,7 +374,8 @@ class PrometheusCheck(AgentCheck):
                 try:
                     self._submit(self.metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
                 except KeyError:
-                    getattr(self, message.name)(message, **kwargs)
+                    if not ignore_unmapped:
+                        getattr(self, message.name)(message, **kwargs)
         except AttributeError as err:
             self.log.debug("Unable to handle metric: {} - error: {}".format(message.name, err))
 
@@ -400,13 +404,33 @@ class PrometheusCheck(AgentCheck):
             headers['accept'] = 'application/vnd.google.protobuf; ' \
                                 'proto=io.prometheus.client.MetricFamily; ' \
                                 'encoding=delimited'
-
-        response = requests.get(endpoint, headers=headers, stream=True)
+        try:
+            response = requests.get(endpoint, headers=headers, stream=True, timeout=1)
+        except (requests.ConnectionError, requests.Timeout):
+            if self.health_service_check:
+                self.service_check(
+                    "{}{}".format(self.NAMESPACE, ".prometheus.health"),
+                    self.CRITICAL,
+                    tags=["endpoint:" + endpoint]
+                )
+            raise
         try:
             response.raise_for_status()
+            if self.health_service_check:
+                self.service_check(
+                    "{}{}".format(self.NAMESPACE, ".prometheus.health"),
+                    self.OK,
+                    tags=["endpoint:" + endpoint]
+                )
             return response
         except requests.HTTPError:
             response.close()
+            if self.health_service_check:
+                self.service_check(
+                    "{}{}".format(self.NAMESPACE, ".prometheus.health"),
+                    self.CRITICAL,
+                    tags=["endpoint:" + endpoint]
+                )
             raise
 
     def _submit(self, metric_name, message, send_histograms_buckets=True, custom_tags=None, hostname=None):

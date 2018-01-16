@@ -1,0 +1,27 @@
+instances:
+  - prometheus_url: http://service/prometheus
+    namespace: "service"
+    metrics:
+      - processor: cpu
+      - memory: mem
+      - io
+    label_to_hostname: node
+    label_joins:
+      target_metric:
+        label_to_match: matched_label
+        labels_to_get:
+          - extra_label_1
+          - extra_label_2
+    labels_mapper:
+      flavor: origin
+    tags:
+      - foo:bar
+    send_histograms_buckets: True
+    exclude_labels:
+      - timestamp
+  - prometheus_url: http://foobar/endpoint
+    namespace: "foobar"
+    metrics:
+      - bar
+      - foo
+      - foobar: fb
