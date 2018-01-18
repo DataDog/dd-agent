@@ -126,6 +126,9 @@ class PrometheusCheck(AgentCheck):
         # Currently, Requests does not support using encrypted keys.
         self.ssl_private_key = None
 
+        # The path to the trusted CA used for generating custom certificates
+        self.ssl_ca_cert = None
+
     def check(self, instance):
         """
         check should take care of getting the url and other params
@@ -415,8 +418,11 @@ class PrometheusCheck(AgentCheck):
             cert = self.ssl_cert
             if isinstance(self.ssl_private_key, basestring):
                 cert = (self.ssl_cert, self.ssl_private_key)
+        verify = True
+        if isinstance(self.ssl_ca_cert, basestring):
+            verify = self.ssl_ca_cert
         try:
-            response = requests.get(endpoint, headers=headers, stream=True, cert=cert)
+            response = requests.get(endpoint, headers=headers, stream=True, cert=cert, verify=verify)
         except (IOError, requests.exceptions.SSLError):
             self.log.error("Invalid SSL settings for requesting {} endpoint".format(endpoint))
             raise
