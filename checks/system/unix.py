@@ -443,6 +443,7 @@ class Memory(Check):
             return {'physUsed': phys_memory.used / float(1024**2),
                 'physFree': phys_memory.free / float(1024**2),
                 'physUsable': phys_memory.available / float(1024**2),
+                'physTotal': phys_memory.total / float(1024**2),
                 'physPctUsable': (100 - phys_memory.percent) / 100.0,
                 'swapUsed': swap.used / float(1024**2),
                 'swapFree': swap.free / float(1024**2)}
