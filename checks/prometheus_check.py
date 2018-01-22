@@ -116,6 +116,19 @@ class PrometheusCheck(AgentCheck):
         # a label can hold this information, this transfer it to the hostname
         self.label_to_hostname = None
 
+        # Can either be only the path to the certificate and thus you should specify the private key
+        # or it can be the path to a file containing both the certificate & the private key
+        self.ssl_cert = None
+
+        # Needed if the certificate does not include the private key
+        #
+        # /!\ The private key to your local certificate must be unencrypted.
+        # Currently, Requests does not support using encrypted keys.
+        self.ssl_private_key = None
+
+        # The path to the trusted CA used for generating custom certificates
+        self.ssl_ca_cert = None
+
     def check(self, instance):
         """
         check should take care of getting the url and other params
@@ -400,8 +413,19 @@ class PrometheusCheck(AgentCheck):
             headers['accept'] = 'application/vnd.google.protobuf; ' \
                                 'proto=io.prometheus.client.MetricFamily; ' \
                                 'encoding=delimited'
-
-        response = requests.get(endpoint, headers=headers, stream=True)
+        cert = None
+        if isinstance(self.ssl_cert, basestring):
+            cert = self.ssl_cert
+            if isinstance(self.ssl_private_key, basestring):
+                cert = (self.ssl_cert, self.ssl_private_key)
+        verify = True
+        if isinstance(self.ssl_ca_cert, basestring):
+            verify = self.ssl_ca_cert
+        try:
+            response = requests.get(endpoint, headers=headers, stream=True, cert=cert, verify=verify)
+        except (IOError, requests.exceptions.SSLError):
+            self.log.error("Invalid SSL settings for requesting {} endpoint".format(endpoint))
+            raise
         try:
             response.raise_for_status()
             return response
