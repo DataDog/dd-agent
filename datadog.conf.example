@@ -299,9 +299,10 @@ gce_updated_hostname: yes
 # log_rotate_size: 10
 
 # Enables log rotation at certain timed intervals instead of file size.
+# See: https://docs.python.org/2/library/logging.handlers.html#timedrotatingfilehandler
 #
 # log_rotate_timed: False
-# log_rotate_timed_when: 'midnight'
+# log_rotate_timed_when: 'midnight'    # Unsupported: s (seconds), m (minutes)
 # log_rotate_timed_interval: None
 # log_rotate_timed_utc: True
 
