@@ -431,6 +431,9 @@ class Aggregator(object):
 
         self.utf8_decoding = utf8_decoding
 
+    def deduplicate_tags(self, tags):
+        return sorted(set(tags))
+
     def packets_per_second(self, interval):
         if interval == 0:
             return 0
@@ -546,7 +549,7 @@ class Aggregator(object):
                 elif m[0] == u'h':
                     event['hostname'] = m[2:]
                 elif m[0] == u'#':
-                    event['tags'] = sorted(m[1:].split(u','))
+                    event['tags'] = self.deduplicate_tags(m[1:].split(u','))
             return event
         except (IndexError, ValueError):
             raise Exception(u'Unparseable event packet: %s' % packet)
@@ -585,7 +588,7 @@ class Aggregator(object):
                 elif m[0] == u'h':
                     service_check['hostname'] = m[2:]
                 elif m[0] == u'#':
-                    service_check['tags'] = sorted(m[1:].split(u','))
+                    service_check['tags'] = self.deduplicate_tags(m[1:].split(u','))
 
             return service_check
 
@@ -666,7 +669,7 @@ class Aggregator(object):
         if priority is not None:
             event['priority'] = priority
         if tags is not None:
-            event['tags'] = sorted(tags)
+            event['tags'] = self.deduplicate_tags(tags)
         if hostname is not None:
             event['host'] = hostname
         else:
@@ -682,7 +685,7 @@ class Aggregator(object):
             'timestamp': timestamp or int(time())
         }
         if tags is not None:
-            service_check['tags'] = sorted(tags)
+            service_check['tags'] = self.deduplicate_tags(tags)
 
         if hostname is not None:
             service_check['host_name'] = hostname
@@ -769,7 +772,8 @@ class MetricsBucketAggregator(Aggregator):
         if tags is None:
             context = (name, tuple(), hostname, device_name)
         else:
-            context = (name, tuple(sorted(set(tags))), hostname, device_name)
+            tags = tuple(self.deduplicate_tags(tags))
+            context = (name, tags, hostname, device_name)
 
         cur_time = time()
         # Check to make sure that the timestamp that is passed in (if any) is not older than
@@ -903,7 +907,8 @@ class MetricsAggregator(Aggregator):
         if tags is None:
             context = (name, tuple(), hostname, device_name)
         else:
-            context = (name, tuple(sorted(set(tags))), hostname, device_name)
+            tags = tuple(self.deduplicate_tags(tags))
+            context = (name, tags, hostname, device_name)
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[mtype]
             self.metrics[context] = metric_class(self.formatter, name, tags,
