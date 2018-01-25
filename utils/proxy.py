@@ -89,11 +89,10 @@ def config_proxy_skip(proxies, uri, skip_proxy=False):
     parsed_uri = urlparse(uri)
 
     # disable proxy if necessary
+    # keep keys so `requests` doesn't use env var proxies either
     if skip_proxy:
-        if 'http' in proxies:
-            proxies.pop('http')
-        if 'https' in proxies:
-            proxies.pop('https')
+        proxies['http'] = None
+        proxies['https'] = None
     elif proxies.get('no'):
         for url in proxies['no'].replace(';', ',').split(","):
             if url in parsed_uri.netloc:
