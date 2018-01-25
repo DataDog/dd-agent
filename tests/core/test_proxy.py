@@ -78,6 +78,8 @@ class TestNoProxy(TestCase):
         }
 
         gen_proxies = config_proxy_skip(proxies, 's3://anything', skip_proxy=True)
+        self.assertTrue('http' in gen_proxies)
+        self.assertTrue('https' in gen_proxies)
         self.assertEquals(gen_proxies.get('http'), None)
         self.assertEquals(gen_proxies.get('https'), None)
 
