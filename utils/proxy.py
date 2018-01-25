@@ -96,9 +96,7 @@ def config_proxy_skip(proxies, uri, skip_proxy=False):
     elif proxies.get('no'):
         for url in proxies['no'].replace(';', ',').split(","):
             if url in parsed_uri.netloc:
-                if 'http' in proxies:
-                    proxies.pop('http')
-                if 'https' in proxies:
-                    proxies.pop('https')
+                proxies['http'] = None
+                proxies['https'] = None
 
     return proxies
