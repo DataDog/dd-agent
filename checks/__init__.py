@@ -393,7 +393,19 @@ class AgentCheck(object):
         proxies = proxies if proxies is not None else self.proxies.copy()
         proxies['no'] = get_no_proxy_from_env()
 
-        return config_proxy_skip(proxies, uri, _is_affirmative(instance.get('no_proxy', False)))
+        deprecated_skip = instance.get('no_proxy', None)
+        skip = (
+            _is_affirmative(instance.get('skip_proxy', False)) or
+            _is_affirmative(deprecated_skip)
+        )
+
+        if deprecated_skip is not None:
+            self.warning(
+                'Deprecation notice: The `no_proxy` config option has been renamed '
+                'to `skip_proxy` and will be removed in a future release.'
+            )
+
+        return config_proxy_skip(proxies, uri, skip)
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
