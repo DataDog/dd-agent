@@ -901,9 +901,9 @@ class MetricsAggregator(Aggregator):
         hostname = hostname if hostname is not None else self.hostname
 
         if tags is None:
-            context = (name, tuple(), hostname, device_name)
+            context = (name, tuple(), hostname, device_name, timestamp)
         else:
-            context = (name, tuple(sorted(set(tags))), hostname, device_name)
+            context = (name, tuple(sorted(set(tags))), hostname, device_name, timestamp)
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[mtype]
             self.metrics[context] = metric_class(self.formatter, name, tags,
