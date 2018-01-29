@@ -157,6 +157,9 @@ gce_updated_hostname: yes
 # Enable JMX checks for service discovery
 # sd_jmx_enable: no
 #
+# If you require a custom jar to be loaded for JMX checks, set its path here
+# jmx_custom_jar: /jmx-jars/jboss-cli-client.jar
+#
 # Docker labels as tags
 # We can extract docker labels and add them as tags to all metrics reported by service discovery.
 # All you have to do is supply a comma-separated list of label names to extract from containers when found.

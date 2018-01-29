@@ -87,6 +87,7 @@ class JMXFetch(ProcessRunner):
         self.agent_config = agent_config
         self.check_frequency = DEFAULT_CHECK_FREQUENCY
         self.service_discovery = _is_affirmative(self.agent_config.get('sd_jmx_enable', False))
+        self.config_jar_path = self.agent_config.get('jmx_custom_jar', "")
 
         self.jmx_process = None
         self.jmx_checks = None
@@ -242,6 +243,8 @@ class JMXFetch(ProcessRunner):
                 classpath = r"%s:%s" % (tools_jar_path, classpath)
             if custom_jar_paths:
                 classpath = r"%s:%s" % (':'.join(custom_jar_paths), classpath)
+            if self.config_jar_path:
+                classpath = r"%s:%s" % (self.config_jar_path, classpath)
 
             subprocess_args = [
                 path_to_java,  # Path to the java bin
