@@ -447,11 +447,16 @@ then
   INTEGRATIONS=$(ls $DD_HOME/integrations/)
   for INT in $INTEGRATIONS; do
     INT_DIR="$DD_HOME/integrations/$INT"
+    pushd $INT_DIR
+
     if [ -f "$INT_DIR/requirements.txt" ]; then
       "$DD_HOME/agent/utils/pip-allow-failures.sh" "$INT_DIR/requirements.txt"
     fi
-    if [ -f "$INT_DIR/check.py" ]; then
-      cp "$INT_DIR/check.py" "$DD_HOME/agent/checks.d/$INT.py"
+    if [ -f "$INT_DIR/setup.py" ]; then
+      $PYTHON_CMD -m pip install .
+    fi
+    if [ -f "$INT_DIR/datadog_checks/$INT/$INT.py" ]; then
+      cp "$INT_DIR/datadog_checks/$INT/$INT.py" "$DD_HOME/agent/checks.d/$INT.py"
     fi
     if [ -f "$INT_DIR/conf.yaml.example" ]; then
       cp "$INT_DIR/conf.yaml.example" "$DD_HOME/agent/conf.d/$INT.yaml.example"
@@ -462,6 +467,8 @@ then
     if [ -f "$INT_DIR/conf.yaml.default" ]; then
       cp "$INT_DIR/conf.yaml.default" "$DD_HOME/agent/conf.d/$INT.yaml.default"
     fi
+
+    popd
   done
   print_done
 fi
