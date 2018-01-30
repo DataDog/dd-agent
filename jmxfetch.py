@@ -223,7 +223,7 @@ class JMXFetch(ProcessRunner):
 
     def _start(self, path_to_java, java_run_opts, jmx_checks, command, reporter, tools_jar_path, custom_jar_paths, redirect_std_streams):
         if reporter is None:
-            statsd_host = self.agent_config.get('bind_host', 'localhost')
+            statsd_host = self.agent_config.get('statsd_forward_host', 'localhost')
             if statsd_host == "0.0.0.0":
                 # If statsd is bound to all interfaces, just use localhost for clients
                 statsd_host = "localhost"
