@@ -96,7 +96,9 @@ class GCE(object):
                 tags.append("%s:%s" % (key, value))
 
             tags.extend(host_metadata['instance'].get('tags', []))
-            tags.append('zone:%s' % host_metadata['instance']['zone'].split('/')[-1])
+            zone = host_metadata['instance']['zone'].split('/')[-1]
+            tags.append('zone:%s' % zone)
+            tags.append('region:%s' % zone.rsplit('-', 1)[0])
             tags.append('instance-type:%s' % host_metadata['instance']['machineType'].split('/')[-1])
             tags.append('internal-hostname:%s' % host_metadata['instance']['hostname'])
             tags.append('instance-id:%s' % host_metadata['instance']['id'])
