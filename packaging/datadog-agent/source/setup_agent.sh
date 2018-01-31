@@ -449,26 +449,26 @@ then
     INT_DIR="$DD_HOME/integrations/$INT"
     pushd $INT_DIR
 
-    if [ -f "$INT_DIR/requirements.txt" ]; then
-      "$DD_HOME/agent/utils/pip-allow-failures.sh" "$INT_DIR/requirements.txt"
+    if [ -f "requirements.txt" ]; then
+      "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.txt"
     fi
-    if [ -f "$INT_DIR/setup.py" ]; then
-      $PYTHON_CMD -m pip install .
+    if [ -f "setup.py" ]; then
+      $VENV_PIP_CMD -m pip install .
     else
-      if [ -f "$INT_DIR/datadog_checks/$INT/$INT.py" ]; then
-        cp "$INT_DIR/datadog_checks/$INT/$INT.py" "$DD_HOME/agent/checks.d/$INT.py"
-      elif [ -f "$INT_DIR/check.py" ]; then
-        cp "$INT_DIR/check.py" "$DD_HOME/agent/checks.d/$INT.py"
+      if [ -f "datadog_checks/$INT/$INT.py" ]; then
+        cp "datadog_checks/$INT/$INT.py" "$DD_HOME/agent/checks.d/$INT.py"
+      elif [ -f "check.py" ]; then
+        cp "check.py" "$DD_HOME/agent/checks.d/$INT.py"
       fi
     fi
-    if [ -f "$INT_DIR/conf.yaml.example" ]; then
-      cp "$INT_DIR/conf.yaml.example" "$DD_HOME/agent/conf.d/$INT.yaml.example"
+    if [ -f "conf.yaml.example" ]; then
+      cp "conf.yaml.example" "$DD_HOME/agent/conf.d/$INT.yaml.example"
     fi
-    if [ -f "$INT_DIR/auto_conf.yaml" ]; then
-      cp "$INT_DIR/auto_conf.yaml" "$DD_HOME/agent/conf.d/auto_conf/$INT.yaml"
+    if [ -f "auto_conf.yaml" ]; then
+      cp "auto_conf.yaml" "$DD_HOME/agent/conf.d/auto_conf/$INT.yaml"
     fi
-    if [ -f "$INT_DIR/conf.yaml.default" ]; then
-      cp "$INT_DIR/conf.yaml.default" "$DD_HOME/agent/conf.d/$INT.yaml.default"
+    if [ -f "conf.yaml.default" ]; then
+      cp "conf.yaml.default" "$DD_HOME/agent/conf.d/$INT.yaml.default"
     fi
 
     popd
