@@ -13,7 +13,7 @@ https://github.com/DataDog/dd-agent/compare/5.21.0...5.21.1
 Please refer to the [Trace Agent 5.21.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.21.1) for the list of changes on the Trace Agent.
 
 
-# 5.21.0 / 01-10-2017
+# 5.21.0 / 01-10-2018
 
 **Linux, Windows, Docker and Source Install**
 
