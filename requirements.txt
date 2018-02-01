@@ -29,6 +29,7 @@ python-consul==0.4.7
 python-etcd==0.4.5
 # the libyaml bindings are optional
 pyyaml==3.11
+prometheus-client==0.1.0
 # note: requests is also used in many checks
 # upgrade with caution
 requests==2.11.1
