@@ -122,6 +122,10 @@ gce_updated_hostname: yes
 # histogram_aggregates: max, median, avg, count
 # histogram_percentiles: 0.95
 
+# Tags to remove When using the use_histogram option in the docker_daemon and
+# kubernetes integrations to reduce the metrics' cardinality
+# docker_histo_striptags: container_name,pod_name,kube_replica_set,kube_replication_controller,kube_pod-template-hash,kube_pod-template-generation
+
 # ========================================================================== #
 # Service Discovery                                                          #
 # See https://docs.datadoghq.com/guides/autodiscovery/ for details #
