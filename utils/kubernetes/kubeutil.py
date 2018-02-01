@@ -81,6 +81,38 @@ def detect_is_k8s():
             log.debug("Error detecting kubernetes: %s" % str(err))
             return False
 
+def get_connection_info():
+    """
+    Returns connection parameters to reach the kubelet.
+    Mirrors the eponymous Golang Agent function so the kubelet check can
+    get this info the same way in the Golang agent and the Python one.
+      - url: full url with scheme (required)
+      - verify_tls: "true" or "false" string
+      - ca_cert: path to the kubelet CA cert if set
+      - token: content of the bearer token if set
+      - client_crt: path to the client cert if set
+      - client_key: path to the client key if set
+    """
+    kubeutil = KubeUtil()
+    res = {}
+    url = kubeutil.kubelet_api_url
+    if not url:
+        return res
+    res['url'] = url
+    tls = kubeutil.tls_settings
+    if not tls.get('kubelet_verify'):
+        res['verify_tls'] = "false"
+    else:
+        res['verify_tls'] = "true"
+        if tls['kubelet_verify'] != True:
+            res['ca_cert'] = tls['kubelet_verify']
+    if tls.get('kubelet_client_cert'):
+        res['client_crt'], res['client_key'] = tls['kubelet_client_cert']
+    token = kubeutil.get_auth_token({})
+    if token:
+        res['token'] = token
+    return res
+
 
 class KubeUtil:
     __metaclass__ = Singleton
