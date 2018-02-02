@@ -44,6 +44,7 @@ CHECK_NAME = 'docker_daemon'
 CONFIG_RELOAD_STATUS = ['start', 'die', 'stop', 'kill']  # used to trigger service discovery
 DEFAULT_INIT_RETRIES = 0
 DEFAULT_RETRY_INTERVAL = 20  # seconds
+DEFAULT_SOCK_PATH = "/var/run/docker.sock"
 
 # only used if no exclude rule was defined
 DEFAULT_CONTAINER_EXCLUDE = ["docker_image:gcr.io/google_containers/pause.*", "image_name:openshift/origin-pod"]
@@ -134,8 +135,12 @@ class DockerUtil:
             self._client.ping()
             return self._client
         except Exception as ex:
-            log.error("Failed to initialize the docker client. Docker-related features "
-                "will fail. Will retry %s time(s). Error: %s" % (self.left_init_retries, str(ex)))
+            # No docker_daemon.yaml + no existing Docker socket file = Dockerless
+            if self._no_conf_file and not os.path.isfile(DEFAULT_SOCK_PATH):
+                log.info("No docker_daemon conf and no Docker instance detected.")
+            else:
+                log.error("Failed to initialize the docker client. Docker-related features "
+                    "will fail. Will retry %s time(s). Error: %s" % (self.left_init_retries, str(ex)))
             self._client = None
             return
 
