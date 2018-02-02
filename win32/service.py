@@ -177,13 +177,6 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         for proc in self.procs.values():
             proc.start()
 
-        # check to see if apm is enabled.
-        if self.config.get('apm_enabled'):
-            try:
-                win32serviceutil.StartService("datadog-trace-agent")
-            except Exception as e:
-                log.error("Unable to start AMP service %s" % str(e))
-
         # Loop to keep the service running since all DD services are
         # running in separate processes
         self.running = True
