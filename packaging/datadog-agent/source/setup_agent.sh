@@ -446,7 +446,10 @@ then
   print_console "* Setting up integrations"
   INTEGRATIONS=$(ls $DD_HOME/integrations/)
   for INT in $INTEGRATIONS; do
-    cd "$DD_HOME/integrations/$INT"
+    INT_DIR="$DD_HOME/integrations/$INT"
+    # Only take into account directories with a `manifest.json` file
+    [ -f "$INT_DIR/manifest.json" ] || continue
+    cd "$INT_DIR"
 
     if [ -f "requirements.txt" ]; then
       "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.txt"
