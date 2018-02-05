@@ -1,6 +1,17 @@
 Changes
 =======
 
+# 5.21.2 / Unreleased 
+
+**Linux, Windows, Docker**
+
+### Details
+This release only ships changes to the process-agent. 
+https://github.com/DataDog/dd-agent/compare/5.21.0...5.21.2
+
+### Changes
+Please refer to the [Process Agent 5.21.2 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.21.2) for more information on the Process Agent.
+
 # 5.21.1 / 01-31-2018
 
 **Linux, Windows, Docker**
@@ -11,7 +22,6 @@ https://github.com/DataDog/dd-agent/compare/5.21.0...5.21.1
 
 ### Changes
 Please refer to the [Trace Agent 5.21.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.21.1) for the list of changes on the Trace Agent.
-
 
 # 5.21.0 / 01-10-2018
 
