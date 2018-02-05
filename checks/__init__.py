@@ -962,7 +962,7 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
     """
     attributes = {}
     if tags:
-        attributes['tags'] = list(set(tags))
+        attributes['tags'] = tags
     if hostname:
         attributes['hostname'] = hostname
     if device_name:
