@@ -446,8 +446,7 @@ then
   print_console "* Setting up integrations"
   INTEGRATIONS=$(ls $DD_HOME/integrations/)
   for INT in $INTEGRATIONS; do
-    INT_DIR="$DD_HOME/integrations/$INT"
-    pushd $INT_DIR
+    cd "$DD_HOME/integrations/$INT"
 
     if [ -f "requirements.txt" ]; then
       "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.txt"
@@ -471,7 +470,7 @@ then
       cp "conf.yaml.default" "$DD_HOME/agent/conf.d/$INT.yaml.default"
     fi
 
-    popd
+    cd -
   done
   print_done
 fi
