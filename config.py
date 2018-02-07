@@ -990,8 +990,8 @@ def get_checks_places(osname, agentConfig):
     try:
         checksd_path = get_checksd_path(osname)
     except PathNotFound as e:
-        log.error(e.args[0])
-        sys.exit(3)
+        log.info("no bundled checks.d path (checks provided as wheels): %s", e.args[0])
+        checksd_path = None
 
     # custom checks
     places = [lambda name: (os.path.join(agentConfig['additional_checksd'], '%s.py' % name), None)]
@@ -1010,7 +1010,8 @@ def get_checks_places(osname, agentConfig):
     places.append(lambda name: (None, None))
 
     # agent-bundled integrations
-    places.append(lambda name: (os.path.join(checksd_path, '%s.py' % name), None))
+    if checksd_path:
+        places.append(lambda name: (os.path.join(checksd_path, '%s.py' % name), None))
     return places
 
 
