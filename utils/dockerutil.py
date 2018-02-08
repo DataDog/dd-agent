@@ -48,6 +48,9 @@ DEFAULT_RETRY_INTERVAL = 20  # seconds
 # only used if no exclude rule was defined
 DEFAULT_CONTAINER_EXCLUDE = ["docker_image:gcr.io/google_containers/pause.*", "image_name:openshift/origin-pod"]
 
+# only used for docer cloud users not willing to monitor the underlying containers of the docker cloud agent.
+DOCKERCLOUD_EXCLUDE = ["docker_image:dockercloud/*"]
+
 log = logging.getLogger(__name__)
 
 
@@ -107,6 +110,10 @@ class DockerUtil:
                 self.filtering_enabled = False
         else:
             self.filtering_enabled = True
+
+        if instance.get('ignore_docker_cloud_containers'):
+            self._exclude = DOCKERCLOUD_EXCLUDE
+            self.filtering_enabled = False
 
         if self.filtering_enabled:
             self.build_filters()
