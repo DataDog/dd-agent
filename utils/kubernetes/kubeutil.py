@@ -657,7 +657,7 @@ class KubeUtil:
             creator_kind = pod_metadata['ownerReferences']['kind']
             creator_name = pod_metadata['ownerReferences']['name']
             return (creator_kind, creator_name)
-        except Exception
+        except Exception:
             try:
                 log.debug('Could not parse creator for pod ' + pod_metadata.get('name', '') +
                           ' through `OwnerReferences`, falling back to annotation')
