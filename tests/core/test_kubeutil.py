@@ -68,6 +68,7 @@ class TestKubeUtilDeploymentTag(KubeTestCase):
         self.assertEqual('front-end', self.kube.get_deployment_for_replicaset('front-end-768dd754b7'))
 
 
+# Creator Tags tests for k8 version < 1.9: getting them from the annotation
 class TestKubeUtilCreatorTags(KubeTestCase):
     @classmethod
     def _fake_pod(cls, creator_kind, creator_name):
@@ -93,6 +94,7 @@ class TestKubeUtilCreatorTags(KubeTestCase):
         self.assertEqual([], self.kube.get_pod_creator_tags({}))
 
 
+# Creator Tags tests for k8 version >= 1.9: getting them from the metadata 'ownerReferences'
 class TestKubeUtilCreatorTagsNoAnnotation(KubeTestCase):
     @classmethod
     def _fake_pod(cls, creator_kind, creator_name):
