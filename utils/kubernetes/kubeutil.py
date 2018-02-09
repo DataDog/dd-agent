@@ -654,13 +654,20 @@ class KubeUtil:
         This allows for consitency across code path
         """
         try:
-            created_by = json.loads(pod_metadata['annotations']['kubernetes.io/created-by'])
-            creator_kind = created_by.get('reference', {}).get('kind')
-            creator_name = created_by.get('reference', {}).get('name')
+            creator_kind = pod_metadata['ownerReferences']['kind']
+            creator_name = pod_metadata['ownerReferences']['name']
             return (creator_kind, creator_name)
-        except Exception:
-            log.debug('Could not parse creator for pod ' + pod_metadata.get('name', ''))
-            return (None, None)
+        except Exception
+            try:
+                log.debug('Could not parse creator for pod ' + pod_metadata.get('name', '') +
+                          ' through `OwnerReferences`, falling back to annotation')
+                created_by = json.loads(pod_metadata['annotations']['kubernetes.io/created-by'])
+                creator_kind = created_by.get('reference', {}).get('kind')
+                creator_name = created_by.get('reference', {}).get('name')
+                return (creator_kind, creator_name)
+            except Exception:
+                log.debug('Could not parse creator for pod ' + pod_metadata.get('name', ''))
+                return (None, None)
 
     def get_pod_creator_tags(self, pod_metadata, legacy_rep_controller_tag=False):
         """
