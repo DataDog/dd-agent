@@ -98,7 +98,8 @@ class TestKubeUtilCreatorTags(KubeTestCase):
 class TestKubeUtilCreatorTagsNoAnnotation(KubeTestCase):
     @classmethod
     def _fake_pod(cls, creator_kind, creator_name):
-        return {'ownerReferences': {'kind': creator_kind, 'name': creator_name}}
+        ownerReferences_entry = [{'kind': creator_kind, 'name': creator_name}]
+        return {'ownerReferences': ownerReferences_entry}
 
     def test_with_replicaset(self):
         self.assertEqual(['kube_replica_set:test-5432', 'kube_deployment:test'],
