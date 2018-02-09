@@ -654,8 +654,9 @@ class KubeUtil:
         This allows for consitency across code path
         """
         try:
-            creator_kind = pod_metadata['ownerReferences']['kind']
-            creator_name = pod_metadata['ownerReferences']['name']
+            ownerReferences_entry = pod_metadata['ownerReferences'][0]
+            creator_kind = ownerReferences_entry['kind']
+            creator_name = ownerReferences_entry['name']
             return (creator_kind, creator_name)
         except Exception:
             try:
