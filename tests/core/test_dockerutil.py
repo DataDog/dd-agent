@@ -9,7 +9,6 @@ from utils.dockerutil import DockerUtil
 
 
 class TestDockerUtil(unittest.TestCase):
-
     def test_parse_subsystem(self):
         lines = [
             # (line, expected_result)
@@ -138,7 +137,6 @@ class TestDockerUtil(unittest.TestCase):
         for test in labeled_test_data:
             self.assertEqual(test[2], DockerUtil().extract_container_tags(test[0], test[1]))
 
-
     def test_docker_host_metadata_ok(self):
         mock_version = mock.MagicMock(name='version', return_value={'Version': '1.13.1'})
         du = DockerUtil()
@@ -167,3 +165,22 @@ class TestDockerUtil(unittest.TestCase):
 
         self.assertEqual({'docker_version': '1.13.1', 'docker_swarm': 'active'}, DockerUtil().get_host_metadata())
         mock_version.assert_called_once()
+
+    def test_docker_are_tags_filtered(self):
+        with mock.patch.object(DockerUtil, 'is_k8s', side_effect=lambda: True):
+            DockerUtil._drop()
+            du = DockerUtil()
+
+            self.assertTrue(du.is_k8s())
+            pause_containers = [
+                "docker_image:gcr.io/google_containers/pause-amd64:0.3.0",
+                "docker_image:k8s.gcr.io/pause-amd64:latest",
+                "image_name:openshift/origin-pod",
+                "image_name:kubernetes/pause",
+            ]
+            for image in pause_containers:
+                self.assertTrue(du.are_tags_filtered([image]))
+
+            self.assertTrue(pause_containers)
+            self.assertFalse(du.are_tags_filtered(["docker_image:quay.io/coreos/etcd:latest"]))
+            self.assertFalse(du.are_tags_filtered(["image_name:redis"]))
