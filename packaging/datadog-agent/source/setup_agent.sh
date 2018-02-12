@@ -337,7 +337,7 @@ fi
 print_green "* sysstat is installed"
 
 # Detect Python version
-ERROR_MESSAGE="Python 2.6 or 2.7 is required to install the agent from source"
+ERROR_MESSAGE="Python 2.7 is required to install the agent from source"
 detect_python
 if [ -z "$PYTHON_CMD" ]; then exit 1; fi
 $PYTHON_CMD -c "import sys; exit_code = 0 if sys.version_info[0]==2 and sys.version_info[1] > 5 else 66 ; sys.exit(exit_code)" > /dev/null 2>&1
