@@ -583,7 +583,7 @@ class DockerUtil:
         If short is true, the repository is stripped from the result
         """
         image = self.image_name_resolver(co.get('Image', ''))
-        if short:
+        if image and short:
             return image.split('/')[-1]
         return image
 
