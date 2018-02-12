@@ -137,7 +137,7 @@ class DockerUtil:
         except Exception as ex:
             # No docker_daemon.yaml + no existing Docker socket file = Dockerless
             if self._no_conf_file and not os.path.isfile(DEFAULT_SOCK_PATH):
-                log.info("Docker features disbled: No running Docker instance detected. Will not retry since no docker_daemon configuration file was found.")
+                log.info("Docker features disabled: No running Docker instance detected. Will not retry since no docker_daemon configuration file was found.")
             else:
                 log.error("Failed to initialize the docker client. Docker-related features "
                     "will fail. Will retry %s time(s). Error: %s" % (self.left_init_retries, str(ex)))
