@@ -174,6 +174,7 @@ class TestDockerUtil(unittest.TestCase):
             self.assertTrue(du.is_k8s())
             pause_containers = [
                 "docker_image:gcr.io/google_containers/pause-amd64:0.3.0",
+                "docker_image:asia.gcr.io/google_containers/pause-amd64:3.0",
                 "docker_image:k8s.gcr.io/pause-amd64:latest",
                 "image_name:openshift/origin-pod",
                 "image_name:kubernetes/pause",
