@@ -47,8 +47,8 @@ DEFAULT_RETRY_INTERVAL = 20  # seconds
 
 # only used if no exclude rule was defined
 DEFAULT_CONTAINER_EXCLUDE = [
-    "docker_image:gcr.io/google_containers/pause.*",
-    "docker_image:k8s.gcr.io/pause.*",
+    "docker_image:(.*)gcr.io/google_containers/pause(.*)",
+    "docker_image:k8s.gcr.io/pause(.*)",
     "image_name:openshift/origin-pod",
     "image_name:kubernetes/pause"
 ]
