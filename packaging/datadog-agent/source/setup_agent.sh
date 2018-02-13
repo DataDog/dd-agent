@@ -455,7 +455,7 @@ then
       "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.txt"
     fi
     if [ -f "setup.py" ]; then
-      $VENV_PIP_CMD -m pip install .
+      $VENV_PIP_CMD install .
     else
       if [ -f "datadog_checks/$INT/$INT.py" ]; then
         cp "datadog_checks/$INT/$INT.py" "$DD_HOME/agent/checks.d/$INT.py"
