@@ -1,12 +1,42 @@
 Changes
 =======
 
-# 5.21.2 / Unreleased 
+# 5.22.0 / 02-13-2018
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.21.2...5.22.0
+
+### Changes
+Please refer to the [Integrations Core Checks 5.22.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.22.0) for the list of changes on the core checks.
+
+Please refer to the [Process Agent 5.22.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.22.0) for more information on the Process Agent.
+
+Datadog will be rotating the GPG key used to sign our APT repositories on Feb 27 2018. More details and the new key can be found in our [knowledge base](https://help.datadoghq.com/hc/en-us/articles/360000886852).
+
+* [IMPROVEMENT] Collect total system memory for Mac OS X. See [#3169][]
+* [IMPROVEMENT] JMXFETCH: include version 0.18.1. See [#3543][]
+* [BUGFIX] Fix prometheus check summary and histogram. See [#3617][]
+* [IMPROVEMENT] Prometheus Check: add generic label joins and node to hostname. See [#3623][]
+* [BUGFIX] Fixes issue with auto-discovery and wheels. See [#3629][]
+* [IMPROVEMENT] Add "process_agent_enabled" to example datadog.conf. See [#3630][]
+* [BUGFIX] Fix issue with creating tags from conf in IIS. See [#3635][]
+* [IMPROVEMENT] Prometheus Check: add SSL support. See [#3640][]
+* [IMPROVEMENT] Deduplicate tags on metrics, events and service_checks. See [#3641][]
+* [BUGFIX] Fix "no_proxy" option when using requests. See [#3644][] and [#3645][]
+* [IMPROVEMENT] Adding "jmx_custom_jars" option to datadog.yaml. See [#3648][]
+* [IMPROVEMENT] Windows: the agent service is no longer responsible for starting the APM service. See [#3655][]
+* [DEPRECATE] Bundled "checks.d" is now a deprecated location as checks are shipped as wheels. See [#3661][]
+* [IMPROVEMENT] Windows: Start subservices (trace/process) if they're configured on service start. See [#3663][]
+* [IMPROVEMENT] Extend pause-container list. See [#3674][]
+
+# 5.21.2 / 01-31-2018
 
 **Linux, Windows, Docker**
 
 ### Details
-This release only ships changes to the process-agent. 
+This release only ships changes to the process-agent.
 https://github.com/DataDog/dd-agent/compare/5.21.0...5.21.2
 
 ### Changes
@@ -17,7 +47,7 @@ Please refer to the [Process Agent 5.21.2 tag](https://github.com/DataDog/datado
 **Linux, Windows, Docker**
 
 ### Details
-This release only ships changes to the trace-agent. 
+This release only ships changes to the trace-agent.
 https://github.com/DataDog/dd-agent/compare/5.21.0...5.21.1
 
 ### Changes
@@ -36,12 +66,12 @@ Please refer to the [Integrations Core Checks 5.21.0 tag](https://github.com/Dat
 Please refer to the [Process Agent 5.21.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.21.0) for more information on the Process Agent.
 
 * [BUGFIX] Configuration: Use : instead of = in APM config. See [#3599][] (Thanks [@brianwolfe][])
-* [BUGFIX] PDH: Return with metric list empty if can't connect to host. See [#3612][] 
-* [IMPROVEMENT] Source install: Add host tagging to install_agent.sh. See [#3551][] (Thanks [@iancward][]) 
-* [IMPROVEMENT] Kubernetes: get nodeName and nodeIP even if the agent isn't inside a Pod. See [#3614][] 
-* [IMPROVEMENT] Docker: add flag to image_name_extractor to return short image name. See [#3622][] 
-* [IMPROVEMENT] WMI: Skip properties in WMI query results if not in arguments. See [#3618][] 
-* [IMPROVEMENT] Log metadata payload as debug to be added to flares. See [#3625][] 
+* [BUGFIX] PDH: Return with metric list empty if can't connect to host. See [#3612][]
+* [IMPROVEMENT] Source install: Add host tagging to install_agent.sh. See [#3551][] (Thanks [@iancward][])
+* [IMPROVEMENT] Kubernetes: get nodeName and nodeIP even if the agent isn't inside a Pod. See [#3614][]
+* [IMPROVEMENT] Docker: add flag to image_name_extractor to return short image name. See [#3622][]
+* [IMPROVEMENT] WMI: Skip properties in WMI query results if not in arguments. See [#3618][]
+* [IMPROVEMENT] Log metadata payload as debug to be added to flares. See [#3625][]
 * [IMPROVEMENT] Don't spam logs with exceptions when checks aren't wheels. See [#3620][]
 * [IMPROVEMENT] bump protobuf to 3.5.1. See [#3619][]
 * [IMPROVEMENT] Aggregator: ignore all dist metrics (metric type starting with 'd'). See [#3611][]
