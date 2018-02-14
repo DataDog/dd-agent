@@ -68,8 +68,10 @@ class TestKubeUtilDeploymentTag(KubeTestCase):
         self.assertEqual('front-end', self.kube.get_deployment_for_replicaset('front-end-768dd754b7'))
 
 
-# Creator Tags tests for k8 version < 1.9: getting them from the annotation
 class TestKubeUtilCreatorTags(KubeTestCase):
+    """
+    Creator Tags tests for k8 version < 1.9: getting them from the annotation
+    """
     @classmethod
     def _fake_pod(cls, creator_kind, creator_name):
         payload = '{"reference": {"kind":"%s", "name":"%s"}}' % (creator_kind, creator_name)
@@ -94,12 +96,14 @@ class TestKubeUtilCreatorTags(KubeTestCase):
         self.assertEqual([], self.kube.get_pod_creator_tags({}))
 
 
-# Creator Tags tests for k8 version >= 1.9: getting them from the metadata 'ownerReferences'
 class TestKubeUtilCreatorTagsNoAnnotation(KubeTestCase):
+    """
+    Creator Tags tests for k8 version >= 1.9: getting them from the metadata 'ownerReferences'
+    """
     @classmethod
     def _fake_pod(cls, creator_kind, creator_name):
-        ownerReferences_entry = [{'kind': creator_kind, 'name': creator_name}]
-        return {'ownerReferences': ownerReferences_entry}
+        owner_references_entry = [{'kind': creator_kind, 'name': creator_name}]
+        return {'ownerReferences': owner_references_entry}
 
     def test_with_replicaset(self):
         self.assertEqual(['kube_replica_set:test-5432', 'kube_deployment:test'],
