@@ -456,7 +456,6 @@ then
   for INT in $INTEGRATIONS; do
     if [[ "$INT" == "datadog-checks-base" ]]; then continue; fi
     if [[ "$INT" == "sqlserver" ]]; then continue; fi
-    if [[ "$INT" == "ssh_check" ]]; then continue; fi
 
     INT_DIR="$DD_HOME/integrations/$INT"
     # Only take into account directories with a `manifest.json` file
