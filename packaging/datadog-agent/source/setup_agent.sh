@@ -445,17 +445,29 @@ then
 
   print_console "* Setting up integrations"
   INTEGRATIONS=$(ls $DD_HOME/integrations/)
+
+  # Install `datadog-checks-base` dependency before any checks
+  cd "$DD_HOME/integrations/datadog-checks-base"
+  "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.txt"
+  $PYTHON_CMD "setup.py" bdist_wheel
+  $VENV_PIP_CMD install "dist/*.whl"
+  cd -
+
   for INT in $INTEGRATIONS; do
+    if [[ "$INT" == "datadog-checks-base" ]]; then continue; fi
+
     INT_DIR="$DD_HOME/integrations/$INT"
     # Only take into account directories with a `manifest.json` file
     [ -f "$INT_DIR/manifest.json" ] || continue
+
     cd "$INT_DIR"
 
     if [ -f "requirements.txt" ]; then
       "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.txt"
     fi
     if [ -f "setup.py" ]; then
-      $VENV_PIP_CMD install .
+      $PYTHON_CMD "setup.py" bdist_wheel
+      $VENV_PIP_CMD install "dist/*.whl"
     else
       if [ -f "datadog_checks/$INT/$INT.py" ]; then
         cp "datadog_checks/$INT/$INT.py" "$DD_HOME/agent/checks.d/$INT.py"
