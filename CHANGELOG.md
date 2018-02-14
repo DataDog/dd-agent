@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 5.21.2 / Unreleased 
+# 5.21.2 / 02-05-2018
 
 **Linux, Windows, Docker**
 
