@@ -660,7 +660,7 @@ class KubeUtil:
             return creator_kind, creator_name
         except LookupError as e:
             try:
-                log.debug('Could not parse creator for pod %s through `OwnerReferences`, falling back to annotation: %s'
+                log.debug('Could not parse creator for pod %s through `OwnerReferences`, falling back to annotation: %s',
                           pod_metadata.get('name', ''), type(e))
                 created_by = json.loads(pod_metadata['annotations']['kubernetes.io/created-by'])
                 creator_kind = created_by.get('reference', {}).get('kind')
