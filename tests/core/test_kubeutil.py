@@ -69,10 +69,41 @@ class TestKubeUtilDeploymentTag(KubeTestCase):
 
 
 class TestKubeUtilCreatorTags(KubeTestCase):
+    """
+    Creator Tags tests for k8 version < 1.9: getting them from the annotation
+    """
     @classmethod
     def _fake_pod(cls, creator_kind, creator_name):
         payload = '{"reference": {"kind":"%s", "name":"%s"}}' % (creator_kind, creator_name)
         return {'annotations': {'kubernetes.io/created-by': payload}}
+
+    def test_with_replicaset(self):
+        self.assertEqual(['kube_replica_set:test-5432', 'kube_deployment:test'],
+                         self.kube.get_pod_creator_tags(self._fake_pod("ReplicaSet", "test-5432")))
+
+    def test_with_statefulset(self):
+        self.assertEqual(['kube_stateful_set:test-5432'],
+                         self.kube.get_pod_creator_tags(self._fake_pod("StatefulSet", "test-5432")))
+
+    def test_with_legacy_repcontroller(self):
+        self.assertEqual(['kube_daemon_set:test', 'kube_replication_controller:test'],
+                         self.kube.get_pod_creator_tags(self._fake_pod("DaemonSet", "test"), True))
+
+    def test_with_unknown(self):
+        self.assertEqual([], self.kube.get_pod_creator_tags(self._fake_pod("Unknown", "test")))
+
+    def test_invalid_input(self):
+        self.assertEqual([], self.kube.get_pod_creator_tags({}))
+
+
+class TestKubeUtilCreatorTagsNoAnnotation(KubeTestCase):
+    """
+    Creator Tags tests for k8 version >= 1.9: getting them from the metadata 'ownerReferences'
+    """
+    @classmethod
+    def _fake_pod(cls, creator_kind, creator_name):
+        owner_references_entry = [{'kind': creator_kind, 'name': creator_name}]
+        return {'ownerReferences': owner_references_entry}
 
     def test_with_replicaset(self):
         self.assertEqual(['kube_replica_set:test-5432', 'kube_deployment:test'],
