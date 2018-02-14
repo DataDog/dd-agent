@@ -450,7 +450,7 @@ then
   cd "$DD_HOME/integrations/datadog-checks-base"
   "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.txt"
   $PYTHON_CMD "setup.py" bdist_wheel
-  $VENV_PIP_CMD install "dist/*.whl"
+  $VENV_PIP_CMD install dist/*.whl
   cd -
 
   for INT in $INTEGRATIONS; do
@@ -467,7 +467,7 @@ then
     fi
     if [ -f "setup.py" ]; then
       $PYTHON_CMD "setup.py" bdist_wheel
-      $VENV_PIP_CMD install "dist/*.whl"
+      $VENV_PIP_CMD install dist/*.whl
     else
       if [ -f "datadog_checks/$INT/$INT.py" ]; then
         cp "datadog_checks/$INT/$INT.py" "$DD_HOME/agent/checks.d/$INT.py"
