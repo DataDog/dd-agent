@@ -42,6 +42,10 @@ SETUPTOOLS_VERSION="20.9.0"
 # $DD_DOG
 #   0/1 value. 1 will print a cute pup at the beginning of the script
 #   Defaults to 0.
+# $DD_SKIP_INTEGRATIONS
+#   0/1 value. 1 will skip the installation of any integrations. This is useful
+#   when only the base agent is needed.
+#   Defaults to 0.
 #
 #
 # $IS_OPENSHIFT DEPRECATED!
@@ -68,6 +72,8 @@ fi
 DD_API_KEY=${DD_API_KEY:-no_key}
 
 DD_START_AGENT=${DD_START_AGENT:-1}
+
+DD_SKIP_INTEGRATIONS=${DD_SKIP_INTEGRATIONS:-0}
 
 if [ -n "$IS_OPENSHIFT" ]; then
     printf "IS_OPENSHIFT is deprecated and won't do anything\n"
@@ -428,8 +434,9 @@ $AGENT_VERSION
 VERSION
 
 # Only install the integrations from the integrations-core if it's version 5.12 or above.
-if check_version $PRE_SDK_RELEASE $AGENT_VERSION;
-then
+if [ "$DD_SKIP_INTEGRATIONS" = "1" ]; then
+  print_console "* Skipping downloading and installing integrations"
+elif check_version $PRE_SDK_RELEASE $AGENT_VERSION; then
   print_console "* Downloading integrations from GitHub"
   mkdir -p "$DD_HOME/integrations"
   mkdir -p "$DD_HOME/agent/checks.d"
