@@ -79,6 +79,9 @@ class TestDockerUtil(unittest.TestCase):
             [{'Image': 'redis'}, ['docker_image:redis', 'image_name:redis']],
             # No image
             [{}, []],
+            # Image containing 'sha256'
+            [{'Image': 'datadog/docker-dd-agent:latest@sha256:769418c18c3e9e0b6ab2c18147c3599d6e27f40fb3dee56418bf897147ff84d0'},
+                ['docker_image:datadog/docker-dd-agent:latest', 'image_name:datadog/docker-dd-agent', 'image_tag:latest']],
         ]
         labeled_test_data = [
             # No labels
