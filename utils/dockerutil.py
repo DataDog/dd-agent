@@ -616,9 +616,9 @@ class DockerUtil:
         elif '@sha256:' in image: # Swarm case where image = name:tag@sha256SHA, keep only name:tag
             pos = image.rfind('@sha256')
             if pos > 0:
-                return image[0:pos]
-        else:
-            return image
+                return image[:pos]
+            log.error("Invalid image parsing: %s", image)
+        return image
 
     def label_extractor(self, ctr, lbl_to_tags):
         """Returns a list of tags based on a container and a label name list"""
