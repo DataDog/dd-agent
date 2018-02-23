@@ -13,7 +13,7 @@ Please refer to the [Integrations Core Checks 5.22.0 tag](https://github.com/Dat
 
 Please refer to the [Process Agent 5.22.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.22.0) for more information on the Process Agent.
 
-Datadog will be rotating the GPG key used to sign our APT repositories on Feb 27 2018. More details and the new key can be found in our [knowledge base](https://help.datadoghq.com/hc/en-us/articles/360000886852).
+Datadog will be rotating the GPG key used to sign our APT repositories on Feb 28 2018. More details and the new key can be found in our [knowledge base](https://help.datadoghq.com/hc/en-us/articles/360000886852).
 
 * [IMPROVEMENT] Collect total system memory for Mac OS X. See [#3169][]
 * [IMPROVEMENT] JMXFETCH: include version 0.18.1. See [#3543][]
