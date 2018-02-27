@@ -588,7 +588,11 @@ class DockerUtil:
         return image
 
     def image_name_resolver(self, image):
-        if image.startswith('sha256:'):
+        if '@sha256:' in image:
+            pos = image.rfind('@sha256')
+            if pos > 0 and (':' in image[:pos]): # Swarm case 'name:tag@sha256SHA', the tag is present
+                return image[:pos] # keep only name:tag
+        if image.startswith('sha256:') or '@sha256:' in image: # here, we need to extract the tag from the sha
             # Some orchestrators setup containers with image checksum instead of image name
             try:
                 if image in self._image_sha_to_name_mapping:
@@ -613,12 +617,8 @@ class DockerUtil:
                         log.debug("Failed finding image name in RepoTag and RepoDigests: %s", e)
             except Exception as ex:
                 log.error("Exception getting docker image name: %s" % str(ex))
-        elif '@sha256:' in image: # Swarm case where image = name:tag@sha256SHA, keep only name:tag
-            pos = image.rfind('@sha256')
-            if pos > 0:
-                return image[:pos]
-            log.error("Invalid image parsing: %s", image)
-        return image
+        else: # no sha, just return the image
+            return image
 
     def label_extractor(self, ctr, lbl_to_tags):
         """Returns a list of tags based on a container and a label name list"""
