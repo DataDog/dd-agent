@@ -5,7 +5,9 @@ them to [Datadog](https://app.datadoghq.com) on your behalf so that
 you can do something useful with your monitoring and performance data.
 
 You're looking at the source code right now. We provide a number of
-[pre-packaged binaries](https://app.datadoghq.com/account/settings#agent) for your convenience.
+pre-packaged binaries for your convenience for both [Agent 5](https://app.datadoghq.com/account/settings?agent_version=5#agent) and [Agent 6]((https://app.datadoghq.com/account/settings#agent)). 
+
+See the [Datadog Agent Repo](https://github.com/DataDog/datadog-agent) for the source code for Agent 6. 
 
 Note: this repository does not contain the sources of the Trace Agent that
 collects traces for the APM feature. If you choose the installation from source

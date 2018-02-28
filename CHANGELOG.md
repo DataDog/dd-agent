@@ -1,3 +1,5 @@
+Datadog Agent 6 has been officially released and the release notes can be found [here](https://github.com/DataDog/datadog-agent/releases). Agent 5 will continue to see releases. 
+
 Changes
 =======
 
