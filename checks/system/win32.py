@@ -14,7 +14,7 @@ except ImportError:
 
 # datadog
 try:
-    from datadog_checks.checks.win import PDHBaseCheck
+    from datadog_checks.checks.win import WinPDHCounter
 except ImportError:
     def WinPDHCounter(*args, **kwargs):
         return
