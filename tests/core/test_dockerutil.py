@@ -74,8 +74,9 @@ class TestDockerUtil(unittest.TestCase):
     def test_extract_container_tags(self):
         #mocks
         du = DockerUtil()
-        with mock.patch.dict(du._image_sha_to_name_mapping, {'gcr.io/google_containers/hyperkube@sha256:7653dfb091e9524ecb1c2c472ec27e9d2e0ff9addc199d91b5c532a2cdba5b9e': 'gcr.io/google_containers/hyperkube:latest',
-            'myregistry.local:5000/testing/test-image@sha256:5bef08742407efd622d243692b79ba0055383bbce12900324f75e56f589aedb0': 'myregistry.local:5000/testing/test-image:version'}):
+        with mock.patch.dict(du._image_sha_to_name_mapping,
+          {'gcr.io/google_containers/hyperkube@sha256:7653dfb091e9524ecb1c2c472ec27e9d2e0ff9addc199d91b5c532a2cdba5b9e': 'gcr.io/google_containers/hyperkube:latest',
+          'myregistry.local:5000/testing/test-image@sha256:5bef08742407efd622d243692b79ba0055383bbce12900324f75e56f589aedb0': 'myregistry.local:5000/testing/test-image:version'}):
             no_label_test_data = [
                 # Nominal case
                 [{'Image': 'redis:3.2'}, ['docker_image:redis:3.2', 'image_name:redis', 'image_tag:3.2']],
