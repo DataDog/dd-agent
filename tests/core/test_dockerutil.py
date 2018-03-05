@@ -94,7 +94,10 @@ class TestDockerUtil(unittest.TestCase):
                 [{'Image': 'myregistry.local:5000/testing/test-image:version'},
                     ['docker_image:myregistry.local:5000/testing/test-image:version', 'image_name:myregistry.local:5000/testing/test-image', 'image_tag:version']],
                 [{'Image': 'myregistry.local:5000/testing/test-image@sha256:5bef08742407efd622d243692b79ba0055383bbce12900324f75e56f589aedb0'},
-                    ['docker_image:myregistry.local:5000/testing/test-image:version', 'image_name:myregistry.local:5000/testing/test-image', 'image_tag:version']]
+                    ['docker_image:myregistry.local:5000/testing/test-image:version', 'image_name:myregistry.local:5000/testing/test-image', 'image_tag:version']],
+                # Here, since the tag is present, we should not try to resolve it in the sha256, and so returning 'latest'
+                [{'Image': 'myregistry.local:5000/testing/test-image:latest@sha256:5bef08742407efd622d243692b79ba0055383bbce12900324f75e56f589aedb0'},
+                    ['docker_image:myregistry.local:5000/testing/test-image:latest', 'image_name:myregistry.local:5000/testing/test-image', 'image_tag:latest']]
             ]
             labeled_test_data = [
                 # No labels
