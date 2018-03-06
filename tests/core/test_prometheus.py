@@ -7,7 +7,8 @@ import unittest
 
 from mock import MagicMock, patch, call
 
-from checks.prometheus_check import PrometheusCheck, UnknownFormatError
+from checks.prometheus_check import PrometheusCheck
+from checks.prometheus_mixins import UnknownFormatError
 from utils.prometheus import parse_metric_family, metrics_pb2
 
 
@@ -189,8 +190,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.process_metric = MagicMock()
         self.check.process(endpoint, instance=None)
         self.check.poll.assert_called_with(endpoint)
-        self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=[], instance=None,
-                                                     send_histograms_buckets=True)
+        self.check.process_metric.assert_called_with(self.ref_gauge, instance=None)
 
     def test_process_send_histograms_buckets(self):
         """ Cheks that the send_histograms_buckets parameter is passed along """
@@ -200,8 +200,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.process_metric = MagicMock()
         self.check.process(endpoint, send_histograms_buckets=False, instance=None)
         self.check.poll.assert_called_with(endpoint)
-        self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=[], instance=None,
-                                                     send_histograms_buckets=False)
+        self.check.process_metric.assert_called_with(self.ref_gauge, instance=None, send_histograms_buckets=False)
 
     def test_process_instance_with_tags(self):
         """ Checks that an instances with tags passes them as custom tag """
@@ -213,7 +212,7 @@ class TestPrometheusProcessor(unittest.TestCase):
         self.check.process(endpoint, instance=instance)
         self.check.poll.assert_called_with(endpoint)
         self.check.process_metric.assert_called_with(self.ref_gauge, custom_tags=['tag1:tagValue1', 'tag2:tagValue2'],
-                                                     instance=instance, send_histograms_buckets=True)
+                                                     instance=instance)
 
     def test_process_metric_gauge(self):
         """ Gauge ref submission """
