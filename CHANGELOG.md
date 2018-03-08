@@ -3,6 +3,17 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.22.3 / 03-08-2018
+
+**Linux, Windows, Docker**
+
+### Details
+This release only ships changes to the process-agent.
+https://github.com/DataDog/dd-agent/compare/5.22.1...5.22.3
+
+### Changes
+Please refer to the [Process Agent 5.22.3 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.22.3) for more information on the Process Agent.
+
 # 5.22.1 / 02-26-2018
 
 **Linux, Windows, Docker**
