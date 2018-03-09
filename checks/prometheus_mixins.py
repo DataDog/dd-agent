@@ -2,6 +2,7 @@
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
+from fnmatch import fnmatchcase
 import requests
 from collections import defaultdict
 from google.protobuf.internal.decoder import _DecodeVarint32  # pylint: disable=E0611,E0401
@@ -48,6 +49,9 @@ class PrometheusScraper(object):
         # Note: it is empty in the parent class but will need to be
         # overloaded/hardcoded in the final check not to be counted as custom metric.
         self.metrics_mapper = {}
+
+        # `_metrics_wildcards` holds the potential wildcards to match for metrics
+        self._metrics_wildcards = None
 
         # `label_joins` holds the configuration for extracting 1:1 labels from
         # a target metric to all metric matching the label, example:
@@ -391,7 +395,17 @@ class PrometheusScraper(object):
                     self._submit(self.metrics_mapper[message.name], message, send_histograms_buckets, custom_tags)
                 except KeyError:
                     if not ignore_unmapped:
+                        # call magic method (non-generic check)
                         getattr(self, message.name)(message, **kwargs)
+                    else:
+                        # build the wildcard list if first pass
+                        if self._metrics_wildcards is None:
+                            self._metrics_wildcards = [x for x in self.metrics_mapper.keys() if '*' in x]
+                        # try matching wildcard (generic check)
+                        for wildcard in self._metrics_wildcards:
+                            if fnmatchcase(message.name, wildcard):
+                                self._submit(message.name, message, send_histograms_buckets, custom_tags)
+
         except AttributeError as err:
             self.log.debug("Unable to handle metric: {} - error: {}".format(message.name, err))
 
