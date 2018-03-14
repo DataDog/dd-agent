@@ -101,6 +101,9 @@ def get_next_id(name):
     return current_id
 
 
+class NoInstancesFound(Exception):
+    pass
+
 def check_yaml(conf_path):
     with open(conf_path) as f:
         check_config = yaml.load(f.read(), Loader=yLoader)
@@ -116,7 +119,7 @@ def check_yaml(conf_path):
                     valid_instances = False
                     break
         if not valid_instances:
-            raise Exception('You need to have at least one instance defined in the YAML file for this check')
+            raise NoInstancesFound('You need to have at least one instance defined in the YAML file for this check')
         else:
             return check_config
 

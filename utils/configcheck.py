@@ -11,8 +11,8 @@ import re
 import simplejson as json
 
 # project
+from util import NoInstancesFound, check_yaml
 from config import (
-    check_yaml,
     load_check_directory,
     get_confd_path
 )
@@ -27,6 +27,8 @@ def configcheck():
         basename = os.path.basename(conf_path)
         try:
             check_yaml(conf_path)
+        except NoInstancesFound as e:
+            print "%s contains warning:\n    %s" % (basename, e)
         except Exception as e:
             all_valid = False
             print "%s contains errors:\n    %s" % (basename, e)
