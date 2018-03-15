@@ -2,7 +2,8 @@
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
-
+DATA_TYPE_INT = 1
+DATA_TYPE_DOUBLE = 2
 class WinPDHCounter(object):
 
     def is_single_instance(self):
