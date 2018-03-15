@@ -136,6 +136,9 @@ class PrometheusScraper(object):
         # The path to the trusted CA used for generating custom certificates
         self.ssl_ca_cert = None
 
+        # Extra http headers to be sent when polling endpoint
+        self.extra_headers = {}
+
     def parse_metric_family(self, response):
         """
         Parse the MetricFamily from a valid requests.Response object to provide a MetricFamily object (see [0])
@@ -448,6 +451,7 @@ class PrometheusScraper(object):
             headers['accept'] = 'application/vnd.google.protobuf; ' \
                                 'proto=io.prometheus.client.MetricFamily; ' \
                                 'encoding=delimited'
+        headers.update(self.extra_headers)
         cert = None
         if isinstance(self.ssl_cert, basestring):
             cert = self.ssl_cert
