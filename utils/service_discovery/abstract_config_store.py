@@ -10,7 +10,7 @@ from copy import deepcopy
 from os import path
 
 # 3p
-from requests.packages.urllib3.exceptions import TimeoutError
+from urllib3.exceptions import TimeoutError
 
 # project
 from utils.checkfiles import get_check_class, get_auto_conf, get_auto_conf_images
