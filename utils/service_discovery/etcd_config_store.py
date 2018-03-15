@@ -2,7 +2,7 @@
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
-from requests.packages.urllib3.exceptions import TimeoutError
+from urllib3.exceptions import TimeoutError
 import logging
 
 from etcd import EtcdKeyNotFound, EtcdConnectionFailed
