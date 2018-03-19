@@ -2,7 +2,8 @@
 
 # Important note
 
-This repository contains the source code for the Datadog Agent until major version 5.
+This repository contains the source code for the Datadog Agent up to and including
+major version 5.
 Although still supported, no major feature is planned for this release line and we
 encourage users and contributors to refer to the new Agent codebase, introduced
 with the release of version 6.0.0 and tracked in
@@ -12,6 +13,45 @@ with the release of version 6.0.0 and tracked in
 
 Please refer to the [Change log](https://github.com/DataDog/dd-agent/blob/master/CHANGELOG.md)
 for more details about the changes introduced at each release.
+
+## How to contribute code
+
+Before submitting any code, please read our [contributing guidelines](CONTRIBUTING.md).
+We'll keep accepting contributions as long as the major version 5 is supported
+but please consider submitting new features to the new Agent codebase.
+
+Please note that the Agent is licensed for simplicity's sake
+under a simplified BSD license, as indicated in the `LICENSE` file.
+Exceptions are marked with LICENSE-xxx where xxx is the component name.
+If you do **not** agree with the licensing terms and wish to contribute code nonetheless,
+please email us at <info@datadoghq.com> before submitting your
+pull request.
+
+### Setup your environment
+
+Required:
+
+* python 2.7
+* bundler (to get it: `gem install bundler`)
+
+```
+# Clone the repository
+git clone git@github.com:DataDog/dd-agent.git
+
+# Create a virtual environment and install the dependencies:
+cd dd-agent
+bundle install
+rake setup_env
+
+# Activate the virtual environment
+source venv/bin/activate
+
+# Lint
+bundle exec rake lint
+
+# Run a flavored test
+bundle exec rake ci:run[apache]
+```
 
 ## Integrations
 
