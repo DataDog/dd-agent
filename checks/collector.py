@@ -529,6 +529,8 @@ class Collector(object):
             del data['metrics']
             del data['events']
             del data['service_checks']
+            if data.get('processes'):
+                data['processes']['apiKey'] = '*************************' + data['processes'].get('apiKey', '')[-5:]
             log.debug("Metadata payload: %s", json.dumps(data))
 
         # Persist the status of the collection run.
