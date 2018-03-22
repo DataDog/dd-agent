@@ -1,0 +1,8 @@
+init_config:
+
+instances:
+
+    -   host: host-here
+        user: user-here
+        auth_password: password-here
+        priv_password: password-here
