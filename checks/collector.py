@@ -199,25 +199,7 @@ class Collector(object):
             procfs_path = agentConfig.get('procfs_path', '/proc').rstrip('/')
             psutil.PROCFS_PATH = procfs_path
 
-        # Unix System Checks
-        self._unix_system_checks = {
-            'io': u.IO(log),
-            'load': u.Load(log),
-            'memory': u.Memory(log),
-            'processes': u.Processes(log),
-            'cpu': u.Cpu(log),
-            'system': u.System(log),
-            'file_handles': u.FileHandles(log)
-        }
-
-        # Win32 System `Checks
-        self._win32_system_checks = {
-            'io': w32.IO(log),
-            'proc': w32.Processes(log),
-            'memory': w32.Memory(log),
-            'cpu': w32.Cpu(log),
-            'system': w32.System(log)
-        }
+        self._initialize_system_checks()
 
         # Old-style metric checks
         self._ganglia = Ganglia(log) if self.agentConfig.get('ganglia_host', '') != '' else None
@@ -296,7 +278,8 @@ class Collector(object):
             # Win32 system checks
             for check_name in ['memory', 'cpu', 'io', 'proc', 'system']:
                 try:
-                    metrics.extend(self._win32_system_checks[check_name].check(self.agentConfig))
+                    if self._win32_system_checks[check_name]:
+                        metrics.extend(self._win32_system_checks[check_name].check(self.agentConfig))
                 except Exception:
                     log.exception('Unable to get %s metrics', check_name)
         else:
@@ -304,52 +287,64 @@ class Collector(object):
             sys_checks = self._unix_system_checks
 
             for check_name in ['load', 'system', 'cpu', 'file_handles']:
-                try:
-                    result_check = sys_checks[check_name].check(self.agentConfig)
-                    if result_check:
-                        payload.update(result_check)
-                except Exception:
+                if sys_checks[check_name]:
+                    try:
+                        result_check = sys_checks[check_name].check(self.agentConfig)
+                        if result_check:
+                            payload.update(result_check)
+                    except Exception:
+                        log.exception('Unable to get %s metrics', check_name)
+                else:
                     log.exception('Unable to get %s metrics', check_name)
 
-            try:
-                memory = sys_checks['memory'].check(self.agentConfig)
-            except Exception:
+            if sys_checks['memory']:
+                try:
+                    memory = sys_checks['memory'].check(self.agentConfig)
+                except Exception:
                     log.exception('Unable to get memory metrics')
+                else:
+                    if memory:
+                        memstats = {
+                            'memPhysUsed': memory.get('physUsed'),
+                            'memPhysPctUsable': memory.get('physPctUsable'),
+                            'memPhysFree': memory.get('physFree'),
+                            'memPhysTotal': memory.get('physTotal'),
+                            'memPhysUsable': memory.get('physUsable'),
+                            'memSwapUsed': memory.get('swapUsed'),
+                            'memSwapFree': memory.get('swapFree'),
+                            'memSwapPctFree': memory.get('swapPctFree'),
+                            'memSwapTotal': memory.get('swapTotal'),
+                            'memCached': memory.get('physCached'),
+                            'memBuffers': memory.get('physBuffers'),
+                            'memShared': memory.get('physShared'),
+                            'memSlab': memory.get('physSlab'),
+                            'memPageTables': memory.get('physPageTables'),
+                            'memSwapCached': memory.get('swapCached')
+                        }
+                        payload.update(memstats)
             else:
-                if memory:
-                    memstats = {
-                        'memPhysUsed': memory.get('physUsed'),
-                        'memPhysPctUsable': memory.get('physPctUsable'),
-                        'memPhysFree': memory.get('physFree'),
-                        'memPhysTotal': memory.get('physTotal'),
-                        'memPhysUsable': memory.get('physUsable'),
-                        'memSwapUsed': memory.get('swapUsed'),
-                        'memSwapFree': memory.get('swapFree'),
-                        'memSwapPctFree': memory.get('swapPctFree'),
-                        'memSwapTotal': memory.get('swapTotal'),
-                        'memCached': memory.get('physCached'),
-                        'memBuffers': memory.get('physBuffers'),
-                        'memShared': memory.get('physShared'),
-                        'memSlab': memory.get('physSlab'),
-                        'memPageTables': memory.get('physPageTables'),
-                        'memSwapCached': memory.get('swapCached')
-                    }
-                    payload.update(memstats)
+                log.exception('Unable to get memory metrics')
 
-            try:
-                ioStats = sys_checks['io'].check(self.agentConfig)
-            except Exception:
+            if sys_checks['io']:
+                try:
+                    ioStats = sys_checks['io'].check(self.agentConfig)
+                except Exception:
                     log.exception('Unable to get io metrics')
+                else:
+                    if ioStats:
+                        payload['ioStats'] = ioStats
             else:
-                if ioStats:
-                    payload['ioStats'] = ioStats
+                log.exception('Unable to get io metrics')
 
-            try:
-                processes = sys_checks['processes'].check(self.agentConfig)
-            except Exception:
+            if sys_checks['processes']:
+                try:
+                    processes = sys_checks['processes'].check(self.agentConfig)
+                except Exception:
                     log.exception('Unable to get processes metrics')
+                else:
+                    payload.update({'processes': processes})
             else:
-                payload.update({'processes': processes})
+                log.exception('Unable to get processes metrics')
 
         # Run old-style checks
         if self._ganglia is not None:
@@ -836,6 +831,105 @@ class Collector(object):
             log.warning("gohai command failed with error %s", e)
 
         return output
+
+    def _initialize_system_checks(self):
+        if Platform.is_windows():
+            self._initialize_windows_system_checks()
+        else:
+             self._initialize_linux_system_checks()
+
+    def _initialize_linux_system_checks(self):
+        # Unix System Checks
+        try:
+            u_io = u.IO(log)
+        except u_io = None
+            log.warning("Failed to load System IO Check")
+
+        try:
+            u_load = u.Load(log)
+        except:
+            u_io = None
+            log.warning("Failed to load System Load Check")
+
+        try:
+            u_mem = u.Memory(log)
+        except:
+            u_mem = None
+            log.warning("Failed to load System Memory check")
+
+        try:
+            u_proc = u.Processes(log)
+        except:
+            u_proc = None
+            log.warning("Failed to load System Process check")
+
+        try:
+            u_cpu = u.Cpu(log)
+        except:
+            u_cpu = None
+            log.warning("Failed to load System IO check")
+
+        try:
+            u_system = u.System(log)
+        except:
+            u_system = None
+            log.warning("Failed to load System check")
+
+        try:
+            u_fh = u.FileHandles(log)
+        except:
+            u_fh = None
+            log.warning("Failed to load System FileHandle check")
+
+        self._unix_system_checks = {
+            'io': u_io,
+            'load': u_load,
+            'memory': u_mem,
+            'processes': u_proc,
+            'cpu': u_cpu,
+            'system': u_system,
+            'file_handles': u_fh,
+        }
+
+    def _initialize_windows_system_checks(self):
+        # Win32 System `Checks
+        try:
+            w32_io = w32.IO(log)
+        except:
+            w32_io = None
+            log.warning("Failed to load System IO check")
+
+        try:
+            w32_proc = w32.Processes(log)
+        except:
+            w32_proc = None
+            log.warning("Failed to load System Process check")
+
+        try:
+            w32_mem = w32.Memory(log)
+        except:
+            w32_mem = None
+            log.warning("Failed to load System Memory check")
+
+        try:
+            w32_cpu = w32.Cpu(log)
+        except:
+            w32_cpu = None
+            log.warning("Failed to load System IO check")
+
+        try:
+            w32_system = w32.System(log)
+        except:
+            w32_system = None
+            log.warning("Failed to load System check")
+
+        self._win32_system_checks = {
+            'io': w32_io,
+            'proc': w32_proc,
+            'memory': w32_mem,
+            'cpu': w32.cpu,
+            'system': w32.system,
+        }
 
     @staticmethod
     def _decode_tzname(tzname):
