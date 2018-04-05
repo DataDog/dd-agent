@@ -14,7 +14,7 @@ set -u
 DEFAULT_AGENT_VERSION="5.23.0"
 # Pin pip version, in the past there was some buggy releases and get-pip.py
 # always pulls the latest version
-PIP_VERSION="6.1.1"
+PIP_VERSION="9.0.3"
 VIRTUALENV_VERSION="1.11.6"
 SUPERVISOR_VERSION="3.3.0"
 SETUPTOOLS_VERSION="20.9.0"
@@ -455,7 +455,11 @@ elif check_version $PRE_SDK_RELEASE $AGENT_VERSION; then
 
   # Install `datadog-checks-base` dependency before any checks
   cd "$DD_HOME/integrations/datadog-checks-base"
-  "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.txt"
+  if $VENV_PIP_CMD install -r "requirements.txt" 2>&1; then
+      echo "$INT is installed"
+  else
+      echo "Could not install $INT, skipping"
+  fi
   $PYTHON_CMD "setup.py" bdist_wheel
   $VENV_PIP_CMD install dist/*.whl
   cd -
@@ -471,7 +475,11 @@ elif check_version $PRE_SDK_RELEASE $AGENT_VERSION; then
     cd "$INT_DIR"
 
     if [ -f "requirements.txt" ]; then
-      "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.txt"
+        if $VENV_PIP_CMD install -r "requirements.txt" 2>&1; then
+            echo "$INT is installed"
+        else
+            echo "Could not install $INT, skipping"
+        fi
     fi
     if [ -f "setup.py" ]; then
       $PYTHON_CMD "setup.py" bdist_wheel
