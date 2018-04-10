@@ -456,8 +456,7 @@ elif check_version $PRE_SDK_RELEASE $AGENT_VERSION; then
   # Install `datadog-checks-base` dependency before any checks
   cd "$DD_HOME/integrations/datadog-checks-base"
   "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.in"
-  $PYTHON_CMD "setup.py" bdist_wheel
-  $VENV_PIP_CMD install dist/*.whl
+  ($PYTHON_CMD "setup.py" bdist_wheel && $VENV_PIP_CMD install dist/*.whl) || true
   cd -
 
   for INT in $INTEGRATIONS; do
