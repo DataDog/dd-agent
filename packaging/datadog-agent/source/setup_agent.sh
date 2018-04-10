@@ -460,9 +460,7 @@ elif check_version $PRE_SDK_RELEASE $AGENT_VERSION; then
   elif [ -f "requirements.txt" ]; then
     "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.txt"
   fi
-  if [ -f "setup.py" ]; then
-    $PYTHON_CMD "setup.py" bdist_wheel && $VENV_PIP_CMD install dist/*.whl
-  else
+  $PYTHON_CMD "setup.py" bdist_wheel && $VENV_PIP_CMD install dist/*.whl
   cd -
 
   for INT in $INTEGRATIONS; do
