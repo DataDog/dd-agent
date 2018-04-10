@@ -474,8 +474,7 @@ elif check_version $PRE_SDK_RELEASE $AGENT_VERSION; then
       "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.in"
     fi
     if [ -f "setup.py" ]; then
-      $PYTHON_CMD "setup.py" bdist_wheel
-      $VENV_PIP_CMD install dist/*.whl
+      ($PYTHON_CMD "setup.py" bdist_wheel && $VENV_PIP_CMD install dist/*.whl) || true
     else
       if [ -f "datadog_checks/$INT/$INT.py" ]; then
         cp "datadog_checks/$INT/$INT.py" "$DD_HOME/agent/checks.d/$INT.py"
