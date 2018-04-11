@@ -6,6 +6,7 @@
 import logging
 import types
 import os
+import re
 import socket
 
 # 3rd party
@@ -198,12 +199,17 @@ class EC2(object):
 
             import boto.ec2
             proxy_settings = get_proxy(agentConfig) or {}
+
+            proxy_host = proxy_settings.get('host')
+            if proxy_host is not None:
+                proxy_host = re.sub(r'^http(s?)://', '', proxy_host)
+
             connection = boto.ec2.connect_to_region(
                 region,
                 aws_access_key_id=iam_params['AccessKeyId'],
                 aws_secret_access_key=iam_params['SecretAccessKey'],
                 security_token=iam_params['Token'],
-                proxy=proxy_settings.get('host'), proxy_port=proxy_settings.get('port'),
+                proxy=proxy_host, proxy_port=proxy_settings.get('port'),
                 proxy_user=proxy_settings.get('user'), proxy_pass=proxy_settings.get('password')
             )
 
