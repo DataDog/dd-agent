@@ -9,7 +9,7 @@ environment:
   NOSE_FILTER: not unix and not fixme
   PYWIN_PATH: C:\projects\dd-agent\.cache\pywin32-py2.7.exe
   SKIP_LINT: true
-  INTEGRATIONS_CORE_BRANCH: jaime/pdhfixes 
+  INTEGRATIONS_CORE_BRANCH: jaime/pdhfixes
   matrix:
   - PYTHON: C:\\Python27
     PYTHON_VERSION: 2.7.9
@@ -45,6 +45,7 @@ install:
   - ps: rm $env:PYTHON/lib/site-packages/$env:PYWIN32_INSTALL_DIR/adodbapi/__init__.py
   - ps: rm $env:PYTHON/lib/site-packages/$env:PYWIN32_INSTALL_DIR/adodbapi/__init__.pyc
   - ps: (& "$env:PYTHON/Scripts/pip.exe" install wheel)
+  # NOTE: datadog-checks-base will be renamed to datadog_checks_base, fix when it breaks
   - cd c:\projects\integrations-core\datadog-checks-base
   - ps: (& "$env:PYTHON/python.exe" setup.py bdist_wheel)
   - ps: (& "$env:PYTHON/Scripts/pip.exe" install .)
