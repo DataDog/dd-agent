@@ -3,9 +3,9 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
-**Linux, Windows, Docker**
-
 # 5.23.0 / 03-21-2018
+
+**Linux, Windows, Docker**
 
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.22.3...5.23.0
