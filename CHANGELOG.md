@@ -3,6 +3,30 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+**Linux, Windows, Docker**
+
+# 5.23.0 / 03-21-2018
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.22.3...5.23.0
+
+### Changes
+Please refer to the [Integrations Core Checks 5.23.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.23.0) for the list of changes on the core checks.
+
+Please refer to the [Process Agent 5.23.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.23.0) for more information on the Process Agent.
+
+* [BUGFIX] Windows: Fix pdh counters on localized versions of windows. See [#3713][]
+* [BUGFIX] Remove API key if included in processes metadata payload. See [#3712][]
+* [BUGFIX] Avoid failing the configcheck command if the instances is empty. See [#3704][]
+* [BUGFIX] Kuernetes: fix logic to collect ownerreference for k8 1.9. See [#3667][]
+* [BUGFIX] Fix an error when the agent failed to find the name of a docker image. See [#3669][]
+* [BUGFIX] pause-container: update the list of the pause containers. See [#3670][]
+* [IMPROVEMENT] jmxfetch: include version 0.19.0. See [#3711][]
+* [IMPROVEMENT] Logs an INFO message instead of an ERROR when the host is deemed as Dockerless. See [#3657][]
+* [IMPROVEMENT]  Windows: change default datatype for pdh queries to double. See [#3703][]
+* [OTHER] Remove the deprecated option `skip_event` in network checks. See [#3643][]
+
+
 # 5.22.3 / 03-08-2018
 
 **Linux, Windows, Docker**
