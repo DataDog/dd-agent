@@ -45,8 +45,7 @@ install:
   - ps: rm $env:PYTHON/lib/site-packages/$env:PYWIN32_INSTALL_DIR/adodbapi/__init__.py
   - ps: rm $env:PYTHON/lib/site-packages/$env:PYWIN32_INSTALL_DIR/adodbapi/__init__.pyc
   - ps: (& "$env:PYTHON/Scripts/pip.exe" install wheel)
-  # NOTE: datadog-checks-base will be renamed to datadog_checks_base, fix when it breaks
-  - cd c:\projects\integrations-core\datadog-checks-base
+  - cd c:\projects\integrations-core\datadog_checks_base
   - ps: (& "$env:PYTHON/python.exe" setup.py bdist_wheel)
   - ps: (& "$env:PYTHON/Scripts/pip.exe" install .)
   - cd %TRAVIS_BUILD_DIR%

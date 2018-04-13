@@ -47,8 +47,7 @@ before_install:
 
 install:
   - git -C $HOME/integrations-core pull || git clone -b $INTEGRATIONS_CORE_BRANCH --depth 1 https://github.com/DataDog/integrations-core.git $HOME/integrations-core
-  # NOTE: datadog-checks-base will be renamed to datadog_checks_base, fix when it breaks
-  - cd $HOME/integrations-core/datadog-checks-base && python setup.py bdist_wheel && pip install . && cd -
+  - cd $HOME/integrations-core/datadog_checks_base && python setup.py bdist_wheel && pip install . && cd -
 before_script: echo "OVERRIDING TRAVIS STEPS"
 
 script:
