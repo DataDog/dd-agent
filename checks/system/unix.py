@@ -405,6 +405,8 @@ class Memory(Check):
                 memData['physSlab'] = int(meminfo.get('Slab', 0)) / 1024
                 memData['physPageTables'] = int(meminfo.get('PageTables', 0)) / 1024
                 memData['physUsed'] = memData['physTotal'] - memData['physFree']
+                memData['physCommitLimit'] = int(meminfo.get('CommitLimit', 0)) / 1024
+                memData['physCommittedAs'] = int(meminfo.get('Committed_AS', 0)) / 1024
 
                 if 'MemAvailable' in meminfo:
                     memData['physUsable'] = int(meminfo.get('MemAvailable', 0)) / 1024
