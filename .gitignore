@@ -39,6 +39,7 @@ tests/core/fixtures/flare/dd*
 .python-version
 .ropeproject
 .bundle
+.rbenv*
 .idea
 tags
 

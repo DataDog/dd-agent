@@ -9,6 +9,7 @@ environment:
   NOSE_FILTER: not unix and not fixme
   PYWIN_PATH: C:\projects\dd-agent\.cache\pywin32-py2.7.exe
   SKIP_LINT: true
+  INTEGRATIONS_CORE_BRANCH: master 
   matrix:
   - PYTHON: C:\\Python27
     PYTHON_VERSION: 2.7.9
@@ -36,12 +37,18 @@ install:
   - gem install bundler --conservative --quiet --no-ri --no-rdoc
   - bundle install
   - bundle package
+  - git clone -b %INTEGRATIONS_CORE_BRANCH% https://github.com/DataDog/integrations-core.git c:\projects\integrations-core
   - if not exist %PIP_CACHE% mkdir %PIP_CACHE%
   - ps: If (-Not (Test-Path $env:PYWIN_PATH)) {(new-object net.webclient).DownloadFile("$env:PYWIN32_URL", "$env:PYWIN_PATH")}
   - "%PYTHON%/Scripts/easy_install.exe %PYWIN_PATH%"
   # Remove the adodbapi module shipped with pywin32: it conflicts with the pip-installed adodbapi
   - ps: rm $env:PYTHON/lib/site-packages/$env:PYWIN32_INSTALL_DIR/adodbapi/__init__.py
   - ps: rm $env:PYTHON/lib/site-packages/$env:PYWIN32_INSTALL_DIR/adodbapi/__init__.pyc
+  - ps: (& "$env:PYTHON/Scripts/pip.exe" install wheel)
+  - cd c:\projects\integrations-core\datadog_checks_base
+  - ps: (& "$env:PYTHON/python.exe" setup.py bdist_wheel)
+  - ps: (& "$env:PYTHON/Scripts/pip.exe" install .)
+  - cd %TRAVIS_BUILD_DIR%
 build: off
 test_script:
   - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
