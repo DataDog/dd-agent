@@ -28,7 +28,7 @@ env:
     - PIP_CACHE=$HOME/.cache/pip
     - VOLATILE_DIR=/tmp
     - DD_CASHER_DIR=/tmp/casher
-    - INTEGRATIONS_CORE_BRANCH=jaime/pdhfixes
+    - INTEGRATIONS_CORE_BRANCH=master
   matrix:
     - TRAVIS_FLAVOR=default
     - TRAVIS_FLAVOR=checks_mock
