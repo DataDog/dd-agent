@@ -36,7 +36,7 @@ Required:
 
 ```
 # Clone the repository
-git clone git@github.com:DataDog/dd-agent.git
+git clone https://github.com/DataDog/dd-agent
 
 # Create a virtual environment and install the dependencies:
 cd dd-agent
