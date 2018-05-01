@@ -240,11 +240,11 @@ class JMXFetch(ProcessRunner):
 
             classpath = path_to_jmxfetch
             if tools_jar_path is not None:
-                classpath = r"%s:%s" % (tools_jar_path, classpath)
+                classpath = r"%s%s%s" % (tools_jar_path, os.pathsep, classpath)
             if custom_jar_paths:
-                classpath = r"%s:%s" % (':'.join(custom_jar_paths), classpath)
+                classpath = r"%s%s%s" % (os.pathsep.join(custom_jar_paths), os.pathsep, classpath)
             if self.config_jar_path:
-                classpath = r"%s:%s" % (self.config_jar_path, classpath)
+                classpath = r"%s%s%s" % (self.config_jar_path, os.pathsep, classpath)
 
             subprocess_args = [
                 path_to_java,  # Path to the java bin
