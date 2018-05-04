@@ -26,7 +26,7 @@ def partition(s, sep):
 
 def point_sorter(p):
     # Sort and group by timestamp, metric name, host_name, device_name
-    return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None))
+    return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None),sorted(p[3].get('tags', None)))
 
 
 class EventDefaults(object):
@@ -189,7 +189,9 @@ class Dogstream(object):
                 # reset generator to try again during the next check interval
                 self._gen = None
 
+            self.logger.debug("Pre-aggregated metrics: {0}".format(self._values))
             check_output = self._aggregate(self._values)
+            self.logger.debug("Aggregated metrics: {0}".format(check_output))
             if self._events:
                 check_output.update({"dogstreamEvents": self._events})
                 self.logger.debug("Found {0} events".format(len(self._events)))
@@ -305,7 +307,7 @@ class Dogstream(object):
 
         values.sort(key=point_sorter)
 
-        for (timestamp, metric, host_name, device_name), val_attrs in groupby(values, key=point_sorter):
+        for (timestamp, metric, host_name, device_name, tags), val_attrs in groupby(values, key=point_sorter):
             attributes = {}
             vals = []
             for _metric, _timestamp, v, a in val_attrs:
