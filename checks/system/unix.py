@@ -38,6 +38,15 @@ class IO(Check):
         self.item_re = re.compile(r'^([\-a-zA-Z0-9\/]+)')
         self.value_re = re.compile(r'\d+\.\d+')
 
+    def _cap_io_util_value(self, val):
+        # Cap system.io.util metric value to 102%
+        # This is a known won't fix bug in iostat
+        if val > 100:
+            self.logger.debug("The %util value exceeds the limit: {}%".format(val))
+            return 0
+        else:
+            return val
+
     def _parse_linux2(self, output):
         recentStats = output.split('Device:')[2].split('\n')
         header = recentStats[0]
@@ -72,6 +81,8 @@ class IO(Check):
 
             for headerIndex in range(len(headerNames)):
                 headerName = headerNames[headerIndex]
+                if '%util' in headerName:
+                    values[headerIndex] = self._cap_io_util_value(values[headerIndex])
                 ioStats[device][headerName] = values[headerIndex]
 
         return ioStats
@@ -166,7 +177,10 @@ class IO(Check):
                     # cols[1:] are the values
                     io[cols[0]] = {}
                     for i in range(1, len(cols)):
-                        io[cols[0]][self.xlate(headers[i], "sunos")] = cols[i]
+                        xlate_header = self.xlate(headers[i], "sunos")
+                        if '%util' in xlate_header:
+                            cols[i] = self._cap_io_util_value(cols[i])
+                        io[cols[0]][xlate_header] = cols[i]
 
             elif sys.platform.startswith("freebsd"):
                 output, _, _ = get_subprocess_output(["iostat", "-x", "-d", "1", "2"], self.logger)
@@ -194,7 +208,10 @@ class IO(Check):
                     # cols[1:] are the values
                     io[cols[0]] = {}
                     for i in range(1, len(cols)):
-                        io[cols[0]][self.xlate(headers[i], "freebsd")] = cols[i]
+                        xlate_header = self.xlate(headers[i], "freebsd")
+                        if '%util' in xlate_header:
+                            cols[i] = self._cap_io_util_value(cols[i])
+                        io[cols[0]][xlate_header] = cols[i]
             elif sys.platform == 'darwin':
                 iostat, _, _ = get_subprocess_output(['iostat', '-d', '-c', '2', '-w', '1'], self.logger)
                 #          disk0           disk1          <-- number of disks
