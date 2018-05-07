@@ -355,6 +355,9 @@ class Collector(object):
         if self._ganglia is not None:
             payload['ganglia'] = self._ganglia.check(self.agentConfig)
         if self._dogstream is not None:
+            # Reinitialize Dogstreams every 20 runs ~ (approx) 5 minutes
+            if (self.run_count % 20) == 0: 
+                self._dogstream = Dogstreams.init(log, self.agentConfig) 
             dogstreamData = self._dogstream.check(self.agentConfig)
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
             if dogstreamEvents:
