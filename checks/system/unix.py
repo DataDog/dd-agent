@@ -41,8 +41,8 @@ class IO(Check):
     def _cap_io_util_value(self, val):
         # Cap system.io.util metric value to 102%
         # This is a known won't fix bug in iostat
-        if val > 102:
-            self.logger.exception("The %util value exceeds the limit: {}%".format(val))
+        if val > 100:
+            self.logger.debug("The %util value exceeds the limit: {}%".format(val))
             return 0
         else:
             return val
@@ -81,7 +81,7 @@ class IO(Check):
 
             for headerIndex in range(len(headerNames)):
                 headerName = headerNames[headerIndex]
-                if 'util' in headerName:
+                if '%util' in headerName:
                     values[headerIndex] = self._cap_io_util_value(values[headerIndex])
                 ioStats[device][headerName] = values[headerIndex]
 
@@ -178,7 +178,7 @@ class IO(Check):
                     io[cols[0]] = {}
                     for i in range(1, len(cols)):
                         xlate_header = self.xlate(headers[i], "sunos")
-                        if 'util' in xlate_header:
+                        if '%util' in xlate_header:
                             cols[i] = self._cap_io_util_value(cols[i])
                         io[cols[0]][xlate_header] = cols[i]
 
@@ -209,7 +209,7 @@ class IO(Check):
                     io[cols[0]] = {}
                     for i in range(1, len(cols)):
                         xlate_header = self.xlate(headers[i], "freebsd")
-                        if 'utils' in xlate_header:
+                        if '%util' in xlate_header:
                             cols[i] = self._cap_io_util_value(cols[i])
                         io[cols[0]][xlate_header] = cols[i]
             elif sys.platform == 'darwin':
