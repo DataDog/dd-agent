@@ -602,7 +602,8 @@ def main():
                         time.sleep(1)
                         cs = Collector.run_single_check(check, verbose=True)
                         print CollectorStatus.render_check_status(cs)
-
+                    else:
+                        print "Check has run only once, if some metrics are missing you can run the command again with the 'check_rate' argument appended at the end to see any other metrics if available."
                     check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:
