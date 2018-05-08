@@ -27,7 +27,7 @@ def partition(s, sep):
 def point_sorter(p):
     # Sort and group by timestamp, metric name, host_name, device_name, (tags or attributes)
     tags = p[3].get('tags', None)
-    attribs = sorted(tags) if tags is not None else p[3]
+    attribs = sorted(tags.split(",")) if tags is not None else p[3]
     # Include tags (or attibutes if tags do not exists) to determine the uniqueness of a metric.
     return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None), attribs)
 
