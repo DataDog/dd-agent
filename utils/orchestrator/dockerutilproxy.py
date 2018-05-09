@@ -20,5 +20,8 @@ class DockerUtilProxy(BaseUtil):
         except Exception:
             return False
 
+    def get_host_tags(self):
+        return self.docker_util.get_host_tags()
+
     def get_host_metadata(self):
         return self.docker_util.get_host_metadata()

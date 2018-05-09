@@ -185,6 +185,25 @@ class TestDockerUtil(unittest.TestCase):
         self.assertEqual({'docker_version': '1.13.1', 'docker_swarm': 'active'}, DockerUtil().get_host_metadata())
         mock_version.assert_called_once()
 
+    def test_docker_host_tags_ok(self):
+        du = DockerUtil()
+        mock_isswarm = mock.MagicMock(name='is_swarm', return_value=False)
+        du._client = mock.MagicMock()
+        du.is_swarm = mock_isswarm
+
+        self.assertEqual([], DockerUtil().get_host_tags())
+
+    def test_docker_host_tags_swarm_ok(self):
+        du = DockerUtil()
+        mock_info = mock.MagicMock(name='info', return_value={'Swarm': {'ControlAvailable' : True}})
+        mock_isswarm = mock.MagicMock(name='is_swarm', return_value=True)
+        du._client = mock.MagicMock()
+        du._client.info = mock_info
+        du.is_swarm = mock_isswarm
+
+        self.assertEqual(['docker_swarm_node_role:manager'], DockerUtil().get_host_tags())
+        mock_info.assert_called_once()
+
     def test_docker_are_tags_filtered(self):
         with mock.patch.object(DockerUtil, 'is_k8s', side_effect=lambda: True):
             DockerUtil._drop()
