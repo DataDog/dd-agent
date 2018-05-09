@@ -48,7 +48,7 @@ class IO(Check):
             return val
 
     def _parse_linux2(self, output):
-        recentStats = output.split('Device:')[2].split('\n')
+        recentStats = output.split('Device')[2].split('\n')
         header = recentStats[0]
         headerNames = re.findall(self.header_re, header)
         device = None
