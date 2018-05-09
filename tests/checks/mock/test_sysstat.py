@@ -85,9 +85,35 @@ sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0
                 expected = '0.00'
             self.assertEqual(results['sda'][key], expected)
 
+        # example output from `iostat -d 1 2 -x -k` on
+        # ubuntu 18.04 x86_64, from deb package
+        # sysstat@11.6.1-1; main breaking change is
+        # that header starts with `Device` instead of `Device:`.
+        newer_iostat_output = """Linux 4.9.60-linuxkit-aufs (f3cf72f6fb4d)     05/09/18    _x86_64_    (2 CPU)
+
+Device            r/s     w/s     rkB/s     wkB/s   rrqm/s   wrqm/s  %rrqm  %wrqm r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
+sda              0.07    0.08      0.64      5.44     0.00     0.23   0.41  72.99    2.42   19.91   0.00     8.92    65.13   0.38   0.01
+
+Device            r/s     w/s     rkB/s     wkB/s   rrqm/s   wrqm/s  %rrqm  %wrqm r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
+sda              0.00    0.00      0.00      0.00     0.00     0.00   0.00   0.00    0.00    0.00   0.00     0.00     0.00   0.00   0.01
+
+"""
+
+        checker = IO(logger)
+        results = checker._parse_linux2(newer_iostat_output)
+        self.assertTrue('sda' in results)
+        for key in ('rrqm/s', 'wrqm/s', 'r/s', 'w/s', 'rkB/s', 'wkB/s',
+                    'r_await', 'w_await', 'svctm', '%util'):
+            self.assertTrue(key in results['sda'], 'key %r not in results["sda"]' % key)
+            if key == r'%util':
+                expected = 0.01
+            else:
+                expected = '0.00'
+            self.assertEqual(results['sda'][key], expected)
+
         # example output from `iostat -d 1 d -x -k` on
         # centos 5.8 x86_64, from RPM package
-        # sysstat@7.0.2; it differs from the the above by
+        # sysstat@7.0.2; it differs from the first one by
         # not having split-out r_await and w_await fields
         centos_iostat_output = """Linux 2.6.18-308.el5 (localhost.localdomain)  05/29/2012
 
