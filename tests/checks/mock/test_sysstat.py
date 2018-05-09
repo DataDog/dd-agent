@@ -67,7 +67,7 @@ Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu
 sda               0.44     2.58    5.79    2.84   105.53   639.03   172.57     0.17   19.38    1.82   55.26   0.66   0.57
 
 Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
-sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00    0.00    0.00   0.00   0.00
+sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00    0.00    0.00   0.00   0.01
 
 """
 
@@ -79,11 +79,15 @@ sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0
                     'avgrq-sz', 'avgqu-sz', 'await', 'r_await',
                     'w_await', 'svctm', '%util'):
             self.assertTrue(key in results['sda'], 'key %r not in results["sda"]' % key)
-            self.assertEqual(results['sda'][key], '0.00')
+            if key == r'%util':
+                expected = 0.01
+            else:
+                expected = '0.00'
+            self.assertEqual(results['sda'][key], expected)
 
         # example output from `iostat -d 1 d -x -k` on
         # centos 5.8 x86_64, from RPM package
-        # sysstat@7.0.2; it differs from the above by
+        # sysstat@7.0.2; it differs from the the above by
         # not having split-out r_await and w_await fields
         centos_iostat_output = """Linux 2.6.18-308.el5 (localhost.localdomain)  05/29/2012
 
@@ -91,7 +95,7 @@ Device:         rrqm/s   wrqm/s   r/s   w/s    rkB/s    wkB/s avgrq-sz avgqu-sz 
 sda               9.44     7.56 16.76  4.40   322.05    47.75    34.96     0.01    0.59   0.35   0.74
 
 Device:         rrqm/s   wrqm/s   r/s   w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
-sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.00
+sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.01
 
 """
 
@@ -101,7 +105,11 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
         for key in ('rrqm/s', 'wrqm/s', 'r/s', 'w/s', 'rkB/s', 'wkB/s',
                     'avgrq-sz', 'avgqu-sz', 'await', 'svctm', '%util'):
             self.assertTrue(key in results['sda'], 'key %r not in results["sda"]' % key)
-            self.assertEqual(results['sda'][key], '0.00')
+            if key == r'%util':
+                expected = 0.01
+            else:
+                expected = '0.00'
+            self.assertEqual(results['sda'][key], expected)
 
         # iostat -o -d -c 2 -w 1
         # OS X 10.8.3 (internal SSD + USB flash attached)
