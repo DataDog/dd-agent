@@ -82,7 +82,7 @@ class IO(Check):
             for headerIndex in range(len(headerNames)):
                 headerName = headerNames[headerIndex]
                 if '%util' in headerName:
-                    values[headerIndex] = self._cap_io_util_value(values[headerIndex])
+                    values[headerIndex] = self._cap_io_util_value(float(values[headerIndex]))
                 ioStats[device][headerName] = values[headerIndex]
 
         return ioStats
@@ -179,7 +179,7 @@ class IO(Check):
                     for i in range(1, len(cols)):
                         xlate_header = self.xlate(headers[i], "sunos")
                         if '%util' in xlate_header:
-                            cols[i] = self._cap_io_util_value(cols[i])
+                            cols[i] = self._cap_io_util_value(float(cols[i]))
                         io[cols[0]][xlate_header] = cols[i]
 
             elif sys.platform.startswith("freebsd"):
@@ -210,7 +210,7 @@ class IO(Check):
                     for i in range(1, len(cols)):
                         xlate_header = self.xlate(headers[i], "freebsd")
                         if '%util' in xlate_header:
-                            cols[i] = self._cap_io_util_value(cols[i])
+                            cols[i] = self._cap_io_util_value(float(cols[i]))
                         io[cols[0]][xlate_header] = cols[i]
             elif sys.platform == 'darwin':
                 iostat, _, _ = get_subprocess_output(['iostat', '-d', '-c', '2', '-w', '1'], self.logger)
