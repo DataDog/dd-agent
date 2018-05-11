@@ -465,8 +465,8 @@ elif check_version $PRE_SDK_RELEASE $AGENT_VERSION; then
   cd -
 
   for INT in $INTEGRATIONS; do
-    if [[ "$INT" == "datadog_checks_base" -o "$INT" == "datadog-checks-base" ]]; then continue; fi
-    if [[ "$INT" == "sqlserver" ]]; then continue; fi
+    if [ "$INT" = "datadog_checks_base" -o "$INT" = "datadog-checks-base" ]; then continue; fi
+    if [ "$INT" = "sqlserver" ]; then continue; fi
 
     INT_DIR="$DD_HOME/integrations/$INT"
     # Only take into account directories with a `manifest.json` file
