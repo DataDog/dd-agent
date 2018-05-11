@@ -453,8 +453,9 @@ elif check_version $PRE_SDK_RELEASE $AGENT_VERSION; then
   print_console "* Setting up integrations"
   INTEGRATIONS=$(ls $DD_HOME/integrations/)
 
-  # Install `datadog-checks-base` dependency before any checks
-  cd "$DD_HOME/integrations/datadog-checks-base"
+  # Install `datadog_checks_base` dependency before any checks
+  # Handle both old (`-`) and new (`_`) names
+  cd "$DD_HOME/integrations/datadog_checks_base" || cd "$DD_HOME/integrations/datadog-checks-base"
   if [ -f "requirements.in" ]; then
     "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.in"
   elif [ -f "requirements.txt" ]; then
@@ -464,8 +465,8 @@ elif check_version $PRE_SDK_RELEASE $AGENT_VERSION; then
   cd -
 
   for INT in $INTEGRATIONS; do
-    if [[ "$INT" == "datadog-checks-base" ]]; then continue; fi
-    if [[ "$INT" == "sqlserver" ]]; then continue; fi
+    if [ "$INT" = "datadog_checks_base" -o "$INT" = "datadog-checks-base" ]; then continue; fi
+    if [ "$INT" = "sqlserver" ]; then continue; fi
 
     INT_DIR="$DD_HOME/integrations/$INT"
     # Only take into account directories with a `manifest.json` file
