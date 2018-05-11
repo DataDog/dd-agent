@@ -1,7 +1,26 @@
-Datadog Agent 6 has been officially released and the release notes can be found [here](https://github.com/DataDog/datadog-agent/releases). Agent 5 will continue to see releases. 
+Datadog Agent 6 has been officially released and the release notes can be found [here](https://github.com/DataDog/datadog-agent/releases). Agent 5 will continue to see releases.
 
 Changes
 =======
+
+# 5.24.0 / 05-11-2018
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.23.0...5.24.0
+
+### Changes
+Please refer to the [Integrations Core Checks 6.2.0 tag](https://github.com/DataDog/integrations-core/releases/tag/6.2.0) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 6.2.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.2.0) for more information on the Process Agent.
+
+Please refer to the [Process Agent 6.2.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/6.2.0) for more information on the Process Agent.
+
+* [IMPROVEMENT] Windows: Add pdh data to flare. See [#3719][]
+* [IMPROVEMENT] JMXFetch: Bump to `0.20.0`. See [#3726][] and [jmxfetch 0.20.0 tag](https://github.com/DataDog/jmxfetch/releases/tag/0.20.0)
+* [OTHER] subprocess_output: Add compatibility layer with `datadog_checks_base`. See [#3723][]
+* [OTHER] Windows: Use PDH libs provided in `datadog_checks_base`. See [#3691][]
 
 # 5.23.0 / 03-21-2018
 
@@ -4545,6 +4564,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3165]: https://github.com/DataDog/dd-agent/issues/3165
 [#3166]: https://github.com/DataDog/dd-agent/issues/3166
 [#3168]: https://github.com/DataDog/dd-agent/issues/3168
+[#3169]: https://github.com/DataDog/dd-agent/issues/3169
 [#3172]: https://github.com/DataDog/dd-agent/issues/3172
 [#3174]: https://github.com/DataDog/dd-agent/issues/3174
 [#3176]: https://github.com/DataDog/dd-agent/issues/3176
@@ -4690,6 +4710,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3537]: https://github.com/DataDog/dd-agent/issues/3537
 [#3538]: https://github.com/DataDog/dd-agent/issues/3538
 [#3539]: https://github.com/DataDog/dd-agent/issues/3539
+[#3543]: https://github.com/DataDog/dd-agent/issues/3543
 [#3546]: https://github.com/DataDog/dd-agent/issues/3546
 [#3547]: https://github.com/DataDog/dd-agent/issues/3547
 [#3548]: https://github.com/DataDog/dd-agent/issues/3548
@@ -4716,37 +4737,39 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3611]: https://github.com/DataDog/dd-agent/issues/3611
 [#3612]: https://github.com/DataDog/dd-agent/issues/3612
 [#3614]: https://github.com/DataDog/dd-agent/issues/3614
+[#3617]: https://github.com/DataDog/dd-agent/issues/3617
 [#3618]: https://github.com/DataDog/dd-agent/issues/3618
 [#3619]: https://github.com/DataDog/dd-agent/issues/3619
 [#3620]: https://github.com/DataDog/dd-agent/issues/3620
 [#3622]: https://github.com/DataDog/dd-agent/issues/3622
-[#3625]: https://github.com/DataDog/dd-agent/issues/3625
-[#3713]: https://github.com/DataDog/dd-agent/issues/3713
-[#3712]: https://github.com/DataDog/dd-agent/issues/3712
-[#3704]: https://github.com/DataDog/dd-agent/issues/3704
-[#3667]: https://github.com/DataDog/dd-agent/issues/3667
-[#3669]: https://github.com/DataDog/dd-agent/issues/3669
-[#3670]: https://github.com/DataDog/dd-agent/issues/3670
-[#3711]: https://github.com/DataDog/dd-agent/issues/3711
-[#3657]: https://github.com/DataDog/dd-agent/issues/3657
-[#3703]: https://github.com/DataDog/dd-agent/issues/3703
-[#3643]: https://github.com/DataDog/dd-agent/issues/3643
-[#3169]: https://github.com/DataDog/dd-agent/issues/3169
-[#3543]: https://github.com/DataDog/dd-agent/issues/3543
-[#3617]: https://github.com/DataDog/dd-agent/issues/3617
 [#3623]: https://github.com/DataDog/dd-agent/issues/3623
+[#3625]: https://github.com/DataDog/dd-agent/issues/3625
 [#3629]: https://github.com/DataDog/dd-agent/issues/3629
 [#3630]: https://github.com/DataDog/dd-agent/issues/3630
 [#3635]: https://github.com/DataDog/dd-agent/issues/3635
 [#3640]: https://github.com/DataDog/dd-agent/issues/3640
 [#3641]: https://github.com/DataDog/dd-agent/issues/3641
+[#3643]: https://github.com/DataDog/dd-agent/issues/3643
 [#3644]: https://github.com/DataDog/dd-agent/issues/3644
 [#3645]: https://github.com/DataDog/dd-agent/issues/3645
 [#3648]: https://github.com/DataDog/dd-agent/issues/3648
 [#3655]: https://github.com/DataDog/dd-agent/issues/3655
+[#3657]: https://github.com/DataDog/dd-agent/issues/3657
 [#3661]: https://github.com/DataDog/dd-agent/issues/3661
 [#3663]: https://github.com/DataDog/dd-agent/issues/3663
+[#3667]: https://github.com/DataDog/dd-agent/issues/3667
+[#3669]: https://github.com/DataDog/dd-agent/issues/3669
+[#3670]: https://github.com/DataDog/dd-agent/issues/3670
 [#3674]: https://github.com/DataDog/dd-agent/issues/3674
+[#3691]: https://github.com/DataDog/dd-agent/issues/3691
+[#3703]: https://github.com/DataDog/dd-agent/issues/3703
+[#3704]: https://github.com/DataDog/dd-agent/issues/3704
+[#3711]: https://github.com/DataDog/dd-agent/issues/3711
+[#3712]: https://github.com/DataDog/dd-agent/issues/3712
+[#3713]: https://github.com/DataDog/dd-agent/issues/3713
+[#3719]: https://github.com/DataDog/dd-agent/issues/3719
+[#3723]: https://github.com/DataDog/dd-agent/issues/3723
+[#3726]: https://github.com/DataDog/dd-agent/issues/3726
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
