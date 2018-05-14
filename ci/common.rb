@@ -223,8 +223,10 @@ namespace :ci do
 
       tests_directory = if flavors.include?('default') || flavors.include?('core_integration')
                           'tests/core'
-                        else
+                        elsif flavors.include?('checks_mock') || flavors.include?('windows')
                           'tests/checks'
+                        else
+                          flavors.map { |d| "tests/#{d}" }.compact.join(' ')
                         end
       # Rake on Windows doesn't support setting the var at the beginning of the
       # command

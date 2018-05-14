@@ -1,4 +1,7 @@
-sudo: false
+sudo: required
+
+services:
+  - docker
 
 branches:
   only:
@@ -32,13 +35,13 @@ env:
   matrix:
     - TRAVIS_FLAVOR=default
     - TRAVIS_FLAVOR=checks_mock
+    - TRAVIS_FLAVOR=tomcat
 
 matrix:
   include:
     - python: 2.7
       sudo: required
       dist: trusty
-      services: docker
       env: TRAVIS_FLAVOR=core_integration
 
 # Override travis defaults with empty jobs
@@ -56,6 +59,7 @@ script:
   # Needed if no cache exists
   - mkdir -p $INTEGRATIONS_DIR
   - ls -al $INTEGRATIONS_DIR
+  - bundle exec rake setup_libs
   - bundle exec rake ci:run
   - ls -al $INTEGRATIONS_DIR
 
