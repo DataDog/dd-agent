@@ -249,7 +249,7 @@ device      r/s    w/s   kr/s   kw/s wait actv  svc_t  %w  %b
 ramdisk1    0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0
 sd0         0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   102
 sd1         0.0  139.0    0.0 1850.6  0.0  0.0    0.1   0   10
-"""     
+"""
         return output, 0, 0
 
     def freebsd_output(self, *args, **kwargs):
@@ -259,7 +259,7 @@ ad0        3.1   1.3    49.9    18.8    0   0.7   0
 extended device statistics
 device     r/s   w/s    kr/s    kw/s wait svc_t  %b
 ad0        0.0   2.0     0.0    31.8    0   0.2   102
-"""     
+"""
         return output, 0, 0
 
     @mock.patch('checks.system.unix.sys.platform', 'sunos5')
