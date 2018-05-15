@@ -323,6 +323,23 @@ class DockerUtil:
 
         return meta
 
+    def get_host_tags(self):
+        """
+        Returns tags for the swarm node role for the local host.
+        """
+
+        tags = []
+
+        if self.is_swarm():
+            try:
+                info = self.client.info()
+                node_role = 'manager' if info.get('Swarm', {}).get('ControlAvailable') else 'worker'
+                tags.append('%s:%s' % ("docker_swarm_node_role", node_role))
+            except Exception:
+                pass
+
+        return tags
+
     def set_docker_settings(self, init_config, instance):
         """Update docker settings"""
         self._docker_root = init_config.get('docker_root', '/')
