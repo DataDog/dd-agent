@@ -12,6 +12,7 @@ require './ci/system'
 require './ci/windows'
 require './ci/docker_daemon'
 require './ci/tomcat'
+require './ci/solr'
 
 CLOBBER.include '**/*.pyc'
 

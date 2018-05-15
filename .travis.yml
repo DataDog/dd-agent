@@ -36,6 +36,7 @@ env:
     - TRAVIS_FLAVOR=default
     - TRAVIS_FLAVOR=checks_mock
     - TRAVIS_FLAVOR=tomcat
+    - TRAVIS_FLAVOR=solr FLAVOR_VERSION=6.2
 
 matrix:
   include:
