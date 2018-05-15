@@ -33,6 +33,9 @@ env:
     - DD_CASHER_DIR=/tmp/casher
     - INTEGRATIONS_CORE_BRANCH=master
   matrix:
+    - TRAVIS_FLAVOR=cassandra FLAVOR_VERSION=2.0.17
+    - TRAVIS_FLAVOR=cassandra FLAVOR_VERSION=2.1.14
+    - TRAVIS_FLAVOR=cassandra FLAVOR_VERSION=2.2.10
     - TRAVIS_FLAVOR=default
     - TRAVIS_FLAVOR=checks_mock
     - TRAVIS_FLAVOR=kafka FLAVOR_VERSION=0.10.1.0-1

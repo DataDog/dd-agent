@@ -14,6 +14,7 @@ require './ci/docker_daemon'
 require './ci/tomcat'
 require './ci/solr'
 require './ci/kafka'
+require './ci/cassandra'
 
 CLOBBER.include '**/*.pyc'
 
