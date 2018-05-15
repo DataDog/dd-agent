@@ -13,6 +13,7 @@ require './ci/windows'
 require './ci/docker_daemon'
 require './ci/tomcat'
 require './ci/solr'
+require './ci/kafka'
 
 CLOBBER.include '**/*.pyc'
 

@@ -35,6 +35,9 @@ env:
   matrix:
     - TRAVIS_FLAVOR=default
     - TRAVIS_FLAVOR=checks_mock
+    - TRAVIS_FLAVOR=kafka FLAVOR_VERSION=0.10.1.0-1
+    # - TRAVIS_FLAVOR=kafka FLAVOR_VERSION=1.0.1-1
+    # - TRAVIS_FLAVOR=kafka FLAVOR_VERSION=1.1.0-1
     - TRAVIS_FLAVOR=tomcat
     - TRAVIS_FLAVOR=solr FLAVOR_VERSION=6.2
 
