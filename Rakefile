@@ -11,6 +11,10 @@ require './ci/default'
 require './ci/system'
 require './ci/windows'
 require './ci/docker_daemon'
+require './ci/tomcat'
+require './ci/solr'
+require './ci/kafka'
+require './ci/cassandra'
 
 CLOBBER.include '**/*.pyc'
 
@@ -24,8 +28,8 @@ unless ENV['CI']
   ENV['VOLATILE_DIR'] = '/tmp/dd-agent-testing'
   ENV['CONCURRENCY'] = ENV['CONCURRENCY'] || '2'
   ENV['NOSE_FILTER'] = 'not windows'
-  ENV['JMXFETCH_URL'] = 'https://dd-jmxfetch.s3.amazonaws.com'
 end
+ENV['JMXFETCH_URL'] = 'https://dd-jmxfetch.s3.amazonaws.com'
 
 desc 'Setup a development environment for the Agent'
 task 'setup_env' do

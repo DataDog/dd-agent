@@ -1,4 +1,7 @@
-sudo: false
+sudo: required
+
+services:
+  - docker
 
 branches:
   only:
@@ -31,14 +34,21 @@ env:
     - INTEGRATIONS_CORE_BRANCH=master
   matrix:
     - TRAVIS_FLAVOR=default
+    - TRAVIS_FLAVOR=cassandra FLAVOR_VERSION=2.0.17
+    - TRAVIS_FLAVOR=cassandra FLAVOR_VERSION=2.1.14
+    - TRAVIS_FLAVOR=cassandra FLAVOR_VERSION=2.2.10
     - TRAVIS_FLAVOR=checks_mock
+    - TRAVIS_FLAVOR=kafka FLAVOR_VERSION=0.10.1.0-1
+    # - TRAVIS_FLAVOR=kafka FLAVOR_VERSION=1.0.1-1
+    # - TRAVIS_FLAVOR=kafka FLAVOR_VERSION=1.1.0-1
+    - TRAVIS_FLAVOR=tomcat
+    - TRAVIS_FLAVOR=solr FLAVOR_VERSION=6.2
 
 matrix:
   include:
     - python: 2.7
       sudo: required
       dist: trusty
-      services: docker
       env: TRAVIS_FLAVOR=core_integration
 
 # Override travis defaults with empty jobs
@@ -56,6 +66,7 @@ script:
   # Needed if no cache exists
   - mkdir -p $INTEGRATIONS_DIR
   - ls -al $INTEGRATIONS_DIR
+  - bundle exec rake setup_libs
   - bundle exec rake ci:run
   - ls -al $INTEGRATIONS_DIR
 
