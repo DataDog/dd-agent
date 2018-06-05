@@ -143,17 +143,19 @@ class Cpu(Check):
         self.counter('system.cpu.idle')
         self.counter('system.cpu.system')
         self.counter('system.cpu.interrupt')
-        self.gauge('system.cpu_normalised.pct')
+        self.gauge('system.cpu.normalized_pct')
+        self.gauge('system.cpu.system_wide_pct')
+
 
     def check(self, agentConfig):
         cpu_percent = psutil.cpu_times()
-        cpu_pct = psutil.cpu_percent()
 
         self.save_sample('system.cpu.user', 100 * cpu_percent.user / psutil.cpu_count())
         self.save_sample('system.cpu.idle', 100 * cpu_percent.idle / psutil.cpu_count())
         self.save_sample('system.cpu.system', 100 * cpu_percent.system / psutil.cpu_count())
         self.save_sample('system.cpu.interrupt', 100 * cpu_percent.interrupt / psutil.cpu_count())
-        self.save_sample('system.cpu_normalised.pct', 100 * cpu_pct / psutil.cpu_count())
+        self.save_sample('system.cpu.normalized_pct', 100 * psutil.cpu_percent() / psutil.cpu_count())
+        self.save_sample('system.cpu.system_wide_pct', 100 * psutil.cpu_percent())
 
         return self.get_metrics()
 
