@@ -40,6 +40,7 @@ class IO(Check):
 
     def _parse_linux2(self, output):
         recentStats = output.split('Device:')[2].split('\n')
+        self.logger.debug("Output: {0}, RecentStats: {1}, Error: {2}".format(output, recentStats))
         header = recentStats[0]
         headerNames = re.findall(self.header_re, header)
         device = None
