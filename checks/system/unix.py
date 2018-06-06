@@ -39,8 +39,7 @@ class IO(Check):
         self.value_re = re.compile(r'\d+\.\d+')
 
     def _parse_linux2(self, output):
-        self.logger.info("Output: {0}, Device: {1}".format(output, output.split('Device:')))
-        recentStats = output.split('Device:')[2].split('\n')
+        recentStats = output.split('Device')[2].split('\n')
         header = recentStats[0]
         headerNames = re.findall(self.header_re, header)
         device = None
