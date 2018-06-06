@@ -616,7 +616,7 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
             agentConfig["gce_updated_hostname"] = _is_affirmative(config.get("Main", "gce_updated_hostname"))
 
         # APM config
-        agentConfig["apm_enabled"] = False
+        agentConfig["apm_enabled"] = True
         if config.has_option("Main", "apm_enabled"):
             agentConfig["apm_enabled"] = _is_affirmative(config.get("Main", "apm_enabled"))
 
