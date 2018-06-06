@@ -5,7 +5,7 @@
 # project
 from checks import AgentCheck
 
-from checks.libs.wmi.sampler import WMISampler
+from datadog_checks.checks.win.sampler import WMISampler
 
 from collections import namedtuple
 

@@ -672,7 +672,7 @@ class TestUnitWMISampler(TestCommonWMI):
         """
         Gracefully handle WMI query timeouts.
         """
-        from checks.libs.wmi.sampler import WMISampler
+        from datadog_checks.checks.win.sampler import WMISampler
         logger = Mock()
 
         # Create a sampler that timeouts
@@ -767,7 +767,7 @@ class TestUnitWMISampler(TestCommonWMI):
 
         Returns the original RAW value.
         """
-        from checks.libs.wmi.sampler import WMISampler
+        from datadog_checks.checks.win.sampler import WMISampler
         logger = Mock()
         wmi_raw_sampler = WMISampler(logger, "Win32_PerfRawData_PerfOS_System", ["UnknownCounter", "MissingProperty"])  # noqa
         wmi_raw_sampler.sample()
