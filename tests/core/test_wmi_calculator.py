@@ -2,7 +2,7 @@
 import unittest
 
 # datadog
-from datadog_checks.checks.wmi.counter_type import calculator, get_calculator, UndefinedCalculator
+from checks.libs.wmi.counter_type import calculator, get_calculator, UndefinedCalculator
 
 class TestWMICalculators(unittest.TestCase):
     """
