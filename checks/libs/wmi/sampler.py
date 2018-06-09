@@ -462,9 +462,13 @@ class WMISampler(object):
 
             # For the first query, cache the qualifiers to determine each
             # propertie's "CounterType"
-            includes_qualifiers = self.is_raw_perf_class and self._property_counter_types is None
+            includes_qualifiers = self.is_raw_perf_class and (
+                (self._property_counter_types is None or self._property_data_types is None))
             if includes_qualifiers:
-                self._property_counter_types = CaseInsensitiveDict()
+                if self._property_counter_types is None:
+                    self._property_counter_types = CaseInsensitiveDict()
+                if self._property_data_types is None:
+                    self._property_data_types = CaseInsensitiveDict()
                 query_flags |= flag_use_amended_qualifiers
 
             raw_results = self.get_connection().ExecQuery(wql, "WQL", query_flags)

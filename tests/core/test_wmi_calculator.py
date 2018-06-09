@@ -1,14 +1,15 @@
 # stdlib
 import unittest
+import sys
 
-# datadog
-from checks.libs.wmi.counter_type import calculator, get_calculator, UndefinedCalculator
-
+@unittest.skipUnless(sys.platform.startswith("win"), "requires Windows")
 class TestWMICalculators(unittest.TestCase):
     """
     Unit testing for WMI calculators.
     """
     def setUp(self):
+        # datadog
+        from checks.libs.wmi.counter_type import calculator, get_calculator, UndefinedCalculator
         """
         Defines two WMI object samples.
         """
