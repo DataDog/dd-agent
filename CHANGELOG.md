@@ -3,6 +3,36 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.25.0 / 06-20-2018
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.24.0...5.25.0
+
+### Dependency Upgrades
+
+* requests `2.19.1` (previously `2.18.4`). See [requests's changelog](https://github.com/kennethreitz/requests/blob/master/HISTORY.rst)
+
+### Changes
+Please refer to the [Integrations Core Checks 6.3.0 tag](https://github.com/DataDog/integrations-core/releases/tag/6.3.0) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 6.3.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.3.0) for more information on the Trace Agent.
+
+Please refer to the [Process Agent 6.3.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/6.3.0) for more information on the Process Agent.
+
+* [BUGFIX] JMXFetch: make classpath separator adjust to the OS. See [#3729][] (Thanks [@jvanlieshout][])
+* [BUGFIX] Source install: fix integrations base package name change + bashisms. See [#3738][]
+* [BUGFIX] IO: iostat - fix for newer iostat output. See [#3733][] 
+* [BUGFIX] IO: iostat - fix for broken %util metric due to missing cast. See [#3733][] 
+* [IMPROVEMENT] IO: iostat - capping values to 100%. See [#3727][] 
+* [IMPROVEMENT] IO: iostat - adding test for cap logic. See [#3741][] 
+* [IMPROVEMENT] Core: add host tag for docker swarm node role. See [#3735][] (Thanks [@devonboyer][])
+* [IMPROVEMENT] Core: warning message to clarify `check_rate` option available. See [#3727][] 
+* [SANITY] Linux: Reintroduced system stats tests. See [#3733][]
+* [SANITY] Packaging/Build: Explicilty pin urllib to avoid inadverted updated. See [#3746][]
+* [OTHER] APM enabled by default. See [#3749][] 
+
 # 5.24.0 / 05-11-2018
 
 **Linux, Windows, Docker and Source Install**
@@ -4770,6 +4800,14 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3719]: https://github.com/DataDog/dd-agent/issues/3719
 [#3723]: https://github.com/DataDog/dd-agent/issues/3723
 [#3726]: https://github.com/DataDog/dd-agent/issues/3726
+[#3727]: https://github.com/DataDog/dd-agent/issues/3727
+[#3729]: https://github.com/DataDog/dd-agent/issues/3729
+[#3733]: https://github.com/DataDog/dd-agent/issues/3733
+[#3735]: https://github.com/DataDog/dd-agent/issues/3735
+[#3738]: https://github.com/DataDog/dd-agent/issues/3738
+[#3741]: https://github.com/DataDog/dd-agent/issues/3741
+[#3746]: https://github.com/DataDog/dd-agent/issues/3746
+[#3749]: https://github.com/DataDog/dd-agent/issues/3749
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -4829,6 +4867,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@datadoghq]: https://github.com/datadoghq
 [@dblackdblack]: https://github.com/dblackdblack
 [@dcrosta]: https://github.com/dcrosta
+[@devonboyer]: https://github.com/devonboyer
 [@diogokiss]: https://github.com/diogokiss
 [@diver-in-sky]: https://github.com/diver-in-sky
 [@djensen47]: https://github.com/djensen47
@@ -4886,6 +4925,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@jraede]: https://github.com/jraede
 [@jslatts]: https://github.com/jslatts
 [@jstotzs]: https://github.com/jstotzs
+[@jvanlieshout]: https://github.com/jvanlieshout
 [@jzoldak]: https://github.com/jzoldak
 [@kennydo]: https://github.com/kennydo
 [@kzw]: https://github.com/kzw
