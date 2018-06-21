@@ -218,8 +218,13 @@ def _confd_path(directory):
 
 
 def _checksd_path(directory):
-    path_override = os.environ.get('CHECKSD_OVERRIDE')
-    if path_override and os.path.exists(path_override):
+    checks_override_env = os.environ.get('CHECKSD_OVERRIDE')
+    checks_override_env_split = checks_override_env.split(':')
+    path_override=[]
+    for checks_override_env_individual_path in checks_override_env_split:
+      if checks_override_env_individual_path and os.path.exists(checks_override_env_individual_path):
+        path_override.append(checks_override_env_individual_path)
+    if path_override:
         return path_override
 
     # this is deprecated in testing on versions after SDK (5.12.0)
@@ -1016,7 +1021,8 @@ def get_checks_places(osname, agentConfig):
 
     # agent-bundled integrations
     if checksd_path:
-        places.append(lambda name: (os.path.join(checksd_path, '%s.py' % name), None))
+      for checksd_path_individual in checksd_path:
+        places.append(lambda name: (os.path.join(checksd_path_individual, '%s.py' % name), None))
     return places
 
 
