@@ -33,6 +33,9 @@ Please refer to the [Process Agent 6.3.0 tag](https://github.com/DataDog/datadog
 * [SANITY] Packaging/Build: Explicilty pin urllib to avoid inadverted updated. See [#3746][]
 * [OTHER] APM enabled by default. See [#3749][] 
 
+### Other Notes
+* Our embedded python unicode interpreter is now UCS4.
+
 # 5.24.0 / 05-11-2018
 
 **Linux, Windows, Docker and Source Install**
