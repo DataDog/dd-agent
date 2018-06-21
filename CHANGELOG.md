@@ -31,10 +31,8 @@ Please refer to the [Process Agent 6.3.0 tag](https://github.com/DataDog/datadog
 * [IMPROVEMENT] Core: warning message to clarify `check_rate` option available. See [#3727][] 
 * [SANITY] Linux: Reintroduced system stats tests. See [#3733][]
 * [SANITY] Packaging/Build: Explicilty pin urllib to avoid inadverted updated. See [#3746][]
-* [OTHER] APM enabled by default. See [#3749][] 
-
-### Other Notes
-* Our embedded python unicode interpreter is now UCS4.
+* [OTHER] APM enabled by default. See [#3749][]
+* [OTHER] Our embedded python unicode interpreter is now UCS4. See [omnibus-software-191](https://github.com/DataDog/omnibus-software/pull/191)
 
 # 5.24.0 / 05-11-2018
 
