@@ -3,6 +3,25 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.25.1 / Unreleased 
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.24.0...5.25.0
+
+### Dependency Upgrades
+
+* jmxfetch `0.20.1` (previously `0.20.0`). See [jmxfetch changelog](https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md)
+
+### Changes
+Please refer to the [Integrations Core Checks 6.3.1 tag](https://github.com/DataDog/integrations-core/releases/tag/6.3.1) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 6.3.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.3.1) for more information on the Trace Agent.
+
+Please refer to the [Process Agent 6.3.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/6.3.1) for more information on the Process Agent.
+
+
 # 5.25.0 / 06-20-2018
 
 **Linux, Windows, Docker and Source Install**
