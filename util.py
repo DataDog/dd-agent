@@ -11,12 +11,12 @@ import uuid
 # 3p
 import yaml  # noqa, let's guess, probably imported somewhere
 try:
-    from yaml import CLoader as yLoader
-    from yaml import CDumper as yDumper
+    from yaml import CSafeLoader as yLoader
+    from yaml import CSafeDumper as yDumper
 except ImportError:
     # On source install C Extensions might have not been built
-    from yaml import Loader as yLoader  # noqa, imported from here elsewhere
-    from yaml import Dumper as yDumper  # noqa, imported from here elsewhere
+    from yaml import SafeLoader as yLoader  # noqa, imported from here elsewhere
+    from yaml import SafeDumper as yDumper  # noqa, imported from here elsewhere
 
 # These classes are now in utils/, they are just here for compatibility reasons,
 # if a user actually uses them in a custom check
