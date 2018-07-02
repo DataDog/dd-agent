@@ -896,7 +896,7 @@ def get_jmx_status():
     check_data = defaultdict(lambda: defaultdict(list))
     try:
         if os.path.exists(java_status_path):
-            java_jmx_stats = yaml.load(file(java_status_path))
+            java_jmx_stats = yaml.safe_load(file(java_status_path))
 
             status_age = time.time() - java_jmx_stats.get('timestamp')/1000  # JMX timestamp is saved in milliseconds
             jmx_checks = java_jmx_stats.get('checks', {})
@@ -941,7 +941,7 @@ def get_jmx_status():
                     check_statuses.append(check_status)
 
         if os.path.exists(python_status_path):
-            python_jmx_stats = yaml.load(file(python_status_path))
+            python_jmx_stats = yaml.safe_load(file(python_status_path))
             jmx_checks = python_jmx_stats.get('invalid_checks', {})
             for check_name, excep in jmx_checks.iteritems():
                 check_statuses.append(CheckStatus(check_name, [], init_failed_error=excep))
