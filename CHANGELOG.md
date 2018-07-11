@@ -3,12 +3,26 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
-# 5.25.1 / Unreleased 
+# 5.25.2 / 07-11-2018 
 
 **Linux, Windows, Docker and Source Install**
 
 ### Details
-https://github.com/DataDog/dd-agent/compare/5.24.0...5.25.0
+https://github.com/DataDog/dd-agent/compare/5.25.1...5.25.2
+
+### Dependency Upgrades
+
+* [SECURITY] The agent configuration loader has been patched to increase the security of loaded configuration files.
+
+### Changes
+Please refer to the [Integrations Core Checks 5.25.2 tag](https://github.com/DataDog/integrations-core/releases/tag/5.25.2) for the list of changes on the core checks.
+
+# 5.25.1 / 06-28-2018 
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.25.0...5.25.1
 
 ### Dependency Upgrades
 
