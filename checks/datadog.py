@@ -26,10 +26,10 @@ def partition(s, sep):
 
 def point_sorter(p):
     # Sort and group by timestamp, metric name, host_name, device_name, (tags or attributes)
-    tags = p[3].get('tags', None)
+    tags = p[3].get('tags')
     attribs = sorted(tags.split(",")) if tags is not None else p[3]
     # Include tags (or attibutes if tags do not exists) to determine the uniqueness of a metric.
-    return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None), attribs)
+    return (p[1], p[0], p[3].get('host_name'), p[3].get('device_name'), attribs)
 
 class EventDefaults(object):
     EVENT_TYPE = 'dogstream_event'
@@ -39,7 +39,7 @@ class EventDefaults(object):
 class Dogstreams(object):
     @classmethod
     def init(cls, logger, config):
-        dogstreams_config = config.get('dogstreams', None)
+        dogstreams_config = config.get('dogstreams')
         if dogstreams_config:
             dogstreams = cls._instantiate_dogstreams(logger, config, dogstreams_config)
         else:
