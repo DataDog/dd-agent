@@ -32,6 +32,18 @@ class PrometheusCheck(PrometheusScraper, AgentCheck):
         """
         raise NotImplementedError()
 
+    def _submit_rate(self, metric_name, val, metric, custom_tags=None, hostname=None):
+        """
+        Submit a metric as a rate, additional tags provided will be added to
+        the ones from the label provided via the metrics object.
+
+        `custom_tags` is an array of 'tag:value' that will be added to the
+        metric when sending the rate to Datadog.
+        """
+        _tags = self._metric_tags(metric_name, val, metric, custom_tags, hostname)
+        self.rate('{}.{}'.format(self.NAMESPACE, metric_name), val, _tags, hostname=hostname)
+
+
     def _submit_gauge(self, metric_name, val, metric, custom_tags=None, hostname=None):
         """
         Submit a metric as a gauge, additional tags provided will be added to
@@ -40,6 +52,10 @@ class PrometheusCheck(PrometheusScraper, AgentCheck):
         `custom_tags` is an array of 'tag:value' that will be added to the
         metric when sending the gauge to Datadog.
         """
+        _tags = self._metric_tags(metric_name, val, metric, custom_tags, hostname)
+        self.gauge('{}.{}'.format(self.NAMESPACE, metric_name), val, _tags, hostname=hostname)
+
+    def _metric_tags(self, metric_name, val, metric, custom_tags=None, hostname=None):
         _tags = []
         if custom_tags is not None:
             _tags += custom_tags
@@ -49,8 +65,7 @@ class PrometheusCheck(PrometheusScraper, AgentCheck):
                 if self.labels_mapper is not None and label.name in self.labels_mapper:
                     tag_name = self.labels_mapper[label.name]
                 _tags.append('{}:{}'.format(tag_name, label.value))
-        _tags = self._finalize_tags_to_submit(_tags, metric_name, val, metric, custom_tags=custom_tags, hostname=hostname)
-        self.gauge('{}.{}'.format(self.NAMESPACE, metric_name), val, _tags, hostname=hostname)
+        return self._finalize_tags_to_submit(_tags, metric_name, val, metric, custom_tags=custom_tags, hostname=hostname)
 
     def _submit_service_check(self, *args, **kwargs):
         self.service_check(*args, **kwargs)
