@@ -466,6 +466,12 @@ elif check_version $PRE_SDK_RELEASE $AGENT_VERSION; then
 
   for INT in $INTEGRATIONS; do
     if [ "$INT" = "datadog_checks_base" -o "$INT" = "datadog-checks-base" ]; then continue; fi
+
+    # Skip development packages
+    if [ "$INT" = "datadog_checks_dev" ]; then continue; fi
+    if [ "$INT" = "datadog_checks_tests_helper" ]; then continue; fi
+
+    # We do not support Windows checks when installing from source
     if [ "$INT" = "sqlserver" ]; then continue; fi
 
     INT_DIR="$DD_HOME/integrations/$INT"
@@ -488,14 +494,14 @@ elif check_version $PRE_SDK_RELEASE $AGENT_VERSION; then
         cp "check.py" "$DD_HOME/agent/checks.d/$INT.py"
       fi
     fi
-    if [ -f "conf.yaml.example" ]; then
-      cp "conf.yaml.example" "$DD_HOME/agent/conf.d/$INT.yaml.example"
+    if [ -f "datadog_checks/$INT/data/conf.yaml.example" ]; then
+      cp "datadog_checks/$INT/data/conf.yaml.example" "$DD_HOME/agent/conf.d/$INT.yaml.example"
     fi
-    if [ -f "auto_conf.yaml" ]; then
-      cp "auto_conf.yaml" "$DD_HOME/agent/conf.d/auto_conf/$INT.yaml"
+    if [ -f "datadog_checks/$INT/data/auto_conf.yaml" ]; then
+      cp "datadog_checks/$INT/data/auto_conf.yaml" "$DD_HOME/agent/conf.d/auto_conf/$INT.yaml"
     fi
-    if [ -f "conf.yaml.default" ]; then
-      cp "conf.yaml.default" "$DD_HOME/agent/conf.d/$INT.yaml.default"
+    if [ -f "datadog_checks/$INT/data/conf.yaml.default" ]; then
+      cp "datadog_checks/$INT/data/conf.yaml.default" "$DD_HOME/agent/conf.d/$INT.yaml.default"
     fi
 
     cd -
