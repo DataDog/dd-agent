@@ -11,11 +11,11 @@ Changes
 https://github.com/DataDog/dd-agent/compare/5.25.3...5.26.0
 
 ### Changes
-Please refer to the [Integrations Core Checks 5.26.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.25.3) for the list of changes on the core checks.
+Please refer to the [Integrations Core Checks 5.26.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.26.0) for the list of changes on the core checks.
 
 Please refer to the [Trace Agent 6.4.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.3.3) for more information on the Trace Agent.
 
-Please refer to the [Process Agent 5.26.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.25.3) for more information on the Process Agent.
+Please refer to the [Process Agent 5.26.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.26.0) for more information on the Process Agent.
 
 # 5.25.3 / 07-17-2018 
 
