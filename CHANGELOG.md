@@ -3,6 +3,9 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+go-metro is no longer supported on CentOS 5
+
+
 # 5.26.0 / 08-01-2018
 
 **Linux, Windows, Docker and Source Install**
