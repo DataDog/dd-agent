@@ -3,7 +3,23 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
-go-metro is no longer supported on CentOS 5
+# 5.27.0 / Unreleased
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.26.0...5.27.0
+
+### Changes
+Please refer to the [Integrations Core Checks 5.27.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.27.0) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 6.5.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.5.0) for more information on the Trace Agent.
+
+Please refer to the [Process Agent 5.27.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.27.0) for more information on the Process Agent.
+
+* [IMPROVEMENT] Fix proxy formatting when user/password not set. See [#3771][]
+* [SECURITY] JMXFetch bumped to [0.20.2](https://github.com/DataDog/jmxfetch/blob/0.20.2/CHANGELOG.md). See [#3775][]
+* [DEPRECATED] `go-metro` is no longer supported on CentOS 5. See [omnibus-software-202](https://github.com/DataDog/omnibus-software/pull/202)
 
 
 # 5.26.0 / 08-01-2018
@@ -16,7 +32,7 @@ https://github.com/DataDog/dd-agent/compare/5.25.3...5.26.0
 ### Changes
 Please refer to the [Integrations Core Checks 5.26.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.26.0) for the list of changes on the core checks.
 
-Please refer to the [Trace Agent 6.4.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.3.3) for more information on the Trace Agent.
+Please refer to the [Trace Agent 6.4.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.4.1) for more information on the Trace Agent.
 
 Please refer to the [Process Agent 5.26.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.26.0) for more information on the Process Agent.
 
@@ -4873,6 +4889,8 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3741]: https://github.com/DataDog/dd-agent/issues/3741
 [#3746]: https://github.com/DataDog/dd-agent/issues/3746
 [#3749]: https://github.com/DataDog/dd-agent/issues/3749
+[#3771]: https://github.com/DataDog/dd-agent/issues/3771
+[#3775]: https://github.com/DataDog/dd-agent/issues/3775
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
