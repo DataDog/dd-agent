@@ -355,11 +355,6 @@ class Collector(object):
         if self._ganglia is not None:
             payload['ganglia'] = self._ganglia.check(self.agentConfig)
         if self._dogstream is not None:
-            # every 10 run (~2min) we reload the list of files watched by
-            # dogstream
-            if (self.run_count % 10) == 0:
-                log.info("reloading list of files watched by Dogstreams")
-                self._dogstream = Dogstreams.init(log, self.agentConfig)
             dogstreamData = self._dogstream.check(self.agentConfig)
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
             if dogstreamEvents:
