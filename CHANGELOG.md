@@ -11,7 +11,7 @@ Changes
 https://github.com/DataDog/dd-agent/compare/5.27.0...5.27.1
 
 ### Known Issues
-The dogstream fix introduced in [#3701][] will result in a nasty file descriptor leak. If you use dogstream please downgrade to 5.26.0.
+The dogstream change introduced in [#3701][] causes a significant file descriptor leak. If you use dogstreams please downgrade to 5.26.0.
 
 ### Changes
 Please refer to the [Integrations Core Checks 5.27.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.27.1) for the list of changes on the core checks.
@@ -27,7 +27,7 @@ Please refer to the [Process Agent 5.27.1 tag](https://github.com/DataDog/datado
 https://github.com/DataDog/dd-agent/compare/5.26.0...5.27.0
 
 ### Known Issues
-The dogstream fix introduced in [#3701][] will result in a nasty file descriptor leak. If you use dogstream please downgrade to 5.26.0.
+The dogstream change introduced in [#3701][] causes a significant file descriptor leak. If you use dogstreams please downgrade to 5.26.0.
 
 ### Changes
 Please refer to the [Integrations Core Checks 5.27.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.27.0) for the list of changes on the core checks.
@@ -36,8 +36,8 @@ Please refer to the [Trace Agent 6.5.0 tag](https://github.com/DataDog/datadog-t
 
 Please refer to the [Process Agent 5.27.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.27.0) for more information on the Process Agent.
 
-*.[BUGFIX] Dogstreams: should pick up new log files when using wildcard. See [#3701][] (Thanks [@jonauman][])
-*.[BUGFIX] Dogstreams: include tags as part of the metric aggregation. See [#3732][] (Thanks [@ian28223][])
+* [BUGFIX] Dogstreams: should pick up new log files when using wildcard. See [#3701][] (Thanks [@jonauman][])
+* [BUGFIX] Dogstreams: include tags as part of the metric aggregation. See [#3732][] (Thanks [@ian28223][])
 * [IMPROVEMENT] Fix proxy formatting when user/password not set. See [#3771][]
 * [SECURITY] JMXFetch bumped to [0.20.2](https://github.com/DataDog/jmxfetch/blob/0.20.2/CHANGELOG.md). See [#3775][]
 * [DEPRECATED] `go-metro` is no longer supported on CentOS 5. See [omnibus-software-202](https://github.com/DataDog/omnibus-software/pull/202)
