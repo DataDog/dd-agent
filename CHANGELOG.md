@@ -3,6 +3,46 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.27.1 / 2018-09-20 
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.27.0...5.27.1
+
+### Known Issues
+The dogstream change introduced in [#3701][] causes a significant file descriptor leak. If you use dogstreams please downgrade to 5.26.0.
+
+### Changes
+Please refer to the [Integrations Core Checks 5.27.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.27.1) for the list of changes on the core checks.
+
+Please refer to the [Process Agent 5.27.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.27.1) for more information on the Process Agent.
+
+
+# 5.27.0 / 2018-09-18 
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.26.0...5.27.0
+
+### Known Issues
+The dogstream change introduced in [#3701][] causes a significant file descriptor leak. If you use dogstreams please downgrade to 5.26.0.
+
+### Changes
+Please refer to the [Integrations Core Checks 5.27.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.27.0) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 6.5.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.5.0) for more information on the Trace Agent.
+
+Please refer to the [Process Agent 5.27.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.27.0) for more information on the Process Agent.
+
+* [BUGFIX] Dogstreams: should pick up new log files when using wildcard. See [#3701][] (Thanks [@jonauman][])
+* [BUGFIX] Dogstreams: include tags as part of the metric aggregation. See [#3732][] (Thanks [@ian28223][])
+* [IMPROVEMENT] Fix proxy formatting when user/password not set. See [#3771][]
+* [SECURITY] JMXFetch bumped to [0.20.2](https://github.com/DataDog/jmxfetch/blob/0.20.2/CHANGELOG.md). See [#3775][]
+* [DEPRECATED] `go-metro` is no longer supported on CentOS 5. See [omnibus-software-202](https://github.com/DataDog/omnibus-software/pull/202)
+
+
 # 5.26.0 / 08-01-2018
 
 **Linux, Windows, Docker and Source Install**
@@ -4854,6 +4894,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3670]: https://github.com/DataDog/dd-agent/issues/3670
 [#3674]: https://github.com/DataDog/dd-agent/issues/3674
 [#3691]: https://github.com/DataDog/dd-agent/issues/3691
+[#3701]: https://github.com/DataDog/dd-agent/issues/3701
 [#3703]: https://github.com/DataDog/dd-agent/issues/3703
 [#3704]: https://github.com/DataDog/dd-agent/issues/3704
 [#3711]: https://github.com/DataDog/dd-agent/issues/3711
@@ -4864,6 +4905,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3726]: https://github.com/DataDog/dd-agent/issues/3726
 [#3727]: https://github.com/DataDog/dd-agent/issues/3727
 [#3729]: https://github.com/DataDog/dd-agent/issues/3729
+[#3732]: https://github.com/DataDog/dd-agent/issues/3732
 [#3733]: https://github.com/DataDog/dd-agent/issues/3733
 [#3735]: https://github.com/DataDog/dd-agent/issues/3735
 [#3738]: https://github.com/DataDog/dd-agent/issues/3738
@@ -4957,6 +4999,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@handigarde]: https://github.com/handigarde
 [@hjkatz]: https://github.com/hjkatz
 [@host]: https://github.com/host
+[@ian28223]: https://github.com/ian28223
 [@iancward]: https://github.com/iancward
 [@ibwhite]: https://github.com/ibwhite
 [@igor47]: https://github.com/igor47
@@ -4980,6 +5023,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@joelvanvelden]: https://github.com/joelvanvelden
 [@joewilliams]: https://github.com/joewilliams
 [@jonaf]: https://github.com/jonaf
+[@jonauman]: https://github.com/jonauman
 [@jonchiu]: https://github.com/jonchiu
 [@joningle]: https://github.com/joningle
 [@joshk0]: https://github.com/joshk0
