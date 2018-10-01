@@ -11,12 +11,12 @@ environment:
   SKIP_LINT: true
   INTEGRATIONS_CORE_BRANCH: master
   matrix:
-  - PYTHON: C:\\Python27
+  - PYTHON: C:\Python27
     PYTHON_VERSION: 2.7.9
     PYTHON_ARCH: 32
     PYWIN32_URL: https://github.com/mhammond/pywin32/releases/download/b224/pywin32-224.win32-py2.7.exe
     PYWIN32_INSTALL_DIR: pywin32-224-py2.7-win32.egg
-  - PYTHON: C:\\Python27-x64
+  - PYTHON: C:\Python27-x64
     PYTHON_VERSION: 2.7.9
     PYTHON_ARCH: 64
     PYWIN32_URL: https://github.com/mhammond/pywin32/releases/download/b224/pywin32-224.win-amd64-py2.7.exe
