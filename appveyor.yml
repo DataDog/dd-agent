@@ -30,6 +30,9 @@ services:
   # - mssql2008r2sp2 # FIXME: re-enable when we can launch multiple mssql instances at once
   - mssql2012sp1
   # - mssql2014 # FIXME: re-enable when we can launch multiple mssql instances at once
+init:
+  - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+  - python -c "import sys; print(sys.version)"
 install:
   # Use the 64-bit ruby so that all the Powershell classes are accessible when running shell commands from ruby
   - set PATH=C:\Ruby22-x64\bin;%PATH%
@@ -51,7 +54,6 @@ install:
   - cd %TRAVIS_BUILD_DIR%
 build: off
 test_script:
-  - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
   - bundle exec rake ci:run[default]
   - bundle exec rake ci:run[core_integration]
   - bundle exec rake ci:run[windows]
