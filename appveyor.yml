@@ -11,16 +11,16 @@ environment:
   SKIP_LINT: true
   INTEGRATIONS_CORE_BRANCH: master
   matrix:
-  - PYTHON: C:\\Python27
+  - PYTHON: C:\Python27
     PYTHON_VERSION: 2.7.9
     PYTHON_ARCH: 32
-    PYWIN32_URL: https://downloads.sourceforge.net/project/pywin32/pywin32/Build%20219/pywin32-219.win32-py2.7.exe
-    PYWIN32_INSTALL_DIR: pywin32-219-py2.7-win32.egg
-  - PYTHON: C:\\Python27-x64
+    PYWIN32_URL: https://github.com/mhammond/pywin32/releases/download/b224/pywin32-224.win32-py2.7.exe
+    PYWIN32_INSTALL_DIR: pywin32-224-py2.7-win32.egg
+  - PYTHON: C:\Python27-x64
     PYTHON_VERSION: 2.7.9
     PYTHON_ARCH: 64
-    PYWIN32_URL: http://sourceforge.net/projects/pywin32/files/pywin32/Build%20219/pywin32-219.win-amd64-py2.7.exe/download
-    PYWIN32_INSTALL_DIR: pywin32-219-py2.7-win-amd64.egg
+    PYWIN32_URL: https://github.com/mhammond/pywin32/releases/download/b224/pywin32-224.win-amd64-py2.7.exe
+    PYWIN32_INSTALL_DIR: pywin32-224-py2.7-win-amd64.egg
 cache:
   - C:\projects\dd-agent\.cache
   - C:\projects\dd-agent\vendor\cache
@@ -30,6 +30,9 @@ services:
   # - mssql2008r2sp2 # FIXME: re-enable when we can launch multiple mssql instances at once
   - mssql2012sp1
   # - mssql2014 # FIXME: re-enable when we can launch multiple mssql instances at once
+init:
+  - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+  - python -c "import sys; print(sys.version)"
 install:
   # Use the 64-bit ruby so that all the Powershell classes are accessible when running shell commands from ruby
   - set PATH=C:\Ruby22-x64\bin;%PATH%
@@ -51,7 +54,6 @@ install:
   - cd %TRAVIS_BUILD_DIR%
 build: off
 test_script:
-  - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
   - bundle exec rake ci:run[default]
   - bundle exec rake ci:run[core_integration]
   - bundle exec rake ci:run[windows]
