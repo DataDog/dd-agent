@@ -3,7 +3,20 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
-# 5.27.1 / 2018-09-20 
+# 5.27.2 / 2018-10-02
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.27.1...5.27.2
+
+### Changes
+Please refer to the [Integrations Core Checks 5.27.2 tag](https://github.com/DataDog/integrations-core/releases/tag/5.27.2) for the list of changes on the core checks.
+
+* [BUGFIX] Dogstreams: Revert change that picked up new log files when using wildcard, it was causing a file descriptor leak. Reverts [#3701][], see [#3777][]
+
+
+# 5.27.1 / 2018-09-20
 
 **Linux, Windows, Docker and Source Install**
 
@@ -11,7 +24,7 @@ Changes
 https://github.com/DataDog/dd-agent/compare/5.27.0...5.27.1
 
 ### Known Issues
-The dogstream change introduced in [#3701][] causes a significant file descriptor leak. If you use dogstreams please downgrade to 5.26.0.
+The dogstream change introduced in [#3701][] causes a significant file descriptor leak. If you use dogstreams please upgrade to 5.27.2.
 
 ### Changes
 Please refer to the [Integrations Core Checks 5.27.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.27.1) for the list of changes on the core checks.
@@ -19,7 +32,7 @@ Please refer to the [Integrations Core Checks 5.27.1 tag](https://github.com/Dat
 Please refer to the [Process Agent 5.27.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.27.1) for more information on the Process Agent.
 
 
-# 5.27.0 / 2018-09-18 
+# 5.27.0 / 2018-09-18
 
 **Linux, Windows, Docker and Source Install**
 
@@ -27,7 +40,7 @@ Please refer to the [Process Agent 5.27.1 tag](https://github.com/DataDog/datado
 https://github.com/DataDog/dd-agent/compare/5.26.0...5.27.0
 
 ### Known Issues
-The dogstream change introduced in [#3701][] causes a significant file descriptor leak. If you use dogstreams please downgrade to 5.26.0.
+The dogstream change introduced in [#3701][] causes a significant file descriptor leak. If you use dogstreams please upgrade to 5.27.2.
 
 ### Changes
 Please refer to the [Integrations Core Checks 5.27.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.27.0) for the list of changes on the core checks.
@@ -4914,6 +4927,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3749]: https://github.com/DataDog/dd-agent/issues/3749
 [#3771]: https://github.com/DataDog/dd-agent/issues/3771
 [#3775]: https://github.com/DataDog/dd-agent/issues/3775
+[#3777]: https://github.com/DataDog/dd-agent/issues/3777
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
