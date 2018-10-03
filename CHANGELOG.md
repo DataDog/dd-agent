@@ -56,7 +56,7 @@ Please refer to the [Process Agent 5.27.0 tag](https://github.com/DataDog/datado
 * [DEPRECATED] `go-metro` is no longer supported on CentOS 5. See [omnibus-software-202](https://github.com/DataDog/omnibus-software/pull/202)
 
 
-# 5.26.0 / 08-01-2018
+# 5.26.0 / 2018-08-01
 
 **Linux, Windows, Docker and Source Install**
 
@@ -70,7 +70,7 @@ Please refer to the [Trace Agent 6.4.1 tag](https://github.com/DataDog/datadog-t
 
 Please refer to the [Process Agent 5.26.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.26.0) for more information on the Process Agent.
 
-# 5.25.3 / 07-17-2018 
+# 5.25.3 / 2018-07-17
 
 **Linux, Windows, Docker and Source Install**
 
@@ -84,7 +84,7 @@ Please refer to the [Trace Agent 6.3.3 tag](https://github.com/DataDog/datadog-t
 
 Please refer to the [Process Agent 5.25.3 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.25.3) for more information on the Process Agent.
 
-# 5.25.2 / 07-11-2018 
+# 5.25.2 / 2018-07-11
 
 **Linux, Windows, Docker and Source Install**
 
@@ -98,7 +98,7 @@ https://github.com/DataDog/dd-agent/compare/5.25.1...5.25.2
 ### Changes
 Please refer to the [Integrations Core Checks 5.25.2 tag](https://github.com/DataDog/integrations-core/releases/tag/5.25.2) for the list of changes on the core checks.
 
-# 5.25.1 / 06-28-2018 
+# 5.25.1 / 2018-06-28
 
 **Linux, Windows, Docker and Source Install**
 
@@ -117,7 +117,7 @@ Please refer to the [Trace Agent 6.3.1 tag](https://github.com/DataDog/datadog-t
 Please refer to the [Process Agent 6.3.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/6.3.1) for more information on the Process Agent.
 
 
-# 5.25.0 / 06-20-2018
+# 5.25.0 / 2018-06-20
 
 **Linux, Windows, Docker and Source Install**
 
@@ -137,18 +137,18 @@ Please refer to the [Process Agent 6.3.0 tag](https://github.com/DataDog/datadog
 
 * [BUGFIX] JMXFetch: make classpath separator adjust to the OS. See [#3729][] (Thanks [@jvanlieshout][])
 * [BUGFIX] Source install: fix integrations base package name change + bashisms. See [#3738][]
-* [BUGFIX] IO: iostat - fix for newer iostat output. See [#3733][] 
-* [BUGFIX] IO: iostat - fix for broken %util metric due to missing cast. See [#3733][] 
-* [IMPROVEMENT] IO: iostat - capping values to 100%. See [#3727][] 
-* [IMPROVEMENT] IO: iostat - adding test for cap logic. See [#3741][] 
+* [BUGFIX] IO: iostat - fix for newer iostat output. See [#3733][]
+* [BUGFIX] IO: iostat - fix for broken %util metric due to missing cast. See [#3733][]
+* [IMPROVEMENT] IO: iostat - capping values to 100%. See [#3727][]
+* [IMPROVEMENT] IO: iostat - adding test for cap logic. See [#3741][]
 * [IMPROVEMENT] Core: add host tag for docker swarm node role. See [#3735][] (Thanks [@devonboyer][])
-* [IMPROVEMENT] Core: warning message to clarify `check_rate` option available. See [#3727][] 
+* [IMPROVEMENT] Core: warning message to clarify `check_rate` option available. See [#3727][]
 * [SANITY] Linux: Reintroduced system stats tests. See [#3733][]
 * [SANITY] Packaging/Build: Explicilty pin urllib to avoid inadverted updated. See [#3746][]
 * [OTHER] APM enabled by default. See [#3749][]
 * [OTHER] Our embedded python unicode interpreter is now UCS4. See [omnibus-software-191](https://github.com/DataDog/omnibus-software/pull/191)
 
-# 5.24.0 / 05-11-2018
+# 5.24.0 / 2018-05-11
 
 **Linux, Windows, Docker and Source Install**
 
@@ -167,7 +167,7 @@ Please refer to the [Process Agent 6.2.0 tag](https://github.com/DataDog/datadog
 * [OTHER] subprocess_output: Add compatibility layer with `datadog_checks_base`. See [#3723][]
 * [OTHER] Windows: Use PDH libs provided in `datadog_checks_base`. See [#3691][]
 
-# 5.23.0 / 03-21-2018
+# 5.23.0 / 2018-03-21
 
 **Linux, Windows, Docker**
 
@@ -191,7 +191,7 @@ Please refer to the [Process Agent 5.23.0 tag](https://github.com/DataDog/datado
 * [OTHER] Remove the deprecated option `skip_event` in network checks. See [#3643][]
 
 
-# 5.22.3 / 03-08-2018
+# 5.22.3 / 2018-03-08
 
 **Linux, Windows, Docker**
 
@@ -202,7 +202,7 @@ https://github.com/DataDog/dd-agent/compare/5.22.1...5.22.3
 ### Changes
 Please refer to the [Process Agent 5.22.3 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.22.3) for more information on the Process Agent.
 
-# 5.22.1 / 02-26-2018
+# 5.22.1 / 2018-02-26
 
 **Linux, Windows, Docker**
 
@@ -213,7 +213,7 @@ https://github.com/DataDog/dd-agent/compare/5.22.0...5.22.1
 ### Changes
 Please refer to the [Process Agent 5.22.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.22.1) for more information on the Process Agent.
 
-# 5.22.0 / 02-13-2018
+# 5.22.0 / 2018-02-13
 
 **Linux, Windows, Docker and Source Install**
 
@@ -243,7 +243,7 @@ Datadog will be rotating the GPG key used to sign our APT repositories on Feb 28
 * [IMPROVEMENT] Windows: Start subservices (trace/process) if they're configured on service start. See [#3663][]
 * [IMPROVEMENT] Extend pause-container list. See [#3674][]
 
-# 5.21.2 / 01-31-2018
+# 5.21.2 / 2018-01-31
 
 **Linux, Windows, Docker**
 
@@ -254,7 +254,7 @@ https://github.com/DataDog/dd-agent/compare/5.21.0...5.21.2
 ### Changes
 Please refer to the [Process Agent 5.21.2 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.21.2) for more information on the Process Agent.
 
-# 5.21.1 / 01-31-2018
+# 5.21.1 / 2018-01-31
 
 **Linux, Windows, Docker**
 
@@ -265,7 +265,7 @@ https://github.com/DataDog/dd-agent/compare/5.21.0...5.21.1
 ### Changes
 Please refer to the [Trace Agent 5.21.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.21.1) for the list of changes on the Trace Agent.
 
-# 5.21.0 / 01-10-2018
+# 5.21.0 / 2018-01-10
 
 **Linux, Windows, Docker and Source Install**
 
@@ -296,7 +296,7 @@ Please refer to the [Process Agent 5.21.0 tag](https://github.com/DataDog/datado
 * [FEATURE] Windows: update base libraries for PDH based checks. See [#3607][]
 * [FEATURE] Collect OpenStack metadata and tags community. See [#3411][] (Thanks [@mtougeron][])
 
-# 5.20.2 / 12-06-2017
+# 5.20.2 / 2017-12-06
 
 **Linux, Docker and Source Install**
 
@@ -308,7 +308,7 @@ Please refer to the [Integrations Core Checks 5.20.2 tag](https://github.com/Dat
 
 Please refer to the [Process Agent 5.20.2 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.20.2) for more information on the Process Agent.
 
-# 5.20.1 / 11-29-2017
+# 5.20.1 / 2017-11-29
 
 **Linux, Windows, Docker and Source Install**
 
@@ -325,7 +325,7 @@ Please refer to the [Process Agent 5.20.1 tag](https://github.com/DataDog/datado
 
 * [BUGFIX] Windows: fixing flakes, stubbing WinPDHCounter [#3596][]
 
-# 5.20.0 / 11-21-2017
+# 5.20.0 / 2017-11-21
 
 **Linux, Windows, Docker and Source Install**
 
@@ -358,12 +358,12 @@ Please refer to the [Process Agent 5.20.0 tag](https://github.com/DataDog/datado
 * [FEATURE] Windows: Add a PDH base check. See [#3581][]
 
 
-# 5.19.0 / 11-03-2017
+# 5.19.0 / 2017-11-03
 **Linux, Windows, Docker and Source Install**
 
-_Windows released on 11-03-2017_
+_Windows released on 2017-11-03_
 
-_Linux, Docker and Source Install released on 11-08-2017_
+_Linux, Docker and Source Install released on 2017-11-08_
 
 ### Details
 
@@ -390,7 +390,7 @@ Please refer to the [Process Agent 5.19.0 tag](https://github.com/DataDog/datado
 * [IMPROVEMENT] Switch most of container host tags to host metadata. See [#3557][]
 * [IMPROVEMENT] Windows: Tighten permissions on `datadog.conf` to only be readable by admins and local system. See [dd-agent-omnibus-202](https://github.com/DataDog/dd-agent-omnibus/pull/202)
 
-# 5.18.1 / 10-13-2017
+# 5.18.1 / 2017-10-13
 **Linux, Docker and Source Install**
 
 ### Details
@@ -402,7 +402,7 @@ https://github.com/DataDog/dd-agent/compare/5.18.0...5.18.1
 Please refer to the [Trace Agent 5.18.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.18.1) for the list of changes on the Trace Agent.
 Please refer to the [Process Agent 5.18.1 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/5.18.1) for more information on the Process Agent.
 
-# 5.18.0 / 10-10-2017
+# 5.18.0 / 2017-10-10
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -433,7 +433,7 @@ Please refer to the [Process Agent 5.18.0 tag](https://github.com/DataDog/datado
 * [DEPRECATE] deprecate `read_config`. See [#3508][]
 * [DEPRECATE] Docker: remove access to deprecated top-level `NetworkSettings`. See [#3538][]
 
-# 5.17.2 / 09-18-2017
+# 5.17.2 / 2017-09-18
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -450,7 +450,7 @@ Please refer to the [Process Agent 5.17.2 tag](https://github.com/DataDog/datado
 
 * [REGRESSION] Kubernetes: partially revert `_locate_kubelet` from [#3497][]. See [#3523][]
 
-# 5.17.1 / 09-12-2017
+# 5.17.1 / 2017-09-12
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -469,7 +469,7 @@ Please refer to the [Process Agent 5.17.1 tag](https://github.com/DataDog/datado
 * [BUGFIX] Kubernetes: Add image_name_resolver to kubeutil wrapping dockerutil. See [#3505][]
 * [BUGFIX] Kubernetes: Fix leader election's lease parameter and node name. See [#3506][]
 
-# 5.17.0 / 08-28-2017
+# 5.17.0 / 2017-08-28
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -520,7 +520,7 @@ Please refer to the [Process Agent 5.17.0 tag](https://github.com/DataDog/datado
 * [SANITY] Gohai: Swallow python error for python version. See [gohai-51](https://github.com/DataDog/gohai/pull/51)
 * [SANITY] Packaging: Remove unneded chown on `/usr/bin/dd-agent`. See [dd-agent-omnibus-193](https://github.com/DataDog/dd-agent-omnibus/issues/193)
 
-# 5.16.0 / 07-26-2017
+# 5.16.0 / 2017-07-26
 **Linux, Docker and Source Install**
 
 ### Details
@@ -532,7 +532,7 @@ Please refer to the [Process Agent](https://github.com/DataDog/datadog-process-a
 
 * [FEATURE][BETA] [process-agent] adding process-agent See [#3449][] and [omnibus-software-181](https://github.com/DataDog/omnibus-software/pull/181)
 
-# 5.15.0 / 07-18-2017
+# 5.15.0 / 2017-07-18
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -563,7 +563,7 @@ Please refer to the [Trace Agent 5.15.0 tag](https://github.com/DataDog/datadog-
 * [SANITY] [checks] Deprecate `AgentCheck.set` [#3385][]
 * [SANITY] Remove manifest.in - no more use to us. [#3364][]
 
-# 5.14.1 / 06-15-2017
+# 5.14.1 / 2017-06-15
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -578,7 +578,7 @@ Please refer to the [Integrations Core Checks 5.14.1 tag](https://github.com/Dat
 * [BUGFIX] Autodiscovery: Fix multi-instance autodiscovery. See [#3341][]
 * [BUGFIX] Network checks: Fix typo in the network exception log. See [#3374][]
 
-# 5.14.0 / 06-05-2017
+# 5.14.0 / 2017-06-05
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -617,7 +617,7 @@ Please refer to the [Trace Agent 5.14.0 tag](https://github.com/DataDog/datadog-
 * [SANITY] JMXFetch: Add warnings of breaking change coming with agent 6. See [#3318][]
 * [SANITY] Packaging: Remove checks deps in `requirements.txt`. See [#3298][]
 
-# 5.13.2 / 05-11-2017
+# 5.13.2 / 2017-05-11
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -634,7 +634,7 @@ Please refer to the [Integrations Core Checks 5.13.2 tag](https://github.com/Dat
 * [BUGFIX] Packaging: fix os detection for "exotic" distributions. See [dd-agent-omnibus-171](https://github.com/DataDog/dd-agent-omnibus/pull/171)
 * [SANITY] Packaging: Remove reliance on `pedump` fork. See [dd-agent-omnibus-167](https://github.com/DataDog/dd-agent-omnibus/pull/167)
 
-# 5.13.1 / 05-02-2017
+# 5.13.1 / 2017-05-02
 **Docker Alpine and Source Install Only**
 
 ### Details
@@ -645,7 +645,7 @@ https://github.com/DataDog/dd-agent/compare/5.13.0...5.13.1
 * [BUGFIX] Redis: Fixes a bug where the redis python library would not install using the source install. See [integrations-core-389](https://github.com/DataDog/integrations-core/pull/389)
 
 
-# 5.13.0 / 04-24-2017
+# 5.13.0 / 2017-04-24
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -673,7 +673,7 @@ Please refer to the [Trace Agent 5.13.0 tag](https://github.com/DataDog/datadog-
 * [REVERT] Core: SpooledTemporaryFile for subprocess output. See [#3291][]
 
 
-# 5.12.3 / 03-31-2017
+# 5.12.3 / 2017-03-31
 **Linux, Docker and Source Install**
 
 ### Details
@@ -684,7 +684,7 @@ Please refer to the [Trace Agent 5.12.3 tag](https://github.com/DataDog/datadog-
 
 * [BUGFIX] Docker: Fix CGroup parsing. See [#3293][]
 
-# 5.12.2 / 03-29-2017
+# 5.12.2 / 2017-03-29
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -696,7 +696,7 @@ https://github.com/DataDog/dd-agent/compare/5.12.1...5.12.2
 * [BUGFIX] Forwarder: Fix error on removal of transactions. See [#3287][]
 * [BUGFIX] Docker: Fix cgroup parsing on RancherOS. See [#3274][]
 
-# 5.12.1 / 03-23-2017
+# 5.12.1 / 2017-03-23
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -709,7 +709,7 @@ https://github.com/DataDog/dd-agent/compare/5.12.0...5.12.1
 * [BUGFIX] MySQL: Allow for configurable collection of replica statuses [integrations-core-288](https://github.com/DataDog/integrations-core/pull/288)
 * [BUGFIX] MySQL: Slaves_connected should be a gauge. [integrations-core-291](https://github.com/DataDog/integrations-core/pull/291)
 
-# 5.12.0 / 03-22-2017
+# 5.12.0 / 2017-03-22
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -898,7 +898,7 @@ The Windows agent is now digitally signed.
 * [DEPRECATE] ActiveMQ: Remove old JMX config file. See [#3141][]
 
 
-# 5.11.3 / 02-27-2017
+# 5.11.3 / 2017-02-27
 **Mac OS only**
 
 ### Details
@@ -910,7 +910,7 @@ There was an issue with Gohai on Mac OS >= 10.11 leading to high CPU utilization
 * [OTHER] Do not run Gohai on Mac OS. See [#3224][].
 
 
-# 5.11.2 / 02-13-2017
+# 5.11.2 / 2017-02-13
 **Linux and Docker only**
 
 ### Details
@@ -922,7 +922,7 @@ There was an issue releasing 5.11.1 by which the package shipped still contained
 * [RELEASE] Releasing actual bugfix expected with 5.11.1, with version bump to 5.11.2.
 
 
-# 5.11.1 / 02-13-2017
+# 5.11.1 / 2017-02-13
 **Linux and Docker only**
 
 ### Details
@@ -934,7 +934,7 @@ There was a regression in 5.11.0 due to an inadverted subdependency upgrade, bre
 * [REGRESSION] pinning of `pyasn1` to version 0.1.9. See [#3183][], [omnibus-software-111](https://github.com/DataDog/omnibus-software/pull/111), [omnibus-software-114](https://github.com/DataDog/omnibus-software/pull/114), [omnibus-software-115](https://github.com/DataDog/omnibus-software/pull/115).
 
 
-# 5.11.0 / 02-08-2017
+# 5.11.0 / 2017-02-08
 **Linux and Docker only**
 
 ### Details
@@ -953,7 +953,7 @@ For more information:
 * [IMPROVEMENT] Core: append the output of trace-agent -info to service datadog-agent info command
 
 
-# 5.10.1 / 11-21-2016
+# 5.10.1 / 2016-11-21
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -980,7 +980,7 @@ https://github.com/DataDog/dd-agent/compare/5.10.0...5.10.1
 * [DEPRECATE] Process: `procfs_path` is now deprecated, should be set in `datadog.conf`. See [#3013][].
 
 
-# 5.10.0 / 11-09-2016
+# 5.10.0 / 2016-11-09
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -1093,7 +1093,7 @@ custom checks that rely on the former versions please make necessary amends:
 * [BUGFIX] Openstack: Add missing SSL `verify` param to 2 `requests` calls. See [#2877][] (Thanks [@jcejohnson][])
 * [BUGFIX] Windows packaging: Terminate `agent-manager.exe` on uninstall/upgrade. See [#2982][]
 
-# 5.9.1 / 09-30-2016
+# 5.9.1 / 2016-09-30
 **Linux, Docker and Source Install**
 
 ### Details
@@ -1114,7 +1114,7 @@ A packaging issue led to issues with the Spark integration when running Agent 5.
 * [BUGFIX] Spark: fix missing libraries issue.
 
 
-# 5.9.0 / 09-27-2016
+# 5.9.0 / 2016-09-27
 **Linux, Windows, Docker and Source Install**
 
 ### Details
@@ -1255,7 +1255,7 @@ See [#2709][] for reference.
 * [DEPRECATED] Nghttp2: remove python bindings. See [omnibus-software-71](https://github.com/DataDog/omnibus-software/pull/71)
 
 
-# 5.8.5 / 07-27-2016
+# 5.8.5 / 2016-07-27
 **Windows, Linux and Source Install**
 
 ### Details
@@ -1298,7 +1298,7 @@ See [dd-agent-omnibus-81](https://github.com/DataDog/dd-agent-omnibus/pull/81)
 * [BUGFIX] Windows Event log: Support unicode messages. See [#2660][]
 
 
-# 5.8.4 / 07-08-2016
+# 5.8.4 / 2016-07-08
 **Windows, Linux and Source Install**
 
 ### Details
@@ -1312,7 +1312,7 @@ https://github.com/DataDog/dd-agent/compare/5.8.3...5.8.4
 * [BUGFIX] Core: Fixes a bug that caused the thread pool to leak threads. See [#2666][]
 
 
-# 5.8.3 / 07-05-2016
+# 5.8.3 / 2016-07-05
 **Windows, Linux and Source Install**
 
 ### Details
@@ -1339,7 +1339,7 @@ https://github.com/DataDog/dd-agent/compare/5.8.2...5.8.3
 * [BUGFIX] WMI: Allows user to set a profider in request data. See [#2565][], [#2369][]
 
 
-# 5.8.2 / 05-24-2016
+# 5.8.2 / 2016-05-24
 **Windows only**
 
 ### Details
@@ -1349,7 +1349,7 @@ https://github.com/DataDog/dd-agent/compare/5.8.1...5.8.2
 * [BUGFIX] Windows: Revert a change introduced in the `5.8.0` release, causing hostnames to change on EC2 hosts when no hostname is defined in `datadog.conf`, leading to potential backwards compatibility issues. See [#2451][], [#2535][]
 
 
-# 5.8.1 / 05-23-2016
+# 5.8.1 / 2016-05-23
 **Windows only**
 
 ### Details
@@ -1359,7 +1359,7 @@ https://github.com/DataDog/dd-agent/compare/5.8.0...5.8.1
 * [BUGFIX] Windows: Fix an issue that was preventing checks from loading properly. See [#2528][]
 
 
-# 5.8.0 / 05-23-2016
+# 5.8.0 / 2016-05-23
 **All platforms**
 
 ### Details
@@ -1540,7 +1540,7 @@ See [#2377][].
 * [OTHER] WMI: Document wildcard usage in filters. See [#2368][], [#2469][] (Thanks [@mausch][])
 
 
-# 5.7.4 / 04-21-2016
+# 5.7.4 / 2016-04-21
 **All platforms**
 
 ### Details
@@ -1559,7 +1559,7 @@ https://github.com/DataDog/dd-agent/compare/5.7.3...5.7.4
 
 * [BUGFIX] Agent Metrics: Flush service metadata to avoid memory leaks. See [#2414][]
 
-# 5.7.3 / 03-31-2016
+# 5.7.3 / 2016-03-31
 **All platforms**
 
 ### Details
@@ -1584,7 +1584,7 @@ https://github.com/DataDog/dd-agent/compare/5.7.2...5.7.3
 * [BUGFIX] vSphere: Fix SSL config options feature by upgrading the packaged version of `pyvmomi`. See [omnibus-software-44](https://github.com/DataDog/omnibus-software/pull/44)
 * [BUGFIX] Windows Event Log: Fix check when `tag_event_id:true` [#2397][]
 
-# 5.7.2 / 03-17-2016
+# 5.7.2 / 2016-03-17
 **Windows only**
 
 ### Details
@@ -1593,7 +1593,7 @@ https://github.com/DataDog/dd-agent/compare/5.7.1...5.7.2
 ### Changes
 * [BUGFIX] WMI: Disable query timeout, cache and re-use connections to avoid memory leaks. See [#2366][]
 
-# 5.7.1 / 03-09-2016
+# 5.7.1 / 2016-03-09
 **All platforms**
 
 NB: For Windows, please also refer to the `5.7.0` section. `5.7.0` was not released on Windows but the `5.7.1` Windows installer includes all the changes listed in the `5.7.0` section.
@@ -1606,7 +1606,7 @@ https://github.com/DataDog/dd-agent/compare/5.7.0...5.7.1
 * [BUGFIX] MySQL: Fix check failure when no tag is provided. See [#2329][]
 * [BUGFIX] Packaging: Fix RPM package for Amazon Linux EMR. See [omnibus-ruby-18](https://github.com/DataDog/omnibus-ruby/pull/18)
 
-# 5.7.0 / 03-07-2016
+# 5.7.0 / 2016-03-07
 **Linux, Mac OS and Source Install only**
 
 ### Details
@@ -1810,7 +1810,7 @@ The `wmi_check` now only supports `%` as the wildcard character in the `filters`
 * [BUGFIX] WMI check: Always add the `tag_by` parameter to the collected properties. See [#2296][]
 
 
-# 5.6.3 / 12-10-2015
+# 5.6.3 / 2015-12-10
 
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.6.2...5.6.3
@@ -1828,7 +1828,7 @@ https://github.com/DataDog/dd-agent/compare/5.6.2...5.6.3
 * [BUGFIX] Postgres: Fix metrics not reporting with multiple relations. See [#2111][]
 * [BUGFIX] Windows: Bundle default CA certs of `requests`. See [#2098][]
 
-# 5.6.2 / 11-16-2015
+# 5.6.2 / 2015-11-16
 **Linux, Mac OS and Source Install only**
 
 ### Details
@@ -1840,7 +1840,7 @@ https://github.com/DataDog/dd-agent/compare/5.6.1...5.6.2
 
 * [BUGFIX] Core: Improve detection of agent process from PID to avoid false positives. See [#2005][]
 
-# 5.6.1 / 11-09-2015
+# 5.6.1 / 2015-11-09
 
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.6.0...5.6.1
@@ -1855,7 +1855,7 @@ https://github.com/DataDog/dd-agent/compare/5.6.0...5.6.1
 * [OTHER] Upgrade `pymongo` dependency from `2.6.3` to `2.8` on Windows Datadog Agent 32-bit MSI Installer.
 * [OTHER] Allow `supervisor.conf` to select Supervisor user. See [#2064][]
 
-# 5.6.0 / 11-05-2015
+# 5.6.0 / 2015-11-05
 **Linux, Mac OS and Source Install only**
 
 ### Details
@@ -2011,7 +2011,7 @@ See [#81](https://github.com/DataDog/jmxfetch/issues/81)
 * [BUGFIX] Windows: Limit Datadog Agent Manager to a single instance. See [#1924][], [#1933][]
 
 
-# 5.5.2 / 10-26-2015
+# 5.5.2 / 2015-10-26
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.5.1...5.5.2
 
@@ -2026,7 +2026,7 @@ We highly recommend to upgrade to this version if your server is configured in l
 * [BUGFIX] Fix `pycurl` dependency issue with Windows Datadog Agent 64-bit MSI Installer.
 
 
-# 5.5.1 / 09-23-2015
+# 5.5.1 / 2015-09-23
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.5.0...5.5.1
 
@@ -2040,7 +2040,7 @@ https://github.com/DataDog/dd-agent/compare/5.5.0...5.5.1
 * [OTHER] Windows: Ship latest version of Gohai with Windows MSI Installer.
 
 
-# 5.5.0 / 09-17-2015
+# 5.5.0 / 2015-09-17
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.4.7...5.5.0
 
@@ -2218,7 +2218,7 @@ See [#1908][]
 * [OTHER] Mac OS X: Fix upgrade of the agent with DMG package. See [#48](https://github.com/DataDog/dd-agent-omnibus/pull/48)
 
 
-# 5.4.7 / 09-11-2015
+# 5.4.7 / 2015-09-11
 **Windows Only**
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.4.6...5.4.7
@@ -2226,7 +2226,7 @@ https://github.com/DataDog/dd-agent/compare/5.4.6...5.4.7
 ### Changes
 * [BUGFIX] Fix `adodbapi` dependency issue with Windows MSI Installer. See [#1907][]
 
-# 5.4.6 / 09-08-2015
+# 5.4.6 / 2015-09-08
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.4.5...5.4.6
 
@@ -2237,7 +2237,7 @@ https://github.com/DataDog/dd-agent/compare/5.4.5...5.4.6
 * [BUGFIX] Process: Correctly handle disappearing PID. See [#1721][] [#1772][]
 
 
-# 5.4.5 / 08-20-2015
+# 5.4.5 / 2015-08-20
 **Datadog Agent container only**
 
 ### Details
@@ -2247,7 +2247,7 @@ https://github.com/DataDog/dd-agent/compare/5.4.4...5.4.5
 * [IMPROVEMENT] Docker: Support for Docker 1.8 version. See [#1831][]
 
 
-# 5.4.4 / 08-05-2015
+# 5.4.4 / 2015-08-05
 **Source Install only**
 
 ### Details
@@ -2257,7 +2257,7 @@ https://github.com/DataDog/dd-agent/compare/5.4.3...5.4.4
 * [BUGFIX] Update `ntplib` to 0.3.3 to fix source install requirements. See [#1792][]
 
 
-# 5.4.3 / 07-13-2015
+# 5.4.3 / 2015-07-13
 **Linux or Source Install only**
 
 ### Details
@@ -2268,7 +2268,7 @@ https://github.com/DataDog/dd-agent/compare/5.4.2...5.4.3
 * [BUGFIX] Docker: Do not fail when the event API returns a bad JSON response. See [#1757][]
 
 
-# 5.4.2 / 06-18-2015
+# 5.4.2 / 2015-06-18
 **Linux or Source Install only**
 
 ### Details
@@ -2279,7 +2279,7 @@ https://github.com/DataDog/dd-agent/compare/5.4.1...5.4.2
 * [BUGFIX] Etcd: Do not query leader endpoint on followers (was causing check failure). See [#1709][]
 
 
-# 5.4.1 / 06-16-2015
+# 5.4.1 / 2015-06-16
 **Linux or Source Install only**
 
 ### Details
@@ -2290,7 +2290,7 @@ https://github.com/DataDog/dd-agent/compare/5.4.0...5.4.1
 * [BUGFIX] Kafka: Fix indentation issue in the configuration YAML example file. See [#1701][]
 
 
-# 5.4.0 / 06-16-2015
+# 5.4.0 / 2015-06-16
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.3.2...5.4.0
 
@@ -2386,7 +2386,7 @@ See [#1621][]
 * [BUGFIX] WMI: Cast tag values as strings. See [#1630][]
 
 
-# 5.3.2 / 04-29-2015
+# 5.3.2 / 2015-04-29
 **Debian only**
 
 ### Details
@@ -2396,7 +2396,7 @@ https://github.com/DataDog/dd-agent/compare/5.3.1...5.3.2
 * [BUGFIX/FEATURE] Native support of systemd with a new service file
 
 
-# 5.3.1 / 04-22-2015
+# 5.3.1 / 2015-04-22
 **Windows only**
 
 ### Details
@@ -2406,7 +2406,7 @@ https://github.com/DataDog/dd-agent/compare/5.3.0...5.3.1
 * [BUGFIX] JMXFetch: Fix bootloop issue when no JMX integration is set. See [#1561][]
 
 
-# 5.3.0 / 04-16-2015
+# 5.3.0 / 2015-04-16
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.2.2...5.3.0
 
@@ -2467,7 +2467,7 @@ https://github.com/DataDog/dd-agent/compare/5.2.2...5.3.0
 
 
 
-# 5.2.3 / 03-30-2015
+# 5.2.3 / 2015-03-30
 **Windows only**
 
 ### Details
@@ -2476,7 +2476,7 @@ https://github.com/DataDog/dd-agent/compare/5.2.2...5.2.3
 ### Changes
 * [BUGFIX] Fix vSphere service check
 
-# 5.2.2 / 03-20-2015
+# 5.2.2 / 2015-03-20
 **Linux or Source Install only**
 
 ### Details
@@ -2488,7 +2488,7 @@ https://github.com/DataDog/dd-agent/compare/5.2.1...5.2.2
 * [BUGFIX] Fix bundling of rrdtool python binding
 
 
-# 5.2.1 / 02-20-2015
+# 5.2.1 / 2015-02-20
 **Linux or Source Install only**
 
 ### Details
@@ -2501,7 +2501,7 @@ https://github.com/DataDog/dd-agent/compare/5.2.0...5.2.1
 * [BUGFIX] varnish: fix varnishadm sudoed call with subprocess. See [#1389][]
 
 
-# 5.2.0 / 02-17-2015
+# 5.2.0 / 2015-02-17
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.1.1...5.2.0
 
@@ -2587,7 +2587,7 @@ Starting from this version of the agent, the default endpoint URL `app.datadoghq
 * [BUGFIX] JMXFetch: Fix a memory leak issue. See [#30](https://github.com/DataDog/jmxfetch/issues/30)
 * [BUGFIX] Windows Event Log: Fix a timezone issue. See [#1370][]
 
-# 5.1.1 / 12-09-2014
+# 5.1.1 / 2014-12-09
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.1.0...5.1.1
 
@@ -2602,7 +2602,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.0...5.1.1
 * [BUGFIX] Windows: When uninstalling the Agent, the uninstaller was mistakenly telling the user that the machine would reboot. This is fixed.
 
 
-# 5.1.0 / 11-24-2014
+# 5.1.0 / 2014-11-24
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.0.5...5.1.0
 
@@ -2662,7 +2662,7 @@ https://github.com/DataDog/dd-agent/compare/5.0.5...5.1.0
 * [BUGFIX] MongoDB: Add logging of serverStatus errors. See [#1065][] (Thanks [@igroenewold][])
 * [BUGFIX] Docker: Fix various time-outs and errors. See [#1162][].
 
-# 5.0.5 (Every platform) / 10-31-2014
+# 5.0.5 (Every platform) / 2014-10-31
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.0.4...5.0.5
 
@@ -2671,7 +2671,7 @@ If your server's clock is configured to use daylight saving time, your server mi
 
 We highly recommend to upgrade to this version if your server is configured in local time.
 
-# 5.0.4 (deb package, rpm package) / 10-17-2014
+# 5.0.4 (deb package, rpm package) / 2014-10-17
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.0.3...5.0.4
 
@@ -2708,7 +2708,7 @@ https://github.com/DataDog/dd-agent/compare/5.0.0...5.0.1
 
 [FEATURE] Releasing the vSphere check. This is a new integration able to fetch metrics and events from vCenter.
 
-# 5.0.0 / 08-22-2014
+# 5.0.0 / 2014-08-22
 ### Details
 https://github.com/DataDog/dd-agent/compare/4.4.0...5.0.0
 
@@ -2783,7 +2783,7 @@ See this Wiki page https://github.com/DataDog/dd-agent/wiki/Upgrade-to-Agent-5.x
 * [BUGFIX] SQL Server: Detect automatically counter types to report them correctly. See [#1069][]
 * [BUGFIX] Report Docker memory page metrics as rates.
 
-# 4.4.0 / 06-24-2014
+# 4.4.0 / 2014-06-24
 ### Details
 https://github.com/DataDog/dd-agent/compare/4.3.1...4.4.0
 
@@ -2808,7 +2808,7 @@ https://github.com/DataDog/dd-agent/compare/4.3.1...4.4.0
 * [BUGFIX] Remove Content-Length header in CONNECT HTTP Requests (when using a proxy), as CONNECT Requests shouldn't have that header and some proxies don't support it.
 
 
-# 4.3.1 / 06-03-2014
+# 4.3.1 / 2014-06-03
 ### Details
 https://github.com/DataDog/dd-agent/compare/4.3.0...4.3.1
 
@@ -2823,7 +2823,7 @@ https://github.com/DataDog/dd-agent/compare/4.3.0...4.3.1
 * [BUGFIX] Report Docker CPU metrics as rate. See [#964][]
 * [BUGFIX] Add HAProxy reporter name in HAProxy event's titles. See [#960][]
 
-# 4.3.0 / 05-22-2014
+# 4.3.0 / 2014-05-22
 ### Details
 https://github.com/DataDog/dd-agent/compare/4.2.2...4.3.0
 
@@ -2863,7 +2863,7 @@ https://github.com/DataDog/dd-agent/compare/4.2.2...4.3.0
 * [BUGFIX] ElasticSearch: Added correct GC metrics for ES 1.x: See [#900][] (Thanks to [@joningle][])
 * [FEATURE] Network: Add additional metrics for TCP: See [#949][]
 
-# 4.2.2 / 04-25-2014
+# 4.2.2 / 2014-04-25
 ### Details
 https://github.com/DataDog/dd-agent/compare/4.2.1...4.2.2
 
@@ -2875,7 +2875,7 @@ https://github.com/DataDog/dd-agent/compare/4.2.1...4.2.2
 ### Changes
 * [FEATURE] Support Redis check on Windows: See [#917]
 
-# 4.2.1 / 04-09-2014
+# 4.2.1 / 2014-04-09
 ### Details
 https://github.com/DataDog/dd-agent/compare/4.2.0...4.2.1
 
@@ -2896,7 +2896,7 @@ https://github.com/DataDog/dd-agent/compare/4.2.0...4.2.1
 * [BUGFIX] Fix an issue that is causing a high number of tags for postgresql metrics when custom tags are enabled.
 
 
-# 4.2.0 / 03-25-2014
+# 4.2.0 / 2014-03-25
 ### Details
 https://github.com/DataDog/dd-agent/compare/4.1.0...4.2.0
 
