@@ -45,6 +45,7 @@ class Dogstreams(object):
         else:
             dogstreams = []
 
+        logger.warning("Dogstream is a deprecated feature, and is removed from version 6 of the Datadog Agent")
         logger.info("Dogstream parsers: %s" % repr(dogstreams))
 
         return cls(logger, dogstreams)

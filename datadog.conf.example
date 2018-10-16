@@ -229,7 +229,8 @@ gce_updated_hostname: yes
 # ========================================================================== #
 
 # -------------------------------------------------------------------------- #
-#   Ganglia                                                                  #
+#  Ganglia                                                                   #
+#  DEPRECATED feature, removed from Agent v6                                 #
 # -------------------------------------------------------------------------- #
 
 # Ganglia host where gmetad is running
@@ -240,6 +241,7 @@ gce_updated_hostname: yes
 
 # -------------------------------------------------------------------------- #
 #  Dogstream (log file parser)												 #
+#  DEPRECATED feature, removed from Agent v6                                 #
 # -------------------------------------------------------------------------- #
 
 # Comma-separated list of logs to parse and optionally custom parsers to use.
