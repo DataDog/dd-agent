@@ -5,6 +5,5 @@
 from datadog_checks.utils.timeout import ( # noqa F401
     TimeoutException,
     ThreadMethod,
-    timeout,
-    _thread_by_func
+    timeout
 )
