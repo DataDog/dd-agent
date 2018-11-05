@@ -3,6 +3,18 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.28.1 / 2018-11-05
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.28.0...5.28.1
+
+### Changes
+Please refer to the [Integrations Core Checks 5.28.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.28.1) for the list of changes on the core checks.
+
+* [BUGFIX] Fixed bug preventing the `supervisord` check from loading.
+
 # 5.28.0 / 2018-10-25
 
 **Linux, Windows, Docker and Source Install**
