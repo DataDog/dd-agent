@@ -640,6 +640,10 @@ class AgentCheck(object):
         """
         self._instance_metadata.append((meta_name, unicode(value)))
 
+    def set_metadata(self, *args, **kwargs):
+        """Compatibility stub for Agent 6+ metadata submission method"""
+        pass
+
     def has_events(self):
         """
         Check whether the check has saved any events
