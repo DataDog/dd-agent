@@ -3,6 +3,22 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+
+# 5.29.0 / 2018-11-21
+
+**Linux, Windows, Docker and Source Install**
+
+### Prelude
+
+This release focuses on simplifying [Trace Search](https://docs.datadoghq.com/tracing/visualization/search/) configuration. APM Events can now be configured at the tracer level. Tracers will get updated in the near future to expose this option.
+
+### Details
+This release only ships changes to the trace-agent.
+https://github.com/DataDog/dd-agent/compare/5.28.1...5.29.0
+
+### Changes
+Please refer to the [Trace Agent 6.7.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.7.0) for the list of changes on the Trace Agent.
+
 # 5.28.1 / 2018-11-05
 
 **Linux, Windows, Docker and Source Install**
