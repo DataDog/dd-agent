@@ -3,6 +3,46 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+
+# 5.29.0 / 2018-11-21
+
+**Linux, Windows, Docker and Source Install**
+
+### Prelude
+
+This release focuses on simplifying [Trace Search](https://docs.datadoghq.com/tracing/visualization/search/) configuration. APM Events can now be configured at the tracer level. Tracers will get updated in the near future to expose this option.
+
+### Details
+This release only ships changes to the trace-agent.
+https://github.com/DataDog/dd-agent/compare/5.28.1...5.29.0
+
+### Changes
+Please refer to the [Trace Agent 6.7.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.7.0) for the list of changes on the Trace Agent.
+
+# 5.28.1 / 2018-11-05
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.28.0...5.28.1
+
+### Changes
+Please refer to the [Integrations Core Checks 5.28.1 tag](https://github.com/DataDog/integrations-core/releases/tag/5.28.1) for the list of changes on the core checks.
+
+* [BUGFIX] Fixed bug preventing the `supervisord` check from loading.
+
+# 5.28.0 / 2018-10-25
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.27.2...5.28.0
+
+### Changes
+Please refer to the [Integrations Core Checks 5.28.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.28.0) for the list of changes on the core checks.
+
+* [IMPROVEMENT] JMXFetch upgraded to 0.21.0; Adds support for rmi registry connection over SSL and client authentication.
+
 # 5.27.2 / 2018-10-02
 
 **Linux, Windows, Docker and Source Install**
