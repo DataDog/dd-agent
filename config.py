@@ -689,7 +689,14 @@ def get_system_stats(proc_path=None):
         log.warning("unable to retrieve number of cpuCores. Failed with error %s", e)
 
     if Platform.is_linux(platf):
-        systemStats['nixV'] = platform.dist()
+        supported_dists = list(platform._supported_dists)
+        supported_dists.append('system')
+
+        nixV = platform.dist(supported_dists=supported_dists)
+        if nixV[0] == 'system':
+            nixV = ('amazon', nixV[1], nixV[2])
+
+        systemStats['nixV'] = nixV
 
     elif Platform.is_darwin(platf):
         systemStats['macV'] = platform.mac_ver()
