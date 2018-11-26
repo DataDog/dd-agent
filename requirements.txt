@@ -38,3 +38,4 @@ supervisor==3.3.3
 tornado==3.2.2
 uptime==3.0.1
 prometheus-client==0.1.0
+distro==1.3.0
