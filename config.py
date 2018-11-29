@@ -25,6 +25,7 @@ from importlib import import_module
 
 # 3p
 import simplejson as json
+import distro
 
 # project
 from util import check_yaml, config_to_yaml
@@ -689,7 +690,11 @@ def get_system_stats(proc_path=None):
         log.warning("unable to retrieve number of cpuCores. Failed with error %s", e)
 
     if Platform.is_linux(platf):
-        systemStats['nixV'] = platform.dist()
+        name, version, codename = distro.linux_distribution(full_distribution_name=False)
+        if name == 'amzn':
+            name = 'amazon'
+
+        systemStats['nixV'] = (name, version, codename)
 
     elif Platform.is_darwin(platf):
         systemStats['macV'] = platform.mac_ver()
