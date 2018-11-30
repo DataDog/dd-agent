@@ -86,7 +86,7 @@ set -u
 #######################################################################
 PRE_SDK_RELEASE="5.11.3"
 LAST_JMXFETCH_BUNDLE_RELEASE="5.13.2"
-JMXFETCH_URL="http://dd-jmxfetch.s3.amazonaws.com"
+JMXFETCH_URL="https://dl.bintray.com/datadog/datadog-maven/com/datadoghq/jmxfetch"
 REPORT_FAILURE_URL="https://app.datadoghq.com/agent_stats/report_failure"
 REPORT_FAILURE_EMAIL="support@datadoghq.com"
 
@@ -521,7 +521,7 @@ then
     JMX_ARTIFACT="jmxfetch-${JMX_VERSION}-jar-with-dependencies.jar"
 
     mkdir -p "$DD_HOME/agent/checks/libs"
-    $DOWNLOADER "$DD_HOME/agent/checks/libs/${JMX_ARTIFACT}" "$JMXFETCH_URL/${JMX_ARTIFACT}"
+    $DOWNLOADER "$DD_HOME/agent/checks/libs/${JMX_ARTIFACT}" "$JMXFETCH_URL/${JMX_VERSION}/${JMX_ARTIFACT}"
     print_done
 fi
 
