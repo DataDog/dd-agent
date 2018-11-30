@@ -29,7 +29,7 @@ unless ENV['CI']
   ENV['CONCURRENCY'] = ENV['CONCURRENCY'] || '2'
   ENV['NOSE_FILTER'] = 'not windows'
 end
-ENV['JMXFETCH_URL'] = 'https://dd-jmxfetch.s3.amazonaws.com'
+ENV['JMXFETCH_URL'] = 'https://dl.bintray.com/datadog/datadog-maven/com/datadoghq/jmxfetch'
 
 desc 'Setup a development environment for the Agent'
 task 'setup_env' do
@@ -62,7 +62,7 @@ task 'setup_libs' do
     puts "Artifact already in place: #{jmx_artifact}"
   else
     # let's use `sh` so we can see on the log if wget fails
-    sh "wget -O checks/libs/#{jmx_artifact} #{ENV['JMXFETCH_URL']}/#{jmx_artifact}"
+    sh "wget -O checks/libs/#{jmx_artifact} #{ENV['JMXFETCH_URL']}/#{jmx_version}/#{jmx_artifact}"
   end
 end
 
