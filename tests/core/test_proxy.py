@@ -57,7 +57,9 @@ class TestNoProxy(TestCase):
             'https': 'http://localhost:3128',
             'no': '127.0.0.1,localhost,169.254.169.254'
         }
+
         environ_proxies = get_environ_proxies("https://www.google.com")
+        environ_proxies.pop('travis_apt', None)
         self.assertEquals(expected_proxies, environ_proxies, (expected_proxies, environ_proxies))
 
         # Clear the env variables set
