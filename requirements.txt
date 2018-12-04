@@ -32,8 +32,6 @@ pyyaml==3.11
 # note: requests is also used in many checks
 # upgrade with caution
 requests==2.20.1
-# We need to pin this explicitely because both python-etcd and requests depend on urllib3
-# but even though requests pins urllib3 < 1.24, python-etcd does not and pip installs the latest anyway.
 urllib3==1.24.1
 # note: simplejson is used in many checks to inteface APIs
 simplejson==3.6.5
