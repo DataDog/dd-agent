@@ -3,6 +3,23 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.30.0 / 2018-12-13
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.29.0...5.30.0
+
+### Changes
+
+Please refer to the [Integrations Core Checks 5.30.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.30.0) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 6.8.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.8.0) for more information on the Trace Agent.
+
+Please refer to the [Process Agent 6.8.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/6.8.0) for more information on the Process Agent.
+
+* [IMPROVEMENT] JMXFetch upgraded to 0.23.0; Add default JVM metrics for GC pools, class load count, and descriptors
+* [IMPROVEMENT] On windows, use PDH performance counters to get the percentage of cpu interrupt time instead of undocumented API calls.
 
 # 5.29.0 / 2018-11-21
 
