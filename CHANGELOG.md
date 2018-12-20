@@ -3,6 +3,18 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.30.1 / 2018-12-20
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.30.0...5.30.1
+
+### Changes
+Please refer to the [Trace Agent 5.30.1 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/5.30.1) for more information on the Trace Agent.
+
+* [BUGFIX] Fix a bug that could prevent the trace agent from starting when the ``trace.ignore`` option was set.
+
 # 5.30.0 / 2018-12-13
 
 **Linux, Windows, Docker and Source Install**
