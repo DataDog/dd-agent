@@ -22,6 +22,9 @@ Please refer to the [Trace Agent 5.30.1 tag](https://github.com/DataDog/datadog-
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.29.0...5.30.0
 
+### Known Issues
+This version introduces a breaking change that removes support of the deprecated Agent-level (`datadog.conf`) `use_mount` and `device_blacklist_re` options in the `disk` check. Support for these options will be re-introduced in `5.31.0`. If you're using these Agent-level options, please use respectively the similar options `use_mount` and `excluded_disk_re` in the configuration of the `disk` check (`conf.d/disk.yaml`) instead.
+
 ### Changes
 
 Please refer to the [Integrations Core Checks 5.30.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.30.0) for the list of changes on the core checks.
