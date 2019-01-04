@@ -1178,6 +1178,14 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
 
         _update_python_path(check_config)
 
+        # Validate custom checks and wheels without a `datadog_checks` namespace
+        if version_override in ('Unknown Wheel', 'custom'):
+            log.info('Validating {} for Python 3 compatibility'.format(check_path))
+            output, _, _ = get_subprocess_output(['a7_validate', check_path], log)
+            warnings = json.loads(output)
+            for w in warnings:
+                load_success[check_name].warning(w.get('message'))
+
         if is_wheel:
             log.debug('Loaded %s' % check_name)
         else:
