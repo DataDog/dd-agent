@@ -472,6 +472,15 @@ class Collector(object):
                 meta = {'tags': ["check:%s" % check.name]}
                 metrics.append((metric, time.time(), check_run_time, meta))
 
+            if hasattr(check, "a7_compatible") and isinstance(getattr(check, "a7_compatible"), bool):
+                metric = 'datadog.agent.check_ready'
+                meta = {'tags': ["check_name:%s" % check.name]}
+
+                # datadog.agent.check_ready:
+                # 0: is not compatible with A7
+                # 1: is compatible with A7
+                metrics.append((metric, time.time(), int(getattr(check, "a7_compatible")), meta))
+
         for check_name, info in self.init_failed_checks_d.iteritems():
             if not self.continue_running:
                 return
