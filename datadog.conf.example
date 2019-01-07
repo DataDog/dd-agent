@@ -181,6 +181,9 @@ gce_updated_hostname: yes
 # us to override the standard default location '/proc'
 # procfs_path: /proc
 
+# Disable Python3 validation of python checks
+# disable_py3_validation: false
+
 # ========================================================================== #
 # DogStatsd configuration                                                    #
 # DogStatsd is a small server that aggregates your custom app metrics. For   #

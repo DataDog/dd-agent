@@ -641,6 +641,10 @@ def get_config(parse_args=True, cfg_path=None, options=None, can_query_registry=
         if config.has_option("Main", "openstack_use_metadata_tags"):
             agentConfig["openstack_use_metadata_tags"] = _is_affirmative(config.get("Main", "openstack_use_metadata_tags"))
 
+        agentConfig["disable_py3_validation"] = False
+        if config.has_option("Main", "disable_py3_validation"):
+            agentConfig["disable_py3_validation"] = _is_affirmative(config.get("Main", "disable_py3_validation"))
+
     except ConfigParser.NoSectionError as e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
@@ -1182,23 +1186,26 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
         _update_python_path(check_config)
 
         # Validate custom checks and wheels without a `datadog_checks` namespace
-        if version_override in (UNKNOWN_WHEEL_VERSION_MSG, CUSTOM_CHECK_VERSION_MSG):
-            log.info('Validating {} for Python 3 compatibility'.format(check_path))
-            try:
-                output, _, _ = get_subprocess_output(['a7_validate', check_path], log)
-            except Exception as e:
-                log.error("error executing a7_validate on custom check: %s", e)
-            else:
-                warnings = json.loads(output)
+        if not agentConfig.get("disable_py3_validation", False):
+            if version_override in (UNKNOWN_WHEEL_VERSION_MSG, CUSTOM_CHECK_VERSION_MSG):
+                log.info('Validating {} for Python 3 compatibility'.format(check_path))
+                try:
+                    output, _, _ = get_subprocess_output(['a7_validate', check_path], log)
+                except Exception as e:
+                    log.error("error executing a7_validate on custom check: %s", e)
+                else:
+                    warnings = json.loads(output)
 
-                a7_compatible = True
-                for w in warnings:
-                    message = w.get('message')
-                    if message:
-                        load_success[check_name].warning(message)
-                        a7_compatible = False
+                    a7_compatible = True
+                    for w in warnings:
+                        message = w.get('message')
+                        if message:
+                            log.warn("check '{}' is not Python3 compatible: {}".format(check_name, message))
+                            a7_compatible = False
 
-                setattr(load_success[check_name], A7_COMPATIBILITY_ATTR, a7_compatible)
+                    if not a7_compatible:
+                        load_success[check_name].persistent_warning("check is not compatible with Python3 (see logs for more information)")
+                    setattr(load_success[check_name], A7_COMPATIBILITY_ATTR, a7_compatible)
 
         if is_wheel:
             log.debug('Loaded %s' % check_name)
