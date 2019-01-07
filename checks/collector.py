@@ -30,7 +30,11 @@ from checks.check_status import (
 )
 from checks.datadog import Dogstreams
 from checks.ganglia import Ganglia
-from config import get_system_stats, get_version
+from config import (
+    A7_COMPATIBILITY_ATTR,
+    get_system_stats,
+    get_version,
+)
 import checks.system.unix as u
 import checks.system.win32 as w32
 import modules
@@ -472,14 +476,14 @@ class Collector(object):
                 meta = {'tags': ["check:%s" % check.name]}
                 metrics.append((metric, time.time(), check_run_time, meta))
 
-            if hasattr(check, "a7_compatible") and isinstance(getattr(check, "a7_compatible"), bool):
+            if hasattr(check, A7_COMPATIBILITY_ATTR) and isinstance(getattr(check, A7_COMPATIBILITY_ATTR), bool):
                 metric = 'datadog.agent.check_ready'
                 meta = {'tags': ["check_name:%s" % check.name]}
 
                 # datadog.agent.check_ready:
                 # 0: is not compatible with A7
                 # 1: is compatible with A7
-                metrics.append((metric, time.time(), int(getattr(check, "a7_compatible")), meta))
+                metrics.append((metric, time.time(), int(getattr(check, A7_COMPATIBILITY_ATTR)), meta))
 
         for check_name, info in self.init_failed_checks_d.iteritems():
             if not self.continue_running:

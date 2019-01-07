@@ -54,6 +54,9 @@ SDK_INTEGRATIONS_DIR = 'integrations'
 SD_PIPE_NAME = "dd-service_discovery"
 SD_PIPE_UNIX_PATH = '/opt/datadog-agent/run'
 SD_PIPE_WIN_PATH = "\\\\.\\pipe\\{pipename}"
+UNKNOWN_WHEEL_VERSION_MSG = 'Unknown Wheel'
+CUSTOM_CHECK_VERSION_MSG = 'custom'
+A7_COMPATIBILITY_ATTR = 'a7_compatible'
 
 log = logging.getLogger(__name__)
 
@@ -1165,11 +1168,11 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
         if is_wheel:
             wheel_version = _get_wheel_version(check_name)
             if wheel_version is None or isinstance(wheel_version, dict):
-                version_override = 'Unknown Wheel'
+                version_override = UNKNOWN_WHEEL_VERSION_MSG
             else:
                 version_override = wheel_version
         elif not manifest_path and agentConfig['additional_checksd'] in check_path:
-            version_override = 'custom'  # custom check
+            version_override = CUSTOM_CHECK_VERSION_MSG  # custom check
 
 
         load_success, load_failure = _initialize_check(
@@ -1179,7 +1182,7 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
         _update_python_path(check_config)
 
         # Validate custom checks and wheels without a `datadog_checks` namespace
-        if version_override in ('Unknown Wheel', 'custom'):
+        if version_override in (UNKNOWN_WHEEL_VERSION_MSG, CUSTOM_CHECK_VERSION_MSG):
             log.info('Validating {} for Python 3 compatibility'.format(check_path))
             try:
                 output, _, _ = get_subprocess_output(['a7_validate', check_path], log)
@@ -1195,7 +1198,7 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
                         load_success[check_name].warning(message)
                         a7_compatible = False
 
-                setattr(load_success[check_name], "a7_compatible", a7_compatible)
+                setattr(load_success[check_name], A7_COMPATIBILITY_ATTR, a7_compatible)
 
         if is_wheel:
             log.debug('Loaded %s' % check_name)
