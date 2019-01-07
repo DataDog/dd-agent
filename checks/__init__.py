@@ -350,6 +350,7 @@ class AgentCheck(object):
         self.service_checks = []
         self.instances = instances or []
         self.warnings = []
+        self.persistent_warnings = []
         self.check_version = None
         self.library_versions = None
         self.last_collection_time = defaultdict(int)
@@ -706,7 +707,7 @@ class AgentCheck(object):
         """
         Check whether the instance run created any warnings
         """
-        return len(self.warnings) > 0
+        return len(self.warnings) + len(self.persistent_warnings) > 0
 
     def warning(self, warning_message):
         """ Add a warning message that will be printed in the info page
@@ -716,6 +717,16 @@ class AgentCheck(object):
 
         self.log.warning(warning_message)
         self.warnings.append(warning_message)
+
+    def persistent_warning(self, warning_message):
+        """ Add a warning message that will be printed in the info page for the
+        entire life cycle of the check
+        :param warning_message: String. Warning message to be displayed
+        """
+        persistent_warning_message = str(warning_message)
+
+        self.log.warning(persistent_warning_message)
+        self.persistent_warnings.append(persistent_warning_message)
 
     def get_library_info(self):
         if self.library_versions is not None:
@@ -736,7 +747,7 @@ class AgentCheck(object):
         """
         warnings = self.warnings
         self.warnings = []
-        return warnings
+        return warnings + self.persistent_warnings
 
     @staticmethod
     def _get_statistic_name_from_method(method_name):
