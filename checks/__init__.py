@@ -30,11 +30,12 @@ import yaml
 # project
 from checks import check_status
 from config import AGENT_VERSION, _is_affirmative
-from util import get_next_id, yLoader
+from util import get_next_id
 from utils.hostname import get_hostname
 from utils.proxy import get_proxy
 from utils.profile import pretty_statistics
 from utils.proxy import get_no_proxy_from_env, config_proxy_skip
+from utils.ddyaml import yLoader
 
 
 log = logging.getLogger(__name__)
