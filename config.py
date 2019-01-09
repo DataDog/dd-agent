@@ -57,6 +57,9 @@ SD_PIPE_WIN_PATH = "\\\\.\\pipe\\{pipename}"
 UNKNOWN_WHEEL_VERSION_MSG = 'Unknown Wheel'
 CUSTOM_CHECK_VERSION_MSG = 'custom'
 A7_COMPATIBILITY_ATTR = 'a7_compatible'
+A7_COMPATIBILITY_READY = 'ready'
+A7_COMPATIBILITY_NOT_READY = 'not_ready'
+A7_COMPATIBILITY_UNKNOWN = 'unknown'
 
 log = logging.getLogger(__name__)
 
@@ -130,7 +133,6 @@ def get_parsed_args():
                                 'verbose': False,
                                 'profile': False}), []
     return options, args
-
 
 def get_version():
     return AGENT_VERSION
@@ -1189,23 +1191,27 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
         if not agentConfig.get("disable_py3_validation", False):
             if version_override in (UNKNOWN_WHEEL_VERSION_MSG, CUSTOM_CHECK_VERSION_MSG):
                 log.info('Validating {} for Python 3 compatibility'.format(check_path))
+                a7_compatible = A7_COMPATIBILITY_READY
                 try:
                     output, _, _ = get_subprocess_output(['a7_validate', check_path], log)
                 except Exception as e:
                     log.error("error executing a7_validate on custom check: %s", e)
+                    warnings = []
+                    a7_compatible = A7_COMPATIBILITY_UNKNOWN
                 else:
                     warnings = json.loads(output)
 
-                    a7_compatible = True
-                    for w in warnings:
-                        message = w.get('message')
-                        if message:
-                            log.warn("check '{}' is not Python3 compatible: {}".format(check_name, message))
-                            a7_compatible = False
+                for w in warnings:
+                    message = w.get('message')
+                    if message:
+                        # for now we don't display anything in the status page
+                        # log.warn("check '{}' is not Python3 compatible: {}".format(check_name, message))
+                        a7_compatible = A7_COMPATIBILITY_NOT_READY
 
-                    if not a7_compatible:
-                        load_success[check_name].persistent_warning("check is not compatible with Python3 (see logs for more information)")
-                    setattr(load_success[check_name], A7_COMPATIBILITY_ATTR, a7_compatible)
+                # for now we don't display anything in the status page
+                # if not a7_compatible:
+                #     load_success[check_name].persistent_warning("check is not compatible with Python3 (see logs for more information)")
+                setattr(load_success[check_name], A7_COMPATIBILITY_ATTR, a7_compatible)
 
         if is_wheel:
             log.debug('Loaded %s' % check_name)
