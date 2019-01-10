@@ -26,6 +26,10 @@ from importlib import import_module
 # 3p
 import simplejson as json
 import distro
+try:
+    import a7
+except ImportError:
+    pass
 
 # project
 from util import check_yaml, config_to_yaml
@@ -1193,13 +1197,12 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
                 log.info('Validating {} for Python 3 compatibility'.format(check_path))
                 a7_compatible = A7_COMPATIBILITY_READY
                 try:
-                    output, _, _ = get_subprocess_output(['a7_validate', check_path], log)
+                    file_path = os.path.realpath(check_path.decode(sys.getfilesystemencoding()))
+                    warnings = a7.validate.validate_py3(file_path)
                 except Exception as e:
                     log.error("error executing a7_validate on custom check: %s", e)
                     warnings = []
                     a7_compatible = A7_COMPATIBILITY_UNKNOWN
-                else:
-                    warnings = json.loads(output)
 
                 for w in warnings:
                     message = w.get('message')
