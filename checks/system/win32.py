@@ -144,7 +144,7 @@ class Cpu(Check):
         self.counter('system.cpu.system')
         self.counter('system.cpu.interrupt')
 
-        self.cpu_interrupt_counter = WinPDHCounter('Processor', '% Interrupt Time', logger)
+        self.cpu_interrupt_counter = WinPDHCounter('Processor', '% Interrupt Time', logger, instance_name="_Total")
 
     def check(self, agentConfig):
         cpu_percent = psutil.cpu_times()
@@ -154,7 +154,7 @@ class Cpu(Check):
         self.save_sample('system.cpu.system', 100 * cpu_percent.system / psutil.cpu_count())
 
         interrupt = self.cpu_interrupt_counter.get_single_value()
-        self.save_sample('system.cpu.interrupt', interrupt)
+        self.save_sample('system.cpu.interrupt', 100 * interrupt)
 
         return self.get_metrics()
 
