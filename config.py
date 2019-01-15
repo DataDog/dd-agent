@@ -1194,13 +1194,12 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
         # Validate custom checks and wheels without a `datadog_checks` namespace
         if not agentConfig.get("disable_py3_validation", False):
             if version_override in (UNKNOWN_WHEEL_VERSION_MSG, CUSTOM_CHECK_VERSION_MSG):
-                log.info('Validating {} for Python 3 compatibility'.format(check_path))
                 a7_compatible = A7_COMPATIBILITY_READY
                 try:
                     file_path = os.path.realpath(check_path.decode(sys.getfilesystemencoding()))
                     warnings = a7.validate.validate_py3(file_path)
                 except Exception as e:
-                    log.error("error executing a7_validate on custom check: %s", e)
+                    log.error("error running 'validate' on custom check: %s", e)
                     warnings = []
                     a7_compatible = A7_COMPATIBILITY_UNKNOWN
 
