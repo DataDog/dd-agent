@@ -3,6 +3,25 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.31.0 / 2018-12-13
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.30.1...5.31.0
+
+### Changes
+
+Please refer to the [Integrations Core Checks 5.31.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.31.0) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 6.9.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.9.0) for more information on the Trace Agent.
+
+Please refer to the [Process Agent 6.9.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/6.9.0) for more information on the Process Agent.
+
+* [BUGFIX] On windows, fix regression caused in previous release; conversion of computation of % Interrupt time to using performance counter was not done correctly.
+* [IMPROVEMENT] JMXFetch upgraded to 0.24.1.
+* [BUGFIX] The breaking change introduced in 5.30.0 in `datadog.conf` has been fixed.
+
 # 5.30.1 / 2018-12-20
 
 **Linux, Windows, Docker and Source Install**
