@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/DataDog/dd-agent.svg?branch=master)](https://travis-ci.org/DataDog/dd-agent)
+[![Build Status](https://travis-ci.com/DataDog/dd-agent.svg?branch=master)](https://travis-ci.org/DataDog/dd-agent)
 
 # Important note
 
