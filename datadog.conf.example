@@ -164,9 +164,7 @@ gce_updated_hostname: yes
 # Docker labels as tags
 # We can extract docker labels and add them as tags to all metrics reported by service discovery.
 # All you have to do is supply a comma-separated list of label names to extract from containers when found.
-# Note: these tags won't be applied to docker metrics, only service discovery metrics.
-# For applying labels to docker metrics, refer to https://github.com/DataDog/integrations-core/blob/bfdb3b0cf34ca6b6c92cc0e467a4f343e7f96ff2/docker_daemon/conf.yaml.example#L187-L190
-#
+# These tags will also be applied to the docker_daemon check.
 # docker_labels_as_tags: label_name
 #
 # Example:
