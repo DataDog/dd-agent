@@ -13,9 +13,9 @@ import yaml
 
 # datadog
 from config import _windows_commondata_path, get_confd_path, JMX_VERSION
-from util import yDumper
 from utils.pidfile import PidFile
 from utils.platform import Platform
+from utils.ddyaml import yDumper
 
 # JMXFetch java version
 JMX_FETCH_JAR_NAME = "jmxfetch-{ver}-jar-with-dependencies.jar".format(ver=JMX_VERSION)

@@ -28,9 +28,9 @@ from config import (
     _is_affirmative,
 )
 from daemon import ProcessRunner
-from util import yLoader
 from utils.jmx import JMX_FETCH_JAR_NAME, JMXFiles
 from utils.platform import Platform
+from utils.ddyaml import monkey_patch_pyyaml, yLoader
 
 log = logging.getLogger('jmxfetch')
 
@@ -487,6 +487,10 @@ def init(config_path=None):
 def main(config_path=None):
     """ JMXFetch main entry point """
     confd_path, agent_config = init(config_path)
+
+    # do this early on
+    if agent_config.get('disable_unsafe_yaml'):
+        monkey_patch_pyyaml()
 
     jmx = JMXFetch(confd_path, agent_config)
     return jmx.run()
