@@ -489,6 +489,7 @@ class Collector(object):
                 meta = {'tags': ["check_name:%s" % check.name,
                                  "agent_version_major:%s" % AGENT_VERSION.split(".")[0],
                                  "agent_version_minor:%s" % AGENT_VERSION.split(".")[1],
+                                 "agent_version_bugfix:%s" % AGENT_VERSION.split(".")[2],
                                  "status:%s" % status
                                  ]}
 
