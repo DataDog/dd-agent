@@ -89,6 +89,12 @@ class JMXFetch(ProcessRunner):
         self.service_discovery = _is_affirmative(self.agent_config.get('sd_jmx_enable', False))
         self.config_jar_path = self.agent_config.get('jmx_custom_jars', "")
 
+        # concurrency options
+        self.pool_size = self.agent_config.get('jmx_thread_pool_size')
+        self.reconnection_pool_size = self.agent_config.get('jmx_reconnection_thread_pool_size')
+        self.collection_to = self.agent_config.get('jmx_collection_timeout')
+        self.reconnection_to = self.agent_config.get('jmx_reconnection_timeout')
+
         self.jmx_process = None
         self.jmx_checks = None
         super(JMXFetch, self).__init__()
@@ -274,6 +280,19 @@ class JMXFetch(ProcessRunner):
                 subprocess_args.insert(4, '--sd_pipe')
                 subprocess_args.insert(5, SD_PIPE_NAME)
                 subprocess_args.insert(4, '--sd_enabled')
+
+            if self.pool_size:
+                subprocess_args.insert(4, '--thread_pool_size')
+                subprocess_args.insert(5, self.pool_size)
+            if self.reconnection_pool_size:
+                subprocess_args.insert(4, '--reconnection_thread_pool_size')
+                subprocess_args.insert(5, self.reconnection_pool_size)
+            if self.collection_to:
+                subprocess_args.insert(4, '--collection_timeout')
+                subprocess_args.insert(5, self.collection_to)
+            if self.reconnection_to:
+                subprocess_args.insert(4, '--reconnection_timeout')
+                subprocess_args.insert(5, self.reconnection_to)
 
             if jmx_checks:
                 subprocess_args.insert(4, '--check')
