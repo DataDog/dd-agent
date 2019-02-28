@@ -30,7 +30,7 @@ Please refer to the [Process Agent 6.9.0 tag](https://github.com/DataDog/datadog
 * [SECURITY] pyyaml: allow patching of unsafe operations. See [#3808][]
 * [BUGFIX] Add bug fix version to the datadog.agent.check_ready metrics. See [#3820][]
 * [BUGFIX] Source install: bump pip to a more recent dependency-resolution complete version: 19.0.3. See [#3825][]
-* [IMPROVEMENT] JMXFetch upgraded to 0.26.1. Changelogs: https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md[#0261][]--2019-02-26, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md[#0260][]--2019-02-13, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md[#0250][]--2019-01-23. See [#3824][]
+* [IMPROVEMENT] JMXFetch upgraded to 0.26.1. Changelogs: https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0261--2019-02-26, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0260--2019-02-13, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0250--2019-01-23. See [#3824][]
 * [IMPROVEMENT] psutil: bump to 5.5.0. See [#3823][]
 
 
