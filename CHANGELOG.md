@@ -3,6 +3,40 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.32.0 / 2019-02-28
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.31.0...5.32.0
+
+### Security Note
+he Agent now defaults to aliasing yaml.load and yaml.dump to yaml.safe_load and yaml.safe_dump for ALL checks as a defense-in-depth measure against CVE-2017-18342. The Datadog Agent does not use the vulnerable code directly. The effort to patch the PyYAML library guards against the accidental unsafe use of this library by custom checks and transitive dependencies. If for any reason you encounter problems with your custom checks, please reach out to support.
+
+### Python dependencies upgrade
+We have updated the following python dependencies shipped with the Agent. If you happen to run any
+custom checks that rely on the former versions please make necessary amends:
+
+* psutil `5.5.0` (previously `4.4.1`). See [psutil's changelog](https://github.com/giampaolo/psutil/blob/master/HISTORY.rst).
+
+### Changes
+
+Please refer to the [Integrations Core Checks 5.32.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.32.0) for the list of changes on the core checks.
+
+Please refer to the [Trace Agent 6.9.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.10.0) for more information on the Trace Agent.
+
+Please refer to the [Process Agent 6.9.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/6.10.0) for more information on the Process Agent.
+
+* [SECURITY] pyyaml: allow patching of unsafe operations. See [#3808][]
+* [BUGFIX] Add bug fix version to the datadog.agent.check_ready metrics. See [#3820][]
+* [BUGFIX] Source install: bump pip to a more recent dependency-resolution complete version: 19.0.3. See [#3825][]
+* [IMPROVEMENT] JMXFetch upgraded to 0.26.1. Changelogs: https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md[#0261][]--2019-02-26, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md[#0260][]--2019-02-13, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md[#0250][]--2019-01-23. See [#3824][]
+* [IMPROVEMENT] psutil: bump to 5.5.0. See [#3823][]
+
+
+Changes
+=======
+
 # 5.31.0 / 2019-01-22
 
 **Linux, Windows, Docker and Source Install**
@@ -19,7 +53,7 @@ Please refer to the [Trace Agent 6.9.0 tag](https://github.com/DataDog/datadog-t
 Please refer to the [Process Agent 6.9.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/6.9.0) for more information on the Process Agent.
 
 * [BUGFIX] On Windows, fix a regression introduced in `5.30.0`: correctly compute the cpu interrupt time from the PDH counter.
-* [IMPROVEMENT] JMXFetch upgraded to 0.24.1. Changelogs: https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0240--2018-12-10, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0241--2018-01-09
+* [IMPROVEMENT] JMXFetch upgraded to 0.24.1. Changelogs: https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md[#0240][]--2018-12-10, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md[#0241][]--2018-01-09
 * [BUGFIX] Re-introduce support of the Agent-level (`datadog.conf`) `use_mount` and `device_blacklist_re` options of the `disk` check, which were removed in `5.30.0`
 
 # 5.30.1 / 2018-12-20
@@ -3820,9 +3854,14 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#201]: https://github.com/DataDog/dd-agent/issues/201
 [#202]: https://github.com/DataDog/dd-agent/issues/202
 [#227]: https://github.com/DataDog/dd-agent/issues/227
+[#0240]: https://github.com/DataDog/dd-agent/issues/0240
+[#0241]: https://github.com/DataDog/dd-agent/issues/0241
 [#245]: https://github.com/DataDog/dd-agent/issues/245
+[#0250]: https://github.com/DataDog/dd-agent/issues/0250
 [#253]: https://github.com/DataDog/dd-agent/issues/253
 [#257]: https://github.com/DataDog/dd-agent/issues/257
+[#0260]: https://github.com/DataDog/dd-agent/issues/0260
+[#0261]: https://github.com/DataDog/dd-agent/issues/0261
 [#261]: https://github.com/DataDog/dd-agent/issues/261
 [#271]: https://github.com/DataDog/dd-agent/issues/271
 [#276]: https://github.com/DataDog/dd-agent/issues/276
@@ -5019,6 +5058,11 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3771]: https://github.com/DataDog/dd-agent/issues/3771
 [#3775]: https://github.com/DataDog/dd-agent/issues/3775
 [#3777]: https://github.com/DataDog/dd-agent/issues/3777
+[#3808]: https://github.com/DataDog/dd-agent/issues/3808
+[#3820]: https://github.com/DataDog/dd-agent/issues/3820
+[#3823]: https://github.com/DataDog/dd-agent/issues/3823
+[#3824]: https://github.com/DataDog/dd-agent/issues/3824
+[#3825]: https://github.com/DataDog/dd-agent/issues/3825
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
