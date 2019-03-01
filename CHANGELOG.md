@@ -23,13 +23,21 @@ custom checks that rely on the former versions please make necessary amends:
 
 Please refer to the [Integrations Core Checks 5.32.0 tag](https://github.com/DataDog/integrations-core/releases/tag/5.32.0) for the list of changes on the core checks.
 
-Please refer to the [Trace Agent 6.9.0 tag](https://github.com/DataDog/datadog-trace-agent/releases/tag/6.10.0) for more information on the Trace Agent.
-
-Please refer to the [Process Agent 6.9.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/6.10.0) for more information on the Process Agent.
+Please refer to the [Process Agent 6.10.0 tag](https://github.com/DataDog/datadog-process-agent/releases/tag/6.10.0) for more information on the Process Agent.
 
 * [SECURITY] pyyaml: allow patching of unsafe operations. See [#3808][]
+* [BUGFIX] Trace: pkg/trace/api: allow empty Type in normalizer. See [datadog-agent-3058](https://github.com/DataDog/datadog-agent/pull/3058) 
+* [BUGFIX] Trace: pkg/trace/api: reply using JSON when presampling on v0.4 endpoint. See [datadog-agent-3051](https://github.com/DataDog/datadog-agent/pull/3051) 
+* [BUGFIX] Trace: cmd/trace-agent: fix trace-agent stop behaviour. See [datadog-agent-2980](https://github.com/DataDog/datadog-agent/pull/2980) 
+* [BUGFIX] Trace: pkg/trace/agent: consider UTF-8 characters in tags. See [datadog-agent-2957](https://github.com/DataDog/datadog-agent/pull/2957) 
 * [BUGFIX] Add bug fix version to the datadog.agent.check_ready metrics. See [#3820][]
 * [BUGFIX] Source install: bump pip to a more recent dependency-resolution complete version: 19.0.3. See [#3825][]
+* [IMPROVEMENT] Trace: pkg/trace/event: remove dependency on 'agent' package. See [datadog-agent-2984](https://github.com/DataDog/datadog-agent/pull/2987)
+* [IMPROVEMENT] Trace: cmd/trace-agent: move logic to pkg/trace/agent. See [datadog-agent-2987](https://github.com/DataDog/datadog-agent/pull/2987) 
+* [IMPROVEMENT] Trace: pkg/trace/agent: move stats related logic to new 'stats' package. See [datadog-agent-2965](https://github.com/DataDog/datadog-agent/pull/2965) 
+* [IMPROVEMENT] Trace: pkg/trace: move normalizer files to api where they are used. See [datadog-agent-2964](https://github.com/DataDog/datadog-agent/pull/2964) 
+* [IMPROVEMENT] Trace: pkg/trace/agent: improve NormalizeTag. See [datadog-agent-2951](https://github.com/DataDog/datadog-agent/pull/2951) 
+* [IMPROVEMENT] Trace: pkg/trace/agent: ensure normalizer reports bad service name. See [datadog-agent-2942](https://github.com/DataDog/datadog-agent/pull/2942) 
 * [IMPROVEMENT] JMXFetch upgraded to 0.26.1. Changelogs: https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0261--2019-02-26, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0260--2019-02-13, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0250--2019-01-23. See [#3824][]
 * [IMPROVEMENT] psutil: bump to 5.5.0. See [#3823][]
 
