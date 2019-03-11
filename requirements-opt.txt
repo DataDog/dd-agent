@@ -18,4 +18,4 @@ psutil==5.5.0
 
 # checks.d/kubernetes_state.py -> used in utils/prometheus/*
 # Pure python module for dev purposes, the Agent is shipped with the optimized version built with --cpp_implementation
-protobuf==3.5.1
+protobuf==3.7.0
