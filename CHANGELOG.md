@@ -3,6 +3,21 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.32.1 / 2019-03-12
+
+**Linux, Windows, Docker and Source Install**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.32.0...5.32.1
+
+### Changes
+
+* [BUGFIX] Trace: pkg/trace/event: make event service & operation matching insensitive. See [datadog-agent-3113](https://github.com/DataDog/datadog-agent/pull/3113) 
+
+
+Changes
+=======
+
 # 5.32.0 / 2019-02-28
 
 **Linux, Windows, Docker and Source Install**
