@@ -130,7 +130,7 @@ class Wait
       end
     end
   rescue Timeout::Error
-    return false
+    false
   end
 
   def self.check_url(url)
@@ -143,7 +143,7 @@ class Wait
       end
     end
   rescue Timeout::Error
-    return false
+    false
   end
 
   def self.check_file(file_path)
@@ -169,10 +169,12 @@ class Wait
       puts n.to_s
       status = check(smth)
       break if status || Time.now > start_time + max_timeout
+
       n += 1
       sleep 0.25
     end
     raise "Still not up after #{max_timeout}s" unless status
+
     puts 'Found!'
     status
   end
@@ -219,9 +221,7 @@ namespace :ci do
 
     task :before_cache do |t|
       section('BEFORE_CACHE')
-      unless Gem.win_platform?
-        sh %(find #{ENV['INTEGRATIONS_DIR']}/ -type f -name '*.log*' -delete)
-      end
+      sh %(find #{ENV['INTEGRATIONS_DIR']}/ -type f -name '*.log*' -delete) unless Gem.win_platform?
       t.reenable
     end
 
