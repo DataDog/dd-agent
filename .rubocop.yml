@@ -27,7 +27,7 @@ Style/SingleLineBlockParams:
 Style/FrozenStringLiteralComment:
   Enabled: false
 
-Lint/RescueWithoutErrorClass:
+Style/RescueStandardError:
   Enabled: false
 
 BlockLength:
