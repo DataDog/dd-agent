@@ -6,6 +6,7 @@ services:
 branches:
   only:
     - master
+    - agent-v5
     - /^\d+\.\d+\.x$/ # release forked patches branch
 
 language: python
