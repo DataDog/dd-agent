@@ -3,6 +3,15 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.32.2 / 2019-04-17
+
+**Linux, Windows, Docker and Source Install**
+
+### Changes
+
+* [IMPROVEMENT] Python: Upgrade to 2.7.16. See [omnibus-software-306](https://github.com/DataDog/omnibus-software/pull/306)
+* [IMPROVEMENT] curl: Upgrade to 7.64.1 See [omnibus-software-307](https://github.com/DataDog/omnibus-software/pull/307)
+
 # 5.32.1 / 2019-03-12
 
 **Linux, Windows, Docker and Source Install**
