@@ -9,7 +9,7 @@ Changes
 
 ### Changes
 
-* [BUGFIX] Exclude systems DLLs the Agent was accidently shipping. Fix the Agent 5
+* [BUGFIX] Exclude systems DLLs the Agent was accidently shipping. Fix the Agent
   startup on Windows 2008.
 
 # 5.32.2 / 2019-04-17
