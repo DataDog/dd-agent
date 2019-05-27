@@ -9,7 +9,7 @@ environment:
   NOSE_FILTER: not unix and not fixme
   PYWIN_PATH: C:\projects\dd-agent\.cache\pywin32-py2.7.exe
   SKIP_LINT: true
-  INTEGRATIONS_CORE_BRANCH: master
+  INTEGRATIONS_CORE_BRANCH: agent-v5
   matrix:
   - PYTHON: C:\\Python27
     PYTHON_VERSION: 2.7.9
