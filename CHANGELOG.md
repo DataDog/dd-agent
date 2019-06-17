@@ -3,6 +3,14 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.32.4 / 2019-06-17
+
+**Linux, Windows, Docker and Source Install**
+
+### Changes
+
+* [IMPROVEMENT] JMXFetch upgraded from 0.26.1 to 0.26.3. Changelogs: https://github.com/DataDog/jmxfetch/blob/agent-v5/CHANGELOG.md#0263--2019-06-11
+
 # 5.32.3 / 2019-05-27
 
 **Linux, Windows, Docker and Source Install**
@@ -31,10 +39,6 @@ https://github.com/DataDog/dd-agent/compare/5.32.0...5.32.1
 ### Changes
 
 * [BUGFIX] Trace: pkg/trace/event: make event service & operation matching insensitive. See [datadog-agent-3113](https://github.com/DataDog/datadog-agent/pull/3113) 
-
-
-Changes
-=======
 
 # 5.32.0 / 2019-02-28
 
@@ -68,10 +72,6 @@ Please refer to the [Process Agent 6.10.0 tag](https://github.com/DataDog/datado
 * [IMPROVEMENT] Trace: pkg/trace/agent: ensure normalizer reports bad service name. See [datadog-agent-2942](https://github.com/DataDog/datadog-agent/pull/2942) 
 * [IMPROVEMENT] JMXFetch upgraded to 0.26.1. Changelogs: https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0261--2019-02-26, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0260--2019-02-13, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0250--2019-01-23. See [#3824][]
 * [IMPROVEMENT] psutil: bump to 5.5.0. See [#3823][]
-
-
-Changes
-=======
 
 # 5.31.0 / 2019-01-22
 
