@@ -220,7 +220,7 @@ def _confd_path(directory):
 def _checksd_path(directory):
     checks_override_env = os.environ.get('CHECKSD_OVERRIDE')
     checks_override_env_split = checks_override_env.split(':')
-    path_override=[]
+    path_override = []
     for checks_override_env_individual_path in checks_override_env_split:
         if checks_override_env_individual_path and os.path.exists(checks_override_env_individual_path):
             path_override.append(checks_override_env_individual_path)
