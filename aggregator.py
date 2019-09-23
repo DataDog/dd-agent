@@ -268,6 +268,7 @@ class Histogram(Metric):
             ('avg', avg, MetricTypes.GAUGE),
             ('sum', sum_, MetricTypes.GAUGE),
             ('count', self.count/interval, MetricTypes.RATE),
+            ('total', self.count, MetricTypes.COUNT),
         ]
 
         metric_aggrs = [
