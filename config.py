@@ -26,10 +26,6 @@ from importlib import import_module
 # 3p
 import simplejson as json
 import distro
-try:
-    import a7
-except ImportError:
-    pass
 
 # project
 from util import check_yaml, config_to_yaml
@@ -1198,14 +1194,17 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
         # Validate custom checks and wheels without a `datadog_checks` namespace
         if not agentConfig.get("disable_py3_validation", False):
             if version_override in (UNKNOWN_WHEEL_VERSION_MSG, CUSTOM_CHECK_VERSION_MSG):
-                a7_compatible = A7_COMPATIBILITY_READY
+                a7_compatible = A7_COMPATIBILITY_UNKNOWN
+                warnings = []
                 try:
                     file_path = os.path.realpath(check_path.decode(sys.getfilesystemencoding()))
-                    warnings = a7.validate.validate_py3(file_path)
+                    output, _, _ = get_subprocess_output(
+                        [sys.executable, "-m", "pylint", "-f", "json", "--py3k", "-d", "W1618", "--persistent", "no", "--exit-zero", file_path], log)
+                    warnings = json.loads(output)
+                except SubprocessOutputEmptyError as e:
+                    a7_compatible = A7_COMPATIBILITY_READY
                 except Exception as e:
                     log.error("error running 'validate' on custom check: %s", e)
-                    warnings = []
-                    a7_compatible = A7_COMPATIBILITY_UNKNOWN
 
                 for w in warnings:
                     message = w.get('message')
