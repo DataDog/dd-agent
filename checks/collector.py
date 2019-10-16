@@ -31,8 +31,8 @@ from checks.check_status import (
 from checks.datadog import Dogstreams
 from checks.ganglia import Ganglia
 from config import (
-    A7_COMPATIBILITY_ATTR,
-    A7_COMPATIBILITY_READY,
+    PY3_COMPATIBILITY_ATTR,
+    PY3_COMPATIBILITY_READY,
     AGENT_VERSION,
     get_system_stats,
     get_version,
@@ -58,7 +58,7 @@ FLUSH_LOGGING_INITIAL = 5
 DD_CHECK_TAG = 'dd_check:{0}'
 
 def a7_compatible_to_int(status):
-    if status == A7_COMPATIBILITY_READY:
+    if status == PY3_COMPATIBILITY_READY:
         return 1
     return 0
 
@@ -483,9 +483,9 @@ class Collector(object):
                 meta = {'tags': ["check:%s" % check.name]}
                 metrics.append((metric, time.time(), check_run_time, meta))
 
-            if hasattr(check, A7_COMPATIBILITY_ATTR) and isinstance(getattr(check, A7_COMPATIBILITY_ATTR), str):
+            if hasattr(check, PY3_COMPATIBILITY_ATTR) and isinstance(getattr(check, PY3_COMPATIBILITY_ATTR), str):
                 metric = 'datadog.agent.check_ready'
-                status = getattr(check, A7_COMPATIBILITY_ATTR)
+                status = getattr(check, PY3_COMPATIBILITY_ATTR)
                 meta = {'tags': ["check_name:%s" % check.name,
                                  "agent_version_major:%s" % AGENT_VERSION.split(".")[0],
                                  "agent_version_minor:%s" % AGENT_VERSION.split(".")[1],
@@ -494,8 +494,8 @@ class Collector(object):
                                  ]}
 
                 # datadog.agent.check_ready:
-                # 0: is not compatible with A7 (or unknown)
-                # 1: is compatible with A7
+                # 0: is not compatible with Py3 (or unknown)
+                # 1: is compatible with Py3
                 metrics.append((metric, time.time(), a7_compatible_to_int(status), meta))
 
         for check_name, info in self.init_failed_checks_d.iteritems():
