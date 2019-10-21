@@ -40,6 +40,5 @@ tornado==3.2.2
 uptime==3.0.1
 prometheus-client==0.1.0
 distro==1.3.0
-datadog-a7==0.0.5
 # pin pylint to a python2-compatible version
 pylint==1.9.5
