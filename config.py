@@ -26,10 +26,6 @@ from importlib import import_module
 # 3p
 import simplejson as json
 import distro
-try:
-    import a7
-except ImportError:
-    pass
 
 # project
 from util import check_yaml, config_to_yaml
@@ -60,10 +56,10 @@ SD_PIPE_UNIX_PATH = '/opt/datadog-agent/run'
 SD_PIPE_WIN_PATH = "\\\\.\\pipe\\{pipename}"
 UNKNOWN_WHEEL_VERSION_MSG = 'Unknown Wheel'
 CUSTOM_CHECK_VERSION_MSG = 'custom'
-A7_COMPATIBILITY_ATTR = 'a7_compatible'
-A7_COMPATIBILITY_READY = 'ready'
-A7_COMPATIBILITY_NOT_READY = 'not_ready'
-A7_COMPATIBILITY_UNKNOWN = 'unknown'
+PY3_COMPATIBILITY_ATTR = 'py3_compatible'
+PY3_COMPATIBILITY_READY = 'ready'
+PY3_COMPATIBILITY_NOT_READY = 'not_ready'
+PY3_COMPATIBILITY_UNKNOWN = 'unknown'
 
 log = logging.getLogger(__name__)
 
@@ -1198,26 +1194,27 @@ def load_check_from_places(check_config, check_name, checks_places, agentConfig)
         # Validate custom checks and wheels without a `datadog_checks` namespace
         if not agentConfig.get("disable_py3_validation", False):
             if version_override in (UNKNOWN_WHEEL_VERSION_MSG, CUSTOM_CHECK_VERSION_MSG):
-                a7_compatible = A7_COMPATIBILITY_READY
+                py3_compatible = PY3_COMPATIBILITY_READY
+                warnings = []
                 try:
                     file_path = os.path.realpath(check_path.decode(sys.getfilesystemencoding()))
-                    warnings = a7.validate.validate_py3(file_path)
+                    output, _, _ = get_subprocess_output(
+                        [sys.executable, "-m", "pylint", "-f", "json", "--py3k", "-d", "W1618", "--persistent", "no", "--exit-zero", file_path], log)
+                    warnings = json.loads(output)
+                except SubprocessOutputEmptyError as e:
+                    # old versions of pylint return an empty output to indicate there are no warnings
+                    pass
                 except Exception as e:
+                    py3_compatible = PY3_COMPATIBILITY_UNKNOWN
                     log.error("error running 'validate' on custom check: %s", e)
-                    warnings = []
-                    a7_compatible = A7_COMPATIBILITY_UNKNOWN
 
-                for w in warnings:
-                    message = w.get('message')
-                    if message:
-                        # for now we don't display anything in the status page
-                        # log.warn("check '{}' is not Python3 compatible: {}".format(check_name, message))
-                        a7_compatible = A7_COMPATIBILITY_NOT_READY
+                if warnings:
+                    py3_compatible = PY3_COMPATIBILITY_NOT_READY
 
                 # for now we don't display anything in the status page
-                # if not a7_compatible:
+                # if not py3_compatible:
                 #     load_success[check_name].persistent_warning("check is not compatible with Python3 (see logs for more information)")
-                setattr(load_success[check_name], A7_COMPATIBILITY_ATTR, a7_compatible)
+                setattr(load_success[check_name], PY3_COMPATIBILITY_ATTR, py3_compatible)
 
         if is_wheel:
             log.debug('Loaded %s' % check_name)
