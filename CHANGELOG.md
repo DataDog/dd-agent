@@ -3,13 +3,14 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
-# 5.32.5 / 2019-10-15
+# 5.32.5 / unreleased
 
-**Windows only**
+**Linux, Windows, Docker and Source Install**
 
 ### Changes
 
 * [BUGFIX] Fix trace agent failing to start on Windows. See [dd-agent-omnibus-379](https://github.com/DataDog/dd-agent-omnibus/pull/379)
+* [OTHER] Changed the way we call the python 3 compatibility linter
 
 # 5.32.4 / 2019-06-17
 
