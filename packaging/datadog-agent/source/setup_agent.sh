@@ -412,7 +412,7 @@ print_done
 
 print_console "* Installing requirements"
 $DOWNLOADER "$DD_HOME/requirements.txt" "$BASE_GITHUB_URL/requirements.txt"
-$VENV_PIP_CMD install -r "$DD_HOME/requirements.txt"
+$VENV_PIP_CMD install -r "$DD_HOME/requirements.txt" --no-use-pep517
 rm -f "$DD_HOME/requirements.txt"
 print_done
 
