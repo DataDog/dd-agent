@@ -42,3 +42,6 @@ prometheus-client==0.1.0
 distro==1.3.0
 # pin pylint to a python2-compatible version
 pylint==1.9.5
+# lazy-object-proxy is a dependency of pylint and needs to be pinned
+# for a successful build on Alpine (source install)
+lazy-object-proxy==1.3.1
