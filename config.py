@@ -43,7 +43,7 @@ from utils.windows_configuration import get_registry_conf, get_windows_sdk_check
 
 
 # CONSTANTS
-AGENT_VERSION = "5.32.5"
+AGENT_VERSION = "5.32.6"
 JMX_VERSION = "0.26.3"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
