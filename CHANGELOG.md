@@ -3,7 +3,7 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
-# 5.32.6 / unreleased
+# 5.32.6 / 2019-01-14
 
 **Linux, Windows, Docker and Source Install**
 
