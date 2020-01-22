@@ -31,7 +31,7 @@ env:
     - PIP_CACHE=$HOME/.cache/pip
     - VOLATILE_DIR=/tmp
     - DD_CASHER_DIR=/tmp/casher
-    - INTEGRATIONS_CORE_BRANCH=master
+    - INTEGRATIONS_CORE_BRANCH=agent-v5
   matrix:
     - TRAVIS_FLAVOR=default
     - TRAVIS_FLAVOR=cassandra FLAVOR_VERSION=2.0.17
