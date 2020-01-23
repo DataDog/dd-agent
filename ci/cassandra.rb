@@ -34,6 +34,7 @@ namespace :ci do
 
     task :install do
       Rake::Task['ci:common:install'].invoke('cassandra')
+      sh %(docker pull cassandra:#{cassandra_version})
       sh %(docker create --expose #{container_port} \
            -p #{container_port}:#{container_port} -e JMX_PORT=#{container_port} \
            -e LOCAL_JMX='no' -e JVM_EXTRA_OPTS="#{cassandra_jmx_options}" --name #{container_name} cassandra:#{cassandra_version})
