@@ -196,7 +196,7 @@ class FlareTest(unittest.TestCase):
         with self.assertRaises(Exception) as cm:
             f.upload()
 
-        self.assertEqual(str(cm.exception), "Your request is incorrect: Invalid inputs: 'API key unknown'")
+        self.assertEqual(str(cm.exception), "403 Client Error: Forbidden for url: https://app.datadoghq.com/support/flare?api_key=APIKEY")
 
     @mock.patch('os.remove', side_effect=mocked_os_remove)
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)

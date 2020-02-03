@@ -134,7 +134,7 @@ class TestProxy(AsyncTestCase):
         CustomAgentTransaction.set_endpoints(config['endpoints'])
 
         CustomAgentTransaction('body', {}, "") # Create and flush the transaction
-        self.wait()
+        self.wait(timeout=30)
         del CustomAgentTransaction._test
         access_log = self.docker_client.exec_start(
             self.docker_client.exec_create(CONTAINER_NAME, 'cat /var/log/squid/access.log')['Id'])
