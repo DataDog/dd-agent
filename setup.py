@@ -74,6 +74,7 @@ if sys.platform == 'win32':
                     "crypt32.dll",
                     "psapi.dll",
                     "powrprof.dll",
+                    "api-ms-win-core-string-l1-1-0.dll",
                 ],
                 'ascii': False,
             },
