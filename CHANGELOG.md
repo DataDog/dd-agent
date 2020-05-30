@@ -9,7 +9,7 @@ Changes
 
 ### Changes
 
-* [BUGFIX] Update deprecated `datadog-cert.pem` certificate. See [#3882][]. (Thanks [@sodabrew][]).
+* [BUGFIX] Update deprecated `datadog-cert.pem` certificate. See [#3882][] (Thanks [@sodabrew][]).
 * [IMPROVEMENT] ntplib: upgrade to 0.3.4.
 
 # 5.32.6 / 2019-01-14
