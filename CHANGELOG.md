@@ -3,6 +3,15 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.32.7 / 2020-05-30
+
+**Linux, Windows, Docker and Source Install**
+
+### Changes
+
+* [BUGFIX] Update deprecated `datadog-cert.pem` certificate. See [#3882][]. (Thanks [@sodabrew][]).
+* [IMPROVEMENT] ntplib: upgrade to 0.3.4.
+
 # 5.32.6 / 2019-01-14
 
 **Linux, Windows, Docker and Source Install**
@@ -5117,6 +5126,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3823]: https://github.com/DataDog/dd-agent/issues/3823
 [#3824]: https://github.com/DataDog/dd-agent/issues/3824
 [#3825]: https://github.com/DataDog/dd-agent/issues/3825
+[#3882]: https://github.com/DataDog/dd-agent/issues/3882
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
@@ -5304,6 +5314,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [@sj26]: https://github.com/sj26
 [@skingry]: https://github.com/skingry
 [@slushpupie]: https://github.com/slushpupie
+[@sodabrew]: https://github.com/sodabrew
 [@sophaskins]: https://github.com/sophaskins
 [@squaresurf]: https://github.com/squaresurf
 [@ssbarnea]: https://github.com/ssbarnea
