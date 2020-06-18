@@ -313,7 +313,7 @@ class Agent(Daemon):
         self.restart_interval = int(self._agentConfig.get('restart_interval', RESTART_INTERVAL))
         self.agent_start = time.time()
 
-        self.allow_profiling = self._agentConfig.get('allow_profiling', True)
+        self.allow_profiling = _is_affirmative(self._agentConfig.get('allow_profiling', True))
 
         profiled = False
         collector_profiled_runs = 0
