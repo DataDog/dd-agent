@@ -84,9 +84,9 @@ from config import (
     get_logging_config,
     get_version
 )
+from util import yLoader
 from utils.flare import Flare
 from utils.platform import Platform
-from utils.ddyaml import yLoader
 
 # Constants describing the agent state
 AGENT_RUNNING = 0
