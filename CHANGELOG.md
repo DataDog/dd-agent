@@ -3,19 +3,19 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
-# 5.32.8 / Unreleased 
+# 5.32.8 / Unreleased
 
 **Linux, Windows, Docker and Source Install**
 
 ### Changes
 
-* [BUGFIX] Do not always start the profiler in dev mode. See #3888.
+* [BUGFIX] Do not always start the profiler in dev mode. See [#3888][].
 * [BUGFIX] Update deprecated `datadog-cert.pem` certificate. See [#3882][] (Thanks [@sodabrew][]).
-* [BUGFIX] JMXFetch: bump to 0.26.8. Fixes Java6 compatibility + misc fixes. See #3894 and [omnibus-software-354](https://github.com/DataDog/omnibus-software/pull/354).  
+* [BUGFIX] JMXFetch: bump to 0.26.8. Fixes Java6 compatibility + misc fixes. See [#3894][] and [omnibus-software-354](https://github.com/DataDog/omnibus-software/pull/354).
 * [CLEANUP] JMXterm: no longer shipped with agent. See [dd-agent-omnibus-399](https://github.com/DataDog/dd-agent-omnibus/pull/399).
-* [IMPROVEMENT] windows: remove deprecated certificate from build. See #3886.
-* [IMPROVEMENT] windows: exclude additional DLLs in py2exe. See #3880.
-* [IMPROVEMENT] pyyaml: upgrade to 5.3.1. See #3892.
+* [IMPROVEMENT] windows: remove deprecated certificate from build. See [#3886][].
+* [IMPROVEMENT] windows: exclude additional DLLs in py2exe. See [#3880][].
+* [IMPROVEMENT] pyyaml: upgrade to 5.3.1. See [#3892][].
 * [IMPROVEMENT] libyaml: Upgrade to 0.1.7. See [omnibus-software-375](https://github.com/DataDog/omnibus-software/pull/375)
 * [IMPROVEMENT] libyaml: upgrade to 0.1.7. see [omnibus-software-370](https://github.com/datadog/omnibus-software/pull/370)
 * [IMPROVEMENT] pip: upgrade to 20.1.1. see [omnibus-software-370](https://github.com/datadog/omnibus-software/pull/370)
@@ -56,7 +56,7 @@ Changes
 
 ### Changes
 
-* [IMPROVEMENT] JMXFetch upgraded from 0.26.1 to 0.26.3. Changelogs: https://github.com/DataDog/jmxfetch/blob/agent-v5/CHANGELOG.md#0263--2019-06-11
+* [IMPROVEMENT] JMXFetch upgraded from 0.26.1 to 0.26.3. Changelogs: https://github.com/DataDog/jmxfetch/blob/agent-v5/CHANGELOG.md[#0263][]--2019-06-11
 
 # 5.32.3 / 2019-05-27
 
@@ -117,7 +117,7 @@ Please refer to the [Process Agent 6.10.0 tag](https://github.com/DataDog/datado
 * [BUGFIX] Source install: bump pip to a more recent dependency-resolution complete version: 19.0.3. See [#3825][]
 * [IMPROVEMENT] Trace: pkg/trace/agent: improve NormalizeTag. See [datadog-agent-2951](https://github.com/DataDog/datadog-agent/pull/2951)
 * [IMPROVEMENT] Trace: pkg/trace/agent: ensure normalizer reports bad service name. See [datadog-agent-2942](https://github.com/DataDog/datadog-agent/pull/2942)
-* [IMPROVEMENT] JMXFetch upgraded to 0.26.1. Changelogs: https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0261--2019-02-26, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0260--2019-02-13, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md#0250--2019-01-23. See [#3824][]
+* [IMPROVEMENT] JMXFetch upgraded to 0.26.1. Changelogs: https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md[#0261][]--2019-02-26, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md[#0260][]--2019-02-13, https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md[#0250][]--2019-01-23. See [#3824][]
 * [IMPROVEMENT] psutil: bump to 5.5.0. See [#3823][]
 
 # 5.31.0 / 2019-01-22
@@ -3946,6 +3946,7 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#0260]: https://github.com/DataDog/dd-agent/issues/0260
 [#0261]: https://github.com/DataDog/dd-agent/issues/0261
 [#261]: https://github.com/DataDog/dd-agent/issues/261
+[#0263]: https://github.com/DataDog/dd-agent/issues/0263
 [#271]: https://github.com/DataDog/dd-agent/issues/271
 [#276]: https://github.com/DataDog/dd-agent/issues/276
 [#277]: https://github.com/DataDog/dd-agent/issues/277
@@ -5146,7 +5147,12 @@ https://github.com/DataDog/dd-agent/compare/2.2.9...2.2.10
 [#3823]: https://github.com/DataDog/dd-agent/issues/3823
 [#3824]: https://github.com/DataDog/dd-agent/issues/3824
 [#3825]: https://github.com/DataDog/dd-agent/issues/3825
+[#3880]: https://github.com/DataDog/dd-agent/issues/3880
 [#3882]: https://github.com/DataDog/dd-agent/issues/3882
+[#3886]: https://github.com/DataDog/dd-agent/issues/3886
+[#3888]: https://github.com/DataDog/dd-agent/issues/3888
+[#3892]: https://github.com/DataDog/dd-agent/issues/3892
+[#3894]: https://github.com/DataDog/dd-agent/issues/3894
 [@2rs2ts]: https://github.com/2rs2ts
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@AntoCard]: https://github.com/AntoCard
