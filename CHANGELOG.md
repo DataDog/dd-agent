@@ -3,6 +3,26 @@ Datadog Agent 6 has been officially released and the release notes can be found 
 Changes
 =======
 
+# 5.32.8 / Unreleased 
+
+**Linux, Windows, Docker and Source Install**
+
+### Changes
+
+* [BUGFIX] Do not always start the profiler in dev mode. See #3888.
+* [BUGFIX] Update deprecated `datadog-cert.pem` certificate. See [#3882][] (Thanks [@sodabrew][]).
+* [BUGFIX] JMXFetch: bump to 0.26.8. Fixes Java6 compatibility + misc fixes. See #3894 and [omnibus-software-354](https://github.com/DataDog/omnibus-software/pull/354).  
+* [CLEANUP] JMXterm: no longer shipped with agent. See [dd-agent-omnibus-399](https://github.com/DataDog/dd-agent-omnibus/pull/399).
+* [IMPROVEMENT] windows: remove deprecated certificate from build. See #3886.
+* [IMPROVEMENT] windows: exclude additional DLLs in py2exe. See #3880.
+* [IMPROVEMENT] pyyaml: upgrade to 5.3.1. See #3892.
+* [IMPROVEMENT] libyaml: Upgrade to 0.1.7. See [omnibus-software-375](https://github.com/DataDog/omnibus-software/pull/375)
+* [IMPROVEMENT] libyaml: upgrade to 0.1.7. see [omnibus-software-370](https://github.com/datadog/omnibus-software/pull/370)
+* [IMPROVEMENT] pip: upgrade to 20.1.1. see [omnibus-software-370](https://github.com/datadog/omnibus-software/pull/370)
+* [IMPROVEMENT] cacerts: update to latest bundle. see [omnibus-software-372](https://github.com/datadog/omnibus-software/pull/372)
+* [IMPROVEMENT] bzip2: update to 1.0.8. see [omnibus-software-356](https://github.com/datadog/omnibus-software/pull/356)
+* [IMPROVEMENT] sqlite: update to 3.31.1. see [omnibus-software-357](https://github.com/datadog/omnibus-software/pull/357)
+
 # 5.32.7 / 2020-05-30
 
 **Linux, Windows, Docker and Source Install**
