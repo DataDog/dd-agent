@@ -11,7 +11,7 @@ Changes
 
 * [BUGFIX] Do not always start the profiler in dev mode. See #3888.
 * [BUGFIX] Update deprecated `datadog-cert.pem` certificate. See [#3882][] (Thanks [@sodabrew][]).
-* [BUGFIX] JMXFetch: bump to 0.26.8. Fixes Java6 compatibility + misc fixes. See #3894 and [omnibus-software-354](https://github.com/DataDog/omnibus-software/pull/354).  
+* [BUGFIX] JMXFetch upgraded from `0.26.3` to `0.26.8`. Upgrades various dependencies. See [JMXFetch's changelog](https://github.com/DataDog/jmxfetch/blob/agent-v5/CHANGELOG.md#0268--2020-09-15).
 * [CLEANUP] JMXterm: no longer shipped with agent. See [dd-agent-omnibus-399](https://github.com/DataDog/dd-agent-omnibus/pull/399).
 * [IMPROVEMENT] windows: remove deprecated certificate from build. See #3886.
 * [IMPROVEMENT] windows: exclude additional DLLs in py2exe. See #3880.
