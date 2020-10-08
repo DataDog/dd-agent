@@ -10,7 +10,6 @@ Changes
 ### Changes
 
 * [BUGFIX] Do not always start the profiler in dev mode. See [#3888][].
-* [BUGFIX] Update deprecated `datadog-cert.pem` certificate. See [#3882][] (Thanks [@sodabrew][]).
 * [BUGFIX] JMXFetch upgraded from `0.26.3` to `0.26.8`. Upgrades various dependencies. See [JMXFetch's changelog](https://github.com/DataDog/jmxfetch/blob/agent-v5/CHANGELOG.md#0268--2020-09-15).
 * [CLEANUP] JMXterm: no longer shipped with agent. See [dd-agent-omnibus-399](https://github.com/DataDog/dd-agent-omnibus/pull/399). Learn more [here](https://docs.datadoghq.com/integrations/faq/troubleshooting-jmx-integrations/) on troubleshooting JMX integrations.
 * [IMPROVEMENT] windows: remove deprecated certificate from build. See #3886.
