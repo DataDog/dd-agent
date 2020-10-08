@@ -11,11 +11,11 @@ Changes
 
 * [BUGFIX] Do not always start the profiler in dev mode. See [#3888][].
 * [BUGFIX] Update deprecated `datadog-cert.pem` certificate. See [#3882][] (Thanks [@sodabrew][]).
-* [BUGFIX] JMXFetch: bump to 0.26.8. Fixes Java6 compatibility + misc fixes. See [#3894][] and [omnibus-software-354](https://github.com/DataDog/omnibus-software/pull/354).
+* [BUGFIX] JMXFetch upgraded from `0.26.3` to `0.26.8`. Upgrades various dependencies. See [JMXFetch's changelog](https://github.com/DataDog/jmxfetch/blob/agent-v5/CHANGELOG.md#0268--2020-09-15).
 * [CLEANUP] JMXterm: no longer shipped with agent. See [dd-agent-omnibus-399](https://github.com/DataDog/dd-agent-omnibus/pull/399). Learn more [here](https://docs.datadoghq.com/integrations/faq/troubleshooting-jmx-integrations/) on troubleshooting JMX integrations.
-* [IMPROVEMENT] windows: remove deprecated certificate from build. See [#3886][].
-* [IMPROVEMENT] windows: exclude additional DLLs in py2exe. See [#3880][].
-* [IMPROVEMENT] pyyaml: upgrade to 5.3.1. See [#3892][].
+* [IMPROVEMENT] windows: remove deprecated certificate from build. See #3886.
+* [IMPROVEMENT] windows: exclude additional DLLs in py2exe. See #3880.
+* [IMPROVEMENT] pyyaml: upgrade to 5.3.1. See #3892.
 * [IMPROVEMENT] libyaml: Upgrade to 0.1.7. See [omnibus-software-375](https://github.com/DataDog/omnibus-software/pull/375)
 * [IMPROVEMENT] libyaml: upgrade to 0.1.7. see [omnibus-software-370](https://github.com/datadog/omnibus-software/pull/370)
 * [IMPROVEMENT] pip: upgrade to 20.1.1. see [omnibus-software-370](https://github.com/datadog/omnibus-software/pull/370)
