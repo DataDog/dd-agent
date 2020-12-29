@@ -66,7 +66,7 @@ class TestWatchdog(unittest.TestCase):
             for x in xrange(0, 3):
                 ping_watchdog()
 
-            # On the 4th attempt, the watchdog detects a suspicously high activity
+            # On the 4th attempt, the watchdog detects a suspiciously high activity
             self.assertRaises(WatchdogKill, ping_watchdog)
 
         with self.set_time(3):
