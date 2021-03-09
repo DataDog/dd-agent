@@ -403,7 +403,7 @@ rm -f "$DD_HOME/ez_setup.pyc"
 print_done
 
 print_console "* Setting up pip"
-$DOWNLOADER "$DD_HOME/get-pip.py" https://bootstrap.pypa.io/2.7/get-pip.py
+$DOWNLOADER "$DD_HOME/get-pip.py" https://bootstrap.pypa.io/pip/2.7/get-pip.py
 $VENV_PYTHON_CMD "$DD_HOME/get-pip.py"
 $VENV_PIP_CMD install "pip==$PIP_VERSION"
 rm -f "$DD_HOME/get-pip.py"
