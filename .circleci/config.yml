@@ -17,7 +17,9 @@ default_steps: &default_steps
     - run: |
         sudo apt-get update
         sudo apt install -y libcurl4-openssl-dev libssl-dev
-        pip install -U pip wheel
+        wget https://bootstrap.pypa.io/pip/2.7/get-pip.py
+        python get-pip.py
+        pip install --upgrade wheel
         cd $HOME/integrations-core/datadog_checks_base && python setup.py bdist_wheel && pip install . && cd -
     - run: |
         bundle install
