@@ -22,6 +22,7 @@ import tempfile
 import time
 
 # project
+from utils.platform import Platform
 from utils.process import is_my_process
 from utils.subprocess_output import subprocess
 from config import get_logging_config
@@ -231,22 +232,26 @@ class Daemon(object):
 
     def start(self, foreground=False):
         log.info("Starting")
-        pid = self.pid()
+        if not Platform.is_windows():
+            pid = self.pid()
 
-        if pid:
-            # Check if the pid in the pidfile corresponds to a running process
-            # and if psutil is installed, check if it's a datadog-agent one
-            if is_my_process(pid):
-                log.error("Not starting, another instance is already running"
-                          " (using pidfile {0})".format(self.pidfile))
-                sys.exit(1)
-            else:
-                log.warn("pidfile doesn't contain the pid of an agent process."
-                         ' Starting normally')
+            if pid:
+                # Check if the pid in the pidfile corresponds to a running process
+                # and if psutil is installed, check if it's a datadog-agent one
+                if is_my_process(pid):
+                    log.error("Not starting, another instance is already running"
+                            " (using pidfile {0})".format(self.pidfile))
+                    sys.exit(1)
+                else:
+                    log.warn("pidfile doesn't contain the pid of an agent process."
+                            ' Starting normally')
 
-        if not foreground:
-            self.daemonize()
-        self.write_pidfile()
+            if not foreground:
+                self.daemonize()
+            self.write_pidfile()
+        else:
+            log.debug("Skipping pidfile check for Windows")
+
         self.run()
 
     def stop(self):

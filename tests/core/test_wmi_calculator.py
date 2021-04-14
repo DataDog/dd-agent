@@ -1,10 +1,14 @@
 # stdlib
 import unittest
+import sys
 
-# datadog
-from checks.libs.wmi.counter_type import calculator, get_calculator, UndefinedCalculator
+try:
+    # datadog
+    from checks.libs.wmi.counter_type import calculator, get_calculator, UndefinedCalculator
+except ImportError:
+    pass # Not on a windows platform, tests will fail if we are
 
-
+@unittest.skipUnless(sys.platform.startswith("win"), "requires Windows")
 class TestWMICalculators(unittest.TestCase):
     """
     Unit testing for WMI calculators.

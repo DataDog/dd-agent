@@ -24,12 +24,14 @@ Style/Documentation:
 Style/SingleLineBlockParams:
   Enabled: false
 
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
 Lint/RescueWithoutErrorClass:
   Enabled: false
 
 BlockLength:
   Max: 110
 
-Style/EndOfLine:
+Layout/EndOfLine:
   Enabled: false
-

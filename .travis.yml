@@ -1,4 +1,7 @@
-sudo: false
+sudo: required
+
+services:
+  - docker
 
 branches:
   only:
@@ -14,6 +17,7 @@ cache:
     - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION.9
     - vendor/cache
     - $HOME/embedded
+    - $HOME/integrations-core
 
 matrix:
   fast_finish: true
@@ -27,22 +31,33 @@ env:
     - PIP_CACHE=$HOME/.cache/pip
     - VOLATILE_DIR=/tmp
     - DD_CASHER_DIR=/tmp/casher
+    - INTEGRATIONS_CORE_BRANCH=master
   matrix:
     - TRAVIS_FLAVOR=default
+    - TRAVIS_FLAVOR=cassandra FLAVOR_VERSION=2.0.17
+    - TRAVIS_FLAVOR=cassandra FLAVOR_VERSION=2.1.14
+    - TRAVIS_FLAVOR=cassandra FLAVOR_VERSION=2.2.10
     - TRAVIS_FLAVOR=checks_mock
+    - TRAVIS_FLAVOR=kafka FLAVOR_VERSION=0.10.1.0-1
+    # - TRAVIS_FLAVOR=kafka FLAVOR_VERSION=1.0.1-1
+    # - TRAVIS_FLAVOR=kafka FLAVOR_VERSION=1.1.0-1
+    - TRAVIS_FLAVOR=tomcat
+    - TRAVIS_FLAVOR=solr FLAVOR_VERSION=6.2
 
 matrix:
   include:
     - python: 2.7
       sudo: required
-      services: docker
+      dist: trusty
       env: TRAVIS_FLAVOR=core_integration
 
 # Override travis defaults with empty jobs
 before_install:
 - rvm install 2.1.5
-# before_install: echo "OVERRIDING TRAVIS STEPS"
-install: echo "OVERRIDING TRAVIS STEPS"
+
+install:
+  - git -C $HOME/integrations-core pull || git clone -b $INTEGRATIONS_CORE_BRANCH --depth 1 https://github.com/DataDog/integrations-core.git $HOME/integrations-core
+  - cd $HOME/integrations-core/datadog_checks_base && python setup.py bdist_wheel && pip install . && cd -
 before_script: echo "OVERRIDING TRAVIS STEPS"
 
 script:
@@ -51,6 +66,7 @@ script:
   # Needed if no cache exists
   - mkdir -p $INTEGRATIONS_DIR
   - ls -al $INTEGRATIONS_DIR
+  - bundle exec rake setup_libs
   - bundle exec rake ci:run
   - ls -al $INTEGRATIONS_DIR
 

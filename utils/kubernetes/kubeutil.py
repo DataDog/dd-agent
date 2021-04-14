@@ -40,6 +40,9 @@ CREATOR_KIND_TO_TAG = {
 DEFAULT_INIT_RETRIES = 0
 DEFAULT_RETRY_INTERVAL = 20  # seconds
 
+# Taken from https://github.com/kow3ns/kubernetes/blob/96067e6d7b24a05a6a68a0d94db622957448b5ab/staging/src/k8s.io/apimachinery/pkg/util/rand/rand.go#L76
+ALLOWED_ENCODESTRING_ALPHANUMS = "bcdfghjklmnpqrstvwxz2456789"
+
 
 def detect_is_k8s():
     """
@@ -104,6 +107,7 @@ class KubeUtil:
         self.method = instance.get('method', KubeUtil.DEFAULT_METHOD)
         self._node_ip = self._node_name = None  # lazy evaluation
         self.host_name = os.environ.get('HOSTNAME')
+        self.pod_name = os.environ.get('KUBERNETES_POD_NAME') or self.host_name
         self.tls_settings = self._init_tls_settings(instance)
 
         # apiserver
@@ -272,7 +276,7 @@ class KubeUtil:
     def get_self_namespace(self):
         pods = self.retrieve_pods_list()
         for pod in pods.get('items', []):
-            if pod.get('metadata', {}).get('name') == self.host_name:
+            if pod.get('metadata', {}).get('name') == self.pod_name:
                 return pod['metadata']['namespace']
         log.warning("Couldn't find the agent pod and namespace, using the default.")
         return DEFAULT_NAMESPACE
@@ -374,9 +378,25 @@ class KubeUtil:
         https://github.com/kubernetes/kubernetes/blob/release-1.6/pkg/controller/deployment/sync.go#L299
         But it might change in a future k8s version. The other way to match RS and deployments is
         to parse and cache /apis/extensions/v1beta1/replicasets, mirroring PodServiceMapper
+        In 1.8, the hash generation logic changed: https://github.com/kubernetes/kubernetes/pull/51538/files
+
+        As none of these naming schemes have guaranteed suffix lenghts, we have to be pretty permissive
+        in what kind of suffix we match. That can lead to false positives, although their impact would
+        be limited (erroneous kube_deployment tag, but the kube_replica_set tag will be present).
+        For example, the hardcoded replicaset name prefix-34 or prefix-cfd will match.
+
+        For agent6, we plan on doing this pod->replicaset->deployment matching in the cluster agent, with
+        replicaset data from the apiserver. This will address that risk.
         """
         end = rs_name.rfind("-")
         if end > 0 and rs_name[end + 1:].isdigit():
+            # k8s before 1.8
+            return rs_name[0:end]
+        if end > 0 and len(rs_name[end + 1:]) > 2:
+            # k8s 1.8+ maybe? Check contents
+            for char in rs_name[end + 1:]:
+                if char not in ALLOWED_ENCODESTRING_ALPHANUMS:
+                    return None
             return rs_name[0:end]
         else:
             return None
@@ -451,24 +471,25 @@ class KubeUtil:
             self._fetch_host_data()
         return self._node_ip, self._node_name
 
-    def get_node_hosttags(self):
-        tags = []
+    def get_node_metadata(self):
+        """Returns host metadata about the local k8s node"""
+        meta = {}
 
         # API server version
         try:
             request_url = "%s/version" % self.kubernetes_api_root_url
             master_info = self.retrieve_json_auth(request_url).json()
             version = master_info.get("gitVersion")
-            tags.append("kube_master_version:%s" % version[1:])
-        except Exception as e:
+            meta['kube_master_version'] = version[1:]
+        except Exception as ex:
             # Intentional use of non-safe lookups to get the exception in the debug logs
             # if the parsing were to fail
-            log.debug("Error getting Kube master version: %s" % str(e))
+            log.debug("Error getting Kube master version: %s" % str(ex))
 
         # Kubelet version & labels
         if not self.init_success:
             log.warning("Kubelet client failed to initialize, kubelet host tags will be missing for now.")
-            return tags
+            return meta
         try:
             _, node_name = self.get_node_info()
             if not node_name:
@@ -476,15 +497,36 @@ class KubeUtil:
             request_url = "%s/nodes/%s" % (self.kubernetes_api_url, node_name)
             node_info = self.retrieve_json_auth(request_url).json()
             version = node_info.get("status").get("nodeInfo").get("kubeletVersion")
-            tags.append("kubelet_version:%s" % version[1:])
+            meta['kubelet_version'] = version[1:]
+        except Exception as ex:
+            log.debug("Error getting Kubelet version: %s" % str(ex))
 
+        return meta
+
+
+    def get_node_hosttags(self):
+        """
+        Returns node labels as tags. Tag name is transformed as defined
+        in node_labels_to_host_tags in the kubernetes check configuration.
+        Note: queries the API server for node info. Configure RBAC accordingly.
+        """
+        tags = []
+
+        try:
+            _, node_name = self.get_node_info()
+            if not node_name:
+                raise ValueError("node name missing or empty")
+
+            request_url = "%s/nodes/%s" % (self.kubernetes_api_url, node_name)
+            node_info = self.retrieve_json_auth(request_url).json()
             node_labels = node_info.get('metadata', {}).get('labels', {})
+
             for l_name, t_name in self.kube_node_labels.iteritems():
                 if l_name in node_labels:
                     tags.append('%s:%s' % (t_name, node_labels[l_name]))
 
-        except Exception as e:
-            log.debug("Error getting Kubelet version: %s" % str(e))
+        except Exception as ex:
+            log.debug("Error getting node labels: %s" % str(ex))
 
         return tags
 
@@ -501,16 +543,24 @@ class KubeUtil:
             log.warning("Unable to retrieve pod list %s. Not fetching host data", str(e))
             return
 
+        # Take the first Pod with a status:
+        # all running pods have the adapted '.spec.nodeName'
+        # static pods doesn't have the '.status.hostIP'
         for pod in pod_items:
-            metadata = pod.get("metadata", {})
-            name = metadata.get("name")
-            if name == self.host_name:
-                status = pod.get('status', {})
-                spec = pod.get('spec', {})
-                # if not found, use an empty string - we use None as "not initialized"
-                self._node_ip = status.get('hostIP', '')
-                self._node_name = spec.get('nodeName', '')
-                break
+            node_name = pod.get('spec', {}).get('nodeName', '')
+            if not self._node_name and node_name:
+                self._node_name = node_name
+
+            # hostIP is not fill on static Pods
+            host_ip = pod.get('status', {}).get('hostIP', '')
+            if not self._node_ip and host_ip:
+                self._node_ip = host_ip
+
+            if self._node_name and self._node_ip:
+                return
+
+        log.warning("Cannot set both node_name: '%s' and node_ip: '%s' from PodList with %d items",
+                    self._node_name, self._node_ip, len(pod_items))
 
     def extract_event_tags(self, event):
         """
@@ -604,13 +654,21 @@ class KubeUtil:
         This allows for consitency across code path
         """
         try:
-            created_by = json.loads(pod_metadata['annotations']['kubernetes.io/created-by'])
-            creator_kind = created_by.get('reference', {}).get('kind')
-            creator_name = created_by.get('reference', {}).get('name')
-            return (creator_kind, creator_name)
-        except Exception:
-            log.debug('Could not parse creator for pod ' + pod_metadata.get('name', ''))
-            return (None, None)
+            owner_references_entry = pod_metadata['ownerReferences'][0]
+            creator_kind = owner_references_entry['kind']
+            creator_name = owner_references_entry['name']
+            return creator_kind, creator_name
+        except LookupError as e:
+            try:
+                log.debug('Could not parse creator for pod %s through `OwnerReferences`, falling back to annotation: %s',
+                          pod_metadata.get('name', ''), type(e))
+                created_by = json.loads(pod_metadata['annotations']['kubernetes.io/created-by'])
+                creator_kind = created_by.get('reference', {}).get('kind')
+                creator_name = created_by.get('reference', {}).get('name')
+                return creator_kind, creator_name
+            except Exception as e:
+                log.debug('Could not parse creator for pod %s: %s', pod_metadata.get('name', ''), type(e))
+                return None, None
 
     def get_pod_creator_tags(self, pod_metadata, legacy_rep_controller_tag=False):
         """

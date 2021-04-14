@@ -30,11 +30,12 @@ import yaml
 # project
 from checks import check_status
 from config import AGENT_VERSION, _is_affirmative
-from util import get_next_id, yLoader
+from util import get_next_id
 from utils.hostname import get_hostname
 from utils.proxy import get_proxy
 from utils.profile import pretty_statistics
 from utils.proxy import get_no_proxy_from_env, config_proxy_skip
+from utils.ddyaml import yLoader
 
 
 log = logging.getLogger(__name__)
@@ -350,6 +351,7 @@ class AgentCheck(object):
         self.service_checks = []
         self.instances = instances or []
         self.warnings = []
+        self.persistent_warnings = []
         self.check_version = None
         self.library_versions = None
         self.last_collection_time = defaultdict(int)
@@ -389,11 +391,23 @@ class AgentCheck(object):
 
         self.check_version = _version
 
-    def get_instance_proxy(self, instance, uri):
-        proxies = self.proxies.copy()
+    def get_instance_proxy(self, instance, uri, proxies=None):
+        proxies = proxies if proxies is not None else self.proxies.copy()
         proxies['no'] = get_no_proxy_from_env()
 
-        return config_proxy_skip(proxies, uri, _is_affirmative(instance.get('no_proxy', False)))
+        deprecated_skip = instance.get('no_proxy', None)
+        skip = (
+            _is_affirmative(instance.get('skip_proxy', False)) or
+            _is_affirmative(deprecated_skip)
+        )
+
+        if deprecated_skip is not None:
+            self.warning(
+                'Deprecation notice: The `no_proxy` config option has been renamed '
+                'to `skip_proxy` and will be removed in a future release.'
+            )
+
+        return config_proxy_skip(proxies, uri, skip)
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -584,6 +598,9 @@ class AgentCheck(object):
                 "tags": (optional) list, a list of tags to associate with this event
             }
         """
+        tags = event.get("tags")
+        if tags:
+            event["tags"] = sorted(set(tags))
         self.events.append(event)
 
     def service_check(self, check_name, status, tags=None, timestamp=None,
@@ -606,6 +623,8 @@ class AgentCheck(object):
             hostname = self.hostname
         if message is not None:
             message = unicode(message) # ascii converts to unicode but not viceversa
+        if tags:
+            tags = sorted(set(tags))
         self.service_checks.append(
             create_service_check(check_name, status, tags, timestamp,
                                  hostname, check_run_id, message)
@@ -689,7 +708,7 @@ class AgentCheck(object):
         """
         Check whether the instance run created any warnings
         """
-        return len(self.warnings) > 0
+        return len(self.warnings) + len(self.persistent_warnings) > 0
 
     def warning(self, warning_message):
         """ Add a warning message that will be printed in the info page
@@ -699,6 +718,16 @@ class AgentCheck(object):
 
         self.log.warning(warning_message)
         self.warnings.append(warning_message)
+
+    def persistent_warning(self, warning_message):
+        """ Add a warning message that will be printed in the info page for the
+        entire life cycle of the check
+        :param warning_message: String. Warning message to be displayed
+        """
+        persistent_warning_message = str(warning_message)
+
+        self.log.warning(persistent_warning_message)
+        self.persistent_warnings.append(persistent_warning_message)
 
     def get_library_info(self):
         if self.library_versions is not None:
@@ -719,7 +748,7 @@ class AgentCheck(object):
         """
         warnings = self.warnings
         self.warnings = []
-        return warnings
+        return warnings + self.persistent_warnings
 
     @staticmethod
     def _get_statistic_name_from_method(method_name):
@@ -870,6 +899,9 @@ class AgentCheck(object):
             check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
         return check, config.get('instances', [])
 
+    def normalize_device_name(self, device_name):
+        return re.sub(r"[,\@\+\*\-\()\[\]{}\s]", "_", device_name)
+
     def normalize(self, metric, prefix=None, fix_case=False):
         """
         Turn a metric into a well-formed metric name
@@ -942,7 +974,7 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
     """
     attributes = {}
     if tags:
-        attributes['tags'] = list(tags)
+        attributes['tags'] = tags
     if hostname:
         attributes['hostname'] = hostname
     if device_name:

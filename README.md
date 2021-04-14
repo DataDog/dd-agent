@@ -1,27 +1,24 @@
-[![Build Status](https://travis-ci.org/DataDog/dd-agent.svg?branch=master)](https://travis-ci.org/DataDog/dd-agent)
+[![Build Status](https://travis-ci.com/DataDog/dd-agent.svg?branch=master)](https://travis-ci.org/DataDog/dd-agent)
 
-The Datadog Agent faithfully collects events and metrics and brings
-them to [Datadog](https://app.datadoghq.com) on your behalf so that
-you can do something useful with your monitoring and performance data.
+# Important note
 
-You're looking at the source code right now. We provide a number of
-[pre-packaged binaries](https://app.datadoghq.com/account/settings#agent) for your convenience.
+This repository contains the source code for the Datadog Agent up to and including
+major version 5.
+Although still supported, no major feature is planned for this release line and we
+encourage users and contributors to refer to the new Agent codebase, introduced
+with the release of version 6.0.0 and tracked in
+[a different git repository](https://github.com/DataDog/datadog-agent).
 
-Note: this repository does not contain the sources of the Trace Agent that
-collects traces for the APM feature. If you choose the installation from source
-or the Windows and Mac OS X builds you will need to install the Trace Agent
-separately. See
-[dd-trace-agent](https://github.com/DataDog/datadog-trace-agent) for
-instructions.
+## Changes
 
-# [Change log](https://github.com/DataDog/dd-agent/blob/master/CHANGELOG.md)
+Please refer to the [Change log](https://github.com/DataDog/dd-agent/blob/master/CHANGELOG.md)
+for more details about the changes introduced at each release.
 
-# How to contribute code
+## How to contribute code
 
-First of all and most importantly, **thank you** for sharing.
-
-If you want to submit code, please fork this repository and submit pull requests against the `master` branch.
-For more information, please read our [contributing guidelines](CONTRIBUTING.md).
+Before submitting any code, please read our [contributing guidelines](CONTRIBUTING.md).
+We'll keep accepting contributions as long as the major version 5 is supported
+but please consider submitting new features to the new Agent codebase.
 
 Please note that the Agent is licensed for simplicity's sake
 under a simplified BSD license, as indicated in the `LICENSE` file.
@@ -30,15 +27,12 @@ If you do **not** agree with the licensing terms and wish to contribute code non
 please email us at <info@datadoghq.com> before submitting your
 pull request.
 
-# [Integration SDK](https://github.com/DataDog/integrations-core)
-
-All checks have been moved to the [Integration SDK](https://github.com/DataDog/integrations-core). Please look there to submit related issues, PRs, or review the latest changes.
-
-## Setup your environment
+### Setup your environment
 
 Required:
-- python 2.7
-- bundler (to get it: `gem install bundler`)
+
+* python 2.7
+* bundler (to get it: `gem install bundler`)
 
 ```
 # Clone the repository
@@ -59,24 +53,29 @@ bundle exec rake lint
 bundle exec rake ci:run[apache]
 ```
 
-## Test suite
+## Integrations
+
+All checks have been moved to the [Integrations Core](https://github.com/DataDog/integrations-core) repo.
+Please look there to submit related issues, PRs, or review the latest changes.
+
+## Tests
 
 More about how to write tests and run them [here](tests/README.md)
 
-# How to configure the Agent
+## How to configure the Agent
 
 If you are using packages on linux, the main configuration file lives
 in `/etc/dd-agent/datadog.conf`. Per-check configuration files are in
 `/etc/dd-agent/conf.d`. We provide an example in the same directory
 that you can use as a template.
 
-# How to write your own checks
+## How to write your own checks
 
 Writing your own checks is easy using our checks.d interface. Read more about
 how to use it on our [Guide to Agent Checks](http://docs.datadoghq.com/guides/agent_checks/).
 
-# Contributors
+## Contributors
 
 ```bash
-git log --all | gawk '/Author/ {print}' | sort | uniq
+git log --all | grep 'Author' | sort -u
 ```

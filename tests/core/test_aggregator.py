@@ -291,6 +291,7 @@ class TestMetricsAggregator(unittest.TestCase):
     def test_ignore_distribution(self):
         stats = MetricsAggregator('myhost')
         stats.submit_packets('my.dist:5.0|d')
+        stats.submit_packets('my.other.dist:5.0|dk')
         stats.submit_packets('my.gauge:1|g')
 
         # Assert that it's treated normally, and that the distribution is ignored

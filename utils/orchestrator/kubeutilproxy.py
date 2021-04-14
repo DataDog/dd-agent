@@ -17,3 +17,6 @@ class KubeUtilProxy(BaseUtil):
 
     def get_host_tags(self):
         return KubeUtil().get_node_hosttags()
+
+    def get_host_metadata(self):
+        return KubeUtil().get_node_metadata()

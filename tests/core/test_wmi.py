@@ -4,6 +4,7 @@ from functools import partial
 import logging
 import time
 import unittest
+import sys
 
 # 3rd
 from mock import Mock, patch
@@ -11,7 +12,6 @@ from mock import Mock, patch
 # project
 from tests.checks.common import Fixtures
 from utils.timeout import TimeoutException
-
 
 log = logging.getLogger(__name__)
 
@@ -366,7 +366,7 @@ class TestCommonWMI(unittest.TestCase):
 
         return None
 
-
+@unittest.skipUnless(sys.platform.startswith("win"), "requires Windows")
 class TestUnitWMISampler(TestCommonWMI):
     """
     Unit tests for WMISampler.

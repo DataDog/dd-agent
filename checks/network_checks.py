@@ -3,7 +3,6 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 # stdlib
-from collections import defaultdict
 from Queue import Empty, Queue
 import threading
 import time
@@ -11,7 +10,6 @@ import time
 # project
 from checks import AgentCheck
 from checks.libs.thread_pool import Pool
-from config import _is_affirmative
 
 TIMEOUT = 180
 DEFAULT_SIZE_POOL = 6
@@ -183,45 +181,6 @@ class NetworkCheck(AgentCheck):
                 continue
 
             self.report_as_service_check(sc_name, status, instance, msg)
-
-            # FIXME: 5.3, this has been deprecated before, get rid of events
-            # Don't create any event to avoid duplicates with server side
-            # service_checks
-            skip_event = _is_affirmative(instance.get('skip_event', False))
-            if not skip_event:
-                self.warning("Using events for service checks is deprecated in favor of monitors and will be removed in future versions of the Datadog Agent.")
-                event = None
-
-                if instance_name not in self.statuses:
-                    self.statuses[instance_name] = defaultdict(list)
-
-                self.statuses[instance_name][sc_name].append(status)
-
-                window = int(instance.get('window', 1))
-
-                if window > 256:
-                    self.log.warning("Maximum window size (256) exceeded, defaulting it to 256")
-                    window = 256
-
-                threshold = instance.get('threshold', 1)
-
-                if len(self.statuses[instance_name][sc_name]) > window:
-                    self.statuses[instance_name][sc_name].pop(0)
-
-                nb_failures = self.statuses[instance_name][sc_name].count(Status.DOWN)
-
-                if nb_failures >= threshold:
-                    if self.notified.get((instance_name, sc_name), Status.UP) != Status.DOWN:
-                        event = self._create_status_event(sc_name, status, msg, instance)
-                        self.notified[(instance_name, sc_name)] = Status.DOWN
-                else:
-                    if self.notified.get((instance_name, sc_name), Status.UP) != Status.UP:
-                        event = self._create_status_event(sc_name, status, msg, instance)
-                        self.notified[(instance_name, sc_name)] = Status.UP
-
-                if event is not None:
-                    self.events.append(event)
-
             self._clean_job(instance_name)
 
     def _clean_job(self, instance_name):

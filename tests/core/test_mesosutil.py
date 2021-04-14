@@ -79,7 +79,7 @@ class TestMesosUtil(unittest.TestCase):
     @mock.patch.dict(os.environ, {"LIBPROCESS_IP": "a"})
     @mock.patch('requests.get')
     @mock.patch('docker.Client.__init__')
-    def test_host_tags(self, mock_init, mock_get):
+    def test_host_metadata(self, mock_init, mock_get):
         mock_get.side_effect = [
             MockResponse({'version': '1.2.1'}, 200),
             MockResponse({'dcos_version': '1.9.0'}, 200),
@@ -93,6 +93,6 @@ class TestMesosUtil(unittest.TestCase):
 
         util = MesosUtil()
         util.__init__()
-        tags = util.get_host_tags()
+        metadata = util.get_host_metadata()
 
-        self.assertEqual(['mesos_version:1.2.1', 'dcos_version:1.9.0'], tags)
+        self.assertEqual({'mesos_version': '1.2.1', 'dcos_version': '1.9.0'}, metadata)

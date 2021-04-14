@@ -177,12 +177,30 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         for proc in self.procs.values():
             proc.start()
 
+        #
+        # If process and/or trace are/is enabled, then start them manually here
+        # otherwise, on restart (especially via the gui) they won't be restarted
+        #
+        # allow the startservice to fail, however, as the service may already be
+        # started, or in the progress of starting, especially after install or
+        # first boot.
+        #
+
         # check to see if apm is enabled.
         if self.config.get('apm_enabled'):
             try:
                 win32serviceutil.StartService("datadog-trace-agent")
             except Exception as e:
-                log.error("Unable to start AMP service %s" % str(e))
+                log.warning("Unable to start Trace Agent service %s" % str(e))
+                pass
+
+        # check to see if process is enabled.
+        if self.config.get('process_agent_enabled'):
+            try:
+                win32serviceutil.StartService("datadog-process-agent")
+            except Exception as e:
+                log.warning("Unable to start Process Agent service %s" % str(e))
+                pass
 
         # Loop to keep the service running since all DD services are
         # running in separate processes

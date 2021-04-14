@@ -42,6 +42,9 @@ class MetadataCollector():
             util.reset_cache()
 
     def get_host_tags(self):
+        """
+        Return a list of host tags related to containers
+        """
         concat_tags = []
         for util in self._utils:
             meta = util.get_host_tags()
@@ -49,6 +52,18 @@ class MetadataCollector():
                 concat_tags.extend(meta)
 
         return concat_tags
+
+    def get_host_metadata(self):
+        """
+        Return a dict of host metadata related to containers
+        """
+        meta = {}
+        for util in self._utils:
+            util_meta = util.get_host_metadata()
+            if util_meta:
+                meta.update(util_meta)
+
+        return meta
 
     def reset(self):
         """

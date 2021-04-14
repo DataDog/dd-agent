@@ -107,6 +107,13 @@ class SDDockerBackend(AbstractSDBackend):
             'tags': self._get_additional_tags,
         }
 
+        # docker labels we'll add as tags to all instances SD configures
+        self.docker_labels_as_tags = agentConfig.get('docker_labels_as_tags', '')
+        if self.docker_labels_as_tags:
+            self.docker_labels_as_tags = [label.strip() for label in self.docker_labels_as_tags.split(',')]
+        else:
+            self.docker_labels_as_tags = []
+
         AbstractSDBackend.__init__(self, agentConfig)
 
     def _make_fetch_state(self):
@@ -284,7 +291,7 @@ class SDDockerBackend(AbstractSDBackend):
     def get_tags(self, state, c_id):
         """Extract useful tags from docker or platform APIs. These are collected by default."""
         c_inspect = state.inspect_container(c_id)
-        tags = self.dockerutil.extract_container_tags(c_inspect)
+        tags = self.dockerutil.extract_container_tags(c_inspect, self.docker_labels_as_tags)
 
         if Platform.is_k8s():
             if not self.kubeutil.init_success:
@@ -306,6 +313,11 @@ class SDDockerBackend(AbstractSDBackend):
             # get kubernetes namespace
             namespace = pod_metadata.get('namespace')
             tags.append('kube_namespace:%s' % namespace)
+
+            # get kubernetes container name
+            kube_container_name = state.get_kube_container_name(c_id)
+            if kube_container_name:
+                tags.append('kube_container_name:%s' % kube_container_name)
 
             if not self.kubeutil:
                 log.warning("The agent can't connect to kubelet, creator and "
@@ -463,7 +475,7 @@ class SDDockerBackend(AbstractSDBackend):
         """Extract config templates for an identifier from a K/V store and returns it as a dict object."""
         config_backend = self.agentConfig.get('sd_config_backend')
         templates = []
-        auto_conf = bool(config_backend)
+        auto_conf = not bool(config_backend)
 
         # format [(source, ('ident', {init_tpl}, {instance_tpl}))]
         raw_tpls = self.config_store.get_check_tpls(identifier, auto_conf=auto_conf, **platform_kwargs)

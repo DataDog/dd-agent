@@ -38,8 +38,17 @@ class IO(Check):
         self.item_re = re.compile(r'^([\-a-zA-Z0-9\/]+)')
         self.value_re = re.compile(r'\d+\.\d+')
 
+    def _cap_io_util_value(self, val):
+        # Cap system.io.util metric value to 102%
+        # This is a known won't fix bug in iostat
+        if val > 100:
+            self.logger.debug("The %util value exceeds the limit: {}%".format(val))
+            return 0
+        else:
+            return val
+
     def _parse_linux2(self, output):
-        recentStats = output.split('Device:')[2].split('\n')
+        recentStats = output.split('Device')[2].split('\n')
         header = recentStats[0]
         headerNames = re.findall(self.header_re, header)
         device = None
@@ -72,6 +81,8 @@ class IO(Check):
 
             for headerIndex in range(len(headerNames)):
                 headerName = headerNames[headerIndex]
+                if '%util' in headerName:
+                    values[headerIndex] = self._cap_io_util_value(float(values[headerIndex]))
                 ioStats[device][headerName] = values[headerIndex]
 
         return ioStats
@@ -166,7 +177,10 @@ class IO(Check):
                     # cols[1:] are the values
                     io[cols[0]] = {}
                     for i in range(1, len(cols)):
-                        io[cols[0]][self.xlate(headers[i], "sunos")] = cols[i]
+                        xlate_header = self.xlate(headers[i], "sunos")
+                        if '%util' in xlate_header:
+                            cols[i] = self._cap_io_util_value(float(cols[i]))
+                        io[cols[0]][xlate_header] = cols[i]
 
             elif sys.platform.startswith("freebsd"):
                 output, _, _ = get_subprocess_output(["iostat", "-x", "-d", "1", "2"], self.logger)
@@ -194,7 +208,10 @@ class IO(Check):
                     # cols[1:] are the values
                     io[cols[0]] = {}
                     for i in range(1, len(cols)):
-                        io[cols[0]][self.xlate(headers[i], "freebsd")] = cols[i]
+                        xlate_header = self.xlate(headers[i], "freebsd")
+                        if '%util' in xlate_header:
+                            cols[i] = self._cap_io_util_value(float(cols[i]))
+                        io[cols[0]][xlate_header] = cols[i]
             elif sys.platform == 'darwin':
                 iostat, _, _ = get_subprocess_output(['iostat', '-d', '-c', '2', '-w', '1'], self.logger)
                 #          disk0           disk1          <-- number of disks
@@ -244,9 +261,16 @@ class FileHandles(Check):
         allocated_unused_fh = float(handle_metrics[1])
         max_fh = float(handle_metrics[2])
 
-        fh_in_use = (allocated_fh - allocated_unused_fh) / max_fh
+        num_used = allocated_fh - allocated_unused_fh
+        fh_in_use = num_used / max_fh
 
-        return {'system.fs.file_handles.in_use': float(fh_in_use)}
+        return {
+            'system.fs.file_handles.allocated': allocated_fh,
+            'system.fs.file_handles.allocated_unused': allocated_unused_fh,
+            'system.fs.file_handles.in_use': fh_in_use,
+            'system.fs.file_handles.used': num_used,
+            'system.fs.file_handles.max': max_fh,
+        }
 
 class Load(Check):
 
@@ -436,6 +460,7 @@ class Memory(Check):
             return {'physUsed': phys_memory.used / float(1024**2),
                 'physFree': phys_memory.free / float(1024**2),
                 'physUsable': phys_memory.available / float(1024**2),
+                'physTotal': phys_memory.total / float(1024**2),
                 'physPctUsable': (100 - phys_memory.percent) / 100.0,
                 'swapUsed': swap.used / float(1024**2),
                 'swapFree': swap.free / float(1024**2)}

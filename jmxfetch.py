@@ -28,9 +28,9 @@ from config import (
     _is_affirmative,
 )
 from daemon import ProcessRunner
-from util import yLoader
 from utils.jmx import JMX_FETCH_JAR_NAME, JMXFiles
 from utils.platform import Platform
+from utils.ddyaml import monkey_patch_pyyaml, yLoader
 
 log = logging.getLogger('jmxfetch')
 
@@ -87,6 +87,13 @@ class JMXFetch(ProcessRunner):
         self.agent_config = agent_config
         self.check_frequency = DEFAULT_CHECK_FREQUENCY
         self.service_discovery = _is_affirmative(self.agent_config.get('sd_jmx_enable', False))
+        self.config_jar_path = self.agent_config.get('jmx_custom_jars', "")
+
+        # concurrency options
+        self.pool_size = self.agent_config.get('jmx_thread_pool_size')
+        self.reconnection_pool_size = self.agent_config.get('jmx_reconnection_thread_pool_size')
+        self.collection_to = self.agent_config.get('jmx_collection_timeout')
+        self.reconnection_to = self.agent_config.get('jmx_reconnection_timeout')
 
         self.jmx_process = None
         self.jmx_checks = None
@@ -239,9 +246,11 @@ class JMXFetch(ProcessRunner):
 
             classpath = path_to_jmxfetch
             if tools_jar_path is not None:
-                classpath = r"%s:%s" % (tools_jar_path, classpath)
+                classpath = r"%s%s%s" % (tools_jar_path, os.pathsep, classpath)
             if custom_jar_paths:
-                classpath = r"%s:%s" % (':'.join(custom_jar_paths), classpath)
+                classpath = r"%s%s%s" % (os.pathsep.join(custom_jar_paths), os.pathsep, classpath)
+            if self.config_jar_path:
+                classpath = r"%s%s%s" % (self.config_jar_path, os.pathsep, classpath)
 
             subprocess_args = [
                 path_to_java,  # Path to the java bin
@@ -271,6 +280,19 @@ class JMXFetch(ProcessRunner):
                 subprocess_args.insert(4, '--sd_pipe')
                 subprocess_args.insert(5, SD_PIPE_NAME)
                 subprocess_args.insert(4, '--sd_enabled')
+
+            if self.pool_size:
+                subprocess_args.insert(4, '--thread_pool_size')
+                subprocess_args.insert(5, self.pool_size)
+            if self.reconnection_pool_size:
+                subprocess_args.insert(4, '--reconnection_thread_pool_size')
+                subprocess_args.insert(5, self.reconnection_pool_size)
+            if self.collection_to:
+                subprocess_args.insert(4, '--collection_timeout')
+                subprocess_args.insert(5, self.collection_to)
+            if self.reconnection_to:
+                subprocess_args.insert(4, '--reconnection_timeout')
+                subprocess_args.insert(5, self.reconnection_to)
 
             if jmx_checks:
                 subprocess_args.insert(4, '--check')
@@ -484,6 +506,10 @@ def init(config_path=None):
 def main(config_path=None):
     """ JMXFetch main entry point """
     confd_path, agent_config = init(config_path)
+
+    # do this early on
+    if agent_config.get('disable_unsafe_yaml'):
+        monkey_patch_pyyaml()
 
     jmx = JMXFetch(confd_path, agent_config)
     return jmx.run()

@@ -11,6 +11,10 @@ require './ci/default'
 require './ci/system'
 require './ci/windows'
 require './ci/docker_daemon'
+require './ci/tomcat'
+require './ci/solr'
+require './ci/kafka'
+require './ci/cassandra'
 
 CLOBBER.include '**/*.pyc'
 
@@ -24,8 +28,8 @@ unless ENV['CI']
   ENV['VOLATILE_DIR'] = '/tmp/dd-agent-testing'
   ENV['CONCURRENCY'] = ENV['CONCURRENCY'] || '2'
   ENV['NOSE_FILTER'] = 'not windows'
-  ENV['JMXFETCH_URL'] = 'https://dd-jmxfetch.s3.amazonaws.com'
 end
+ENV['JMXFETCH_URL'] = 'https://dl.bintray.com/datadog/datadog-maven/com/datadoghq/jmxfetch'
 
 desc 'Setup a development environment for the Agent'
 task 'setup_env' do
@@ -58,7 +62,7 @@ task 'setup_libs' do
     puts "Artifact already in place: #{jmx_artifact}"
   else
     # let's use `sh` so we can see on the log if wget fails
-    sh "wget -O checks/libs/#{jmx_artifact} #{ENV['JMXFETCH_URL']}/#{jmx_artifact}"
+    sh "wget -O checks/libs/#{jmx_artifact} #{ENV['JMXFETCH_URL']}/#{jmx_version}/#{jmx_artifact}"
   end
 end
 

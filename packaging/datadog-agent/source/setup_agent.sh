@@ -11,10 +11,10 @@ set -u
 # SCRIPT KNOBS
 #######################################################################
 # Update for new releases, will pull this tag in the repo
-DEFAULT_AGENT_VERSION="5.18.1"
+DEFAULT_AGENT_VERSION="5.32.2"
 # Pin pip version, in the past there was some buggy releases and get-pip.py
 # always pulls the latest version
-PIP_VERSION="6.1.1"
+PIP_VERSION="19.0.3"
 VIRTUALENV_VERSION="1.11.6"
 SUPERVISOR_VERSION="3.3.0"
 SETUPTOOLS_VERSION="20.9.0"
@@ -41,6 +41,10 @@ SETUPTOOLS_VERSION="20.9.0"
 #   Defaults to 1.
 # $DD_DOG
 #   0/1 value. 1 will print a cute pup at the beginning of the script
+#   Defaults to 0.
+# $DD_SKIP_INTEGRATIONS
+#   0/1 value. 1 will skip the installation of any integrations. This is useful
+#   when only the base agent is needed.
 #   Defaults to 0.
 #
 #
@@ -69,6 +73,8 @@ DD_API_KEY=${DD_API_KEY:-no_key}
 
 DD_START_AGENT=${DD_START_AGENT:-1}
 
+DD_SKIP_INTEGRATIONS=${DD_SKIP_INTEGRATIONS:-0}
+
 if [ -n "$IS_OPENSHIFT" ]; then
     printf "IS_OPENSHIFT is deprecated and won't do anything\n"
 fi
@@ -80,7 +86,7 @@ set -u
 #######################################################################
 PRE_SDK_RELEASE="5.11.3"
 LAST_JMXFETCH_BUNDLE_RELEASE="5.13.2"
-JMXFETCH_URL="http://dd-jmxfetch.s3.amazonaws.com"
+JMXFETCH_URL="https://dl.bintray.com/datadog/datadog-maven/com/datadoghq/jmxfetch"
 REPORT_FAILURE_URL="https://app.datadoghq.com/agent_stats/report_failure"
 REPORT_FAILURE_EMAIL="support@datadoghq.com"
 
@@ -259,7 +265,10 @@ error_trap() {
         print_console "Do you want to send a failure report to Datadog (Content of the report is in $LOGFILE)? (y/n)"
         read yn
         case $yn in
-            [Yy]* ) report; break;;
+            [Yy]* )
+            print_console "Please enter your email address so Datadog Support can be sure to follow up!";
+            read email;
+            print_console "Email Address: " $email; report; break;;
             [Nn]* ) report_manual; break;;
             * ) print_console "Please answer yes or no.";;
         esac
@@ -334,7 +343,7 @@ fi
 print_green "* sysstat is installed"
 
 # Detect Python version
-ERROR_MESSAGE="Python 2.6 or 2.7 is required to install the agent from source"
+ERROR_MESSAGE="Python 2.7 is required to install the agent from source"
 detect_python
 if [ -z "$PYTHON_CMD" ]; then exit 1; fi
 $PYTHON_CMD -c "import sys; exit_code = 0 if sys.version_info[0]==2 and sys.version_info[1] > 5 else 66 ; sys.exit(exit_code)" > /dev/null 2>&1
@@ -425,8 +434,9 @@ $AGENT_VERSION
 VERSION
 
 # Only install the integrations from the integrations-core if it's version 5.12 or above.
-if check_version $PRE_SDK_RELEASE $AGENT_VERSION;
-then
+if [ "$DD_SKIP_INTEGRATIONS" = "1" ]; then
+  print_console "* Skipping downloading and installing integrations"
+elif check_version $PRE_SDK_RELEASE $AGENT_VERSION; then
   print_console "* Downloading integrations from GitHub"
   mkdir -p "$DD_HOME/integrations"
   mkdir -p "$DD_HOME/agent/checks.d"
@@ -442,23 +452,59 @@ then
 
   print_console "* Setting up integrations"
   INTEGRATIONS=$(ls $DD_HOME/integrations/)
+
+  # Install `datadog_checks_base` dependency before any checks
+  # Handle both old (`-`) and new (`_`) names
+  cd "$DD_HOME/integrations/datadog_checks_base" || cd "$DD_HOME/integrations/datadog-checks-base"
+  if [ -f "requirements.in" ]; then
+    "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.in"
+  elif [ -f "requirements.txt" ]; then
+    "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.txt"
+  fi
+  $PYTHON_CMD "setup.py" bdist_wheel && $VENV_PIP_CMD install dist/*.whl
+  cd -
+
   for INT in $INTEGRATIONS; do
+    if [ "$INT" = "datadog_checks_base" -o "$INT" = "datadog-checks-base" ]; then continue; fi
+
+    # Skip development packages
+    if [ "$INT" = "datadog_checks_dev" ]; then continue; fi
+    if [ "$INT" = "datadog_checks_tests_helper" ]; then continue; fi
+
+    # We do not support Windows checks when installing from source
+    if [ "$INT" = "sqlserver" ]; then continue; fi
+
     INT_DIR="$DD_HOME/integrations/$INT"
-    if [ -f "$INT_DIR/requirements.txt" ]; then
-      "$DD_HOME/agent/utils/pip-allow-failures.sh" "$INT_DIR/requirements.txt"
+    # Only take into account directories with a `manifest.json` file
+    [ -f "$INT_DIR/manifest.json" ] || continue
+
+    cd "$INT_DIR"
+
+    if [ -f "requirements.in" ]; then
+      "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.in"
+    elif [ -f "requirements.txt" ]; then
+      "$DD_HOME/agent/utils/pip-allow-failures.sh" "requirements.txt"
     fi
-    if [ -f "$INT_DIR/check.py" ]; then
-      cp "$INT_DIR/check.py" "$DD_HOME/agent/checks.d/$INT.py"
+    if [ -f "setup.py" ]; then
+      ($PYTHON_CMD "setup.py" bdist_wheel && $VENV_PIP_CMD install dist/*.whl) || true
+    else
+      if [ -f "datadog_checks/$INT/$INT.py" ]; then
+        cp "datadog_checks/$INT/$INT.py" "$DD_HOME/agent/checks.d/$INT.py"
+      elif [ -f "check.py" ]; then
+        cp "check.py" "$DD_HOME/agent/checks.d/$INT.py"
+      fi
     fi
-    if [ -f "$INT_DIR/conf.yaml.example" ]; then
-      cp "$INT_DIR/conf.yaml.example" "$DD_HOME/agent/conf.d/$INT.yaml.example"
+    if [ -f "datadog_checks/$INT/data/conf.yaml.example" ]; then
+      cp "datadog_checks/$INT/data/conf.yaml.example" "$DD_HOME/agent/conf.d/$INT.yaml.example"
     fi
-    if [ -f "$INT_DIR/auto_conf.yaml" ]; then
-      cp "$INT_DIR/auto_conf.yaml" "$DD_HOME/agent/conf.d/auto_conf/$INT.yaml"
+    if [ -f "datadog_checks/$INT/data/auto_conf.yaml" ]; then
+      cp "datadog_checks/$INT/data/auto_conf.yaml" "$DD_HOME/agent/conf.d/auto_conf/$INT.yaml"
     fi
-    if [ -f "$INT_DIR/conf.yaml.default" ]; then
-      cp "$INT_DIR/conf.yaml.default" "$DD_HOME/agent/conf.d/$INT.yaml.default"
+    if [ -f "datadog_checks/$INT/data/conf.yaml.default" ]; then
+      cp "datadog_checks/$INT/data/conf.yaml.default" "$DD_HOME/agent/conf.d/$INT.yaml.default"
     fi
+
+    cd -
   done
   print_done
 fi
@@ -475,7 +521,7 @@ then
     JMX_ARTIFACT="jmxfetch-${JMX_VERSION}-jar-with-dependencies.jar"
 
     mkdir -p "$DD_HOME/agent/checks/libs"
-    $DOWNLOADER "$DD_HOME/agent/checks/libs/${JMX_ARTIFACT}" "$JMXFETCH_URL/${JMX_ARTIFACT}"
+    $DOWNLOADER "$DD_HOME/agent/checks/libs/${JMX_ARTIFACT}" "$JMXFETCH_URL/${JMX_VERSION}/${JMX_ARTIFACT}"
     print_done
 fi
 
@@ -510,7 +556,9 @@ else
     log_suffix="_log_file"
     for prog in collector forwarder dogstatsd jmxfetch; do
         if ! grep "^[[:space:]]*$prog$log_suffix" "$dd_conf_file"; then
-            $SED_CMD -i -e "/^api_key/a\\$prog$log_suffix: $DD_HOME/logs/$prog.log" $dd_conf_file
+            $SED_CMD -i -e "/^api_key/a\\
+$prog$log_suffix: $DD_HOME/logs/$prog.log
+" $dd_conf_file
         fi
     done
 fi
