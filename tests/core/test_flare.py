@@ -282,6 +282,44 @@ class FlareTest(unittest.TestCase):
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
+    def test_auth_token_regex(self, mock_config, mock_tempdir, mock_strftime, mock_os_remove):
+        f = Flare()
+        file_path, credentials_log = f._strip_credentials(
+            os.path.join(get_mocked_temp(), 'auth_token.yaml'),
+            f.CHECK_CREDENTIALS
+        )
+        with open(file_path) as f:
+            contents = f.read()
+        self.assertEqual(
+            contents,
+            "instances:\n"
+            "  - auth_token: ********\n"
+            "    other_token: ********\n"
+        )
+
+    @mock.patch('os.remove', side_effect=mocked_os_remove)
+    @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
+    @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
+    @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
+    def test_password_regex(self, mock_config, mock_tempdir, mock_strftime, mock_os_remove):
+        f = Flare()
+        file_path, credentials_log = f._strip_credentials(
+            os.path.join(get_mocked_temp(), 'password.yaml'),
+            f.CHECK_CREDENTIALS
+        )
+        with open(file_path) as f:
+            contents = f.read()
+        self.assertEqual(
+            contents,
+            "instances:\n"
+            "  - pass: ********\n"
+            "    other_password: ********\n"
+        )
+
+    @mock.patch('os.remove', side_effect=mocked_os_remove)
+    @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
+    @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
+    @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
     def test_whitespace_proxy_user_pass_regex(self, mock_config, mock_tempdir, mock_strftime, mock_os_remove):
         f = Flare()
         file_path, _ = f._strip_credentials(

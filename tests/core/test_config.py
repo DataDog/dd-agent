@@ -11,7 +11,14 @@ from shutil import copyfile, rmtree
 import ntpath
 
 # project
-from config import get_config, load_check_directory, _conf_path_to_check_name
+from config import (
+    get_config,
+    load_check_directory,
+    validate_sdk_check,
+    _conf_path_to_check_name,
+    _version_string_to_tuple,
+    ApiKeyInvalid
+)
 from util import windows_friendly_colon_split
 from utils.hostname import is_valid_hostname
 from utils.pidfile import PidFile
@@ -30,13 +37,20 @@ class TestConfig(unittest.TestCase):
         """
         return get_config(cfg_path=os.path.join(self.CONFIG_FOLDER, name), parse_args=parse_args)
 
+    def test_invalid_api_key(self):
+        """
+        The agent will raise an exception on an obviously invalid api key
+        """
+        with self.assertRaises(ApiKeyInvalid):
+            self.get_config('invalid.conf')
+
     def testWhiteSpaceConfig(self):
         """Leading whitespace confuse ConfigParser
         """
         agentConfig = self.get_config('bad.conf')
 
         self.assertEquals(agentConfig["dd_url"], "https://app.datadoghq.com")
-        self.assertEquals(agentConfig["api_key"], "1234")
+        self.assertEquals(agentConfig["api_key"], "0123456789abcdefghijklmnopqrstuv")
         self.assertEquals(agentConfig["nagios_log"], "/var/log/nagios3/nagios.log")
         self.assertEquals(agentConfig["graphite_listen_port"], 17126)
         self.assertTrue("statsd_metric_namespace" in agentConfig)
@@ -44,17 +58,17 @@ class TestConfig(unittest.TestCase):
     def test_one_endpoint(self):
         agent_config = self.get_config('one_endpoint.conf')
         self.assertEquals(agent_config["dd_url"], "https://app.datadoghq.com")
-        self.assertEquals(agent_config["api_key"], "1234")
-        endpoints = {'https://app.datadoghq.com': ['1234']}
+        self.assertEquals(agent_config["api_key"], "0123456789abcdefghijklmnopqrstuv")
+        endpoints = {'https://app.datadoghq.com': ['0123456789abcdefghijklmnopqrstuv']}
         self.assertEquals(agent_config['endpoints'], endpoints)
 
     def test_multiple_endpoints(self):
         agent_config = self.get_config('multiple_endpoints.conf')
         self.assertEquals(agent_config["dd_url"], "https://app.datadoghq.com")
-        self.assertEquals(agent_config["api_key"], "1234")
+        self.assertEquals(agent_config["api_key"], "0123456789abcdefghijklmnopqrstuv")
         endpoints = {
-            'https://app.datadoghq.com': ['1234'],
-            'https://app.example.com': ['5678', '901']
+            'https://app.datadoghq.com': ['0123456789abcdefghijklmnopqrstuv'],
+            'https://app.example.com': ['123456789abcdefghijklmnopqrstuv0', '23456789abcdefghijklmnopqrstuv01']
         }
         self.assertEquals(agent_config['endpoints'], endpoints)
         with self.assertRaises(AssertionError):
@@ -63,9 +77,9 @@ class TestConfig(unittest.TestCase):
     def test_multiple_apikeys(self):
         agent_config = self.get_config('multiple_apikeys.conf')
         self.assertEquals(agent_config["dd_url"], "https://app.datadoghq.com")
-        self.assertEquals(agent_config["api_key"], "1234")
+        self.assertEquals(agent_config["api_key"], "0123456789abcdefghijklmnopqrstuv")
         endpoints = {
-            'https://app.datadoghq.com': ['1234', '5678', '901']
+            'https://app.datadoghq.com': ['0123456789abcdefghijklmnopqrstuv', '123456789abcdefghijklmnopqrstuv0', '23456789abcdefghijklmnopqrstuv01']
         }
         self.assertEquals(agent_config['endpoints'], endpoints)
 
@@ -166,7 +180,8 @@ FIXTURE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'fixtur
 @mock.patch('config.get_checksd_path', return_value=TEMP_AGENT_CHECK_DIR)
 @mock.patch('config.get_confd_path', return_value=TEMP_ETC_CONF_DIR)
 @mock.patch('config.get_sdk_integrations_path', return_value=TEMP_SDK_INTEGRATIONS_CHECKS_DIR)
-@mock.patch('config.get_windows_sdk_check', return_value=TEMP_SDK_INTEGRATIONS_CHECKS_DIR)
+@mock.patch('config.get_windows_sdk_check',
+            return_value=(os.path.join(TEMP_SDK_INTEGRATIONS_CHECKS_DIR, 'test_check', 'check.py'), None))
 class TestConfigLoadCheckDirectory(unittest.TestCase):
 
     TEMP_DIRS = [
@@ -258,6 +273,7 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
         checks = load_check_directory({"additional_checksd": TEMP_ETC_CHECKS_DIR}, "foo")
         self.assertEquals(1, len(checks['init_failed_checks']))
 
+    @mock.patch('utils.platform.Platform.is_windows', return_value=True)
     def testConfig3rdPartyAgent(self, *args):
         copyfile('%s/valid_conf.yaml' % FIXTURE_PATH,
             '%s/test_check.yaml' % TEMP_ETC_CONF_DIR)
@@ -320,3 +336,27 @@ class TestConfigLoadCheckDirectory(unittest.TestCase):
     def tearDown(self):
         for _dir in self.TEMP_DIRS:
             rmtree(_dir)
+
+
+class TestManifestValidation(unittest.TestCase):
+    @mock.patch('config.get_version', return_value='5.12.0')
+    def testManifestValidateOK(self, *args):
+        manifest_path = '{}/manifest.json'.format(FIXTURE_PATH)
+        validate = validate_sdk_check(manifest_path)
+        self.assertEquals(True, validate)
+
+    @mock.patch('config.get_version', return_value='4.0.1')
+    def testManifestValidateNOKHigh(self, *args):
+        manifest_path = '{}/manifest.json'.format(FIXTURE_PATH)
+        validate = validate_sdk_check(manifest_path)
+        self.assertEquals(False, validate)
+
+    @mock.patch('config.get_version', return_value='6.0.1')
+    def testManifestValidateNOKLow(self, *args):
+        manifest_path = '{}/manifest.json'.format(FIXTURE_PATH)
+        validate = validate_sdk_check(manifest_path)
+        self.assertEquals(False, validate)
+
+    def testVersionStringToTupleBadVersion(self, *args):
+        with self.assertRaises(ValueError):
+            _version_string_to_tuple('5.10.4a')

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # 3p
-from mock import Mock
+import mock
 import unittest
 import simplejson as json
 
@@ -9,7 +9,8 @@ from emitter import (
     remove_control_chars,
     remove_undecodable_chars,
     sanitize_payload,
-    split_payload
+    serialize_and_compress_metrics_payload,
+    split_payload,
 )
 
 import os
@@ -23,7 +24,7 @@ class TestEmitter(unittest.TestCase):
         with open(FIXTURE_PATH + '/legacy_payload.json') as f:
             legacy_payload = json.load(f)
 
-        legacy_payload_split, metrics_payload = split_payload(dict(legacy_payload))
+        legacy_payload_split, metrics_payload, checkruns_payload = split_payload(dict(legacy_payload))
         series = metrics_payload['series']
         legacy_payload_split['metrics'] = []
 
@@ -42,7 +43,13 @@ class TestEmitter(unittest.TestCase):
             formatted_sample = [s['metric'], s['points'][0][0], s['points'][0][1], attributes]
             legacy_payload_split['metrics'].append(formatted_sample)
 
+        del legacy_payload['service_checks']
         self.assertEqual(legacy_payload, legacy_payload_split)
+
+        with open(FIXTURE_PATH + '/sc_payload.json') as f:
+            expected_sc_payload = json.load(f)
+
+        self.assertEqual(checkruns_payload, expected_sc_payload)
 
     def test_remove_control_chars(self):
         messages = [
@@ -51,7 +58,7 @@ class TestEmitter(unittest.TestCase):
             (u'_e{2,19}:t4|♬ †øU †øU ¥ºu T0µ ♪', u'_e{2,19}:t4|♬ †øU †øU ¥ºu T0µ ♪')
         ]
 
-        log = Mock()
+        log = mock.Mock()
         for bad, good in messages:
             self.assertTrue(remove_control_chars(bad, log) == good, (bad,good))
 
@@ -70,7 +77,7 @@ class TestEmitter(unittest.TestCase):
             {"processes":[1234,[[u'db🖫', 0, 2.2,12,34,u'☢compiz☢',1]]]}
         ]
 
-        log = Mock()
+        log = mock.Mock()
 
         def is_converted_same(msg):
             new_msg = sanitize_payload(msg, log, remove_control_chars)
@@ -92,6 +99,38 @@ class TestEmitter(unittest.TestCase):
         ]
 
         for bad, good, log_called in messages:
-            log = Mock()
+            log = mock.Mock()
             self.assertEqual(good, remove_undecodable_chars(bad, log))
             self.assertEqual(log_called, log.warning.called)
+
+    # Make compression a no-op for the tests
+    @mock.patch('zlib.compress', side_effect=lambda x: x)
+    def test_metrics_payload_chunks(self, compress_mock):
+        log = mock.Mock()
+        nb_series = 10000
+        max_compressed_size = 1 << 10  # 1KB, well below the original size of our payload of 10000 metrics
+
+        metrics_payload = {"series": [
+            {
+                "metric": "%d" % i,  # use an integer so that it's easy to find the metric afterwards
+                "points": [(i, i)],
+                "source_type_name": "System",
+            } for i in xrange(nb_series)
+        ]}
+
+        compressed_payloads = serialize_and_compress_metrics_payload(metrics_payload, max_compressed_size, 0, log)
+
+        # check that all the payloads are smaller than the max size
+        for compressed_payload in compressed_payloads:
+            self.assertLess(len(compressed_payload), max_compressed_size)
+
+        # check that all the series are there (correct number + correct metric names)
+        series_after = []
+        for compressed_payload in compressed_payloads:
+            series_after.extend(json.loads(compressed_payload)["series"])
+
+        self.assertEqual(nb_series, len(series_after))
+
+        metrics_sorted = sorted([int(metric["metric"]) for metric in series_after])
+        for i, metric_name in enumerate(metrics_sorted):
+            self.assertEqual(i, metric_name)

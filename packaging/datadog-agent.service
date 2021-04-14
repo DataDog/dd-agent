@@ -5,6 +5,8 @@ After=network.target
 [Service]
 Type=forking
 User=dd-agent
+EnvironmentFile=-/etc/default/datadog-agent
+EnvironmentFile=-/etc/sysconfig/datadog-agent
 ExecStart=/opt/datadog-agent/bin/start_agent.sh
 ExecStop=/opt/datadog-agent/bin/supervisorctl -c /etc/dd-agent/supervisor.conf shutdown
 

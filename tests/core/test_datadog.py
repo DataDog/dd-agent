@@ -192,6 +192,25 @@ class TestDogstream(TailTestCase):
         actual_output = self.dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
 
+    def test_dogstream_io_error(self):
+        log_data = [
+            ('test_metric.e 1000000000 10 metric_type=gauge'),
+        ]
+        expected_output = {"dogstream":
+            [('test_metric.e', 1000000000, 10, self.gauge)]
+        }
+
+        self._write_log(log_data)
+
+        # Simulate missing file by making it unreadable
+        os.chmod(self.log_file.name, 0000)
+        actual_output = self.dogstream.check(self.config, move_end=False)
+        self.assertEquals({}, actual_output)
+        os.chmod(self.log_file.name, 0600)
+        actual_output = self.dogstream.check(self.config, move_end=False)
+        self.assertEquals(expected_output, actual_output)
+
+
     def test_dogstream_log_path_globbing(self):
         """Make sure that globbed dogstream logfile matching works."""
         # Create a tmpfile to serve as a prefix for the other temporary

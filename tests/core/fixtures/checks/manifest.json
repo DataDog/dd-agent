@@ -1,0 +1,16 @@
+{
+  "maintainer": "help@datadoghq.com",
+  "manifest_version": "0.1.0",
+  "max_agent_version": "6.0.0",
+  "min_agent_version": "5.6.3",
+  "name": "test-check",
+  "short_description": "test-check description.",
+  "support": "Test check for a test integration we need to test.",
+  "supported_os": [
+    "linux",
+    "mac_os",
+    "windows"
+  ],
+  "version": "0.1.0",
+  "guid": "d91d91bd-4a8e-4489-bfb1-b119d4cc388a"
+}

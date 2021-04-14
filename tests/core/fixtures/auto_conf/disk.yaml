@@ -1,5 +1,5 @@
 docker_images:
-  - redis
+  - disk
 
 init_config:
 

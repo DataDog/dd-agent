@@ -1,16 +1,10 @@
 import mock
 
-from tests.checks.common import AgentCheckTest, load_check, copy_checks, remove_checks
+from tests.checks.common import AgentCheckTest, load_check
 
 class TestNoProfiling(AgentCheckTest):
 
     CHECK_NAME = 'redisdb'
-
-    def setUp(self):
-        copy_checks()
-
-    def tearDown(self):
-        remove_checks()
 
     def test_no_profiling(self):
         agentConfig = {
@@ -22,11 +16,11 @@ class TestNoProfiling(AgentCheckTest):
         mocks = {
             '_set_internal_profiling_stats': mock.MagicMock(side_effect=SystemExit),
         }
-        redis_config = {
+        disk_config = {
             "init_config": {},
-            "instances": [{"host": "localhost", "port": 6379}]
+            "instances": [{}]
         }
-        check = load_check('redisdb', redis_config, agentConfig)
+        check = load_check('disk', disk_config, agentConfig)
 
         self.assertFalse(check.allow_profiling)
         self.assertTrue(check.in_developer_mode)

@@ -9,6 +9,9 @@ from urlparse import urlparse
 
 log = logging.getLogger(__name__)
 
+def get_no_proxy_from_env():
+    return os.environ.get('no_proxy', os.environ.get('NO_PROXY', None))
+
 
 def set_no_proxy_settings():
     """
@@ -18,8 +21,9 @@ def set_no_proxy_settings():
     See: https://github.com/kennethreitz/requests/pull/945
     """
     to_add = ["127.0.0.1", "localhost", "169.254.169.254"]
-    no_proxy = os.environ.get("no_proxy", "")
-    if not no_proxy.strip():
+    no_proxy = get_no_proxy_from_env()
+
+    if no_proxy is None or not no_proxy.strip():
         no_proxy = []
     else:
         no_proxy = no_proxy.split(',')
@@ -70,3 +74,29 @@ def get_proxy(agentConfig):
                   "Proxy is probably not set", str(e))
 
     return None
+
+
+def config_proxy_skip(proxies, uri, skip_proxy=False):
+    """
+    Returns an amended copy of the proxies dictionary - used by `requests`,
+    it will disable the proxy if the uri provided is to be reached directly.
+
+    Keyword Arguments:
+        proxies -- dict with existing proxies: 'https', 'http', 'no' as pontential keys
+        uri -- uri to determine if proxy is necessary or not.
+        skip_proxy -- if True, the proxy dictionary returned will disable all proxies
+    """
+    parsed_uri = urlparse(uri)
+
+    # disable proxy if necessary
+    # keep keys so `requests` doesn't use env var proxies either
+    if skip_proxy:
+        proxies['http'] = None
+        proxies['https'] = None
+    elif proxies.get('no'):
+        for url in proxies['no'].replace(';', ',').split(","):
+            if url in parsed_uri.netloc:
+                proxies['http'] = None
+                proxies['https'] = None
+
+    return proxies

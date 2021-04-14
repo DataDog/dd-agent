@@ -14,7 +14,7 @@ from checks import (
     UnknownValue,
 )
 from checks.collector import Collector
-from tests.checks.common import load_check, copy_checks, remove_checks
+from tests.checks.common import load_check
 from utils.hostname import get_hostname
 from utils.proxy import get_proxy
 
@@ -106,6 +106,7 @@ class TestCore(unittest.TestCase):
         self.assertEquals(self.c.normalize("__metric__", "prefix"), "prefix.metric")
         self.assertEquals(self.c.normalize("abc.metric(a+b+c{}/5)", "prefix"), "prefix.abc.metric_a_b_c_5")
         self.assertEquals(self.c.normalize("VBE.default(127.0.0.1,,8080).happy", "varnish"), "varnish.VBE.default_127.0.0.1_8080.happy")
+        self.assertEquals(self.c.normalize("metric@device"), "metric_device")
 
         # Same tests for the AgentCheck
         self.setUpAgentCheck()
@@ -114,9 +115,11 @@ class TestCore(unittest.TestCase):
         self.assertEquals(self.ac.normalize("__metric__", "prefix"), "prefix.metric")
         self.assertEquals(self.ac.normalize("abc.metric(a+b+c{}/5)", "prefix"), "prefix.abc.metric_a_b_c_5")
         self.assertEquals(self.ac.normalize("VBE.default(127.0.0.1,,8080).happy", "varnish"), "varnish.VBE.default_127.0.0.1_8080.happy")
+        self.assertEquals(self.ac.normalize("metric@device"), "metric_device")
 
         self.assertEqual(self.ac.normalize("PauseTotalNs", "prefix", fix_case = True), "prefix.pause_total_ns")
         self.assertEqual(self.ac.normalize("Metric.wordThatShouldBeSeparated", "prefix", fix_case = True), "prefix.metric.word_that_should_be_separated")
+        self.assertEqual(self.ac.normalize_device_name(",@+*-()[]{}//device@name"), "___________//device_name")
 
     def test_service_check(self):
         check_name = 'test.service_check'
@@ -126,7 +129,24 @@ class TestCore(unittest.TestCase):
         timestamp = time.time()
 
         check = AgentCheck('test', {}, {'checksd_hostname':'foo'})
-        check.service_check(check_name, status, tags, timestamp, host_name)
+        # No "message"/"tags" field
+        check.service_check(check_name, status, timestamp=timestamp, hostname=host_name)
+        self.assertEquals(len(check.service_checks), 1, check.service_checks)
+        val = check.get_service_checks()
+        self.assertEquals(len(val), 1)
+        check_run_id = val[0].get('id', None)
+        self.assertNotEquals(check_run_id, None)
+        self.assertEquals([{
+            'id': check_run_id,
+            'check': check_name,
+            'status': status,
+            'host_name': host_name,
+            'timestamp': timestamp,
+        }], val)
+        self.assertEquals(len(check.service_checks), 0, check.service_checks)
+
+        # With "message" field
+        check.service_check(check_name, status, tags, timestamp, host_name, message='foomessage')
         self.assertEquals(len(check.service_checks), 1, check.service_checks)
         val = check.get_service_checks()
         self.assertEquals(len(val), 1)
@@ -139,9 +159,10 @@ class TestCore(unittest.TestCase):
             'host_name': host_name,
             'tags': tags,
             'timestamp': timestamp,
-            'message': None,
+            'message': 'foomessage',
         }], val)
         self.assertEquals(len(check.service_checks), 0, check.service_checks)
+
 
     def test_no_proxy(self):
         """ Starting with Agent 5.0.0, there should always be a local forwarder
@@ -169,7 +190,10 @@ class TestCore(unittest.TestCase):
             'no': '127.0.0.1,localhost,169.254.169.254'
         }
         environ_proxies = get_environ_proxies("https://www.google.com")
-        self.assertEquals(expected_proxies, environ_proxies,
+
+        # travis uses the TRAVIS_APT_PROXY variable breaking the test with assertEqual.
+        # We only need that the expected_proxies are among the environ_proxies so a set inclusion is enough
+        self.assertLessEqual(set(expected_proxies.values()), set(environ_proxies.values()),
                           (expected_proxies, environ_proxies))
 
         # Clear the env variables set
@@ -211,11 +235,6 @@ class TestCore(unittest.TestCase):
 
 
 class TestCollectionInterval(unittest.TestCase):
-    def setUp(self):
-        copy_checks()
-
-    def tearDown(self):
-        remove_checks()
 
     def test_min_collection_interval(self):
         config = {'instances': [{}], 'init_config': {}}
@@ -288,6 +307,7 @@ class TestCollectionInterval(unittest.TestCase):
             'api_key': 'test_apikey',
             'check_timings': True,
             'collect_ec2_tags': True,
+            'collect_orchestrator_tags': False,
             'collect_instance_metadata': False,
             'create_dd_check_tags': False,
             'version': 'test',
@@ -295,11 +315,12 @@ class TestCollectionInterval(unittest.TestCase):
         }
 
         # Run a single checks.d check as part of the collector.
-        redis_config = {
+        disk_config = {
             "init_config": {},
-            "instances": [{"host": "localhost", "port": 6379}]
+            "instances": [{}]
         }
-        checks = [load_check('redisdb', redis_config, agentConfig)]
+
+        checks = [load_check('disk', disk_config, agentConfig)]
 
         c = Collector(agentConfig, [], {}, get_hostname(agentConfig))
         payload = c.run({
@@ -325,6 +346,7 @@ class TestCollectionInterval(unittest.TestCase):
         agentConfig = {
             'api_key': 'test_apikey',
             'collect_ec2_tags': False,
+            'collect_orchestrator_tags': False,
             'collect_instance_metadata': False,
             'create_dd_check_tags': True,
             'version': 'test',
@@ -332,11 +354,12 @@ class TestCollectionInterval(unittest.TestCase):
         }
 
         # Run a single checks.d check as part of the collector.
-        redis_config = {
+        disk_config = {
             "init_config": {},
-            "instances": [{"host": "localhost", "port": 6379}]
+            "instances": [{}]
         }
-        checks = [load_check('redisdb', redis_config, agentConfig)]
+
+        checks = [load_check('disk', disk_config, agentConfig)]
 
         c = Collector(agentConfig, [], {}, get_hostname(agentConfig))
         payload = c.run({
@@ -345,7 +368,7 @@ class TestCollectionInterval(unittest.TestCase):
         })
 
         # We check that the redis DD_CHECK_TAG is sent in the payload
-        self.assertTrue('dd_check:redisdb' in payload['host-tags']['system'])
+        self.assertTrue('dd_check:disk' in payload['host-tags']['system'])
 
 
 class TestAggregator(unittest.TestCase):

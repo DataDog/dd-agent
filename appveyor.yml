@@ -3,11 +3,13 @@ shallow_clone: true
 environment:
   TRAVIS_BUILD_DIR: c:\projects\dd-agent
   INTEGRATIONS_DIR: c:\projects\dd-agent\embedded
+  CHECKSD_OVERRIDE: c:\projects\dd-agent\tests\checks\fixtures\checks
   PIP_CACHE: c:\projects\dd-agent\.cache\pip
   VOLATILE_DIR: c:\projects
   NOSE_FILTER: not unix and not fixme
   PYWIN_PATH: C:\projects\dd-agent\.cache\pywin32-py2.7.exe
   SKIP_LINT: true
+  INTEGRATIONS_CORE_BRANCH: master
   matrix:
   - PYTHON: C:\\Python27
     PYTHON_VERSION: 2.7.9
@@ -31,15 +33,22 @@ services:
 install:
   # Use the 64-bit ruby so that all the Powershell classes are accessible when running shell commands from ruby
   - set PATH=C:\Ruby22-x64\bin;%PATH%
-  - gem install bundler --quiet --no-ri --no-rdoc
+  # If bundler is already install '--conservative' will avoid upgrading gems who already meet the version requirement (and avoid conflicts)
+  - gem install bundler --conservative --quiet --no-ri --no-rdoc
   - bundle install
   - bundle package
+  - git clone -b %INTEGRATIONS_CORE_BRANCH% https://github.com/DataDog/integrations-core.git c:\projects\integrations-core
   - if not exist %PIP_CACHE% mkdir %PIP_CACHE%
   - ps: If (-Not (Test-Path $env:PYWIN_PATH)) {(new-object net.webclient).DownloadFile("$env:PYWIN32_URL", "$env:PYWIN_PATH")}
   - "%PYTHON%/Scripts/easy_install.exe %PYWIN_PATH%"
   # Remove the adodbapi module shipped with pywin32: it conflicts with the pip-installed adodbapi
   - ps: rm $env:PYTHON/lib/site-packages/$env:PYWIN32_INSTALL_DIR/adodbapi/__init__.py
   - ps: rm $env:PYTHON/lib/site-packages/$env:PYWIN32_INSTALL_DIR/adodbapi/__init__.pyc
+  - ps: (& "$env:PYTHON/Scripts/pip.exe" install wheel)
+  - cd c:\projects\integrations-core\datadog_checks_base
+  - ps: (& "$env:PYTHON/python.exe" setup.py bdist_wheel)
+  - ps: (& "$env:PYTHON/Scripts/pip.exe" install .)
+  - cd %TRAVIS_BUILD_DIR%
 build: off
 test_script:
   - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
