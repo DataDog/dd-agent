@@ -13,9 +13,9 @@ import yaml
 
 # datadog
 from config import _windows_commondata_path, get_confd_path, JMX_VERSION
-from util import yDumper
 from utils.pidfile import PidFile
 from utils.platform import Platform
+from utils.ddyaml import yDumper
 
 # JMXFetch java version
 JMX_FETCH_JAR_NAME = "jmxfetch-{ver}-jar-with-dependencies.jar".format(ver=JMX_VERSION)
@@ -146,6 +146,6 @@ class JMXFiles(object):
         check_names = []
         jmx_status_path = os.path.join(cls._get_dir(), cls._STATUS_FILE)
         if os.path.exists(jmx_status_path):
-            jmx_checks = yaml.load(file(jmx_status_path)).get('checks', {})
+            jmx_checks = yaml.safe_load(file(jmx_status_path)).get('checks', {})
             check_names = [name for name in jmx_checks.get('initialized_checks', {}).iterkeys()]
         return check_names

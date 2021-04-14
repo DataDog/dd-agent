@@ -31,7 +31,7 @@ except AttributeError:
 
 DEFAULT_DNS_TTL = 300
 
-class sockaddr(ctypes.Structure):
+class Sockaddr(ctypes.Structure):
     _fields_ = [("sa_family", ctypes.c_short),
                 ("__pad1", ctypes.c_ushort),
                 ("ipv4_addr", ctypes.c_byte * 4),
@@ -67,7 +67,7 @@ def _inet_pton_win(address_family, ip_string):
     Window specific version of `inet_pton` based on:
     https://gist.github.com/nnemkin/4966028
     """
-    addr = sockaddr()
+    addr = Sockaddr()
     addr.sa_family = address_family
     addr_size = ctypes.c_int(ctypes.sizeof(addr))
 

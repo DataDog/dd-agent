@@ -25,9 +25,11 @@ def partition(s, sep):
 
 
 def point_sorter(p):
-    # Sort and group by timestamp, metric name, host_name, device_name
-    return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None))
-
+    # Sort and group by timestamp, metric name, host_name, device_name, (tags or attributes)
+    tags = p[3].get('tags')
+    attribs = sorted(tags.split(",")) if tags is not None else p[3]
+    # Include tags (or attibutes if tags do not exists) to determine the uniqueness of a metric.
+    return (p[1], p[0], p[3].get('host_name'), p[3].get('device_name'), attribs)
 
 class EventDefaults(object):
     EVENT_TYPE = 'dogstream_event'
@@ -37,12 +39,13 @@ class EventDefaults(object):
 class Dogstreams(object):
     @classmethod
     def init(cls, logger, config):
-        dogstreams_config = config.get('dogstreams', None)
+        dogstreams_config = config.get('dogstreams')
         if dogstreams_config:
             dogstreams = cls._instantiate_dogstreams(logger, config, dogstreams_config)
         else:
             dogstreams = []
 
+        logger.warning("Dogstream is a deprecated feature, and is removed from version 6 of the Datadog Agent")
         logger.info("Dogstream parsers: %s" % repr(dogstreams))
 
         return cls(logger, dogstreams)
@@ -189,7 +192,9 @@ class Dogstream(object):
                 # reset generator to try again during the next check interval
                 self._gen = None
 
+            self.logger.debug("Pre-aggregated metrics: {0}".format(self._values))
             check_output = self._aggregate(self._values)
+            self.logger.debug("Aggregated metrics: {0}".format(check_output))
             if self._events:
                 check_output.update({"dogstreamEvents": self._events})
                 self.logger.debug("Found {0} events".format(len(self._events)))
@@ -305,7 +310,7 @@ class Dogstream(object):
 
         values.sort(key=point_sorter)
 
-        for (timestamp, metric, host_name, device_name), val_attrs in groupby(values, key=point_sorter):
+        for (timestamp, metric, host_name, device_name, attribs), val_attrs in groupby(values, key=point_sorter):
             attributes = {}
             vals = []
             for _metric, _timestamp, v, a in val_attrs:

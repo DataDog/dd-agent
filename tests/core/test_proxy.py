@@ -57,7 +57,9 @@ class TestNoProxy(TestCase):
             'https': 'http://localhost:3128',
             'no': '127.0.0.1,localhost,169.254.169.254'
         }
+
         environ_proxies = get_environ_proxies("https://www.google.com")
+        environ_proxies.pop('travis_apt', None)
         self.assertEquals(expected_proxies, environ_proxies, (expected_proxies, environ_proxies))
 
         # Clear the env variables set
@@ -78,6 +80,8 @@ class TestNoProxy(TestCase):
         }
 
         gen_proxies = config_proxy_skip(proxies, 's3://anything', skip_proxy=True)
+        self.assertTrue('http' in gen_proxies)
+        self.assertTrue('https' in gen_proxies)
         self.assertEquals(gen_proxies.get('http'), None)
         self.assertEquals(gen_proxies.get('https'), None)
 

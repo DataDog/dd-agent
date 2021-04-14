@@ -63,6 +63,7 @@ from utils.service_discovery.config_stores import get_config_store
 from utils.service_discovery.sd_backend import get_sd_backend
 from utils.watchdog import Watchdog
 from utils.windows_configuration import get_sdk_integration_paths
+from utils.ddyaml import monkey_patch_pyyaml
 
 # Constants
 PID_NAME = "dd-agent"
@@ -502,6 +503,10 @@ def main():
     hostname = get_hostname(agentConfig)
     in_developer_mode = agentConfig.get('developer_mode')
 
+    # do this early on
+    if agentConfig.get('disable_unsafe_yaml'):
+        monkey_patch_pyyaml()
+
     COMMANDS_AGENT = [
         'start',
         'stop',
@@ -602,7 +607,8 @@ def main():
                         time.sleep(1)
                         cs = Collector.run_single_check(check, verbose=True)
                         print CollectorStatus.render_check_status(cs)
-
+                    else:
+                        print "Check has run only once, if some metrics are missing you can run the command again with the 'check_rate' argument appended at the end to see any other metrics if available."
                     check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:

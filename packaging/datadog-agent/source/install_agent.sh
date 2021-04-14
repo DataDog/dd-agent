@@ -55,6 +55,10 @@ else
     no_start=false
 fi
 
+if [ -n "$DD_HOST_TAGS" ]; then
+    host_tags=$DD_HOST_TAGS
+fi
+
 if [ ! $apikey ]; then
     printf "\033[31mAPI key not available in DD_API_KEY environment variable.\033[0m\n"
     exit 1;
@@ -63,7 +67,7 @@ fi
 # OS/Distro Detection
 # Try lsb_release, fallback with /etc/issue then uname command
 KNOWN_DISTRIBUTION="(Debian|Ubuntu|RedHat|CentOS|openSUSE|Amazon|Arista|SUSE)"
-DISTRIBUTION=$(lsb_release -d 2>/dev/null | grep -Eo $KNOWN_DISTRIBUTION  || grep -Eo $KNOWN_DISTRIBUTION /etc/issue 2>/dev/null || grep -Eo $KNOWN_DISTRIBUTION /etc/Eos-release 2>/dev/null || uname -s)
+DISTRIBUTION=$(lsb_release -d 2>/dev/null | grep -Eo $KNOWN_DISTRIBUTION  || grep -Eo $KNOWN_DISTRIBUTION /etc/issue 2>/dev/null || grep -Eo $KNOWN_DISTRIBUTION /etc/Eos-release 2>/dev/null || grep -m1 -Eo $KNOWN_DISTRIBUTION /etc/os-release 2>/dev/null || uname -s)
 
 if [ $DISTRIBUTION = "Darwin" ]; then
     printf "\033[31mThis script does not support installing on the Mac.
@@ -147,7 +151,6 @@ elif [ $OS = "Debian" ]; then
     fi
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
     $sudo_cmd sh -c "echo 'deb https://apt.datadoghq.com/ stable main' > /etc/apt/sources.list.d/datadog.list"
-    $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
     $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 382E94DE
 
     printf "\033[34m\n* Installing the Datadog Agent package\n\033[0m\n"
@@ -178,6 +181,9 @@ elif [ $OS = "SUSE" ]; then
   echo -e "\033[34m\n* Installing YUM Repository for Datadog\n\033[0m"
   $sudo_cmd sh -c "echo -e '[datadog]\nname=datadog\nenabled=1\nbaseurl=https://yum.datadoghq.com/suse/rpm/x86_64\ntype=rpm-md\ngpgcheck=1\nrepo_gpgcheck=0\ngpgkey=https://yum.datadoghq.com/DATADOG_RPM_KEY.public' > /etc/zypp/repos.d/datadog.repo"
 
+  echo -e "\033[34m\n* Importing the Datadog GPG Key\n\033[0m"
+  $sudo_cmd rpm --import https://yum.datadoghq.com/DATADOG_RPM_KEY.public
+
   echo -e "\033[34m\n* Refreshing repositories\n\033[0m"
   $sudo_cmd zypper --non-interactive --no-gpg-check refresh datadog
 
@@ -201,6 +207,10 @@ else
     if [ $dd_hostname ]; then
         printf "\033[34m\n* Adding your HOSTNAME to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
         $sudo_cmd sh -c "sed -i 's/# hostname:.*/hostname: $dd_hostname/' /etc/dd-agent/datadog.conf"
+    fi
+    if [ $host_tags ]; then
+        printf "\033[34m\n* Adding your HOST TAGS to the Agent configuraton: /etc/dd-agent/datadog.conf\n\033[0m\n"
+        $sudo_cmd sh -c "sed -i 's/# tags:.*/tags: $host_tags/' /etc/dd-agent/datadog.conf"
     fi
     $sudo_cmd chown dd-agent:dd-agent /etc/dd-agent/datadog.conf
     $sudo_cmd chmod 640 /etc/dd-agent/datadog.conf

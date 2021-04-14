@@ -369,7 +369,7 @@ case "$1" in
             $0 stop > /dev/null 2>&1
         fi
 
-        su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null 2>&1
+        su $AGENTUSER --shell "/bin/sh" -c "$AGENTPATH configcheck" > /dev/null 2>&1
         if [ $? -ne 0 ]; then
             log_daemon_msg "Invalid check configuration. Please run sudo /etc/init.d/datadog-agent configtest for more details."
             log_daemon_msg "Resuming starting process."
@@ -412,13 +412,13 @@ case "$1" in
         shift # Shift 'info' out of args so we can pass any
               # addtional options to the real command
               # (right now only dd-agent supports additional flags)
-        su $AGENTUSER -c "$AGENTPATH info $@"
+        su $AGENTUSER --shell "/bin/sh" -c "$AGENTPATH info $@"
         COLLECTOR_RETURN=$?
-        su $AGENTUSER -c "$DOGSTATSDPATH info"
+        su $AGENTUSER --shell "/bin/sh" -c "$DOGSTATSDPATH info"
         DOGSTATSD_RETURN=$?
-        su $AGENTUSER -c "$FORWARDERPATH info"
+        su $AGENTUSER --shell "/bin/sh" -c "$FORWARDERPATH info"
         FORWARDER_RETURN=$?
-        su $AGENTUSER -c "$TRACEAGENTPATH -info"
+        su $AGENTUSER --shell "/bin/sh" -c "$TRACEAGENTPATH -info"
         TRACEAGENT_RETURN=$? # not used for now, Trace/APM not a core feature yet
         exit $(($COLLECTOR_RETURN+$DOGSTATSD_RETURN+$FORWARDER_RETURN))
         ;;
@@ -455,18 +455,18 @@ case "$1" in
         ;;
 
     configcheck)
-        su $AGENTUSER -c "$AGENTPATH configcheck"
+        su $AGENTUSER --shell "/bin/sh" -c "$AGENTPATH configcheck"
         exit $?
         ;;
 
     configtest)
-        su $AGENTUSER -c "$AGENTPATH configcheck"
+        su $AGENTUSER --shell "/bin/sh" -c "$AGENTPATH configcheck"
         exit $?
         ;;
 
     jmx)
         shift
-        su $AGENTUSER -c "$AGENTPATH jmx $@"
+        su $AGENTUSER --shell "/bin/sh" -c "$AGENTPATH jmx $@"
         exit $?
         ;;
 

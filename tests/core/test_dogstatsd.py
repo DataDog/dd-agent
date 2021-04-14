@@ -1,4 +1,5 @@
 # stdlib
+import unittest
 from unittest import TestCase
 import os
 import socket
@@ -17,6 +18,23 @@ from dogstatsd import (
     init6
 )
 from utils.net import IPV6_V6ONLY, IPPROTO_IPV6
+
+def _get_ipv6_socket(addr, port):
+    sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    sock.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
+    sock.setsockopt(IPPROTO_IPV6, socket.SO_REUSEADDR, 1)
+    sock.bind((addr, port))
+    return sock
+
+
+def _ipv6_available(addr, port):
+    try:
+        sock = _get_ipv6_socket(addr, port)
+    except Exception:
+        return False
+
+    sock.close()
+    return True
 
 
 class TestFunctions(TestCase):
@@ -87,26 +105,29 @@ class TestServer(TestCase):
     @mock.patch('dogstatsd.select')
     def test_start(self, select):
         select.select.side_effect = [KeyboardInterrupt, SystemExit]
-        s1 = Server(mock.MagicMock(), '::1', '1234')
-        s1.start()
-        self.assertEqual(s1.socket.family, socket.AF_INET6)
 
-        original_so_rcvbuf = s1.socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
+        ipv6_test = False
+        if _ipv6_available('::1', '1234'):
+            ipv6_test = True
+            s1 = Server(mock.MagicMock(), '::1', '1234')
+            s1.start()
+            self.assertEqual(s1.socket.family, socket.AF_INET6)
+
+            original_so_rcvbuf = s1.socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
 
         s2 = Server(mock.MagicMock(), '127.0.0.1', '2345', so_rcvbuf=1023)
         s2.start()
         self.assertEqual(s2.socket.family, socket.AF_INET6)
-        self.assertNotEquals(original_so_rcvbuf, s2.socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF))
+
+        if ipv6_test:
+            self.assertNotEquals(original_so_rcvbuf, s2.socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF))
 
         s2 = Server(mock.MagicMock(), 'foo', '80')
         s2.start()
         self.assertFalse(s2.running)
 
     def _get_socket(self, addr, port):
-        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        sock.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 0)
-        sock.bind((addr, port))
-        return sock
+        return _get_ipv6_socket(addr, port)
 
     def test_connection_v4(self):
         # start the server with a v4 mapped address
@@ -128,11 +149,14 @@ class TestServer(TestCase):
         msg = results.get(True, 1)
         self.assertEqual(msg[0], 'msg4')
 
-        # send packets with a v6 client
-        client_sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        client_sock.sendto('msg6', ('::1', 12345))
-        self.assertRaises(Queue.Empty, results.get, True, 1)
+        if _ipv6_available('::1', 12345):
+            # send packets with a v6 client
+            client_sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+            client_sock.sendto('msg6', ('::1', 12345))
+            self.assertRaises(Queue.Empty, results.get, True, 1)
 
+    @unittest.skipIf(not _ipv6_available('::1', 12345),
+                     "ipv6 required for this test")
     def test_connection_v6(self):
         # start the server with a v6 address
         sock = self._get_socket('::1', 12345)

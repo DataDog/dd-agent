@@ -188,6 +188,11 @@ class Flare(object):
         if Platform.is_containerized():
             self._add_command_output_tar('docker_inspect.log', agent_container_inspect)
 
+        # only add pdh data on Windows
+        if Platform.is_windows():
+            self._add_command_output_tar('counter_strings.log', self._reg_counter_strings)
+            self._add_command_output_tar('typeperf.log', self._typeperf_out)
+
     # Set the proxy settings, if they exist
     def set_proxy(self, options):
         proxy_settings = self._config.get('proxy_settings')
@@ -653,6 +658,30 @@ class Flare(object):
             pip.main(['freeze', '--no-cache-dir'])
         except ImportError:
             print 'Unable to import pip'
+
+    def _reg_counter_strings(self):
+        try:
+            import _winreg
+            try:
+                val, t = _winreg.QueryValueEx(_winreg.HKEY_PERFORMANCE_DATA, "Counter 009")
+            except Exception as e:
+                print "unable to query counter strings: {0}".format(str(e))
+                return
+            idx = 0
+            idx_max = len(val)
+            while idx < idx_max:
+                print "%s" % val[idx]
+                idx += 1
+
+        except ImportError:
+            print 'Unable to import windows registry functions'
+
+    def _typeperf_out(self):
+        try:
+            self._print_output_command(['typeperf', '-qx'])
+        except OSError:
+            print 'Unable to execute typeperf'
+
 
     # Check if the file is not too big before upload
     def _check_size(self):
