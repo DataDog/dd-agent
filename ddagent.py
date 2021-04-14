@@ -22,6 +22,7 @@ from Queue import Full, Queue
 from socket import error as socket_error, gaierror
 import sys
 import threading
+from urlparse import urlparse
 import zlib
 
 # For pickle & PID files, see issue 293
@@ -47,11 +48,14 @@ from config import (
     get_config,
     get_logging_config,
     get_url_endpoint,
-    get_version
+    get_version,
+    _is_affirmative
 )
 import modules
 from transaction import Transaction, TransactionManager
 from util import get_uuid
+from utils.net import DEFAULT_DNS_TTL, DNSCache
+
 
 
 from utils.hostname import get_hostname
@@ -209,6 +213,8 @@ class AgentTransaction(Transaction):
 
     def get_url(self, endpoint, api_key):
         endpoint_base_url = get_url_endpoint(endpoint)
+        if self._application.agent_dns_caching:
+            endpoint_base_url = self._application.get_from_dns_cache(endpoint_base_url)
         return "{0}/intake/{1}?api_key={2}".format(endpoint_base_url, self._msg_type, api_key)
 
     def flush(self):
@@ -220,7 +226,7 @@ class AgentTransaction(Transaction):
             'body': self._data,
             'headers': self._headers,
             'validate_cert': not self._application.skip_ssl_validation,
-            'allow_ipv6': True,
+            'allow_ipv6': self._application._agentConfig.get('allow_ipv6'),
             'request_timeout': self._request_timeout,
         }
 
@@ -275,7 +281,7 @@ class AgentTransaction(Transaction):
         if response.error:
             log.error("Response: %s" % response)
             if response.code in RESPONSES_TO_REJECT:
-                self._trManager.tr_error_reject_request(self)
+                self._trManager.tr_error_reject_request(self, response.code)
             else:
                 self._trManager.tr_error(self)
         else:
@@ -292,6 +298,8 @@ class APIMetricTransaction(MetricTransaction):
 
     def get_url(self, endpoint, api_key):
         endpoint_base_url = get_url_endpoint(endpoint)
+        if self._application.agent_dns_caching:
+            endpoint_base_url = self._application.get_from_dns_cache(endpoint_base_url)
         return "{0}/api/v1/series/?api_key={1}".format(endpoint_base_url, api_key)
 
     def get_data(self):
@@ -303,6 +311,8 @@ class APIServiceCheckTransaction(AgentTransaction):
 
     def get_url(self, endpoint, api_key):
         endpoint_base_url = get_url_endpoint(endpoint)
+        if self._application.agent_dns_caching:
+            endpoint_base_url = self._application.get_from_dns_cache(endpoint_base_url)
         return "{0}/api/v1/check_run/?api_key={1}".format(endpoint_base_url, api_key)
 
 
@@ -397,6 +407,7 @@ class Application(tornado.web.Application):
         self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
+        self._dns_cache = None
         AgentTransaction.set_application(self)
         AgentTransaction.set_endpoints(agentConfig['endpoints'])
         if agentConfig['endpoints'] == {}:
@@ -414,7 +425,11 @@ class Application(tornado.web.Application):
         AgentTransaction.set_tr_manager(self._tr_manager)
 
         self._watchdog = None
-        self.skip_ssl_validation = skip_ssl_validation or agentConfig.get('skip_ssl_validation', False)
+        self.skip_ssl_validation = skip_ssl_validation or _is_affirmative(agentConfig.get('skip_ssl_validation'))
+        self.agent_dns_caching = _is_affirmative(agentConfig.get('dns_caching'))
+        self.agent_dns_ttl = int(agentConfig.get('dns_ttl', DEFAULT_DNS_TTL))
+        if self.agent_dns_caching:
+            self._dns_cache = DNSCache(ttl=self.agent_dns_ttl)
         self.use_simple_http_client = use_simple_http_client
         if self.skip_ssl_validation:
             log.info("Skipping SSL hostname validation, useful when using a transparent proxy")
@@ -424,6 +439,18 @@ class Application(tornado.web.Application):
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER / 1000
             self._watchdog = Watchdog.create(watchdog_timeout,
                                              max_resets=WATCHDOG_HIGH_ACTIVITY_THRESHOLD)
+
+
+    def get_from_dns_cache(self, url):
+        if not self.agent_dns_caching:
+            log.debug('Caching disabled, not resolving.')
+            return url
+
+        location = urlparse(url)
+        resolve = self._dns_cache.resolve(location.netloc)
+        return "{scheme}://{ip}".format(scheme=location.scheme,
+                                        ip=resolve)
+
 
     def log_request(self, handler):
         """ Override the tornado logging method.

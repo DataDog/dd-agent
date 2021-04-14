@@ -38,11 +38,13 @@ def get_check_class(agentConfig, check_name):
     osname = get_os()
     checks_places = get_checks_places(osname, agentConfig)
     for check_path_builder in checks_places:
-        check_path = check_path_builder(check_name)
-        if not os.path.exists(check_path):
+        check_path, manifest_path = check_path_builder(check_name)
+        is_wheel = not check_path and not manifest_path
+
+        if not (check_path and os.path.exists(check_path)) and not is_wheel:
             continue
 
-        check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path)
+        check_is_valid, check_class, load_failure = get_valid_check_class(check_name, check_path, from_site=is_wheel)
         if check_is_valid:
             return check_class
 
@@ -103,7 +105,7 @@ def get_auto_conf_images(full_tpl=False):
                 log.error("Unable to load the auto-config, yaml file.\n%s" % str(e))
                 auto_conf = {}
             # extract the supported image list
-            images = auto_conf.get('docker_images', [])
+            images = auto_conf.get('ad_identifiers', auto_conf.get('docker_images', []))
             for image in images:
                 if full_tpl:
                     init_tpl = auto_conf.get('init_config') or {}

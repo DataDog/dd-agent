@@ -42,6 +42,25 @@ def travis_pr?
   !ENV['TRAVIS'].nil? && ENV['TRAVIS_EVENT_TYPE'] == 'pull_request'
 end
 
+def wait_on_docker_logs(c_name, max_wait, *include_array)
+  count = 0
+  logs = `docker logs #{c_name} 2>&1`
+  puts "Waiting for #{c_name} to come up"
+
+  until count == max_wait || include_array.any? { |phrase| logs.include?(phrase) }
+    sleep(1)
+    logs = `docker logs #{c_name} 2>&1`
+    count += 1
+  end
+
+  if include_array.any? { |phrase| logs.include?(phrase) }
+    puts "#{c_name} is up!"
+  else
+    sh %(docker logs #{c_name} 2>&1)
+    raise
+  end
+end
+
 # Dict converting check.d name to Travis flavor names
 BAD_CITIZENS = {
   'couch' => 'couchdb',
@@ -223,8 +242,10 @@ namespace :ci do
 
       tests_directory = if flavors.include?('default') || flavors.include?('core_integration')
                           'tests/core'
-                        else
+                        elsif flavors.include?('checks_mock') || flavors.include?('windows')
                           'tests/checks'
+                        else
+                          flavors.map { |d| "tests/#{d}" }.compact.join(' ')
                         end
       # Rake on Windows doesn't support setting the var at the beginning of the
       # command
@@ -246,7 +267,7 @@ namespace :ci do
       travis_flavor = flavor.scope.path[3..-1]
 
       can_skip, checks = can_skip?
-      can_skip &&= !%w(default core_integration checks_mock).include?(travis_flavor)
+      can_skip &&= !%w[default core_integration checks_mock].include?(travis_flavor)
 
       puts "Travis flavor: #{travis_flavor}"
       puts "Detected modified checks: #{checks.join(' | ')}"
@@ -257,7 +278,7 @@ namespace :ci do
       end
       exception = nil
       begin
-        tasks = %w(before_install install before_script script)
+        tasks = %w[before_install install before_script script]
         tasks << 'before_cache' unless ENV['CI'].nil?
         tasks.each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke

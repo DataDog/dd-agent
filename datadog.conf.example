@@ -18,15 +18,26 @@ dd_url: https://app.datadoghq.com
 # The Datadog api key to associate your Agent's data with your organization.
 # Can be found here:
 # https://app.datadoghq.com/account/settings
-# This can be a comma-separated list of api keys.
 # (default: None, the agent doesn't start without it)
 api_key:
 
 # Force the hostname to whatever you want. (default: auto-detected)
 # hostname: mymachine.mydomain
 
+# Enable the trace agent.
+# apm_enabled: false
+
+# Enable gohai metadata collection
+# enable_gohai: true
+
+# Enable the process agent
+# process_agent_enabled: false
+
 # Set the host's tags (optional)
 # tags: mytag, env:prod, role:database
+
+# Collect docker orchestrator name and version as agent tags
+# collect_orchestrator_tags: yes
 
 # Set timeout in seconds for outgoing requests to Datadog. (default: 20)
 # When a request timeout, it will be retried after some time.
@@ -55,9 +66,16 @@ api_key:
 # In developer mode, disable profiling altogether, but still collect fine-grained agent metrics
 # allow_profiling: False
 
-# use unique hostname for GCE hosts, see http://dtdg.co/1eAynZk
+# use unique hostname for GCE hosts, see http://dtdg.co/2h3Bjpd
 # when not specified, default: no
 gce_updated_hostname: yes
+
+# when using OpenStack, use the instance's "uuid"
+# the OpenStack instance-id can be recycled but the uuid is not
+# openstack_use_uuid: no
+
+# when using OpenStack, use the instance's metadata as tags
+# openstack_use_metadata_tags: yes
 
 # Set the threshold for accepting points to allow anything
 # within recent_point_threshold seconds (default: 30)
@@ -87,6 +105,9 @@ gce_updated_hostname: yes
 # between curl client and simple http client (default: simple http client)
 # use_curl_http_client: no
 
+# Select whether the Tornado HTTP Client used in the Forwarder should use IPv6, if available (default: yes)
+# allow_ipv6: yes
+
 # The loopback address the Forwarder and Dogstatsd will bind.
 # Optional, it is mainly used when running the agent on Openshift
 # bind_host: localhost
@@ -103,7 +124,7 @@ gce_updated_hostname: yes
 
 # ========================================================================== #
 # Service Discovery                                                          #
-# See http://docs.datadoghq.com/guides/servicediscovery/ for details #
+# See https://docs.datadoghq.com/guides/autodiscovery/ for details #
 # ========================================================================== #
 #
 # Service discovery allows the agent to look for running services
@@ -120,13 +141,60 @@ gce_updated_hostname: yes
 # sd_backend_host: 127.0.0.1
 # sd_backend_port: 4001
 #
+# If you use etcd, you can set a username and password for auth
+#
+# sd_backend_username:
+# sd_backend_password:
+#
 # By default, the agent will look for the configuration templates under the
 # `/datadog/check_configs` key in the back-end. If you wish otherwise, uncomment this option
 # and modify its value.
 # sd_template_dir: /datadog/check_configs
 #
+# If you Consul store requires token authentication for service discovery, you can define that token here.
+# consul_token:
+#
 # Enable JMX checks for service discovery
 # sd_jmx_enable: no
+#
+# If you require custom jars to be loaded for JMX checks, you can set their paths here
+# instead of setting them in the checks' custom_jar_paths option
+# jmx_custom_jars: /jmx-jars/jboss-cli-client.jar:/my/other/custom.jar
+#
+#
+# JMXFetch collects multiples instances concurrently. The following metrics may
+# help fine-tune the level of concurrency and timeouts that come into play during the
+# collection of metrics from configured instances:
+#
+# Defines the maximum level of concurrency. Higher concurrency will increase CPU
+# utilization during metric collection. Lower concurrency will result in lower CPU
+# usage but also fewer workers in the event of timeouts to continue work - a value of
+# 1 will process instances serially, each taking up to `jmx_collection_timeout`
+# seconds.
+# jmx_thread_pool_size: 3
+#
+# Defines the maximum waiting period in seconds before timing up on metric collection.
+# jmx_collection_timeout: 60
+#
+# Defines the maximum level of concurrency in the reconnection pool. Higher concurrency
+# will increase CPU utilization during instance recovery/reconnection. Lower concurrency
+# will result in lower CPU usage but also fewer workers in the event of timeouts to continue
+# work - a value of 1 will process instances serially, each taking up to `jmx_reconnection_timeout`
+# seconds.
+# jmx_reconnection_thread_pool_size: 3
+#
+# Determines the maximum waiting period in seconds before timing up on instance reconnection.
+# jmx_reconnection_timeout: 10
+#
+#
+# Docker labels as tags
+# We can extract docker labels and add them as tags to all metrics reported by service discovery.
+# All you have to do is supply a comma-separated list of label names to extract from containers when found.
+# These tags will also be applied to the docker_daemon check.
+# docker_labels_as_tags: label_name
+#
+# Example:
+# docker_labels_as_tags: com.docker.compose.service, com.docker.compose.project
 #
 # ========================================================================== #
 # Other                                                                      #
@@ -136,6 +204,9 @@ gce_updated_hostname: yes
 # miscellaneous location. The procfs_path configuration paramenter allows
 # us to override the standard default location '/proc'
 # procfs_path: /proc
+
+# Disable Python3 validation of python checks
+# disable_py3_validation: false
 
 # ========================================================================== #
 # DogStatsd configuration                                                    #
@@ -173,12 +244,20 @@ gce_updated_hostname: yes
 # server. This will be taken care of properly in the new gen agent core.
 # utf8_decoding: false
 
+# The number of bytes allocated to the statsd socket receive buffer. By default,
+# this value is set to the value of `/proc/sys/net/core/rmem_default`. If you
+# need to increase the size of this buffer but keep the OS default value the
+# same, you can set dogstats's receive buffer size here. The maximum allowed
+# value is the value of `/proc/sys/net/core/rmem_max`.
+# statsd_so_rcvbuf:
+
 # ========================================================================== #
 # Service-specific configuration                                             #
 # ========================================================================== #
 
 # -------------------------------------------------------------------------- #
-#   Ganglia                                                                  #
+#  Ganglia                                                                   #
+#  DEPRECATED feature, removed from Agent v6                                 #
 # -------------------------------------------------------------------------- #
 
 # Ganglia host where gmetad is running
@@ -189,6 +268,7 @@ gce_updated_hostname: yes
 
 # -------------------------------------------------------------------------- #
 #  Dogstream (log file parser)												 #
+#  DEPRECATED feature, removed from Agent v6                                 #
 # -------------------------------------------------------------------------- #
 
 # Comma-separated list of logs to parse and optionally custom parsers to use.
@@ -249,3 +329,40 @@ gce_updated_hostname: yes
 # log_to_syslog: yes
 # syslog_host:
 # syslog_port:
+
+
+# ========================================================================== #
+# Tracing
+# ========================================================================== #
+
+# [trace.config]
+
+# Configure a non-default environment for the traces reported from this Agent
+# env: none
+
+# File destination of trace-agent logs
+# log_file: /var/log/datadog/trace-agent.log
+
+# [trace.receiver]
+
+# Port that the trace-agent will listen
+# receiver_port: 8126
+
+# [trace.sampler]
+
+# Extra global sample rate to apply on all the traces
+# This sample rate is combined to the sample rate from the sampler logic, still promoting interesting traces
+# From 1 (no extra rate) to 0 (don't sample at all)
+# extra_sample_rate: 1
+
+# Maximum number of traces per second to sample.
+# The limit is applied over an average over a few minutes ; much bigger spikes are possible.
+# Set to 0 to disable the limit.
+# max_traces_per_second: 10
+
+# [trace.ignore]
+
+# Blacklist of regular expressions can be provided to disable certain traces based on their resource name
+# all entries must be surrounded by double quotes and separated by commas
+# Example: "(GET|POST) /healthcheck","GET /V1"
+# resource:

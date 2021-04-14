@@ -28,8 +28,8 @@ def extract_agent_config(config):
         agentConfig['service_discovery'] = False
 
     if conf_backend is None:
-        log.warning('No configuration backend provided for service discovery. '
-                    'Only auto config templates will be used.')
+        log.debug('No configuration backend provided for service discovery. '
+                  'Only auto config templates will be used.')
     elif conf_backend not in SD_CONFIG_BACKENDS:
         log.error("The config backend {0} is not supported. "
                   "Only auto config templates will be used.".format(conf_backend))

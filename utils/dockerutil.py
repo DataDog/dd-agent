@@ -12,13 +12,21 @@ import time
 
 # 3rd party
 from docker import Client, tls
+from docker.errors import NotFound
 
 # project
-from utils.platform import Platform
 from utils.singleton import Singleton
 
 SWARM_SVC_LABEL = 'com.docker.swarm.service.name'
+RANCHER_CONTAINER_NAME = 'io.rancher.container.name'
+RANCHER_CONTAINER_IP = 'io.rancher.container.ip'
+RANCHER_STACK_NAME = 'io.rancher.stack.name'
+RANCHER_SVC_NAME = 'io.rancher.stack_service.name'
 DATADOG_ID = 'com.datadoghq.sd.check.id'
+
+
+class BogusPIDException(Exception):
+    pass
 
 
 class MountException(Exception):
@@ -28,14 +36,23 @@ class MountException(Exception):
 class CGroupException(Exception):
     pass
 
+
 # Default docker client settings
 DEFAULT_TIMEOUT = 5
 DEFAULT_VERSION = 'auto'
 CHECK_NAME = 'docker_daemon'
 CONFIG_RELOAD_STATUS = ['start', 'die', 'stop', 'kill']  # used to trigger service discovery
+DEFAULT_INIT_RETRIES = 0
+DEFAULT_RETRY_INTERVAL = 20  # seconds
+DEFAULT_SOCK_PATH = "/var/run/docker.sock"
 
 # only used if no exclude rule was defined
-DEFAULT_CONTAINER_EXCLUDE = ["docker_image:gcr.io/google_containers/pause.*"]
+DEFAULT_CONTAINER_EXCLUDE = [
+    "docker_image:(.*)gcr.io/google_containers/pause(.*)",
+    "docker_image:k8s.gcr.io/pause(.*)",
+    "image_name:openshift/origin-pod",
+    "image_name:kubernetes/pause"
+]
 
 log = logging.getLogger(__name__)
 
@@ -52,35 +69,42 @@ class DockerUtil:
         self.hostname = None
         self._default_gateway = None
 
+        # Keeps record of conffile lookup error, to disable log spam when
+        # the docker integration is not configured (dockerless host)
+        self._no_conf_file = False
+
         if 'init_config' in kwargs and 'instance' in kwargs:
             init_config = kwargs.get('init_config')
             instance = kwargs.get('instance')
         else:
             init_config, instance = self.get_check_config()
         self.set_docker_settings(init_config, instance)
+        self.last_init_retry = None
+        self.init_retry_interval = init_config.get('init_retry_interval', DEFAULT_RETRY_INTERVAL)
+        self.left_init_retries = init_config.get('init_retries', DEFAULT_INIT_RETRIES) + 1
+        self._client = None
 
         # At first run we'll just collect the events from the latest 60 secs
         self._latest_event_collection_ts = int(time.time()) - 60
 
-        # Try to detect if we are on Swarm
-        self.fetch_swarm_state()
+        # Memory cache for sha256 to image name mapping
+        self._image_sha_to_name_mapping = {}
 
-        # Try to detect if we are on ECS
+        # orchestrator detection
         self._is_ecs = False
-        try:
-            containers = self.client.containers()
-            for co in containers:
-                if '/ecs-agent' in co.get('Names', ''):
-                    self._is_ecs = True
-        except Exception:
-            pass
+        self._is_rancher = False
+        self._is_k8s = False
+
+        # if we can't reach docker server there's no point in trying
+        if self.client:
+            self._init_orchestrators()
 
         # Build include/exclude patterns for containers
         self._include, self._exclude = instance.get('include', []), instance.get('exclude', [])
         if not self._exclude:
             # In Kubernetes, pause containers are not interesting to monitor.
             # This part could be reused for other platforms where containers can be safely ignored.
-            if Platform.is_k8s():
+            if self.is_k8s():
                 self.filtering_enabled = True
                 self._exclude = DEFAULT_CONTAINER_EXCLUDE
             else:
@@ -93,6 +117,63 @@ class DockerUtil:
         if self.filtering_enabled:
             self.build_filters()
 
+    @property
+    def client(self):
+        if self._client:
+            return self._client
+
+        # tried too many times, failing permanently
+        if self.left_init_retries == 0:
+            raise Exception("Docker client initialization failed permanently. "
+                "Docker-related features will fail.")
+
+        now = time.time()
+
+        # last retry was less than retry_interval ago
+        if self.last_init_retry and now <= self.last_init_retry + self.init_retry_interval:
+            return None
+        # else it's the first try, or last retry was long enough ago
+        self.last_init_retry = now
+        self.left_init_retries -= 1
+        try:
+            self._client = Client(**self.settings)
+            self._client.ping()
+            return self._client
+        except Exception as ex:
+            # No docker_daemon.yaml + no existing Docker socket file = Dockerless
+            if self._no_conf_file and not os.path.isfile(DEFAULT_SOCK_PATH):
+                log.info("Docker features disabled: No running Docker instance detected. Will not retry since no docker_daemon configuration file was found.")
+            else:
+                log.error("Failed to initialize the docker client. Docker-related features "
+                    "will fail. Will retry %s time(s). Error: %s" % (self.left_init_retries, str(ex)))
+            self._client = None
+            return
+
+    def _init_orchestrators(self):
+        # Try to detect if we are on Swarm
+        self.fetch_swarm_state()
+        try:
+            containers = self.client.containers()
+            for co in containers:
+                if '/ecs-agent' in co.get('Names', ''):
+                    self._is_ecs = True
+                    break
+                elif '/rancher-agent' in co.get('Names', ''):
+                    self._is_rancher = True
+                    break
+        except Exception as e:
+            if self._no_conf_file:
+                log.debug("Error while detecting orchestrator: %s" % e)
+            else:
+                log.warning("Error while detecting orchestrator: %s" % e)
+            pass
+
+        try:
+            from utils.kubernetes import detect_is_k8s
+            self._is_k8s = detect_is_k8s()
+        except Exception:
+            self._is_k8s = False
+
     def get_check_config(self):
         """Read the config from docker_daemon.yaml"""
         from util import check_yaml
@@ -102,6 +183,7 @@ class DockerUtil:
             conf_path = get_conf_path(CHECK_NAME)
         except IOError:
             log.debug("Couldn't find docker settings, trying with defaults.")
+            self._no_conf_file = True
             return init_config, {}
 
         if conf_path is not None and os.path.exists(conf_path):
@@ -125,6 +207,12 @@ class DockerUtil:
     def is_ecs(self):
         return self._is_ecs
 
+    def is_rancher(self):
+        return self._is_rancher
+
+    def is_k8s(self):
+        return self._is_k8s
+
     def is_swarm(self):
         if self.swarm_node_state == 'pending':
             self.fetch_swarm_state()
@@ -144,6 +232,10 @@ class DockerUtil:
     def get_events(self):
         self.events = []
         changed_container_ids = set()
+        if not self.client:
+            self.warning("Docker client is not initialized, events won't be collected.")
+            return self.events, changed_container_ids
+
         now = int(time.time())
 
         event_generator = self.client.events(since=self._latest_event_collection_ts,
@@ -210,9 +302,43 @@ class DockerUtil:
 
         return self._default_gateway
 
-    @property
-    def client(self):
-        return Client(**self.settings)
+    def get_host_metadata(self):
+        """
+        Returns swarm state and docker version for the local host
+        """
+        meta = {}
+        if not self.client:
+            log.warning("Docker client is not initialized, host metadata will be missing.")
+            return meta
+        version = self.client.version()
+        if version and 'Version' in version:
+            meta['docker_version'] = version['Version']
+        else:
+            log.debug("Could not determine Docker version")
+
+        if self.is_swarm():
+            meta['docker_swarm'] = 'active'
+        else:
+            meta['docker_swarm'] = 'inactive'
+
+        return meta
+
+    def get_host_tags(self):
+        """
+        Returns tags for the swarm node role for the local host.
+        """
+
+        tags = []
+
+        if self.is_swarm():
+            try:
+                info = self.client.info()
+                node_role = 'manager' if info.get('Swarm', {}).get('ControlAvailable') else 'worker'
+                tags.append('%s:%s' % ("docker_swarm_node_role", node_role))
+            except Exception:
+                pass
+
+        return tags
 
     def set_docker_settings(self, init_config, instance):
         """Update docker settings"""
@@ -227,13 +353,13 @@ class DockerUtil:
             client_cert_path = init_config.get('tls_client_cert')
             client_key_path = init_config.get('tls_client_key')
             cacert = init_config.get('tls_cacert')
-            verify = init_config.get('tls_verify')
+            verify = init_config.get('tls_verify', False)
 
             client_cert = None
             if client_cert_path is not None and client_key_path is not None:
                 client_cert = (client_cert_path, client_key_path)
 
-            verify = verify if verify is not None else cacert
+            verify = cacert if cacert is not None else verify
             tls_config = tls.TLSConfig(client_cert=client_cert, verify=verify)
             self.settings["tls"] = tls_config
 
@@ -331,11 +457,34 @@ class DockerUtil:
         return False
 
     @classmethod
+    def _parse_subsystem(cls, line):
+        """
+        Parse cgroup path.
+        - If the path is a slice (see https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Resource_Management_Guide/sec-Default_Cgroup_Hierarchies.html)
+          we return the path as-is (we still strip out any leading '/')
+        - If 'docker' is in the path, it can be there once or twice:
+          /docker/$CONTAINER_ID
+          /docker/$USER_DOCKER_CID/docker/$CONTAINER_ID
+          so we pick the last one.
+        In /host/sys/fs/cgroup/$CGROUP_FOLDER/ cgroup/container IDs can be at the root
+        or in a docker folder, so if we find 'docker/' in the path we don't strip it away.
+        """
+        if '.slice' in line[2]:
+            return line[2].lstrip('/')
+        i = line[2].rfind('docker')
+        if i != -1:  # rfind returns -1 if docker is not found
+            return line[2][i:]
+        elif line[2][0] == '/':
+            return line[2][1:]
+        else:
+            return line[2]
+
+    @classmethod
     def find_cgroup_from_proc(cls, mountpoints, pid, subsys, docker_root='/'):
         proc_path = os.path.join(docker_root, 'proc', str(pid), 'cgroup')
         with open(proc_path, 'r') as fp:
             lines = map(lambda x: x.split(':'), fp.read().splitlines())
-            subsystems = dict(zip(map(lambda x: x[1], lines), map(lambda x: x[2] if x[2][0] != '/' else x[2][1:], lines)))
+            subsystems = dict(zip(map(lambda x: x[1], lines), map(cls._parse_subsystem, lines)))
 
         if subsys not in subsystems and subsys == 'cpuacct':
             for form in "{},cpu", "cpu,{}":
@@ -396,10 +545,33 @@ class DockerUtil:
 
         raise MountException("Cannot find Docker cgroup directory. Be sure your system is supported.")
 
-    @classmethod
-    def image_tag_extractor(cls, entity, key):
-        if "Image" in entity:
-            split = entity["Image"].split(":")
+    def extract_container_tags(self, co, labels_as_tags):
+        """
+        Retrives docker_image, image_name and image_tag tags as a list for a
+        container. If the container or image is invalid, will gracefully
+        return an empty list.
+        Also extract container labels on demand.
+        """
+        tags = []
+        docker_image = self.image_name_extractor(co)
+        image_name_array = self.image_tag_extractor(co, 0)
+        image_tag_array = self.image_tag_extractor(co, 1)
+        label_tags = self.label_extractor(co, labels_as_tags)
+
+        if docker_image:
+            tags.append('docker_image:%s' % docker_image)
+        if image_name_array and len(image_name_array) > 0:
+            tags.append('image_name:%s' % image_name_array[0])
+        if image_tag_array and len(image_tag_array) > 0:
+            tags.append('image_tag:%s' % image_tag_array[0])
+        if label_tags:
+            tags += label_tags
+        return tags
+
+    def image_tag_extractor(self, entity, key):
+        name = self.image_name_extractor(entity)
+        if name is not None and len(name):
+            split = name.split(":")
             if len(split) <= key:
                 return None
             elif len(split) > 2:
@@ -407,7 +579,8 @@ class DockerUtil:
                 # the split will be like [repo_url, repo_port/image_name, image_tag]. Let's avoid that
                 split = [':'.join(split[:-1]), split[-1]]
             return [split[key]]
-        if entity.get('RepoTags'):
+        # Entity is an image. TODO: deprecate?
+        elif entity.get('RepoTags'):
             splits = [el.split(":") for el in entity["RepoTags"]]
             tags = set()
             for split in splits:
@@ -427,6 +600,69 @@ class DockerUtil:
 
         return None
 
+    def image_name_extractor(self, co, short=False):
+        """
+        Returns the image name for a container, either directly from the
+        container's Image property or by inspecting the image entity if
+        the reference is its sha256 sum and not its name.
+        Result is cached for performance, no invalidation planned as image
+        churn is low on typical hosts.
+        If short is true, the repository is stripped from the result
+        """
+        image = self.image_name_resolver(co.get('Image', ''))
+        if image and short:
+            return image.split('/')[-1]
+        return image
+
+    def image_name_resolver(self, image):
+        # Handle swarm case, including the tag before the checksum (e.g. 'name:tag@sha256SHA')
+        pos_sha = image.rfind('@sha256')
+        if pos_sha > 0:
+            stripped_image = image[:pos_sha]
+            # a column indicates a tag only after the last slash (for cases as 'reg.local:5000/name:tag@sha256SHA')
+            pos_colon = stripped_image.rfind(':')
+            pos_slash = stripped_image.rfind('/')
+            if pos_colon > pos_slash and pos_colon > 0:
+                return stripped_image # keep only name:tag
+        # Handle the case in some orchestrators which setup containers with image checksum instead of image name
+        if image.startswith('sha256:') or '@sha256:' in image:
+            try:
+                if image in self._image_sha_to_name_mapping:
+                    return self._image_sha_to_name_mapping[image]
+                else:
+                    try:
+                        image_spec = self.client.inspect_image(image)
+                    except NotFound:
+                        return
+                    try:
+                        name = image_spec['RepoTags'][0]
+                        self._image_sha_to_name_mapping[image] = name
+                        return name
+                    except (LookupError, TypeError) as e:
+                        log.debug("Failed finding image name in RepoTag, trying RepoDigests: %s", e)
+                    try:
+                        name = image_spec['RepoDigests'][0]
+                        name = name.split('@')[0]   # Last resort, we get the name with no tag
+                        self._image_sha_to_name_mapping[image] = name
+                        return name
+                    except (LookupError, TypeError) as e:
+                        log.debug("Failed finding image name in RepoTag and RepoDigests: %s", e)
+            except Exception as ex:
+                log.error("Exception getting docker image name: %s" % str(ex))
+        else: # no checksum, just return the image
+            return image
+
+    def label_extractor(self, ctr, lbl_to_tags):
+        """Returns a list of tags based on a container and a label name list"""
+        tags = []
+        labels = ctr.get('Config', {}).get('Labels', {})
+        if not labels:
+            return tags
+        for lbl_name, lbl_val in labels.iteritems():
+            if lbl_name in lbl_to_tags:
+                tags.append('{}:{}'.format(lbl_name, lbl_val))
+        return tags
+
     @classmethod
     def container_name_extractor(cls, co):
         names = co.get('Names', [])
@@ -439,6 +675,49 @@ class DockerUtil:
                 if name.count('/') <= 1:
                     return [str(name).lstrip('/')]
         return [co.get('Id')[:12]]
+
+    @classmethod
+    def get_container_network_mapping(cls, container):
+        """Matches /proc/$PID/net/route and docker inspect to map interface names to docker network name.
+        Raises an exception on error (dict lookup or file parsing), to be caught by the using method"""
+
+        try:
+            proc_net_route_file = os.path.join(container['_proc_root'], 'net/route')
+
+            docker_gateways = {}
+            for netname, netconf in container['NetworkSettings']['Networks'].iteritems():
+
+                if netname == 'host' or netconf.get(u'Gateway') == '':
+                    log.debug("Empty network gateway, container %s is in network host mode, "
+                        "its network metrics are for the whole host." % container['Id'][:12])
+                    return {'eth0': 'bridge'}
+
+                docker_gateways[netname] = struct.unpack('<L', socket.inet_aton(netconf.get(u'Gateway')))[0]
+
+            mapping = {}
+            with open(proc_net_route_file, 'r') as fp:
+                lines = fp.readlines()
+                for l in lines[1:]:
+                    cols = l.split()
+                    if cols[1] == '00000000':
+                        continue
+                    destination = int(cols[1], 16)
+                    mask = int(cols[7], 16)
+                    for net, gw in docker_gateways.iteritems():
+                        if gw & mask == destination:
+                            mapping[cols[0]] = net
+                return mapping
+        except KeyError as e:
+            log.exception("Missing container key: %s", e)
+            raise ValueError("Invalid container dict")
+
+    def inspect_container(self, co_id):
+        """
+        Requests docker inspect for one container. This is a costly operation!
+        :param co_id: container id
+        :return: dict from docker-py
+        """
+        return self.client.inspect_container(co_id)
 
     @classmethod
     def _drop(cls):

@@ -134,9 +134,7 @@ class TransactionManager(object):
             new_trs = sorted(self._transactions,key=attrgetter('_next_flush'), reverse = True)
             for tr2 in new_trs:
                 if (self._total_size + tr_size) > self._MAX_QUEUE_SIZE:
-                    self._transactions.remove(tr2)
-                    self._total_count = self._total_count - 1
-                    self._total_size = self._total_size - tr2.get_size()
+                    self._remove(tr2)
                     log.warn("Removed transaction %s from queue" % tr2.get_id())
 
         # Done
@@ -147,6 +145,17 @@ class TransactionManager(object):
 
         log.debug("Transaction %s added" % (tr.get_id()))
         self.print_queue_stats()
+
+    def _remove(self, tr):
+        '''Safely remove transaction from list'''
+        try:
+            self._transactions.remove(tr)
+        except ValueError:
+            # Should not happen if we order the queue consistently, but we should catch the error anyway
+            log.warn("Tried to remove transaction %s from queue but it was not in the queue anymore.", tr.get_id())
+        else:
+            self._total_count -= 1
+            self._total_size -= tr.get_size()
 
     def flush(self):
 
@@ -201,6 +210,10 @@ class TransactionManager(object):
             # Running for too long?
             if datetime.utcnow() - self._flush_time >= self._MAX_FLUSH_DURATION:
                 log.warn('Flush %s is taking more than 10s, stopping it', self._flush_count)
+                for tr in self._trs_to_flush:
+                    # Recompute these transactions' next flush so that if we hit the max queue size
+                    # newer transactions are preserved
+                    tr.compute_next_flush(self._MAX_WAIT_FOR_REPLAY)
                 self._trs_to_flush = []
                 return self.flush_next()
 
@@ -269,17 +282,15 @@ class TransactionManager(object):
 
             self._trs_to_flush = new_trs_to_flush
 
-    def tr_error_reject_request(self, tr):
+    def tr_error_reject_request(self, tr, response_code):
         self._running_flushes -= 1
         self._finished_flushes += 1
         tr.inc_error_count()
-        log.warn("Transaction %d is %sKB, it has been rejected as too large. "
-                 "It will not be replayed.",
+        log.warn("Transaction %d has been rejected (code %d, size %sKB), it will not be replayed",
                  tr.get_id(),
+                 response_code,
                  tr.get_size() / 1024)
-        self._transactions.remove(tr)
-        self._total_count -= 1
-        self._total_size -= tr.get_size()
+        self._remove(tr)
         self._transactions_flushed += 1
         self.print_queue_stats()
         self._transactions_rejected += 1
@@ -295,8 +306,6 @@ class TransactionManager(object):
         self._running_flushes -= 1
         self._finished_flushes += 1
         log.debug("Transaction %d completed",  tr.get_id())
-        self._transactions.remove(tr)
-        self._total_count -= 1
-        self._total_size -= tr.get_size()
+        self._remove(tr)
         self._transactions_flushed += 1
         self.print_queue_stats()

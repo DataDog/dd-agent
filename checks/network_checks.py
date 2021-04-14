@@ -3,7 +3,6 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 # stdlib
-from collections import defaultdict
 from Queue import Empty, Queue
 import threading
 import time
@@ -11,13 +10,11 @@ import time
 # project
 from checks import AgentCheck
 from checks.libs.thread_pool import Pool
-from config import _is_affirmative
 
 TIMEOUT = 180
 DEFAULT_SIZE_POOL = 6
 MAX_LOOP_ITERATIONS = 1000
 FAILURE = "FAILURE"
-
 
 class Status:
     DOWN = "DOWN"
@@ -34,6 +31,7 @@ class EventType:
 class NetworkCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'servicecheck'
     SERVICE_CHECK_PREFIX = 'network_check'
+    _global_current_pool_size = 0
 
     STATUS_TO_SERVICE_CHECK = {
         Status.UP : AgentCheck.OK,
@@ -68,6 +66,7 @@ class NetworkCheck(AgentCheck):
         self.statuses = {}
         self.notified = {}
         self.nb_failures = 0
+        self.pool_size = 0
         self.pool_started = False
 
         # Make sure every instance has a name that we use as a unique key
@@ -95,6 +94,9 @@ class NetworkCheck(AgentCheck):
         default_size = min(self.instance_count(), DEFAULT_SIZE_POOL)
         self.pool_size = int(self.init_config.get('threads_count', default_size))
 
+        # To keep track on the total number of threads we should have running
+        NetworkCheck._global_current_pool_size += self.pool_size
+
         self.pool = Pool(self.pool_size)
 
         self.resultsq = Queue()
@@ -104,6 +106,10 @@ class NetworkCheck(AgentCheck):
 
     def stop_pool(self):
         self.log.info("Stopping Thread Pool")
+
+        # To keep track on the total number of threads we should have running
+        NetworkCheck._global_current_pool_size -= self.pool_size
+
         if self.pool_started:
             self.pool.terminate()
             self.pool.join()
@@ -117,7 +123,8 @@ class NetworkCheck(AgentCheck):
     def check(self, instance):
         if not self.pool_started:
             self.start_pool()
-        if threading.activeCount() > 5 * self.pool_size + 5: # On Windows the agent runs on multiple threads so we need to have an offset of 5 in case the pool_size is 1
+        if threading.activeCount() > 5 * NetworkCheck._global_current_pool_size + 6:
+            # On Windows the agent runs on multiple threads because of WMI so we need an offset of 6
             raise Exception("Thread number (%s) is exploding. Skipping this check" % threading.activeCount())
         self._process_results()
         self._clean()
@@ -149,7 +156,7 @@ class NetworkCheck(AgentCheck):
 
         except Exception:
             self.log.exception(
-                u"Failed to process instance '%s'.", instance.get('Name', u"")
+                u"Failed to process instance '%s'.", instance.get('name', u"")
             )
             result = (FAILURE, FAILURE, FAILURE, instance)
             self.resultsq.put(result)
@@ -174,45 +181,6 @@ class NetworkCheck(AgentCheck):
                 continue
 
             self.report_as_service_check(sc_name, status, instance, msg)
-
-            # FIXME: 5.3, this has been deprecated before, get rid of events
-            # Don't create any event to avoid duplicates with server side
-            # service_checks
-            skip_event = _is_affirmative(instance.get('skip_event', False))
-            if not skip_event:
-                self.warning("Using events for service checks is deprecated in favor of monitors and will be removed in future versions of the Datadog Agent.")
-                event = None
-
-                if instance_name not in self.statuses:
-                    self.statuses[instance_name] = defaultdict(list)
-
-                self.statuses[instance_name][sc_name].append(status)
-
-                window = int(instance.get('window', 1))
-
-                if window > 256:
-                    self.log.warning("Maximum window size (256) exceeded, defaulting it to 256")
-                    window = 256
-
-                threshold = instance.get('threshold', 1)
-
-                if len(self.statuses[instance_name][sc_name]) > window:
-                    self.statuses[instance_name][sc_name].pop(0)
-
-                nb_failures = self.statuses[instance_name][sc_name].count(Status.DOWN)
-
-                if nb_failures >= threshold:
-                    if self.notified.get((instance_name, sc_name), Status.UP) != Status.DOWN:
-                        event = self._create_status_event(sc_name, status, msg, instance)
-                        self.notified[(instance_name, sc_name)] = Status.DOWN
-                else:
-                    if self.notified.get((instance_name, sc_name), Status.UP) != Status.UP:
-                        event = self._create_status_event(sc_name, status, msg, instance)
-                        self.notified[(instance_name, sc_name)] = Status.UP
-
-                if event is not None:
-                    self.events.append(event)
-
             self._clean_job(instance_name)
 
     def _clean_job(self, instance_name):

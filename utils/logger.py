@@ -7,6 +7,8 @@ from functools import wraps
 from logging import LogRecord
 import re
 
+# project
+import config
 
 def log_exceptions(logger):
     """
@@ -27,6 +29,19 @@ def log_exceptions(logger):
         return wrapper
     return decorator
 
+class DisableLoggerInit():
+    '''
+    Context manager to disable the logging initialization.
+    Just a basic monkey-patch of the logging intialization routine.
+    Useful when importing elements from modules that may init the
+    logger at the global level.
+    '''
+    def __enter__(self):
+        self._original = config.initialize_logging
+        config.initialize_logging = lambda x: None
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        config.initialize_logging = self._original
 
 class RedactedLogRecord(LogRecord, object):
     """

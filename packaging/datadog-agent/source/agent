@@ -6,7 +6,7 @@ PATH=$BASEDIR/../venv/bin:$PATH
 
 SUPERVISOR_NOT_RUNNING="Supervisor is not running"
 SUPERVISOR_CONF_FILE='agent/supervisor.conf'
-SOCK_FILE='run/agent-supervisor.sock'
+SOCK_FILE='run/datadog-supervisor.sock'
 PID_FILE='run/supervisord.pid'
 COLLECTOR_PIDFILE='run/dd-agent.pid'
 action=$1

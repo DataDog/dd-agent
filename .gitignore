@@ -21,6 +21,7 @@ dist/*
 *.msi
 *.wixobj
 *.wixpdb
+*.jar
 *.exe
 nosetests*.xml
 stats.dat
@@ -38,6 +39,8 @@ tests/core/fixtures/flare/dd*
 .python-version
 .ropeproject
 .bundle
+.rbenv*
+.idea
 tags
 
 checks.d
