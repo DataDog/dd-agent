@@ -226,7 +226,7 @@ class AgentTransaction(Transaction):
             'body': self._data,
             'headers': self._headers,
             'validate_cert': not self._application.skip_ssl_validation,
-            'allow_ipv6': True,
+            'allow_ipv6': self._application._agentConfig.get('allow_ipv6'),
             'request_timeout': self._request_timeout,
         }
 
@@ -281,7 +281,7 @@ class AgentTransaction(Transaction):
         if response.error:
             log.error("Response: %s" % response)
             if response.code in RESPONSES_TO_REJECT:
-                self._trManager.tr_error_reject_request(self)
+                self._trManager.tr_error_reject_request(self, response.code)
             else:
                 self._trManager.tr_error(self)
         else:

@@ -5,4 +5,9 @@
 
 PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH
 
+if [ "$DATADOG_ENABLED" = "no" ]; then
+    echo "Disabled via DATADOG_ENABLED env var. Exiting."
+    exit 0
+fi
+
 exec /opt/datadog-agent/bin/supervisord -c /etc/dd-agent/supervisor.conf

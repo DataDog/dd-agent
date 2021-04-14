@@ -17,23 +17,31 @@
 # fails, so they shouldn't have too many deps
 ###########################################################
 
-boto==2.39.0
+boto==2.46.1
 # utils/platform.py
 docker-py==1.10.6
 # utils/service_discovery/config_stores.py
-kazoo==2.2.1
-ntplib==0.3.3
+kazoo==2.6.0
+ntplib==0.3.4
 # utils/service_discovery/config_stores.py
 python-consul==0.4.7
 # utils/service_discovery/config_stores.py
-python-etcd==0.4.2
+python-etcd==0.4.5
 # the libyaml bindings are optional
 pyyaml==3.11
 # note: requests is also used in many checks
 # upgrade with caution
-requests==2.11.1
+requests==2.20.1
+urllib3==1.24.3
 # note: simplejson is used in many checks to inteface APIs
 simplejson==3.6.5
-supervisor==3.3.0
+supervisor==3.3.3
 tornado==3.2.2
 uptime==3.0.1
+prometheus-client==0.1.0
+distro==1.3.0
+# pin pylint to a python2-compatible version
+pylint==1.9.5
+# lazy-object-proxy is a dependency of pylint and needs to be pinned
+# for a successful build on Alpine (source install)
+lazy-object-proxy==1.3.1

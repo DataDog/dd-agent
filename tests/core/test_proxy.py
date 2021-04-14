@@ -7,7 +7,7 @@ from requests.utils import get_environ_proxies
 from nose.plugins.attrib import attr
 
 # project
-from utils.proxy import set_no_proxy_settings
+from utils.proxy import set_no_proxy_settings, config_proxy_skip
 from utils.dockerutil import DockerUtil
 
 from tornado.web import Application
@@ -57,7 +57,9 @@ class TestNoProxy(TestCase):
             'https': 'http://localhost:3128',
             'no': '127.0.0.1,localhost,169.254.169.254'
         }
+
         environ_proxies = get_environ_proxies("https://www.google.com")
+        environ_proxies.pop('travis_apt', None)
         self.assertEquals(expected_proxies, environ_proxies, (expected_proxies, environ_proxies))
 
         # Clear the env variables set
@@ -65,6 +67,34 @@ class TestNoProxy(TestCase):
         env.pop("https_proxy", None)
         env.pop("HTTP_PROXY", None)
         env.pop("HTTPS_PROXY", None)
+
+    @attr(requires="core_integration")
+    def test_proxy_skip(self):
+        """
+        Proxy should be skipped when so specified...
+        """
+        proxies = {
+            'http': 'http://localhost:3128',
+            'https': 'http://localhost:3128',
+            'no': '127.0.0.1,localhost,169.254.169.254,host.foo.bar'
+        }
+
+        gen_proxies = config_proxy_skip(proxies, 's3://anything', skip_proxy=True)
+        self.assertTrue('http' in gen_proxies)
+        self.assertTrue('https' in gen_proxies)
+        self.assertEquals(gen_proxies.get('http'), None)
+        self.assertEquals(gen_proxies.get('https'), None)
+
+        gen_proxies = config_proxy_skip(proxies, 'https://host.foo.bar', skip_proxy=False)
+        self.assertEquals(gen_proxies.get('http'), None)
+        self.assertEquals(gen_proxies.get('https'), None)
+
+        gen_proxies = config_proxy_skip(proxies, 'baz', skip_proxy=False)
+        self.assertEquals(proxies, gen_proxies)
+
+        proxies.pop('no')
+        gen_proxies = config_proxy_skip(proxies, 'baz', skip_proxy=False)
+        self.assertEquals(proxies, gen_proxies)
 
 
 class CustomAgentTransaction(AgentTransaction):
@@ -104,7 +134,7 @@ class TestProxy(AsyncTestCase):
         CustomAgentTransaction.set_endpoints(config['endpoints'])
 
         CustomAgentTransaction('body', {}, "") # Create and flush the transaction
-        self.wait()
+        self.wait(timeout=30)
         del CustomAgentTransaction._test
         access_log = self.docker_client.exec_start(
             self.docker_client.exec_create(CONTAINER_NAME, 'cat /var/log/squid/access.log')['Id'])

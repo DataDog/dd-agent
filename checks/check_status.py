@@ -125,20 +125,35 @@ def validate_api_key(config):
         proxy = get_proxy(agentConfig=config)
         request_proxy = {}
         if proxy:
-            request_proxy = {'https': "http://{user}:{password}@{host}:{port}".format(**proxy)}
+            # key might set to None
+            user = proxy.get("user", "") or ""
+            password = proxy.get("password", "") or ""
+            if user:
+                if password:
+                    user += ":" + password
+                user += "@"
+
+            host = proxy.get("host", "") or ""
+            port = proxy.get("port", "") or ""
+            if host and port:
+                host += ":" + str(proxy["port"])
+
+            request_proxy = {'https': "http://%s%s" % (user, host)}
+
         r = requests.get("%s/api/v1/validate" % config['dd_url'].rstrip('/'),
-            params={'api_key': config.get('api_key')}, proxies=request_proxy, timeout=3)
+            params={'api_key': config.get('api_key')}, proxies=request_proxy,
+            timeout=3, verify=(not config.get('skip_ssl_validation', False)))
 
         if r.status_code == 403:
-            return "API Key is invalid"
+            return "[ERROR] API Key is invalid"
 
         r.raise_for_status()
 
     except requests.RequestException:
-        return "Unable to validate API Key. Please try again later"
+        return "[ERROR] Unable to validate API Key. Please try again later"
     except Exception:
         log.exception("Unable to validate API Key")
-        return "Unable to validate API Key (unexpected error). Please try again later"
+        return "[ERROR] Unable to validate API Key (unexpected error). Please try again later"
 
     return "API Key is valid"
 
@@ -172,16 +187,16 @@ class AgentStatus(object):
         td = datetime.datetime.now() - self.created_at
         return td.seconds
 
-    def render(self):
+    def render(self, title=None):
         indent = "  "
-        lines = self._header_lines(indent) + [
+        lines = self._header_lines(indent, title) + [
             indent + l for l in self.body_lines()
         ] + ["", ""]
         return "\n".join(lines)
 
     @classmethod
-    def _title_lines(self):
-        name_line = "%s (v %s)" % (self.NAME, config.get_version())
+    def _title_lines(self, title=None):
+        name_line = title if title else "%s (v %s)" % (self.NAME, config.get_version())
         lines = [
             "=" * len(name_line),
             "%s" % name_line,
@@ -190,9 +205,9 @@ class AgentStatus(object):
         ]
         return lines
 
-    def _header_lines(self, indent):
+    def _header_lines(self, indent, title=None):
         # Don't indent the header
-        lines = self._title_lines()
+        lines = self._title_lines(title)
         if self.created_seconds_ago() > 120:
             styles = ['red', 'bold']
         else:
@@ -784,6 +799,17 @@ class DogstatsdStatus(AgentStatus):
         })
         return status_info
 
+    @classmethod
+    def _dogstatsd6_unavailable_message(cls, title=None):
+        lines = cls._title_lines(title) + [
+            style("  %s6 [BETA] unable to collect statistics." % cls.NAME, 'red'),
+            style("  Problem with expvar endpoint or process.", 'red'),
+            style("  Please consult dogstatsd6 logs.", 'red'),
+            "",
+            ""
+        ]
+        return "\n".join(lines)
+
 
 class ForwarderStatus(AgentStatus):
 
@@ -884,7 +910,7 @@ def get_jmx_status():
     check_data = defaultdict(lambda: defaultdict(list))
     try:
         if os.path.exists(java_status_path):
-            java_jmx_stats = yaml.load(file(java_status_path))
+            java_jmx_stats = yaml.safe_load(file(java_status_path))
 
             status_age = time.time() - java_jmx_stats.get('timestamp')/1000  # JMX timestamp is saved in milliseconds
             jmx_checks = java_jmx_stats.get('checks', {})
@@ -929,7 +955,7 @@ def get_jmx_status():
                     check_statuses.append(check_status)
 
         if os.path.exists(python_status_path):
-            python_jmx_stats = yaml.load(file(python_status_path))
+            python_jmx_stats = yaml.safe_load(file(python_status_path))
             jmx_checks = python_jmx_stats.get('invalid_checks', {})
             for check_name, excep in jmx_checks.iteritems():
                 check_statuses.append(CheckStatus(check_name, [], init_failed_error=excep))

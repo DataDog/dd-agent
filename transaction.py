@@ -282,13 +282,13 @@ class TransactionManager(object):
 
             self._trs_to_flush = new_trs_to_flush
 
-    def tr_error_reject_request(self, tr):
+    def tr_error_reject_request(self, tr, response_code):
         self._running_flushes -= 1
         self._finished_flushes += 1
         tr.inc_error_count()
-        log.warn("Transaction %d is %sKB, it has been rejected as too large. "
-                 "It will not be replayed.",
+        log.warn("Transaction %d has been rejected (code %d, size %sKB), it will not be replayed",
                  tr.get_id(),
+                 response_code,
                  tr.get_size() / 1024)
         self._remove(tr)
         self._transactions_flushed += 1

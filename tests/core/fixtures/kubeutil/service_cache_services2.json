@@ -1,0 +1,144 @@
+{
+  "kind": "ServiceList",
+  "apiVersion": "v1",
+  "metadata": {
+    "selfLink": "/api/v1/namespaces/default/services",
+    "resourceVersion": "661906"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "all-hello",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/services/all-hello",
+        "uid": "94813607-1aad-11e7-8b67-42010a840226",
+        "resourceVersion": "661825",
+        "creationTimestamp": "2017-04-06T09:44:08Z",
+        "annotations": {
+          "kubectl.kubernetes.io/last-applied-configuration": "{\"kind\":\"Service\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"all-hello\",\"creationTimestamp\":null},\"spec\":{\"ports\":[{\"protocol\":\"TCP\",\"port\":6666,\"targetPort\":6666}],\"selector\":{\"app\":\"hello\"},\"type\":\"LoadBalancer\"},\"status\":{\"loadBalancer\":{}}}"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "protocol": "TCP",
+            "port": 6666,
+            "targetPort": 6666,
+            "nodePort": 32757
+          }
+        ],
+        "selector": {
+          "app": "hello"
+        },
+        "clusterIP": "10.123.241.90",
+        "type": "LoadBalancer",
+        "sessionAffinity": "None"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "metadata": {
+        "name": "frontend-hello",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/services/frontend-hello",
+        "uid": "9467fc38-1aad-11e7-8b67-42010a840226",
+        "resourceVersion": "661901",
+        "creationTimestamp": "2017-04-06T09:44:07Z",
+        "annotations": {
+          "kubectl.kubernetes.io/last-applied-configuration": "{\"kind\":\"Service\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"frontend-hello\",\"creationTimestamp\":null},\"spec\":{\"ports\":[{\"protocol\":\"TCP\",\"port\":80,\"targetPort\":80}],\"selector\":{\"app\":\"hello\",\"tier\":\"frontend\"},\"type\":\"LoadBalancer\"},\"status\":{\"loadBalancer\":{}}}"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "protocol": "TCP",
+            "port": 80,
+            "targetPort": 80,
+            "nodePort": 30974
+          }
+        ],
+        "selector": {
+          "app": "hello",
+          "tier": "frontend"
+        },
+        "clusterIP": "10.123.253.108",
+        "type": "LoadBalancer",
+        "sessionAffinity": "None"
+      },
+      "status": {
+        "loadBalancer": {
+          "ingress": [
+            {
+              "ip": "104.155.24.156"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "metadata": {
+        "name": "kubernetes",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/services/kubernetes",
+        "uid": "03114268-1615-11e7-8b67-42010a840226",
+        "resourceVersion": "8",
+        "creationTimestamp": "2017-03-31T13:21:55Z",
+        "labels": {
+          "component": "apiserver",
+          "provider": "kubernetes"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "https",
+            "protocol": "TCP",
+            "port": 443,
+            "targetPort": 443
+          }
+        ],
+        "clusterIP": "10.123.240.1",
+        "type": "ClusterIP",
+        "sessionAffinity": "ClientIP"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "metadata": {
+        "name": "redis-hello",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/services/redis-hello",
+        "uid": "9474d98a-1aad-11e7-8b67-42010a840226",
+        "resourceVersion": "661821",
+        "creationTimestamp": "2017-04-06T09:44:08Z",
+        "annotations": {
+          "kubectl.kubernetes.io/last-applied-configuration": "{\"kind\":\"Service\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"redis-hello\",\"creationTimestamp\":null},\"spec\":{\"ports\":[{\"protocol\":\"TCP\",\"port\":6379,\"targetPort\":6379}],\"selector\":{\"app\":\"hello\",\"tier\":\"db\"},\"type\":\"LoadBalancer\"},\"status\":{\"loadBalancer\":{}}}"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "protocol": "TCP",
+            "port": 6379,
+            "targetPort": 6379,
+            "nodePort": 32166
+          }
+        ],
+        "selector": {
+          "app": "hello",
+          "tier": "db"
+        },
+        "clusterIP": "10.123.249.212",
+        "type": "LoadBalancer",
+        "sessionAffinity": "None"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    }
+  ]
+}

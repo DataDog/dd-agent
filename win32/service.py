@@ -30,7 +30,7 @@ import win32service
 from config import get_config, get_config_path, get_confd_path
 from jmxfetch import JMXFetch
 from utils.jmx import JMXFiles
-from utils.windows_configuration import get_registry_conf, update_conf_file
+from utils.windows_configuration import get_registry_conf, update_conf_file, remove_registry_conf
 
 
 log = logging.getLogger('service')
@@ -50,10 +50,14 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         win32serviceutil.ServiceFramework.__init__(self, args)
 
         AgentSvc.devnull = open(os.devnull, 'w')
+        self.config = {}
 
-        config = get_config(parse_args=False, can_query_registry=False)
-        if config['api_key'] == 'APIKEYHERE':
-            self._update_config_file(config)
+        try:
+            self.config = get_config(parse_args=False, can_query_registry=False, allow_invalid_api_key=True)
+            if self.config['api_key'] == 'APIKEYHERE':
+                self._update_config_file(self.config)
+        except Exception as e:
+            log.warning("Failed to get_config {}".format(str(e)))
 
         # Let's have an uptime counter
         self.start_ts = None
@@ -83,14 +87,14 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                 "dogstatsd",
                 [embedded_python, "dogstatsd.py", "--use-local-forwarder"],
                 agent_env,
-                enabled=config.get("use_dogstatsd", True)
+                enabled=self.config.get("use_dogstatsd", True)
             ),
             'jmxfetch': JMXFetchProcess(
                 "jmxfetch",
                 [embedded_python, "jmxfetch.py"],
                 agent_env,
                 max_restarts=self._MAX_JMXFETCH_RESTARTS,
-                enabled=self._is_jmxfetch_enabled(config)
+                enabled=self._is_jmxfetch_enabled(self.config)
             ),
         }
 
@@ -134,7 +138,12 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         config.update(registry_conf)
         if registry_conf:
             log.info('Updating conf file options: %s', registry_conf.keys())
-            update_conf_file(registry_conf, get_config_path())
+            try:
+                update_conf_file(registry_conf, get_config_path())
+                log.info('update succeeded, deleting old values')
+                remove_registry_conf()
+            except Exception:
+                log.warning('Failed to update config file; registry configuration persisted')
 
     def SvcStop(self):
         # Stop all services.
@@ -167,6 +176,31 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         # Start all services.
         for proc in self.procs.values():
             proc.start()
+
+        #
+        # If process and/or trace are/is enabled, then start them manually here
+        # otherwise, on restart (especially via the gui) they won't be restarted
+        #
+        # allow the startservice to fail, however, as the service may already be
+        # started, or in the progress of starting, especially after install or
+        # first boot.
+        #
+
+        # check to see if apm is enabled.
+        if self.config.get('apm_enabled'):
+            try:
+                win32serviceutil.StartService("datadog-trace-agent")
+            except Exception as e:
+                log.warning("Unable to start Trace Agent service %s" % str(e))
+                pass
+
+        # check to see if process is enabled.
+        if self.config.get('process_agent_enabled'):
+            try:
+                win32serviceutil.StartService("datadog-process-agent")
+            except Exception as e:
+                log.warning("Unable to start Process Agent service %s" % str(e))
+                pass
 
         # Loop to keep the service running since all DD services are
         # running in separate processes

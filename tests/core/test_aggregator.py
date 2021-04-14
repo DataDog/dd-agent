@@ -288,6 +288,19 @@ class TestMetricsAggregator(unittest.TestCase):
         # Assert there are no more sets
         assert not stats.flush()
 
+    def test_ignore_distribution(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit_packets('my.dist:5.0|d')
+        stats.submit_packets('my.other.dist:5.0|dk')
+        stats.submit_packets('my.gauge:1|g')
+
+        # Assert that it's treated normally, and that the distribution is ignored
+        metrics = stats.flush()
+        nt.assert_equal(len(metrics), 1)
+        m = metrics[0]
+        nt.assert_equal(m['metric'], 'my.gauge')
+        nt.assert_equal(m['points'][0][1], 1)
+
     @attr(requires='core_integration')
     def test_rate(self):
         stats = MetricsAggregator('myhost')

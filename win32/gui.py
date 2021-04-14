@@ -84,9 +84,9 @@ from config import (
     get_logging_config,
     get_version
 )
-from util import yLoader
 from utils.flare import Flare
 from utils.platform import Platform
+from utils.ddyaml import yLoader
 
 # Constants describing the agent state
 AGENT_RUNNING = 0
@@ -98,6 +98,8 @@ AGENT_UNKNOWN = 4
 # Windows management
 # Import Windows stuff only on Windows
 if Platform.is_windows():
+    import pywintypes
+    import winerror
     import win32serviceutil
     import win32service
 
@@ -211,7 +213,7 @@ class DatadogConf(EditorFile):
 
     @property
     def api_key(self):
-        config = get_config(parse_args=False, cfg_path=self.file_path)
+        config = get_config(parse_args=False, cfg_path=self.file_path, allow_invalid_api_key=True)
         api_key = config.get('api_key', None)
         if not api_key or api_key == 'APIKEYHERE':
             return None
@@ -713,15 +715,67 @@ def check_yaml_syntax(content):
         warning_popup("Unable to parse yaml: \n %s" % str(e))
         raise
 
+def restartServiceWithDeps(serviceName):
+    # stop the service recursively, looking for dependent services.
+    # if it fails, attempt to restart the ones that were stopped
+    # (so that things are left in the correct state)
+    stopped_deps = list()
+    hscm = win32service.OpenSCManager(None,None,win32service.SC_MANAGER_ALL_ACCESS)
+    try:
+        deps = win32serviceutil.__FindSvcDeps(serviceName)
+
+        for dep in deps:
+            hs = win32service.OpenService(hscm, dep, win32service.SERVICE_ALL_ACCESS)
+            try:
+                win32serviceutil.__StopServiceWithTimeout(hs)
+                stopped_deps.insert(0, dep)
+            except pywintypes.error as exc:
+                if exc.winerror != winerror.ERROR_SERVICE_NOT_ACTIVE:
+                    # walk through and start all the services that have been stopped
+                    for restart_dep in stopped_deps:
+                        try:
+                            win32serviceutil.StartService(restart_dep)
+                        except Exception:
+                            # this is best effort, just continue restarting
+                            pass
+                    raise
+            finally:
+                win32service.CloseServiceHandle(hs)
+
+        # all the deps are stopped.  Stop the one we really wanted to stop
+        hs = win32service.OpenService(hscm, serviceName, win32service.SERVICE_ALL_ACCESS)
+        try:
+            win32serviceutil.__StopServiceWithTimeout(hs)
+        except Exception:
+            # if this fails to stop, then restart the dependent services we
+            # already stopped.
+            for restart_dep in stopped_deps:
+                try:
+                    win32serviceutil.StartService(restart_dep)
+                except Exception:
+                    # this is best effort, just continue restarting
+                    pass
+            raise
+        finally:
+            win32service.CloseServiceHandle(hs)
+    finally:
+        win32service.CloseServiceHandle(hscm)
+
+    # everything's stopped.  Now just start it back up.  Don't need to restart
+    # the dependent services.  If they're to be started, the config file will
+    # indicate that, and the agent service will restart the subservices
+    win32serviceutil.StartService(DATADOG_SERVICE)
+
+
 
 def service_manager(action):
     try:
         if action == 'stop':
-            win32serviceutil.StopService(DATADOG_SERVICE)
+            win32serviceutil.StopServiceWithDeps(DATADOG_SERVICE)
         elif action == 'start':
             win32serviceutil.StartService(DATADOG_SERVICE)
         elif action == 'restart':
-            win32serviceutil.RestartService(DATADOG_SERVICE)
+            restartServiceWithDeps(DATADOG_SERVICE)
     except Exception as e:
         warning_popup("Couldn't %s service: \n %s" % (action, str(e)))
 

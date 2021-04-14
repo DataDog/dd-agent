@@ -9,21 +9,22 @@
 #
 ###############################################################################
 #
-# chkconfig: 345 85 15
+# chkconfig: 345 99 01
 # description: Datadog Monitoring Agent
 
 ### BEGIN INIT INFO
 # Provides: datadog-agent
 # Short-Description: Start and start datadog-agent
 # Description: datadog-agent is the monitoring agent component for Datadog
-# Required-Start:
-# Required-Stop:
+# Required-Start: $remote_fs $network
+# Required-Stop: $remote_fs $network
 # Default-Start: 2 3 4 5
 # Default-Stop: 0 1 6
 ### END INIT INFO
 
 AGENTPATH="/opt/datadog-agent/agent/agent.py"
 AGENTCONF="/etc/dd-agent/datadog.conf"
+AGENTSYSCONFIG="/etc/sysconfig/datadog-agent"
 DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
 KILL_PATH="/opt/datadog-agent/embedded/bin/kill"
 AGENTUSER="dd-agent"
@@ -40,11 +41,13 @@ SUPERVISOR_PIDFILE="/opt/datadog-agent/run/datadog-supervisord.pid"
 COLLECTOR_PIDFILE="/opt/datadog-agent/run/dd-agent.pid"
 
 # Captures processes in the supervisord group that are 'optional' i.e. not essential for the agent to run
-DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro|trace-agent"
+DD_OPT_PROC_REGEX="dogstatsd|jmxfetch|go-metro|trace-agent|process-agent"
 
 # Source function library.
 . /etc/rc.d/init.d/functions
 
+# pull in sysconfig settings
+[ -f $AGENTSYSCONFIG ] && . $AGENTSYSCONFIG
 
 check_status() {
     # run checks to determine if the service is running or use generic status
@@ -133,7 +136,12 @@ start() {
         exit 3
     fi
 
-    su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null 2>&1
+    if [ "$DATADOG_ENABLED" = "no" ]; then
+        echo "Disabled via $AGENTSYSCONFIG. Exiting."
+        exit 0
+    fi
+
+    su $AGENTUSER --shell "/bin/sh" -c "$AGENTPATH configcheck" > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo -n $'\n'"Invalid check configuration. Please run sudo /etc/init.d/datadog-agent configtest for more details."
         echo -n $'\n'"Resuming starting process."$'\n'
@@ -181,13 +189,13 @@ info() {
     shift # Shift 'info' out of the args so we can pass any
           # additional options to the real command
           # (right now only dd-agent supports additional flags)
-    su $AGENTUSER -c "$AGENTPATH info $@"
+    su $AGENTUSER --shell "/bin/sh" -c "$AGENTPATH info $@"
     COLLECTOR_RETURN=$?
-    su $AGENTUSER -c "$DOGSTATSDPATH info"
+    su $AGENTUSER --shell "/bin/sh" -c "$DOGSTATSDPATH info"
     DOGSTATSD_RETURN=$?
-    su $AGENTUSER -c "$FORWARDERPATH info"
+    su $AGENTUSER --shell "/bin/sh" -c "$FORWARDERPATH info"
     FORWARDER_RETURN=$?
-    su $AGENTUSER -c "$TRACEAGENTPATH -info"
+    su $AGENTUSER --shell "/bin/sh" -c "$TRACEAGENTPATH -info"
     TRACEAGENT_RETURN=$? # not used for now, Trace/APM not a core feature yet
     exit $(($FORWARDER_RETURN+$COLLECTOR_RETURN+$DOGSTATSD_RETURN))
 }
@@ -198,7 +206,7 @@ reload() {
 }
 
 configcheck() {
-    su $AGENTUSER -c "$AGENTPATH configcheck"
+    su $AGENTUSER --shell "/bin/sh" -c "$AGENTPATH configcheck"
     exit $?
 }
 
@@ -254,7 +262,7 @@ case "$1" in
 
     jmx)
         shift
-        su $AGENTUSER -c "$AGENTPATH jmx $@"
+        su $AGENTUSER --shell "/bin/sh" -c "$AGENTPATH jmx $@"
         exit $?
         ;;
 
