@@ -14,7 +14,7 @@ set -u
 DEFAULT_AGENT_VERSION="5.32.7"
 # Pin pip version, in the past there was some buggy releases and get-pip.py
 # always pulls the latest version
-PIP_VERSION="19.0.3"
+PIP_VERSION="18.1"
 VIRTUALENV_VERSION="1.11.6"
 SUPERVISOR_VERSION="3.3.0"
 SETUPTOOLS_VERSION="20.9.0"
@@ -146,7 +146,7 @@ DOG="
 "
 
 LOGFILE="$DD_HOME/ddagent-install.log"
-BASE_GITHUB_URL="https://raw.githubusercontent.com/DataDog/dd-agent/$AGENT_VERSION"
+BASE_GITHUB_URL="https://raw.githubusercontent.com/DataDog/dd-agent/tree/samcip-fix-ntplib/$AGENT_VERSION"
 
 #######################################################################
 # Error reporting helpers
