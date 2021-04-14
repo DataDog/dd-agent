@@ -30,26 +30,37 @@ from checks.check_status import (
 )
 from checks.datadog import Dogstreams
 from checks.ganglia import Ganglia
-from config import get_system_stats, get_version
+from config import (
+    PY3_COMPATIBILITY_ATTR,
+    PY3_COMPATIBILITY_READY,
+    AGENT_VERSION,
+    get_system_stats,
+    get_version,
+)
 import checks.system.unix as u
 import checks.system.win32 as w32
 import modules
-from util import (
-    get_uuid,
-    Timer,
-)
-from utils.cloud_metadata import GCE, EC2
-from utils.logger import log_exceptions
+from util import get_uuid
+from utils.cloud_metadata import GCE, EC2, CloudFoundry, Azure
+from utils.logger import log_exceptions, RedactedLogRecord
 from utils.jmx import JMXFiles
 from utils.platform import Platform, get_os
 from utils.subprocess_output import get_subprocess_output
+from utils.timer import Timer
+from utils.orchestrator import MetadataCollector
 
+logging.LogRecord = RedactedLogRecord
 log = logging.getLogger(__name__)
 
 
 FLUSH_LOGGING_PERIOD = 10
 FLUSH_LOGGING_INITIAL = 5
 DD_CHECK_TAG = 'dd_check:{0}'
+
+def a7_compatible_to_int(status):
+    if status == PY3_COMPATIBILITY_READY:
+        return 1
+    return 0
 
 
 class AgentPayload(collections.MutableMapping):
@@ -206,7 +217,8 @@ class Collector(object):
             'memory': u.Memory(log),
             'processes': u.Processes(log),
             'cpu': u.Cpu(log),
-            'system': u.System(log)
+            'system': u.System(log),
+            'file_handles': u.FileHandles(log)
         }
 
         # Win32 System `Checks
@@ -302,7 +314,7 @@ class Collector(object):
             # Unix system checks
             sys_checks = self._unix_system_checks
 
-            for check_name in ['load', 'system', 'cpu']:
+            for check_name in ['load', 'system', 'cpu', 'file_handles']:
                 try:
                     result_check = sys_checks[check_name].check(self.agentConfig)
                     if result_check:
@@ -471,11 +483,26 @@ class Collector(object):
                 meta = {'tags': ["check:%s" % check.name]}
                 metrics.append((metric, time.time(), check_run_time, meta))
 
+            if hasattr(check, PY3_COMPATIBILITY_ATTR) and isinstance(getattr(check, PY3_COMPATIBILITY_ATTR), str):
+                metric = 'datadog.agent.check_ready'
+                status = getattr(check, PY3_COMPATIBILITY_ATTR)
+                meta = {'tags': ["check_name:%s" % check.name,
+                                 "agent_version_major:%s" % AGENT_VERSION.split(".")[0],
+                                 "agent_version_minor:%s" % AGENT_VERSION.split(".")[1],
+                                 "agent_version_patch:%s" % AGENT_VERSION.split(".")[2],
+                                 "status:%s" % status
+                                 ]}
+
+                # datadog.agent.check_ready:
+                # 0: is not compatible with Py3 (or unknown)
+                # 1: is compatible with Py3
+                metrics.append((metric, time.time(), a7_compatible_to_int(status), meta))
+
         for check_name, info in self.init_failed_checks_d.iteritems():
             if not self.continue_running:
                 return
             check_status = CheckStatus(check_name, None, None, None, None,
-                                       check_version=info.get('version'),
+                                       check_version=info.get('version', 'unknown'),
                                        init_failed_error=info['error'],
                                        init_failed_traceback=info['traceback'])
             check_statuses.append(check_status)
@@ -517,6 +544,20 @@ class Collector(object):
         emitter_statuses = payload.emit(log, self.agentConfig, self.emitters,
                                         self.continue_running)
         self.emit_duration = timer.step()
+
+        if self._is_first_run():
+            # This is not the exact payload sent to the backend as minor post
+            # processing is done, but this will give us a good idea of what is sent
+            # to the backend.
+            data = payload.payload # deep copy and merge of meta and metric data
+            data['apiKey'] = '*************************' + data.get('apiKey', '')[-5:]
+            # removing unused keys for the metadata payload
+            del data['metrics']
+            del data['events']
+            del data['service_checks']
+            if data.get('processes'):
+                data['processes']['apiKey'] = '*************************' + data['processes'].get('apiKey', '')[-5:]
+            log.debug("Metadata payload: %s", json.dumps(data))
 
         # Persist the status of the collection run.
         try:
@@ -649,6 +690,12 @@ class Collector(object):
             payload['systemStats'] = get_system_stats(
                 proc_path=self.agentConfig.get('procfs_path', '/proc').rstrip('/')
             )
+
+            if self.agentConfig['collect_orchestrator_tags']:
+                host_container_metadata = MetadataCollector().get_host_metadata()
+                if host_container_metadata:
+                    payload['container-meta'] = host_container_metadata
+
             payload['meta'] = self._get_hostname_metadata()
 
             self.hostname_metadata_cache = payload['meta']
@@ -660,6 +707,11 @@ class Collector(object):
 
             if self.agentConfig['collect_ec2_tags']:
                 host_tags.extend(EC2.get_tags(self.agentConfig))
+
+            if self.agentConfig['collect_orchestrator_tags']:
+                host_docker_tags = MetadataCollector().get_host_tags()
+                if host_docker_tags:
+                    host_tags.extend(host_docker_tags)
 
             if host_tags:
                 payload['host-tags']['system'] = host_tags
@@ -745,6 +797,7 @@ class Collector(object):
                 metadata["socket-hostname"] = socket.gethostname()
             except Exception:
                 pass
+
         try:
             metadata["socket-fqdn"] = socket.getfqdn()
         except Exception:
@@ -754,9 +807,22 @@ class Collector(object):
         metadata["timezones"] = self._decode_tzname(time.tzname)
 
         # Add cloud provider aliases
+        if not metadata.get("host_aliases"):
+            metadata["host_aliases"] = []
+
         host_aliases = GCE.get_host_aliases(self.agentConfig)
         if host_aliases:
-            metadata['host_aliases'] = host_aliases
+            metadata['host_aliases'] += host_aliases
+
+        # Try to get Azure VM ID
+        host_aliases = Azure.get_host_aliases(self.agentConfig)
+        if host_aliases:
+            metadata['host_aliases'] += host_aliases
+
+        try:
+            metadata["host_aliases"] += CloudFoundry.get_host_aliases(self.agentConfig)
+        except Exception:
+            pass
 
         return metadata
 
@@ -780,7 +846,7 @@ class Collector(object):
 
     def _run_gohai(self, options):
         # Gohai is disabled on Mac for now
-        if Platform.is_mac():
+        if Platform.is_mac() or not self.agentConfig.get('enable_gohai'):
             return None
         output = None
         try:

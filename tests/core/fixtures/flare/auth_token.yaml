@@ -1,0 +1,3 @@
+instances:
+  - auth_token: foo-bar
+    other_token: token

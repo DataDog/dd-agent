@@ -1,0 +1,107 @@
+version: 2.1
+
+default_environment: &default_environment
+  CI: circle
+  NOSE_FILTER: "not windows"
+  TRAVIS_BUILD_DIR: $HOME/project
+  INTEGRATIONS_DIR: $HOME/embedded
+  PIP_CACHE: $HOME/.cache/pip
+  VOLATILE_DIR: /tmp
+  INTEGRATIONS_CORE_BRANCH: agent-v5
+
+default_steps: &default_steps
+  steps:
+    - checkout
+    - run: |
+        git -C $HOME/integrations-core pull || git clone -b $INTEGRATIONS_CORE_BRANCH --depth 1 https://github.com/DataDog/integrations-core.git $HOME/integrations-core
+    - run: |
+        sudo apt-get update
+        sudo apt install -y libcurl4-openssl-dev libssl-dev
+        pip install -U pip wheel
+        cd $HOME/integrations-core/datadog_checks_base && python setup.py bdist_wheel && pip install . && cd -
+    - run: |
+        bundle install
+    - run: |
+        bundle package
+    # Needed if no cache exists
+    - run: |
+        mkdir -p ${HOME}/embedded
+    - run: |
+        bundle exec rake setup_libs
+    - run: |
+        export CHECKSD_OVERRIDE=$HOME/project/tests/checks/fixtures/checks
+        bundle exec rake ci:run
+
+jobs:
+  test-default:
+    machine: true
+    environment:
+      TRAVIS_FLAVOR: default
+      <<: *default_environment
+    <<: *default_steps
+  test-cassandra-1:
+    machine: true
+    environment:
+      TRAVIS_FLAVOR: cassandra
+      FLAVOR_VERSION: 2.0.17
+      <<: *default_environment
+    <<: *default_steps
+  test-cassandra-2:
+    machine: true
+    environment:
+      TRAVIS_FLAVOR: cassandra
+      FLAVOR_VERSION: 2.1.14
+      <<: *default_environment
+    <<: *default_steps
+  test-cassandra-3:
+    machine: true
+    environment:
+      TRAVIS_FLAVOR: cassandra
+      FLAVOR_VERSION: 2.2.10
+      <<: *default_environment
+    <<: *default_steps
+  test-checks-mock:
+    machine: true
+    environment:
+      TRAVIS_FLAVOR: checks_mock
+      <<: *default_environment
+    <<: *default_steps
+  test-kafka:
+    machine: true
+    environment:
+      TRAVIS_FLAVOR: kafka
+      FLAVOR_VERSION: 0.10.1.0-1
+      <<: *default_environment
+    <<: *default_steps
+  test-tomcat:
+    machine: true
+    environment:
+      TRAVIS_FLAVOR: tomcat
+      <<: *default_environment
+    <<: *default_steps
+  test-solr:
+    machine: true
+    environment:
+      TRAVIS_FLAVOR: solr
+      FLAVOR_VERSION: 6.2
+      <<: *default_environment
+    <<: *default_steps
+  test-core-integration:
+    machine: true
+    environment:
+      TRAVIS_FLAVOR: core_integration
+      <<: *default_environment
+    <<: *default_steps
+
+workflows:
+  version: 2
+  agent-tests:
+    jobs:
+      - test-default
+      - test-cassandra-1
+      - test-cassandra-2
+      - test-cassandra-3
+      - test-checks-mock
+      - test-tomcat
+      - test-solr
+      - test-core-integration

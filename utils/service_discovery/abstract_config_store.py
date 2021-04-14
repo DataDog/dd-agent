@@ -10,7 +10,7 @@ from copy import deepcopy
 from os import path
 
 # 3p
-from requests.packages.urllib3.exceptions import TimeoutError
+from urllib3.exceptions import TimeoutError
 
 # project
 from utils.checkfiles import get_check_class, get_auto_conf, get_auto_conf_images
@@ -23,13 +23,17 @@ CONFIG_FROM_AUTOCONF = 'auto-configuration'
 CONFIG_FROM_FILE = 'YAML file'
 CONFIG_FROM_TEMPLATE = 'template'
 CONFIG_FROM_KUBE = 'Kubernetes Pod Annotation'
+CONFIG_FROM_LABELS = 'Docker container labels'
+
 TRACE_CONFIG = 'trace_config'  # used for tracing config load by service discovery
 CHECK_NAMES = 'check_names'
 INIT_CONFIGS = 'init_configs'
 INSTANCES = 'instances'
 KUBE_ANNOTATIONS = 'kube_annotations'
 KUBE_CONTAINER_NAME = 'kube_container_name'
+DOCKER_LABELS = 'docker_labels'
 KUBE_ANNOTATION_PREFIX = 'service-discovery.datadoghq.com'
+DOCKER_LABEL_PREFIX = 'com.datadoghq.ad'
 
 
 class KeyNotFound(Exception):
@@ -210,17 +214,28 @@ class AbstractConfigStore(object):
         raise NotImplementedError()
 
     def _get_kube_config(self, identifier, kube_annotations, kube_container_name):
+        prefix = '{}/{}.'.format(KUBE_ANNOTATION_PREFIX, kube_container_name)
+        return self._extract_template(identifier, prefix, kube_annotations)
+
+    def _get_docker_config(self, identifier, docker_labels):
+        prefix = '{}.'.format(DOCKER_LABEL_PREFIX)
+        return self._extract_template(identifier, prefix, docker_labels)
+
+    def _extract_template(self, identifier, key_prefix, source_dict):
+        """
+        Looks for autodiscovery configuration in a given source_dict (either docker labels
+        or kubernetes annotations) and returns it if found.
+        """
         try:
-            prefix = '{}/{}.'.format(KUBE_ANNOTATION_PREFIX, kube_container_name)
-            check_names = json.loads(kube_annotations[prefix + CHECK_NAMES])
-            init_config_tpls = json.loads(kube_annotations[prefix + INIT_CONFIGS])
-            instance_tpls = json.loads(kube_annotations[prefix + INSTANCES])
+            check_names = json.loads(source_dict[key_prefix + CHECK_NAMES])
+            init_config_tpls = json.loads(source_dict[key_prefix + INIT_CONFIGS])
+            instance_tpls = json.loads(source_dict[key_prefix + INSTANCES])
             return [check_names, init_config_tpls, instance_tpls]
         except KeyError:
             return None
         except json.JSONDecodeError:
             log.exception('Could not decode the JSON configuration template '
-                          'for the kubernetes pod with ident %s...' % identifier)
+                          'for the entity %s...' % identifier)
             return None
 
     def _get_auto_config(self, image_name):
@@ -241,7 +256,8 @@ class AbstractConfigStore(object):
                     continue
                 auto_conf = get_auto_conf(check_name)
                 init_config, instances = auto_conf.get('init_config', {}), auto_conf.get('instances', [])
-                templates.append((check_name, init_config, instances[0] or {}))
+                for instance in instances:
+                    templates.append((check_name, init_config, instance or {}))
 
         return templates
 
@@ -253,6 +269,7 @@ class AbstractConfigStore(object):
 
         kube_annotations = kwargs.get(KUBE_ANNOTATIONS)
         kube_container_name = kwargs.get(KUBE_CONTAINER_NAME)
+        docker_labels = kwargs.get(DOCKER_LABELS)
 
         # then from annotations
         if kube_annotations:
@@ -260,6 +277,11 @@ class AbstractConfigStore(object):
             if kube_config is not None:
                 to_check.update(kube_config[0])
 
+        # then from docker labels
+        if docker_labels:
+            docker_config = self._get_docker_config(identifier, docker_labels)
+            if docker_config is not None:
+                to_check.update(docker_config[0])
         # lastly, try with legacy name for auto-conf
         to_check.update(self.template_cache.get_check_names(self._get_image_ident(identifier)))
 
@@ -275,13 +297,21 @@ class AbstractConfigStore(object):
             # annotations for configs before falling back to autoconf.
             kube_annotations = kwargs.get(KUBE_ANNOTATIONS)
             kube_container_name = kwargs.get(KUBE_CONTAINER_NAME)
+            docker_labels = kwargs.get(DOCKER_LABELS)
+            source = ""
+
+            config = None
             if kube_annotations:
-                kube_config = self._get_kube_config(identifier, kube_annotations, kube_container_name)
-                if kube_config is not None:
-                    check_names, init_config_tpls, instance_tpls = kube_config
-                    source = CONFIG_FROM_KUBE
-                    return [(source, vs)
-                            for vs in zip(check_names, init_config_tpls, instance_tpls)]
+                config = self._get_kube_config(identifier, kube_annotations, kube_container_name)
+                source = CONFIG_FROM_KUBE
+            if config is None and docker_labels is not None:
+                config = self._get_docker_config(identifier, docker_labels)
+                source = CONFIG_FROM_LABELS
+
+            if config is not None:
+                check_names, init_config_tpls, instance_tpls = config
+                return [(source, vs)
+                        for vs in zip(check_names, init_config_tpls, instance_tpls)]
 
             # in auto config mode, identifier is the image name
             auto_config = self._get_auto_config(identifier)
@@ -336,17 +366,25 @@ class AbstractConfigStore(object):
 
         return res
 
-    def _get_image_ident(self, ident):
+    def _get_image_ident(self, image_name):
         """Extract an identifier from the image"""
-        # handle the 'redis@sha256:...' format
-        if '@' in ident:
-            return ident.split('@')[0].split('/')[-1]
-        # if a custom image store is used there can be a port which adds a colon
-        elif ident.count(':') > 1:
-            return ident.split(':')[1].split('/')[-1]
-        # otherwise we just strip the tag and keep the image name
-        else:
-            return ident.split(':')[0].split('/')[-1]
+        # See image_formats in test_service_discovery.py for supported formats
+
+        # handle exceptionnal empty ident case (docker bug)
+        if not image_name:
+            return ""
+        ident = image_name
+        # remove the @sha256: suffix if present
+        if '@sha' in ident:
+            ident = ident.split('@sha')[0]
+        # remove image org / store prefix, we keep the last part after '/''
+        if '/' in ident:
+            ident = ident.split('/')[-1]
+        # remove the image tag after :
+        if ':' in ident:
+            ident = ident.split(':')[0]
+
+        return ident
 
     def crawl_config_template(self):
         """Return whether or not configuration templates have changed since the previous crawl"""

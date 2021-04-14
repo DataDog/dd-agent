@@ -20,6 +20,14 @@ def get_subprocess_output(command, log, raise_on_empty_output=True):
     Run the given subprocess command and return its output. Raise an Exception
     if an error occurs.
     """
+    return subprocess_output(command, raise_on_empty_output)
+
+
+def subprocess_output(command, raise_on_empty_output):
+    """
+    Run the given subprocess command and return its output. This is a private method
+    and should not be called directly, use `get_subprocess_output` instead.
+    """
 
     # Use tempfile, allowing a larger amount of memory. The subprocess.Popen
     # docs warn that the data read is buffered in memory. They suggest not to
@@ -29,9 +37,6 @@ def get_subprocess_output(command, log, raise_on_empty_output=True):
         proc.wait()
         stderr_f.seek(0)
         err = stderr_f.read()
-        if err:
-            log.debug("Error while running {0} : {1}".format(" ".join(command), err))
-
         stdout_f.seek(0)
         output = stdout_f.read()
 

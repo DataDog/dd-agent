@@ -3,7 +3,8 @@ import unittest
 import time
 
 # datadog
-from utils.timeout import _thread_by_func, timeout, TimeoutException
+from utils.timeout import timeout, TimeoutException
+from datadog_checks.base.utils.timeout import _thread_by_func
 
 count = 0
 

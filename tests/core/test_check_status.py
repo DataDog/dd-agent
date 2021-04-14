@@ -9,6 +9,7 @@ from checks.check_status import (
     CollectorStatus,
     InstanceStatus,
     STATUS_ERROR,
+    STATUS_WARNING,
     STATUS_OK,
 )
 
@@ -16,6 +17,8 @@ from checks.check_status import (
 class DummyAgentCheck(AgentCheck):
 
     def check(self, instance):
+        if instance.get('warning'):
+            self.warning("warning")
         if not instance['pass']:
             raise Exception("failure")
 
@@ -46,6 +49,21 @@ def test_check_status_pass():
     assert len(instances_status) == 2
     for i in instances_status:
         assert i.status == STATUS_OK
+
+
+def test_check_status_warning():
+    instances = [
+        {'pass': True, 'warning': True},
+        {'pass': False, 'warning': True},
+        {'pass': True, 'warning': False}
+    ]
+
+    check = DummyAgentCheck('dummy_agent_check', {}, {}, instances)
+    instance_statuses = check.run()
+    assert len(instance_statuses) == 3
+    assert instance_statuses[0].status == STATUS_WARNING
+    assert instance_statuses[1].status == STATUS_ERROR
+    assert instance_statuses[2].status == STATUS_OK
 
 
 @attr(requires='core_integration')

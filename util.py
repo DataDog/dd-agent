@@ -6,18 +6,10 @@
 import logging
 import platform
 import re
-import time
 import uuid
 
 # 3p
 import yaml  # noqa, let's guess, probably imported somewhere
-try:
-    from yaml import CLoader as yLoader
-    from yaml import CDumper as yDumper
-except ImportError:
-    # On source install C Extensions might have not been built
-    from yaml import Loader as yLoader  # noqa, imported from here elsewhere
-    from yaml import Dumper as yDumper  # noqa, imported from here elsewhere
 
 # These classes are now in utils/, they are just here for compatibility reasons,
 # if a user actually uses them in a custom check
@@ -26,6 +18,8 @@ except ImportError:
 from utils.pidfile import PidFile  # noqa, see ^^^
 from utils.platform import Platform, get_os # noqa, see ^^^
 from utils.proxy import get_proxy # noqa, see ^^^
+from utils.timer import Timer # noqa, see ^^^
+from utils.ddyaml import yLoader
 
 COLON_NON_WIN_PATH = re.compile(':(?!\\\\)')
 
@@ -101,6 +95,10 @@ def get_next_id(name):
     return current_id
 
 
+class NoInstancesFound(Exception):
+    pass
+
+
 def check_yaml(conf_path):
     with open(conf_path) as f:
         check_config = yaml.load(f.read(), Loader=yLoader)
@@ -116,7 +114,7 @@ def check_yaml(conf_path):
                     valid_instances = False
                     break
         if not valid_instances:
-            raise Exception('You need to have at least one instance defined in the YAML file for this check')
+            raise NoInstancesFound('You need to have at least one instance defined in the YAML file for this check')
         else:
             return check_config
 
@@ -137,30 +135,6 @@ def config_to_yaml(config):
         raise Exception('You need to have at least one instance defined in your config.')
 
     return yaml_output
-
-
-class Timer(object):
-    """ Helper class """
-
-    def __init__(self):
-        self.start()
-
-    def _now(self):
-        return time.time()
-
-    def start(self):
-        self.started = self._now()
-        self.last = self.started
-        return self
-
-    def step(self):
-        now = self._now()
-        step = now - self.last
-        self.last = now
-        return step
-
-    def total(self, as_sec=True):
-        return self._now() - self.started
 
 """
 Iterable Recipes

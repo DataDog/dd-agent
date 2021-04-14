@@ -5,6 +5,8 @@
 # stdlib
 import logging
 import types
+import os
+import socket
 
 # 3rd party
 import requests
@@ -14,13 +16,43 @@ from utils.proxy import get_proxy
 
 log = logging.getLogger(__name__)
 
+class Azure(object):
+    URL = "http://169.254.169.254/metadata/instance?api-version=2017-04-02"
+    TIMEOUT = 0.3 # second
+
+    @staticmethod
+    def _get_metadata(agentConfig):
+        if not agentConfig.get('collect_instance_metadata', True):
+            log.info("Instance metadata collection is disabled: not collecting Azure metadata.")
+            return {}
+
+        try:
+            r = requests.get(
+                Azure.URL,
+                timeout=Azure.TIMEOUT,
+                headers={'Metadata': 'true'}
+            )
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            log.debug("Collecting Azure Metadata failed %s", str(e))
+            return None
+
+    @staticmethod
+    def get_host_aliases(agentConfig):
+        try:
+            host_metadata = Azure._get_metadata(agentConfig)
+            return [host_metadata['compute']['vmId']]
+        except Exception:
+            return []
+
 class GCE(object):
     URL = "http://169.254.169.254/computeMetadata/v1/?recursive=true"
     TIMEOUT = 0.3 # second
     SOURCE_TYPE_NAME = 'google cloud platform'
     metadata = None
-    EXCLUDED_ATTRIBUTES = ["kube-env", "startup-script", "shutdown-script", "configure-sh", "sshKeys", "user-data",
-    "cli-cert", "ipsec-cert", "ssl-cert", "google-container-manifest"]
+    EXCLUDED_ATTRIBUTES = ["kube-env", "startup-script", "shutdown-script", "configure-sh", "sshKeys", "ssh-keys",
+    "user-data", "cli-cert", "ipsec-cert", "ssl-cert", "google-container-manifest", "bosh_settings"]
 
 
     @staticmethod
@@ -110,6 +142,7 @@ class EC2(object):
     TIMEOUT = 0.1  # second
     DEFAULT_PREFIXES = [u'ip-', u'domu']
     metadata = {}
+    is_openstack = None
 
     class NoIAMRole(Exception):
         """
@@ -188,6 +221,25 @@ class EC2(object):
         except Exception:
             log.exception("Problem retrieving custom EC2 tags")
 
+        if EC2.is_openstack is True and agentConfig['openstack_use_metadata_tags']:
+            log.info(u"Attempting to collect tags from OpenStack meta_data.json")
+            openstack_metadata_url = EC2.EC2_METADATA_HOST + "/openstack/latest/meta_data.json"
+            try:
+                r = requests.get(openstack_metadata_url, timeout=EC2.TIMEOUT)
+                r.raise_for_status() # Fail on 404 etc
+                openstack_metadata = r.json()
+                EC2_tags = [u"%s:%s" % (tag, openstack_metadata['meta'][tag]) for tag in openstack_metadata['meta']]
+                if 'project_id' in openstack_metadata:
+                    EC2_tags.append(u"project_id:%s" % openstack_metadata['project_id'])
+                # Map the OS availability_zone to Datadog's use of availability-zone for UI defaults
+                EC2_tags.append(u"availability-zone:%s" % openstack_metadata['availability_zone'])
+                # Even though the name is set in EC2.metadata it also needs to be a tag for filters
+                if 'name' not in openstack_metadata['meta']:
+                    EC2_tags.append(u"name:%s" % openstack_metadata['name'])
+
+            except Exception:
+                log.warning(u"Problem retrieving tags from OpenStack meta_data.json")
+
         return EC2_tags
 
     @staticmethod
@@ -218,6 +270,31 @@ class EC2(object):
                 log.debug("Collecting EC2 Metadata failed %s", str(e))
                 pass
 
+        # Only check if we don't know yet or if it is known to be OpenStack
+        if EC2.is_openstack is None or EC2.is_openstack is True:
+            log.info(u"Attempting to get OpenStack meta_data.json")
+            openstack_metadata_url = EC2.EC2_METADATA_HOST + "/openstack/latest/meta_data.json"
+            try:
+                r = requests.get(openstack_metadata_url, timeout=EC2.TIMEOUT)
+                r.raise_for_status() # Fail on 404 etc
+
+                EC2.is_openstack = True
+                openstack_metadata = r.json()
+                # Set the "also known as" metadata similar to AWS EC2
+                EC2.metadata['host_aliases'] = [
+                    openstack_metadata['uuid'],
+                    openstack_metadata['name'],
+                ]
+
+                # the OpenStack instance-id can be recycled but the uuid will always be unique
+                if agentConfig['openstack_use_uuid']:
+                    log.info(u"Using the instance's uuid for instance-id")
+                    EC2.metadata["instance-id"] = openstack_metadata['uuid']
+
+            except Exception:
+                log.info(u"Could not load meta_data.json, not OpenStack EC2 instance")
+                EC2.is_openstack = False
+
         return EC2.metadata.copy()
 
     @staticmethod
@@ -226,3 +303,30 @@ class EC2(object):
             return EC2.get_metadata(agentConfig).get("instance-id", None)
         except Exception:
             return None
+
+class CloudFoundry(object):
+    host_aliases = []
+
+    @staticmethod
+    def get_host_aliases(agentConfig):
+        if not CloudFoundry.is_cloud_foundry(agentConfig):
+            return CloudFoundry.host_aliases
+        if os.environ.get("DD_BOSH_ID"):
+            if os.environ.get("DD_BOSH_ID") not in CloudFoundry.host_aliases:
+                CloudFoundry.host_aliases.append(os.environ.get("DD_BOSH_ID"))
+        if agentConfig.get("bosh_id"):
+            if agentConfig.get("bosh_id") not in CloudFoundry.host_aliases:
+                CloudFoundry.host_aliases.append(agentConfig.get("bosh_id"))
+        if len(CloudFoundry.host_aliases) == 0:
+            # Only use this if the prior one fails
+            # The reliability of the socket hostname is not assured
+            CloudFoundry.host_aliases.append(socket.gethostname())
+        return CloudFoundry.host_aliases
+
+    @staticmethod
+    def is_cloud_foundry(agentConfig):
+        if agentConfig.get("cloud_foundry"):
+            return True
+        elif os.environ.get("CLOUD_FOUNDRY"):
+            return True
+        return False

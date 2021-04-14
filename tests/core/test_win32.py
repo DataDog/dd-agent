@@ -2,6 +2,7 @@
 import gc
 import logging
 import unittest
+import sys
 
 # 3p
 from nose.plugins.attrib import attr
@@ -16,7 +17,7 @@ log = logging.getLogger(__file__)
 
 AGENT_CONFIG = {}  # None of the windows checks use this.
 
-
+@unittest.skipUnless(sys.platform.startswith("win"), "requires Windows")
 @attr(requires='windows')
 class TestWin32(unittest.TestCase):
     def _checkMemoryLeak(self, func):
