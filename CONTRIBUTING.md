@@ -24,7 +24,7 @@ In order to ease/speed up our review, here are some items you can check/improve 
 - [ ] preferably make sure that all [tests pass locally](tests/README.md).
 - [ ] summarize your PR with a [good title](#commits-titles) and a message describing your changes, cross-referencing any related bugs/PRs.
 
-Your Pull Request **must** always pass the Travis/Appveyor tests before being merged, if you think the error is not due to your changes, you can have a talk with us on IRC (#datadog freenode) or send us an email to support _at_ datadoghq _dot_ com)
+Your Pull Request **must** always pass the Travis/Appveyor tests before being merged.
 
 _If you are adding a dependency (python module, library, ...), please check the [corresponding section](#add-dependencies)._
 
