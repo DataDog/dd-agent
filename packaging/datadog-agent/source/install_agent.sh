@@ -59,10 +59,22 @@ if [ -n "$DD_HOST_TAGS" ]; then
     host_tags=$DD_HOST_TAGS
 fi
 
+if [ -n "$DD_KEYS_URL" ]; then
+  keys_url=$DD_KEYS_URL
+else
+  keys_url="keys.datadoghq.com"
+fi
+
 if [ ! $apikey ]; then
     printf "\033[31mAPI key not available in DD_API_KEY environment variable.\033[0m\n"
     exit 1;
 fi
+
+# DATADOG_APT_KEY_CURRENT.public always contains key used to sign current
+# repodata and newly released packages
+# DATADOG_APT_KEY_382E94DE.public expires in 2022
+# DATADOG_APT_KEY_F14F620E.public expires in 2032
+APT_GPG_KEYS=("DATADOG_APT_KEY_CURRENT.public" "DATADOG_APT_KEY_F14F620E.public" "DATADOG_APT_KEY_382E94DE.public")
 
 # OS/Distro Detection
 # Try lsb_release, fallback with /etc/issue then uname command
@@ -127,7 +139,8 @@ if [ $OS = "RedHat" ]; then
     else
         PROTOCOL="https"
     fi
-    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = $PROTOCOL://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=1\npriority=1\ngpgkey=$PROTOCOL://yum.datadoghq.com/DATADOG_RPM_KEY.public\n       $PROTOCOL://yum.datadoghq.com/DATADOG_RPM_KEY_E09422B3.public' > /etc/yum.repos.d/datadog.repo"
+
+    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = $PROTOCOL://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=1\npriority=1\ngpgkey=$PROTOCOL://${keys_url}/DATADOG_RPM_KEY.public\n       $PROTOCOL://${keys_url}/DATADOG_RPM_KEY_E09422B3.public' > /etc/yum.repos.d/datadog.repo"
 
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
 
@@ -140,18 +153,38 @@ if [ $OS = "RedHat" ]; then
     fi
     $sudo_cmd yum -y --disablerepo='*' --enablerepo='datadog' install datadog-agent || $sudo_cmd yum -y install datadog-agent
 elif [ $OS = "Debian" ]; then
-    printf "\033[34m\n* Installing apt-transport-https\n\033[0m\n"
+    apt_trusted_d_keyring="/etc/apt/trusted.gpg.d/datadog-archive-keyring.gpg"
+    apt_usr_share_keyring="/usr/share/keyrings/datadog-archive-keyring.gpg"
+
+    printf "\033[34m\n* Installing apt-transport-https, curl and gnupg\n\033[0m\n"
     $sudo_cmd apt-get update || printf "\033[31m'apt-get update' failed, the script will not install the latest version of apt-transport-https.\033[0m\n"
-    $sudo_cmd apt-get install -y apt-transport-https
-    # Only install dirmngr if it's available in the cache
-    # it may not be available on Ubuntu <= 14.04 but it's not required there
-    cache_output=`apt-cache search dirmngr`
-    if [ ! -z "$cache_output" ]; then
-      $sudo_cmd apt-get install -y dirmngr
+    # installing curl might trigger install of additional version of libssl; this will fail the installation process,
+    # see https://unix.stackexchange.com/q/146283 for reference - we use DEBIAN_FRONTEND=noninteractive to fix that
+    if [ -z "$sudo_cmd" ]; then
+        # if $sudo_cmd is empty, doing `$sudo_cmd X=Y command` fails with
+        # `X=Y: command not found`; therefore we don't prefix the command with
+        # $sudo_cmd at all in this case
+        DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https curl gnupg
+    else
+        $sudo_cmd DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https curl gnupg
     fi
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
-    $sudo_cmd sh -c "echo 'deb https://apt.datadoghq.com/ stable main' > /etc/apt/sources.list.d/datadog.list"
-    $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 382E94DE
+    $sudo_cmd sh -c "echo 'deb [signed-by=${apt_usr_share_keyring}] https://apt.datadoghq.com/ stable main' > /etc/apt/sources.list.d/datadog.list"
+
+    if [ ! -f $apt_usr_share_keyring ]; then
+        $sudo_cmd touch $apt_usr_share_keyring
+    fi
+
+    for key in "${APT_GPG_KEYS[@]}"; do
+        $sudo_cmd curl --retry 5 -o "/tmp/${key}" "https://${keys_url}/${key}"
+        $sudo_cmd cat "/tmp/${key}" | $sudo_cmd gpg --import --batch --no-default-keyring --keyring "$apt_usr_share_keyring"
+    done
+
+    release_version="$(grep VERSION_ID /etc/os-release | cut -d = -f 2 | xargs echo | cut -d "." -f 1)"
+    if { [ "$DISTRIBUTION" == "Debian" ] && [ "$release_version" -lt 9 ]; } || \
+       { [ "$DISTRIBUTION" == "Ubuntu" ] && [ "$release_version" -lt 16 ]; }; then
+        $sudo_cmd cp $apt_usr_share_keyring $apt_trusted_d_keyring
+    fi
 
     printf "\033[34m\n* Installing the Datadog Agent package\n\033[0m\n"
     ERROR_MESSAGE="ERROR
@@ -179,10 +212,10 @@ elif [ $OS = "SUSE" ]; then
   fi
 
   echo -e "\033[34m\n* Installing YUM Repository for Datadog\n\033[0m"
-  $sudo_cmd sh -c "echo -e '[datadog]\nname=datadog\nenabled=1\nbaseurl=https://yum.datadoghq.com/suse/rpm/x86_64\ntype=rpm-md\ngpgcheck=1\nrepo_gpgcheck=0\ngpgkey=https://yum.datadoghq.com/DATADOG_RPM_KEY.public' > /etc/zypp/repos.d/datadog.repo"
+  $sudo_cmd sh -c "echo -e '[datadog]\nname=datadog\nenabled=1\nbaseurl=https://yum.datadoghq.com/suse/rpm/x86_64\ntype=rpm-md\ngpgcheck=1\nrepo_gpgcheck=0\ngpgkey=https://${keys_url}/DATADOG_RPM_KEY.public' > /etc/zypp/repos.d/datadog.repo"
 
   echo -e "\033[34m\n* Importing the Datadog GPG Key\n\033[0m"
-  $sudo_cmd rpm --import https://yum.datadoghq.com/DATADOG_RPM_KEY.public
+  $sudo_cmd rpm --import https://${keys_url}/DATADOG_RPM_KEY.public
 
   echo -e "\033[34m\n* Refreshing repositories\n\033[0m"
   $sudo_cmd zypper --non-interactive --no-gpg-check refresh datadog
