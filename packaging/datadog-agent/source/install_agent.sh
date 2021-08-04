@@ -59,6 +59,12 @@ if [ -n "$DD_HOST_TAGS" ]; then
     host_tags=$DD_HOST_TAGS
 fi
 
+if [ -n "$DD_PKG_LIST" ]; then
+  pkg_list=$DD_PKG_LIST
+else
+  pkg_list="datadog-agent datadog-signing-keys"
+fi
+
 if [ -n "$DD_KEYS_URL" ]; then
   keys_url=$DD_KEYS_URL
 else
@@ -206,7 +212,7 @@ determine the cause.
 If the cause is unclear, please contact Datadog support.
 *****
 "
-    $sudo_cmd apt-get install -y --force-yes datadog-agent datadog-signing-keys
+    $sudo_cmd apt-get install -y --force-yes $pkg_list
     ERROR_MESSAGE=""
 elif [ $OS = "SUSE" ]; then
   UNAME_M=$(uname -m)
