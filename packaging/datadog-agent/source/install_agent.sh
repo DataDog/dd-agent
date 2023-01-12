@@ -41,6 +41,20 @@ solve your problem.\n\033[0m\n"
 }
 trap on_error ERR
 
+function remove_rpm_gpg_keys() {
+    local sudo_cmd="$1"
+    shift
+    local old_keys=("$@")
+    for key in "${old_keys[@]}"; do
+        if $sudo_cmd rpm -q "$key" 1>/dev/null 2>/dev/null; then
+            echo -e "\033[34m\nRemoving old RPM key $key from the RPM database\n\033[0m"
+            $sudo_cmd rpm --erase "$key"
+        fi
+    done
+}
+# list of old signing keys to remove
+RPM_GPG_KEYS_TO_REMOVE=("gpg-pubkey-4172a230-55dd14f6")
+
 if [ -n "$DD_HOSTNAME" ]; then
     dd_hostname=$DD_HOSTNAME
 fi
@@ -127,6 +141,8 @@ fi
 
 # Install the necessary package sources
 if [ $OS = "RedHat" ]; then
+    remove_rpm_gpg_keys "$sudo_cmd" "${RPM_GPG_KEYS_TO_REMOVE[@]}"
+
     echo -e "\033[34m\n* Installing YUM sources for Datadog\n\033[0m"
 
     UNAME_M=$(uname -m)
@@ -146,7 +162,7 @@ if [ $OS = "RedHat" ]; then
         PROTOCOL="https"
     fi
 
-    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = $PROTOCOL://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=1\npriority=1\ngpgkey=$PROTOCOL://${keys_url}/DATADOG_RPM_KEY.public\n       $PROTOCOL://${keys_url}/DATADOG_RPM_KEY_E09422B3.public' > /etc/yum.repos.d/datadog.repo"
+    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = $PROTOCOL://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=1\npriority=1\ngpgkey=$PROTOCOL://${keys_url}/DATADOG_RPM_KEY_CURRENT.public\n       $PROTOCOL://${keys_url}/DATADOG_RPM_KEY_FD4BF915.public' > /etc/yum.repos.d/datadog.repo"
 
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
 
@@ -215,6 +231,8 @@ If the cause is unclear, please contact Datadog support.
     $sudo_cmd apt-get install -y --force-yes $pkg_list
     ERROR_MESSAGE=""
 elif [ $OS = "SUSE" ]; then
+  remove_rpm_gpg_keys "$sudo_cmd" "${RPM_GPG_KEYS_TO_REMOVE[@]}"
+
   UNAME_M=$(uname -m)
   if [ "$UNAME_M"  == "i686" -o "$UNAME_M"  == "i386" -o "$UNAME_M"  == "x86" ]; then
       printf "\033[31mThe Datadog Agent installer is only available for 64 bit SUSE Enterprise machines.\033[0m\n"
@@ -222,10 +240,11 @@ elif [ $OS = "SUSE" ]; then
   fi
 
   echo -e "\033[34m\n* Installing YUM Repository for Datadog\n\033[0m"
-  $sudo_cmd sh -c "echo -e '[datadog]\nname=datadog\nenabled=1\nbaseurl=https://yum.datadoghq.com/suse/rpm/x86_64\ntype=rpm-md\ngpgcheck=1\nrepo_gpgcheck=0\ngpgkey=https://${keys_url}/DATADOG_RPM_KEY.public' > /etc/zypp/repos.d/datadog.repo"
+  $sudo_cmd sh -c "echo -e '[datadog]\nname=datadog\nenabled=1\nbaseurl=https://yum.datadoghq.com/suse/rpm/x86_64\ntype=rpm-md\ngpgcheck=1\nrepo_gpgcheck=0\ngpgkey=https://${keys_url}/DATADOG_RPM_KEY_CURRENT.public' > /etc/zypp/repos.d/datadog.repo"
 
-  echo -e "\033[34m\n* Importing the Datadog GPG Key\n\033[0m"
-  $sudo_cmd rpm --import https://${keys_url}/DATADOG_RPM_KEY.public
+  echo -e "\033[34m\n* Importing the Datadog GPG Keys\n\033[0m"
+  $sudo_cmd rpm --import https://${keys_url}/DATADOG_RPM_KEY_CURRENT.public
+  $sudo_cmd rpm --import https://${keys_url}/DATADOG_RPM_KEY_FD4BF915.public
 
   echo -e "\033[34m\n* Refreshing repositories\n\033[0m"
   $sudo_cmd zypper --non-interactive --no-gpg-check refresh datadog
