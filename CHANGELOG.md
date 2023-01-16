@@ -1,7 +1,18 @@
-Datadog Agent 6 has been officially released and the release notes can be found [here](https://github.com/DataDog/datadog-agent/releases). Agent 5 will continue to see releases.
+Datadog Agent 6 and 7 have been officially released and their release notes can be found [here](https://github.com/DataDog/datadog-agent/releases). Agent 5 users are encouraged to upgrade to Agent 7.
 
 Changes
 =======
+
+# 5.32.9 / 2023-01-12
+
+**Linux RHEL/CentOS RPM only**
+
+This release is specific to the RHEL/CentOS RPM package, and is signed with the [current RPM signing key](https://keys.datadoghq.com/DATADOG_RPM_KEY_CURRENT.public) as of Jan 2023 (fingerprint `C6559B690CA882F023BDF3F63F4D1729FD4BF915`).
+
+No other changes are included, except the following dependency updates:
+
+* `cacerts` to the latest bundle
+* `zlib` from `2.1.11` to `2.1.13`
 
 # 5.32.8 / 2020-10-08
 
