@@ -29,7 +29,7 @@ unless ENV['CI']
   ENV['CONCURRENCY'] = ENV['CONCURRENCY'] || '2'
   ENV['NOSE_FILTER'] = 'not windows'
 end
-ENV['JMXFETCH_URL'] = 'https://dl.bintray.com/datadog/datadog-maven/com/datadoghq/jmxfetch'
+ENV['JMXFETCH_URL'] = 'https://repo1.maven.org/maven2/com/datadoghq/jmxfetch'
 
 desc 'Setup a development environment for the Agent'
 task 'setup_env' do
@@ -57,7 +57,7 @@ task 'setup_libs' do
   jmx_version = `venv/bin/python -c "import config ; print config.JMX_VERSION"`
   jmx_version = jmx_version.delete("\n")
   puts "jmx-fetch version: #{jmx_version}"
-  jmx_artifact = "jmxfetch-#{jmx_version}-jar-with-dependencies.jar"
+  jmx_artifact = "jmxfetch-#{jmx_version}.jar"
   if File.size?("checks/libs/#{jmx_artifact}")
     puts "Artifact already in place: #{jmx_artifact}"
   else
