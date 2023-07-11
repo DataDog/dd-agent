@@ -94,7 +94,8 @@ fi
 # repodata and newly released packages
 # DATADOG_APT_KEY_382E94DE.public expires in 2022
 # DATADOG_APT_KEY_F14F620E.public expires in 2032
-APT_GPG_KEYS=("DATADOG_APT_KEY_CURRENT.public" "DATADOG_APT_KEY_F14F620E.public" "DATADOG_APT_KEY_382E94DE.public")
+# DATADOG_APT_KEY_C0962C7D.public expires in 2028
+APT_GPG_KEYS=("DATADOG_APT_KEY_CURRENT.public" "DATADOG_APT_KEY_C0962C7D.public" "DATADOG_APT_KEY_F14F620E.public" "DATADOG_APT_KEY_382E94DE.public")
 
 # OS/Distro Detection
 # Try lsb_release, fallback with /etc/issue then uname command
@@ -162,7 +163,7 @@ if [ $OS = "RedHat" ]; then
         PROTOCOL="https"
     fi
 
-    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = $PROTOCOL://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=1\npriority=1\ngpgkey=$PROTOCOL://${keys_url}/DATADOG_RPM_KEY_CURRENT.public\n       $PROTOCOL://${keys_url}/DATADOG_RPM_KEY_FD4BF915.public' > /etc/yum.repos.d/datadog.repo"
+    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = $PROTOCOL://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=1\npriority=1\ngpgkey=$PROTOCOL://${keys_url}/DATADOG_RPM_KEY_CURRENT.public\n       $PROTOCOL://${keys_url}/DATADOG_RPM_KEY_B01082D3.public       $PROTOCOL://${keys_url}/DATADOG_RPM_KEY_FD4BF915.public' > /etc/yum.repos.d/datadog.repo"
 
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
 
@@ -244,6 +245,7 @@ elif [ $OS = "SUSE" ]; then
 
   echo -e "\033[34m\n* Importing the Datadog GPG Keys\n\033[0m"
   $sudo_cmd rpm --import https://${keys_url}/DATADOG_RPM_KEY_CURRENT.public
+  $sudo_cmd rpm --import https://${keys_url}/DATADOG_RPM_KEY_B01082D3.public
   $sudo_cmd rpm --import https://${keys_url}/DATADOG_RPM_KEY_FD4BF915.public
 
   echo -e "\033[34m\n* Refreshing repositories\n\033[0m"
