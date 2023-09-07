@@ -43,7 +43,7 @@ No other changes are included, except the following dependency updates:
 * [BUGFIX] Update deprecated `datadog-cert.pem` certificate. See [#3882][] (Thanks [@sodabrew][]).
 * [IMPROVEMENT] ntplib: upgrade to 0.3.4.
 
-# 5.32.6 / 2019-01-14
+# 5.32.6 / 2020-01-14
 
 **Linux, Windows, Docker and Source Install**
 
