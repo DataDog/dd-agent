@@ -1,0 +1,23 @@
+init_config:
+   - mibs_folder: /path/to/your/additional/mibs
+
+instances:
+   -   ip_address: localhost
+       port: 161
+       community_string: public
+       tags:
+            - optional_tag1
+            - optional_tag2
+       metrics:
+            - MIB: UDP-MIB
+              symbol: udpInDatagrams
+            - OID: 1.3.6.1.2.1.6.5
+              name: tcpPassiveOpens
+            - MIB: IF-MIB
+              table: ifTable
+              symbols:
+                - ifInOctets
+                - ifOutOctets
+              metric_tags:
+                - tag: interface
+                  column: ifDescr
