@@ -16,16 +16,16 @@ def extract_agent_config(config):
     agentConfig = {}
 
     backend = config.get('Main', 'service_discovery_backend')
-    agentConfig['service_discovery'] = True
+    if backend in SD_BACKENDS:
+        agentConfig['service_discovery'] = True
+    else:
+        log.error("The backend {0} is not supported. "
+                  "Service discovery won't be enabled.".format(backend))
+        agentConfig['service_discovery'] = False
 
     conf_backend = None
     if config.has_option('Main', 'sd_config_backend'):
         conf_backend = config.get('Main', 'sd_config_backend')
-
-    if backend not in SD_BACKENDS:
-        log.error("The backend {0} is not supported. "
-                  "Service discovery won't be enabled.".format(backend))
-        agentConfig['service_discovery'] = False
 
     if conf_backend is None:
         log.debug('No configuration backend provided for service discovery. '
