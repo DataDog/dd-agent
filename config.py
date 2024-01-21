@@ -17,6 +17,7 @@ import os
 import platform
 import re
 from socket import gaierror, gethostbyname
+import sre_constants
 import string
 import sys
 import traceback
@@ -288,51 +289,77 @@ def get_default_bind_host():
 
 
 def get_histogram_aggregates(configstr=None):
-    if configstr is None:
-        return None
+    return _get_histogram_config(configstr, 'aggregate', _parse_histogram_aggregates_values)
 
-    try:
-        vals = configstr.split(',')
-        valid_values = ['min', 'max', 'median', 'avg', 'sum', 'count']
-        result = []
+def _parse_histogram_aggregates_values(vals):
+    result = []
+    valid_values = ['min', 'max', 'median', 'avg', 'sum', 'count']
 
-        for val in vals:
-            val = val.strip()
-            if val not in valid_values:
-                log.warning("Ignored histogram aggregate {0}, invalid".format(val))
-                continue
-            else:
-                result.append(val)
-    except Exception:
-        log.exception("Error when parsing histogram aggregates, skipping")
-        return None
+    for val in vals:
+        val = val.strip()
+        if val not in valid_values:
+            log.warning("Ignored histogram aggregate {0}, invalid".format(val))
+            continue
+        else:
+            result.append(val)
 
     return result
 
-
 def get_histogram_percentiles(configstr=None):
+    return _get_histogram_config(configstr, 'percentile', _parse_histogram_percentiles_values)
+
+def _parse_histogram_percentiles_values(vals):
+    result = []
+
+    for val in vals:
+        try:
+            val = val.strip()
+            floatval = float(val)
+            if floatval <= 0 or floatval >= 1:
+                raise ValueError
+            if len(val) > 4:
+                log.warning("Histogram percentiles are rounded to 2 digits: {0} rounded"
+                            .format(floatval))
+            result.append(float(val[0:4]))
+        except ValueError:
+            log.warning("Bad histogram percentile value {0}, must be float in ]0;1[, skipping"
+                        .format(val))
+
+    return result
+
+def _get_histogram_config(configstr, type_str, parse_callback):
     if configstr is None:
         return None
 
-    result = []
     try:
-        vals = configstr.split(',')
-        for val in vals:
-            try:
-                val = val.strip()
-                floatval = float(val)
-                if floatval <= 0 or floatval >= 1:
-                    raise ValueError
-                if len(val) > 4:
-                    log.warning("Histogram percentiles are rounded to 2 digits: {0} rounded"
-                                .format(floatval))
-                result.append(float(val[0:4]))
-            except ValueError:
-                log.warning("Bad histogram percentile value {0}, must be float in ]0;1[, skipping"
-                            .format(val))
+        return _parse_histogram_config(configstr, type_str, parse_callback)
     except Exception:
-        log.exception("Error when parsing histogram percentiles, skipping")
+        log.exception('Error when parsing histogram {0}s, skipping'.format(type_str))
         return None
+
+def _parse_histogram_config(configstr, type_str, parse_callback):
+    groups = configstr.split(';')
+
+    result = []
+    for group in groups:
+        group_config = group.rsplit(':', 1)
+        if len(group_config) == 1:
+            # general config
+            result.append((None, parse_callback(group.split(','))))
+        elif len(group_config) == 2:
+            # only applies to metrics matching a given regex
+            regex = group_config[0].strip()
+            if not regex:
+                log.warning('Ignoring empty regex for histogram {0}s'.format(type_str))
+                continue
+            try:
+                compiled_regex = re.compile(regex)
+            except sre_constants.error as exception:
+                log.warning('Ignoring invalid regex {0} for histogram {1}s: {2}'
+                            .format(regex, type_str, exception.message))
+                continue
+
+            result.append((compiled_regex, parse_callback(group_config[1].split(','))))
 
     return result
 

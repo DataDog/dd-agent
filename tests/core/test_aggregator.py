@@ -89,7 +89,7 @@ class TestMetricsAggregator(unittest.TestCase):
         stats = MetricsAggregator(
             'myhost',
             interval=10,
-            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+            histogram_aggregates=[(None, DEFAULT_HISTOGRAM_AGGREGATES+['min'])]
         )
         for i in range(5):
             stats.submit_packets('h1:1|h')
@@ -355,7 +355,7 @@ class TestMetricsAggregator(unittest.TestCase):
         # The min is not enabled by default
         stats = MetricsAggregator(
             'myhost',
-            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+            histogram_aggregates=[(None, DEFAULT_HISTOGRAM_AGGREGATES+['min'])]
         )
 
         # Sample all numbers between 1-100 many times. This
@@ -390,7 +390,7 @@ class TestMetricsAggregator(unittest.TestCase):
         # The min is not enabled by default
         stats = MetricsAggregator(
             'myhost',
-            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+            histogram_aggregates=[(None, DEFAULT_HISTOGRAM_AGGREGATES+['min'])]
         )
         stats.submit_packets('sampled.hist:5|h|@0.5')
 
@@ -423,13 +423,13 @@ class TestMetricsAggregator(unittest.TestCase):
         # The min is not enabled by default
         stats = MetricsAggregator(
             'host',
-            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+            histogram_aggregates=[(None, DEFAULT_HISTOGRAM_AGGREGATES+['min'])]
         )
         stats.submit_packets('test_hist:0.3|ms:2.5|ms|@0.5:3|ms')
 
         stats_ref = MetricsAggregator(
             'host',
-            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+            histogram_aggregates=[(None, DEFAULT_HISTOGRAM_AGGREGATES+['min'])]
         )
         packets = [
             'test_hist:0.3|ms',
@@ -471,13 +471,13 @@ class TestMetricsAggregator(unittest.TestCase):
         # The min is not enabled by default
         stats = MetricsAggregator(
             'host',
-            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+            histogram_aggregates=[(None, DEFAULT_HISTOGRAM_AGGREGATES+['min'])]
         )
         stats.submit_packets('test_metric:1.5|c|#tag1:one,tag2:two:2.3|g|#tag3:three:3|g:42|h|#tag1:12,tag42:42|@0.22')
 
         stats_ref = MetricsAggregator(
             'host',
-            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+            histogram_aggregates=[(None, DEFAULT_HISTOGRAM_AGGREGATES+['min'])]
         )
         packets = [
             'test_metric:1.5|c|#tag1:one,tag2:two',
@@ -530,7 +530,7 @@ class TestMetricsAggregator(unittest.TestCase):
             'myhost',
             interval=ag_interval,
             expiry_seconds=expiry,
-            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+            histogram_aggregates=[(None, DEFAULT_HISTOGRAM_AGGREGATES+['min'])]
         )
         stats.submit_packets('test.counter:123|c')
         stats.submit_packets('test.gauge:55|g')
@@ -792,7 +792,7 @@ class TestMetricsAggregator(unittest.TestCase):
         stats = MetricsAggregator(
             'myhost',
             recent_point_threshold=threshold,
-            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+            histogram_aggregates=[(None, DEFAULT_HISTOGRAM_AGGREGATES+['min'])]
         )
         timestamp_beyond_threshold = time.time() - threshold*2
         timestamp_within_threshold = time.time() - threshold/2
