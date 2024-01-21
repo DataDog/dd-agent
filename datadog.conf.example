@@ -68,7 +68,7 @@ api_key:
 
 # use unique hostname for GCE hosts, see http://dtdg.co/2h3Bjpd
 # when not specified, default: no
-gce_updated_hostname: yes
+# gce_updated_hostname: no
 
 # when using OpenStack, use the instance's "uuid"
 # the OpenStack instance-id can be recycled but the uuid is not
