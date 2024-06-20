@@ -95,7 +95,8 @@ fi
 # DATADOG_APT_KEY_382E94DE.public expires in 2022
 # DATADOG_APT_KEY_F14F620E.public expires in 2032
 # DATADOG_APT_KEY_C0962C7D.public expires in 2028
-APT_GPG_KEYS=("DATADOG_APT_KEY_CURRENT.public" "DATADOG_APT_KEY_C0962C7D.public" "DATADOG_APT_KEY_F14F620E.public" "DATADOG_APT_KEY_382E94DE.public")
+# DATADOG_APT_KEY_06462314.public expires in 2033
+APT_GPG_KEYS=("DATADOG_APT_KEY_CURRENT.public" "DATADOG_APT_KEY_06462314.public" "DATADOG_APT_KEY_C0962C7D.public" "DATADOG_APT_KEY_F14F620E.public" "DATADOG_APT_KEY_382E94DE.public")
 
 # OS/Distro Detection
 # Try lsb_release, fallback with /etc/issue then uname command
