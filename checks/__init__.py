@@ -293,7 +293,7 @@ class Check(object):
 
 
 class AgentCheck(object):
-    OK, WARNING, CRITICAL, UNKNOWN = (0, 1, 2, 3)
+    OK, WARNING, CRITICAL, UNKNOWN, MAINTENANCE = (0, 1, 2, 3, 4)
 
     SOURCE_TYPE_NAME = None
 
