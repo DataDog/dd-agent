@@ -232,16 +232,27 @@ class Histogram(Metric):
         self.name = name
         self.count = 0
         self.samples = []
-        self.aggregates = extra_config['aggregates'] if\
-            extra_config is not None and extra_config.get('aggregates') is not None\
-            else DEFAULT_HISTOGRAM_AGGREGATES
-        self.percentiles = extra_config['percentiles'] if\
-            extra_config is not None and extra_config.get('percentiles') is not None\
-            else DEFAULT_HISTOGRAM_PERCENTILES
+        self.aggregates = self._extract_relevant_config(extra_config, 'aggregates',
+                                                        DEFAULT_HISTOGRAM_AGGREGATES)
+        self.percentiles = self._extract_relevant_config(extra_config, 'percentiles',
+                                                         DEFAULT_HISTOGRAM_PERCENTILES)
         self.tags = tags
         self.hostname = hostname
         self.device_name = device_name
         self.last_sample_time = None
+
+    def _extract_relevant_config(self, extra_config, key, default):
+        if extra_config is None or extra_config.get(key) is None:
+            return default
+
+        # let's try and see if we have a regex matching our name
+        for regex, config in extra_config[key]:
+            if regex is None:
+                default = config
+            elif regex.search(self.name):
+                return config
+
+        return default
 
     def sample(self, value, sample_rate, timestamp=None):
         self.count += int(1 / sample_rate)
