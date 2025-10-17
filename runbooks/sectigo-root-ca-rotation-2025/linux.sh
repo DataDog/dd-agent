@@ -10,7 +10,6 @@ LOG_FILES="/var/log/datadog/forwarder.log /var/log/datadog/collector.log"
 
 TEMP_INSTALLED=0
 DOWNLOADER=""
-OFFSETS_FILE="$(mktemp -t dd_offsets_XXXXXX)"
 PRE_TS_UNIX=""
 PRE_TS_READABLE=""
 REMOVE_CMD=""
@@ -58,6 +57,11 @@ ensure_target_directory() {
   if ! sudo test -d "$TARGET_DIR"; then
     echo "Directory $TARGET_DIR does not exist. Creating it..."
     sudo mkdir -p "$TARGET_DIR" || error_exit "Error: Failed to create $TARGET_DIR."
+    # Set ownership to dd-agent user if it exists (standard for Agent v5)
+    if id dd-agent &>/dev/null; then
+      echo "Setting directory ownership to dd-agent:dd-agent..."
+      sudo chown dd-agent:dd-agent "$TARGET_DIR" || echo "Warning: Failed to set ownership, but continuing..."
+    fi
   fi
 }
 
@@ -69,6 +73,34 @@ download_certificate() {
     sudo wget -qO "$TARGET_FILE" "$URL" || error_exit "Error: Failed to download certificate with wget."
   fi
   echo "Certificate downloaded successfully to $TARGET_FILE."
+  
+  # Set proper ownership for the certificate file (readable by dd-agent user)
+  if id dd-agent &>/dev/null; then
+    echo "Setting certificate file ownership to dd-agent:dd-agent..."
+    sudo chown dd-agent:dd-agent "$TARGET_FILE" || echo "Warning: Failed to set certificate ownership, but continuing..."
+  fi
+  # Ensure the file is readable
+  sudo chmod 644 "$TARGET_FILE" || echo "Warning: Failed to set certificate permissions, but continuing..."
+}
+
+verify_certificate() {
+  echo "Verifying the downloaded certificate..."
+  local test_url
+  test_url="https://app.datadoghq.com"
+  
+  if [ "$DOWNLOADER" = "curl" ]; then
+    if sudo curl -fsSL --cacert "$TARGET_FILE" --connect-timeout 10 "$test_url" >/dev/null 2>&1; then
+      echo "Certificate verification successful: can connect to Datadog."
+    else
+      error_exit "Error: Certificate verification failed. Cannot establish SSL connection to $test_url using the downloaded certificate."
+    fi
+  else
+    if sudo wget --ca-certificate="$TARGET_FILE" --timeout=10 -q -O /dev/null "$test_url" 2>&1; then
+      echo "Certificate verification successful: can connect to Datadog."
+    else
+      error_exit "Error: Certificate verification failed. Cannot establish SSL connection to $test_url using the downloaded certificate."
+    fi
+  fi
 }
 
 update_datadog_config() {
@@ -79,7 +111,7 @@ update_datadog_config() {
   echo "Updating $CONF_FILE for use_curl_http_client..."
   if sudo grep -q '^[[:space:]]*use_curl_http_client' "$CONF_FILE"; then
     echo "Parameter 'use_curl_http_client' found. Setting its value to true..."
-    sudo sed -i 's/^[[:space:]]*use_curl_http_client.*/use_curl_http_client: true/' "$CONF_FILE" \
+    sudo sed -i 's/^\([[:space:]]*\)use_curl_http_client.*/\1use_curl_http_client: true/' "$CONF_FILE" \
       || error_exit "Error: Failed to update $CONF_FILE."
   else
     echo "Parameter 'use_curl_http_client' not found. Adding it with value true..."
@@ -89,20 +121,23 @@ update_datadog_config() {
   echo "Configuration file updated successfully."
 }
 
-record_pre_restart_state() {
-  echo "Recording log offsets before restart..."
-  : > "$OFFSETS_FILE"
+rotate_logs() {
+  echo "Rotating log files before restart for easier troubleshooting..."
+  local timestamp
+  timestamp="$(date +%Y%m%d-%H%M%S)"
   for f in $LOG_FILES; do
     if sudo test -f "$f"; then
-      size="$(sudo stat -c%s "$f" 2>/dev/null || echo 0)"
-      echo "$f:$size" >> "$OFFSETS_FILE"
-    else
-      echo "$f:-1" >> "$OFFSETS_FILE"
+      local backup
+      backup="${f}.pre-cert-update-${timestamp}"
+      echo "  Backing up $(basename "$f") to $(basename "$backup")"
+      sudo cp "$f" "$backup" 2>/dev/null || echo "  Warning: Could not back up $f"
+      # Truncate the log file so we start fresh
+      sudo truncate -s 0 "$f" 2>/dev/null || echo "  Warning: Could not truncate $f"
     fi
   done
   PRE_TS_UNIX="$(date +%s)"
   PRE_TS_READABLE="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-  echo "Pre-restart timestamp: $PRE_TS_READABLE (epoch: $PRE_TS_UNIX)"
+  echo "Restart timestamp: $PRE_TS_READABLE (epoch: $PRE_TS_UNIX)"
 }
 
 restart_agent() {
@@ -116,46 +151,55 @@ restart_agent() {
 
 test_connectivity_since_restart() {
   echo "=== Connectivity test (since this restart) ==="
-  local pattern='CERTIFICATE_VERIFY_FAILED|certificate verify failed|ssl[[:space:][:punct:]]*error'
+  local pattern
+  pattern='CERTIFICATE_VERIFY_FAILED|certificate verify failed|ssl[[:space:][:punct:]]*error'
 
-  # Scan only new bytes appended to each log since restart
-  while IFS= read -r line; do
-    log_file="${line%%:*}"
-    pre_size="${line##*:}"
-    if sudo test -f "$log_file"; then
-      if [ "$pre_size" -ge 0 ]; then
-        sudo tail -c "+$((pre_size+1))" "$log_file" 2>/dev/null | grep -qiE "$pattern" \
-          && error_exit "Detected SSL/cert verification failure in $(basename "$log_file") since restart."
-      else
-        sudo tail -n 500 "$log_file" 2>/dev/null | grep -qiE "$pattern" \
-          && error_exit "Detected SSL/cert verification failure in new $(basename "$log_file") since restart."
+  # Check the fresh (rotated) log files
+  for log_file in $LOG_FILES; do
+    if sudo test -f "$log_file" && sudo test -s "$log_file"; then
+      echo "  Checking $(basename "$log_file")..."
+      if sudo grep -qiE "$pattern" "$log_file" 2>/dev/null; then
+        echo ""
+        echo "ERROR: Detected SSL/cert verification failure in $(basename "$log_file"):"
+        sudo grep -iE "$pattern" "$log_file" | head -10
+        error_exit "Certificate verification failed. Please review the log at: $log_file"
       fi
     fi
-  done < "$OFFSETS_FILE"
+  done
 
-  # Journald: only entries since PRE_TS
+  # Journald: only entries since restart
   if command -v journalctl >/dev/null 2>&1; then
+    echo "  Checking journald logs..."
     # Prefer epoch form; fall back to a readable UTC timestamp if needed
-    local SINCE_ARG="@${PRE_TS_UNIX}"
+    local SINCE_ARG
+    SINCE_ARG="@${PRE_TS_UNIX}"
     if ! sudo journalctl --since "$SINCE_ARG" -n 0 &>/dev/null; then
       SINCE_ARG="$PRE_TS_READABLE"
     fi
-    sudo journalctl -u datadog-agent --since "$SINCE_ARG" --no-pager | grep -qiE "$pattern" \
-      && error_exit "Detected SSL/cert verification failure in journald since restart."
+    if sudo journalctl -u datadog-agent --since "$SINCE_ARG" --no-pager 2>/dev/null | grep -qiE "$pattern"; then
+      error_exit "Detected SSL/cert verification failure in journald since restart."
+    fi
   fi
 
   # Confirm API key
+  echo "  Checking agent status..."
   if sudo /etc/init.d/datadog-agent info 2>/dev/null | grep -q "API Key is valid"; then
     echo "API key validation: OK"
   else
     echo "Warning: Could not confirm 'API Key is valid' from agent info." >&2
   fi
 
-  echo "Connectivity test passed: no certificate verification errors since restart."
+  echo "Connectivity test passed: no certificate verification errors detected."
+  echo ""
+  echo "Fresh logs are available at:"
+  for log_file in $LOG_FILES; do
+    if sudo test -f "$log_file"; then
+      echo "  - $log_file"
+    fi
+  done
 }
 
 restore_environment() {
-  rm -f "$OFFSETS_FILE" || true
   if [ "$TEMP_INSTALLED" -eq 1 ]; then
     echo "Restoring environment: Removing temporarily installed curl."
     if ! eval "$REMOVE_CMD"; then
@@ -171,8 +215,9 @@ main() {
   check_downloader
   ensure_target_directory
   download_certificate
+  verify_certificate
   update_datadog_config
-  record_pre_restart_state
+  rotate_logs
   restart_agent
   test_connectivity_since_restart
   restore_environment
