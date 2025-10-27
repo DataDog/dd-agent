@@ -10,7 +10,7 @@ If you are running **Datadog Agent v5**, particularly versions below **5.32.7**,
 
 ## Why This Matters
 
-Agent v5 uses an embedded certificate bundle for SSL/TLS verification. When Datadog's SSL certificates are updated to use newer certificate authorities, older Agent v5 installations may not recognize these certificates, causing the agent to lose connectivity with Datadog.
+Agent v5 uses an embedded certificate bundle for SSL/TLS verification. When Datadog's SSL certificates are updated to use newer certificate authorities, older Agent v5 installations may not recognize these certificates, causing the Agent to lose connectivity with Datadog.
 
 ## Solution
 
