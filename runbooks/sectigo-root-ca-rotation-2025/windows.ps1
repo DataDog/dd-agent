@@ -61,7 +61,12 @@ function Ensure-Directory {
 }
 
 function Enable-Tls12 {
-    try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
+    try { 
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 
+    } 
+    catch { 
+        Write-Warning "Could not enable TLS 1.2: $($_.Exception.Message). Continuing anyway..."
+    }
 }
 
 function Download-Certificate {
@@ -135,7 +140,7 @@ function Update-DatadogConfig {
     $filtered += 'use_curl_http_client: true'
     $updated = (($filtered -join "`r`n") + "`r`n")
 
-    try { $updated | Set-Content -LiteralPath $ConfFile -Encoding ASCII }
+    try { $updated | Set-Content -LiteralPath $ConfFile -Encoding UTF8 }
     catch { Error-Exit "Error: Failed to update $ConfFile. $($_.Exception.Message)" }
 
     Write-Host "Configuration file updated successfully. Backup saved to $backup"
@@ -146,19 +151,19 @@ function Restart-Agent {
     Write-Host "Restarting the Datadog Agent..."
     $restarted = $false
     foreach ($name in $ServiceNames) {
-        try {
-            $svc = Get-Service -Name $name -ErrorAction SilentlyContinue
-            if ($svc) {
+        $svc = Get-Service -Name $name -ErrorAction SilentlyContinue
+        if ($svc) {
+            try {
                 Restart-Service -Name $name -Force -ErrorAction Stop
                 $restarted = $true
                 break
             }
-        }
-        catch {
-            Write-Warning "Failed to restart service '$name': $($_.Exception.Message)"
+            catch {
+                Error-Exit "Error: Failed to restart service '$name': $($_.Exception.Message)"
+            }
         }
     }
-    if (-not $restarted) { Error-Exit "Error: Failed to restart the Datadog Agent (service not found or restart failed)." }
+    if (-not $restarted) { Error-Exit "Error: Failed to restart the Datadog Agent (service not found)." }
     Write-Host "Waiting $WaitSeconds seconds for the Datadog Agent to restart..."
     Start-Sleep -Seconds $WaitSeconds
 }
