@@ -17,7 +17,7 @@ Agent v5 uses an embedded certificate bundle for SSL/TLS verification. When Data
 This runbook provides automated scripts for both Linux and Windows that will:
 
 1. Download and install an updated certificate bundle
-2. Configure the agent to use your operating system's certificate store as a fallback
+2. Configure the Agent to use your operating system's certificate store as a fallback
 3. Restart the agent and verify connectivity
 
 ## Available Scripts
@@ -133,7 +133,7 @@ Get-Service DatadogAgent
 If certificate errors persist after running the script:
 
 1. Verify your operating system is receiving security updates
-2. Check the agent logs for detailed error messages:
+2. Check the Agent logs for detailed error messages:
    - Linux: `/var/log/datadog/forwarder.log` and `/var/log/datadog/collector.log`
    - Windows: `C:\ProgramData\Datadog\logs\forwarder.log` and `collector.log`
 3. Contact Datadog Support with the script output and log excerpts
@@ -145,13 +145,13 @@ If certificate errors persist after running the script:
 
 ## Verification
 
-After running the script, verify your agent is reporting metrics:
+After running the script, verify your Agent is reporting metrics:
 
 1. Wait 2-3 minutes for data to appear
 2. Check your host in the Datadog Infrastructure List
 3. Verify the "Last Seen" timestamp is recent
 
-You can also manually check agent status:
+You can also manually check the Agent status:
 
 **Linux**:
 
@@ -167,14 +167,14 @@ sudo /etc/init.d/datadog-agent info
 
 ## Long-Term Recommendation
 
-While this runbook provides a working solution, **we strongly recommend upgrading to Datadog Agent v6 or v7**:
+While this runbook provides a working solution, **Datadog strongly recommends upgrading to Datadog Agent v6 or v7** to benefit from:
 
 - Automatic certificate management (no manual intervention needed)
 - Ongoing security updates and bug fixes
 - Improved performance and new features
 - Long-term support
 
-Agent v5 reached end-of-life and no longer receives updates. For migration guidance, visit the [Datadog documentation](https://docs.datadoghq.com/agent/).
+Agent v5 reached end-of-life and no longer receives updates. For migration guidance, visit the [Datadog documentation](https://docs.datadoghq.com/agent/guide/upgrade_agent_fleet_automation).
 
 ## Support
 
@@ -183,7 +183,7 @@ If you encounter issues running this runbook or continue experiencing connectivi
 1. Your Agent version
 2. Operating system and version
 3. Complete output from the script
-4. Recent agent log excerpts showing any errors
+4. Recent Agent log excerpts showing any errors
 
 ## Additional Information
 
