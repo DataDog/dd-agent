@@ -18,7 +18,7 @@ This runbook provides automated scripts for both Linux and Windows that will:
 
 1. Download and install an updated certificate bundle
 2. Configure the Agent to use your operating system's certificate store as a fallback
-3. Restart the agent and verify connectivity
+3. Restart the Agent and verify connectivity
 
 ## Available Scripts
 
