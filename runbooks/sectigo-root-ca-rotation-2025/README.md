@@ -64,7 +64,7 @@ Both scripts perform the following steps automatically:
 
 1. **Download Updated Certificate**: Fetches the latest Datadog certificate bundle
 2. **Install Certificate**: Places the certificate in the correct location for your Agent installation
-3. **Update Configuration**: Enables `use_curl_http_client: true` in your datadog.conf to allow the agent to use OS-provided certificates
+3. **Update Configuration**: Enables `use_curl_http_client: true` in your datadog.conf to allow the Agent to use OS-provided certificates
 4. **Restart Agent**: Restarts the Datadog Agent to apply changes
 5. **Verify Connectivity**: Checks logs for certificate errors and confirms API key validation
 
