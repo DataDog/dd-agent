@@ -2,7 +2,39 @@
    - Auto-detects v5 cert path (handles <=5.11 vs >=5.12, 32/64-bit)
    - Forces TLS 1.2, downloads cert, updates use_curl_http_client: true (deduped)
    - Restarts Agent, checks logs only since this restart
+
+.PARAMETER AgentDirectory
+   Custom Datadog Agent installation directory. If not specified, auto-detects standard paths.
+
+.EXAMPLE
+   .\windows.ps1
+   
+.EXAMPLE
+   .\windows.ps1 -AgentDirectory "D:\Custom\Datadog Agent"
+   
+.EXAMPLE
+   .\windows.ps1 -p "D:\Custom\Datadog Agent"
 #>
+
+param(
+    [Alias("p")]
+    [string]$AgentDirectory = ""
+)
+
+# -------------------------- Configuration ---------------------------
+$CERT_URL = "https://raw.githubusercontent.com/DataDog/dd-agent/master/datadog-cert.pem"
+$RESTART_WAIT_SECONDS = 30
+
+# CUSTOM INSTALLATION PATH (optional)
+# If you have a custom Datadog Agent installation directory, set it here.
+# Leave empty for auto-detection of standard paths.
+# Command-line parameter takes precedence.
+$CUSTOM_DD_AGENT_DIR = if ($AgentDirectory) { $AgentDirectory } else { "" }
+
+# CUSTOM CONFIG/LOG PATHS (optional)
+# Leave empty for default paths.
+$CUSTOM_DD_CONFIG_FILE = ""
+$CUSTOM_DD_LOG_DIR = ""
 
 # ------------------------------ Helpers ------------------------------
 function Error-Exit {
@@ -26,6 +58,17 @@ function Assert-Admin {
 
 # -------------------------- Path discovery --------------------------
 function Get-DdV5-CertPath {
+    if ($CUSTOM_DD_AGENT_DIR) {
+        # Customer specified a custom path
+        if (Test-Path "$CUSTOM_DD_AGENT_DIR\agent") {
+            return "$CUSTOM_DD_AGENT_DIR\agent\datadog-cert.pem"
+        }
+        else {
+            return "$CUSTOM_DD_AGENT_DIR\files\datadog-cert.pem"
+        }
+    }
+    
+    # Auto-detect standard paths
     $is64 = [Environment]::Is64BitOperatingSystem
     if ($is64) {
         if (Test-Path "C:\Program Files\Datadog\Datadog Agent\agent") {
@@ -41,11 +84,15 @@ function Get-DdV5-CertPath {
 }
 
 function Get-DdV5-ServiceNames { @("DatadogAgent", "datadogagent") }
-function Get-DdV5-ConfigFile { "C:\ProgramData\Datadog\datadog.conf" }
+
+function Get-DdV5-ConfigFile { 
+    if ($CUSTOM_DD_CONFIG_FILE) { return $CUSTOM_DD_CONFIG_FILE }
+    return "C:\ProgramData\Datadog\datadog.conf"
+}
 
 function Get-DdV5-LogFiles {
-    $base = 'C:\ProgramData\Datadog\logs'
-    $candidates = @("$base\forwarder.log", "$base\collector.log", "$base\agent.log")
+    $logDir = if ($CUSTOM_DD_LOG_DIR) { $CUSTOM_DD_LOG_DIR } else { "C:\ProgramData\Datadog\logs" }
+    $candidates = @("$logDir\forwarder.log", "$logDir\collector.log", "$logDir\agent.log")
     $existing = @()
     foreach ($p in $candidates) { if (Test-Path -LiteralPath $p) { $existing += $p } }
     if (@($existing).Count -gt 0) { return $existing } else { return $candidates }
@@ -218,10 +265,20 @@ function Test-ConnectivitySinceRestart {
 
     # Best-effort agent info check (paths vary on v5; try a couple)
     Write-Host "  Checking agent status..."
-    $agentInfoPaths = @(
-        "C:\Program Files\Datadog\Datadog Agent\agent.exe",
-        "C:\Program Files\Datadog\Datadog Agent\embedded\agent.exe"
-    )
+    if ($CUSTOM_DD_AGENT_DIR) {
+        $agentInfoPaths = @(
+            "$CUSTOM_DD_AGENT_DIR\agent.exe",
+            "$CUSTOM_DD_AGENT_DIR\embedded\agent.exe"
+        )
+    }
+    else {
+        $agentInfoPaths = @(
+            "C:\Program Files\Datadog\Datadog Agent\agent.exe",
+            "C:\Program Files\Datadog\Datadog Agent\embedded\agent.exe",
+            "C:\Program Files (x86)\Datadog\Datadog Agent\agent.exe",
+            "C:\Program Files (x86)\Datadog\Datadog Agent\embedded\agent.exe"
+        )
+    }
     $infoOk = $false
     foreach ($p in $agentInfoPaths) {
         if (Test-Path -LiteralPath $p) {
@@ -255,19 +312,17 @@ try {
     $ConfFile = Get-DdV5-ConfigFile
     $LogFiles = Get-DdV5-LogFiles
     $ServiceNames = Get-DdV5-ServiceNames
-    $WaitSeconds = 30
-    $Url = "https://raw.githubusercontent.com/DataDog/dd-agent/master/datadog-cert.pem"
 
     Write-Host "Using certificate path: $TargetFile"
     Ensure-Directory $TargetDir
-    Download-Certificate -Url $Url -TargetFile $TargetFile
+    Download-Certificate -Url $CERT_URL -TargetFile $TargetFile
     Test-Certificate -CertFile $TargetFile
     Update-DatadogConfig -ConfFile $ConfFile
 
     # Rotate logs before restart for easier troubleshooting
     $RestartInfo = Rotate-Logs -LogFiles $LogFiles
 
-    Restart-Agent -ServiceNames $ServiceNames -WaitSeconds $WaitSeconds
+    Restart-Agent -ServiceNames $ServiceNames -WaitSeconds $RESTART_WAIT_SECONDS
 
     $ErrorPattern = [regex]'(?i)CERTIFICATE_VERIFY_FAILED|certificate verify failed|ssl[\s\p{P}]*error'
     Test-ConnectivitySinceRestart -LogFiles $LogFiles -ErrorPattern $ErrorPattern

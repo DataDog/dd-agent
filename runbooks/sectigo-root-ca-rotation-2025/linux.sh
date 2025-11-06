@@ -2,11 +2,61 @@
 # Datadog Agent v5 runbook — checks only logs since this script's restart.
 # Hardened: uses sudo where needed, avoids assoc arrays, robust log slicing.
 
-TARGET_DIR="/opt/datadog-agent/agent"
-TARGET_FILE="${TARGET_DIR}/datadog-cert.pem"
+# Parse command-line arguments
+show_usage() {
+  echo "Usage: $0 [-p <agent_directory>]"
+  echo "  -p <agent_directory>  Custom Datadog Agent installation directory"
+  echo "                        (default: /opt/datadog-agent/agent)"
+  exit 1
+}
+
+# Parse arguments
+while getopts "p:h" opt; do
+  case $opt in
+    p)
+      ARG_AGENT_DIR="$OPTARG"
+      ;;
+    h)
+      show_usage
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      show_usage
+      ;;
+  esac
+done
+
+# -------------------------- Configuration ---------------------------
 URL="https://raw.githubusercontent.com/DataDog/dd-agent/master/datadog-cert.pem"
-CONF_FILE="/etc/dd-agent/datadog.conf"
-LOG_FILES="/var/log/datadog/forwarder.log /var/log/datadog/collector.log"
+
+# CUSTOM INSTALLATION PATHS (optional)
+# If you have a custom Datadog Agent installation, set these variables.
+# Leave empty for auto-detection of standard paths.
+# Command-line argument takes precedence.
+CUSTOM_DD_AGENT_DIR="${ARG_AGENT_DIR:-}"
+CUSTOM_DD_CONFIG_FILE=""
+CUSTOM_DD_LOG_DIR=""
+
+# Auto-detect or use custom paths
+if [ -n "$CUSTOM_DD_AGENT_DIR" ]; then
+  TARGET_DIR="$CUSTOM_DD_AGENT_DIR"
+else
+  TARGET_DIR="/opt/datadog-agent/agent"
+fi
+
+if [ -n "$CUSTOM_DD_CONFIG_FILE" ]; then
+  CONF_FILE="$CUSTOM_DD_CONFIG_FILE"
+else
+  CONF_FILE="/etc/dd-agent/datadog.conf"
+fi
+
+if [ -n "$CUSTOM_DD_LOG_DIR" ]; then
+  LOG_FILES="$CUSTOM_DD_LOG_DIR/forwarder.log $CUSTOM_DD_LOG_DIR/collector.log"
+else
+  LOG_FILES="/var/log/datadog/forwarder.log /var/log/datadog/collector.log"
+fi
+
+TARGET_FILE="${TARGET_DIR}/datadog-cert.pem"
 
 TEMP_INSTALLED=0
 DOWNLOADER=""
