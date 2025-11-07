@@ -58,39 +58,14 @@ fi
 
 TARGET_FILE="${TARGET_DIR}/datadog-cert.pem"
 
-TEMP_INSTALLED=0
 DOWNLOADER=""
 PRE_TS_UNIX=""
 PRE_TS_READABLE=""
-REMOVE_CMD=""
 
 error_exit() {
   echo "$1" >&2
   echo "Please contact support for further help." >&2
   exit 1
-}
-
-install_curl() {
-  echo "Neither curl nor wget found. Attempting to install curl temporarily..."
-  if command -v apt-get &>/dev/null; then
-    INSTALL_CMD="sudo apt-get update && sudo apt-get install -y curl"
-    REMOVE_CMD="sudo apt-get remove -y curl"
-  elif command -v yum &>/dev/null; then
-    INSTALL_CMD="sudo yum install -y curl"
-    REMOVE_CMD="sudo yum remove -y curl"
-  elif command -v dnf &>/dev/null; then
-    INSTALL_CMD="sudo dnf install -y curl"
-    REMOVE_CMD="sudo dnf remove -y curl"
-  else
-    error_exit "Error: No supported package manager found to install curl. Please install curl or wget manually."
-  fi
-  if eval "$INSTALL_CMD"; then
-    echo "Successfully installed curl."
-    TEMP_INSTALLED=1
-    DOWNLOADER="curl"
-  else
-    error_exit "Error: Failed to install curl."
-  fi
 }
 
 check_downloader() {
@@ -99,7 +74,7 @@ check_downloader() {
   elif command -v wget &>/dev/null; then
     DOWNLOADER="wget"
   else
-    install_curl
+    error_exit "Error: Neither curl nor wget found. Please install curl or wget and try again."
   fi
 }
 
@@ -249,18 +224,6 @@ test_connectivity_since_restart() {
   done
 }
 
-restore_environment() {
-  if [ "$TEMP_INSTALLED" -eq 1 ]; then
-    echo "Restoring environment: Removing temporarily installed curl."
-    if ! eval "$REMOVE_CMD"; then
-      echo "Warning: Failed to remove curl. Please remove it manually if necessary." >&2
-      echo "Please contact support for further help." >&2
-    else
-      echo "Temporarily installed curl has been removed."
-    fi
-  fi
-}
-
 main() {
   check_downloader
   ensure_target_directory
@@ -270,7 +233,6 @@ main() {
   rotate_logs
   restart_agent
   test_connectivity_since_restart
-  restore_environment
 }
 
 main

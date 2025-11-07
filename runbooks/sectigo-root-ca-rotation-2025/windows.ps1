@@ -187,7 +187,7 @@ function Update-DatadogConfig {
     $filtered += 'use_curl_http_client: true'
     $updated = (($filtered -join "`r`n") + "`r`n")
 
-    try { $updated | Set-Content -LiteralPath $ConfFile -Encoding UTF8 }
+    try { [System.IO.File]::WriteAllText($ConfFile, $updated, (New-Object System.Text.UTF8Encoding($false))) }
     catch { Error-Exit "Error: Failed to update $ConfFile. $($_.Exception.Message)" }
 
     Write-Host "Configuration file updated successfully. Backup saved to $backup"
