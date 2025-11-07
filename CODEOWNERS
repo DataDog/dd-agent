@@ -1,0 +1,5 @@
+# CODEOWNERS file for dd-agent repository
+
+# Sectigo root CA rotation runbooks
+/runbooks/sectigo-root-ca-rotation-2025/ @DataDog/agent-build-and-releases @DataDog/agent-runtimes @DataDog/Documentation
+

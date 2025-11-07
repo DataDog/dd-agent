@@ -31,8 +31,8 @@ pull request.
 
 Required:
 
-* python 2.7
-* bundler (to get it: `gem install bundler`)
+- python 2.7
+- bundler (to get it: `gem install bundler`)
 
 ```
 # Clone the repository
@@ -79,3 +79,7 @@ how to use it on our [Guide to Agent Checks](http://docs.datadoghq.com/guides/ag
 ```bash
 git log --all | grep 'Author' | sort -u
 ```
+
+## Certificate Update for Agent v5
+
+If you're experiencing connectivity issues with Agent v5 due to SSL certificate verification failures, we've provided automated runbooks to help resolve this. See the [runbooks directory](runbooks/sectigo-root-ca-rotation-2025/) for step-by-step instructions for both Linux and Windows.
