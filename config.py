@@ -1234,12 +1234,9 @@ def load_check_directory(agentConfig, hostname):
     agentConfig['checksd_hostname'] = hostname
     osname = get_os()
 
-    # the TRACE_CONFIG flag is used by the configcheck to trace config object loading and
-    # where they come from (service discovery, auto config or config file)
-    if agentConfig.get(TRACE_CONFIG):
-        configs_and_sources = {
-            # check_name: (config_source, config)
-        }
+    configs_and_sources = {
+        # check_name: [ (config_source, config), ... ]
+    }
 
     deprecated_checks.update(_deprecated_configs(agentConfig))
 
@@ -1254,31 +1251,40 @@ def load_check_directory(agentConfig, hostname):
         if not conf_is_valid:
             continue
 
-        if agentConfig.get(TRACE_CONFIG):
-            configs_and_sources[check_name] = (CONFIG_FROM_FILE, check_config)
-
-        # load the check
-        load_success, load_failure = load_check_from_places(check_config, check_name, checks_places, agentConfig)
-
-        initialized_checks.update(load_success)
-        init_failed_checks.update(load_failure)
+        configs_and_sources[check_name] = [ (CONFIG_FROM_FILE, check_config) ]
 
     for check_name, service_disco_check_config in _service_disco_configs(agentConfig).iteritems():
-        # ignore this config from service disco if the check has been loaded through a file config
-        if check_name in initialized_checks or \
-                check_name in init_failed_checks or \
-                check_name in JMX_CHECKS:
-            continue
-
         sd_init_config, sd_instances = service_disco_check_config[1]
-        if agentConfig.get(TRACE_CONFIG):
-            configs_and_sources[check_name] = (
+
+        # If a container or other discovered source wants to use the same check
+        # as defined in a file, append it to the instance list.
+        # The init_config will be from the first instance found, whether that's
+        # a file or the first container seen.
+        if configs_and_sources.get(check_name) is None:
+            configs_and_sources[check_name] = [ (
                 service_disco_check_config[0],
-                {'init_config': sd_init_config, 'instances': sd_instances})
+                {'init_config': sd_init_config, 'instances': sd_instances}
+            ) ]
+        else:
+            configs_and_sources[check_name].append( (
+            service_disco_check_config[0],
+            {'init_config': sd_init_config, 'instances': sd_instances}) )
 
-        check_config = {'init_config': sd_init_config, 'instances': sd_instances}
+    # If called from utils/configcheck.py, return the list of checks that were found
+    if agentConfig.get(TRACE_CONFIG):
+        return configs_and_sources
 
-        # load the check
+    # Merge the configs from multiple sources into the first element of each check_name list
+    for check_name, check_configs in configs_and_sources.iteritems():
+        if len(check_configs) > 1:
+            for config in check_configs[1:]:
+                configs_and_sources[check_name][0][1]['instances'].extend(config[1]['instances'])
+            log.warning('Different versions of `init_config` found for check %s. '
+                        'Keeping the first one found.' % check_name)
+
+    # Load the checks
+    for check_name, checks in configs_and_sources.iteritems():
+        check_config = checks[0][1]
         load_success, load_failure = load_check_from_places(check_config, check_name, checks_places, agentConfig)
 
         initialized_checks.update(load_success)
