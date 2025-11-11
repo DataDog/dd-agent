@@ -54,6 +54,9 @@ DEFAULT_CONTAINER_EXCLUDE = [
     "image_name:kubernetes/pause"
 ]
 
+# only used for docer cloud users not willing to monitor the underlying containers of the docker cloud agent.
+DOCKERCLOUD_EXCLUDE = ["docker_image:dockercloud/*"]
+
 log = logging.getLogger(__name__)
 
 
@@ -113,6 +116,10 @@ class DockerUtil:
                 self.filtering_enabled = False
         else:
             self.filtering_enabled = True
+
+        if instance.get('ignore_docker_cloud_containers'):
+            self._exclude = DOCKERCLOUD_EXCLUDE
+            self.filtering_enabled = False
 
         if self.filtering_enabled:
             self.build_filters()
