@@ -1,0 +1,22 @@
+init_config:
+
+instances:
+  # The PowerDNS Authoritative check retrieves metrics from the web server.
+  # See https://doc.powerdns.com/md/httpapi/README/
+  #     https://doc.powerdns.com/md/authoritative/performance/
+  #
+  # This check works with PowerDNS authoritative 4.x.
+
+
+
+  # Host running the name server.
+  - host: 127.0.0.1
+  # name server web server port.
+    port: 8082
+  # name server web server api key.
+    api_key: pdns_api_key
+
+  # Optional tags to be applied to every emitted metric.
+    # tags:
+    #   - key:value
+    #   - instance:production
