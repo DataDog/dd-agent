@@ -222,6 +222,14 @@ case "$1" in
         $0 start
         ;;
 
+    condrestart|try-reload)
+        check_status essential > /dev/null
+        if [ $? -eq 0 ]; then
+            $0 stop
+            $0 start
+        fi
+        ;;
+
     configcheck)
         su $AGENTUSER --shell "/bin/sh" -c "$AGENTPATH configcheck"
         exit $?
