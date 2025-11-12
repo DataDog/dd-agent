@@ -1,4 +1,5 @@
 # stdlib
+import re
 import unittest
 
 # project
@@ -22,7 +23,8 @@ class TestHistogram(unittest.TestCase):
 
         self.assertEquals(
             sorted(value_by_type.keys()),
-            ['95percentile', 'avg', 'count', 'max', 'median'], value_by_type
+            ['95percentile', 'avg', 'count', 'max', 'median'],
+            value_by_type
         )
 
         self.assertEquals(value_by_type['max'], 19, value_by_type)
@@ -40,7 +42,7 @@ class TestHistogram(unittest.TestCase):
 
         self.assertEquals(
             stats.metric_config[Histogram]['percentiles'],
-            [0.40],
+            [(None, [0.40])],
             stats.metric_config[Histogram]
         )
 
@@ -66,7 +68,7 @@ class TestHistogram(unittest.TestCase):
 
         self.assertEquals(
             stats.metric_config[Histogram]['percentiles'],
-            [0.4, 0.65, 0.99],
+            [(None, [0.4, 0.65, 0.99])],
             stats.metric_config[Histogram]
         )
 
@@ -94,7 +96,7 @@ class TestHistogram(unittest.TestCase):
 
         self.assertEquals(
             stats.metric_config[Histogram]['percentiles'],
-            [],
+            [(None, [])],
             stats.metric_config[Histogram]
         )
 
@@ -107,7 +109,7 @@ class TestHistogram(unittest.TestCase):
 
         self.assertEquals(
             stats.metric_config[Histogram]['percentiles'],
-            [],
+            [(None, [])],
             stats.metric_config[Histogram]
         )
 
@@ -120,7 +122,7 @@ class TestHistogram(unittest.TestCase):
 
         self.assertEquals(
             stats.metric_config[Histogram]['percentiles'],
-            [0.8],
+            [(None, [0.8])],
             stats.metric_config[Histogram]
         )
 
@@ -132,8 +134,8 @@ class TestHistogram(unittest.TestCase):
         )
 
         self.assertEquals(
-            sorted(stats.metric_config[Histogram]['aggregates']),
-            ['max', 'median', 'sum'],
+            stats.metric_config[Histogram]['aggregates'],
+            [(None, ['median', 'max', 'sum'])],
             stats.metric_config[Histogram]
         )
 
@@ -152,3 +154,41 @@ class TestHistogram(unittest.TestCase):
         self.assertEquals(value_by_type['max'], 19, value_by_type)
         self.assertEquals(value_by_type['sum'], 190, value_by_type)
         self.assertEquals(value_by_type['95percentile'], 18, value_by_type)
+
+    def test_custom_aggregate_with_regexes(self):
+        configstr = '^my_pre\.fix: median, max, sum; max, median'
+        stats = MetricsAggregator(
+            'myhost',
+            histogram_aggregates=get_histogram_aggregates(configstr)
+        )
+
+        self.assertEquals(
+            stats.metric_config[Histogram]['aggregates'],
+            [(re.compile(r'^my_pre\.fix'), ['median', 'max', 'sum']), (None, ['max', 'median'])],
+            stats.metric_config[Histogram]
+        )
+
+        for i in xrange(20):
+            stats.submit_packets('my_pre.fix_metric:{0}|h'.format(i))
+            stats.submit_packets('not_my_pre.fix_metric:{0}|h'.format(-i))
+
+        metrics = stats.flush()
+
+        self.assertEquals(len(metrics), 7, metrics)
+
+        value_by_type_for_my_prefix = {}
+        value_by_type_for_not_my_prefix = {}
+        for k in metrics:
+            if k['metric'].startswith('my_pre.fix_metric'):
+                value_by_type_for_my_prefix[k['metric'][len('my_pre.fix_metric')+1:]] = k['points'][0][1]
+            else:
+                value_by_type_for_not_my_prefix[k['metric'][len('not_my_pre.fix_metric')+1:]] = k['points'][0][1]
+
+        self.assertEquals(value_by_type_for_my_prefix['median'], 9, value_by_type_for_my_prefix)
+        self.assertEquals(value_by_type_for_my_prefix['max'], 19, value_by_type_for_my_prefix)
+        self.assertEquals(value_by_type_for_my_prefix['sum'], 190, value_by_type_for_my_prefix)
+        self.assertEquals(value_by_type_for_my_prefix['95percentile'], 18, value_by_type_for_my_prefix)
+
+        self.assertEquals(value_by_type_for_not_my_prefix['median'], -10, value_by_type_for_not_my_prefix)
+        self.assertEquals(value_by_type_for_not_my_prefix['max'], 0, value_by_type_for_not_my_prefix)
+        self.assertEquals(value_by_type_for_not_my_prefix['95percentile'], -1, value_by_type_for_not_my_prefix)
