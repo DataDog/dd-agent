@@ -28,7 +28,7 @@ python-consul==0.4.7
 # utils/service_discovery/config_stores.py
 python-etcd==0.4.5
 # the libyaml bindings are optional
-pyyaml==5.3.1
+pyyaml==5.4
 # note: requests is also used in many checks
 # upgrade with caution
 requests==2.20.1
