@@ -35,7 +35,7 @@ requests==2.20.1
 urllib3==1.24.3
 # note: simplejson is used in many checks to inteface APIs
 simplejson==3.6.5
-supervisor==3.3.3
+supervisor==4.3.0
 tornado==3.2.2
 uptime==3.0.1
 prometheus-client==0.1.0
