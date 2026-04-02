@@ -24,15 +24,15 @@ docker-py==1.10.6
 kazoo==2.6.0
 ntplib==0.3.4
 # utils/service_discovery/config_stores.py
-python-consul==0.4.7
+python-consul==1.1.0
 # utils/service_discovery/config_stores.py
 python-etcd==0.4.5
 # the libyaml bindings are optional
 pyyaml==5.3.1
 # note: requests is also used in many checks
 # upgrade with caution
-requests==2.20.1
-urllib3==1.24.3
+requests==2.33.1
+urllib3==2.6.3
 # note: simplejson is used in many checks to inteface APIs
 simplejson==3.6.5
 supervisor==3.3.3
