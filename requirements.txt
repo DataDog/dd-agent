@@ -28,10 +28,10 @@ python-consul==0.4.7
 # utils/service_discovery/config_stores.py
 python-etcd==0.4.5
 # the libyaml bindings are optional
-pyyaml==5.3.1
+pyyaml==5.4.1
 # note: requests is also used in many checks
 # upgrade with caution
-requests==2.20.1
+requests==2.33.1
 urllib3==1.24.3
 # note: simplejson is used in many checks to inteface APIs
 simplejson==3.6.5
