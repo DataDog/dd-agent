@@ -1,0 +1,9 @@
+init_config:
+
+instances:
+    - host: localhost                   #defaults to localhost
+      port: 5038                        #defaults to 5038
+      manager_user: user                #required
+      manager_secret: secret            #required
+
+      #this user needs to have the command write privilege
