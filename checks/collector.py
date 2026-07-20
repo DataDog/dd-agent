@@ -63,7 +63,7 @@ def a7_compatible_to_int(status):
     return 0
 
 
-class AgentPayload(collections.MutableMapping):
+class AgentPayload(collections.abc.MutableMapping):
     """
     AgentPayload offers a single payload interface but manages two payloads:
     * A metadata payload
