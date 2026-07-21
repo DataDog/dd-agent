@@ -51,12 +51,12 @@ def sd_configcheck(agentConfig):
         # Then call load_check_directory here and pass the result to get_sd_configcheck
         # to avoid circular imports
         agentConfig[TRACE_CONFIG] = True
-        configs = {
-            # check_name: (config_source, config)
+        configs_and_sources = {
+            # check_name: [ (config_source, config), ... ]
         }
         print("\nLoading check configurations...\n\n")
-        configs = load_check_directory(agentConfig, get_hostname(agentConfig))
-        get_sd_configcheck(agentConfig, configs)
+        configs_and_sources = load_check_directory(agentConfig, get_hostname(agentConfig))
+        get_sd_configcheck(agentConfig, configs_and_sources)
 
 def agent_container_inspect():
     # Self inspection based on cgroups
@@ -87,13 +87,14 @@ def agent_container_inspect():
         print "Could not inspect container: %s" % e
 
 
-def get_sd_configcheck(agentConfig, configs):
+def get_sd_configcheck(agentConfig, configs_and_sources):
     """Trace how the configuration objects are loaded and from where.
         Also print containers detected by the agent and templates from the config store."""
     print("\nSource of the configuration objects built by the agent:\n")
-    for check_name, config in configs.iteritems():
-        print('Check "%s":\n  source --> %s\n  config --> %s\n' %
-              (check_name, config[0], json.dumps(config[1], indent=2)))
+    for check_name, configs in configs_and_sources:
+        for config in configs:
+            print('Check "%s":\n  source --> %s\n  config --> %s\n' %
+                  (check_name, config[0], json.dumps(config[1], indent=2)))
 
     try:
         print_containers()
