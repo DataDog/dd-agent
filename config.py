@@ -1268,6 +1268,7 @@ def load_check_directory(agentConfig, hostname):
         if check_name in initialized_checks or \
                 check_name in init_failed_checks or \
                 check_name in JMX_CHECKS:
+            log.warning('Ignoring config for service discovery check %s because it was already configured by file.' % check_name)
             continue
 
         sd_init_config, sd_instances = service_disco_check_config[1]
