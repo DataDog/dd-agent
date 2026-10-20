@@ -27,6 +27,15 @@
    Use this when the host cannot reach raw.githubusercontent.com.
    The file is copied in place; no download is attempted.
 
+.PARAMETER DryRunScrub
+   With -ScrubBundles, report what the scrub would change and write nothing.
+   Does not affect the certificate update, which always applies.
+
+.PARAMETER ScrubBundles
+   Also remove the distrusted eMudhra/emSign roots and the Comodo
+   "AAA Certificate Services" cross-signer from the CA bundles shipped inside
+   the Agent package (IR-62343). Off by default.
+
 .EXAMPLE
    .\windows.ps1
 
@@ -35,6 +44,12 @@
 
 .EXAMPLE
    .\windows.ps1 -CertFile "C:\Temp\datadog-cert.pem"
+
+.EXAMPLE
+   .\windows.ps1 -ScrubBundles
+
+.EXAMPLE
+   .\windows.ps1 -ScrubBundles -DryRunScrub
 #>
 
 param(
@@ -42,12 +57,19 @@ param(
     [string]$AgentDirectory = "",
 
     [Alias("c")]
-    [string]$CertFile = ""
+    [string]$CertFile = "",
+
+    [Alias("s")]
+    [switch]$ScrubBundles,
+
+    [Alias("n")]
+    [switch]$DryRunScrub
 )
 
 # -------------------------- Configuration ---------------------------
 $CERT_URL = "https://raw.githubusercontent.com/DataDog/dd-agent/master/datadog-cert.pem"
 $RESTART_WAIT_SECONDS = 30
+$script:ScrubWarning = $false   # set when -ScrubBundles could not complete
 
 $CUSTOM_DD_AGENT_DIR = if ($AgentDirectory) { $AgentDirectory } else { "" }
 $LOCAL_CERT_FILE = if ($CertFile) { $CertFile } else { "" }
@@ -258,6 +280,238 @@ function Test-Certificate {
     }
 }
 
+# ------------------ Distrusted-root scrub (-ScrubBundles) ------------
+# The Agent package ships several CA bundles of its own (certifi, tornado,
+# boto, httplib2, embedded OpenSSL, …). They are independent of the Windows
+# certificate store, so an OS update cannot fix them and Agent v5 has no
+# release vehicle. We delete the distrusted roots in place and guarantee the
+# bundle still carries the anchor the Datadog intake chain terminates in —
+# removing the cross-signer without that anchor would break the Agent.
+#
+# The anchor is pinned by fingerprint. It is NOT "whatever -CertFile happens
+# to contain", or a substituted file would become a trust anchor in every
+# bundle in the install.
+
+# Distrusted following the eMudhra intermediate CA key compromise. The six TLS
+# intermediates are cross-signed by Sectigo's "AAA Certificate Services", so
+# that root has to go too or the cross-signed path still validates.
+$DISTRUSTED_ROOTS = @{
+    "D7A7A0FB5D7E2731D771E9484EBCDEF71D5F0C3E0A2948782BC83EE0EA699EF4" = "AAA Certificate Services";
+    "40F6AF0346A99AA1CD1D555A4E9CCE62C7F9634603EE406615833DC8C8D00367" = "emSign Root CA - G1";
+    "86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B" = "emSign ECC Root CA - G3";
+    "125609AA301DA0A249B97A8239CB6A34216F44DCAC9F3954B14292F2E8C8608F" = "emSign Root CA - C1";
+    "BC4D809B15189D78DB3E1D8CF4F9726A795DA1643CA5F1358E1DDB0EDC0D7EB3" = "emSign ECC Root CA - C3"
+}
+$ANCHOR_SHA256     = "E793C9B02FD8AA13E21C31228ACCB08119643B749C898964B1746D46C3D4CBD2"
+$BUNDLE_MIN_PARSED = 10   # below this we do not treat the file as a trust store
+
+function Get-PemMatches {
+    param([string] $Text)
+    $opts = [System.Text.RegularExpressions.RegexOptions]::Singleline
+    # @() keeps a single match a collection: PowerShell 2 cannot index or call
+    # .Count on a scalar, and the anchor file holds exactly one certificate.
+    return @([regex]::Matches($Text, "-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", $opts))
+}
+
+function Get-PemFingerprint {
+    param([string] $Block)
+    $lines = $Block -split "`r?`n" | Where-Object { $_ -notmatch "-----" -and $_.Trim() -ne "" }
+    $b64 = ($lines | ForEach-Object { $_.Trim() }) -join ""
+    try { $der = [Convert]::FromBase64String($b64) } catch { return $null }
+    # CryptoServiceProvider, not SHA256Managed: the managed implementation
+    # throws when the FIPS algorithm policy is enabled, which is common on the
+    # regulated hosts still running Agent v5.
+    $sha = New-Object System.Security.Cryptography.SHA256CryptoServiceProvider
+    try { return [BitConverter]::ToString($sha.ComputeHash($der)).Replace("-", "") }
+    finally { $sha.Clear() }
+}
+
+function Test-PathWithinRoot {
+    # Older PowerShell follows directory junctions during -Recurse, so a file
+    # can look like a plain file while physically living outside the install.
+    # Walk the ancestors up to (and including) the root and reject anything
+    # reached through a reparse point.
+    param([string] $Path, [string] $Root)
+    $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd([System.IO.Path]::DirectorySeparatorChar)
+    $current  = Split-Path -Path $Path -Parent
+    while ($current) {
+        $currentFull = [System.IO.Path]::GetFullPath($current).TrimEnd([System.IO.Path]::DirectorySeparatorChar)
+        $item = Get-Item -LiteralPath $current -Force -ErrorAction SilentlyContinue
+        if ($item -and ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+            # The install root itself being a junction is a legitimate way to
+            # relocate the Agent; only reject junctions *below* it.
+            if ($currentFull -ne $rootFull) { return $false }
+        }
+        if ($currentFull -eq $rootFull) { return $true }
+        $parent = Split-Path -Path $current -Parent
+        if ($parent -eq $current) { break }
+        $current = $parent
+    }
+    return $false
+}
+
+# Failures here are deliberately non-fatal: the certificate rotation is the
+# primary remediation and must still complete.
+function Repair-CaBundles {
+    param([string] $AgentRoot, [string] $AnchorFile)
+
+    Write-Host ""
+    Write-Host "=== Removing distrusted roots from the Agent's bundled CA stores ==="
+
+    $anchorBlocks = Get-PemMatches ([System.IO.File]::ReadAllText($AnchorFile))
+    if ($anchorBlocks.Count -eq 0) {
+        Write-Warning "No certificate found in $AnchorFile; skipping the scrub."
+        $script:ScrubWarning = $true
+        return
+    }
+    $anchorPem = $anchorBlocks[0].Value
+    $anchorFp  = Get-PemFingerprint $anchorPem
+    if ($anchorFp -eq $null) {
+        Write-Warning "Could not read a certificate from $AnchorFile; skipping the scrub."
+        $script:ScrubWarning = $true
+        return
+    }
+    if ($anchorFp -ne $ANCHOR_SHA256) {
+        Write-Warning "$AnchorFile is not the expected trust anchor."
+        Write-Warning "  expected SHA-256 $ANCHOR_SHA256"
+        Write-Warning "  found    SHA-256 $anchorFp"
+        Write-Warning "  Refusing to modify any CA bundle."
+        $script:ScrubWarning = $true
+        return
+    }
+
+    if ($DryRunScrub) { Write-Host "Dry run: reporting only, no bundle will be written." }
+
+    $stamp   = Get-Date -Format "yyyyMMddHHmmss"
+    $ascii   = New-Object System.Text.ASCIIEncoding   # no BOM: a BOM breaks PEM parsing
+    $changed = 0
+    $skipped = New-Object System.Collections.ArrayList
+
+    $bundles = @(Get-ChildItem -LiteralPath $AgentRoot -Recurse -Force -ErrorAction SilentlyContinue |
+                 Where-Object {
+                     -not $_.PSIsContainer -and
+                     ($_.Name -eq "cacert.pem" -or $_.Name -eq "ca-certificates.crt" -or $_.Name -eq "cacerts.txt")
+                 })
+    if ($bundles.Count -eq 0) {
+        Write-Host "  No CA bundles found under $AgentRoot."
+        return
+    }
+
+    foreach ($bundle in $bundles) {
+        $path = $bundle.FullName
+
+        if ($bundle.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+            [void]$skipped.Add("$path (reparse point)"); continue
+        }
+        if (-not (Test-PathWithinRoot -Path $path -Root $AgentRoot)) {
+            [void]$skipped.Add("$path (reached via a junction outside the install)"); continue
+        }
+
+        try { $text = [System.IO.File]::ReadAllText($path) }
+        catch { [void]$skipped.Add("$path (not readable)"); continue }
+
+        $pemMatches = Get-PemMatches $text
+        if ($pemMatches.Count -eq 0) { continue }
+        if ($pemMatches.Count -lt $BUNDLE_MIN_PARSED) {
+            [void]$skipped.Add("$path ($($pemMatches.Count) certificate(s) - not treated as a trust store)")
+            continue
+        }
+
+        $removed = New-Object System.Collections.ArrayList
+        $cut     = New-Object System.Collections.ArrayList
+        $seen    = @{}
+        foreach ($m in $pemMatches) {
+            $fp = Get-PemFingerprint $m.Value
+            if ($fp -ne $null -and $DISTRUSTED_ROOTS.ContainsKey($fp)) {
+                [void]$removed.Add($DISTRUSTED_ROOTS[$fp])
+                [void]$cut.Add($m)
+            } elseif ($fp -ne $null) {
+                $seen[$fp] = $true
+            }
+        }
+
+        $added = -not $seen.ContainsKey($anchorFp)
+        if ($removed.Count -eq 0 -and -not $added) { continue }
+
+        # Splice out only the distrusted spans so comments, labels and any
+        # other non-CERTIFICATE content survive byte-for-byte.
+        $sb = New-Object System.Text.StringBuilder
+        $prev = 0
+        foreach ($m in $cut) {
+            [void]$sb.Append($text.Substring($prev, $m.Index - $prev))
+            $prev = $m.Index + $m.Length
+            while ($prev -lt $text.Length -and ($text[$prev] -eq "`n" -or $text[$prev] -eq "`r")) { $prev++ }
+        }
+        [void]$sb.Append($text.Substring($prev))
+        $newText = $sb.ToString()
+        if ($added) {
+            if ($newText.Length -gt 0 -and -not $newText.EndsWith("`n")) { $newText += "`r`n" }
+            $newText += $anchorPem + "`r`n"
+        }
+
+        # Real pre-write validation against the bytes we are about to commit.
+        $check = Get-PemMatches $newText
+        $expected = $pemMatches.Count - $removed.Count
+        if ($added) { $expected = $expected + 1 }
+        $bad = $false
+        if ($check.Count -ne $expected) { $bad = $true }
+        $checkFps = @{}
+        foreach ($c in $check) { $f = Get-PemFingerprint $c.Value; if ($f -ne $null) { $checkFps[$f] = $true } }
+        foreach ($k in $DISTRUSTED_ROOTS.Keys) { if ($checkFps.ContainsKey($k)) { $bad = $true } }
+        if (-not $checkFps.ContainsKey($anchorFp)) { $bad = $true }
+        if ($bad) {
+            [void]$skipped.Add("$path (post-edit validation failed)"); continue
+        }
+
+        # Atomic replace: write a sibling temp file, then swap it in. An
+        # in-place WriteAllText would truncate a live trust store.
+        if ($DryRunScrub) {
+            $changed = $changed + 1
+            $rt = "none"; if ($removed.Count -gt 0) { $rt = ($removed -join ", ") }
+            $at = ""; if ($added) { $at = " | would append anchor" }
+            Write-Host "  $path"
+            Write-Host ("    would change {0} -> {1} certs | would remove: {2}{3}" -f $pemMatches.Count, $check.Count, $rt, $at)
+            continue
+        }
+
+        # File.Replace moves the original aside to $backup and swaps the temp
+        # in as one operation, so there is no window in which the live trust
+        # store is truncated. Do NOT pass $null for the backup: PowerShell
+        # marshals it to an empty string and Replace rejects that.
+        $backup = "$path.bak-$stamp"
+        $tmp    = "$path.$stamp.tmp"
+        try {
+            [System.IO.File]::WriteAllText($tmp, $newText, $ascii)
+            [System.IO.File]::Replace($tmp, $path, $backup)
+        }
+        catch {
+            if (Test-Path -LiteralPath $tmp) {
+                Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+            }
+            [void]$skipped.Add("$path (could not be rewritten: $($_.Exception.Message))")
+            continue
+        }
+        $changed = $changed + 1
+
+        $removedText = "none"
+        if ($removed.Count -gt 0) { $removedText = ($removed -join ", ") }
+        $anchorText = ""
+        if ($added) { $anchorText = " | anchor appended" }
+        Write-Host "  $path"
+        Write-Host ("    {0} -> {1} certs | removed: {2}{3}" -f $pemMatches.Count, $check.Count, $removedText, $anchorText)
+        Write-Host "    backup: $backup"
+    }
+
+    foreach ($entry in $skipped) { Write-Warning "  SKIPPED $entry - left untouched" }
+
+    if ($changed -eq 0) { Write-Host "  No changes needed - bundles already clean." }
+    elseif ($DryRunScrub) { Write-Host ("  {0} bundle(s) would be updated. Re-run without -DryRunScrub to apply." -f $changed) }
+    else { Write-Host ("  {0} bundle(s) updated." -f $changed) }
+    if ($skipped.Count -gt 0) {
+        Write-Warning ("  {0} bundle(s) skipped (listed above); review them by hand." -f $skipped.Count)
+    }
+}
+
 function Update-DatadogConfig {
     param([string]$ConfFile)
     if (-not (Test-Path -LiteralPath $ConfFile)) { Error-Exit "Error: Configuration file $ConfFile not found." }
@@ -422,6 +676,19 @@ try {
     }
 
     Test-Certificate -CertFile $TargetFile
+
+    if ($ScrubBundles) {
+        # agent root sits two levels above datadog-cert.pem on every version
+        # (see the agent.exe note below for the >=5.12 / <=5.11 layouts).
+        $agentRoot = Split-Path -Path (Split-Path -Path $TargetFile -Parent) -Parent
+        try { Repair-CaBundles -AgentRoot $agentRoot -AnchorFile $TargetFile }
+        catch {
+            Write-Warning "The CA bundle scrub did not complete: $($_.Exception.Message)"
+            Write-Warning "The certificate update below is unaffected."
+            $script:ScrubWarning = $true
+        }
+    }
+
     Update-DatadogConfig -ConfFile $ConfFile
     Rotate-Logs -LogFiles $LogFiles
     Restart-Agent -ServiceNames $ServiceNames -WaitSeconds $RESTART_WAIT_SECONDS
@@ -455,6 +722,20 @@ try {
         Write-Host "The Datadog certificate has been installed at: $TargetFile"
         Write-Host "The Agent configuration has been updated, the Agent has been restarted,"
         Write-Host "and no SSL/certificate errors were detected in the logs."
+    }
+    if ($ScrubBundles) {
+        Write-Host ""
+        if ($DryRunScrub) {
+            Write-Host "Dry run only: no CA bundle was modified."
+        } elseif ($script:ScrubWarning) {
+            Write-Host "The CA bundle scrub did NOT complete - see the warnings above."
+            Write-Host "The certificate update itself succeeded; re-run with -ScrubBundles"
+            Write-Host "once the cause is resolved, or remediate the bundles by hand."
+        } else {
+            Write-Host "Distrusted roots were also removed from the Agent's bundled CA stores."
+            Write-Host "Each modified bundle was backed up alongside itself as"
+            Write-Host "  <bundle>.bak-<timestamp>"
+        }
     }
     Write-Host "=============================="
 }

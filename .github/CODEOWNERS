@@ -5,3 +5,9 @@
 # All file changes should be reviewed by the maintainer team unless
 # specified otherwise
 *     @DataDog/agent-runtimes
+
+# Rules below the catch-all win (CODEOWNERS is matched bottom-to-top).
+# These live here rather than in a root CODEOWNERS because GitHub honours
+# .github/CODEOWNERS and ignores the root file entirely when both exist.
+/runbooks/sectigo-root-ca-rotation-2025/ @DataDog/agent-build-and-releases @DataDog/agent-runtimes @DataDog/Documentation
+/runbooks/emudhra-ca-compromise-2026/    @DataDog/agent-build-and-releases @DataDog/agent-runtimes @DataDog/Documentation

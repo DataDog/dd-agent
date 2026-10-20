@@ -34,6 +34,11 @@ This runbook provides automated scripts for both Linux and Windows that will:
 - **Options**:
   - `-p <agent_directory>` — custom Agent installation path
   - `-c <cert_file>` — path to a local copy of `datadog-cert.pem` for hosts that cannot reach `raw.githubusercontent.com`
+  - `-n` — with `-s`, dry run: report what the scrub would change, write nothing
+  - `-s` — also scrub the distrusted eMudhra/emSign roots **and the Comodo
+    "AAA Certificate Services" cross-signer** from the Agent's bundled CA stores.
+    This changes validation for non-Datadog endpoints too — see
+    [`../emudhra-ca-compromise-2026/`](../emudhra-ca-compromise-2026/)
 - **Compatibility notes**:
   - Works with bash 3.1 (default on EL5) — no bash 4+ features
   - On RHEL/CentOS/Oracle Linux 5 and 6, the script automatically applies EL5/6
@@ -46,6 +51,11 @@ This runbook provides automated scripts for both Linux and Windows that will:
 - **Options**:
   - `-AgentDirectory` / `-p` — custom Agent installation path
   - `-CertFile` / `-c` — path to a local copy of `datadog-cert.pem` for hosts that cannot reach `raw.githubusercontent.com`
+  - `-DryRunScrub` / `-n` — with `-ScrubBundles`, dry run: report only, write nothing
+  - `-ScrubBundles` / `-s` — also scrub the distrusted eMudhra/emSign roots **and
+    the Comodo "AAA Certificate Services" cross-signer** from the Agent's bundled
+    CA stores. This changes validation for non-Datadog endpoints too — see
+    [`../emudhra-ca-compromise-2026/`](../emudhra-ca-compromise-2026/)
 - **Compatibility notes**:
   - Works on Windows Server 2008 R2, 2012 R2, 2016, and later
   - Uses `System.Net.WebClient` (.NET 2.0) as the primary downloader so it works on
@@ -170,6 +180,23 @@ If SSL errors persist, contact support with the log output above.
 ```
 
 If a *fatal* step fails (certificate not found, config file missing, Agent failed to restart), the script exits immediately with a specific error message explaining why.
+
+## Optional: scrubbing distrusted roots (`-s` / `-ScrubBundles`)
+
+Off by default. When passed, the scripts additionally rewrite every CA bundle
+shipped *inside* the Agent package to remove roots distrusted after the 2026
+eMudhra intermediate CA compromise. This is a separate concern from certificate
+rotation — see [`../emudhra-ca-compromise-2026/`](../emudhra-ca-compromise-2026/)
+for the background, scope, and rollback instructions.
+
+Preview first with `-n` / `-DryRunScrub`: it enumerates exactly what would be
+removed from which bundles and writes nothing.
+
+Each modified bundle is backed up alongside itself (`*.pre-cert-update-<timestamp>`
+on Linux, `*.bak-<timestamp>` on Windows). The anchor appended to each bundle is
+pinned by SHA-256: if the certificate in place is not the expected one, the
+scrub refuses to touch any bundle. A scrub failure is never fatal — the
+certificate update, config change and restart still complete.
 
 ## Important Notes
 

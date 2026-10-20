@@ -13,19 +13,27 @@
 set -eo pipefail
 
 show_usage() {
-  echo "Usage: $0 [-p <agent_directory>] [-c <cert_file>]"
+  echo "Usage: $0 [-p <agent_directory>] [-c <cert_file>] [-s] [-n]"
   echo "  -p <agent_directory>  Custom Datadog Agent installation directory"
   echo "                        (default: /opt/datadog-agent/agent)"
   echo "  -c <cert_file>        Path to a local copy of datadog-cert.pem"
   echo "                        Use this when the host cannot reach raw.githubusercontent.com."
   echo "                        The file is copied in place; no download is attempted."
+  echo "  -s                    Also remove the distrusted eMudhra/emSign roots and the"
+  echo "                        Comodo \"AAA Certificate Services\" cross-signer from the CA"
+  echo "                        bundles shipped inside the Agent package (IR-62343)."
+  echo "  -n                    Dry run for -s: report what the scrub would change"
+  echo "                        and write nothing. Does not affect the certificate"
+  echo "                        update, which always applies."
   exit 1
 }
 
-while getopts "p:c:h" opt; do
+while getopts "p:c:snh" opt; do
   case $opt in
     p) ARG_AGENT_DIR="$OPTARG" ;;
     c) ARG_CERT_FILE="$OPTARG" ;;
+    s) ARG_SCRUB=true ;;
+    n) ARG_SCRUB_DRYRUN=true ;;
     h) show_usage ;;
     \?) echo "Invalid option: -$OPTARG" >&2; show_usage ;;
   esac
@@ -46,6 +54,10 @@ IS_LEGACY_EL=false
 PRE_TS_UNIX=""
 PRE_TS_READABLE=""
 CONNECTIVITY_WARNING=false   # set to true when a non-fatal connectivity check fails
+DO_SCRUB="${ARG_SCRUB:-false}"
+AGENT_ROOT=""
+SCRUB_WARNING=false   # set when -s could not complete
+SCRUB_DRYRUN="${ARG_SCRUB_DRYRUN:-false}"
 
 # ------------------------------- Helpers ----------------------------
 
@@ -360,6 +372,281 @@ test_connectivity_since_restart() {
   done
 }
 
+# ------------------- Distrusted-root scrub (-s) ---------------------
+# The Agent package ships several CA bundles of its own (certifi, tornado,
+# boto, httplib2, embedded OpenSSL, …). They are independent of the OS trust
+# store, so an OS update cannot fix them and Agent v5 has no release vehicle.
+# We delete the distrusted roots in place and guarantee the bundle still
+# carries the anchor the Datadog intake chain terminates in — removing the
+# cross-signer without that anchor would break the Agent.
+#
+# The anchor is pinned by fingerprint. It is NOT "whatever $TARGET_FILE
+# happens to contain": -c accepts an arbitrary file, and on EL5/6 the download
+# may have fallen back to --insecure (see download_url), so an unpinned anchor
+# would let a substituted or intercepted file become a trust anchor in every
+# bundle in the install.
+ANCHOR_SHA256="E793C9B02FD8AA13E21C31228ACCB08119643B749C898964B1746D46C3D4CBD2"
+
+find_scrub_python() {
+  # The Agent's OWN interpreter only. A host Python is deliberately not used:
+  # EL5/6 ship 2.4, the scrub must not depend on the host toolchain, and a
+  # host interpreter that merely imports the modules can still differ in
+  # behaviour from the 2.7 the bundles were written by. -x alone is not
+  # enough — confirm it runs here and is new enough for
+  # os.walk(followlinks=...) (Python 2.6+).
+  for cand in "$AGENT_ROOT/embedded/bin/python" "$AGENT_ROOT/embedded/bin/python2.7"; do
+    if [ -x "$cand" ] && "$cand" -c "import hashlib, base64, os, sys; sys.exit(0 if sys.version_info[:2] >= (2,6) else 1)" >/dev/null 2>&1; then
+      echo "$cand"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Failures here are deliberately non-fatal: the certificate rotation is the
+# primary remediation and must still complete (see ca3e4d80).
+scrub_ca_bundles() {
+  if [ "$DO_SCRUB" != "true" ]; then
+    return 0
+  fi
+
+  local scrub_py
+  AGENT_ROOT=$(dirname "$TARGET_DIR")
+  echo ""
+  echo "=== Removing distrusted roots from the Agent's bundled CA stores ==="
+
+  # Guard against -p pointing somewhere that is not an Agent install: the walk
+  # root is the parent of the certificate directory, so a mistaken -p would
+  # otherwise rewrite bundles belonging to unrelated software.
+  if [ ! -d "$AGENT_ROOT/embedded" ]; then
+    echo "  Warning: $AGENT_ROOT does not look like an Agent installation" \
+         "(no embedded/ directory); skipping the scrub." >&2
+    echo "  If your Agent lives elsewhere, pass -p <install-dir>/agent." >&2
+    SCRUB_WARNING=true
+    return 0
+  fi
+
+  scrub_py=$(find_scrub_python) || {
+    echo "  Warning: the Agent's embedded Python was not found under" \
+         "$AGENT_ROOT/embedded/bin; skipping the scrub." >&2
+    echo "  The certificate update below is unaffected." >&2
+    SCRUB_WARNING=true
+    return 0
+  }
+  echo "Using interpreter: $scrub_py"
+
+  if [ "$SCRUB_DRYRUN" = "true" ]; then
+    echo "Dry run: reporting only, no bundle will be written."
+  fi
+
+  # The program below is inline on purpose: the runbook is distributed as a
+  # single file customers curl down (see README), and EL5/6 and air-gapped
+  # hosts must not need a second fetch. tests/test_scrub_bundles.sh extracts
+  # this same heredoc and exercises it against fixtures.
+  if ! sudo "$scrub_py" - "$AGENT_ROOT" "$TARGET_FILE" "$ANCHOR_SHA256" "$SCRUB_DRYRUN" <<'PYSCRUB'
+import base64, hashlib, os, re, shutil, sys, tempfile, time
+
+# Distrusted following the eMudhra intermediate CA key compromise. The six TLS
+# intermediates are cross-signed by Sectigo's "AAA Certificate Services", so
+# that root has to go too or the cross-signed path still validates.
+DISTRUST = {
+    "D7A7A0FB5D7E2731D771E9484EBCDEF71D5F0C3E0A2948782BC83EE0EA699EF4": "AAA Certificate Services",
+    "40F6AF0346A99AA1CD1D555A4E9CCE62C7F9634603EE406615833DC8C8D00367": "emSign Root CA - G1",
+    "86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B": "emSign ECC Root CA - G3",
+    "125609AA301DA0A249B97A8239CB6A34216F44DCAC9F3954B14292F2E8C8608F": "emSign Root CA - C1",
+    "BC4D809B15189D78DB3E1D8CF4F9726A795DA1643CA5F1358E1DDB0EDC0D7EB3": "emSign ECC Root CA - C3",
+}
+BUNDLE_NAMES = ("cacert.pem", "ca-certificates.crt", "cacerts.txt")
+BLOCK = re.compile(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", re.S)
+MIN_PARSED = 10   # below this we do not treat the file as a trust store
+
+agent_root, anchor_path, expected_fp = sys.argv[1], sys.argv[2], sys.argv[3]
+dry_run = (len(sys.argv) > 4 and sys.argv[4] == "true")
+agent_real = os.path.realpath(agent_root)
+
+def fingerprint(block):
+    body = "".join(l.strip() for l in block.splitlines()[1:-1])
+    try:
+        return hashlib.sha256(base64.b64decode(body)).hexdigest().upper()
+    except Exception:
+        return None
+
+try:
+    anchor_text = open(anchor_path, "rb").read().decode("ascii", "ignore")
+except Exception:
+    sys.stderr.write("cannot read %s\n" % anchor_path)
+    sys.exit(2)
+anchor_blocks = BLOCK.findall(anchor_text)
+if not anchor_blocks:
+    sys.stderr.write("no certificate found in %s\n" % anchor_path)
+    sys.exit(2)
+anchor_pem = anchor_blocks[0]
+anchor_fp = fingerprint(anchor_pem)
+
+# Pinned: refuse to append anything but the expected anchor.
+if anchor_fp != expected_fp:
+    sys.stderr.write(
+        "%s is not the expected trust anchor\n"
+        "  expected SHA-256 %s\n"
+        "  found    SHA-256 %s\n"
+        "  Refusing to modify any CA bundle.\n"
+        % (anchor_path, expected_fp, anchor_fp))
+    sys.exit(2)
+
+stamp = time.strftime("%Y%m%d%H%M%S")
+changed = 0
+found = 0
+skipped = []
+
+def note(path, reason):
+    skipped.append((path, reason))
+
+def on_walk_error(err):
+    note(getattr(err, "filename", agent_root), "could not be traversed (%s)" % err.strerror)
+
+# os.walk does not follow directory symlinks by default - keep it that way so
+# the scrub can never leave the Agent installation directory.
+for dirpath, _dirnames, filenames in os.walk(agent_root, followlinks=False, onerror=on_walk_error):
+    for name in sorted(filenames):
+        if name not in BUNDLE_NAMES:
+            continue
+        path = os.path.join(dirpath, name)
+        found += 1
+
+        # Never rewrite a symlink. Writing through it could modify a file
+        # outside the Agent install, and replacing it would silently discard a
+        # deliberate link (e.g. an admin pointing a bundle at the OS store).
+        if os.path.islink(path):
+            note(path, "symlink -> %s" % os.path.realpath(path))
+            continue
+        if not os.path.realpath(path).startswith(agent_real + os.sep):
+            note(path, "resolves outside the Agent install")
+            continue
+
+        try:
+            text = open(path, "rb").read().decode("ascii", "ignore")
+        except Exception:
+            note(path, "not readable")
+            continue
+
+        matches = list(BLOCK.finditer(text))
+        if not matches:
+            continue
+        if len(matches) < MIN_PARSED:
+            note(path, "only %d certificate(s) - not treated as a trust store" % len(matches))
+            continue
+
+        removed = []
+        cut = []
+        seen = set()
+        for m in matches:
+            fp = fingerprint(m.group(0))
+            if fp in DISTRUST:
+                removed.append(DISTRUST[fp])
+                cut.append(m.span())
+            else:
+                seen.add(fp)
+
+        added = anchor_fp not in seen
+        if not removed and not added:
+            continue
+
+        # Splice out only the distrusted spans so comments, labels and any
+        # other non-CERTIFICATE content survive byte-for-byte.
+        out, prev = [], 0
+        for a, b in cut:
+            out.append(text[prev:a])
+            prev = b
+            while prev < len(text) and text[prev] == "\n":
+                prev += 1
+        out.append(text[prev:])
+        new_text = "".join(out)
+        if added:
+            if new_text and not new_text.endswith("\n"):
+                new_text += "\n"
+            new_text += anchor_pem + "\n"
+
+        # Real pre-write validation against the bytes we are about to commit.
+        check = BLOCK.findall(new_text)
+        check_fps = set(fingerprint(b) for b in check)
+        if len(check) != len(matches) - len(removed) + (1 if added else 0):
+            note(path, "post-edit certificate count unexpected"); continue
+        if check_fps & set(DISTRUST):
+            note(path, "a distrusted root survived the edit"); continue
+        if anchor_fp not in check_fps:
+            note(path, "anchor missing after the edit"); continue
+
+        if dry_run:
+            changed += 1
+            print("  %s" % path)
+            print("    would change %d -> %d certs | would remove: %s%s"
+                  % (len(matches), len(check),
+                     ", ".join(removed) if removed else "none",
+                     " | would append anchor" if added else ""))
+            continue
+
+        backup = "%s.pre-cert-update-%s" % (path, stamp)
+        tmp = None
+        try:
+            st = os.stat(path)
+            shutil.copy2(path, backup)
+            try:
+                os.chown(backup, st.st_uid, st.st_gid)
+            except Exception:
+                pass          # not privileged enough; contents still recoverable
+            fd, tmp = tempfile.mkstemp(dir=dirpath, prefix=name + ".", suffix=".tmp")
+            handle = os.fdopen(fd, "wb")
+            handle.write(new_text.encode("ascii"))
+            handle.flush()
+            os.fsync(handle.fileno())
+            handle.close()
+            shutil.copymode(path, tmp)
+            try:
+                os.chown(tmp, st.st_uid, st.st_gid)
+            except Exception:
+                pass          # not privileged enough; mode still carried over
+            os.rename(tmp, path)
+            tmp = None
+        except Exception:
+            for leftover in (tmp, backup):
+                if leftover and os.path.exists(leftover):
+                    try:
+                        os.unlink(leftover)
+                    except Exception:
+                        pass
+            note(path, "could not be rewritten - left untouched")
+            continue
+        changed += 1
+
+        print("  %s" % path)
+        print("    %d -> %d certs | removed: %s%s"
+              % (len(matches), len(check),
+                 ", ".join(removed) if removed else "none",
+                 " | anchor appended" if added else ""))
+        print("    backup: %s" % backup)
+
+for path, reason in skipped:
+    print("  SKIPPED %s" % path)
+    print("    %s - left untouched" % reason)
+
+if found == 0:
+    print("  No CA bundles found under %s." % agent_root)
+elif changed == 0:
+    print("  No changes needed - bundles already clean.")
+elif dry_run:
+    print("  %d bundle(s) would be updated. Re-run without -n to apply." % changed)
+else:
+    print("  %d bundle(s) updated." % changed)
+if skipped:
+    print("  %d bundle(s) skipped (listed above); review them by hand." % len(skipped))
+PYSCRUB
+  then
+    echo "  Warning: the CA bundle scrub did not complete." >&2
+    echo "  The certificate update below is unaffected." >&2
+    SCRUB_WARNING=true
+  fi
+}
+
 main() {
   detect_os_version
   check_downloader
@@ -370,6 +657,7 @@ main() {
     download_certificate
   fi
   verify_certificate
+  scrub_ca_bundles
   update_datadog_config
   rotate_logs
   restart_agent
@@ -398,6 +686,20 @@ main() {
     echo "The Datadog certificate has been installed at: $TARGET_FILE"
     echo "The Agent configuration has been updated, the Agent has been restarted,"
     echo "and no SSL/certificate errors were detected in the logs."
+  fi
+  if [ "$DO_SCRUB" = "true" ]; then
+    echo ""
+    if [ "$SCRUB_DRYRUN" = "true" ]; then
+      echo "Dry run only: no CA bundle was modified."
+    elif [ "$SCRUB_WARNING" = "true" ]; then
+      echo "The CA bundle scrub did NOT complete - see the warnings above."
+      echo "The certificate update itself succeeded; re-run with -s once the"
+      echo "cause is resolved, or remediate the bundles by hand."
+    else
+      echo "Distrusted roots were also removed from the Agent's bundled CA stores."
+      echo "Each modified bundle was backed up alongside itself as"
+      echo "  <bundle>.pre-cert-update-<timestamp>"
+    fi
   fi
   echo "=============================="
 }
