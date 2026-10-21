@@ -475,7 +475,10 @@ def fingerprint(block):
         return None
 
 try:
-    anchor_text = open(anchor_path, "rb").read().decode("ascii", "ignore")
+    # latin-1, matching the bundle read below. "ascii" with errors="ignore"
+    # would silently strip stray bytes and so repair a damaged anchor back
+    # into a valid one; the pin must reject such a file, not quietly fix it.
+    anchor_text = open(anchor_path, "rb").read().decode("latin-1")
 except Exception:
     sys.stderr.write("cannot read %s\n" % anchor_path)
     sys.exit(2)
@@ -488,12 +491,13 @@ anchor_fp = fingerprint(anchor_pem)
 
 # Pinned: refuse to append anything but the expected anchor.
 if anchor_fp != expected_fp:
+    found = anchor_fp or "unreadable (the certificate body is not valid base64)"
     sys.stderr.write(
         "%s is not the expected trust anchor\n"
         "  expected SHA-256 %s\n"
-        "  found    SHA-256 %s\n"
+        "  found    %s\n"
         "  Refusing to modify any CA bundle.\n"
-        % (anchor_path, expected_fp, anchor_fp))
+        % (anchor_path, expected_fp, found))
     sys.exit(2)
 
 stamp = time.strftime("%Y%m%d%H%M%S")

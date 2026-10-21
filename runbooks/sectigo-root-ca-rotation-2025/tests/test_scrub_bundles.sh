@@ -49,6 +49,15 @@ refute() {
 sed -n "/<<'PYSCRUB'/,/^PYSCRUB$/p" "$SCRIPT" | sed '1d;$d' > "$WORK/scrub.py"
 test -s "$WORK/scrub.py" || { echo "could not extract the scrub program"; exit 1; }
 
+# Python 2 rejects non-ASCII source bytes without a coding declaration, while
+# python3 accepts them -- so a stray em dash in a comment breaks only the
+# interpreter this actually ships on. Fail here rather than on a customer host.
+if LC_ALL=C grep -q '[^[:print:][:space:]]' "$WORK/scrub.py"; then
+  echo "  FAIL  inline scrub program contains non-ASCII bytes (breaks Python 2)" >&2
+  LC_ALL=C grep -n '[^[:print:][:space:]]' "$WORK/scrub.py" | head -3 >&2
+  exit 1
+fi
+
 ANCHOR_FP="E793C9B02FD8AA13E21C31228ACCB08119643B749C898964B1746D46C3D4CBD2"
 
 # The anchor is the repo's own datadog-cert.pem; AAA comes from the Agent
@@ -130,6 +139,27 @@ cmp -s "$WORK/outside.before" "$WORK/outside.pem" \
 mkdir -p "$WORK/a6/embedded"
 "$PY" "$WORK/scrub.py" "$WORK/a6" "$WORK/anchor.pem" "$ANCHOR_FP" false > "$WORK/o6" 2>&1
 check "empty install: distinct message" "No CA bundles found" "$WORK/o6"
+
+# --- case 8: a damaged anchor is rejected, never silently repaired -------
+mkdir -p "$WORK/a8/embedded"
+make_filler 12 "$WORK/a8/embedded/cacert.pem"
+cp "$WORK/a8/embedded/cacert.pem" "$WORK/a8.before"
+# inject stray non-ASCII bytes into the anchor's base64 body
+"$PY" - "$WORK/anchor.pem" "$WORK/anchor-damaged.pem" <<'PYEOF'
+import sys
+d = open(sys.argv[1], "rb").read()
+i = d.index(b"\n", d.index(b"-----BEGIN")) + 20
+open(sys.argv[2], "wb").write(d[:i] + b"\xc3\xa9" + d[i:])
+PYEOF
+set +e
+"$PY" "$WORK/scrub.py" "$WORK/a8" "$WORK/anchor-damaged.pem" "$ANCHOR_FP" false > "$WORK/o8" 2>&1
+rc8=$?
+set -e
+check "damaged anchor: rejected" "not the expected trust anchor" "$WORK/o8"
+[ "$rc8" -ne 0 ] && { PASS=$((PASS+1)); echo "  ok    damaged anchor: exits non-zero"; }                  || { FAIL=$((FAIL+1)); echo "  FAIL  damaged anchor: should exit non-zero"; }
+cmp -s "$WORK/a8.before" "$WORK/a8/embedded/cacert.pem" \
+  && { PASS=$((PASS+1)); echo "  ok    damaged anchor: bundle untouched"; } \
+  || { FAIL=$((FAIL+1)); echo "  FAIL  damaged anchor: bundle was modified"; }
 
 # --- case 7: non-ASCII comment bytes survive byte-for-byte ---------------
 mkdir -p "$WORK/a7/embedded"
