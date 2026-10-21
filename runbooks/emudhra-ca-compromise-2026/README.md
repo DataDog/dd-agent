@@ -213,9 +213,11 @@ grep -c 'BEGIN CERTIFICATE' /opt/datadog-agent/embedded/lib/python2.7/site-packa
 
 ## Long-Term Recommendation
 
-Agent v5 is end-of-life and cannot receive dependency updates. This scrub is a
-containment measure, not a fix. **Upgrade to Agent v6 or v7**, where CA bundles
-are maintained through normal releases. See the
+Agent v5 is mostly frozen in time and dependent on the Python 2 ecosystem, which
+has been end-of-life since 2020, so this runbook is generally considered a
+containment measure, not a fix. **Long term, you should upgrade to the
+latest available Datadog Agent version**, both for increased security and feature
+updates. See the
 [upgrade documentation](https://docs.datadoghq.com/agent/guide/upgrade_agent_fleet_automation).
 
 ## Support
