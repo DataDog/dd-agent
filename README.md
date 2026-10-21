@@ -9,6 +9,17 @@ encourage users and contributors to refer to the new Agent codebase, introduced
 with the release of version 6.0.0 and tracked in
 [a different git repository](https://github.com/DataDog/datadog-agent).
 
+## Runbooks
+
+Customer-facing remediation runbooks for Agent v5 live in the
+[`runbooks/`](runbooks/) directory, with automated scripts for both Linux and
+Windows.
+
+| Runbook | Use it when |
+|---|---|
+| [Certificate update](runbooks/sectigo-root-ca-rotation-2025/) | The Agent can't reach Datadog intake because SSL certificate verification fails. |
+| [Distrusted CA scrub](runbooks/emudhra-ca-compromise-2026/) | You need the CA roots distrusted after the 2026 eMudhra compromise removed from the CA bundles shipped inside the Agent package. |
+
 ## Changes
 
 Please refer to the [Change log](https://github.com/DataDog/dd-agent/blob/master/CHANGELOG.md)
@@ -79,7 +90,3 @@ how to use it on our [Guide to Agent Checks](http://docs.datadoghq.com/guides/ag
 ```bash
 git log --all | grep 'Author' | sort -u
 ```
-
-## Certificate Update for Agent v5
-
-If you're experiencing connectivity issues with Agent v5 due to SSL certificate verification failures, we've provided automated runbooks to help resolve this. See the [runbooks directory](runbooks/sectigo-root-ca-rotation-2025/) for step-by-step instructions for both Linux and Windows.
