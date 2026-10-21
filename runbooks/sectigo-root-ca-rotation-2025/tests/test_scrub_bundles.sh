@@ -11,6 +11,20 @@ set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 SCRIPT="$HERE/../linux.sh"
 PY="${1:-python3}"
+
+# Fixture generation needs openssl. Prefer the Agent's own, for the same
+# reason the scrub does: a minimal Agent 5 host may have no host openssl,
+# and EL5's is ancient.
+OPENSSL=""
+for cand in /opt/datadog-agent/embedded/bin/openssl openssl; do
+  if command -v "$cand" >/dev/null 2>&1; then OPENSSL="$cand"; break; fi
+done
+if [ -z "$OPENSSL" ]; then
+  echo "SKIP: no openssl found (looked for /opt/datadog-agent/embedded/bin/openssl, openssl)" >&2
+  echo "      fixture generation needs one; pass a host with openssl to run these tests." >&2
+  exit 77
+fi
+
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
@@ -45,7 +59,7 @@ make_filler() { # make_filler <n> <out>  — n self-signed certs
   : > "$2"
   i=0
   while [ "$i" -lt "$1" ]; do
-    openssl req -x509 -newkey rsa:1024 -keyout /dev/null -nodes \
+    "$OPENSSL" req -x509 -newkey rsa:1024 -keyout /dev/null -nodes \
       -subj "/CN=filler$i" -days 2 -out "$WORK/f.pem" 2>/dev/null
     printf '# Label: "filler%s"\n' "$i" >> "$2"
     cat "$WORK/f.pem" >> "$2"
@@ -59,7 +73,7 @@ echo "scrub fixture tests ($PY)"
 mkdir -p "$WORK/a1/embedded"
 make_filler 12 "$WORK/a1/embedded/cacert.pem"
 cp "$WORK/a1/embedded/cacert.pem" "$WORK/a1.before"
-openssl req -x509 -newkey rsa:1024 -keyout /dev/null -nodes -subj "/CN=wrong" -days 2 \
+"$OPENSSL" req -x509 -newkey rsa:1024 -keyout /dev/null -nodes -subj "/CN=wrong" -days 2 \
   -out "$WORK/wrong.pem" 2>/dev/null
 set +e
 "$PY" "$WORK/scrub.py" "$WORK/a1" "$WORK/wrong.pem" "$ANCHOR_FP" false > "$WORK/o1" 2>&1
