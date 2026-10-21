@@ -383,7 +383,10 @@ function Repair-CaBundles {
     if ($DryRunScrub) { Write-Host "Dry run: reporting only, no bundle will be written." }
 
     $stamp   = Get-Date -Format "yyyyMMddHHmmss"
-    $ascii   = New-Object System.Text.ASCIIEncoding   # no BOM: a BOM breaks PEM parsing
+    # Latin-1 (code page 28591) maps every byte to one char, so non-ASCII
+    # comment text round-trips byte-for-byte; it also writes no BOM, which
+    # would break PEM parsing. ASCII would turn those bytes into "?".
+    $latin1  = [System.Text.Encoding]::GetEncoding(28591)
     $changed = 0
     $skipped = New-Object System.Collections.ArrayList
 
@@ -407,7 +410,7 @@ function Repair-CaBundles {
             [void]$skipped.Add("$path (reached via a junction outside the install)"); continue
         }
 
-        try { $text = [System.IO.File]::ReadAllText($path) }
+        try { $text = [System.IO.File]::ReadAllText($path, $latin1) }
         catch { [void]$skipped.Add("$path (not readable)"); continue }
 
         $pemMatches = Get-PemMatches $text
@@ -481,7 +484,7 @@ function Repair-CaBundles {
         $backup = "$path.bak-$stamp"
         $tmp    = "$path.$stamp.tmp"
         try {
-            [System.IO.File]::WriteAllText($tmp, $newText, $ascii)
+            [System.IO.File]::WriteAllText($tmp, $newText, $latin1)
             [System.IO.File]::Replace($tmp, $path, $backup)
         }
         catch {
@@ -693,7 +696,9 @@ try {
     Rotate-Logs -LogFiles $LogFiles
     Restart-Agent -ServiceNames $ServiceNames -WaitSeconds $RESTART_WAIT_SECONDS
 
-    $ErrorPattern = [regex]'(?i)CERTIFICATE_VERIFY_FAILED|certificate verify failed|ssl[\s\p{P}]*error'
+    # The last two alternatives are libcurl's wording; Update-DatadogConfig turns on
+    # use_curl_http_client, so after this runbook a forwarder TLS failure looks like that.
+    $ErrorPattern = [regex]'(?i)CERTIFICATE_VERIFY_FAILED|certificate verify failed|ssl[\s\p{P}]*error|SSL certificate problem|SSL peer certificate'
     Test-ConnectivitySinceRestart -LogFiles $LogFiles -ErrorPattern $ErrorPattern
 
     Write-Host ""

@@ -313,7 +313,10 @@ restart_agent() {
 test_connectivity_since_restart() {
   echo "=== Connectivity test (since this restart) ==="
   local pattern
-  pattern='CERTIFICATE_VERIFY_FAILED|certificate verify failed|ssl[[:space:][:punct:]]*error'
+  # The last two alternatives are libcurl's wording; update_datadog_config
+  # turns on use_curl_http_client, so after this runbook they are the only
+  # form a forwarder TLS failure takes.
+  pattern='CERTIFICATE_VERIFY_FAILED|certificate verify failed|ssl[[:space:][:punct:]]*error|SSL certificate problem|SSL peer certificate'
 
   # Check the freshly-rotated log files (truncated just before restart).
   for log_file in $LOG_FILES; do
@@ -524,7 +527,10 @@ for dirpath, _dirnames, filenames in os.walk(agent_root, followlinks=False, oner
             continue
 
         try:
-            text = open(path, "rb").read().decode("ascii", "ignore")
+            # latin-1 maps every byte to one code point, so non-ASCII comment
+            # text (accented CA names in the "# Label:" lines) round-trips
+            # byte-for-byte. PEM bodies are ASCII either way.
+            text = open(path, "rb").read().decode("latin-1")
         except Exception:
             note(path, "not readable")
             continue
@@ -596,7 +602,7 @@ for dirpath, _dirnames, filenames in os.walk(agent_root, followlinks=False, oner
                 pass          # not privileged enough; contents still recoverable
             fd, tmp = tempfile.mkstemp(dir=dirpath, prefix=name + ".", suffix=".tmp")
             handle = os.fdopen(fd, "wb")
-            handle.write(new_text.encode("ascii"))
+            handle.write(new_text.encode("latin-1"))
             handle.flush()
             os.fsync(handle.fileno())
             handle.close()

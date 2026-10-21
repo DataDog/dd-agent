@@ -117,6 +117,20 @@ mkdir -p "$WORK/a6/embedded"
 "$PY" "$WORK/scrub.py" "$WORK/a6" "$WORK/anchor.pem" "$ANCHOR_FP" false > "$WORK/o6" 2>&1
 check "empty install: distinct message" "No CA bundles found" "$WORK/o6"
 
+# --- case 7: non-ASCII comment bytes survive byte-for-byte ---------------
+mkdir -p "$WORK/a7/embedded"
+printf '# Label: "NetLock Arany (Class Gold) F\305\221tan\303\272s\303\255tv\303\241ny"\n' \
+  > "$WORK/a7/embedded/cacert.pem"
+make_filler 12 "$WORK/a7.filler"
+cat "$WORK/a7.filler" >> "$WORK/a7/embedded/cacert.pem"
+cp "$WORK/a7/embedded/cacert.pem" "$WORK/a7.before"
+"$PY" "$WORK/scrub.py" "$WORK/a7" "$WORK/anchor.pem" "$ANCHOR_FP" false > "$WORK/o7" 2>&1
+check "non-ASCII: bundle rewritten" "anchor appended" "$WORK/o7"
+# Only the anchor is appended, so the original bytes must be an exact prefix.
+head -c "$(wc -c < "$WORK/a7.before")" "$WORK/a7/embedded/cacert.pem" | cmp -s - "$WORK/a7.before" \
+  && { PASS=$((PASS+1)); echo "  ok    non-ASCII: comment bytes preserved"; } \
+  || { FAIL=$((FAIL+1)); echo "  FAIL  non-ASCII: comment bytes altered"; }
+
 echo ""
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

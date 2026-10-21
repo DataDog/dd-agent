@@ -191,7 +191,11 @@ gone, the eMudhra project publishes test endpoints: a patched bundle must *fail*
 to validate both of these, while the Datadog intake continues to work.
 
 ```bash
-# use the Agent's own openssl: EL5/6 ships 0.9.8e, which has no -servername (SNI)
+# use the Agent's own openssl: EL5/6 ships 0.9.8e, which has no -servername (SNI).
+# SSL_CERT_FILE/SSL_CERT_DIR stop it from also loading its default store
+# (embedded/ssl/certs/cacert.pem), which -CAfile does not replace — without them
+# a clean bundle can still report "0 (ok)" if the default store was not scrubbed.
+SSL_CERT_FILE=/dev/null SSL_CERT_DIR=/nonexistent \
 /opt/datadog-agent/embedded/bin/openssl s_client \
   -connect dv-g3b-aaa-emudhra.we-have-a-problem.com:443 \
   -servername dv-g3b-aaa-emudhra.we-have-a-problem.com \
