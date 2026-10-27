@@ -11,10 +11,10 @@ set -u
 # SCRIPT KNOBS
 #######################################################################
 # Update for new releases, will pull this tag in the repo
-DEFAULT_AGENT_VERSION="5.32.7"
+DEFAULT_AGENT_VERSION="7.25.1"
 # Pin pip version, in the past there was some buggy releases and get-pip.py
 # always pulls the latest version
-PIP_VERSION="19.0.3"
+PIP_VERSION="20.3.4"
 VIRTUALENV_VERSION="1.11.6"
 SUPERVISOR_VERSION="3.3.0"
 SETUPTOOLS_VERSION="20.9.0"
