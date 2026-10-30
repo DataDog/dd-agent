@@ -408,10 +408,9 @@ class SDDockerBackend(AbstractSDBackend):
                         else:
                             configs[check_name] = (source, (init_config, [instance]))
                     else:
-                        conflict_init_msg = 'Different versions of `init_config` found for check {}. ' \
-                            'Keeping the first one found.'
                         if configs[check_name][1][0] != init_config:
-                            log.warning(conflict_init_msg.format(check_name))
+                            log.warning('Different versions of `init_config` found for check %s. '
+                                'Keeping the first one found.' % check_name)
                         if isinstance(instance, list):
                             for inst in instance:
                                 configs[check_name][1][1].append(inst)
