@@ -53,8 +53,9 @@ running it performs that runbook's work as well. In one invocation it will:
 4. Back up and truncate `/var/log/datadog/*.log`,
 5. **Restart the Agent.**
 
-There is no scrub-only mode. If you want only steps 1 and 3, run the runbook
-without `-s`/`-ScrubBundles`.
+There is no scrub-only mode and no full dry run. `-n` / `-DryRunScrub` previews
+step 2 but still runs steps 1 and 3–5, including the restart. Leaving out
+`-s` / `-ScrubBundles` skips step 2 only.
 
 ## Solution
 
@@ -68,7 +69,11 @@ than duplicating it.
 ```bash
 curl -O https://raw.githubusercontent.com/DataDog/dd-agent/master/runbooks/sectigo-root-ca-rotation-2025/linux.sh
 chmod +x linux.sh
-sudo ./linux.sh -s -n     # preview: reports what would change, writes nothing
+
+# -n previews only the removal of distrusted roots from the bundled CA stores.
+# It still replaces datadog-cert.pem, edits datadog.conf, truncates logs and
+# restarts the Agent.
+sudo ./linux.sh -s -n
 sudo ./linux.sh -s        # apply
 ```
 
@@ -76,7 +81,11 @@ sudo ./linux.sh -s        # apply
 
 ```powershell
 # run as Administrator
-.\windows.ps1 -ScrubBundles -DryRunScrub   # preview, writes nothing
+
+# -DryRunScrub previews only the removal of distrusted roots from the bundled
+# CA stores. It still replaces datadog-cert.pem, edits datadog.conf, truncates
+# logs and restarts the Agent.
+.\windows.ps1 -ScrubBundles -DryRunScrub
 .\windows.ps1 -ScrubBundles                # apply
 ```
 

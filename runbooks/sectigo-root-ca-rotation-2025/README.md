@@ -34,7 +34,10 @@ This runbook provides automated scripts for both Linux and Windows that will:
 - **Options**:
   - `-p <agent_directory>` — custom Agent installation path
   - `-c <cert_file>` — path to a local copy of `datadog-cert.pem` for hosts that cannot reach `raw.githubusercontent.com`
-  - `-n` — with `-s`, dry run: report what the scrub would change, write nothing
+  - `-n` — with `-s`, preview only the removal of distrusted roots from the
+    Agent's bundled CA stores. `datadog-cert.pem` is still replaced,
+    `datadog.conf` edited, logs truncated and the Agent restarted. Without
+    `-s`, `-n` is ignored and the full runbook runs.
   - `-s` — also scrub the distrusted eMudhra/emSign roots **and the Comodo
     "AAA Certificate Services" cross-signer** from the Agent's bundled CA stores.
     This changes validation for non-Datadog endpoints too — see
@@ -51,7 +54,11 @@ This runbook provides automated scripts for both Linux and Windows that will:
 - **Options**:
   - `-AgentDirectory` / `-p` — custom Agent installation path
   - `-CertFile` / `-c` — path to a local copy of `datadog-cert.pem` for hosts that cannot reach `raw.githubusercontent.com`
-  - `-DryRunScrub` / `-n` — with `-ScrubBundles`, dry run: report only, write nothing
+  - `-DryRunScrub` / `-n` — with `-ScrubBundles`, preview only the removal of
+    distrusted roots from the Agent's bundled CA stores. `datadog-cert.pem` is
+    still replaced, `datadog.conf` edited, logs truncated and the Agent
+    restarted. Without `-ScrubBundles`, `-DryRunScrub` is ignored and the full
+    runbook runs.
   - `-ScrubBundles` / `-s` — also scrub the distrusted eMudhra/emSign roots **and
     the Comodo "AAA Certificate Services" cross-signer** from the Agent's bundled
     CA stores. This changes validation for non-Datadog endpoints too — see
@@ -189,8 +196,10 @@ eMudhra intermediate CA compromise. This is a separate concern from certificate
 rotation — see [`../emudhra-ca-compromise-2026/`](../emudhra-ca-compromise-2026/)
 for the background, scope, and rollback instructions.
 
-Preview first with `-n` / `-DryRunScrub`: it enumerates exactly what would be
-removed from which bundles and writes nothing.
+`-n` / `-DryRunScrub` lists what the scrub would remove from each bundle and
+leaves the bundles unchanged. It is **not** a full dry run: `datadog-cert.pem`
+is still replaced, `datadog.conf` edited, logs truncated and the Agent
+restarted.
 
 Each modified bundle is backed up alongside itself (`*.pre-cert-update-<timestamp>`
 on Linux, `*.bak-<timestamp>` on Windows). The anchor appended to each bundle is
