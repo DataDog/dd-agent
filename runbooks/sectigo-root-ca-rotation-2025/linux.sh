@@ -22,9 +22,9 @@ show_usage() {
   echo "  -s                    Also remove the distrusted eMudhra/emSign roots and the"
   echo "                        Comodo \"AAA Certificate Services\" cross-signer from the CA"
   echo "                        bundles shipped inside the Agent package (IR-62343)."
-  echo "  -n                    Dry run for -s: report what the scrub would change"
-  echo "                        and write nothing. Does not affect the certificate"
-  echo "                        update, which always applies."
+  echo "  -n                    Dry run: modify nothing. datadog-cert.pem is fetched to a"
+  echo "                        temp file and checked, and the -s root removal is previewed;"
+  echo "                        datadog.conf, logs, and the Agent are untouched."
   exit 1
 }
 
@@ -33,7 +33,7 @@ while getopts "p:c:snh" opt; do
     p) ARG_AGENT_DIR="$OPTARG" ;;
     c) ARG_CERT_FILE="$OPTARG" ;;
     s) ARG_SCRUB=true ;;
-    n) ARG_SCRUB_DRYRUN=true ;;
+    n) ARG_DRY_RUN=true ;;
     h) show_usage ;;
     \?) echo "Invalid option: -$OPTARG" >&2; show_usage ;;
   esac
@@ -48,6 +48,7 @@ CONF_FILE="/etc/dd-agent/datadog.conf"
 LOG_FILES="/var/log/datadog/forwarder.log /var/log/datadog/collector.log"
 
 TARGET_FILE="${TARGET_DIR}/datadog-cert.pem"
+CERT_FILE="$TARGET_FILE"   # verified and used as the scrub anchor; a temp copy under -n
 DOWNLOADER=""
 OS_MAJOR=""
 IS_LEGACY_EL=false
@@ -57,7 +58,7 @@ CONNECTIVITY_WARNING=false   # set to true when a non-fatal connectivity check f
 DO_SCRUB="${ARG_SCRUB:-false}"
 AGENT_ROOT=""
 SCRUB_WARNING=false   # set when -s could not complete
-SCRUB_DRYRUN="${ARG_SCRUB_DRYRUN:-false}"
+DRY_RUN="${ARG_DRY_RUN:-false}"
 
 # ------------------------------- Helpers ----------------------------
 
@@ -231,30 +232,78 @@ verify_certificate() {
   fi
 
   echo "Verifying the downloaded certificate..."
-  local test_url
+  local test_url next_step
   test_url="https://app.datadoghq.com"
+  next_step="The certificate has been installed; connectivity will be confirmed after the Agent restarts."
+  if [ "$DRY_RUN" = "true" ]; then
+    next_step="Dry run: nothing was installed."
+  fi
 
   if [ "$DOWNLOADER" = "curl" ]; then
-    if sudo curl -fsSL --cacert "$TARGET_FILE" --connect-timeout 10 \
+    if sudo curl -fsSL --cacert "$CERT_FILE" --connect-timeout 10 \
         "$test_url" >/dev/null 2>&1; then
       echo "Certificate verification successful: can connect to Datadog."
     else
-      echo "Warning: Could not verify connectivity to $test_url using the installed certificate." >&2
+      echo "Warning: Could not verify connectivity to $test_url using $CERT_FILE." >&2
       echo "  This may be a network restriction, firewall rule, or temporary issue." >&2
-      echo "  The certificate has been installed; connectivity will be confirmed after the Agent restarts." >&2
+      echo "  $next_step" >&2
       CONNECTIVITY_WARNING=true
     fi
   else
-    if sudo wget --ca-certificate="$TARGET_FILE" --timeout=10 \
+    if sudo wget --ca-certificate="$CERT_FILE" --timeout=10 \
         -q -O /dev/null "$test_url" 2>/dev/null; then
       echo "Certificate verification successful: can connect to Datadog."
     else
-      echo "Warning: Could not verify connectivity to $test_url using the installed certificate." >&2
+      echo "Warning: Could not verify connectivity to $test_url using $CERT_FILE." >&2
       echo "  This may be a network restriction, firewall rule, or temporary issue." >&2
-      echo "  The certificate has been installed; connectivity will be confirmed after the Agent restarts." >&2
+      echo "  $next_step" >&2
       CONNECTIVITY_WARNING=true
     fi
   fi
+}
+
+# -n: fetch the certificate to a temp file (or read -c in place) instead of
+# installing it, so it can still be verified and used as the scrub anchor.
+fetch_certificate_for_dry_run() {
+  if [ -n "$LOCAL_CERT_FILE" ]; then
+    if [ ! -f "$LOCAL_CERT_FILE" ]; then
+      error_exit "Error: Local certificate file '$LOCAL_CERT_FILE' not found."
+    fi
+    CERT_FILE="$LOCAL_CERT_FILE"
+    return 0
+  fi
+  CERT_FILE=$(mktemp "${TMPDIR:-/tmp}/datadog-cert.XXXXXX") \
+    || error_exit "Error: Failed to create a temporary file."
+  trap 'rm -f "$CERT_FILE"' EXIT
+  echo "Downloading datadog-cert.pem to $CERT_FILE using $DOWNLOADER..."
+  download_url "$URL" "$CERT_FILE" \
+    || error_exit "Error: Failed to download certificate."
+}
+
+report_dry_run() {
+  echo ""
+  echo "=============================="
+  echo "DRY RUN — nothing on this host was changed. Without -n, this run would:"
+  echo "  - replace $TARGET_FILE"
+  if [ "$DO_SCRUB" = "true" ]; then
+    echo "  - remove distrusted roots from the CA bundles listed above"
+  fi
+  if sudo test -f "$CONF_FILE"; then
+    echo "  - set use_curl_http_client: true in $CONF_FILE"
+    for f in $LOG_FILES; do
+      if sudo test -f "$f"; then
+        echo "  - back up and truncate $f"
+      fi
+    done
+    echo "  - restart the Datadog Agent"
+  else
+    echo "  - stop with an error: $CONF_FILE not found"
+  fi
+  if [ "$SCRUB_WARNING" = "true" ]; then
+    echo ""
+    echo "The CA bundle preview did NOT complete - see the warnings above."
+  fi
+  echo "=============================="
 }
 
 update_datadog_config() {
@@ -438,7 +487,7 @@ scrub_ca_bundles() {
   }
   echo "Using interpreter: $scrub_py"
 
-  if [ "$SCRUB_DRYRUN" = "true" ]; then
+  if [ "$DRY_RUN" = "true" ]; then
     echo "Dry run: reporting only, no bundle will be written."
   fi
 
@@ -446,7 +495,7 @@ scrub_ca_bundles() {
   # single file customers curl down (see README), and EL5/6 and air-gapped
   # hosts must not need a second fetch. tests/test_scrub_bundles.sh extracts
   # this same heredoc and exercises it against fixtures.
-  if ! sudo "$scrub_py" - "$AGENT_ROOT" "$TARGET_FILE" "$ANCHOR_SHA256" "$SCRUB_DRYRUN" <<'PYSCRUB'
+  if ! sudo "$scrub_py" - "$AGENT_ROOT" "$CERT_FILE" "$ANCHOR_SHA256" "$DRY_RUN" <<'PYSCRUB'
 import base64, hashlib, os, re, shutil, sys, tempfile, time
 
 # Distrusted following the eMudhra intermediate CA key compromise. The six TLS
@@ -660,6 +709,13 @@ PYSCRUB
 main() {
   detect_os_version
   check_downloader
+  if [ "$DRY_RUN" = "true" ]; then
+    fetch_certificate_for_dry_run
+    verify_certificate
+    scrub_ca_bundles
+    report_dry_run
+    return 0
+  fi
   ensure_target_directory
   if [ -n "$LOCAL_CERT_FILE" ]; then
     install_local_certificate
@@ -699,9 +755,7 @@ main() {
   fi
   if [ "$DO_SCRUB" = "true" ]; then
     echo ""
-    if [ "$SCRUB_DRYRUN" = "true" ]; then
-      echo "Dry run only: no CA bundle was modified."
-    elif [ "$SCRUB_WARNING" = "true" ]; then
+    if [ "$SCRUB_WARNING" = "true" ]; then
       echo "The CA bundle scrub did NOT complete - see the warnings above."
       echo "The certificate update itself succeeded; re-run with -s once the"
       echo "cause is resolved, or remediate the bundles by hand."

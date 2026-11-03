@@ -27,9 +27,10 @@
    Use this when the host cannot reach raw.githubusercontent.com.
    The file is copied in place; no download is attempted.
 
-.PARAMETER DryRunScrub
-   With -ScrubBundles, report what the scrub would change and write nothing.
-   Does not affect the certificate update, which always applies.
+.PARAMETER DryRun
+   Modify nothing. datadog-cert.pem is fetched to a temp file and checked,
+   and the -ScrubBundles root removal is previewed; datadog.conf, logs,
+   and the Agent service are untouched. Alias: -DryRunScrub.
 
 .PARAMETER ScrubBundles
    Also remove the distrusted eMudhra/emSign roots and the Comodo
@@ -49,7 +50,7 @@
    .\windows.ps1 -ScrubBundles
 
 .EXAMPLE
-   .\windows.ps1 -ScrubBundles -DryRunScrub
+   .\windows.ps1 -ScrubBundles -DryRun
 #>
 
 param(
@@ -62,8 +63,8 @@ param(
     [Alias("s")]
     [switch]$ScrubBundles,
 
-    [Alias("n")]
-    [switch]$DryRunScrub
+    [Alias("n", "DryRunScrub")]
+    [switch]$DryRun
 )
 
 # -------------------------- Configuration ---------------------------
@@ -275,7 +276,8 @@ function Test-Certificate {
     catch {
         Write-Warning "Could not reach ${testUrl}: $($_.Exception.Message)"
         Write-Warning "This may be a network restriction, firewall rule, or temporary issue."
-        Write-Warning "The certificate has been installed; connectivity will be confirmed after the Agent restarts."
+        if ($DryRun) { Write-Warning "Dry run: nothing was installed." }
+        else { Write-Warning "The certificate has been installed; connectivity will be confirmed after the Agent restarts." }
         $script:ConnectivityWarning = $true
     }
 }
@@ -380,7 +382,7 @@ function Repair-CaBundles {
         return
     }
 
-    if ($DryRunScrub) { Write-Host "Dry run: reporting only, no bundle will be written." }
+    if ($DryRun) { Write-Host "Dry run: reporting only, no bundle will be written." }
 
     $stamp   = Get-Date -Format "yyyyMMddHHmmss"
     # Latin-1 (code page 28591) maps every byte to one char, so non-ASCII
@@ -468,7 +470,7 @@ function Repair-CaBundles {
 
         # Atomic replace: write a sibling temp file, then swap it in. An
         # in-place WriteAllText would truncate a live trust store.
-        if ($DryRunScrub) {
+        if ($DryRun) {
             $changed = $changed + 1
             $rt = "none"; if ($removed.Count -gt 0) { $rt = ($removed -join ", ") }
             $at = ""; if ($added) { $at = " | would append anchor" }
@@ -508,7 +510,7 @@ function Repair-CaBundles {
     foreach ($entry in $skipped) { Write-Warning "  SKIPPED $entry - left untouched" }
 
     if ($changed -eq 0) { Write-Host "  No changes needed - bundles already clean." }
-    elseif ($DryRunScrub) { Write-Host ("  {0} bundle(s) would be updated. Re-run without -DryRunScrub to apply." -f $changed) }
+    elseif ($DryRun) { Write-Host ("  {0} bundle(s) would be updated. Re-run without -DryRun to apply." -f $changed) }
     else { Write-Host ("  {0} bundle(s) updated." -f $changed) }
     if ($skipped.Count -gt 0) {
         Write-Warning ("  {0} bundle(s) skipped (listed above); review them by hand." -f $skipped.Count)
@@ -588,6 +590,28 @@ function Restart-Agent {
     Start-Sleep -Seconds $WaitSeconds
 }
 
+function Write-DryRunSummary {
+    param([string]$TargetFile, [string]$ConfFile, [string[]]$LogFiles)
+    Write-Host ""
+    Write-Host "=============================="
+    Write-Host "DRY RUN - nothing on this host was changed. Without -DryRun, this run would:"
+    Write-Host "  - replace $TargetFile"
+    if ($ScrubBundles) { Write-Host "  - remove distrusted roots from the CA bundles listed above" }
+    if (Test-Path -LiteralPath $ConfFile) {
+        Write-Host "  - set use_curl_http_client: true in $ConfFile"
+        foreach ($f in $LogFiles) {
+            if (Test-Path -LiteralPath $f) { Write-Host "  - back up and truncate $f" }
+        }
+        Write-Host "  - restart the Datadog Agent"
+    }
+    else { Write-Host "  - stop with an error: $ConfFile not found" }
+    if ($script:ScrubWarning) {
+        Write-Host ""
+        Write-Host "The CA bundle preview did NOT complete - see the warnings above."
+    }
+    Write-Host "=============================="
+}
+
 function Test-ConnectivitySinceRestart {
     param([string[]]$LogFiles, [regex]$ErrorPattern)
     Write-Host "=== Connectivity test (since this restart) ==="
@@ -657,6 +681,7 @@ function Test-ConnectivitySinceRestart {
 
 # ------------------------------ Main flow ------------------------------
 $script:ConnectivityWarning = $false   # set to $true when a non-fatal connectivity check fails
+$script:TempCert = ""                  # -DryRun download, removed on exit
 
 try {
     Assert-Admin
@@ -669,27 +694,51 @@ try {
     $ServiceNames = Get-DdV5-ServiceNames
 
     Write-Host "Using certificate path: $TargetFile"
-    Ensure-Directory $TargetDir
 
-    if ($LOCAL_CERT_FILE) {
-        Install-LocalCertificate -SourceFile $LOCAL_CERT_FILE -TargetFile $TargetFile
+    # Verified and used as the scrub anchor. Under -DryRun, fetch it to a
+    # temp file (or read -CertFile in place) instead of installing it.
+    $AnchorFile = $TargetFile
+    if ($DryRun) {
+        if ($LOCAL_CERT_FILE) {
+            if (-not (Test-Path -LiteralPath $LOCAL_CERT_FILE)) {
+                Error-Exit "Error: Local certificate file '$LOCAL_CERT_FILE' not found."
+            }
+            $AnchorFile = $LOCAL_CERT_FILE
+        }
+        else {
+            $script:TempCert = Join-Path $env:TEMP ("datadog-cert-{0}.pem" -f [guid]::NewGuid())
+            $AnchorFile = $script:TempCert
+            Download-Certificate -Url $CERT_URL -TargetFile $AnchorFile
+        }
     }
     else {
-        Download-Certificate -Url $CERT_URL -TargetFile $TargetFile
+        Ensure-Directory $TargetDir
+
+        if ($LOCAL_CERT_FILE) {
+            Install-LocalCertificate -SourceFile $LOCAL_CERT_FILE -TargetFile $TargetFile
+        }
+        else {
+            Download-Certificate -Url $CERT_URL -TargetFile $TargetFile
+        }
     }
 
-    Test-Certificate -CertFile $TargetFile
+    Test-Certificate -CertFile $AnchorFile
 
     if ($ScrubBundles) {
         # agent root sits two levels above datadog-cert.pem on every version
         # (see the agent.exe note below for the >=5.12 / <=5.11 layouts).
         $agentRoot = Split-Path -Path (Split-Path -Path $TargetFile -Parent) -Parent
-        try { Repair-CaBundles -AgentRoot $agentRoot -AnchorFile $TargetFile }
+        try { Repair-CaBundles -AgentRoot $agentRoot -AnchorFile $AnchorFile }
         catch {
             Write-Warning "The CA bundle scrub did not complete: $($_.Exception.Message)"
             Write-Warning "The certificate update below is unaffected."
             $script:ScrubWarning = $true
         }
+    }
+
+    if ($DryRun) {
+        Write-DryRunSummary -TargetFile $TargetFile -ConfFile $ConfFile -LogFiles $LogFiles
+        exit 0
     }
 
     Update-DatadogConfig -ConfFile $ConfFile
@@ -730,9 +779,7 @@ try {
     }
     if ($ScrubBundles) {
         Write-Host ""
-        if ($DryRunScrub) {
-            Write-Host "Dry run only: no CA bundle was modified."
-        } elseif ($script:ScrubWarning) {
+        if ($script:ScrubWarning) {
             Write-Host "The CA bundle scrub did NOT complete - see the warnings above."
             Write-Host "The certificate update itself succeeded; re-run with -ScrubBundles"
             Write-Host "once the cause is resolved, or remediate the bundles by hand."
@@ -746,4 +793,9 @@ try {
 }
 catch {
     Error-Exit $_.Exception.Message
+}
+finally {
+    if ($script:TempCert -and (Test-Path -LiteralPath $script:TempCert)) {
+        Remove-Item -LiteralPath $script:TempCert -Force -ErrorAction SilentlyContinue
+    }
 }

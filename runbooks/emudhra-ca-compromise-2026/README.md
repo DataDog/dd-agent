@@ -59,9 +59,9 @@ running it performs that runbook's work as well. In one invocation it will:
    `C:\ProgramData\Datadog\logs\` on Windows,
 5. **Restart the Agent.**
 
-There is no scrub-only mode and no full dry run. `-n` / `-DryRunScrub` previews
-step 2 but still runs steps 1 and 3–5, including the restart. Leaving out
-`-s` / `-ScrubBundles` skips step 2 only.
+There is no scrub-only mode. Leaving out `-s` / `-ScrubBundles` skips step 2
+only. `-n` / `-DryRun` previews all five steps and changes nothing on the host.
+Earlier versions still ran steps 1 and 3–5 under `-n`; drop `-n` to apply them.
 
 ## Solution
 
@@ -76,9 +76,7 @@ than duplicating it.
 curl -O https://raw.githubusercontent.com/DataDog/dd-agent/master/runbooks/sectigo-root-ca-rotation-2025/linux.sh
 chmod +x linux.sh
 
-# -n previews only the removal of distrusted roots from the bundled CA stores.
-# It still replaces datadog-cert.pem, edits datadog.conf, truncates logs,
-# and restarts the Agent.
+# -n previews every step and changes nothing on the host.
 sudo ./linux.sh -s -n
 sudo ./linux.sh -s        # apply
 ```
@@ -96,10 +94,8 @@ On 2008 R2, TLS 1.2 first needs the prerequisites linked below.
     "$env:TEMP\windows.ps1"
 )
 
-# -DryRunScrub previews only the removal of distrusted roots from the bundled
-# CA stores. It still replaces datadog-cert.pem, edits datadog.conf, truncates
-# logs, and restarts the Agent.
-& "$env:TEMP\windows.ps1" -ScrubBundles -DryRunScrub
+# -DryRun previews every step and changes nothing on the host.
+& "$env:TEMP\windows.ps1" -ScrubBundles -DryRun
 & "$env:TEMP\windows.ps1" -ScrubBundles                # apply
 ```
 
