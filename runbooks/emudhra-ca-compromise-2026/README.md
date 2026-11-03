@@ -81,17 +81,22 @@ sudo ./linux.sh -s        # apply
 
 ```powershell
 # run as Administrator
+[Net.ServicePointManager]::SecurityProtocol = 3072   # TLS 1.2, required by GitHub
+(New-Object System.Net.WebClient).DownloadFile(
+    "https://raw.githubusercontent.com/DataDog/dd-agent/master/runbooks/sectigo-root-ca-rotation-2025/windows.ps1",
+    "$env:TEMP\windows.ps1"
+)
 
 # -DryRunScrub previews only the removal of distrusted roots from the bundled
 # CA stores. It still replaces datadog-cert.pem, edits datadog.conf, truncates
 # logs and restarts the Agent.
-.\windows.ps1 -ScrubBundles -DryRunScrub
-.\windows.ps1 -ScrubBundles                # apply
+& "$env:TEMP\windows.ps1" -ScrubBundles -DryRunScrub
+& "$env:TEMP\windows.ps1" -ScrubBundles                # apply
 ```
 
 See the [certificate update runbook](../sectigo-root-ca-rotation-2025/) for
-download instructions on older PowerShell versions, the `-c` / `-CertFile`
-option for hosts that cannot reach GitHub, and the EL5/6 notes.
+the Server 2008 R2 TLS 1.2 prerequisites, the `-c` / `-CertFile` option for
+hosts that cannot reach GitHub, and the EL5/6 notes.
 
 ## What the Scrub Does
 
