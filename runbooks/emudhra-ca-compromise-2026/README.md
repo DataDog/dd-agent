@@ -1,5 +1,9 @@
 # Datadog Agent v5 — Distrusted CA Scrub Runbook (2026 eMudhra compromise)
 
+> [!WARNING]
+> This runbook and its scripts are for Datadog Agent v5 only. They do not apply
+> to Agent v6 or v7; do not run them there.
+
 ## Overview
 
 In October 2026, private keys for eight eMudhra/emSign intermediate certificate

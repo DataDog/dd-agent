@@ -1,5 +1,9 @@
 # Datadog Agent v5 - Certificate Update Runbook
 
+> [!WARNING]
+> This runbook and its scripts are for Datadog Agent v5 only. They do not apply
+> to Agent v6 or v7; do not run them there.
+
 ## Overview
 
 This runbook helps maintain connectivity for Datadog Agent v5 installations following certificate authority updates.
