@@ -77,16 +77,16 @@ curl -O https://raw.githubusercontent.com/DataDog/dd-agent/master/runbooks/secti
 chmod +x linux.sh
 
 # -n previews only the removal of distrusted roots from the bundled CA stores.
-# It still replaces datadog-cert.pem, edits datadog.conf, truncates logs and
-# restarts the Agent.
+# It still replaces datadog-cert.pem, edits datadog.conf, truncates logs,
+# and restarts the Agent.
 sudo ./linux.sh -s -n
 sudo ./linux.sh -s        # apply
 ```
 
 ### Windows
 
-Works on Windows Server 2008 R2, 2012 R2, 2016 and later (PowerShell 2.0+). On
-2008 R2, TLS 1.2 first needs the prerequisites linked below.
+Works on Windows Server 2008 R2, 2012 R2, 2016, and later (PowerShell 2.0+).
+On 2008 R2, TLS 1.2 first needs the prerequisites linked below.
 
 ```powershell
 # run as Administrator
@@ -98,7 +98,7 @@ Works on Windows Server 2008 R2, 2012 R2, 2016 and later (PowerShell 2.0+). On
 
 # -DryRunScrub previews only the removal of distrusted roots from the bundled
 # CA stores. It still replaces datadog-cert.pem, edits datadog.conf, truncates
-# logs and restarts the Agent.
+# logs, and restarts the Agent.
 & "$env:TEMP\windows.ps1" -ScrubBundles -DryRunScrub
 & "$env:TEMP\windows.ps1" -ScrubBundles                # apply
 ```
@@ -141,7 +141,7 @@ Specifically:
   skipped; on Windows a bundle reached through a directory junction is skipped.
 - A bundle that cannot be read or rewritten is skipped and reported.
 - Scrub failures never abort the run: the `datadog-cert.pem` update, config
-  change and restart still complete, and the final summary says the scrub did
+  change, and restart still complete, and the final summary says the scrub did
   not finish.
 
 Skipped bundles are listed in the output with the reason, and are left for you
