@@ -1,5 +1,9 @@
 # Datadog Agent v5 — Distrusted CA Scrub Runbook (2026 eMudhra compromise)
 
+> [!WARNING]
+> This runbook and its scripts are for Datadog Agent v5 only. They do not apply
+> to Agent v6 or v7; do not run them there.
+
 ## Overview
 
 In October 2026, private keys for eight eMudhra/emSign intermediate certificate
@@ -34,7 +38,7 @@ certificate (`datadog-cert.pem`) is unaffected — it contains a single root.
 |---|---|
 | `certifi/cacert.pem` | every `requests` call: checks, flare, cloud metadata, API-key validation |
 | `embedded/ssl/certs/cacert.pem` | the embedded OpenSSL / Python `ssl` default |
-| `tornado/ca-certificates.crt` | the forwarder, when no pinned certificate is present |
+| `tornado/ca-certificates.crt` | the forwarder, when `datadog-cert.pem` is absent |
 | `boto/cacerts/cacerts.txt` | AWS/EC2 metadata calls |
 | `httplib2/cacerts.txt` | `httplib2`-based integrations |
 | `websocket/cacert.pem` | `docker-py` websocket connections |
@@ -50,11 +54,14 @@ running it performs that runbook's work as well. In one invocation it will:
 2. **Scrub the CA bundles** (the subject of this page),
 3. Set `use_curl_http_client: true` in `datadog.conf` — the file is backed up
    first, and on Windows it is rewritten rather than edited in place,
-4. Back up and truncate `/var/log/datadog/*.log`,
+4. Back up and truncate the Agent logs: `forwarder.log` and `collector.log` in
+   `/var/log/datadog/` on Linux; those and `agent.log` in
+   `C:\ProgramData\Datadog\logs\` on Windows,
 5. **Restart the Agent.**
 
-There is no scrub-only mode. If you want only steps 1 and 3, run the runbook
-without `-s`/`-ScrubBundles`.
+There is no scrub-only mode and no full dry run. `-n` / `-DryRunScrub` previews
+step 2 but still runs steps 1 and 3–5, including the restart. Leaving out
+`-s` / `-ScrubBundles` skips step 2 only.
 
 ## Solution
 
@@ -68,21 +75,37 @@ than duplicating it.
 ```bash
 curl -O https://raw.githubusercontent.com/DataDog/dd-agent/master/runbooks/sectigo-root-ca-rotation-2025/linux.sh
 chmod +x linux.sh
-sudo ./linux.sh -s -n     # preview: reports what would change, writes nothing
+
+# -n previews only the removal of distrusted roots from the bundled CA stores.
+# It still replaces datadog-cert.pem, edits datadog.conf, truncates logs,
+# and restarts the Agent.
+sudo ./linux.sh -s -n
 sudo ./linux.sh -s        # apply
 ```
 
 ### Windows
 
+Works on Windows Server 2008 R2, 2012 R2, 2016, and later (PowerShell 2.0+).
+On 2008 R2, TLS 1.2 first needs the prerequisites linked below.
+
 ```powershell
 # run as Administrator
-.\windows.ps1 -ScrubBundles -DryRunScrub   # preview, writes nothing
-.\windows.ps1 -ScrubBundles                # apply
+[Net.ServicePointManager]::SecurityProtocol = 3072   # TLS 1.2, required by GitHub
+(New-Object System.Net.WebClient).DownloadFile(
+    "https://raw.githubusercontent.com/DataDog/dd-agent/master/runbooks/sectigo-root-ca-rotation-2025/windows.ps1",
+    "$env:TEMP\windows.ps1"
+)
+
+# -DryRunScrub previews only the removal of distrusted roots from the bundled
+# CA stores. It still replaces datadog-cert.pem, edits datadog.conf, truncates
+# logs, and restarts the Agent.
+& "$env:TEMP\windows.ps1" -ScrubBundles -DryRunScrub
+& "$env:TEMP\windows.ps1" -ScrubBundles                # apply
 ```
 
 See the [certificate update runbook](../sectigo-root-ca-rotation-2025/) for
-download instructions on older PowerShell versions, the `-c` / `-CertFile`
-option for hosts that cannot reach GitHub, and the EL5/6 notes.
+the Server 2008 R2 TLS 1.2 prerequisites, the `-c` / `-CertFile` option for
+hosts that cannot reach GitHub, and the EL5/6 notes.
 
 ## What the Scrub Does
 
@@ -117,8 +140,9 @@ Specifically:
 - On Linux a bundle whose resolved path escapes the install directory is
   skipped; on Windows a bundle reached through a directory junction is skipped.
 - A bundle that cannot be read or rewritten is skipped and reported.
-- Scrub failures never abort the run: the certificate update, config change and
-  restart still complete, and the final summary says the scrub did not finish.
+- Scrub failures never abort the run: the `datadog-cert.pem` update, config
+  change, and restart still complete, and the final summary says the scrub did
+  not finish.
 
 Skipped bundles are listed in the output with the reason, and are left for you
 to review by hand. On a stock install the 7 bundles on Linux and 8 on Windows
@@ -144,7 +168,7 @@ The Datadog intake chain terminates in:
 The bundled Tornado trust store contains **no USERTrust RSA anchor**, so it
 reaches the intake *only* through the AAA cross-sign. Removing AAA without
 adding that anchor breaks Agent connectivity. Always use the scripts rather than
-deleting certificates by hand.
+deleting roots from the bundles by hand.
 
 ## Testing
 
@@ -158,7 +182,7 @@ containment). Run it with `sh tests/test_scrub_bundles.sh`.
 Every modified bundle is backed up next to itself. To revert:
 
 Substitute your own install path if you used `-p` / `-AgentDirectory`, or if you
-are on Agent 5.11 or earlier (where the certificate lives under `files\`).
+are on Agent 5.11 or earlier (where `datadog-cert.pem` lives under `files\`).
 
 **Linux**
 ```bash
